@@ -1,0 +1,42 @@
+.periodo-chip {
+  background: #E3F2FD;
+  color: #1565C0;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.report-section {
+  margin-bottom: 24px;
+  mat-card-header {
+    mat-card-title { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+  }
+  mat-card-content { padding-top: 8px; }
+}
+
+.report-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.report-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  mat-icon { font-size: 32px; width: 32px; height: 32px; opacity: 0.8; }
+  .report-title { font-weight: 500; font-size: 14px; }
+  .report-desc { font-size: 12px; color: #666; margin-top: 2px; }
+}
+
+.report-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-field { width: 240px; }

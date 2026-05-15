@@ -1,0 +1,62 @@
+<div class="page-header">
+  <h1>{{ isEdit ? 'Editar Ambiente' : 'Nuevo Ambiente' }}</h1>
+</div>
+
+<mat-card class="form-card" *ngIf="!loading">
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div class="form-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Código *</mat-label>
+        <input matInput formControlName="codigo" />
+        <mat-error *ngIf="form.get('codigo')?.hasError('required')">Requerido</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre *</mat-label>
+        <input matInput formControlName="nombre" />
+        <mat-error *ngIf="form.get('nombre')?.hasError('required')">Requerido</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Tipo *</mat-label>
+        <mat-select formControlName="tipo">
+          <mat-option value="AULA">Aula</mat-option>
+          <mat-option value="LABORATORIO">Laboratorio</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Capacidad *</mat-label>
+        <input matInput type="number" formControlName="capacidad" min="1" />
+        <mat-error *ngIf="form.get('capacidad')?.hasError('required')">Requerido</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Piso</mat-label>
+        <input matInput type="number" formControlName="piso" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Pabellón</mat-label>
+        <input matInput formControlName="pabellon" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="col-span-2">
+        <mat-label>Equipamiento</mat-label>
+        <input matInput formControlName="equipamiento" />
+      </mat-form-field>
+    </div>
+
+    <mat-divider class="divider"></mat-divider>
+
+    <div class="form-actions">
+      <button mat-button type="button" (click)="cancelar()"><mat-icon>cancel</mat-icon> Cancelar</button>
+      <button mat-raised-button color="primary" type="submit" [disabled]="saving">
+        <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
+        <mat-icon *ngIf="!saving">save</mat-icon>
+        {{ saving ? 'Guardando...' : 'Guardar' }}
+      </button>
+    </div>
+  </form>
+</mat-card>
+<div class="loading-center" *ngIf="loading"><mat-spinner></mat-spinner></div>

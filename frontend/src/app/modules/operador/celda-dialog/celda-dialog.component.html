@@ -1,0 +1,38 @@
+<h2 mat-dialog-title>Asignar celda horaria</h2>
+
+<mat-dialog-content>
+  <p class="celda-info">
+    <strong>Día:</strong> {{ diaLabels[data.dia] }} &nbsp;
+    <strong>Hora:</strong> {{ data.hora }} &nbsp;
+    <strong>Docente:</strong> {{ data.docente.apellidos }}, {{ data.docente.nombres }}
+  </p>
+
+  <form [formGroup]="form">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Curso *</mat-label>
+      <mat-select formControlName="cursoId">
+        <mat-option *ngFor="let c of data.cursos" [value]="c.id">
+          {{ c.codigo }} — {{ c.nombre }}
+        </mat-option>
+      </mat-select>
+      <mat-error>Seleccione un curso</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Ambiente *</mat-label>
+      <mat-select formControlName="ambienteId">
+        <mat-option *ngFor="let a of data.ambientes" [value]="a.id">
+          {{ a.codigo }} — {{ a.nombre }} (cap. {{ a.capacidad }})
+        </mat-option>
+      </mat-select>
+      <mat-error>Seleccione un ambiente</mat-error>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancelar()">Cancelar</button>
+  <button mat-raised-button color="primary" (click)="confirmar()">
+    <mat-icon>check</mat-icon> Confirmar
+  </button>
+</mat-dialog-actions>

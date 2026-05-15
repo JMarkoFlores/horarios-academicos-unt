@@ -1,0 +1,81 @@
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+import { LoginComponent } from './auth/login/login.component';
+import { NotFoundComponent } from './shared/not-found/not-found.component';
+import { LayoutComponent } from './layout/layout.component';
+import { AuthGuard } from './core/guards/auth.guard';
+
+const routes: Routes = [
+  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  { path: 'login', component: LoginComponent },
+  {
+    path: 'app',
+    component: LayoutComponent,
+    canActivate: [AuthGuard],
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      {
+        path: 'dashboard',
+        loadChildren: () =>
+          import('./modules/dashboard/dashboard.module').then(
+            (m) => m.DashboardModule,
+          ),
+      },
+      {
+        path: 'docentes',
+        loadChildren: () =>
+          import('./modules/docentes/docentes.module').then(
+            (m) => m.DocentesModule,
+          ),
+      },
+      {
+        path: 'cursos',
+        loadChildren: () =>
+          import('./modules/cursos/cursos.module').then((m) => m.CursosModule),
+      },
+      {
+        path: 'ambientes',
+        loadChildren: () =>
+          import('./modules/ambientes/ambientes.module').then(
+            (m) => m.AmbientesModule,
+          ),
+      },
+      {
+        path: 'disponibilidad',
+        loadChildren: () =>
+          import('./modules/disponibilidad/disponibilidad.module').then(
+            (m) => m.DisponibilidadModule,
+          ),
+      },
+      {
+        path: 'reportes',
+        loadChildren: () =>
+          import('./modules/reportes/reportes.module').then(
+            (m) => m.ReportesModule,
+          ),
+      },
+      {
+        path: 'horarios',
+        loadChildren: () =>
+          import('./modules/horarios/horarios.module').then(
+            (m) => m.HorariosModule,
+          ),
+      },
+      {
+        path: 'operador',
+        loadChildren: () =>
+          import('./modules/operador/operador.module').then(
+            (m) => m.OperadorModule,
+          ),
+      },
+      { path: '**', component: NotFoundComponent },
+    ],
+  },
+  { path: '**', component: NotFoundComponent },
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule],
+})
+export class AppRoutingModule {}

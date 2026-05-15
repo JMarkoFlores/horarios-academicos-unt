@@ -1,0 +1,84 @@
+# version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: horarios_postgres
+    environment:
+      POSTGRES_DB: horarios_unt
+      POSTGRES_USER: unt_user
+      POSTGRES_PASSWORD: unt_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - horarios_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unt_user -d horarios_unt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: horarios_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@localhost.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5052:80"
+    depends_on:
+      - postgres
+    networks:
+      - horarios_network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  redis:
+    image: redis:7-alpine
+    container_name: horarios_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - horarios_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: horarios_backend
+  #   environment:
+  #     DATABASE_HOST: postgres
+  #     DATABASE_PORT: 5432
+  #     DATABASE_NAME: horarios_unt
+  #     DATABASE_USER: unt_user
+  #     DATABASE_PASSWORD: unt_pass
+  #     JWT_SECRET: horarios_unt_secret_2026
+  #     JWT_EXPIRACION: 8h
+  #     REDIS_URL: redis://redis:6379
+  #     NODE_ENV: production
+  #     PORT: 3000
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - horarios_network
+
+networks:
+  horarios_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:

@@ -1,0 +1,6 @@
+export enum CategoriaDocente {
+  PRINCIPAL = 'PRINCIPAL',
+  ASOCIADO = 'ASOCIADO',
+  AUXILIAR = 'AUXILIAR',
+  JEFE_PRACTICA = 'JEFE_PRACTICA',
+}

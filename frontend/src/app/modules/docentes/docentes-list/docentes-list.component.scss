@@ -1,0 +1,7 @@
+.filter-card { margin-bottom: 16px; padding: 16px; }
+.filter-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.search-field { flex: 1; min-width: 200px; }
+.full-width { width: 100%; }
+.loading-row { display: flex; justify-content: center; padding: 40px; }
+.empty-state { text-align: center; padding: 40px; color: #888;
+  mat-icon { font-size: 48px; width: 48px; height: 48px; opacity: 0.3; } }

@@ -1,0 +1,169 @@
+@use "@angular/material" as mat;
+
+@include mat.core();
+
+$unt-primary: mat.define-palette(mat.$blue-palette, 800);
+$unt-accent: mat.define-palette(mat.$amber-palette, 900);
+$unt-warn: mat.define-palette(mat.$red-palette);
+
+$unt-theme: mat.define-light-theme(
+  (
+    color: (
+      primary: $unt-primary,
+      accent: $unt-accent,
+      warn: $unt-warn,
+    ),
+    typography: mat.define-typography-config(),
+    density: 0,
+  )
+);
+
+@include mat.all-component-themes($unt-theme);
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  background: #f5f7fa;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  h1 {
+    font-size: 22px;
+    font-weight: 500;
+    color: #1565c0;
+  }
+}
+
+.mat-mdc-card {
+  border-radius: 12px !important;
+}
+
+.snack-error {
+  --mdc-snackbar-container-color: #c62828;
+  --mat-snack-bar-button-color: #fff;
+}
+
+.badge-PRINCIPAL {
+  background: #1565c0;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.badge-ASOCIADO {
+  background: #2e7d32;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.badge-AUXILIAR {
+  background: #e65100;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.badge-JEFE_PRACTICA {
+  background: #6a1b9a;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.badge-AULA {
+  background: #0277bd;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.badge-LABORATORIO {
+  background: #00695c;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.badge-ACTIVO {
+  background: #2e7d32;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+.badge-INACTIVO {
+  background: #757575;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+/* ── NotifToastService panel styles ── */
+.snack-success .mdc-snackbar__surface {
+  background: #2e7d32 !important;
+}
+.snack-error .mdc-snackbar__surface {
+  background: #c62828 !important;
+}
+.snack-info .mdc-snackbar__surface {
+  background: #1565c0 !important;
+}
+.snack-success .mat-mdc-snack-bar-label,
+.snack-error .mat-mdc-snack-bar-label,
+.snack-info .mat-mdc-snack-bar-label {
+  color: white !important;
+}
+.snack-success .mat-mdc-button,
+.snack-error .mat-mdc-button,
+.snack-info .mat-mdc-button {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* ── 404 page ── */
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  color: #9e9e9e;
+
+  .not-found-icon {
+    font-size: 80px;
+    width: 80px;
+    height: 80px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+  h1 {
+    font-size: 72px;
+    font-weight: 700;
+    margin: 0;
+    color: #1565c0;
+    line-height: 1;
+  }
+  h2 {
+    font-size: 24px;
+    margin: 8px 0;
+    color: #424242;
+  }
+  p {
+    font-size: 15px;
+    margin-bottom: 24px;
+  }
+}

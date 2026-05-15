@@ -1,0 +1,101 @@
+<div class="page-header">
+  <h1>Disponibilidad Docente</h1>
+</div>
+
+<!-- Selectors -->
+<mat-card class="selector-card">
+  <div class="selector-row">
+    <mat-form-field appearance="outline" class="docente-field">
+      <mat-label>Seleccionar Docente</mat-label>
+      <mat-select (selectionChange)="seleccionarDocente($event.value)">
+        <mat-option *ngFor="let d of todosDocentes" [value]="d">
+          {{ d.apellidos }}, {{ d.nombres }} — <small>{{ d.codigo }}</small>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div class="actions" *ngIf="docenteSeleccionado">
+      <button mat-stroked-button (click)="marcarTodo(true)">
+        <mat-icon>select_all</mat-icon> Marcar todo
+      </button>
+      <button mat-stroked-button (click)="marcarTodo(false)">
+        <mat-icon>deselect</mat-icon> Limpiar todo
+      </button>
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="guardar()"
+        [disabled]="saving"
+      >
+        <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
+        <mat-icon *ngIf="!saving">save</mat-icon>
+        {{ saving ? "Guardando..." : "Guardar Disponibilidad" }}
+      </button>
+    </div>
+  </div>
+</mat-card>
+
+<!-- Grilla -->
+<mat-card *ngIf="docenteSeleccionado">
+  <div *ngIf="loading" class="loading-center"><mat-spinner></mat-spinner></div>
+
+  <div class="grilla-container" *ngIf="!loading">
+    <div class="docente-info">
+      <mat-icon>person</mat-icon>
+      <strong
+        >{{ docenteSeleccionado.apellidos }},
+        {{ docenteSeleccionado.nombres }}</strong
+      >
+      &nbsp;—&nbsp; Período: <strong>{{ periodoService.periodo }}</strong>
+    </div>
+
+    <div class="grilla-scroll">
+      <table class="grilla-table">
+        <thead>
+          <tr>
+            <th class="hora-col">Hora</th>
+            <th *ngFor="let dia of dias" class="dia-col">{{ dia }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let hora of horas; let hi = index">
+            <td class="hora-cell">{{ formatHora(hora) }}</td>
+            <td
+              *ngFor="let dia of dias; let di = index"
+              class="slot-cell"
+              [class.disponible]="grilla[hi][di]"
+              (click)="toggleCelda(hi, di)"
+              [matTooltip]="
+                (grilla[hi][di] ? 'Disponible' : 'No disponible') +
+                ' — ' +
+                dia +
+                ' ' +
+                formatHora(hora)
+              "
+            >
+              <mat-icon>{{
+                grilla[hi][di] ? "check_circle" : "radio_button_unchecked"
+              }}</mat-icon>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item disponible"
+        ><mat-icon>check_circle</mat-icon> Disponible</span
+      >
+      <span class="legend-item"
+        ><mat-icon>radio_button_unchecked</mat-icon> No disponible</span
+      >
+    </div>
+  </div>
+</mat-card>
+
+<mat-card *ngIf="!docenteSeleccionado" class="empty-hint">
+  <mat-icon>event_available</mat-icon>
+  <p>
+    Busca y selecciona un docente para ver y editar su disponibilidad horaria.
+  </p>
+</mat-card>

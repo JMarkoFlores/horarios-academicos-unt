@@ -1,0 +1,146 @@
+<div class="page-header">
+  <h1>Reportes</h1>
+  <span class="periodo-chip"
+    >Período: <strong>{{ periodoService.periodo }}</strong></span
+  >
+</div>
+
+<!-- Reportes Operacionales -->
+<mat-card class="report-section">
+  <mat-card-header>
+    <mat-card-title
+      ><mat-icon>description</mat-icon> Reportes Operacionales</mat-card-title
+    >
+  </mat-card-header>
+  <mat-card-content>
+    <div class="report-item">
+      <div class="report-info">
+        <mat-icon color="primary">person</mat-icon>
+        <div>
+          <div class="report-title">Reporte por Docente</div>
+          <div class="report-desc">
+            Horario asignado de un docente específico
+          </div>
+        </div>
+      </div>
+      <div class="report-controls">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Docente</mat-label>
+          <mat-select [(ngModel)]="docenteSeleccionado">
+            <mat-option *ngFor="let d of todosDocentes" [value]="d">
+              {{ d.apellidos }}, {{ d.nombres }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="descargarDocente()"
+          [disabled]="descargando['docente']"
+        >
+          <mat-spinner
+            diameter="18"
+            *ngIf="descargando['docente']"
+          ></mat-spinner>
+          <mat-icon *ngIf="!descargando['docente']">download</mat-icon>
+          Descargar PDF
+        </button>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <div class="report-item">
+      <div class="report-info">
+        <mat-icon color="accent">meeting_room</mat-icon>
+        <div>
+          <div class="report-title">Reporte por Ambiente</div>
+          <div class="report-desc">Horario de uso de un aula o laboratorio</div>
+        </div>
+      </div>
+      <div class="report-controls">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Ambiente</mat-label>
+          <mat-select [(ngModel)]="ambienteSeleccionado">
+            <mat-option *ngFor="let a of todosAmbientes" [value]="a">
+              {{ a.codigo }} — {{ a.nombre }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="descargarAmbiente()"
+          [disabled]="descargando['ambiente']"
+        >
+          <mat-spinner
+            diameter="18"
+            *ngIf="descargando['ambiente']"
+          ></mat-spinner>
+          <mat-icon *ngIf="!descargando['ambiente']">download</mat-icon>
+          Descargar PDF
+        </button>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <div class="report-item">
+      <div class="report-info">
+        <mat-icon>table_view</mat-icon>
+        <div>
+          <div class="report-title">Reporte Operacional Completo</div>
+          <div class="report-desc">
+            Consolidado de todos los horarios asignados del período
+          </div>
+        </div>
+      </div>
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="descargarOperacional()"
+        [disabled]="descargando['operacional']"
+      >
+        <mat-spinner
+          diameter="18"
+          *ngIf="descargando['operacional']"
+        ></mat-spinner>
+        <mat-icon *ngIf="!descargando['operacional']">download</mat-icon>
+        Descargar PDF
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<!-- Reportes de Gestión -->
+<mat-card class="report-section">
+  <mat-card-header>
+    <mat-card-title
+      ><mat-icon>analytics</mat-icon> Reportes de Gestión</mat-card-title
+    >
+  </mat-card-header>
+  <mat-card-content>
+    <div class="report-item">
+      <div class="report-info">
+        <mat-icon color="warn">bar_chart</mat-icon>
+        <div>
+          <div class="report-title">Reporte de Gestión</div>
+          <div class="report-desc">
+            Indicadores, distribución de carga, conflictos y estadísticas del
+            período
+          </div>
+        </div>
+      </div>
+      <button
+        mat-raised-button
+        color="accent"
+        (click)="descargarGestion()"
+        [disabled]="descargando['gestion']"
+      >
+        <mat-spinner diameter="18" *ngIf="descargando['gestion']"></mat-spinner>
+        <mat-icon *ngIf="!descargando['gestion']">download</mat-icon>
+        Descargar PDF
+      </button>
+    </div>
+  </mat-card-content>
+</mat-card>

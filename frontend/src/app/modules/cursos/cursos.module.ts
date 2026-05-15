@@ -1,0 +1,17 @@
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes } from '@angular/router';
+import { SharedModule } from '../../shared/shared.module';
+import { CursosListComponent } from './cursos-list/cursos-list.component';
+import { CursoFormComponent } from './curso-form/curso-form.component';
+
+const routes: Routes = [
+  { path: '', component: CursosListComponent },
+  { path: 'nuevo', component: CursoFormComponent },
+  { path: ':id/editar', component: CursoFormComponent },
+];
+
+@NgModule({
+  declarations: [CursosListComponent, CursoFormComponent],
+  imports: [SharedModule, RouterModule.forChild(routes)],
+})
+export class CursosModule {}

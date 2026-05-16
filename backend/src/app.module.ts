@@ -1,9 +1,11 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { CacheModule } from "@nestjs/cache-manager";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BullModule } from "@nestjs/bull";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { redisStore } from "cache-manager-redis-store";
 import { AuthModule } from "./auth/auth.module";
 import { CommonModule } from "./common/common.module";
@@ -70,6 +72,12 @@ import { NotificacionesModule } from "./notificaciones/notificaciones.module";
         },
       }),
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     ScheduleModule.forRoot(),
     AuthModule,
     CommonModule,
@@ -83,6 +91,12 @@ import { NotificacionesModule } from "./notificaciones/notificaciones.module";
     ReportesModule,
     DashboardModule,
     NotificacionesModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

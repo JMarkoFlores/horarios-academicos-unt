@@ -10,6 +10,7 @@ import { SeleccionTemporal } from "../entities/seleccion-temporal.entity";
 import { NotificacionDocente } from "../entities/notificacion-docente.entity";
 import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.entity";
 import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
+import { AuditLogService } from "./services/audit-log.service";
 import { ValidacionesService } from "./services/validaciones.service";
 
 @Module({
@@ -27,7 +28,7 @@ import { ValidacionesService } from "./services/validaciones.service";
       DiaNoLaborable,
     ]),
   ],
-  providers: [ValidacionesService],
-  exports: [ValidacionesService],
+  providers: [ValidacionesService, AuditLogService],
+  exports: [ValidacionesService, AuditLogService],
 })
 export class CommonModule {}

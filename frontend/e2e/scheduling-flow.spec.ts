@@ -24,7 +24,10 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
 
   test('debe realizar el proceso de generación de horarios', async ({ page }) => {
     await page.waitForLoadState('networkidle');
+    // Navegar a Horarios
     await page.getByRole('link', { name: 'Horarios' }).click();
+
+    // Ir a la pestaña de gestión
     await page.getByRole('tab', { name: 'Gestión de Horario' }).click();
 
     // Botón de generación

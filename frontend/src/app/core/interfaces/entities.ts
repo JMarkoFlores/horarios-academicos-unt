@@ -28,6 +28,10 @@ export interface Docente {
   fecha_ingreso: string;
   activo: boolean;
   puntaje_jerarquia?: number;
+  antiguedad?: {
+    anios: number;
+    meses: number;
+  };
 }
 
 export interface Curso {

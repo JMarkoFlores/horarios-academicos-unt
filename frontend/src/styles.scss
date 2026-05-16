@@ -80,50 +80,50 @@ $unt-dark-theme: mat.define-dark-theme((
   @include mat.all-component-colors($unt-dark-theme);
 }
 
-// ── 3. VARIABLES CSS GLOBALES (Refinadas) ─────────────────────────────────
+// ── 3. VARIABLES CSS GLOBALES (Refinadas para Balance Cromático) ───────────
 :root {
-  --color-primary: #4f46e5;
-  --color-primary-light: rgba(79, 70, 229, 0.1);
-  --color-accent: #7c3aed;
-  --color-accent-light: rgba(124, 58, 237, 0.1);
+  --color-primary: #2563eb; // Azul Real (más neutro y legible que el Indigo)
+  --color-primary-light: rgba(37, 99, 235, 0.08);
+  --color-accent: #10b981; // Esmeralda (para romper el predominio del morado)
+  --color-accent-light: rgba(16, 185, 129, 0.08);
   --color-surface: #ffffff;
-  --color-background: #f8fafc;
-  --color-text: #0f172a; // Texto muy oscuro para modo claro
-  --color-text-muted: #64748b;
-  --color-border: #e2e8f0;
+  --color-background: #f1f5f9; // Slate 100
+  --color-text: #0f172a; // Slate 900
+  --color-text-muted: #475569; // Slate 600
+  --color-border: #e2e8f0; // Slate 200
 
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1);
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-// ── 4. REFINAMIENTO DARK MODE ─────────────────────────────────────────────
+// ── 4. REFINAMIENTO DARK MODE (Legibilidad Mejorada) ──────────────────────
 @media (prefers-color-scheme: dark) {
   body:not(.light-theme) {
-    --color-surface: #111827; // Zinc oscuro
-    --color-background: #030712; // Casi negro
-    --color-text: #f8fafc; // Texto blanco/gris muy claro
-    --color-text-muted: #94a3b8;
-    --color-border: #1f2937;
-    --color-primary-light: rgba(99, 102, 241, 0.15);
+    --color-surface: #1e293b; // Slate 800 (Fondo de cards)
+    --color-background: #0f172a; // Slate 900 (Fondo principal)
+    --color-text: #f8fafc; // Slate 50
+    --color-text-muted: #94a3b8; // Slate 400
+    --color-border: #334155; // Slate 700
+    --color-primary-light: rgba(59, 130, 246, 0.15);
     background-color: var(--color-background);
   }
 }
 
 body.dark-theme {
-  --color-surface: #111827;
-  --color-background: #030712;
+  --color-surface: #1e293b;
+  --color-background: #0f172a;
   --color-text: #f8fafc;
   --color-text-muted: #94a3b8;
-  --color-border: #1f2937;
-  --color-primary-light: rgba(99, 102, 241, 0.15);
+  --color-border: #334155;
+  --color-primary-light: rgba(59, 130, 246, 0.15);
   background-color: var(--color-background);
 }
 

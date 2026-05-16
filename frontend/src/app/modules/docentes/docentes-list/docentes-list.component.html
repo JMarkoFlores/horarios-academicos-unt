@@ -28,7 +28,7 @@
       <div class="select-group">
         <mat-form-field appearance="outline" class="premium-select">
           <mat-label>Categoría</mat-label>
-          <mat-select [(value)]="categoriaFilter" (selectionChange)="onFilterChange()">
+          <mat-select [(ngModel)]="categoriaFilter" (ngModelChange)="onFilterChange()">
             <mat-option value="">Todas las categorías</mat-option>
             <mat-option *ngFor="let c of categorias" [value]="c">{{ c }}</mat-option>
           </mat-select>
@@ -36,7 +36,7 @@
 
         <mat-form-field appearance="outline" class="premium-select">
           <mat-label>Tipo Contrato</mat-label>
-          <mat-select [(value)]="tipoContratoFilter" (selectionChange)="onFilterChange()">
+          <mat-select [(ngModel)]="tipoContratoFilter" (ngModelChange)="onFilterChange()">
             <mat-option value="">Todos los tipos</mat-option>
             <mat-option *ngFor="let t of tiposContrato" [value]="t">{{ t }}</mat-option>
           </mat-select>
@@ -94,11 +94,11 @@
 
         <!-- Seniority Column -->
         <ng-container matColumnDef="antiguedad">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Puntaje</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Antigüedad</th>
           <td mat-cell *matCellDef="let d">
-            <div class="score-badge">
-              <mat-icon>military_tech</mat-icon>
-              {{ d.puntaje_jerarquia ?? 0 }}
+            <div class="antiguedad-cell" *ngIf="d.antiguedad">
+              <span class="years">{{ d.antiguedad.anios }} años</span>
+              <span class="months" *ngIf="d.antiguedad.meses > 0">{{ d.antiguedad.meses }} m</span>
             </div>
           </td>
         </ng-container>
@@ -116,12 +116,6 @@
               </button>
             </div>
           </td>
-        </ng-container>
-
-        <!-- Hidden Code Column for sort logic -->
-        <ng-container matColumnDef="codigo">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header [style.display]="'none'">Código</th>
-          <td mat-cell *matCellDef="let d" [style.display]="'none'">{{ d.codigo }}</td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>

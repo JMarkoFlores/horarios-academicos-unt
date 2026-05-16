@@ -15,7 +15,7 @@
     .gradient-text {
       font-size: 28px;
       font-weight: 800;
-      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent)); // Azul a Esmeralda
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin: 0;
@@ -29,18 +29,18 @@
   }
 
   .btn-new {
-    background-color: var(--color-primary) !important;
+    background-color: var(--color-accent) !important; // Cambiado a Esmeralda
     color: white !important;
     border-radius: 12px !important;
     padding: 8px 20px !important;
     height: 44px;
     font-weight: 600 !important;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important; // Sombra esmeralda
     transition: all var(--transition-normal) !important;
 
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4) !important;
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
     }
 
     mat-icon { margin-right: 8px; }
@@ -224,21 +224,20 @@
   }
 }
 
-.score-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--color-background);
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-weight: 700;
-  color: var(--color-primary);
-  border: 1px solid var(--color-border);
-
-  mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
+.antiguedad-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  
+  .years {
+    font-weight: 700;
+    color: var(--color-primary);
+    font-size: 14px;
+  }
+  .months {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    font-weight: 500;
   }
 }
 

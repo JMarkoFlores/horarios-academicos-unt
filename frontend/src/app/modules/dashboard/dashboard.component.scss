@@ -38,11 +38,11 @@
     align-items: center;
     gap: 8px;
     transition: all var(--transition-normal) !important;
-    box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39) !important;
+    box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.3) !important; // Sombra azul real
 
     &:hover:not(:disabled) {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45) !important;
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4) !important;
       filter: brightness(1.1);
     }
 

@@ -14,7 +14,6 @@ import { Docente, ApiResponse } from '../../../core/interfaces/entities';
 })
 export class DocentesListComponent implements OnInit, AfterViewInit {
   displayedColumns = [
-    'codigo',
     'nombre',
     'categoria',
     'tipo_contrato',

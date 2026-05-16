@@ -220,6 +220,8 @@ jobs:
           JWT_SECRET: secret_key_for_testing
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+          FRONTEND_URL: http://localhost:4200
+          NODE_ENV: test
         run: npm run start &
         
       - name: Wait for Backend

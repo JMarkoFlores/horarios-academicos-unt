@@ -72,19 +72,19 @@ async function seed() {
 
   // ── 1. USUARIO ADMIN ─────────────────────────────────────────────────────
   const adminExistente = await usuarioRepo.findOne({
-    where: { email: "admin@unitru.edu.pe" },
+    where: { email: "admin@unt.edu.pe" },
   });
 
   if (!adminExistente) {
     const admin = usuarioRepo.create({
       nombre: "Administrador del Sistema",
-      email: "admin@unitru.edu.pe",
+      email: "admin@unt.edu.pe",
       password_hash: await bcrypt.hash("Admin123!", 10),
       rol: RolUsuario.ADMIN,
       activo: true,
     });
     await usuarioRepo.save(admin);
-    console.log("✅ Usuario admin creado: admin@unitru.edu.pe / Admin123!");
+    console.log("✅ Usuario admin creado: admin@unt.edu.pe / Admin123!");
   } else {
     console.log("⏭️  Usuario admin ya existe, omitiendo...");
   }
@@ -114,7 +114,7 @@ async function seed() {
       codigo: "DOC001",
       nombres: "Juan Carlos",
       apellidos: "Pérez Rodríguez",
-      email: "jperez@unitru.edu.pe",
+      email: "jperez@unt.edu.pe",
       categoria: CategoriaDocente.PRINCIPAL,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("2000-03-01"),
@@ -123,7 +123,7 @@ async function seed() {
       codigo: "DOC002",
       nombres: "María Elena",
       apellidos: "García Sánchez",
-      email: "mgarcia@unitru.edu.pe",
+      email: "mgarcia@unt.edu.pe",
       categoria: CategoriaDocente.ASOCIADO,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("2005-06-15"),
@@ -132,7 +132,7 @@ async function seed() {
       codigo: "DOC003",
       nombres: "Carlos Alberto",
       apellidos: "López Flores",
-      email: "clopez@unitru.edu.pe",
+      email: "clopez@unt.edu.pe",
       categoria: CategoriaDocente.AUXILIAR,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("2010-09-01"),
@@ -141,7 +141,7 @@ async function seed() {
       codigo: "DOC004",
       nombres: "Ana Patricia",
       apellidos: "Torres Vega",
-      email: "atorres@unitru.edu.pe",
+      email: "atorres@unt.edu.pe",
       categoria: CategoriaDocente.JEFE_PRACTICA,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("2015-03-01"),
@@ -150,7 +150,7 @@ async function seed() {
       codigo: "DOC005",
       nombres: "Pedro Manuel",
       apellidos: "Ruiz Castillo",
-      email: "pruiz@unitru.edu.pe",
+      email: "pruiz@unt.edu.pe",
       categoria: CategoriaDocente.PRINCIPAL,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("1998-01-10"),
@@ -159,7 +159,7 @@ async function seed() {
       codigo: "DOC006",
       nombres: "Luis Fernando",
       apellidos: "Vargas Mendoza",
-      email: "lvargas@unitru.edu.pe",
+      email: "lvargas@unt.edu.pe",
       categoria: CategoriaDocente.PRINCIPAL,
       tipo_contrato: TipoContrato.CONTRATADO,
       fecha_ingreso: new Date("2020-03-01"),
@@ -168,7 +168,7 @@ async function seed() {
       codigo: "DOC007",
       nombres: "Rosa Amelia",
       apellidos: "Mendoza Torres",
-      email: "rmendoza@unitru.edu.pe",
+      email: "rmendoza@unt.edu.pe",
       categoria: CategoriaDocente.ASOCIADO,
       tipo_contrato: TipoContrato.CONTRATADO,
       fecha_ingreso: new Date("2021-03-01"),
@@ -177,7 +177,7 @@ async function seed() {
       codigo: "DOC008",
       nombres: "Jorge Luis",
       apellidos: "Silva Paredes",
-      email: "jsilva@unitru.edu.pe",
+      email: "jsilva@unt.edu.pe",
       categoria: CategoriaDocente.AUXILIAR,
       tipo_contrato: TipoContrato.CONTRATADO,
       fecha_ingreso: new Date("2022-03-01"),
@@ -359,7 +359,7 @@ async function seed() {
   await AppDataSource.destroy();
   console.log("\n🎉 Seed completado exitosamente!");
   console.log("─────────────────────────────────────────");
-  console.log("  Admin: admin@unitru.edu.pe / Admin123!");
+  console.log("  Admin: admin@unt.edu.pe / Admin123!");
   console.log("─────────────────────────────────────────");
 }
 

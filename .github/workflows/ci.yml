@@ -25,6 +25,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +92,8 @@ jobs:
           DATABASE_NAME: horarios_unt
           JWT_SECRET: secret_key_for_testing
           NODE_ENV: test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
         run: npm run test:cov -- --maxWorkers=1 --forceExit --detectOpenHandles
         
       - name: Upload Coverage

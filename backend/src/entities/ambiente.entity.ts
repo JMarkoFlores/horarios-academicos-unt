@@ -1,13 +1,8 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToMany,
-} from 'typeorm';
-import { TipoAmbiente } from '../common/enums/tipo-ambiente.enum';
-import { Curso } from './curso.entity';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from "typeorm";
+import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
+import { Curso } from "./curso.entity";
 
-@Entity('ambiente')
+@Entity("ambiente")
 export class Ambiente {
   @PrimaryGeneratedColumn()
   id: number;
@@ -18,7 +13,7 @@ export class Ambiente {
   @Column({ length: 100 })
   nombre: string;
 
-  @Column({ type: 'enum', enum: TipoAmbiente })
+  @Column({ type: "enum", enum: TipoAmbiente })
   tipo: TipoAmbiente;
 
   @Column()
@@ -30,7 +25,7 @@ export class Ambiente {
   @Column({ nullable: true, length: 50 })
   pabellon: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   equipamiento: string;
 
   @Column({ default: true })

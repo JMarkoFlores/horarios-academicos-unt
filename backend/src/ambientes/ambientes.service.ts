@@ -2,14 +2,14 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Ambiente } from '../entities/ambiente.entity';
-import { HorarioAsignado } from '../entities/horario-asignado.entity';
-import { CreateAmbienteDto } from './dto/create-ambiente.dto';
-import { UpdateAmbienteDto } from './dto/update-ambiente.dto';
-import { QueryAmbienteDto } from './dto/query-ambiente.dto';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Ambiente } from "../entities/ambiente.entity";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { CreateAmbienteDto } from "./dto/create-ambiente.dto";
+import { UpdateAmbienteDto } from "./dto/update-ambiente.dto";
+import { QueryAmbienteDto } from "./dto/query-ambiente.dto";
 
 @Injectable()
 export class AmbientesService {
@@ -23,21 +23,21 @@ export class AmbientesService {
   async findAll(query: QueryAmbienteDto) {
     const { page = 1, limit = 20, tipo, activo } = query;
 
-    const qb = this.ambienteRepo.createQueryBuilder('ambiente');
+    const qb = this.ambienteRepo.createQueryBuilder("ambiente");
 
     if (tipo !== undefined) {
-      qb.andWhere('ambiente.tipo = :tipo', { tipo });
+      qb.andWhere("ambiente.tipo = :tipo", { tipo });
     }
 
     if (activo !== undefined) {
-      qb.andWhere('ambiente.activo = :activo', { activo });
+      qb.andWhere("ambiente.activo = :activo", { activo });
     } else {
-      qb.andWhere('ambiente.activo = :activo', { activo: true });
+      qb.andWhere("ambiente.activo = :activo", { activo: true });
     }
 
     const [items, total] = await qb
-      .orderBy('ambiente.tipo', 'ASC')
-      .addOrderBy('ambiente.codigo', 'ASC')
+      .orderBy("ambiente.tipo", "ASC")
+      .addOrderBy("ambiente.codigo", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
@@ -69,7 +69,9 @@ export class AmbientesService {
     });
 
     if (existe) {
-      throw new ConflictException(`El código de ambiente '${dto.codigo}' ya existe`);
+      throw new ConflictException(
+        `El código de ambiente '${dto.codigo}' ya existe`,
+      );
     }
 
     const ambiente = this.ambienteRepo.create({ ...dto, activo: true });
@@ -105,11 +107,18 @@ export class AmbientesService {
         ambiente: { id: ambienteId },
         periodo_academico: periodo,
       },
-      relations: ['docente', 'curso', 'grupo'],
-      order: { dia_semana: 'ASC', hora_inicio: 'ASC' },
+      relations: ["docente", "curso", "grupo"],
+      order: { dia_semana: "ASC", hora_inicio: "ASC" },
     });
 
-    const diasNombre = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+    const diasNombre = [
+      "",
+      "Lunes",
+      "Martes",
+      "Miércoles",
+      "Jueves",
+      "Viernes",
+    ];
 
     return horarios.map((h) => ({
       id: h.id,
@@ -119,9 +128,7 @@ export class AmbientesService {
       hora_fin: h.hora_fin,
       tipo_clase: h.tipo_clase,
       estado: h.estado,
-      docente: h.docente
-        ? `${h.docente.nombres} ${h.docente.apellidos}`
-        : null,
+      docente: h.docente ? `${h.docente.nombres} ${h.docente.apellidos}` : null,
       curso: h.curso?.nombre ?? null,
       grupo: h.grupo?.codigo ?? null,
     }));

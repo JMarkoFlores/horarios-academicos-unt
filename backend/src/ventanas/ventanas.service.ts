@@ -3,35 +3,41 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { LessThan } from 'typeorm';
-import { VentanaAtencion } from '../entities/ventana-atencion.entity';
-import { ColaDocentes, EstadoCola } from '../entities/cola-docentes.entity';
-import { SeleccionTemporal } from '../entities/seleccion-temporal.entity';
-import { HorarioAsignado } from '../entities/horario-asignado.entity';
-import { Docente } from '../entities/docente.entity';
-import { Ambiente } from '../entities/ambiente.entity';
-import { EstadoHorario } from '../common/enums/estado-horario.enum';
-import { TipoClase } from '../common/enums/tipo-clase.enum';
-import { DocentesService } from '../docentes/docentes.service';
-import { HorariosGateway } from '../horarios/horarios.gateway';
-import { CreateVentanaDto } from './dto/create-ventana.dto';
-import { SeleccionarCeldaDto } from './dto/seleccionar-celda.dto';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { LessThan } from "typeorm";
+import { VentanaAtencion } from "../entities/ventana-atencion.entity";
+import { ColaDocentes, EstadoCola } from "../entities/cola-docentes.entity";
+import { SeleccionTemporal } from "../entities/seleccion-temporal.entity";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { Docente } from "../entities/docente.entity";
+import { Ambiente } from "../entities/ambiente.entity";
+import { EstadoHorario } from "../common/enums/estado-horario.enum";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { DocentesService } from "../docentes/docentes.service";
+import { HorariosGateway } from "../horarios/horarios.gateway";
+import { CreateVentanaDto } from "./dto/create-ventana.dto";
+import { SeleccionarCeldaDto } from "./dto/seleccionar-celda.dto";
 
 @Injectable()
 export class VentanasService {
   private readonly logger = new Logger(VentanasService.name);
 
   constructor(
-    @InjectRepository(VentanaAtencion) private readonly ventanaRepo: Repository<VentanaAtencion>,
-    @InjectRepository(ColaDocentes) private readonly colaRepo: Repository<ColaDocentes>,
-    @InjectRepository(SeleccionTemporal) private readonly seleccionRepo: Repository<SeleccionTemporal>,
-    @InjectRepository(HorarioAsignado) private readonly horarioRepo: Repository<HorarioAsignado>,
-    @InjectRepository(Docente) private readonly docenteRepo: Repository<Docente>,
-    @InjectRepository(Ambiente) private readonly ambienteRepo: Repository<Ambiente>,
+    @InjectRepository(VentanaAtencion)
+    private readonly ventanaRepo: Repository<VentanaAtencion>,
+    @InjectRepository(ColaDocentes)
+    private readonly colaRepo: Repository<ColaDocentes>,
+    @InjectRepository(SeleccionTemporal)
+    private readonly seleccionRepo: Repository<SeleccionTemporal>,
+    @InjectRepository(HorarioAsignado)
+    private readonly horarioRepo: Repository<HorarioAsignado>,
+    @InjectRepository(Docente)
+    private readonly docenteRepo: Repository<Docente>,
+    @InjectRepository(Ambiente)
+    private readonly ambienteRepo: Repository<Ambiente>,
     private readonly docentesService: DocentesService,
     private readonly gateway: HorariosGateway,
   ) {}
@@ -48,10 +54,15 @@ export class VentanasService {
   }
 
   async iniciarVentana(ventanaId: number): Promise<VentanaAtencion> {
-    const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
-    if (!ventana) throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
+    const ventana = await this.ventanaRepo.findOne({
+      where: { id: ventanaId },
+    });
+    if (!ventana)
+      throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
 
-    const docentes = await this.docentesService.findOrdenadosPorJerarquia(ventana.periodo_academico);
+    const docentes = await this.docentesService.findOrdenadosPorJerarquia(
+      ventana.periodo_academico,
+    );
 
     const entradas = docentes.map((d, idx) =>
       this.colaRepo.create({
@@ -63,7 +74,10 @@ export class VentanasService {
     );
 
     await this.colaRepo.save(entradas);
-    this.gateway.emitirActualizacion(ventanaId, 'cola_actualizada', { evento: 'iniciada', ventanaId });
+    this.gateway.emitirActualizacion(ventanaId, "cola_actualizada", {
+      evento: "iniciada",
+      ventanaId,
+    });
 
     return ventana;
   }
@@ -71,7 +85,7 @@ export class VentanasService {
   async llamarSiguiente(ventanaId: number): Promise<ColaDocentes | null> {
     const actual = await this.colaRepo.findOne({
       where: { ventana: { id: ventanaId }, estado: EstadoCola.EN_ATENCION },
-      relations: ['docente'],
+      relations: ["docente"],
     });
     if (actual) {
       actual.estado = EstadoCola.COMPLETADO;
@@ -80,12 +94,15 @@ export class VentanasService {
 
     const siguiente = await this.colaRepo.findOne({
       where: { ventana: { id: ventanaId }, estado: EstadoCola.ESPERANDO },
-      order: { orden: 'ASC' },
-      relations: ['docente'],
+      order: { orden: "ASC" },
+      relations: ["docente"],
     });
 
     if (!siguiente) {
-      this.gateway.emitirActualizacion(ventanaId, 'cola_actualizada', { evento: 'cola_terminada', ventanaId });
+      this.gateway.emitirActualizacion(ventanaId, "cola_actualizada", {
+        evento: "cola_terminada",
+        ventanaId,
+      });
       return null;
     }
 
@@ -93,8 +110,8 @@ export class VentanasService {
     siguiente.turno_llamado_at = new Date();
     await this.colaRepo.save(siguiente);
 
-    this.gateway.emitirActualizacion(ventanaId, 'cola_actualizada', {
-      evento: 'siguiente_docente',
+    this.gateway.emitirActualizacion(ventanaId, "cola_actualizada", {
+      evento: "siguiente_docente",
       docente: {
         id: siguiente.docente.id,
         nombres: siguiente.docente.nombres,
@@ -106,16 +123,25 @@ export class VentanasService {
     return siguiente;
   }
 
-  async confirmarSeleccion(ventanaId: number, docenteId: number): Promise<HorarioAsignado[]> {
-    const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
-    if (!ventana) throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
+  async confirmarSeleccion(
+    ventanaId: number,
+    docenteId: number,
+  ): Promise<HorarioAsignado[]> {
+    const ventana = await this.ventanaRepo.findOne({
+      where: { id: ventanaId },
+    });
+    if (!ventana)
+      throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
 
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
-    if (!docente) throw new NotFoundException(`Docente ${docenteId} no encontrado`);
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
+    if (!docente)
+      throw new NotFoundException(`Docente ${docenteId} no encontrado`);
 
     const selecciones = await this.seleccionRepo.find({
       where: { docente: { id: docenteId } },
-      relations: ['docente', 'ambiente'],
+      relations: ["docente", "ambiente"],
     });
 
     const horarios: HorarioAsignado[] = [];
@@ -143,7 +169,7 @@ export class VentanasService {
       await this.colaRepo.save(entrada);
     }
 
-    this.gateway.emitirActualizacion(ventanaId, 'horario_confirmado', {
+    this.gateway.emitirActualizacion(ventanaId, "horario_confirmado", {
       docenteId,
       horarios: guardados.length,
     });
@@ -152,13 +178,16 @@ export class VentanasService {
   }
 
   async getEstadoCola(ventanaId: number) {
-    const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
-    if (!ventana) throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
+    const ventana = await this.ventanaRepo.findOne({
+      where: { id: ventanaId },
+    });
+    if (!ventana)
+      throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
 
     const cola = await this.colaRepo.find({
       where: { ventana: { id: ventanaId } },
-      relations: ['docente'],
-      order: { orden: 'ASC' },
+      relations: ["docente"],
+      order: { orden: "ASC" },
     });
 
     return {
@@ -174,17 +203,27 @@ export class VentanasService {
           categoria: c.docente.categoria,
         },
       })),
-      en_atencion: cola.find((c) => c.estado === EstadoCola.EN_ATENCION) ?? null,
+      en_atencion:
+        cola.find((c) => c.estado === EstadoCola.EN_ATENCION) ?? null,
       pendientes: cola.filter((c) => c.estado === EstadoCola.ESPERANDO).length,
     };
   }
 
-  async seleccionarCelda(ventanaId: number, dto: SeleccionarCeldaDto): Promise<SeleccionTemporal> {
-    const ambiente = await this.ambienteRepo.findOne({ where: { id: dto.ambiente_id } });
-    if (!ambiente) throw new NotFoundException(`Ambiente ${dto.ambiente_id} no encontrado`);
+  async seleccionarCelda(
+    ventanaId: number,
+    dto: SeleccionarCeldaDto,
+  ): Promise<SeleccionTemporal> {
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: dto.ambiente_id },
+    });
+    if (!ambiente)
+      throw new NotFoundException(`Ambiente ${dto.ambiente_id} no encontrado`);
 
-    const docente = await this.docenteRepo.findOne({ where: { id: dto.docente_id } });
-    if (!docente) throw new NotFoundException(`Docente ${dto.docente_id} no encontrado`);
+    const docente = await this.docenteRepo.findOne({
+      where: { id: dto.docente_id },
+    });
+    if (!docente)
+      throw new NotFoundException(`Docente ${dto.docente_id} no encontrado`);
 
     const existente = await this.seleccionRepo.findOne({
       where: {
@@ -193,7 +232,8 @@ export class VentanasService {
         hora_inicio: dto.hora_inicio,
       },
     });
-    if (existente) throw new BadRequestException('Esa celda ya está seleccionada');
+    if (existente)
+      throw new BadRequestException("Esa celda ya está seleccionada");
 
     const expira_at = new Date(Date.now() + 30 * 60 * 1000);
     const seleccion = this.seleccionRepo.create({
@@ -207,7 +247,7 @@ export class VentanasService {
 
     const guardada = await this.seleccionRepo.save(seleccion);
 
-    this.gateway.emitirActualizacion(ventanaId, 'celda_seleccionada', {
+    this.gateway.emitirActualizacion(ventanaId, "celda_seleccionada", {
       docenteId: dto.docente_id,
       dia_semana: dto.dia_semana,
       hora_inicio: dto.hora_inicio,
@@ -218,7 +258,10 @@ export class VentanasService {
     return guardada;
   }
 
-  async liberarCelda(ventanaId: number, dto: Partial<SeleccionarCeldaDto>): Promise<void> {
+  async liberarCelda(
+    ventanaId: number,
+    dto: Partial<SeleccionarCeldaDto>,
+  ): Promise<void> {
     const seleccion = await this.seleccionRepo.findOne({
       where: {
         docente: { id: dto.docente_id },
@@ -226,11 +269,11 @@ export class VentanasService {
         hora_inicio: dto.hora_inicio,
       },
     });
-    if (!seleccion) throw new NotFoundException('Selección no encontrada');
+    if (!seleccion) throw new NotFoundException("Selección no encontrada");
 
     await this.seleccionRepo.remove(seleccion);
 
-    this.gateway.emitirActualizacion(ventanaId, 'celda_liberada', {
+    this.gateway.emitirActualizacion(ventanaId, "celda_liberada", {
       dia_semana: dto.dia_semana,
       hora_inicio: dto.hora_inicio,
       ambiente_id: dto.ambiente_id,
@@ -241,18 +284,18 @@ export class VentanasService {
   async liberarCeldasExpiradas(): Promise<void> {
     const expiradas = await this.seleccionRepo.find({
       where: { expira_at: LessThan(new Date()) },
-      relations: ['ambiente'],
+      relations: ["ambiente"],
     });
 
     if (expiradas.length === 0) return;
 
     this.logger.log(`Liberando ${expiradas.length} celdas expiradas`);
     for (const sel of expiradas) {
-      this.gateway.emitirGlobal('celda_liberada', {
+      this.gateway.emitirGlobal("celda_liberada", {
         dia_semana: sel.dia_semana,
         hora_inicio: sel.hora_inicio,
         ambiente_id: sel.ambiente?.id,
-        motivo: 'expiracion',
+        motivo: "expiracion",
       });
     }
     await this.seleccionRepo.remove(expiradas);

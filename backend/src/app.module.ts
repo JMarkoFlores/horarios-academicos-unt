@@ -14,6 +14,7 @@ import { HorariosModule } from "./horarios/horarios.module";
 import { VentanasModule } from "./ventanas/ventanas.module";
 import { ReportesModule } from "./reportes/reportes.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 import { NotificacionesModule } from "./notificaciones/notificaciones.module";
 
 @Module({
@@ -60,6 +61,7 @@ import { NotificacionesModule } from "./notificaciones/notificaciones.module";
     VentanasModule,
     ReportesModule,
     DashboardModule,
+    AnalyticsModule,
     NotificacionesModule,
   ],
 })

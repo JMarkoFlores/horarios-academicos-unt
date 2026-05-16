@@ -1,5 +1,5 @@
 export enum EstadoHorario {
-  BORRADOR = 'BORRADOR',
-  PUBLICADO = 'PUBLICADO',
-  CERRADO = 'CERRADO',
+  BORRADOR = "BORRADOR",
+  PUBLICADO = "PUBLICADO",
+  CERRADO = "CERRADO",
 }

@@ -4,10 +4,10 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
-import { RolUsuario } from '../common/enums/rol-usuario.enum';
+} from "typeorm";
+import { RolUsuario } from "../common/enums/rol-usuario.enum";
 
-@Entity('usuario')
+@Entity("usuario")
 export class Usuario {
   @PrimaryGeneratedColumn()
   id: number;
@@ -21,7 +21,7 @@ export class Usuario {
   @Column({ length: 255 })
   password_hash: string;
 
-  @Column({ type: 'enum', enum: RolUsuario, default: RolUsuario.OPERADOR })
+  @Column({ type: "enum", enum: RolUsuario, default: RolUsuario.OPERADOR })
   rol: RolUsuario;
 
   @Column({ default: true })

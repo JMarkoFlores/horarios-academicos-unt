@@ -1,6 +1,13 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsBoolean, IsInt, Min, Max } from 'class-validator';
-import { TipoAmbiente } from '../../common/enums/tipo-ambiente.enum';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsInt,
+  Min,
+  Max,
+} from "class-validator";
+import { TipoAmbiente } from "../../common/enums/tipo-ambiente.enum";
 
 export class QueryAmbienteDto {
   @ApiPropertyOptional({ default: 1 })
@@ -21,7 +28,7 @@ export class QueryAmbienteDto {
   @IsEnum(TipoAmbiente)
   tipo?: TipoAmbiente;
 
-  @ApiPropertyOptional({ description: 'Filtrar sólo activos/inactivos' })
+  @ApiPropertyOptional({ description: "Filtrar sólo activos/inactivos" })
   @IsOptional()
   @IsBoolean()
   activo?: boolean;

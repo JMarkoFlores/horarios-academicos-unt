@@ -1,4 +1,4 @@
 export enum TipoContrato {
-  NOMBRADO = 'NOMBRADO',
-  CONTRATADO = 'CONTRATADO',
+  NOMBRADO = "NOMBRADO",
+  CONTRATADO = "CONTRATADO",
 }

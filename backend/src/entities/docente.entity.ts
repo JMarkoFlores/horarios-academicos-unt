@@ -5,14 +5,14 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-} from 'typeorm';
-import { CategoriaDocente } from '../common/enums/categoria-docente.enum';
-import { TipoContrato } from '../common/enums/tipo-contrato.enum';
-import { DisponibilidadDocente } from './disponibilidad-docente.entity';
-import { HorarioAsignado } from './horario-asignado.entity';
-import { ColaDocentes } from './cola-docentes.entity';
+} from "typeorm";
+import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
+import { TipoContrato } from "../common/enums/tipo-contrato.enum";
+import { DisponibilidadDocente } from "./disponibilidad-docente.entity";
+import { HorarioAsignado } from "./horario-asignado.entity";
+import { ColaDocentes } from "./cola-docentes.entity";
 
-@Entity('docente')
+@Entity("docente")
 export class Docente {
   @PrimaryGeneratedColumn()
   id: number;
@@ -32,13 +32,13 @@ export class Docente {
   @Column({ nullable: true, length: 20 })
   telefono: string;
 
-  @Column({ type: 'enum', enum: CategoriaDocente })
+  @Column({ type: "enum", enum: CategoriaDocente })
   categoria: CategoriaDocente;
 
-  @Column({ type: 'enum', enum: TipoContrato })
+  @Column({ type: "enum", enum: TipoContrato })
   tipo_contrato: TipoContrato;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha_ingreso: Date;
 
   @Column({ default: true })

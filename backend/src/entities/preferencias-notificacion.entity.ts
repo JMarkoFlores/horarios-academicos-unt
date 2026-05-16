@@ -6,10 +6,10 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
-import { Docente } from './docente.entity';
+} from "typeorm";
+import { Docente } from "./docente.entity";
 
-@Entity('preferencias_notificacion')
+@Entity("preferencias_notificacion")
 export class PreferenciasNotificacion {
   @PrimaryGeneratedColumn()
   id: number;
@@ -30,6 +30,6 @@ export class PreferenciasNotificacion {
   updated_at: Date;
 
   @OneToOne(() => Docente, { nullable: false })
-  @JoinColumn({ name: 'docente_id' })
+  @JoinColumn({ name: "docente_id" })
   docente: Docente;
 }

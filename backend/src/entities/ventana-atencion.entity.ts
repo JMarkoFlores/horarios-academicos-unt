@@ -1,12 +1,7 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToMany,
-} from 'typeorm';
-import { ColaDocentes } from './cola-docentes.entity';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
+import { ColaDocentes } from "./cola-docentes.entity";
 
-@Entity('ventana_atencion')
+@Entity("ventana_atencion")
 export class VentanaAtencion {
   @PrimaryGeneratedColumn()
   id: number;
@@ -14,13 +9,13 @@ export class VentanaAtencion {
   @Column({ length: 20 })
   periodo_academico: string;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha: Date;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_inicio: string;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_fin: string;
 
   @Column({ default: true })

@@ -1,10 +1,6 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
 
-@Entity('periodo_academico')
+@Entity("periodo_academico")
 export class PeriodoAcademico {
   @PrimaryGeneratedColumn()
   id: number;
@@ -15,10 +11,10 @@ export class PeriodoAcademico {
   @Column({ length: 100 })
   nombre: string;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha_inicio: Date;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha_fin: Date;
 
   @Column({ default: false })

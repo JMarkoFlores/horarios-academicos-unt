@@ -1,15 +1,11 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
 
-@Entity('dia_no_laborable')
+@Entity("dia_no_laborable")
 export class DiaNoLaborable {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha: Date;
 
   @Column({ length: 200 })

@@ -6,36 +6,36 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm';
-import { TipoClase } from '../common/enums/tipo-clase.enum';
-import { EstadoHorario } from '../common/enums/estado-horario.enum';
-import { Docente } from './docente.entity';
-import { Curso } from './curso.entity';
-import { Grupo } from './grupo.entity';
-import { Ambiente } from './ambiente.entity';
+} from "typeorm";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { EstadoHorario } from "../common/enums/estado-horario.enum";
+import { Docente } from "./docente.entity";
+import { Curso } from "./curso.entity";
+import { Grupo } from "./grupo.entity";
+import { Ambiente } from "./ambiente.entity";
 
-@Entity('horario_asignado')
+@Entity("horario_asignado")
 export class HorarioAsignado {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'enum', enum: TipoClase })
+  @Column({ type: "enum", enum: TipoClase })
   tipo_clase: TipoClase;
 
   @Column()
   dia_semana: number;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_inicio: string;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_fin: string;
 
   @Column({ length: 20 })
   periodo_academico: string;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: EstadoHorario,
     default: EstadoHorario.BORRADOR,
   })
@@ -48,18 +48,18 @@ export class HorarioAsignado {
   updated_at: Date;
 
   @ManyToOne(() => Docente, (docente) => docente.horarios, { nullable: false })
-  @JoinColumn({ name: 'docente_id' })
+  @JoinColumn({ name: "docente_id" })
   docente: Docente;
 
   @ManyToOne(() => Curso, { nullable: false })
-  @JoinColumn({ name: 'curso_id' })
+  @JoinColumn({ name: "curso_id" })
   curso: Curso;
 
-  @ManyToOne(() => Grupo, { nullable: false })
-  @JoinColumn({ name: 'grupo_id' })
+  @ManyToOne(() => Grupo, { nullable: true })
+  @JoinColumn({ name: "grupo_id" })
   grupo: Grupo;
 
   @ManyToOne(() => Ambiente, { nullable: false })
-  @JoinColumn({ name: 'ambiente_id' })
+  @JoinColumn({ name: "ambiente_id" })
   ambiente: Ambiente;
 }

@@ -1,5 +1,5 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsInt, IsBoolean, Min, Max } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsOptional, IsInt, IsBoolean, Min, Max } from "class-validator";
 
 export class QueryCursoDto {
   @ApiPropertyOptional({ default: 1 })
@@ -15,14 +15,18 @@ export class QueryCursoDto {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ description: 'Filtrar por ciclo (1-10)', minimum: 1, maximum: 10 })
+  @ApiPropertyOptional({
+    description: "Filtrar por ciclo (1-10)",
+    minimum: 1,
+    maximum: 10,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(10)
   ciclo?: number;
 
-  @ApiPropertyOptional({ description: 'Filtrar por cursos con laboratorio' })
+  @ApiPropertyOptional({ description: "Filtrar por cursos con laboratorio" })
   @IsOptional()
   @IsBoolean()
   tiene_laboratorio?: boolean;

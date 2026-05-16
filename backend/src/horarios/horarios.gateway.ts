@@ -1,15 +1,17 @@
-import { Logger } from '@nestjs/common';
+import { Logger } from "@nestjs/common";
 import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+} from "@nestjs/websockets";
+import { Server, Socket } from "socket.io";
 
-@WebSocketGateway({ cors: { origin: '*' } })
-export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect {
+@WebSocketGateway({ cors: { origin: "*" } })
+export class HorariosGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -23,17 +25,17 @@ export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.logger.log(`Cliente desconectado: ${client.id}`);
   }
 
-  @SubscribeMessage('suscribir_ventana')
+  @SubscribeMessage("suscribir_ventana")
   handleSuscribir(client: Socket, ventanaId: number) {
     client.join(`ventana_${ventanaId}`);
     this.logger.log(`Cliente ${client.id} suscrito a ventana_${ventanaId}`);
-    return { event: 'suscrito', data: { ventanaId } };
+    return { event: "suscrito", data: { ventanaId } };
   }
 
-  @SubscribeMessage('desuscribir_ventana')
+  @SubscribeMessage("desuscribir_ventana")
   handleDesuscribir(client: Socket, ventanaId: number) {
     client.leave(`ventana_${ventanaId}`);
-    return { event: 'desuscrito', data: { ventanaId } };
+    return { event: "desuscrito", data: { ventanaId } };
   }
 
   emitirActualizacion(ventanaId: number, evento: string, data: unknown) {

@@ -4,18 +4,18 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
-} from 'typeorm';
-import { VentanaAtencion } from './ventana-atencion.entity';
-import { Docente } from './docente.entity';
+} from "typeorm";
+import { VentanaAtencion } from "./ventana-atencion.entity";
+import { Docente } from "./docente.entity";
 
 export enum EstadoCola {
-  ESPERANDO = 'ESPERANDO',
-  EN_ATENCION = 'EN_ATENCION',
-  COMPLETADO = 'COMPLETADO',
-  AUSENTE = 'AUSENTE',
+  ESPERANDO = "ESPERANDO",
+  EN_ATENCION = "EN_ATENCION",
+  COMPLETADO = "COMPLETADO",
+  AUSENTE = "AUSENTE",
 }
 
-@Entity('cola_docentes')
+@Entity("cola_docentes")
 export class ColaDocentes {
   @PrimaryGeneratedColumn()
   id: number;
@@ -23,19 +23,19 @@ export class ColaDocentes {
   @Column()
   orden: number;
 
-  @Column({ type: 'enum', enum: EstadoCola, default: EstadoCola.ESPERANDO })
+  @Column({ type: "enum", enum: EstadoCola, default: EstadoCola.ESPERANDO })
   estado: EstadoCola;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   turno_llamado_at: Date;
 
   @ManyToOne(() => VentanaAtencion, (ventana) => ventana.cola, {
     nullable: false,
   })
-  @JoinColumn({ name: 'ventana_id' })
+  @JoinColumn({ name: "ventana_id" })
   ventana: VentanaAtencion;
 
   @ManyToOne(() => Docente, (docente) => docente.colas, { nullable: false })
-  @JoinColumn({ name: 'docente_id' })
+  @JoinColumn({ name: "docente_id" })
   docente: Docente;
 }

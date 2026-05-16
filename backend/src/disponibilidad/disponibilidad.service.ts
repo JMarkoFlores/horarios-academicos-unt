@@ -1,16 +1,13 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { InjectDataSource } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
-import { DisponibilidadDocente } from '../entities/disponibilidad-docente.entity';
-import { RestriccionInstitucional } from '../entities/restriccion-institucional.entity';
-import { PeriodoAcademico } from '../entities/periodo-academico.entity';
-import { Docente } from '../entities/docente.entity';
-import { GuardarDisponibilidadDto } from './dto/guardar-disponibilidad.dto';
-import { CreateRestriccionDto } from './dto/create-restriccion.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { InjectDataSource } from "@nestjs/typeorm";
+import { Repository, DataSource } from "typeorm";
+import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
+import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { Docente } from "../entities/docente.entity";
+import { GuardarDisponibilidadDto } from "./dto/guardar-disponibilidad.dto";
+import { CreateRestriccionDto } from "./dto/create-restriccion.dto";
 
 @Injectable()
 export class DisponibilidadService {
@@ -28,7 +25,9 @@ export class DisponibilidadService {
   ) {}
 
   async getByDocente(docenteId: number, periodo: string) {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
     if (!docente) {
       throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
     }
@@ -38,7 +37,7 @@ export class DisponibilidadService {
         docente: { id: docenteId },
         periodo_academico: periodo,
       },
-      order: { dia_semana: 'ASC', hora_inicio: 'ASC' },
+      order: { dia_semana: "ASC", hora_inicio: "ASC" },
     });
 
     return {
@@ -57,7 +56,9 @@ export class DisponibilidadService {
     docenteId: number,
     dto: GuardarDisponibilidadDto,
   ) {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
     if (!docente) {
       throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
     }
@@ -68,7 +69,7 @@ export class DisponibilidadService {
         .delete()
         .from(DisponibilidadDocente)
         .where('"docente_id" = :docenteId', { docenteId })
-        .andWhere('periodo_academico = :periodo', { periodo: dto.periodo })
+        .andWhere("periodo_academico = :periodo", { periodo: dto.periodo })
         .execute();
 
       const nuevosSlots = dto.slots.map((slot) =>
@@ -90,11 +91,11 @@ export class DisponibilidadService {
 
   async getResumenDocentes(periodo: string) {
     const registros = await this.disponibilidadRepo
-      .createQueryBuilder('d')
-      .innerJoinAndSelect('d.docente', 'docente')
-      .where('d.periodo_academico = :periodo', { periodo })
-      .andWhere('d.disponible = :disponible', { disponible: true })
-      .orderBy('docente.apellidos', 'ASC')
+      .createQueryBuilder("d")
+      .innerJoinAndSelect("d.docente", "docente")
+      .where("d.periodo_academico = :periodo", { periodo })
+      .andWhere("d.disponible = :disponible", { disponible: true })
+      .orderBy("docente.apellidos", "ASC")
       .getMany();
 
     const docenteMap = new Map<
@@ -123,8 +124,8 @@ export class DisponibilidadService {
       const entry = docenteMap.get(id)!;
       entry.slots_disponibles++;
 
-      const [hiH, hiM] = registro.hora_inicio.split(':').map(Number);
-      const [hfH, hfM] = registro.hora_fin.split(':').map(Number);
+      const [hiH, hiM] = registro.hora_inicio.split(":").map(Number);
+      const [hfH, hfM] = registro.hora_fin.split(":").map(Number);
       entry.horas_disponibles += (hfH * 60 + hfM - hiH * 60 - hiM) / 60;
     }
 
@@ -137,7 +138,9 @@ export class DisponibilidadService {
     });
   }
 
-  async upsertRestriccion(dto: CreateRestriccionDto): Promise<RestriccionInstitucional> {
+  async upsertRestriccion(
+    dto: CreateRestriccionDto,
+  ): Promise<RestriccionInstitucional> {
     const restriccion = this.restriccionRepo.create({
       tipo_restriccion: dto.tipo_restriccion,
       valor: dto.valor,
@@ -149,7 +152,7 @@ export class DisponibilidadService {
 
   async getPeriodos() {
     return this.periodoRepo.find({
-      order: { codigo: 'DESC' },
+      order: { codigo: "DESC" },
     });
   }
 }

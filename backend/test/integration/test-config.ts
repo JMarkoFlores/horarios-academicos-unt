@@ -4,7 +4,7 @@ export const testDbConfig = {
   port: parseInt(process.env.DATABASE_PORT || "5432", 10),
   username: process.env.DATABASE_USER || "unt_user",
   password: process.env.DATABASE_PASSWORD || "unt_pass",
-  database: "horarios_unt_test", // Usar BD de test separada
+  database: process.env.DATABASE_NAME || "horarios_unt_test", // Usar BD de test o env override
   entities: ["../src/**/*.entity.ts"],
   synchronize: true,
   dropSchema: false, // Cambiar a false para evitar problemas de permisos

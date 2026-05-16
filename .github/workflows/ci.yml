@@ -199,6 +199,16 @@ jobs:
           DATABASE_NAME: horarios_unt
         run: npx ts-node test/sync-db.ts
 
+      - name: Run Database Seed
+        working-directory: ./backend
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_USER: unt_user
+          DATABASE_PASSWORD: unt_pass123
+          DATABASE_NAME: horarios_unt
+        run: npm run seed
+
       - name: Run Backend
         working-directory: ./backend
         env:

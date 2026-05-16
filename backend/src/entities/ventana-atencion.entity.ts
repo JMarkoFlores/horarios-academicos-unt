@@ -1,7 +1,22 @@
+<<<<<<< HEAD
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
 import { ColaDocentes } from "./cola-docentes.entity";
 
 @Entity("ventana_atencion")
+=======
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  Index,
+} from 'typeorm';
+import { ColaDocentes } from './cola-docentes.entity';
+
+@Entity('ventana_atencion')
+@Index('idx_ventana_periodo', ['periodo_academico'])
+@Index('idx_ventana_hora', ['hora_inicio'])
+>>>>>>> develop
 export class VentanaAtencion {
   @PrimaryGeneratedColumn()
   id: number;

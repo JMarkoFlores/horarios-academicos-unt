@@ -63,6 +63,7 @@ export class AmbientesController {
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async getDisponibilidad(
+<<<<<<< HEAD
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
   ) {
@@ -71,6 +72,19 @@ export class AmbientesController {
       periodo ?? "",
     );
     return { data: result, message: "Disponibilidad del ambiente obtenida" };
+=======
+    @Param('id', ParseIntPipe) id: number,
+    @Query('periodo') periodo: string,
+    @Query() query: QueryAmbienteDto,
+  ) {
+    const result = await this.ambientesService.getDisponibilidad(
+      id,
+      periodo ?? '',
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
+    return { data: result, message: 'Disponibilidad del ambiente obtenida' };
+>>>>>>> develop
   }
 
   @Post()

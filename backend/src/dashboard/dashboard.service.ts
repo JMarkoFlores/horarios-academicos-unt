@@ -40,6 +40,7 @@ export class DashboardService {
         where: { tipo: TipoAmbiente.LABORATORIO, activo: true },
       }),
       this.cursoRepo.count({ where: { activo: true } }),
+<<<<<<< HEAD
       this.conflictoRepo.count({
         where: { periodo_academico: periodo, resuelto: false },
       }),
@@ -47,6 +48,17 @@ export class DashboardService {
         where: { periodo_academico: periodo },
         relations: ["docente", "curso", "ambiente"],
       }),
+=======
+      this.conflictoRepo.count({ where: { periodo_academico: periodo, resuelto: false } }),
+      this.horarioRepo
+        .createQueryBuilder('horario')
+        .leftJoinAndSelect('horario.docente', 'docente')
+        .leftJoinAndSelect('horario.curso', 'curso')
+        .leftJoinAndSelect('horario.ambiente', 'ambiente')
+        .where('horario.periodo_academico = :periodo', { periodo })
+        .cache(`horarios_periodo_${periodo}_dashboard_kpis`, 60000)
+        .getMany(),
+>>>>>>> develop
       this.docenteRepo.find({ where: { activo: true } }),
     ]);
 

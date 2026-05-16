@@ -1,4 +1,5 @@
 import {
+<<<<<<< HEAD
   Controller,
   Get,
   Put,
@@ -16,6 +17,15 @@ import {
 import { NotificacionesService } from "./notificaciones.service";
 import { UpdatePreferenciasDto } from "./dto/update-preferencias.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+=======
+  Controller, Get, Put, Body, Param, ParseIntPipe, Query, UseGuards,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { NotificacionesService } from './notificaciones.service';
+import { UpdatePreferenciasDto } from './dto/update-preferencias.dto';
+import { QueryNotificacionesDto } from './dto/query-notificaciones.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+>>>>>>> develop
 
 @ApiTags("notificaciones")
 @Controller("notificaciones")
@@ -24,12 +34,28 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 export class NotificacionesController {
   constructor(private readonly notificacionesService: NotificacionesService) {}
 
+<<<<<<< HEAD
   @Get("docente/:id")
   @ApiOperation({ summary: "Historial de notificaciones de un docente" })
   @ApiParam({ name: "id", type: Number })
   async getHistorial(@Param("id", ParseIntPipe) id: number) {
     const result = await this.notificacionesService.getHistorial(id);
     return { data: result, message: "Historial obtenido" };
+=======
+  @Get('docente/:id')
+  @ApiOperation({ summary: 'Historial de notificaciones de un docente' })
+  @ApiParam({ name: 'id', type: Number })
+  async getHistorial(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: QueryNotificacionesDto,
+  ) {
+    const result = await this.notificacionesService.getHistorial(
+      id,
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
+    return { data: result, message: 'Historial obtenido' };
+>>>>>>> develop
   }
 
   @Put("preferencias/:docenteId")

@@ -44,25 +44,43 @@ export class DocentesService {
       .addOrderBy("docente.nombres", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
+      .cache(
+        `docentes_list_${categoria ?? 'all'}_${tipo_contrato ?? 'all'}_${busqueda ?? 'none'}_${page}_${limit}`,
+        60000,
+      )
       .getManyAndCount();
 
     return {
+<<<<<<< HEAD
       items: items.map((d) => ({
         ...d,
         antiguedad: this.calcularAntiguedad(d.fecha_ingreso),
       })),
+=======
+      data: items.map((d) => ({ ...d, antiguedad: this.calcularAntiguedad(d.fecha_ingreso) })),
+>>>>>>> develop
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
     };
   }
 
   async findOne(id: number): Promise<Docente> {
+<<<<<<< HEAD
     const docente = await this.docenteRepo.findOne({
       where: { id },
       relations: ["disponibilidades", "horarios", "colas"],
     });
+=======
+    const docente = await this.docenteRepo
+      .createQueryBuilder('docente')
+      .leftJoinAndSelect('docente.disponibilidades', 'disponibilidades')
+      .leftJoinAndSelect('docente.horarios', 'horarios')
+      .leftJoinAndSelect('docente.colas', 'colas')
+      .where('docente.id = :id', { id })
+      .cache(`docente_${id}_detalle`, 60000)
+      .getOne();
+>>>>>>> develop
 
     if (!docente) {
       throw new NotFoundException(`Docente con ID ${id} no encontrado`);

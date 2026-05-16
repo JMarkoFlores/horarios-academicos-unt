@@ -5,11 +5,23 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+<<<<<<< HEAD
 } from "typeorm";
 import { Docente } from "./docente.entity";
 import { Ambiente } from "./ambiente.entity";
 
 @Entity("conflicto_asignacion")
+=======
+  Index,
+} from 'typeorm';
+import { Docente } from './docente.entity';
+import { Ambiente } from './ambiente.entity';
+
+@Entity('conflicto_asignacion')
+@Index('idx_conflicto_periodo', ['periodo_academico'])
+@Index('idx_conflicto_docente_periodo', ['docente', 'periodo_academico'])
+@Index('idx_conflicto_ambiente_periodo', ['ambiente', 'periodo_academico'])
+>>>>>>> develop
 export class ConflictoAsignacion {
   @PrimaryGeneratedColumn()
   id: number;

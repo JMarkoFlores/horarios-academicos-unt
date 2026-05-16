@@ -1,6 +1,18 @@
+<<<<<<< HEAD
 import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
 
 @Entity("restriccion_institucional")
+=======
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  Index,
+} from 'typeorm';
+
+@Entity('restriccion_institucional')
+@Index('idx_restriccion_periodo', ['periodo_academico'])
+>>>>>>> develop
 export class RestriccionInstitucional {
   @PrimaryGeneratedColumn()
   id: number;

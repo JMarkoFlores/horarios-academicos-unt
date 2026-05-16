@@ -6,6 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+<<<<<<< HEAD
 } from "typeorm";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
@@ -15,6 +16,22 @@ import { Grupo } from "./grupo.entity";
 import { Ambiente } from "./ambiente.entity";
 
 @Entity("horario_asignado")
+=======
+  Index,
+} from 'typeorm';
+import { TipoClase } from '../common/enums/tipo-clase.enum';
+import { EstadoHorario } from '../common/enums/estado-horario.enum';
+import { Docente } from './docente.entity';
+import { Curso } from './curso.entity';
+import { Grupo } from './grupo.entity';
+import { Ambiente } from './ambiente.entity';
+
+@Entity('horario_asignado')
+@Index('idx_horario_periodo', ['periodo_academico'])
+@Index('idx_horario_docente_periodo', ['docente', 'periodo_academico'])
+@Index('idx_horario_ambiente_periodo', ['ambiente', 'periodo_academico'])
+@Index('idx_horario_dia_hora', ['dia_semana', 'hora_inicio'])
+>>>>>>> develop
 export class HorarioAsignado {
   @PrimaryGeneratedColumn()
   id: number;

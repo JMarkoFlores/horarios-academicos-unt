@@ -122,11 +122,25 @@ export class NotificacionesService {
     });
     if (!docente) return;
 
+<<<<<<< HEAD
     const horarios = await this.horarioRepo.find({
       where: { docente: { id: docenteId }, periodo_academico: periodo },
       relations: ["curso", "ambiente"],
       order: { dia_semana: "ASC", hora_inicio: "ASC" },
     });
+=======
+    const horarios = await this.horarioRepo
+      .createQueryBuilder('horario')
+      .leftJoinAndSelect('horario.curso', 'curso')
+      .leftJoinAndSelect('horario.ambiente', 'ambiente')
+      .leftJoinAndSelect('horario.docente', 'docente')
+      .where('docente.id = :docenteId', { docenteId })
+      .andWhere('horario.periodo_academico = :periodo', { periodo })
+      .orderBy('horario.dia_semana', 'ASC')
+      .addOrderBy('horario.hora_inicio', 'ASC')
+      .cache(`horarios_periodo_${periodo}_docente_${docenteId}_notificacion`, 60000)
+      .getMany();
+>>>>>>> develop
 
     const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
     const filas = horarios
@@ -150,11 +164,31 @@ export class NotificacionesService {
     this.logger.log(`[EMAIL HORARIO CONFIRMADO] → ${docente.email}`);
   }
 
+<<<<<<< HEAD
   async getHistorial(docenteId: number): Promise<NotificacionDocente[]> {
     return this.notificacionRepo.find({
       where: { docente: { id: docenteId } },
       order: { created_at: "DESC" },
     });
+=======
+  async getHistorial(docenteId: number, page = 1, limit = 20): Promise<{
+    data: NotificacionDocente[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const [data, total] = await this.notificacionRepo
+      .createQueryBuilder('notificacion')
+      .leftJoinAndSelect('notificacion.docente', 'docente')
+      .where('docente.id = :docenteId', { docenteId })
+      .orderBy('notificacion.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(`notificaciones_docente_${docenteId}_${page}_${limit}`, 60000)
+      .getManyAndCount();
+
+    return { data, total, page, limit };
+>>>>>>> develop
   }
 
   async upsertPreferencias(

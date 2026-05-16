@@ -132,10 +132,18 @@ export class DisponibilidadService {
     return Array.from(docenteMap.values());
   }
 
-  async getRestricciones(periodo: string) {
-    return this.restriccionRepo.find({
-      where: { periodo_academico: periodo, activo: true },
-    });
+  async getRestricciones(periodo: string, page = 1, limit = 20) {
+    const [data, total] = await this.restriccionRepo
+      .createQueryBuilder('restriccion')
+      .where('restriccion.periodo_academico = :periodo', { periodo })
+      .andWhere('restriccion.activo = :activo', { activo: true })
+      .orderBy('restriccion.id', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(`restricciones_periodo_${periodo}_${page}_${limit}`, 60000)
+      .getManyAndCount();
+
+    return { data, total, page, limit };
   }
 
   async upsertRestriccion(
@@ -150,9 +158,22 @@ export class DisponibilidadService {
     return this.restriccionRepo.save(restriccion);
   }
 
+<<<<<<< HEAD
   async getPeriodos() {
     return this.periodoRepo.find({
       order: { codigo: "DESC" },
     });
+=======
+  async getPeriodos(page = 1, limit = 20) {
+    const [data, total] = await this.periodoRepo
+      .createQueryBuilder('periodo')
+      .orderBy('periodo.codigo', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(`periodos_${page}_${limit}`, 60000)
+      .getManyAndCount();
+
+    return { data, total, page, limit };
+>>>>>>> develop
   }
 }

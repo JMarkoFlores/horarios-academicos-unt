@@ -4,11 +4,21 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+<<<<<<< HEAD
 } from "typeorm";
 import { PeriodoAcademico } from "./periodo-academico.entity";
 import { Curso } from "./curso.entity";
 
 @Entity("grupo")
+=======
+  Index,
+} from 'typeorm';
+import { PeriodoAcademico } from './periodo-academico.entity';
+import { Curso } from './curso.entity';
+
+@Entity('grupo')
+@Index('idx_grupo_periodo', ['periodo_academico'])
+>>>>>>> develop
 export class Grupo {
   @PrimaryGeneratedColumn()
   id: number;

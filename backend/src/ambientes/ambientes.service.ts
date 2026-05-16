@@ -40,14 +40,14 @@ export class AmbientesService {
       .addOrderBy("ambiente.codigo", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
+      .cache(`ambientes_list_${tipo ?? 'all'}_${activo ?? 'default'}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
     return {
-      items,
+      data: items,
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -99,9 +99,10 @@ export class AmbientesService {
     await this.ambienteRepo.save({ ...ambiente, activo: false });
   }
 
-  async getDisponibilidad(ambienteId: number, periodo: string) {
+  async getDisponibilidad(ambienteId: number, periodo: string, page = 1, limit = 20) {
     await this.findOne(ambienteId);
 
+<<<<<<< HEAD
     const horarios = await this.horarioRepo.find({
       where: {
         ambiente: { id: ambienteId },
@@ -110,6 +111,22 @@ export class AmbientesService {
       relations: ["docente", "curso", "grupo"],
       order: { dia_semana: "ASC", hora_inicio: "ASC" },
     });
+=======
+    const [horarios, total] = await this.horarioRepo
+      .createQueryBuilder('horario')
+      .leftJoinAndSelect('horario.docente', 'docente')
+      .leftJoinAndSelect('horario.curso', 'curso')
+      .leftJoinAndSelect('horario.grupo', 'grupo')
+      .leftJoinAndSelect('horario.ambiente', 'ambiente')
+      .where('ambiente.id = :ambienteId', { ambienteId })
+      .andWhere('horario.periodo_academico = :periodo', { periodo })
+      .orderBy('horario.dia_semana', 'ASC')
+      .addOrderBy('horario.hora_inicio', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(`horarios_periodo_${periodo}_ambiente_${ambienteId}_${page}_${limit}`, 60000)
+      .getManyAndCount();
+>>>>>>> develop
 
     const diasNombre = [
       "",
@@ -120,6 +137,7 @@ export class AmbientesService {
       "Viernes",
     ];
 
+<<<<<<< HEAD
     return horarios.map((h) => ({
       id: h.id,
       dia_semana: h.dia_semana,
@@ -132,5 +150,26 @@ export class AmbientesService {
       curso: h.curso?.nombre ?? null,
       grupo: h.grupo?.codigo ?? null,
     }));
+=======
+    return {
+      data: horarios.map((h) => ({
+        id: h.id,
+        dia_semana: h.dia_semana,
+        dia_nombre: diasNombre[h.dia_semana] ?? `Día ${h.dia_semana}`,
+        hora_inicio: h.hora_inicio,
+        hora_fin: h.hora_fin,
+        tipo_clase: h.tipo_clase,
+        estado: h.estado,
+        docente: h.docente
+          ? `${h.docente.nombres} ${h.docente.apellidos}`
+          : null,
+        curso: h.curso?.nombre ?? null,
+        grupo: h.grupo?.codigo ?? null,
+      })),
+      total,
+      page,
+      limit,
+    };
+>>>>>>> develop
   }
 }

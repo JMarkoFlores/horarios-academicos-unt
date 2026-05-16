@@ -45,22 +45,31 @@ export class CursosService {
       .addOrderBy("curso.nombre", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
+      .cache(`cursos_list_${ciclo ?? 'all'}_${tiene_laboratorio ?? 'all'}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
     return {
-      items,
+      data: items,
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
     };
   }
 
   async findOne(id: number): Promise<Curso> {
+<<<<<<< HEAD
     const curso = await this.cursoRepo.findOne({
       where: { id },
       relations: ["ambientes"],
     });
+=======
+    const curso = await this.cursoRepo
+      .createQueryBuilder('curso')
+      .leftJoinAndSelect('curso.ambientes', 'ambientes')
+      .where('curso.id = :id', { id })
+      .cache(`curso_${id}_detalle`, 60000)
+      .getOne();
+>>>>>>> develop
 
     if (!curso) {
       throw new NotFoundException(`Curso con ID ${id} no encontrado`);
@@ -131,10 +140,19 @@ export class CursosService {
       );
     }
 
+<<<<<<< HEAD
     const curso = await this.cursoRepo.findOne({
       where: { id: cursoId },
       relations: ["ambientes"],
     });
+=======
+    const curso = await this.cursoRepo
+      .createQueryBuilder('curso')
+      .leftJoinAndSelect('curso.ambientes', 'ambientes')
+      .where('curso.id = :cursoId', { cursoId })
+      .cache(`curso_${cursoId}_ambientes`, 60000)
+      .getOne();
+>>>>>>> develop
 
     if (!curso) {
       throw new NotFoundException(`Curso con ID ${cursoId} no encontrado`);
@@ -154,10 +172,19 @@ export class CursosService {
         ? TipoAmbiente.AULA
         : TipoAmbiente.LABORATORIO;
 
+<<<<<<< HEAD
     const curso = await this.cursoRepo.findOne({
       where: { id: cursoId },
       relations: ["ambientes"],
     });
+=======
+    const curso = await this.cursoRepo
+      .createQueryBuilder('curso')
+      .leftJoinAndSelect('curso.ambientes', 'ambientes')
+      .where('curso.id = :cursoId', { cursoId })
+      .cache(`curso_${cursoId}_ambientes_compatibles`, 60000)
+      .getOne();
+>>>>>>> develop
 
     if (!curso) {
       throw new NotFoundException(`Curso con ID ${cursoId} no encontrado`);

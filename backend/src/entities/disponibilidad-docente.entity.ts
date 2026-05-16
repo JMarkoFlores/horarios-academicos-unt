@@ -4,12 +4,21 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
   Unique,
 } from "typeorm";
 import { Docente } from "./docente.entity";
 
+<<<<<<< HEAD
 @Entity("disponibilidad_docente")
 @Unique(["docente", "dia_semana", "hora_inicio", "periodo_academico"])
+=======
+@Entity('disponibilidad_docente')
+@Unique(['docente', 'dia_semana', 'hora_inicio', 'periodo_academico'])
+@Index('idx_disponibilidad_periodo', ['periodo_academico'])
+@Index('idx_disponibilidad_docente_periodo', ['docente', 'periodo_academico'])
+@Index('idx_disponibilidad_dia_hora', ['dia_semana', 'hora_inicio'])
+>>>>>>> develop
 export class DisponibilidadDocente {
   @PrimaryGeneratedColumn()
   id: number;

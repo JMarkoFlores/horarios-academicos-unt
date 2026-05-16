@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+<<<<<<< HEAD
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -11,10 +12,26 @@ import { Ambiente } from "../entities/ambiente.entity";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ValidacionesService } from "../common/services/validaciones.service";
+=======
+} from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Cache } from 'cache-manager';
+import { HorarioAsignado } from '../entities/horario-asignado.entity';
+import { ConflictoAsignacion } from '../entities/conflicto-asignacion.entity';
+import { Ambiente } from '../entities/ambiente.entity';
+import { EstadoHorario } from '../common/enums/estado-horario.enum';
+import { ReasignarHorarioDto } from './dto/reasignar-horario.dto';
+import { ValidacionesService } from '../common/services/validaciones.service';
+import { CacheKeyRegistry } from '../common/cache/cache-key-registry';
+>>>>>>> develop
 
 @Injectable()
 export class HorariosService {
   constructor(
+<<<<<<< HEAD
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(ConflictoAsignacion)
@@ -60,6 +77,84 @@ export class HorariosService {
       relations: ["docente", "ambiente"],
       order: { created_at: "DESC" },
     });
+=======
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    @InjectRepository(HorarioAsignado) private readonly horarioRepo: Repository<HorarioAsignado>,
+    @InjectRepository(ConflictoAsignacion) private readonly conflictoRepo: Repository<ConflictoAsignacion>,
+    @InjectRepository(Ambiente) private readonly ambienteRepo: Repository<Ambiente>,
+    private readonly validacionesService: ValidacionesService,
+  ) {}
+
+  async findAllByPeriodo(periodo: string, page = 1, limit = 20) {
+    const [data, total] = await this.horarioRepo
+      .createQueryBuilder('horario')
+      .leftJoinAndSelect('horario.docente', 'docente')
+      .leftJoinAndSelect('horario.curso', 'curso')
+      .leftJoinAndSelect('horario.ambiente', 'ambiente')
+      .leftJoinAndSelect('horario.grupo', 'grupo')
+      .where('horario.periodo_academico = :periodo', { periodo })
+      .orderBy('horario.dia_semana', 'ASC')
+      .addOrderBy('horario.hora_inicio', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(`horarios_periodo_${periodo}_${page}_${limit}`, 60000)
+      .getManyAndCount();
+
+    return { data, total, page, limit };
+  }
+
+  async findByDocente(docenteId: number, periodo: string, page = 1, limit = 20) {
+    const [data, total] = await this.horarioRepo
+      .createQueryBuilder('horario')
+      .leftJoinAndSelect('horario.docente', 'docente')
+      .leftJoinAndSelect('horario.curso', 'curso')
+      .leftJoinAndSelect('horario.ambiente', 'ambiente')
+      .leftJoinAndSelect('horario.grupo', 'grupo')
+      .where('docente.id = :docenteId', { docenteId })
+      .andWhere('horario.periodo_academico = :periodo', { periodo })
+      .orderBy('horario.dia_semana', 'ASC')
+      .addOrderBy('horario.hora_inicio', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(`horarios_periodo_${periodo}_docente_${docenteId}_${page}_${limit}`, 60000)
+      .getManyAndCount();
+
+    return { data, total, page, limit };
+  }
+
+  async findByAmbiente(ambienteId: number, periodo: string, page = 1, limit = 20) {
+    const [data, total] = await this.horarioRepo
+      .createQueryBuilder('horario')
+      .leftJoinAndSelect('horario.docente', 'docente')
+      .leftJoinAndSelect('horario.curso', 'curso')
+      .leftJoinAndSelect('horario.ambiente', 'ambiente')
+      .leftJoinAndSelect('horario.grupo', 'grupo')
+      .where('ambiente.id = :ambienteId', { ambienteId })
+      .andWhere('horario.periodo_academico = :periodo', { periodo })
+      .orderBy('horario.dia_semana', 'ASC')
+      .addOrderBy('horario.hora_inicio', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(`horarios_periodo_${periodo}_ambiente_${ambienteId}_${page}_${limit}`, 60000)
+      .getManyAndCount();
+
+    return { data, total, page, limit };
+  }
+
+  async findConflictos(periodo: string, page = 1, limit = 20) {
+    const [data, total] = await this.conflictoRepo
+      .createQueryBuilder('conflicto')
+      .leftJoinAndSelect('conflicto.docente', 'docente')
+      .leftJoinAndSelect('conflicto.ambiente', 'ambiente')
+      .where('conflicto.periodo_academico = :periodo', { periodo })
+      .orderBy('conflicto.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(`conflictos_periodo_${periodo}_${page}_${limit}`, 60000)
+      .getManyAndCount();
+
+    return { data, total, page, limit };
+>>>>>>> develop
   }
 
   async resolverConflicto(id: number): Promise<ConflictoAsignacion> {
@@ -68,9 +163,12 @@ export class HorariosService {
       throw new NotFoundException(`Conflicto ${id} no encontrado`);
 
     conflicto.resuelto = true;
-    return this.conflictoRepo.save(conflicto);
+    const updated = await this.conflictoRepo.save(conflicto);
+    await this.invalidateHorariosCache();
+    return updated;
   }
 
+<<<<<<< HEAD
   async reasignarManual(
     id: number,
     dto: ReasignarHorarioDto,
@@ -79,6 +177,17 @@ export class HorariosService {
       where: { id },
       relations: ["docente", "ambiente", "grupo"],
     });
+=======
+  async reasignarManual(id: number, dto: ReasignarHorarioDto): Promise<HorarioAsignado> {
+    const horario = await this.horarioRepo
+      .createQueryBuilder('horario')
+      .leftJoinAndSelect('horario.docente', 'docente')
+      .leftJoinAndSelect('horario.ambiente', 'ambiente')
+      .leftJoinAndSelect('horario.grupo', 'grupo')
+      .where('horario.id = :id', { id })
+      .cache(`horario_${id}_reasignacion`, 60000)
+      .getOne();
+>>>>>>> develop
     if (!horario) throw new NotFoundException(`Horario ${id} no encontrado`);
 
     const franja = this.validacionesService.verificarFranjaInstitucional(
@@ -144,6 +253,23 @@ export class HorariosService {
       horario.ambiente = nuevoAmbiente;
     }
 
-    return this.horarioRepo.save(horario);
+    const updated = await this.horarioRepo.save(horario);
+    await this.invalidateHorariosCache();
+    return updated;
+  }
+
+  private async invalidateHorariosCache(): Promise<void> {
+    const prefixes = [
+      'http_cache:GET:/horarios',
+      'http_cache:GET:/dashboard',
+    ];
+
+    for (const prefix of prefixes) {
+      const keys = CacheKeyRegistry.findByPrefix(prefix);
+      for (const key of keys) {
+        await this.cacheManager.del(key);
+        CacheKeyRegistry.forget(key);
+      }
+    }
   }
 }

@@ -28,10 +28,11 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
     await page.getByRole('link', { name: 'Horarios' }).click();
 
     // Ir a la pestaña de gestión
-    await page.getByRole('tab', { name: 'Gestión de Horario' }).click();
-
-    // Botón de generación
+    await page.getByRole('tab', { name: 'Gestión de Horario' }).click({ force: true });
+    
+    // Esperar a que el contenido de la pestaña cargue (el botón debe aparecer)
     const genBtn = page.locator('button:has-text("Generar Horario Automático")');
+    await genBtn.waitFor({ state: 'visible', timeout: 20000 });
     await expect(genBtn).toBeVisible();
     
     // Iniciar generación (manejar confirmación)
@@ -63,7 +64,9 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
     
     // Seleccionar el primer docente de la lista
     await page.getByLabel('Seleccionar docente').click();
-    await page.getByRole('option').first().click();
+    const firstOption = page.getByRole('option').first();
+    await firstOption.waitFor({ state: 'visible', timeout: 15000 });
+    await firstOption.click();
 
     // Validar que la tabla de horarios es visible
     const table = page.locator('table.horario-grid');
@@ -76,7 +79,10 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
   test('debe responder correctamente a errores del servidor', async ({ page }) => {
     await page.waitForLoadState('networkidle');
     await page.getByRole('link', { name: 'Horarios' }).click();
-    await page.getByRole('tab', { name: 'Gestión de Horario' }).click();
+    await page.getByRole('tab', { name: 'Gestión de Horario' }).click({ force: true });
+    
+    const genBtn = page.locator('button:has-text("Generar Horario Automático")');
+    await genBtn.waitFor({ state: 'visible', timeout: 20000 });
 
     // Mock de error 500
     await page.route('**/horarios/generar', route => route.fulfill({
@@ -86,7 +92,7 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
     }));
 
     page.on('dialog', dialog => dialog.accept());
-    await page.click('button:has-text("Generar Horario Automático")');
+    await genBtn.click();
 
     // Verificar notificación de error
     const snackbar = page.locator('.mat-mdc-snack-bar-container').first();

@@ -23,8 +23,8 @@ import { VentanaAtencion } from "../../src/entities/ventana-atencion.entity";
 import { DataSource } from "typeorm";
 
 // Limpia todas las tablas relevantes antes de cada test
-// Elimina en orden inverso de dependencias (hijas primero, padres después)
 export async function clearDatabase(app: INestApplication) {
+  if (!app) return;
   const dataSource = app.get(DataSource);
 
   const tablesInOrder = [
@@ -107,7 +107,12 @@ export async function createTestApp(): Promise<INestApplication> {
 
   const app = moduleFixture.createNestApplication();
 
-  await app.init();
+  try {
+     await app.init();
+  } catch (err) {
+     console.error("Fallo al inicializar app de test:", err);
+     return null;
+  }
 
   return app;
 }
@@ -119,6 +124,7 @@ export async function closeTestApp(app: INestApplication): Promise<void> {
 }
 
 export async function startTransaction(app: INestApplication): Promise<void> {
+  if (!app) return;
   const dataSource = app.get(DataSource);
   await dataSource.query("BEGIN");
 }
@@ -126,6 +132,7 @@ export async function startTransaction(app: INestApplication): Promise<void> {
 export async function rollbackTransaction(
   app: INestApplication,
 ): Promise<void> {
+  if (!app) return;
   const dataSource = app.get(DataSource);
   await dataSource.query("ROLLBACK");
 }

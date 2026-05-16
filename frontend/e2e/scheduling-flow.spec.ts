@@ -10,6 +10,7 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
     await page.getByLabel('Contraseña').fill(adminPass);
     await page.getByRole('button', { name: 'Ingresar' }).click();
     await expect(page).toHaveURL(/.*dashboard/);
+    await page.waitForLoadState('networkidle');
   });
 
   test('debe navegar por los módulos principales', async ({ page }) => {

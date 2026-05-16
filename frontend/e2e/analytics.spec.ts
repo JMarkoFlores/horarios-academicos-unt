@@ -7,6 +7,7 @@ test('analytics dashboard loads and shows metrics', async ({ page }) => {
   await page.getByLabel('Contraseña').fill('Admin123!');
   await page.getByRole('button', { name: 'Ingresar' }).click();
   await expect(page).toHaveURL(/.*dashboard/);
+  await page.waitForLoadState('networkidle');
 
   // Navigate to Analytics
   await page.getByRole('link', { name: 'Analytics' }).click();

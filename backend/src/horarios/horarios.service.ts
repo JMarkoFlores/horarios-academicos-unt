@@ -3,18 +3,23 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Cache } from 'cache-manager';
 import { HorarioAsignado } from '../entities/horario-asignado.entity';
 import { ConflictoAsignacion } from '../entities/conflicto-asignacion.entity';
 import { Ambiente } from '../entities/ambiente.entity';
 import { EstadoHorario } from '../common/enums/estado-horario.enum';
 import { ReasignarHorarioDto } from './dto/reasignar-horario.dto';
 import { ValidacionesService } from '../common/services/validaciones.service';
+import { CacheKeyRegistry } from '../common/cache/cache-key-registry';
 
 @Injectable()
 export class HorariosService {
   constructor(
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @InjectRepository(HorarioAsignado) private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(ConflictoAsignacion) private readonly conflictoRepo: Repository<ConflictoAsignacion>,
     @InjectRepository(Ambiente) private readonly ambienteRepo: Repository<Ambiente>,
@@ -97,7 +102,9 @@ export class HorariosService {
     if (!conflicto) throw new NotFoundException(`Conflicto ${id} no encontrado`);
 
     conflicto.resuelto = true;
-    return this.conflictoRepo.save(conflicto);
+    const updated = await this.conflictoRepo.save(conflicto);
+    await this.invalidateHorariosCache();
+    return updated;
   }
 
   async reasignarManual(id: number, dto: ReasignarHorarioDto): Promise<HorarioAsignado> {
@@ -143,6 +150,23 @@ export class HorariosService {
       horario.ambiente = nuevoAmbiente;
     }
 
-    return this.horarioRepo.save(horario);
+    const updated = await this.horarioRepo.save(horario);
+    await this.invalidateHorariosCache();
+    return updated;
+  }
+
+  private async invalidateHorariosCache(): Promise<void> {
+    const prefixes = [
+      'http_cache:GET:/horarios',
+      'http_cache:GET:/dashboard',
+    ];
+
+    for (const prefix of prefixes) {
+      const keys = CacheKeyRegistry.findByPrefix(prefix);
+      for (const key of keys) {
+        await this.cacheManager.del(key);
+        CacheKeyRegistry.forget(key);
+      }
+    }
   }
 }

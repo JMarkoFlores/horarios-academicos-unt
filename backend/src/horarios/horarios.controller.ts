@@ -1,10 +1,11 @@
 import {
   Controller, Get, Post, Patch, Delete, Body, Param,
-  Query, ParseIntPipe, HttpCode, HttpStatus, UseGuards,
+  Query, ParseIntPipe, HttpCode, HttpStatus, UseGuards, UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery,
 } from '@nestjs/swagger';
+import { CacheTTL } from '@nestjs/cache-manager';
 import { AsignacionService } from './asignacion.service';
 import { HorariosService } from './horarios.service';
 import { GenerarHorarioDto } from './dto/generar-horario.dto';
@@ -15,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolUsuario } from '../common/enums/rol-usuario.enum';
+import { HttpCacheInterceptor } from '../common/interceptors/http-cache.interceptor';
 
 @ApiTags('horarios')
 @Controller('horarios')
@@ -43,7 +45,23 @@ export class HorariosController {
     return { data: result, message: `Período ${dto.periodo} limpiado` };
   }
 
+  @Get()
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(600)
+  @ApiOperation({ summary: 'Horario paginado por período' })
+  @ApiQuery({ name: 'periodo', required: true, example: '2026-I' })
+  async getHorarios(@Query('periodo') periodo: string, @Query() query: QueryHorarioListDto) {
+    const result = await this.horariosService.findAllByPeriodo(
+      periodo ?? '',
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
+    return { data: result, message: 'Horario del período obtenido' };
+  }
+
   @Get('periodo/:periodo')
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(600)
   @ApiOperation({ summary: 'Horario completo de un período' })
   @ApiParam({ name: 'periodo', example: '2026-I' })
   async getByPeriodo(
@@ -59,6 +77,8 @@ export class HorariosController {
   }
 
   @Get('docente/:id')
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(600)
   @ApiOperation({ summary: 'Horario de un docente en un período' })
   @ApiParam({ name: 'id', type: Number })
   @ApiQuery({ name: 'periodo', required: true, example: '2026-I' })
@@ -77,6 +97,8 @@ export class HorariosController {
   }
 
   @Get('ambiente/:id')
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(600)
   @ApiOperation({ summary: 'Horario de un ambiente en un período' })
   @ApiParam({ name: 'id', type: Number })
   @ApiQuery({ name: 'periodo', required: true, example: '2026-I' })
@@ -95,6 +117,8 @@ export class HorariosController {
   }
 
   @Get('conflictos/:periodo')
+  @UseInterceptors(HttpCacheInterceptor)
+  @CacheTTL(600)
   @ApiOperation({ summary: 'Lista de conflictos del período' })
   @ApiParam({ name: 'periodo', example: '2026-I' })
   async getConflictos(

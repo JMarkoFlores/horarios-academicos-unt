@@ -1,6 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { InjectRepository, InjectDataSource } from "@nestjs/typeorm";
+import { Inject } from "@nestjs/common";
 import { Repository, DataSource } from "typeorm";
+import { Cache } from "cache-manager";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 import { Ambiente } from "../entities/ambiente.entity";
@@ -12,6 +15,7 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { DocentesService } from "../docentes/docentes.service";
 import { ValidacionesService } from "../common/services/validaciones.service";
+import { CacheKeyRegistry } from "../common/cache/cache-key-registry";
 
 export interface ResultadoGeneracion {
   asignaciones_creadas: number;
@@ -39,6 +43,7 @@ export class AsignacionService {
   private readonly logger = new Logger(AsignacionService.name);
 
   constructor(
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
@@ -229,6 +234,7 @@ export class AsignacionService {
         await queryRunner.manager.save(ConflictoAsignacion, conflictos);
       }
       await queryRunner.commitTransaction();
+      await this.invalidateHorariosCache();
 
       this.logger.log(
         `Generación completada: ${asignaciones.length} asignaciones, ${conflictos.length} conflictos — período ${periodo}`,
@@ -258,6 +264,7 @@ export class AsignacionService {
     const resultC = await this.conflictoRepo.delete({
       periodo_academico: periodo,
     });
+    await this.invalidateHorariosCache();
     return {
       eliminados: resultH.affected ?? 0,
       conflictos_eliminados: resultC.affected ?? 0,
@@ -501,5 +508,21 @@ export class AsignacionService {
   // Complejidad: O(1) → O(1)
   private crearClaveSlot(dia: number, horaInicio: string, horaFin: string): string {
     return `${dia}|${horaInicio}|${horaFin}`;
+  }
+
+  // Complejidad: O(K) → O(K)
+  private async invalidateHorariosCache(): Promise<void> {
+    const prefixes = [
+      'http_cache:GET:/horarios',
+      'http_cache:GET:/dashboard',
+    ];
+
+    for (const prefix of prefixes) {
+      const keys = CacheKeyRegistry.findByPrefix(prefix);
+      for (const key of keys) {
+        await this.cacheManager.del(key);
+        CacheKeyRegistry.forget(key);
+      }
+    }
   }
 }

@@ -1,5 +1,5 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsInt, IsOptional, Max, Min } from "class-validator";
 
 export class QueryNotificacionesDto {
   @ApiPropertyOptional({ default: 1 })

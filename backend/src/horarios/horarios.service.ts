@@ -2,86 +2,30 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-<<<<<<< HEAD
+  Inject,
 } from "@nestjs/common";
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { Cache } from 'cache-manager';
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ValidacionesService } from "../common/services/validaciones.service";
-=======
-} from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Cache } from 'cache-manager';
-import { HorarioAsignado } from '../entities/horario-asignado.entity';
-import { ConflictoAsignacion } from '../entities/conflicto-asignacion.entity';
-import { Ambiente } from '../entities/ambiente.entity';
-import { EstadoHorario } from '../common/enums/estado-horario.enum';
-import { ReasignarHorarioDto } from './dto/reasignar-horario.dto';
-import { ValidacionesService } from '../common/services/validaciones.service';
 import { CacheKeyRegistry } from '../common/cache/cache-key-registry';
->>>>>>> develop
 
 @Injectable()
 export class HorariosService {
   constructor(
-<<<<<<< HEAD
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(ConflictoAsignacion)
     private readonly conflictoRepo: Repository<ConflictoAsignacion>,
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
-    private readonly validacionesService: ValidacionesService,
-  ) {}
-
-  async findAllByPeriodo(periodo: string): Promise<HorarioAsignado[]> {
-    return this.horarioRepo.find({
-      where: { periodo_academico: periodo },
-      relations: ["docente", "curso", "ambiente", "grupo"],
-      order: { dia_semana: "ASC", hora_inicio: "ASC" },
-    });
-  }
-
-  async findByDocente(
-    docenteId: number,
-    periodo: string,
-  ): Promise<HorarioAsignado[]> {
-    return this.horarioRepo.find({
-      where: { docente: { id: docenteId }, periodo_academico: periodo },
-      relations: ["docente", "curso", "ambiente", "grupo"],
-      order: { dia_semana: "ASC", hora_inicio: "ASC" },
-    });
-  }
-
-  async findByAmbiente(
-    ambienteId: number,
-    periodo: string,
-  ): Promise<HorarioAsignado[]> {
-    return this.horarioRepo.find({
-      where: { ambiente: { id: ambienteId }, periodo_academico: periodo },
-      relations: ["docente", "curso", "ambiente", "grupo"],
-      order: { dia_semana: "ASC", hora_inicio: "ASC" },
-    });
-  }
-
-  async findConflictos(periodo: string): Promise<ConflictoAsignacion[]> {
-    return this.conflictoRepo.find({
-      where: { periodo_academico: periodo },
-      relations: ["docente", "ambiente"],
-      order: { created_at: "DESC" },
-    });
-=======
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-    @InjectRepository(HorarioAsignado) private readonly horarioRepo: Repository<HorarioAsignado>,
-    @InjectRepository(ConflictoAsignacion) private readonly conflictoRepo: Repository<ConflictoAsignacion>,
-    @InjectRepository(Ambiente) private readonly ambienteRepo: Repository<Ambiente>,
     private readonly validacionesService: ValidacionesService,
   ) {}
 
@@ -154,7 +98,6 @@ export class HorariosService {
       .getManyAndCount();
 
     return { data, total, page, limit };
->>>>>>> develop
   }
 
   async resolverConflicto(id: number): Promise<ConflictoAsignacion> {
@@ -168,16 +111,6 @@ export class HorariosService {
     return updated;
   }
 
-<<<<<<< HEAD
-  async reasignarManual(
-    id: number,
-    dto: ReasignarHorarioDto,
-  ): Promise<HorarioAsignado> {
-    const horario = await this.horarioRepo.findOne({
-      where: { id },
-      relations: ["docente", "ambiente", "grupo"],
-    });
-=======
   async reasignarManual(id: number, dto: ReasignarHorarioDto): Promise<HorarioAsignado> {
     const horario = await this.horarioRepo
       .createQueryBuilder('horario')
@@ -185,9 +118,8 @@ export class HorariosService {
       .leftJoinAndSelect('horario.ambiente', 'ambiente')
       .leftJoinAndSelect('horario.grupo', 'grupo')
       .where('horario.id = :id', { id })
-      .cache(`horario_${id}_reasignacion`, 60000)
       .getOne();
->>>>>>> develop
+
     if (!horario) throw new NotFoundException(`Horario ${id} no encontrado`);
 
     const franja = this.validacionesService.verificarFranjaInstitucional(

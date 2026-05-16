@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger } from "@nestjs/common";
 import {
   ConnectedSocket,
   MessageBody,
@@ -7,17 +7,19 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+} from "@nestjs/websockets";
+import { Server, Socket } from "socket.io";
 
 @WebSocketGateway({
-  namespace: '/dashboard',
+  namespace: "/dashboard",
   pingTimeout: 60000,
   pingInterval: 25000,
-  transports: ['websocket'],
+  transports: ["websocket"],
   cors: { origin: process.env.FRONTEND_URL },
 })
-export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class DashboardGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -29,13 +31,19 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
       if (periodoId) {
         const room = this.getPeriodoRoom(periodoId);
         client.join(room);
-        this.logger.log(`Cliente conectado a /dashboard: ${client.id} (room: ${room})`);
+        this.logger.log(
+          `Cliente conectado a /dashboard: ${client.id} (room: ${room})`,
+        );
         return;
       }
-      this.logger.warn(`Cliente conectado a /dashboard sin periodoId: ${client.id}`);
+      this.logger.warn(
+        `Cliente conectado a /dashboard sin periodoId: ${client.id}`,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error en conexión WS /dashboard (${client.id}): ${message}`);
+      this.logger.error(
+        `Error en conexión WS /dashboard (${client.id}): ${message}`,
+      );
     }
   }
 
@@ -44,16 +52,18 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
       this.logger.log(`Cliente desconectado de /dashboard: ${client.id}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error en desconexión WS /dashboard (${client.id}): ${message}`);
+      this.logger.error(
+        `Error en desconexión WS /dashboard (${client.id}): ${message}`,
+      );
     }
   }
 
-  @SubscribeMessage('ping')
+  @SubscribeMessage("ping")
   handlePing(@ConnectedSocket() client: Socket) {
-    client.emit('pong', { timestamp: Date.now() });
+    client.emit("pong", { timestamp: Date.now() });
   }
 
-  @SubscribeMessage('suscribir_periodo')
+  @SubscribeMessage("suscribir_periodo")
   handleSuscribirPeriodo(
     @ConnectedSocket() client: Socket,
     @MessageBody() periodoId: string,
@@ -61,10 +71,10 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
     const room = this.getPeriodoRoom(periodoId);
     client.join(room);
     this.logger.log(`Cliente ${client.id} suscrito a /dashboard ${room}`);
-    return { event: 'suscrito_periodo', data: { periodoId } };
+    return { event: "suscrito_periodo", data: { periodoId } };
   }
 
-  @SubscribeMessage('desuscribir_periodo')
+  @SubscribeMessage("desuscribir_periodo")
   handleDesuscribirPeriodo(
     @ConnectedSocket() client: Socket,
     @MessageBody() periodoId: string,
@@ -72,7 +82,7 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
     const room = this.getPeriodoRoom(periodoId);
     client.leave(room);
     this.logger.log(`Cliente ${client.id} desuscrito de /dashboard ${room}`);
-    return { event: 'desuscrito_periodo', data: { periodoId } };
+    return { event: "desuscrito_periodo", data: { periodoId } };
   }
 
   emitirActualizacion(periodoId: string, evento: string, data: unknown) {
@@ -84,13 +94,14 @@ export class DashboardGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   private getPeriodoId(client: Socket): string | null {
-    const queryPeriodo = client.handshake.query?.periodoId ?? client.handshake.query?.periodo;
-    if (typeof queryPeriodo === 'string' && queryPeriodo.trim().length > 0) {
+    const queryPeriodo =
+      client.handshake.query?.periodoId ?? client.handshake.query?.periodo;
+    if (typeof queryPeriodo === "string" && queryPeriodo.trim().length > 0) {
       return queryPeriodo.trim();
     }
 
-    const headerPeriodo = client.handshake.headers['x-periodo-id'];
-    if (typeof headerPeriodo === 'string' && headerPeriodo.trim().length > 0) {
+    const headerPeriodo = client.handshake.headers["x-periodo-id"];
+    if (typeof headerPeriodo === "string" && headerPeriodo.trim().length > 0) {
       return headerPeriodo.trim();
     }
 

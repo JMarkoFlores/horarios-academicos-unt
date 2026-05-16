@@ -1,0 +1,113 @@
+<div class="analytics-container">
+  <div class="header-row">
+    <h1>Análisis Inteligente de Horarios</h1>
+    <div class="periodo-badge">Semestre {{ periodoService.periodo }}</div>
+  </div>
+
+  <div *ngIf="loading" class="loading-overlay">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Calculando métricas en tiempo real...</p>
+  </div>
+
+  <div *ngIf="!loading" class="dashboard-grid">
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <mat-card class="kpi-card efficiency">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>speed</mat-icon>
+          <mat-card-title>Eficiencia Algoritmo</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="kpi-value">{{ kpis.eficiencia }}%</div>
+          <mat-progress-bar mode="determinate" [value]="kpis.eficiencia"></mat-progress-bar>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="kpi-card assignments">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>event_available</mat-icon>
+          <mat-card-title>Asignaciones Totales</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="kpi-value">{{ kpis.totalAsignaciones }}</div>
+          <div class="kpi-sub">Horas bloque programadas</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="kpi-card conflicts">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>warning</mat-icon>
+          <mat-card-title>Conflictos Activos</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="kpi-value" [class.error-text]="kpis.totalConflictos > 0">{{ kpis.totalConflictos }}</div>
+          <div class="kpi-sub">Requieren atención manual</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="kpi-card courses">
+        <mat-card-header>
+          <mat-icon mat-card-avatar>school</mat-icon>
+          <mat-card-title>Cursos Cubiertos</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="kpi-value">{{ kpis.totalCursos }}</div>
+          <div class="kpi-sub">Población total de cursos</div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <mat-card class="chart-card saturation">
+        <mat-card-header>
+          <mat-card-title>Top 10 Docentes Saturados</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <canvas baseChart
+            [data]="barChartData"
+            [options]="barChartOptions"
+            [type]="barChartType">
+          </canvas>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="chart-card utilization">
+        <mat-card-header>
+          <mat-card-title>Utilización de Ambientes</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <canvas baseChart
+            [data]="doughnutChartData"
+            [type]="'doughnut'">
+          </canvas>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Suggestions & Alarms -->
+    <div class="suggestions-row">
+      <h3>Sugerencias Inteligentes & Detección de Patrones</h3>
+      <div class="suggestions-list">
+        <mat-card *ngFor="let s of suggestions" class="suggestion-card" [ngClass]="s.priority.toLowerCase()">
+          <mat-card-header>
+            <mat-icon [ngSwitch]="s.type">
+              <span *ngSwitchCase="'WARNING'">report_problem</span>
+              <span *ngSwitchCase="'OPTIMIZATION'">insights</span>
+              <span *ngSwitchDefault>info</span>
+            </mat-icon>
+            <mat-card-title>{{ s.title }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p>{{ s.message }}</p>
+          </mat-card-content>
+        </mat-card>
+        
+        <div *ngIf="suggestions.length === 0" class="no-suggestions">
+          <mat-icon>check_circle</mat-icon>
+          <p>No se detectaron anomalías o cuellos de botella importantes.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

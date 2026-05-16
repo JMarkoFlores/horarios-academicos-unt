@@ -7,7 +7,7 @@ export const testDbConfig = {
   database: process.env.DATABASE_NAME || "horarios_unt_test", // Usar BD de test o env override
   entities: ["../src/**/*.entity.ts"],
   synchronize: true,
-  dropSchema: false, // Cambiar a false para evitar problemas de permisos
+  dropSchema: true, // Forzar limpieza en cada arranque de test
   logging: false,
   schema: "public",
 };

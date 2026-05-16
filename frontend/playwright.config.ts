@@ -13,6 +13,7 @@ export default defineConfig({
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:4200',
+    viewport: { width: 1920, height: 1080 },
     actionTimeout: 30000,
     navigationTimeout: 30000,
     trace: 'on-first-retry',

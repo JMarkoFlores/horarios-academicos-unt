@@ -5,7 +5,7 @@ export const testDbConfig = {
   username: process.env.DATABASE_USER || "unt_user",
   password: process.env.DATABASE_PASSWORD || "unt_pass123", // Coincidir con unt_pass123 del CI
   database: process.env.DATABASE_NAME || "horarios_unt",
-  entities: ["../src/**/*.entity.ts"],
+  entities: [__dirname + "/../../src/**/*.entity{.ts,.js}"],
   synchronize: process.env.GITHUB_ACTIONS !== 'true',
   dropSchema: false,
   logging: false,
@@ -14,4 +14,5 @@ export const testDbConfig = {
 
 if (process.env.GITHUB_ACTIONS === 'true') {
   console.log(`CI Connection: ${testDbConfig.host}:${testDbConfig.port} as ${testDbConfig.username}`);
+  console.log(`Entities path: ${testDbConfig.entities}`);
 }

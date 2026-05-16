@@ -63,6 +63,16 @@ jobs:
         env:
           PGPASSWORD: unt_pass123
 
+      - name: Sync Database Schema
+        working-directory: ./backend
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_USER: unt_user
+          DATABASE_PASSWORD: unt_pass123
+          DATABASE_NAME: horarios_unt
+        run: npx ts-node test/sync-db.ts
+
       - name: Unit & Integration Tests
         working-directory: ./backend
         env:

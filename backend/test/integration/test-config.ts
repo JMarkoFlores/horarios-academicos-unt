@@ -6,7 +6,7 @@ export const testDbConfig = {
   password: process.env.DATABASE_PASSWORD || "unt_pass",
   database: process.env.DATABASE_NAME || "horarios_unt_test", // Usar BD de test o env override
   entities: ["../src/**/*.entity.ts"],
-  synchronize: true,
+  synchronize: process.env.GITHUB_ACTIONS !== 'true', // Desactivar en CI para evitar errores de pg_type
   dropSchema: false,
   logging: false,
   schema: "public",

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Scheduling System E2E Flow (Playwright)', () => {
-  const adminEmail = 'admin@unitru.edu.pe';
+  const adminEmail = 'admin@unt.edu.pe';
   const adminPass = 'Admin123!';
 
   test.beforeEach(async ({ page }) => {

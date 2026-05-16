@@ -13,6 +13,7 @@ import { PeriodoService } from '../core/services/periodo.service';
 export class LayoutComponent implements OnInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   isMobile = false;
+  isDark = false;
   sectionTitle = 'Dashboard';
 
   navLinks = [
@@ -57,6 +58,8 @@ export class LayoutComponent implements OnInit {
 
   ngOnInit(): void {
     this.isMobile = window.innerWidth < 768;
+    this.isDark = document.body.classList.contains('dark-theme');
+    
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe((e: any) => {
@@ -71,6 +74,17 @@ export class LayoutComponent implements OnInit {
 
   toggleSidenav(): void {
     this.sidenav.toggle();
+  }
+
+  toggleDarkMode(): void {
+    this.isDark = !this.isDark;
+    if (this.isDark) {
+      document.body.classList.add('dark-theme');
+      document.body.classList.remove('light-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+      document.body.classList.add('light-theme');
+    }
   }
 
   logout(): void {

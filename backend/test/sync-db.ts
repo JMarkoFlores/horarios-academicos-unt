@@ -5,7 +5,7 @@ async function sync() {
   console.log("Sincronizando base de datos de prueba...");
   const dataSource = new DataSource({
     ...testDbConfig,
-    synchronize: true,
+    synchronize: true, // Forzamos true aquí para que el script SÍ cree las tablas
   });
 
   try {

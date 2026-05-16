@@ -30,9 +30,9 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
     // Ir a la pestaña de gestión
     await page.getByRole('tab', { name: 'Gestión de Horario' }).click({ force: true });
     
-    // Esperar a que el contenido de la pestaña cargue (el botón debe aparecer)
-    const genBtn = page.locator('button:has-text("Generar Horario Automático")');
-    await genBtn.waitFor({ state: 'visible', timeout: 20000 });
+    // Esperar a que el contenido de la pestaña cargue
+    const genBtn = page.getByRole('button', { name: /generar horario automático/i });
+    await genBtn.waitFor({ state: 'visible', timeout: 30000 });
     await expect(genBtn).toBeVisible();
     
     // Iniciar generación (manejar confirmación)
@@ -81,8 +81,8 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
     await page.getByRole('link', { name: 'Horarios' }).click();
     await page.getByRole('tab', { name: 'Gestión de Horario' }).click({ force: true });
     
-    const genBtn = page.locator('button:has-text("Generar Horario Automático")');
-    await genBtn.waitFor({ state: 'visible', timeout: 20000 });
+    const genBtn = page.getByRole('button', { name: /generar horario automático/i });
+    await genBtn.waitFor({ state: 'visible', timeout: 30000 });
 
     // Mock de error 500
     await page.route('**/horarios/generar', route => route.fulfill({

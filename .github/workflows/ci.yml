@@ -159,6 +159,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -180,6 +189,16 @@ jobs:
         working-directory: ./frontend
         run: npx playwright install --with-deps
         
+      - name: Sync Database Schema
+        working-directory: ./backend
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_USER: unt_user
+          DATABASE_PASSWORD: unt_pass123
+          DATABASE_NAME: horarios_unt
+        run: npx ts-node test/sync-db.ts
+
       - name: Run Backend
         working-directory: ./backend
         env:
@@ -189,6 +208,8 @@ jobs:
           DATABASE_PASSWORD: unt_pass123
           DATABASE_NAME: horarios_unt
           JWT_SECRET: secret_key_for_testing
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
         run: npm run start &
         
       - name: Wait for Backend

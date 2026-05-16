@@ -9,6 +9,7 @@ import { HorarioAsignado } from '../entities/horario-asignado.entity';
 import { NotificacionesService } from './notificaciones.service';
 import { NotificacionesController } from './notificaciones.controller';
 import { NotificacionesProcessor } from './notificaciones.processor';
+import { NotificacionesGateway } from './notificaciones.gateway';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { NotificacionesProcessor } from './notificaciones.processor';
     BullModule.registerQueue({ name: 'notificaciones' }),
   ],
   controllers: [NotificacionesController],
-  providers: [NotificacionesService, NotificacionesProcessor],
-  exports: [NotificacionesService],
+  providers: [NotificacionesService, NotificacionesProcessor, NotificacionesGateway],
+  exports: [NotificacionesService, NotificacionesGateway],
 })
 export class NotificacionesModule {}

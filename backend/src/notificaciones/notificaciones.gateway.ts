@@ -1,63 +1,56 @@
 import { Logger } from '@nestjs/common';
 import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
-  namespace: '/horarios',
+  namespace: '/notificaciones',
   pingTimeout: 60000,
   pingInterval: 25000,
   transports: ['websocket'],
   cors: { origin: process.env.FRONTEND_URL },
 })
-export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificacionesGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  private readonly logger = new Logger(HorariosGateway.name);
+  private readonly logger = new Logger(NotificacionesGateway.name);
 
-  handleConnection(client: Socket) {
+  handleConnection(client: Socket): void {
     try {
       const periodoId = this.getPeriodoId(client);
       if (periodoId) {
         const room = this.getPeriodoRoom(periodoId);
         client.join(room);
-        this.logger.log(`Cliente conectado a /horarios: ${client.id} (room: ${room})`);
+        this.logger.log(`Cliente conectado a /notificaciones: ${client.id} (room: ${room})`);
         return;
       }
-      this.logger.warn(`Cliente conectado a /horarios sin periodoId: ${client.id}`);
+      this.logger.warn(`Cliente conectado a /notificaciones sin periodoId: ${client.id}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error en conexión WS /horarios (${client.id}): ${message}`);
+      this.logger.error(`Error en conexión WS /notificaciones (${client.id}): ${message}`);
     }
   }
 
-  handleDisconnect(client: Socket) {
+  handleDisconnect(client: Socket): void {
     try {
-      this.logger.log(`Cliente desconectado de /horarios: ${client.id}`);
+      this.logger.log(`Cliente desconectado de /notificaciones: ${client.id}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error en desconexión WS /horarios (${client.id}): ${message}`);
+      this.logger.error(`Error en desconexión WS /notificaciones (${client.id}): ${message}`);
     }
   }
 
   @SubscribeMessage('ping')
   handlePing(@ConnectedSocket() client: Socket) {
     client.emit('pong', { timestamp: Date.now() });
-  }
-
-  @SubscribeMessage('suscribir_ventana')
-  handleSuscribir(@ConnectedSocket() client: Socket, @MessageBody() ventanaId: number) {
-    client.join(`ventana_${ventanaId}`);
-    this.logger.log(`Cliente ${client.id} suscrito a ventana_${ventanaId}`);
-    return { event: 'suscrito', data: { ventanaId } };
   }
 
   @SubscribeMessage('suscribir_periodo')
@@ -67,14 +60,19 @@ export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect
   ) {
     const room = this.getPeriodoRoom(periodoId);
     client.join(room);
-    this.logger.log(`Cliente ${client.id} suscrito a /horarios ${room}`);
+    this.logger.log(`Cliente ${client.id} suscrito a /notificaciones ${room}`);
     return { event: 'suscrito_periodo', data: { periodoId } };
   }
 
-  @SubscribeMessage('desuscribir_ventana')
-  handleDesuscribir(@ConnectedSocket() client: Socket, @MessageBody() ventanaId: number) {
-    client.leave(`ventana_${ventanaId}`);
-    return { event: 'desuscrito', data: { ventanaId } };
+  @SubscribeMessage('desuscribir_periodo')
+  handleDesuscribirPeriodo(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() periodoId: string,
+  ) {
+    const room = this.getPeriodoRoom(periodoId);
+    client.leave(room);
+    this.logger.log(`Cliente ${client.id} desuscrito de /notificaciones ${room}`);
+    return { event: 'desuscrito_periodo', data: { periodoId } };
   }
 
   emitirActualizacion(periodoId: string, evento: string, data: unknown) {

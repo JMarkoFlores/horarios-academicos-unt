@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
-
-@Entity("dia_no_laborable")
-=======
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -12,7 +7,6 @@ import {
 
 @Entity('dia_no_laborable')
 @Index('idx_dia_no_laborable_periodo', ['periodo_academico'])
->>>>>>> develop
 export class DiaNoLaborable {
   @PrimaryGeneratedColumn()
   id: number;

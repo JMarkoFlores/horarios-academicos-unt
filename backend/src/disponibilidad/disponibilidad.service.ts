@@ -158,12 +158,6 @@ export class DisponibilidadService {
     return this.restriccionRepo.save(restriccion);
   }
 
-<<<<<<< HEAD
-  async getPeriodos() {
-    return this.periodoRepo.find({
-      order: { codigo: "DESC" },
-    });
-=======
   async getPeriodos(page = 1, limit = 20) {
     const [data, total] = await this.periodoRepo
       .createQueryBuilder('periodo')
@@ -174,6 +168,5 @@ export class DisponibilidadService {
       .getManyAndCount();
 
     return { data, total, page, limit };
->>>>>>> develop
   }
 }

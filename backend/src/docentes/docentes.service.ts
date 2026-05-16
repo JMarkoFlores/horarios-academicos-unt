@@ -51,14 +51,7 @@ export class DocentesService {
       .getManyAndCount();
 
     return {
-<<<<<<< HEAD
-      items: items.map((d) => ({
-        ...d,
-        antiguedad: this.calcularAntiguedad(d.fecha_ingreso),
-      })),
-=======
       data: items.map((d) => ({ ...d, antiguedad: this.calcularAntiguedad(d.fecha_ingreso) })),
->>>>>>> develop
       total,
       page,
       limit,
@@ -66,12 +59,6 @@ export class DocentesService {
   }
 
   async findOne(id: number): Promise<Docente> {
-<<<<<<< HEAD
-    const docente = await this.docenteRepo.findOne({
-      where: { id },
-      relations: ["disponibilidades", "horarios", "colas"],
-    });
-=======
     const docente = await this.docenteRepo
       .createQueryBuilder('docente')
       .leftJoinAndSelect('docente.disponibilidades', 'disponibilidades')
@@ -80,7 +67,6 @@ export class DocentesService {
       .where('docente.id = :id', { id })
       .cache(`docente_${id}_detalle`, 60000)
       .getOne();
->>>>>>> develop
 
     if (!docente) {
       throw new NotFoundException(`Docente con ID ${id} no encontrado`);

@@ -102,16 +102,6 @@ export class AmbientesService {
   async getDisponibilidad(ambienteId: number, periodo: string, page = 1, limit = 20) {
     await this.findOne(ambienteId);
 
-<<<<<<< HEAD
-    const horarios = await this.horarioRepo.find({
-      where: {
-        ambiente: { id: ambienteId },
-        periodo_academico: periodo,
-      },
-      relations: ["docente", "curso", "grupo"],
-      order: { dia_semana: "ASC", hora_inicio: "ASC" },
-    });
-=======
     const [horarios, total] = await this.horarioRepo
       .createQueryBuilder('horario')
       .leftJoinAndSelect('horario.docente', 'docente')
@@ -126,7 +116,6 @@ export class AmbientesService {
       .take(limit)
       .cache(`horarios_periodo_${periodo}_ambiente_${ambienteId}_${page}_${limit}`, 60000)
       .getManyAndCount();
->>>>>>> develop
 
     const diasNombre = [
       "",
@@ -137,20 +126,6 @@ export class AmbientesService {
       "Viernes",
     ];
 
-<<<<<<< HEAD
-    return horarios.map((h) => ({
-      id: h.id,
-      dia_semana: h.dia_semana,
-      dia_nombre: diasNombre[h.dia_semana] ?? `Día ${h.dia_semana}`,
-      hora_inicio: h.hora_inicio,
-      hora_fin: h.hora_fin,
-      tipo_clase: h.tipo_clase,
-      estado: h.estado,
-      docente: h.docente ? `${h.docente.nombres} ${h.docente.apellidos}` : null,
-      curso: h.curso?.nombre ?? null,
-      grupo: h.grupo?.codigo ?? null,
-    }));
-=======
     return {
       data: horarios.map((h) => ({
         id: h.id,
@@ -170,6 +145,5 @@ export class AmbientesService {
       page,
       limit,
     };
->>>>>>> develop
   }
 }

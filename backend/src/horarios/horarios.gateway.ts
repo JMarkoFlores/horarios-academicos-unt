@@ -5,15 +5,6 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
-<<<<<<< HEAD
-} from "@nestjs/websockets";
-import { Server, Socket } from "socket.io";
-
-@WebSocketGateway({ cors: { origin: "*" } })
-export class HorariosGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
-=======
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
@@ -27,7 +18,6 @@ import { Server, Socket } from 'socket.io';
   cors: { origin: process.env.FRONTEND_URL },
 })
 export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect {
->>>>>>> develop
   @WebSocketServer()
   server: Server;
 
@@ -63,22 +53,13 @@ export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect
     client.emit('pong', { timestamp: Date.now() });
   }
 
-<<<<<<< HEAD
-  @SubscribeMessage("suscribir_ventana")
-  handleSuscribir(client: Socket, ventanaId: number) {
-=======
   @SubscribeMessage('suscribir_ventana')
   handleSuscribir(@ConnectedSocket() client: Socket, @MessageBody() ventanaId: number) {
->>>>>>> develop
     client.join(`ventana_${ventanaId}`);
     this.logger.log(`Cliente ${client.id} suscrito a ventana_${ventanaId}`);
     return { event: "suscrito", data: { ventanaId } };
   }
 
-<<<<<<< HEAD
-  @SubscribeMessage("desuscribir_ventana")
-  handleDesuscribir(client: Socket, ventanaId: number) {
-=======
   @SubscribeMessage('suscribir_periodo')
   handleSuscribirPeriodo(
     @ConnectedSocket() client: Socket,
@@ -92,7 +73,6 @@ export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   @SubscribeMessage('desuscribir_ventana')
   handleDesuscribir(@ConnectedSocket() client: Socket, @MessageBody() ventanaId: number) {
->>>>>>> develop
     client.leave(`ventana_${ventanaId}`);
     return { event: "desuscrito", data: { ventanaId } };
   }

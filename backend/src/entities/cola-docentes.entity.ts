@@ -4,16 +4,10 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
-<<<<<<< HEAD
-} from "typeorm";
-import { VentanaAtencion } from "./ventana-atencion.entity";
-import { Docente } from "./docente.entity";
-=======
   Index,
 } from 'typeorm';
 import { VentanaAtencion } from './ventana-atencion.entity';
 import { Docente } from './docente.entity';
->>>>>>> develop
 
 export enum EstadoCola {
   ESPERANDO = "ESPERANDO",
@@ -22,12 +16,8 @@ export enum EstadoCola {
   AUSENTE = "AUSENTE",
 }
 
-<<<<<<< HEAD
-@Entity("cola_docentes")
-=======
 @Entity('cola_docentes')
 @Index('idx_cola_docente', ['docente'])
->>>>>>> develop
 export class ColaDocentes {
   @PrimaryGeneratedColumn()
   id: number;

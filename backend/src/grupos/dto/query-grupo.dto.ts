@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, IsInt, Min } from "class-validator";
-
-export class QueryGrupoDto {
-  @ApiPropertyOptional({
-    example: "2026-I",
-    description: "Código del período académico",
-  })
-=======
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 
@@ -26,7 +16,6 @@ export class QueryGrupoDto {
   limit?: number = 20;
 
   @ApiPropertyOptional({ example: '2026-I', description: 'Código del período académico' })
->>>>>>> develop
   @IsOptional()
   @IsString()
   periodo?: string;

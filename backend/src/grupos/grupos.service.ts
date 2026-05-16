@@ -38,19 +38,6 @@ export class GruposService {
       qb.andWhere("curso.id = :curso_id", { curso_id: query.curso_id });
     }
 
-<<<<<<< HEAD
-    return qb
-      .orderBy("grupo.ciclo", "ASC")
-      .addOrderBy("grupo.codigo", "ASC")
-      .getMany();
-  }
-
-  async findOne(id: number): Promise<Grupo> {
-    const grupo = await this.grupoRepo.findOne({
-      where: { id },
-      relations: ["periodo_academico", "curso"],
-    });
-=======
     const [data, total] = await qb
       .orderBy('grupo.ciclo', 'ASC')
       .addOrderBy('grupo.codigo', 'ASC')
@@ -73,7 +60,6 @@ export class GruposService {
       .where('grupo.id = :id', { id })
       .cache(`grupo_${id}_detalle`, 60000)
       .getOne();
->>>>>>> develop
 
     if (!grupo) {
       throw new NotFoundException(`Grupo con ID ${id} no encontrado`);

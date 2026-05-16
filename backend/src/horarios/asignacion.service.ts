@@ -20,10 +20,18 @@ export interface ResultadoGeneracion {
 }
 
 interface SlotLibre {
+  key: string;
   dia_semana: number;
   hora_inicio: string;
   hora_fin: string;
   ambiente: Ambiente;
+}
+
+interface FranjaInstitucional {
+  key: string;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string;
 }
 
 @Injectable()
@@ -47,6 +55,7 @@ export class AsignacionService {
     private readonly validacionesService: ValidacionesService,
   ) {}
 
+  // Complejidad: O(C * (D * (Disp + A) + H * (Disp + A + P + B * A))) → O(C * (D + H * B))
   async generarHorario(periodo: string): Promise<ResultadoGeneracion> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -77,14 +86,45 @@ export class AsignacionService {
         .cache(`preasignaciones_periodo_${periodo}_asignacion`, 60000)
         .getMany();
 
+      const docenteMap = new Map(docentesOrdenados.map((docente) => [docente.id, docente]));
+      const aulaMap = new Map(aulas.map((ambiente) => [ambiente.id, ambiente]));
+      const laboratorioMap = new Map(laboratorios.map((ambiente) => [ambiente.id, ambiente]));
+
+      const franjasInstitucionales = this.construirFranjasInstitucionales();
+      const disponibilidadPorDocente = this.preprocesarDisponibilidadPorDocente(
+        disponibilidades,
+        franjasInstitucionales,
+      );
+      const docentesConDisponibilidad = new Set(
+        disponibilidades
+          .map((disponibilidad) => disponibilidad.docente?.id)
+          .filter((docenteId): docenteId is number => typeof docenteId === 'number'),
+      );
+      const preasignacionPorDocente = this.preprocesarPreasignacionesPorDocente(
+        preasignaciones,
+        franjasInstitucionales,
+      );
+      const disponibilidadPorAmbienteAula = this.preprocesarDisponibilidadPorAmbiente(
+        aulaMap,
+        franjasInstitucionales,
+      );
+      const disponibilidadPorAmbienteLab = this.preprocesarDisponibilidadPorAmbiente(
+        laboratorioMap,
+        franjasInstitucionales,
+      );
+
+      const slotsOcupadosPorDocente = new Map<number, Set<string>>();
+      const cargaPorDocente = new Map<number, number>();
+
       const asignaciones: HorarioAsignado[] = [];
       const conflictos: ConflictoAsignacion[] = [];
 
       for (const curso of cursos) {
         const docente = this.encontrarDocenteElegible(
           docentesOrdenados,
-          asignaciones,
-          disponibilidades,
+          docentesConDisponibilidad,
+          disponibilidadPorDocente,
+          cargaPorDocente,
         );
 
         if (!docente) {
@@ -100,11 +140,12 @@ export class AsignacionService {
 
         const slotTeoria = this.buscarSlotLibre(
           docente,
-          aulas,
-          disponibilidades,
-          preasignaciones,
-          asignaciones,
-          periodo,
+          aulaMap,
+          franjasInstitucionales,
+          disponibilidadPorDocente,
+          preasignacionPorDocente,
+          slotsOcupadosPorDocente,
+          disponibilidadPorAmbienteAula,
         );
 
         if (!slotTeoria) {
@@ -121,7 +162,7 @@ export class AsignacionService {
 
         asignaciones.push(
           this.crearAsignacion(
-            docente,
+            docenteMap.get(docente.id) ?? docente,
             curso,
             slotTeoria.ambiente,
             slotTeoria,
@@ -129,15 +170,24 @@ export class AsignacionService {
             periodo,
           ),
         );
+        this.reservarSlot(
+          docente.id,
+          slotTeoria.key,
+          slotTeoria.ambiente.id,
+          slotsOcupadosPorDocente,
+          cargaPorDocente,
+          disponibilidadPorAmbienteAula,
+        );
 
         if (curso.tiene_laboratorio) {
           const slotLab = this.buscarSlotLibre(
             docente,
-            laboratorios,
-            disponibilidades,
-            preasignaciones,
-            asignaciones,
-            periodo,
+            laboratorioMap,
+            franjasInstitucionales,
+            disponibilidadPorDocente,
+            preasignacionPorDocente,
+            slotsOcupadosPorDocente,
+            disponibilidadPorAmbienteLab,
           );
 
           if (!slotLab) {
@@ -152,13 +202,21 @@ export class AsignacionService {
           } else {
             asignaciones.push(
               this.crearAsignacion(
-                docente,
+                docenteMap.get(docente.id) ?? docente,
                 curso,
                 slotLab.ambiente,
                 slotLab,
                 TipoClase.LABORATORIO,
                 periodo,
               ),
+            );
+            this.reservarSlot(
+              docente.id,
+              slotLab.key,
+              slotLab.ambiente.id,
+              slotsOcupadosPorDocente,
+              cargaPorDocente,
+              disponibilidadPorAmbienteLab,
             );
           }
         }
@@ -190,6 +248,7 @@ export class AsignacionService {
     }
   }
 
+  // Complejidad: O(1) → O(1)
   async limpiarHorario(
     periodo: string,
   ): Promise<{ eliminados: number; conflictos_eliminados: number }> {
@@ -205,95 +264,75 @@ export class AsignacionService {
     };
   }
 
+  // Complejidad: O(D * (Disp + A)) → O(D)
   private encontrarDocenteElegible(
     docentesOrdenados: any[],
-    asignaciones: HorarioAsignado[],
-    disponibilidades: DisponibilidadDocente[],
+    docentesConDisponibilidad: Set<number>,
+    disponibilidadPorDocente: Map<number, Set<string>>,
+    cargaPorDocente: Map<number, number>,
   ): any | null {
     const MAX_HORAS = 20;
 
     for (const d of docentesOrdenados) {
-      const tieneDisponibilidad = disponibilidades.some(
-        (disp) => disp.docente?.id === d.id,
-      );
+      const tieneDisponibilidad = docentesConDisponibilidad.has(d.id);
       if (!tieneDisponibilidad) continue;
 
-      const horasAsignadas = asignaciones.filter(
-        (a) => a.docente?.id === d.id,
-      ).length;
+      const tieneSlotDisponible = (disponibilidadPorDocente.get(d.id)?.size ?? 0) > 0;
+      if (!tieneSlotDisponible) continue;
+
+      const horasAsignadas = cargaPorDocente.get(d.id) ?? 0;
       if (horasAsignadas < MAX_HORAS) return d;
     }
 
     return null;
   }
 
+  // Complejidad: O(H * (Disp + A + P + B * A)) → O(H * B)
   private buscarSlotLibre(
     docente: any,
-    ambientes: Ambiente[],
-    disponibilidades: DisponibilidadDocente[],
-    preasignaciones: Preasignacion[],
-    asignaciones: HorarioAsignado[],
-    periodo: string,
+    ambientes: Map<number, Ambiente>,
+    franjasInstitucionales: FranjaInstitucional[],
+    disponibilidadPorDocente: Map<number, Set<string>>,
+    preasignacionPorDocente: Map<number, Set<string>>,
+    slotsOcupadosPorDocente: Map<number, Set<string>>,
+    disponibilidadPorAmbiente: Map<number, Set<string>>,
   ): SlotLibre | null {
-    for (let dia = 1; dia <= 5; dia++) {
-      for (let hora = 7; hora < 22; hora++) {
-        const horaInicio = `${hora.toString().padStart(2, "0")}:00`;
-        const horaFin = `${(hora + 1).toString().padStart(2, "0")}:00`;
+    const docenteId = docente.id;
+    const disponibilidadDocente = disponibilidadPorDocente.get(docenteId);
+    if (!disponibilidadDocente || disponibilidadDocente.size === 0) return null;
 
-        if (
-          !this.validacionesService.verificarFranjaInstitucional(
-            horaInicio,
-            horaFin,
-          )
-        )
-          continue;
+    const slotsPreasignados = preasignacionPorDocente.get(docenteId);
+    const slotsOcupados = slotsOcupadosPorDocente.get(docenteId);
+    const ambienteIds = [...ambientes.keys()];
 
-        const disponible = disponibilidades.some(
-          (d) =>
-            d.docente?.id === docente.id &&
-            d.dia_semana === dia &&
-            this.min(d.hora_inicio) <= this.min(horaInicio) &&
-            this.min(d.hora_fin) >= this.min(horaFin),
-        );
-        if (!disponible) continue;
+    for (const franja of franjasInstitucionales) {
+      const slotKey = franja.key;
 
-        const cruceDoc = asignaciones.some(
-          (a) =>
-            a.docente?.id === docente.id &&
-            a.dia_semana === dia &&
-            this.solapan(a.hora_inicio, a.hora_fin, horaInicio, horaFin),
-        );
-        if (cruceDoc) continue;
+      if (!disponibilidadDocente.has(slotKey)) continue;
+      if (slotsOcupados?.has(slotKey)) continue;
+      if (slotsPreasignados?.has(slotKey)) continue;
 
-        const crucePrea = preasignaciones.some(
-          (p) =>
-            p.docente?.id === docente.id &&
-            p.dia_semana === dia &&
-            this.solapan(p.hora_inicio, p.hora_fin, horaInicio, horaFin),
-        );
-        if (crucePrea) continue;
+      for (const ambienteId of ambienteIds) {
+        const slotsDisponiblesAmbiente = disponibilidadPorAmbiente.get(ambienteId);
+        if (!slotsDisponiblesAmbiente?.has(slotKey)) continue;
 
-        for (const ambiente of ambientes) {
-          const cruceAmb = asignaciones.some(
-            (a) =>
-              a.ambiente?.id === ambiente.id &&
-              a.dia_semana === dia &&
-              this.solapan(a.hora_inicio, a.hora_fin, horaInicio, horaFin),
-          );
-          if (!cruceAmb) {
-            return {
-              dia_semana: dia,
-              hora_inicio: horaInicio,
-              hora_fin: horaFin,
-              ambiente,
-            };
-          }
-        }
+        const ambiente = ambientes.get(ambienteId);
+        if (!ambiente) continue;
+
+        return {
+          key: slotKey,
+          dia_semana: franja.dia_semana,
+          hora_inicio: franja.hora_inicio,
+          hora_fin: franja.hora_fin,
+          ambiente,
+        };
       }
     }
+
     return null;
   }
 
+  // Complejidad: O(1) → O(1)
   private crearAsignacion(
     docente: any,
     curso: Curso,
@@ -315,6 +354,7 @@ export class AsignacionService {
     return h;
   }
 
+  // Complejidad: O(1) → O(1)
   private crearConflicto(
     tipo: string,
     periodo: string,
@@ -332,12 +372,134 @@ export class AsignacionService {
     return c;
   }
 
+  // Complejidad: O(1) → O(1)
   private min(t: string): number {
     const [h, m] = t.split(":").map(Number);
     return h * 60 + m;
   }
 
+  // Complejidad: O(1) → O(1)
   private solapan(s1: string, e1: string, s2: string, e2: string): boolean {
     return this.min(s1) < this.min(e2) && this.min(e1) > this.min(s2);
+  }
+
+  // Complejidad: O(H) → O(H)
+  private construirFranjasInstitucionales(): FranjaInstitucional[] {
+    const franjas: FranjaInstitucional[] = [];
+
+    for (let dia = 1; dia <= 5; dia++) {
+      for (let hora = 7; hora < 22; hora++) {
+        const horaInicio = `${hora.toString().padStart(2, "0")}:00`;
+        const horaFin = `${(hora + 1).toString().padStart(2, "0")}:00`;
+        if (!this.validacionesService.verificarFranjaInstitucional(horaInicio, horaFin)) {
+          continue;
+        }
+
+        franjas.push({
+          key: this.crearClaveSlot(dia, horaInicio, horaFin),
+          dia_semana: dia,
+          hora_inicio: horaInicio,
+          hora_fin: horaFin,
+        });
+      }
+    }
+
+    return franjas;
+  }
+
+  // Complejidad: O(Disp * H) → O(Disp * H)
+  private preprocesarDisponibilidadPorDocente(
+    disponibilidades: DisponibilidadDocente[],
+    franjasInstitucionales: FranjaInstitucional[],
+  ): Map<number, Set<string>> {
+    const disponibilidadPorDocente = new Map<number, Set<string>>();
+
+    for (const disponibilidad of disponibilidades) {
+      const docenteId = disponibilidad.docente?.id;
+      if (!docenteId) continue;
+
+      let slots = disponibilidadPorDocente.get(docenteId);
+      if (!slots) {
+        slots = new Set<string>();
+        disponibilidadPorDocente.set(docenteId, slots);
+      }
+
+      for (const franja of franjasInstitucionales) {
+        if (franja.dia_semana !== disponibilidad.dia_semana) continue;
+        if (
+          this.min(disponibilidad.hora_inicio) <= this.min(franja.hora_inicio) &&
+          this.min(disponibilidad.hora_fin) >= this.min(franja.hora_fin)
+        ) {
+          slots.add(franja.key);
+        }
+      }
+    }
+
+    return disponibilidadPorDocente;
+  }
+
+  // Complejidad: O(Prea * H) → O(Prea * H)
+  private preprocesarPreasignacionesPorDocente(
+    preasignaciones: Preasignacion[],
+    franjasInstitucionales: FranjaInstitucional[],
+  ): Map<number, Set<string>> {
+    const preasignacionPorDocente = new Map<number, Set<string>>();
+
+    for (const preasignacion of preasignaciones) {
+      const docenteId = preasignacion.docente?.id;
+      if (!docenteId) continue;
+
+      let slots = preasignacionPorDocente.get(docenteId);
+      if (!slots) {
+        slots = new Set<string>();
+        preasignacionPorDocente.set(docenteId, slots);
+      }
+
+      for (const franja of franjasInstitucionales) {
+        if (franja.dia_semana !== preasignacion.dia_semana) continue;
+        if (this.solapan(preasignacion.hora_inicio, preasignacion.hora_fin, franja.hora_inicio, franja.hora_fin)) {
+          slots.add(franja.key);
+        }
+      }
+    }
+
+    return preasignacionPorDocente;
+  }
+
+  // Complejidad: O(B * H) → O(B * H)
+  private preprocesarDisponibilidadPorAmbiente(
+    ambientes: Map<number, Ambiente>,
+    franjasInstitucionales: FranjaInstitucional[],
+  ): Map<number, Set<string>> {
+    const disponibilidadPorAmbiente = new Map<number, Set<string>>();
+    const clavesFranjas = franjasInstitucionales.map((franja) => franja.key);
+
+    for (const ambienteId of ambientes.keys()) {
+      disponibilidadPorAmbiente.set(ambienteId, new Set(clavesFranjas));
+    }
+
+    return disponibilidadPorAmbiente;
+  }
+
+  // Complejidad: O(1) → O(1)
+  private reservarSlot(
+    docenteId: number,
+    slotKey: string,
+    ambienteId: number,
+    slotsOcupadosPorDocente: Map<number, Set<string>>,
+    cargaPorDocente: Map<number, number>,
+    disponibilidadPorAmbiente: Map<number, Set<string>>,
+  ): void {
+    const slotsDocente = slotsOcupadosPorDocente.get(docenteId) ?? new Set<string>();
+    slotsDocente.add(slotKey);
+    slotsOcupadosPorDocente.set(docenteId, slotsDocente);
+
+    cargaPorDocente.set(docenteId, (cargaPorDocente.get(docenteId) ?? 0) + 1);
+    disponibilidadPorAmbiente.get(ambienteId)?.delete(slotKey);
+  }
+
+  // Complejidad: O(1) → O(1)
+  private crearClaveSlot(dia: number, horaInicio: string, horaFin: string): string {
+    return `${dia}|${horaInicio}|${horaFin}`;
   }
 }

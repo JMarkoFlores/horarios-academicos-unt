@@ -61,8 +61,14 @@ export class AmbientesController {
   async getDisponibilidad(
     @Param('id', ParseIntPipe) id: number,
     @Query('periodo') periodo: string,
+    @Query() query: QueryAmbienteDto,
   ) {
-    const result = await this.ambientesService.getDisponibilidad(id, periodo ?? '');
+    const result = await this.ambientesService.getDisponibilidad(
+      id,
+      periodo ?? '',
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
     return { data: result, message: 'Disponibilidad del ambiente obtenida' };
   }
 

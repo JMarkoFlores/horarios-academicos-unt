@@ -1,6 +1,7 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DisponibilidadService } from './disponibilidad.service';
+import { QueryListDto } from './dto/query-list.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('periodos')
@@ -12,8 +13,11 @@ export class PeriodosController {
 
   @Get()
   @ApiOperation({ summary: 'Listar todos los períodos académicos' })
-  async getPeriodos() {
-    const result = await this.disponibilidadService.getPeriodos();
+  async getPeriodos(@Query() query: QueryListDto) {
+    const result = await this.disponibilidadService.getPeriodos(
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
     return { data: result, message: 'Períodos académicos obtenidos' };
   }
 }

@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { TipoClase } from '../common/enums/tipo-clase.enum';
 import { Docente } from './docente.entity';
@@ -11,6 +12,10 @@ import { Curso } from './curso.entity';
 import { Ambiente } from './ambiente.entity';
 
 @Entity('preasignacion')
+@Index('idx_preasignacion_periodo', ['periodo_academico'])
+@Index('idx_preasignacion_docente_periodo', ['docente', 'periodo_academico'])
+@Index('idx_preasignacion_ambiente_periodo', ['ambiente', 'periodo_academico'])
+@Index('idx_preasignacion_dia_hora', ['dia_semana', 'hora_inicio'])
 export class Preasignacion {
   @PrimaryGeneratedColumn()
   id: number;

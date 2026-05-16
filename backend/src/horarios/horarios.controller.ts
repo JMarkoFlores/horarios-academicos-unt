@@ -10,6 +10,7 @@ import { HorariosService } from './horarios.service';
 import { GenerarHorarioDto } from './dto/generar-horario.dto';
 import { LimpiarHorarioDto } from './dto/limpiar-horario.dto';
 import { ReasignarHorarioDto } from './dto/reasignar-horario.dto';
+import { QueryHorarioListDto } from './dto/query-horario-list.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -45,8 +46,15 @@ export class HorariosController {
   @Get('periodo/:periodo')
   @ApiOperation({ summary: 'Horario completo de un período' })
   @ApiParam({ name: 'periodo', example: '2026-I' })
-  async getByPeriodo(@Param('periodo') periodo: string) {
-    const result = await this.horariosService.findAllByPeriodo(periodo);
+  async getByPeriodo(
+    @Param('periodo') periodo: string,
+    @Query() query: QueryHorarioListDto,
+  ) {
+    const result = await this.horariosService.findAllByPeriodo(
+      periodo,
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
     return { data: result, message: 'Horario del período obtenido' };
   }
 
@@ -57,8 +65,14 @@ export class HorariosController {
   async getByDocente(
     @Param('id', ParseIntPipe) id: number,
     @Query('periodo') periodo: string,
+    @Query() query: QueryHorarioListDto,
   ) {
-    const result = await this.horariosService.findByDocente(id, periodo ?? '');
+    const result = await this.horariosService.findByDocente(
+      id,
+      periodo ?? '',
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
     return { data: result, message: 'Horario del docente obtenido' };
   }
 
@@ -69,16 +83,29 @@ export class HorariosController {
   async getByAmbiente(
     @Param('id', ParseIntPipe) id: number,
     @Query('periodo') periodo: string,
+    @Query() query: QueryHorarioListDto,
   ) {
-    const result = await this.horariosService.findByAmbiente(id, periodo ?? '');
+    const result = await this.horariosService.findByAmbiente(
+      id,
+      periodo ?? '',
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
     return { data: result, message: 'Horario del ambiente obtenido' };
   }
 
   @Get('conflictos/:periodo')
   @ApiOperation({ summary: 'Lista de conflictos del período' })
   @ApiParam({ name: 'periodo', example: '2026-I' })
-  async getConflictos(@Param('periodo') periodo: string) {
-    const result = await this.horariosService.findConflictos(periodo);
+  async getConflictos(
+    @Param('periodo') periodo: string,
+    @Query() query: QueryHorarioListDto,
+  ) {
+    const result = await this.horariosService.findConflictos(
+      periodo,
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
     return { data: result, message: 'Conflictos obtenidos' };
   }
 

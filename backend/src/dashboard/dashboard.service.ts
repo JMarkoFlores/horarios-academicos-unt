@@ -33,10 +33,14 @@ export class DashboardService {
       this.ambienteRepo.count({ where: { tipo: TipoAmbiente.LABORATORIO, activo: true } }),
       this.cursoRepo.count({ where: { activo: true } }),
       this.conflictoRepo.count({ where: { periodo_academico: periodo, resuelto: false } }),
-      this.horarioRepo.find({
-        where: { periodo_academico: periodo },
-        relations: ['docente', 'curso', 'ambiente'],
-      }),
+      this.horarioRepo
+        .createQueryBuilder('horario')
+        .leftJoinAndSelect('horario.docente', 'docente')
+        .leftJoinAndSelect('horario.curso', 'curso')
+        .leftJoinAndSelect('horario.ambiente', 'ambiente')
+        .where('horario.periodo_academico = :periodo', { periodo })
+        .cache(`horarios_periodo_${periodo}_dashboard_kpis`, 60000)
+        .getMany(),
       this.docenteRepo.find({ where: { activo: true } }),
     ]);
 

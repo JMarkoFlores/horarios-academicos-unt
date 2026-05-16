@@ -62,14 +62,20 @@ export class AsignacionService {
       const laboratorios = await this.ambienteRepo.find({
         where: { tipo: TipoAmbiente.LABORATORIO, activo: true },
       });
-      const disponibilidades = await this.disponibilidadRepo.find({
-        where: { periodo_academico: periodo, disponible: true },
-        relations: ["docente"],
-      });
-      const preasignaciones = await this.preasignacionRepo.find({
-        where: { periodo_academico: periodo },
-        relations: ["docente", "ambiente"],
-      });
+      const disponibilidades = await this.disponibilidadRepo
+        .createQueryBuilder('disponibilidad')
+        .leftJoinAndSelect('disponibilidad.docente', 'docente')
+        .where('disponibilidad.periodo_academico = :periodo', { periodo })
+        .andWhere('disponibilidad.disponible = :disponible', { disponible: true })
+        .cache(`disponibilidad_periodo_${periodo}_asignacion`, 60000)
+        .getMany();
+      const preasignaciones = await this.preasignacionRepo
+        .createQueryBuilder('preasignacion')
+        .leftJoinAndSelect('preasignacion.docente', 'docente')
+        .leftJoinAndSelect('preasignacion.ambiente', 'ambiente')
+        .where('preasignacion.periodo_academico = :periodo', { periodo })
+        .cache(`preasignaciones_periodo_${periodo}_asignacion`, 60000)
+        .getMany();
 
       const asignaciones: HorarioAsignado[] = [];
       const conflictos: ConflictoAsignacion[] = [];

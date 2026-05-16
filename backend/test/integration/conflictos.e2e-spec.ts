@@ -3,8 +3,6 @@ import * as request from "supertest";
 import {
   createTestApp,
   closeTestApp,
-  startTransaction,
-  rollbackTransaction,
   clearDatabase,
 } from "./test-helper";
 import { getSeededData } from "./seeders/test-data";
@@ -48,7 +46,7 @@ describe("Conflictos Integration Tests", () => {
   });
 
   beforeEach(async () => {
-    await startTransaction(app);
+    await clearDatabase(app);
     const seededData = await getSeededData();
 
     await usuarioRepository.save(seededData.users);
@@ -76,7 +74,7 @@ describe("Conflictos Integration Tests", () => {
   });
 
   afterEach(async () => {
-    await rollbackTransaction(app);
+    // No longer using transactions for better state isolation
   });
 
   describe("Detección de conflictos", () => {
@@ -140,8 +138,8 @@ describe("Conflictos Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty("data");
-      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data).toHaveProperty("data");
+      expect(Array.isArray(response.body.data.data)).toBe(true);
     });
 
     it("debe retornar array vacío si no hay conflictos", async () => {
@@ -150,7 +148,7 @@ describe("Conflictos Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.data).toEqual([]);
+      expect(response.body.data.data).toEqual([]);
     });
 
     it("debe incluir relaciones en la respuesta de conflictos", async () => {
@@ -164,9 +162,9 @@ describe("Conflictos Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      if (response.body.data.length > 0) {
-        expect(response.body.data[0]).toHaveProperty("docente");
-        expect(response.body.data[0]).toHaveProperty("ambiente");
+      if (response.body.data.data.length > 0) {
+        expect(response.body.data.data[0]).toHaveProperty("docente");
+        expect(response.body.data.data[0]).toHaveProperty("ambiente");
       }
     });
   });

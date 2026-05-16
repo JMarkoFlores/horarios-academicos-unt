@@ -7,6 +7,8 @@ import { AsignacionService } from "./asignacion.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 
+import { AuditLogService } from "../common/services/audit-log.service";
+
 describe("HorariosController (e2e)", () => {
   let app: INestApplication;
   let horariosService: HorariosService;
@@ -34,6 +36,10 @@ describe("HorariosController (e2e)", () => {
     canActivate: jest.fn(() => true),
   };
 
+  const mockAuditLogService = {
+    log: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HorariosController],
@@ -45,6 +51,18 @@ describe("HorariosController (e2e)", () => {
         {
           provide: AsignacionService,
           useValue: mockAsignacionService,
+        },
+        {
+          provide: AuditLogService,
+          useValue: mockAuditLogService,
+        },
+        {
+          provide: "CACHE_MANAGER",
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+          },
         },
       ],
     })
@@ -64,7 +82,9 @@ describe("HorariosController (e2e)", () => {
   });
 
   afterEach(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   describe("GET /horarios/periodo/:periodo", () => {
@@ -88,7 +108,7 @@ describe("HorariosController (e2e)", () => {
         data: mockHorarios,
         message: "Horario del período obtenido",
       });
-      expect(horariosService.findAllByPeriodo).toHaveBeenCalledWith("2026-I");
+      expect(horariosService.findAllByPeriodo).toHaveBeenCalledWith("2026-I", 1, 20);
     });
   });
 
@@ -113,7 +133,7 @@ describe("HorariosController (e2e)", () => {
         data: mockHorarios,
         message: "Horario del docente obtenido",
       });
-      expect(horariosService.findByDocente).toHaveBeenCalledWith(1, "2026-I");
+      expect(horariosService.findByDocente).toHaveBeenCalledWith(1, "2026-I", 1, 20);
     });
   });
 
@@ -138,7 +158,7 @@ describe("HorariosController (e2e)", () => {
         data: mockHorarios,
         message: "Horario del ambiente obtenido",
       });
-      expect(horariosService.findByAmbiente).toHaveBeenCalledWith(1, "2026-I");
+      expect(horariosService.findByAmbiente).toHaveBeenCalledWith(1, "2026-I", 1, 20);
     });
   });
 
@@ -161,7 +181,7 @@ describe("HorariosController (e2e)", () => {
         data: mockConflictos,
         message: "Conflictos obtenidos",
       });
-      expect(horariosService.findConflictos).toHaveBeenCalledWith("2026-I");
+      expect(horariosService.findConflictos).toHaveBeenCalledWith("2026-I", 1, 20);
     });
   });
 

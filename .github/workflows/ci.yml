@@ -54,6 +54,15 @@ jobs:
         working-directory: ./backend
         run: npm run build
         
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U unt_user; do
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+        env:
+          PGPASSWORD: unt_pass123
+
       - name: Unit & Integration Tests
         working-directory: ./backend
         env:
@@ -63,7 +72,8 @@ jobs:
           DATABASE_PASSWORD: unt_pass123
           DATABASE_NAME: horarios_unt
           JWT_SECRET: secret_key_for_testing
-        run: npm run test:cov -- --maxWorkers=1 --forceExit
+          NODE_ENV: test
+        run: npm run test:cov -- --maxWorkers=1 --forceExit --detectOpenHandles
         
       - name: Upload Coverage
         uses: actions/upload-artifact@v4

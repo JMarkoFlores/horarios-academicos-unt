@@ -63,7 +63,7 @@ jobs:
           DATABASE_PASSWORD: unt_pass123
           DATABASE_NAME: horarios_unt
           JWT_SECRET: secret_key_for_testing
-        run: npm run test:cov -- --runInBand
+        run: npm run test:cov -- --maxWorkers=1 --forceExit
         
       - name: Upload Coverage
         uses: actions/upload-artifact@v4

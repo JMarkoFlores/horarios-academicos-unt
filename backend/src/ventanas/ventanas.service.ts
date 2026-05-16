@@ -7,7 +7,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { LessThan } from 'typeorm';
 import { VentanaAtencion } from '../entities/ventana-atencion.entity';
 import { ColaDocentes, EstadoCola } from '../entities/cola-docentes.entity';
 import { SeleccionTemporal } from '../entities/seleccion-temporal.entity';
@@ -63,29 +62,44 @@ export class VentanasService {
     );
 
     await this.colaRepo.save(entradas);
-    this.gateway.emitirActualizacion(ventanaId, 'cola_actualizada', { evento: 'iniciada', ventanaId });
+    this.gateway.emitirActualizacion(ventana.periodo_academico, 'cola_actualizada', {
+      evento: 'iniciada',
+      ventanaId,
+    });
 
     return ventana;
   }
 
   async llamarSiguiente(ventanaId: number): Promise<ColaDocentes | null> {
-    const actual = await this.colaRepo.findOne({
-      where: { ventana: { id: ventanaId }, estado: EstadoCola.EN_ATENCION },
-      relations: ['docente'],
-    });
+    const periodoId = await this.getPeriodoAcademicoByVentanaId(ventanaId);
+    const actual = await this.colaRepo
+      .createQueryBuilder('cola')
+      .leftJoinAndSelect('cola.docente', 'docente')
+      .leftJoin('cola.ventana', 'ventana')
+      .where('ventana.id = :ventanaId', { ventanaId })
+      .andWhere('cola.estado = :estado', { estado: EstadoCola.EN_ATENCION })
+      .cache(`cola_ventana_${ventanaId}_en_atencion`, 60000)
+      .getOne();
     if (actual) {
       actual.estado = EstadoCola.COMPLETADO;
       await this.colaRepo.save(actual);
     }
 
-    const siguiente = await this.colaRepo.findOne({
-      where: { ventana: { id: ventanaId }, estado: EstadoCola.ESPERANDO },
-      order: { orden: 'ASC' },
-      relations: ['docente'],
-    });
+    const siguiente = await this.colaRepo
+      .createQueryBuilder('cola')
+      .leftJoinAndSelect('cola.docente', 'docente')
+      .leftJoin('cola.ventana', 'ventana')
+      .where('ventana.id = :ventanaId', { ventanaId })
+      .andWhere('cola.estado = :estado', { estado: EstadoCola.ESPERANDO })
+      .orderBy('cola.orden', 'ASC')
+      .cache(`cola_ventana_${ventanaId}_siguiente`, 60000)
+      .getOne();
 
     if (!siguiente) {
-      this.gateway.emitirActualizacion(ventanaId, 'cola_actualizada', { evento: 'cola_terminada', ventanaId });
+      this.gateway.emitirActualizacion(periodoId, 'cola_actualizada', {
+        evento: 'cola_terminada',
+        ventanaId,
+      });
       return null;
     }
 
@@ -93,7 +107,7 @@ export class VentanasService {
     siguiente.turno_llamado_at = new Date();
     await this.colaRepo.save(siguiente);
 
-    this.gateway.emitirActualizacion(ventanaId, 'cola_actualizada', {
+    this.gateway.emitirActualizacion(periodoId, 'cola_actualizada', {
       evento: 'siguiente_docente',
       docente: {
         id: siguiente.docente.id,
@@ -113,10 +127,13 @@ export class VentanasService {
     const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
     if (!docente) throw new NotFoundException(`Docente ${docenteId} no encontrado`);
 
-    const selecciones = await this.seleccionRepo.find({
-      where: { docente: { id: docenteId } },
-      relations: ['docente', 'ambiente'],
-    });
+    const selecciones = await this.seleccionRepo
+      .createQueryBuilder('seleccion')
+      .leftJoinAndSelect('seleccion.docente', 'docente')
+      .leftJoinAndSelect('seleccion.ambiente', 'ambiente')
+      .where('docente.id = :docenteId', { docenteId })
+      .cache(`selecciones_docente_${docenteId}_confirmacion`, 60000)
+      .getMany();
 
     const horarios: HorarioAsignado[] = [];
     for (const sel of selecciones) {
@@ -143,7 +160,7 @@ export class VentanasService {
       await this.colaRepo.save(entrada);
     }
 
-    this.gateway.emitirActualizacion(ventanaId, 'horario_confirmado', {
+    this.gateway.emitirActualizacion(ventana.periodo_academico, 'horario_confirmado', {
       docenteId,
       horarios: guardados.length,
     });
@@ -155,11 +172,14 @@ export class VentanasService {
     const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
     if (!ventana) throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
 
-    const cola = await this.colaRepo.find({
-      where: { ventana: { id: ventanaId } },
-      relations: ['docente'],
-      order: { orden: 'ASC' },
-    });
+    const cola = await this.colaRepo
+      .createQueryBuilder('cola')
+      .leftJoinAndSelect('cola.docente', 'docente')
+      .leftJoin('cola.ventana', 'ventana')
+      .where('ventana.id = :ventanaId', { ventanaId })
+      .orderBy('cola.orden', 'ASC')
+      .cache(`cola_ventana_${ventanaId}_estado`, 60000)
+      .getMany();
 
     return {
       ventana,
@@ -180,6 +200,7 @@ export class VentanasService {
   }
 
   async seleccionarCelda(ventanaId: number, dto: SeleccionarCeldaDto): Promise<SeleccionTemporal> {
+    const periodoId = await this.getPeriodoAcademicoByVentanaId(ventanaId);
     const ambiente = await this.ambienteRepo.findOne({ where: { id: dto.ambiente_id } });
     if (!ambiente) throw new NotFoundException(`Ambiente ${dto.ambiente_id} no encontrado`);
 
@@ -207,7 +228,7 @@ export class VentanasService {
 
     const guardada = await this.seleccionRepo.save(seleccion);
 
-    this.gateway.emitirActualizacion(ventanaId, 'celda_seleccionada', {
+    this.gateway.emitirActualizacion(periodoId, 'celda_seleccionada', {
       docenteId: dto.docente_id,
       dia_semana: dto.dia_semana,
       hora_inicio: dto.hora_inicio,
@@ -219,6 +240,7 @@ export class VentanasService {
   }
 
   async liberarCelda(ventanaId: number, dto: Partial<SeleccionarCeldaDto>): Promise<void> {
+    const periodoId = await this.getPeriodoAcademicoByVentanaId(ventanaId);
     const seleccion = await this.seleccionRepo.findOne({
       where: {
         docente: { id: dto.docente_id },
@@ -230,7 +252,7 @@ export class VentanasService {
 
     await this.seleccionRepo.remove(seleccion);
 
-    this.gateway.emitirActualizacion(ventanaId, 'celda_liberada', {
+    this.gateway.emitirActualizacion(periodoId, 'celda_liberada', {
       dia_semana: dto.dia_semana,
       hora_inicio: dto.hora_inicio,
       ambiente_id: dto.ambiente_id,
@@ -239,16 +261,26 @@ export class VentanasService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async liberarCeldasExpiradas(): Promise<void> {
-    const expiradas = await this.seleccionRepo.find({
-      where: { expira_at: LessThan(new Date()) },
-      relations: ['ambiente'],
-    });
+    const expiradas = await this.seleccionRepo
+      .createQueryBuilder('seleccion')
+      .leftJoinAndSelect('seleccion.ambiente', 'ambiente')
+      .where('seleccion.expira_at < :ahora', { ahora: new Date() })
+      .cache('selecciones_expiradas', 60000)
+      .getMany();
 
     if (expiradas.length === 0) return;
 
     this.logger.log(`Liberando ${expiradas.length} celdas expiradas`);
     for (const sel of expiradas) {
-      this.gateway.emitirGlobal('celda_liberada', {
+      const periodoId = await this.getPeriodoAcademicoByDocenteId(sel.docente?.id);
+      if (!periodoId) {
+        this.logger.warn(
+          `No se pudo resolver periodo academico para liberar celda expirada de docente ${sel.docente?.id}`,
+        );
+        continue;
+      }
+
+      this.gateway.emitirPeriodo(periodoId, 'celda_liberada', {
         dia_semana: sel.dia_semana,
         hora_inicio: sel.hora_inicio,
         ambiente_id: sel.ambiente?.id,
@@ -256,5 +288,30 @@ export class VentanasService {
       });
     }
     await this.seleccionRepo.remove(expiradas);
+  }
+
+  private async getPeriodoAcademicoByVentanaId(ventanaId: number): Promise<string> {
+    const ventana = await this.ventanaRepo.findOne({
+      where: { id: ventanaId },
+      select: ['id', 'periodo_academico'],
+    });
+    if (!ventana) throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
+    return ventana.periodo_academico;
+  }
+
+  private async getPeriodoAcademicoByDocenteId(docenteId?: number): Promise<string | null> {
+    if (!docenteId) return null;
+
+    const entrada = await this.colaRepo
+      .createQueryBuilder('cola')
+      .leftJoinAndSelect('cola.ventana', 'ventana')
+      .leftJoin('cola.docente', 'docente')
+      .where('docente.id = :docenteId', { docenteId })
+      .andWhere('ventana.activo = :activo', { activo: true })
+      .orderBy('ventana.fecha', 'DESC')
+      .addOrderBy('ventana.hora_inicio', 'DESC')
+      .getOne();
+
+    return entrada?.ventana?.periodo_academico ?? null;
   }
 }

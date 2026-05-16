@@ -1,8 +1,12 @@
 import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { CacheModule } from "@nestjs/cache-manager";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BullModule } from "@nestjs/bull";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { redisStore } from "cache-manager-redis-store";
 import { AuthModule } from "./auth/auth.module";
 import { CommonModule } from "./common/common.module";
 import { DocentesModule } from "./docentes/docentes.module";
@@ -38,6 +42,26 @@ import { NotificacionesModule } from "./notificaciones/notificaciones.module";
         ssl: false,
       }),
     }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => {
+        const redisHost = config.get<string>("REDIS_HOST", "localhost");
+        const redisPort = config.get<number>("REDIS_PORT", 6379);
+        const redisTtl = config.get<number>("REDIS_TTL", 300);
+
+        return {
+          store: (await redisStore({
+            socket: {
+              host: redisHost,
+              port: redisPort,
+            },
+          })) as unknown,
+          ttl: redisTtl,
+        };
+      },
+    }),
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -48,6 +72,12 @@ import { NotificacionesModule } from "./notificaciones/notificaciones.module";
         },
       }),
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     ScheduleModule.forRoot(),
     AuthModule,
     CommonModule,
@@ -61,6 +91,12 @@ import { NotificacionesModule } from "./notificaciones/notificaciones.module";
     ReportesModule,
     DashboardModule,
     NotificacionesModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

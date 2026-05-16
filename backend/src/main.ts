@@ -1,6 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
@@ -8,11 +9,37 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger("Bootstrap");
+  const frontendUrl = process.env.FRONTEND_URL;
+
+  app.getHttpAdapter().getInstance().set("trust proxy", 1);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          fontSrc: ["'self'", "https:", "data:"],
+          formAction: ["'self'"],
+          frameAncestors: ["'self'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          objectSrc: ["'none'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "https:"],
+          scriptSrcAttr: ["'none'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+          connectSrc: ["'self'", ...(frontendUrl ? [frontendUrl] : [])],
+          upgradeInsecureRequests:
+            process.env.NODE_ENV === "production" ? [] : null,
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   app.enableCors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: frontendUrl,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    credentials: true,
   });
 
   app.useGlobalPipes(

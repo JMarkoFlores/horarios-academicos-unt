@@ -4,11 +4,15 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Docente } from './docente.entity';
 import { Ambiente } from './ambiente.entity';
 
 @Entity('seleccion_temporal')
+@Index('idx_seleccion_docente', ['docente'])
+@Index('idx_seleccion_ambiente', ['ambiente'])
+@Index('idx_seleccion_dia_hora', ['dia_semana', 'hora_inicio'])
 export class SeleccionTemporal {
   @PrimaryGeneratedColumn()
   id: number;

@@ -7,11 +7,12 @@ import { Ambiente } from '../entities/ambiente.entity';
 import { Curso } from '../entities/curso.entity';
 import { DashboardService } from './dashboard.service';
 import { DashboardController } from './dashboard.controller';
+import { DashboardGateway } from './dashboard.gateway';
 
 @Module({
   imports: [TypeOrmModule.forFeature([HorarioAsignado, ConflictoAsignacion, Docente, Ambiente, Curso])],
   controllers: [DashboardController],
-  providers: [DashboardService],
-  exports: [DashboardService],
+  providers: [DashboardService, DashboardGateway],
+  exports: [DashboardService, DashboardGateway],
 })
 export class DashboardModule {}

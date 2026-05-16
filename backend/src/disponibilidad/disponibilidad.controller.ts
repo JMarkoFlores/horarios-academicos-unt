@@ -21,6 +21,7 @@ import {
 import { DisponibilidadService } from './disponibilidad.service';
 import { GuardarDisponibilidadDto } from './dto/guardar-disponibilidad.dto';
 import { CreateRestriccionDto } from './dto/create-restriccion.dto';
+import { QueryListDto } from './dto/query-list.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -69,8 +70,15 @@ export class DisponibilidadController {
   @Get('restricciones')
   @ApiOperation({ summary: 'Listar restricciones institucionales activas' })
   @ApiQuery({ name: 'periodo', required: true, example: '2026-I' })
-  async getRestricciones(@Query('periodo') periodo: string) {
-    const result = await this.disponibilidadService.getRestricciones(periodo ?? '');
+  async getRestricciones(
+    @Query('periodo') periodo: string,
+    @Query() query: QueryListDto,
+  ) {
+    const result = await this.disponibilidadService.getRestricciones(
+      periodo ?? '',
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
     return { data: result, message: 'Restricciones obtenidas' };
   }
 

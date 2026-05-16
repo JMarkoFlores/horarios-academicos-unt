@@ -24,6 +24,7 @@ export class GruposService {
   ) {}
 
   async findAll(query: QueryGrupoDto) {
+    const { page = 1, limit = 20 } = query;
     const qb = this.grupoRepo
       .createQueryBuilder('grupo')
       .leftJoinAndSelect('grupo.periodo_academico', 'periodo')
@@ -37,17 +38,28 @@ export class GruposService {
       qb.andWhere('curso.id = :curso_id', { curso_id: query.curso_id });
     }
 
-    return qb
+    const [data, total] = await qb
       .orderBy('grupo.ciclo', 'ASC')
       .addOrderBy('grupo.codigo', 'ASC')
-      .getMany();
+      .skip((page - 1) * limit)
+      .take(limit)
+      .cache(
+        `grupos_list_${query.periodo ?? 'all'}_${query.curso_id ?? 'all'}_${page}_${limit}`,
+        60000,
+      )
+      .getManyAndCount();
+
+    return { data, total, page, limit };
   }
 
   async findOne(id: number): Promise<Grupo> {
-    const grupo = await this.grupoRepo.findOne({
-      where: { id },
-      relations: ['periodo_academico', 'curso'],
-    });
+    const grupo = await this.grupoRepo
+      .createQueryBuilder('grupo')
+      .leftJoinAndSelect('grupo.periodo_academico', 'periodo')
+      .leftJoinAndSelect('grupo.curso', 'curso')
+      .where('grupo.id = :id', { id })
+      .cache(`grupo_${id}_detalle`, 60000)
+      .getOne();
 
     if (!grupo) {
       throw new NotFoundException(`Grupo con ID ${id} no encontrado`);

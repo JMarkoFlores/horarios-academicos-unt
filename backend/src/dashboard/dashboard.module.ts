@@ -10,7 +10,15 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardGateway } from './dashboard.gateway';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([HorarioAsignado, ConflictoAsignacion, Docente, Ambiente, Curso])],
+  imports: [
+    TypeOrmModule.forFeature([
+      HorarioAsignado,
+      ConflictoAsignacion,
+      Docente,
+      Ambiente,
+      Curso,
+    ]),
+  ],
   controllers: [DashboardController],
   providers: [DashboardService, DashboardGateway],
   exports: [DashboardService, DashboardGateway],

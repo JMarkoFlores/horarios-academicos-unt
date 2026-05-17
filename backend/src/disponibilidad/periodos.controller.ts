@@ -4,10 +4,10 @@ import { DisponibilidadService } from './disponibilidad.service';
 import { QueryListDto } from './dto/query-list.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@ApiTags('periodos')
-@Controller('periodos')
+@ApiTags("periodos")
+@Controller("periodos")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT')
+@ApiBearerAuth("JWT")
 export class PeriodosController {
   constructor(private readonly disponibilidadService: DisponibilidadService) {}
 

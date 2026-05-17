@@ -50,16 +50,19 @@ export class ReportesService {
       where: { id: docenteId },
     });
     const horarios = await this.horarioRepo
-      .createQueryBuilder('horario')
-      .leftJoinAndSelect('horario.docente', 'docente')
-      .leftJoinAndSelect('horario.curso', 'curso')
-      .leftJoinAndSelect('horario.ambiente', 'ambiente')
-      .leftJoinAndSelect('horario.grupo', 'grupo')
-      .where('docente.id = :docenteId', { docenteId })
-      .andWhere('horario.periodo_academico = :periodo', { periodo })
-      .orderBy('horario.dia_semana', 'ASC')
-      .addOrderBy('horario.hora_inicio', 'ASC')
-      .cache(`horarios_periodo_${periodo}_docente_${docenteId}_reporte_pdf`, 60000)
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("docente.id = :docenteId", { docenteId })
+      .andWhere("horario.periodo_academico = :periodo", { periodo })
+      .orderBy("horario.dia_semana", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .cache(
+        `horarios_periodo_${periodo}_docente_${docenteId}_reporte_pdf`,
+        60000,
+      )
       .getMany();
 
     const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -107,16 +110,19 @@ export class ReportesService {
       where: { id: ambienteId },
     });
     const horarios = await this.horarioRepo
-      .createQueryBuilder('horario')
-      .leftJoinAndSelect('horario.ambiente', 'ambiente')
-      .leftJoinAndSelect('horario.docente', 'docente')
-      .leftJoinAndSelect('horario.curso', 'curso')
-      .leftJoinAndSelect('horario.grupo', 'grupo')
-      .where('ambiente.id = :ambienteId', { ambienteId })
-      .andWhere('horario.periodo_academico = :periodo', { periodo })
-      .orderBy('horario.dia_semana', 'ASC')
-      .addOrderBy('horario.hora_inicio', 'ASC')
-      .cache(`horarios_periodo_${periodo}_ambiente_${ambienteId}_reporte_pdf`, 60000)
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("ambiente.id = :ambienteId", { ambienteId })
+      .andWhere("horario.periodo_academico = :periodo", { periodo })
+      .orderBy("horario.dia_semana", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .cache(
+        `horarios_periodo_${periodo}_ambiente_${ambienteId}_reporte_pdf`,
+        60000,
+      )
       .getMany();
 
     const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -151,23 +157,23 @@ export class ReportesService {
 
   async generarReporteOperacionalPDF(periodo: string): Promise<Buffer> {
     const horarios = await this.horarioRepo
-      .createQueryBuilder('horario')
-      .leftJoinAndSelect('horario.docente', 'docente')
-      .leftJoinAndSelect('horario.curso', 'curso')
-      .leftJoinAndSelect('horario.ambiente', 'ambiente')
-      .leftJoinAndSelect('horario.grupo', 'grupo')
-      .where('horario.periodo_academico = :periodo', { periodo })
-      .orderBy('horario.dia_semana', 'ASC')
-      .addOrderBy('horario.hora_inicio', 'ASC')
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("horario.periodo_academico = :periodo", { periodo })
+      .orderBy("horario.dia_semana", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
       .cache(`horarios_periodo_${periodo}_reporte_operacional`, 60000)
       .getMany();
 
     const conflictos = await this.conflictoRepo
-      .createQueryBuilder('conflicto')
-      .leftJoinAndSelect('conflicto.docente', 'docente')
-      .leftJoinAndSelect('conflicto.ambiente', 'ambiente')
-      .where('conflicto.periodo_academico = :periodo', { periodo })
-      .andWhere('conflicto.resuelto = :resuelto', { resuelto: false })
+      .createQueryBuilder("conflicto")
+      .leftJoinAndSelect("conflicto.docente", "docente")
+      .leftJoinAndSelect("conflicto.ambiente", "ambiente")
+      .where("conflicto.periodo_academico = :periodo", { periodo })
+      .andWhere("conflicto.resuelto = :resuelto", { resuelto: false })
       .cache(`conflictos_periodo_${periodo}_reporte_operacional`, 60000)
       .getMany();
 
@@ -228,10 +234,10 @@ export class ReportesService {
       where: { activo: true },
     });
     const horarios = await this.horarioRepo
-      .createQueryBuilder('horario')
-      .leftJoinAndSelect('horario.docente', 'docente')
-      .leftJoinAndSelect('horario.ambiente', 'ambiente')
-      .where('horario.periodo_academico = :periodo', { periodo })
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .where("horario.periodo_academico = :periodo", { periodo })
       .cache(`horarios_periodo_${periodo}_reporte_gestion`, 60000)
       .getMany();
 

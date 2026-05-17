@@ -20,20 +20,20 @@ export class SeleccionTemporal {
   @Column()
   dia_semana: number;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_inicio: string;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_fin: string;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: "timestamp" })
   expira_at: Date;
 
   @ManyToOne(() => Docente, { nullable: false })
-  @JoinColumn({ name: 'docente_id' })
+  @JoinColumn({ name: "docente_id" })
   docente: Docente;
 
   @ManyToOne(() => Ambiente, { nullable: false })
-  @JoinColumn({ name: 'ambiente_id' })
+  @JoinColumn({ name: "ambiente_id" })
   ambiente: Ambiente;
 }

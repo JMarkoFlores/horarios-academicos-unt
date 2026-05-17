@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Curso } from '../entities/curso.entity';
-import { Ambiente } from '../entities/ambiente.entity';
-import { CursosService } from './cursos.service';
-import { CursosController } from './cursos.controller';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { Curso } from "../entities/curso.entity";
+import { Ambiente } from "../entities/ambiente.entity";
+import { CursosService } from "./cursos.service";
+import { CursosController } from "./cursos.controller";
 
 @Module({
   imports: [TypeOrmModule.forFeature([Curso, Ambiente])],

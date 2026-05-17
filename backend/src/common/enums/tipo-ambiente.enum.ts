@@ -1,4 +1,4 @@
 export enum TipoAmbiente {
-  AULA = 'AULA',
-  LABORATORIO = 'LABORATORIO',
+  AULA = "AULA",
+  LABORATORIO = "LABORATORIO",
 }

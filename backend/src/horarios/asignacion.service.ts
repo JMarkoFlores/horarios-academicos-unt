@@ -77,23 +77,29 @@ export class AsignacionService {
         where: { tipo: TipoAmbiente.LABORATORIO, activo: true },
       });
       const disponibilidades = await this.disponibilidadRepo
-        .createQueryBuilder('disponibilidad')
-        .leftJoinAndSelect('disponibilidad.docente', 'docente')
-        .where('disponibilidad.periodo_academico = :periodo', { periodo })
-        .andWhere('disponibilidad.disponible = :disponible', { disponible: true })
+        .createQueryBuilder("disponibilidad")
+        .leftJoinAndSelect("disponibilidad.docente", "docente")
+        .where("disponibilidad.periodo_academico = :periodo", { periodo })
+        .andWhere("disponibilidad.disponible = :disponible", {
+          disponible: true,
+        })
         .cache(`disponibilidad_periodo_${periodo}_asignacion`, 60000)
         .getMany();
       const preasignaciones = await this.preasignacionRepo
-        .createQueryBuilder('preasignacion')
-        .leftJoinAndSelect('preasignacion.docente', 'docente')
-        .leftJoinAndSelect('preasignacion.ambiente', 'ambiente')
-        .where('preasignacion.periodo_academico = :periodo', { periodo })
+        .createQueryBuilder("preasignacion")
+        .leftJoinAndSelect("preasignacion.docente", "docente")
+        .leftJoinAndSelect("preasignacion.ambiente", "ambiente")
+        .where("preasignacion.periodo_academico = :periodo", { periodo })
         .cache(`preasignaciones_periodo_${periodo}_asignacion`, 60000)
         .getMany();
 
-      const docenteMap = new Map(docentesOrdenados.map((docente) => [docente.id, docente]));
+      const docenteMap = new Map(
+        docentesOrdenados.map((docente) => [docente.id, docente]),
+      );
       const aulaMap = new Map(aulas.map((ambiente) => [ambiente.id, ambiente]));
-      const laboratorioMap = new Map(laboratorios.map((ambiente) => [ambiente.id, ambiente]));
+      const laboratorioMap = new Map(
+        laboratorios.map((ambiente) => [ambiente.id, ambiente]),
+      );
 
       const franjasInstitucionales = this.construirFranjasInstitucionales();
       const disponibilidadPorDocente = this.preprocesarDisponibilidadPorDocente(
@@ -103,20 +109,24 @@ export class AsignacionService {
       const docentesConDisponibilidad = new Set(
         disponibilidades
           .map((disponibilidad) => disponibilidad.docente?.id)
-          .filter((docenteId): docenteId is number => typeof docenteId === 'number'),
+          .filter(
+            (docenteId): docenteId is number => typeof docenteId === "number",
+          ),
       );
       const preasignacionPorDocente = this.preprocesarPreasignacionesPorDocente(
         preasignaciones,
         franjasInstitucionales,
       );
-      const disponibilidadPorAmbienteAula = this.preprocesarDisponibilidadPorAmbiente(
-        aulaMap,
-        franjasInstitucionales,
-      );
-      const disponibilidadPorAmbienteLab = this.preprocesarDisponibilidadPorAmbiente(
-        laboratorioMap,
-        franjasInstitucionales,
-      );
+      const disponibilidadPorAmbienteAula =
+        this.preprocesarDisponibilidadPorAmbiente(
+          aulaMap,
+          franjasInstitucionales,
+        );
+      const disponibilidadPorAmbienteLab =
+        this.preprocesarDisponibilidadPorAmbiente(
+          laboratorioMap,
+          franjasInstitucionales,
+        );
 
       const slotsOcupadosPorDocente = new Map<number, Set<string>>();
       const cargaPorDocente = new Map<number, number>();
@@ -284,7 +294,8 @@ export class AsignacionService {
       const tieneDisponibilidad = docentesConDisponibilidad.has(d.id);
       if (!tieneDisponibilidad) continue;
 
-      const tieneSlotDisponible = (disponibilidadPorDocente.get(d.id)?.size ?? 0) > 0;
+      const tieneSlotDisponible =
+        (disponibilidadPorDocente.get(d.id)?.size ?? 0) > 0;
       if (!tieneSlotDisponible) continue;
 
       const horasAsignadas = cargaPorDocente.get(d.id) ?? 0;
@@ -320,7 +331,8 @@ export class AsignacionService {
       if (slotsPreasignados?.has(slotKey)) continue;
 
       for (const ambienteId of ambienteIds) {
-        const slotsDisponiblesAmbiente = disponibilidadPorAmbiente.get(ambienteId);
+        const slotsDisponiblesAmbiente =
+          disponibilidadPorAmbiente.get(ambienteId);
         if (!slotsDisponiblesAmbiente?.has(slotKey)) continue;
 
         const ambiente = ambientes.get(ambienteId);
@@ -398,7 +410,12 @@ export class AsignacionService {
       for (let hora = 7; hora < 22; hora++) {
         const horaInicio = `${hora.toString().padStart(2, "0")}:00`;
         const horaFin = `${(hora + 1).toString().padStart(2, "0")}:00`;
-        if (!this.validacionesService.verificarFranjaInstitucional(horaInicio, horaFin)) {
+        if (
+          !this.validacionesService.verificarFranjaInstitucional(
+            horaInicio,
+            horaFin,
+          )
+        ) {
           continue;
         }
 
@@ -434,7 +451,8 @@ export class AsignacionService {
       for (const franja of franjasInstitucionales) {
         if (franja.dia_semana !== disponibilidad.dia_semana) continue;
         if (
-          this.min(disponibilidad.hora_inicio) <= this.min(franja.hora_inicio) &&
+          this.min(disponibilidad.hora_inicio) <=
+            this.min(franja.hora_inicio) &&
           this.min(disponibilidad.hora_fin) >= this.min(franja.hora_fin)
         ) {
           slots.add(franja.key);
@@ -464,7 +482,14 @@ export class AsignacionService {
 
       for (const franja of franjasInstitucionales) {
         if (franja.dia_semana !== preasignacion.dia_semana) continue;
-        if (this.solapan(preasignacion.hora_inicio, preasignacion.hora_fin, franja.hora_inicio, franja.hora_fin)) {
+        if (
+          this.solapan(
+            preasignacion.hora_inicio,
+            preasignacion.hora_fin,
+            franja.hora_inicio,
+            franja.hora_fin,
+          )
+        ) {
           slots.add(franja.key);
         }
       }
@@ -497,7 +522,8 @@ export class AsignacionService {
     cargaPorDocente: Map<number, number>,
     disponibilidadPorAmbiente: Map<number, Set<string>>,
   ): void {
-    const slotsDocente = slotsOcupadosPorDocente.get(docenteId) ?? new Set<string>();
+    const slotsDocente =
+      slotsOcupadosPorDocente.get(docenteId) ?? new Set<string>();
     slotsDocente.add(slotKey);
     slotsOcupadosPorDocente.set(docenteId, slotsDocente);
 
@@ -506,16 +532,17 @@ export class AsignacionService {
   }
 
   // Complejidad: O(1) → O(1)
-  private crearClaveSlot(dia: number, horaInicio: string, horaFin: string): string {
+  private crearClaveSlot(
+    dia: number,
+    horaInicio: string,
+    horaFin: string,
+  ): string {
     return `${dia}|${horaInicio}|${horaFin}`;
   }
 
   // Complejidad: O(K) → O(K)
   private async invalidateHorariosCache(): Promise<void> {
-    const prefixes = [
-      'http_cache:GET:/horarios',
-      'http_cache:GET:/dashboard',
-    ];
+    const prefixes = ["http_cache:GET:/horarios", "http_cache:GET:/dashboard"];
 
     for (const prefix of prefixes) {
       const keys = CacheKeyRegistry.findByPrefix(prefix);

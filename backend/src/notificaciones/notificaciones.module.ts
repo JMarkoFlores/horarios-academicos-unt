@@ -20,7 +20,7 @@ import { NotificacionesGateway } from './notificaciones.gateway';
       Docente,
       HorarioAsignado,
     ]),
-    BullModule.registerQueue({ name: 'notificaciones' }),
+    BullModule.registerQueue({ name: "notificaciones" }),
   ],
   controllers: [NotificacionesController],
   providers: [NotificacionesService, NotificacionesProcessor, NotificacionesGateway],

@@ -22,10 +22,10 @@ import { AuditLogService } from '../common/services/audit-log.service';
 import { Usuario } from '../entities/usuario.entity';
 import { Request } from 'express';
 
-@ApiTags('horarios')
-@Controller('horarios')
+@ApiTags("horarios")
+@Controller("horarios")
 @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth('JWT')
+@ApiBearerAuth("JWT")
 export class HorariosController {
   constructor(
     private readonly asignacionService: AsignacionService,
@@ -33,7 +33,7 @@ export class HorariosController {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  @Post('generar')
+  @Post("generar")
   @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
   @ApiOperation({ summary: 'Ejecutar el motor de asignación para un período' })
   async generarHorario(
@@ -52,7 +52,7 @@ export class HorariosController {
     return { data: result, message: `Horario generado: ${result.asignaciones_creadas} asignaciones, ${result.conflictos} conflictos` };
   }
 
-  @Delete('limpiar')
+  @Delete("limpiar")
   @Roles(RolUsuario.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Eliminar todas las asignaciones de un período' })
@@ -160,7 +160,7 @@ export class HorariosController {
     return { data: result, message: 'Conflictos obtenidos' };
   }
 
-  @Patch('conflictos/:id/resolver')
+  @Patch("conflictos/:id/resolver")
   @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
   @ApiOperation({ summary: 'Marcar un conflicto como resuelto' })
   @ApiParam({ name: 'id', type: Number })
@@ -180,12 +180,14 @@ export class HorariosController {
     return { data: result, message: 'Conflicto marcado como resuelto' };
   }
 
-  @Patch(':id')
+  @Patch(":id")
   @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
-  @ApiOperation({ summary: 'Reasignación manual de un horario (valida cruces)' })
-  @ApiParam({ name: 'id', type: Number })
+  @ApiOperation({
+    summary: "Reasignación manual de un horario (valida cruces)",
+  })
+  @ApiParam({ name: "id", type: Number })
   async reasignar(
-    @Param('id', ParseIntPipe) id: number,
+    @Param("id", ParseIntPipe) id: number,
     @Body() dto: ReasignarHorarioDto,
     @CurrentUser() usuario: Usuario,
     @Req() request: Request,

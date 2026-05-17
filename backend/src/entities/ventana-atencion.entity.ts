@@ -17,13 +17,13 @@ export class VentanaAtencion {
   @Column({ length: 20 })
   periodo_academico: string;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha: Date;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_inicio: string;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_fin: string;
 
   @Column({ default: true })

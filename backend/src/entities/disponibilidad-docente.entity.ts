@@ -6,8 +6,8 @@ import {
   JoinColumn,
   Index,
   Unique,
-} from 'typeorm';
-import { Docente } from './docente.entity';
+} from "typeorm";
+import { Docente } from "./docente.entity";
 
 @Entity('disponibilidad_docente')
 @Unique(['docente', 'dia_semana', 'hora_inicio', 'periodo_academico'])
@@ -21,10 +21,10 @@ export class DisponibilidadDocente {
   @Column()
   dia_semana: number;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_inicio: string;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_fin: string;
 
   @Column({ default: true })
@@ -35,8 +35,8 @@ export class DisponibilidadDocente {
 
   @ManyToOne(() => Docente, (docente) => docente.disponibilidades, {
     nullable: false,
-    onDelete: 'CASCADE',
+    onDelete: "CASCADE",
   })
-  @JoinColumn({ name: 'docente_id' })
+  @JoinColumn({ name: "docente_id" })
   docente: Docente;
 }

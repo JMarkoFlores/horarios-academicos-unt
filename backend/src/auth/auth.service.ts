@@ -1,14 +1,10 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import { Usuario } from '../entities/usuario.entity';
-import { LoginDto } from './dto/login.dto';
+import { Injectable, UnauthorizedException, Logger } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import * as bcrypt from "bcrypt";
+import { Usuario } from "../entities/usuario.entity";
+import { LoginDto } from "./dto/login.dto";
 
 export interface JwtPayload {
   sub: number;
@@ -70,11 +66,11 @@ export class AuthService {
     });
 
     if (!usuario) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new UnauthorizedException("Credenciales inválidas");
     }
 
     if (!usuario.activo) {
-      throw new UnauthorizedException('Usuario inactivo');
+      throw new UnauthorizedException("Usuario inactivo");
     }
 
     const passwordValido = await this.comparePassword(
@@ -83,7 +79,7 @@ export class AuthService {
     );
 
     if (!passwordValido) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new UnauthorizedException("Credenciales inválidas");
     }
 
     return usuario;
@@ -94,6 +90,9 @@ export class AuthService {
   }
 
   async comparePassword(password: string, hash: string): Promise<boolean> {
-    return bcrypt.compare(password, hash);
+    if (!password || !hash) {
+      return false;
+    }
+    return await bcrypt.compare(password, hash);
   }
 }

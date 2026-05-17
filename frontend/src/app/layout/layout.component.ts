@@ -28,6 +28,7 @@ export class LayoutComponent implements OnInit {
     },
     { icon: 'table_chart', label: 'Reportes', route: '/app/reportes' },
     { icon: 'schedule', label: 'Horarios', route: '/app/horarios' },
+    { icon: 'analytics', label: 'Analytics', route: '/app/analytics' },
     { icon: 'support_agent', label: 'Operador', route: '/app/operador' },
   ];
 
@@ -47,6 +48,7 @@ export class LayoutComponent implements OnInit {
     disponibilidad: 'Disponibilidad Docente',
     reportes: 'Reportes',
     horarios: 'Horarios — Vista de Asignaciones',
+    analytics: 'Análisis Inteligente',
     operador: 'Operador — Sistema de Turnos',
   };
 

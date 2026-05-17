@@ -2,13 +2,13 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Docente } from '../entities/docente.entity';
-import { CreateDocenteDto } from './dto/create-docente.dto';
-import { UpdateDocenteDto } from './dto/update-docente.dto';
-import { QueryDocenteDto } from './dto/query-docente.dto';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Docente } from "../entities/docente.entity";
+import { CreateDocenteDto } from "./dto/create-docente.dto";
+import { UpdateDocenteDto } from "./dto/update-docente.dto";
+import { QueryDocenteDto } from "./dto/query-docente.dto";
 
 @Injectable()
 export class DocentesService {
@@ -21,27 +21,27 @@ export class DocentesService {
     const { page = 1, limit = 20, categoria, tipo_contrato, busqueda } = query;
 
     const qb = this.docenteRepo
-      .createQueryBuilder('docente')
-      .where('docente.activo = :activo', { activo: true });
+      .createQueryBuilder("docente")
+      .where("docente.activo = :activo", { activo: true });
 
     if (categoria) {
-      qb.andWhere('docente.categoria = :categoria', { categoria });
+      qb.andWhere("docente.categoria = :categoria", { categoria });
     }
 
     if (tipo_contrato) {
-      qb.andWhere('docente.tipo_contrato = :tipo_contrato', { tipo_contrato });
+      qb.andWhere("docente.tipo_contrato = :tipo_contrato", { tipo_contrato });
     }
 
     if (busqueda) {
       qb.andWhere(
-        '(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda)',
+        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda)",
         { busqueda: `%${busqueda}%` },
       );
     }
 
     const [items, total] = await qb
-      .orderBy('docente.apellidos', 'ASC')
-      .addOrderBy('docente.nombres', 'ASC')
+      .orderBy("docente.apellidos", "ASC")
+      .addOrderBy("docente.nombres", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
       .cache(
@@ -51,7 +51,7 @@ export class DocentesService {
       .getManyAndCount();
 
     return {
-      data: items.map((d) => ({ ...d, antiguedad: this.calcularAntiguedad(d.fecha_ingreso) })),
+      items: items.map((d) => ({ ...d, antiguedad: this.calcularAntiguedad(d.fecha_ingreso) })),
       total,
       page,
       limit,
@@ -77,8 +77,8 @@ export class DocentesService {
 
   async findOrdenadosPorJerarquia(periodo: string) {
     const qb = this.docenteRepo
-      .createQueryBuilder('docente')
-      .where('docente.activo = :activo', { activo: true })
+      .createQueryBuilder("docente")
+      .where("docente.activo = :activo", { activo: true })
       .addSelect(
         `CASE
           WHEN docente.tipo_contrato = 'NOMBRADO' AND docente.categoria = 'PRINCIPAL'     THEN 1
@@ -91,10 +91,10 @@ export class DocentesService {
           WHEN docente.tipo_contrato = 'CONTRATADO' AND docente.categoria = 'JEFE_PRACTICA' THEN 8
           ELSE 9
         END`,
-        'orden_jerarquia',
+        "orden_jerarquia",
       )
-      .orderBy('orden_jerarquia', 'ASC')
-      .addOrderBy('docente.fecha_ingreso', 'ASC');
+      .orderBy("orden_jerarquia", "ASC")
+      .addOrderBy("docente.fecha_ingreso", "ASC");
 
     const docentes = await qb.getMany();
 
@@ -118,7 +118,9 @@ export class DocentesService {
       where: { codigo: dto.codigo },
     });
     if (codigoExistente) {
-      throw new ConflictException(`El código '${dto.codigo}' ya está registrado`);
+      throw new ConflictException(
+        `El código '${dto.codigo}' ya está registrado`,
+      );
     }
 
     const docente = this.docenteRepo.create({

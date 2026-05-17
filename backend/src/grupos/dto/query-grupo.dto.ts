@@ -20,7 +20,7 @@ export class QueryGrupoDto {
   @IsString()
   periodo?: string;
 
-  @ApiPropertyOptional({ example: 1, description: 'ID del curso' })
+  @ApiPropertyOptional({ example: 1, description: "ID del curso" })
   @IsOptional()
   @IsInt()
   @Min(1)

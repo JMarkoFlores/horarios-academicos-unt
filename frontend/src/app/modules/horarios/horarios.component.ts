@@ -58,7 +58,7 @@ export class HorariosComponent implements OnInit {
   ngOnInit(): void {
     this.api.get<any>('/docentes', { limit: 100 }).subscribe({
       next: (r: any) => {
-        this.todosDocentes = r?.data?.items ?? [];
+        this.todosDocentes = r?.data?.items ?? r?.data ?? [];
       },
     });
 
@@ -76,11 +76,11 @@ export class HorariosComponent implements OnInit {
     this.loadingDocente = true;
     this.api
       .get<
-        ApiResponse<HorarioAsignado[]>
+        ApiResponse<any>
       >(`/horarios/docente/${d.id}`, { periodo: this.periodoService.periodo })
       .subscribe({
         next: (r) => {
-          this.asignacionesDocente = r.data ?? [];
+          this.asignacionesDocente = r.data?.items ?? r.data ?? [];
           this.loadingDocente = false;
         },
         error: () => {
@@ -94,11 +94,11 @@ export class HorariosComponent implements OnInit {
     this.loadingAmbiente = true;
     this.api
       .get<
-        ApiResponse<HorarioAsignado[]>
+        ApiResponse<any>
       >(`/horarios/ambiente/${a.id}`, { periodo: this.periodoService.periodo })
       .subscribe({
         next: (r) => {
-          this.asignacionesAmbiente = r.data ?? [];
+          this.asignacionesAmbiente = r.data?.items ?? r.data ?? [];
           this.loadingAmbiente = false;
         },
         error: () => {
@@ -172,12 +172,10 @@ export class HorariosComponent implements OnInit {
   loadConflictos(): void {
     this.loadingConflictos = true;
     this.api
-      .get<
-        ApiResponse<ConflictoAsignacion[]>
-      >(`/horarios/conflictos/${this.periodoService.periodo}`)
+      .get<ApiResponse<any>>(`/horarios/conflictos/${this.periodoService.periodo}`)
       .subscribe({
         next: (r) => {
-          this.conflictos = r.data ?? [];
+          this.conflictos = r.data?.items ?? r.data ?? [];
           this.loadingConflictos = false;
         },
         error: () => {
@@ -214,7 +212,10 @@ export class HorariosComponent implements OnInit {
       .subscribe({
         next: (r) => {
           this.generando = false;
-          this.resultadoGeneracion = r.data;
+          this.resultadoGeneracion = {
+            asignaciones: r.data?.asignaciones_creadas ?? 0,
+            conflictos: r.data?.conflictos ?? 0
+          };
           this.notif.success('Horario generado');
         },
         error: () => {

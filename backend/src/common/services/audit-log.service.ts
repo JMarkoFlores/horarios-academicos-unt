@@ -24,7 +24,11 @@ export class AuditLogService {
 
     try {
       await mkdir(dirname(this.auditLogPath), { recursive: true });
-      await appendFile(this.auditLogPath, `${JSON.stringify(payload)}\n`, "utf8");
+      await appendFile(
+        this.auditLogPath,
+        `${JSON.stringify(payload)}\n`,
+        "utf8",
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`No se pudo registrar log de auditoria: ${message}`);

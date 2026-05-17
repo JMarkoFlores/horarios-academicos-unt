@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class InitialMigration1700000000000 implements MigrationInterface {
-  name = 'InitialMigration1700000000000';
+  name = "InitialMigration1700000000000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
@@ -351,26 +351,66 @@ export class InitialMigration1700000000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "curso_ambiente" DROP CONSTRAINT "FK_curso_ambiente_ambiente"`);
-    await queryRunner.query(`ALTER TABLE "curso_ambiente" DROP CONSTRAINT "FK_curso_ambiente_curso"`);
-    await queryRunner.query(`ALTER TABLE "preferencias_notificacion" DROP CONSTRAINT "FK_preferencias_notificacion_docente"`);
-    await queryRunner.query(`ALTER TABLE "notificacion_docente" DROP CONSTRAINT "FK_notificacion_docente_docente"`);
-    await queryRunner.query(`ALTER TABLE "seleccion_temporal" DROP CONSTRAINT "FK_seleccion_temporal_ambiente"`);
-    await queryRunner.query(`ALTER TABLE "seleccion_temporal" DROP CONSTRAINT "FK_seleccion_temporal_docente"`);
-    await queryRunner.query(`ALTER TABLE "cola_docentes" DROP CONSTRAINT "FK_cola_docentes_docente"`);
-    await queryRunner.query(`ALTER TABLE "cola_docentes" DROP CONSTRAINT "FK_cola_docentes_ventana"`);
-    await queryRunner.query(`ALTER TABLE "conflicto_asignacion" DROP CONSTRAINT "FK_conflicto_asignacion_ambiente"`);
-    await queryRunner.query(`ALTER TABLE "conflicto_asignacion" DROP CONSTRAINT "FK_conflicto_asignacion_docente"`);
-    await queryRunner.query(`ALTER TABLE "horario_asignado" DROP CONSTRAINT "FK_horario_asignado_ambiente"`);
-    await queryRunner.query(`ALTER TABLE "horario_asignado" DROP CONSTRAINT "FK_horario_asignado_grupo"`);
-    await queryRunner.query(`ALTER TABLE "horario_asignado" DROP CONSTRAINT "FK_horario_asignado_curso"`);
-    await queryRunner.query(`ALTER TABLE "horario_asignado" DROP CONSTRAINT "FK_horario_asignado_docente"`);
-    await queryRunner.query(`ALTER TABLE "preasignacion" DROP CONSTRAINT "FK_preasignacion_ambiente"`);
-    await queryRunner.query(`ALTER TABLE "preasignacion" DROP CONSTRAINT "FK_preasignacion_curso"`);
-    await queryRunner.query(`ALTER TABLE "preasignacion" DROP CONSTRAINT "FK_preasignacion_docente"`);
-    await queryRunner.query(`ALTER TABLE "disponibilidad_docente" DROP CONSTRAINT "FK_disponibilidad_docente_docente"`);
-    await queryRunner.query(`ALTER TABLE "grupo" DROP CONSTRAINT "FK_grupo_curso"`);
-    await queryRunner.query(`ALTER TABLE "grupo" DROP CONSTRAINT "FK_grupo_periodo_academico"`);
+    await queryRunner.query(
+      `ALTER TABLE "curso_ambiente" DROP CONSTRAINT "FK_curso_ambiente_ambiente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "curso_ambiente" DROP CONSTRAINT "FK_curso_ambiente_curso"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "preferencias_notificacion" DROP CONSTRAINT "FK_preferencias_notificacion_docente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notificacion_docente" DROP CONSTRAINT "FK_notificacion_docente_docente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "seleccion_temporal" DROP CONSTRAINT "FK_seleccion_temporal_ambiente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "seleccion_temporal" DROP CONSTRAINT "FK_seleccion_temporal_docente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "cola_docentes" DROP CONSTRAINT "FK_cola_docentes_docente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "cola_docentes" DROP CONSTRAINT "FK_cola_docentes_ventana"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "conflicto_asignacion" DROP CONSTRAINT "FK_conflicto_asignacion_ambiente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "conflicto_asignacion" DROP CONSTRAINT "FK_conflicto_asignacion_docente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "horario_asignado" DROP CONSTRAINT "FK_horario_asignado_ambiente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "horario_asignado" DROP CONSTRAINT "FK_horario_asignado_grupo"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "horario_asignado" DROP CONSTRAINT "FK_horario_asignado_curso"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "horario_asignado" DROP CONSTRAINT "FK_horario_asignado_docente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "preasignacion" DROP CONSTRAINT "FK_preasignacion_ambiente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "preasignacion" DROP CONSTRAINT "FK_preasignacion_curso"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "preasignacion" DROP CONSTRAINT "FK_preasignacion_docente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disponibilidad_docente" DROP CONSTRAINT "FK_disponibilidad_docente_docente"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "grupo" DROP CONSTRAINT "FK_grupo_curso"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "grupo" DROP CONSTRAINT "FK_grupo_periodo_academico"`,
+    );
 
     await queryRunner.query(`DROP TABLE "curso_ambiente"`);
     await queryRunner.query(`DROP TABLE "preferencias_notificacion"`);
@@ -391,12 +431,22 @@ export class InitialMigration1700000000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "docente"`);
     await queryRunner.query(`DROP TABLE "usuario"`);
 
-    await queryRunner.query(`DROP TYPE "public"."notificacion_docente_estado_enum"`);
-    await queryRunner.query(`DROP TYPE "public"."notificacion_docente_canal_enum"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."notificacion_docente_estado_enum"`,
+    );
+    await queryRunner.query(
+      `DROP TYPE "public"."notificacion_docente_canal_enum"`,
+    );
     await queryRunner.query(`DROP TYPE "public"."cola_docentes_estado_enum"`);
-    await queryRunner.query(`DROP TYPE "public"."horario_asignado_estado_enum"`);
-    await queryRunner.query(`DROP TYPE "public"."horario_asignado_tipo_clase_enum"`);
-    await queryRunner.query(`DROP TYPE "public"."preasignacion_tipo_clase_enum"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."horario_asignado_estado_enum"`,
+    );
+    await queryRunner.query(
+      `DROP TYPE "public"."horario_asignado_tipo_clase_enum"`,
+    );
+    await queryRunner.query(
+      `DROP TYPE "public"."preasignacion_tipo_clase_enum"`,
+    );
     await queryRunner.query(`DROP TYPE "public"."ambiente_tipo_enum"`);
     await queryRunner.query(`DROP TYPE "public"."docente_tipo_contrato_enum"`);
     await queryRunner.query(`DROP TYPE "public"."docente_categoria_enum"`);

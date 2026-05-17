@@ -1,5 +1,5 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsBoolean, IsString, MaxLength } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsOptional, IsBoolean, IsString, MaxLength } from "class-validator";
 
 export class UpdatePreferenciasDto {
   @ApiPropertyOptional({ default: true })
@@ -12,7 +12,7 @@ export class UpdatePreferenciasDto {
   @IsBoolean()
   canal_whatsapp?: boolean;
 
-  @ApiPropertyOptional({ example: '944123456' })
+  @ApiPropertyOptional({ example: "944123456" })
   @IsOptional()
   @IsString()
   @MaxLength(20)

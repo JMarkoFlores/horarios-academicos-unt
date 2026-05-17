@@ -11,7 +11,7 @@ export class DiaNoLaborable {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha: Date;
 
   @Column({ length: 200 })

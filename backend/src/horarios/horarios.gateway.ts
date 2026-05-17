@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger } from "@nestjs/common";
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -57,7 +57,7 @@ export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect
   handleSuscribir(@ConnectedSocket() client: Socket, @MessageBody() ventanaId: number) {
     client.join(`ventana_${ventanaId}`);
     this.logger.log(`Cliente ${client.id} suscrito a ventana_${ventanaId}`);
-    return { event: 'suscrito', data: { ventanaId } };
+    return { event: "suscrito", data: { ventanaId } };
   }
 
   @SubscribeMessage('suscribir_periodo')
@@ -74,7 +74,7 @@ export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect
   @SubscribeMessage('desuscribir_ventana')
   handleDesuscribir(@ConnectedSocket() client: Socket, @MessageBody() ventanaId: number) {
     client.leave(`ventana_${ventanaId}`);
-    return { event: 'desuscrito', data: { ventanaId } };
+    return { event: "desuscrito", data: { ventanaId } };
   }
 
   emitirActualizacion(periodoId: string, evento: string, data: unknown) {

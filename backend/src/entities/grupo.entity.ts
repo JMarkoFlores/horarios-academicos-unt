@@ -28,10 +28,10 @@ export class Grupo {
   cupo_maximo: number;
 
   @ManyToOne(() => PeriodoAcademico, { nullable: false, eager: false })
-  @JoinColumn({ name: 'periodo_academico_id' })
+  @JoinColumn({ name: "periodo_academico_id" })
   periodo_academico: PeriodoAcademico;
 
   @ManyToOne(() => Curso, { nullable: false, eager: false })
-  @JoinColumn({ name: 'curso_id' })
+  @JoinColumn({ name: "curso_id" })
   curso: Curso;
 }

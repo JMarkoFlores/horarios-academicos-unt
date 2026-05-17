@@ -2,15 +2,15 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Grupo } from '../entities/grupo.entity';
-import { PeriodoAcademico } from '../entities/periodo-academico.entity';
-import { Curso } from '../entities/curso.entity';
-import { CreateGrupoDto } from './dto/create-grupo.dto';
-import { UpdateGrupoDto } from './dto/update-grupo.dto';
-import { QueryGrupoDto } from './dto/query-grupo.dto';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Grupo } from "../entities/grupo.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { Curso } from "../entities/curso.entity";
+import { CreateGrupoDto } from "./dto/create-grupo.dto";
+import { UpdateGrupoDto } from "./dto/update-grupo.dto";
+import { QueryGrupoDto } from "./dto/query-grupo.dto";
 
 @Injectable()
 export class GruposService {
@@ -26,16 +26,16 @@ export class GruposService {
   async findAll(query: QueryGrupoDto) {
     const { page = 1, limit = 20 } = query;
     const qb = this.grupoRepo
-      .createQueryBuilder('grupo')
-      .leftJoinAndSelect('grupo.periodo_academico', 'periodo')
-      .leftJoinAndSelect('grupo.curso', 'curso');
+      .createQueryBuilder("grupo")
+      .leftJoinAndSelect("grupo.periodo_academico", "periodo")
+      .leftJoinAndSelect("grupo.curso", "curso");
 
     if (query.periodo) {
-      qb.andWhere('periodo.codigo = :periodo', { periodo: query.periodo });
+      qb.andWhere("periodo.codigo = :periodo", { periodo: query.periodo });
     }
 
     if (query.curso_id) {
-      qb.andWhere('curso.id = :curso_id', { curso_id: query.curso_id });
+      qb.andWhere("curso.id = :curso_id", { curso_id: query.curso_id });
     }
 
     const [data, total] = await qb
@@ -49,7 +49,7 @@ export class GruposService {
       )
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items: data, total, page, limit };
   }
 
   async findOne(id: number): Promise<Grupo> {
@@ -84,12 +84,14 @@ export class GruposService {
     }
 
     const existe = await this.grupoRepo
-      .createQueryBuilder('grupo')
-      .leftJoin('grupo.periodo_academico', 'periodo')
-      .leftJoin('grupo.curso', 'curso')
-      .where('grupo.codigo = :codigo', { codigo: dto.codigo })
-      .andWhere('periodo.id = :periodoId', { periodoId: dto.periodo_academico_id })
-      .andWhere('curso.id = :cursoId', { cursoId: dto.curso_id })
+      .createQueryBuilder("grupo")
+      .leftJoin("grupo.periodo_academico", "periodo")
+      .leftJoin("grupo.curso", "curso")
+      .where("grupo.codigo = :codigo", { codigo: dto.codigo })
+      .andWhere("periodo.id = :periodoId", {
+        periodoId: dto.periodo_academico_id,
+      })
+      .andWhere("curso.id = :cursoId", { cursoId: dto.curso_id })
       .getOne();
 
     if (existe) {
@@ -126,9 +128,13 @@ export class GruposService {
     }
 
     if (dto.curso_id) {
-      const curso = await this.cursoRepo.findOne({ where: { id: dto.curso_id } });
+      const curso = await this.cursoRepo.findOne({
+        where: { id: dto.curso_id },
+      });
       if (!curso) {
-        throw new NotFoundException(`Curso con ID ${dto.curso_id} no encontrado`);
+        throw new NotFoundException(
+          `Curso con ID ${dto.curso_id} no encontrado`,
+        );
       }
       grupo.curso = curso;
     }

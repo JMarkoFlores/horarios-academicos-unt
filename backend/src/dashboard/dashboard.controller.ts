@@ -5,10 +5,10 @@ import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { HttpCacheInterceptor } from '../common/interceptors/http-cache.interceptor';
 
-@ApiTags('dashboard')
-@Controller('dashboard')
+@ApiTags("dashboard")
+@Controller("dashboard")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT')
+@ApiBearerAuth("JWT")
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 

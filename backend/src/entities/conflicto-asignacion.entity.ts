@@ -18,7 +18,7 @@ export class ConflictoAsignacion {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   descripcion: string;
 
   @Column({ length: 100 })
@@ -34,10 +34,10 @@ export class ConflictoAsignacion {
   created_at: Date;
 
   @ManyToOne(() => Docente, { nullable: true })
-  @JoinColumn({ name: 'docente_id' })
+  @JoinColumn({ name: "docente_id" })
   docente: Docente;
 
   @ManyToOne(() => Ambiente, { nullable: true })
-  @JoinColumn({ name: 'ambiente_id' })
+  @JoinColumn({ name: "ambiente_id" })
   ambiente: Ambiente;
 }

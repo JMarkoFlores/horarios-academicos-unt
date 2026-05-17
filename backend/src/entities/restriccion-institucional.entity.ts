@@ -14,7 +14,7 @@ export class RestriccionInstitucional {
   @Column({ length: 100 })
   tipo_restriccion: string;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: "jsonb" })
   valor: object;
 
   @Column({ length: 20 })

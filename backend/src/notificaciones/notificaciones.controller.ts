@@ -7,10 +7,10 @@ import { UpdatePreferenciasDto } from './dto/update-preferencias.dto';
 import { QueryNotificacionesDto } from './dto/query-notificaciones.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@ApiTags('notificaciones')
-@Controller('notificaciones')
+@ApiTags("notificaciones")
+@Controller("notificaciones")
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT')
+@ApiBearerAuth("JWT")
 export class NotificacionesController {
   constructor(private readonly notificacionesService: NotificacionesService) {}
 
@@ -29,14 +29,17 @@ export class NotificacionesController {
     return { data: result, message: 'Historial obtenido' };
   }
 
-  @Put('preferencias/:docenteId')
-  @ApiOperation({ summary: 'Guardar preferencias de notificación del docente' })
-  @ApiParam({ name: 'docenteId', type: Number })
+  @Put("preferencias/:docenteId")
+  @ApiOperation({ summary: "Guardar preferencias de notificación del docente" })
+  @ApiParam({ name: "docenteId", type: Number })
   async upsertPreferencias(
-    @Param('docenteId', ParseIntPipe) docenteId: number,
+    @Param("docenteId", ParseIntPipe) docenteId: number,
     @Body() dto: UpdatePreferenciasDto,
   ) {
-    const result = await this.notificacionesService.upsertPreferencias(docenteId, dto);
-    return { data: result, message: 'Preferencias actualizadas' };
+    const result = await this.notificacionesService.upsertPreferencias(
+      docenteId,
+      dto,
+    );
+    return { data: result, message: "Preferencias actualizadas" };
   }
 }

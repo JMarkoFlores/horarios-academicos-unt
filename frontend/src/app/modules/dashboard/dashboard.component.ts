@@ -194,8 +194,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   loadConflictos(): void {
     this.api
-      .get<ApiResponse<ConflictoAsignacion[]>>(`/horarios/conflictos/${this.periodoService.periodo}`)
-      .subscribe({ next: res => (this.conflictos = res.data.filter(c => !c.resuelto)) });
+      .get<ApiResponse<any>>(`/horarios/conflictos/${this.periodoService.periodo}`)
+      .subscribe({
+        next: (res: any) => {
+          const rawData = res.data?.items ?? res.data ?? [];
+          this.conflictos = Array.isArray(rawData) ? rawData.filter((c: any) => !c.resuelto) : [];
+        }
+      });
   }
 
   buildCharts(k: KPIs): void {

@@ -157,12 +157,12 @@ export class NotificacionesService {
   }
 
   async getHistorial(docenteId: number, page = 1, limit = 20): Promise<{
-    data: NotificacionDocente[];
+    items: NotificacionDocente[];
     total: number;
     page: number;
     limit: number;
   }> {
-    const [data, total] = await this.notificacionRepo
+    const [items, total] = await this.notificacionRepo
       .createQueryBuilder('notificacion')
       .leftJoinAndSelect('notificacion.docente', 'docente')
       .where('docente.id = :docenteId', { docenteId })
@@ -172,7 +172,7 @@ export class NotificacionesService {
       .cache(`notificaciones_docente_${docenteId}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items, total, page, limit };
   }
 
   async upsertPreferencias(

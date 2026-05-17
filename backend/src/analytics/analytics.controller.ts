@@ -12,27 +12,32 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Get("kpis")
-  getKPIs(@Query("periodo") periodo: string) {
-    return this.analyticsService.getKPIMetrics(periodo);
+  async getKPIs(@Query("periodo") periodo: string) {
+    const result = await this.analyticsService.getKPIMetrics(periodo);
+    return { data: result, message: "Métricas obtenidas correctamente" };
   }
 
   @Get("saturation")
-  getSaturation(@Query("periodo") periodo: string) {
-    return this.analyticsService.getDocenteSaturation(periodo);
+  async getSaturation(@Query("periodo") periodo: string) {
+    const result = await this.analyticsService.getDocenteSaturation(periodo);
+    return { data: result, message: "Saturación obtenida correctamente" };
   }
 
   @Get("utilization")
-  getUtilization(@Query("periodo") periodo: string) {
-    return this.analyticsService.getRoomUtilization(periodo);
+  async getUtilization(@Query("periodo") periodo: string) {
+    const result = await this.analyticsService.getRoomUtilization(periodo);
+    return { data: result, message: "Utilización obtenida correctamente" };
   }
 
   @Get("peak-hours")
-  getPeakHours(@Query("periodo") periodo: string) {
-    return this.analyticsService.getPeakHours(periodo);
+  async getPeakHours(@Query("periodo") periodo: string) {
+    const result = await this.analyticsService.getPeakHours(periodo);
+    return { data: result, message: "Horas pico obtenidas correctamente" };
   }
 
   @Get("suggestions")
-  getSuggestions(@Query("periodo") periodo: string) {
-    return this.analyticsService.getSmartSuggestions(periodo);
+  async getSuggestions(@Query("periodo") periodo: string) {
+    const result = await this.analyticsService.getSmartSuggestions(periodo);
+    return { data: result, message: "Sugerencias obtenidas correctamente" };
   }
 }

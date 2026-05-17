@@ -30,7 +30,7 @@ export class HorariosService {
   ) {}
 
   async findAllByPeriodo(periodo: string, page = 1, limit = 20) {
-    const [data, total] = await this.horarioRepo
+    const [items, total] = await this.horarioRepo
       .createQueryBuilder('horario')
       .leftJoinAndSelect('horario.docente', 'docente')
       .leftJoinAndSelect('horario.curso', 'curso')
@@ -44,11 +44,11 @@ export class HorariosService {
       .cache(`horarios_periodo_${periodo}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items, total, page, limit };
   }
 
   async findByDocente(docenteId: number, periodo: string, page = 1, limit = 20) {
-    const [data, total] = await this.horarioRepo
+    const [items, total] = await this.horarioRepo
       .createQueryBuilder('horario')
       .leftJoinAndSelect('horario.docente', 'docente')
       .leftJoinAndSelect('horario.curso', 'curso')
@@ -63,11 +63,11 @@ export class HorariosService {
       .cache(`horarios_periodo_${periodo}_docente_${docenteId}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items, total, page, limit };
   }
 
   async findByAmbiente(ambienteId: number, periodo: string, page = 1, limit = 20) {
-    const [data, total] = await this.horarioRepo
+    const [items, total] = await this.horarioRepo
       .createQueryBuilder('horario')
       .leftJoinAndSelect('horario.docente', 'docente')
       .leftJoinAndSelect('horario.curso', 'curso')
@@ -82,11 +82,11 @@ export class HorariosService {
       .cache(`horarios_periodo_${periodo}_ambiente_${ambienteId}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items, total, page, limit };
   }
 
   async findConflictos(periodo: string, page = 1, limit = 20) {
-    const [data, total] = await this.conflictoRepo
+    const [items, total] = await this.conflictoRepo
       .createQueryBuilder('conflicto')
       .leftJoinAndSelect('conflicto.docente', 'docente')
       .leftJoinAndSelect('conflicto.ambiente', 'ambiente')
@@ -97,7 +97,7 @@ export class HorariosService {
       .cache(`conflictos_periodo_${periodo}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items, total, page, limit };
   }
 
   async resolverConflicto(id: number): Promise<ConflictoAsignacion> {

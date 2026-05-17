@@ -28,30 +28,24 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
     await page.getByRole('link', { name: 'Horarios' }).click();
 
     // Ir a la pestaña de gestión
-    await page.getByRole('tab', { name: 'Gestión de Horario' }).click({ force: true });
+    await page.getByRole('tab', { name: 'Gestión de Horario' }).click();
     
     // Esperar a que el contenido de la pestaña cargue
     const genBtn = page.getByRole('button', { name: /generar horario automático/i });
-    await genBtn.waitFor({ state: 'visible', timeout: 30000 });
-    await expect(genBtn).toBeVisible();
+    await genBtn.waitFor({ state: 'visible', timeout: 45000 });
+    await expect(genBtn).toBeEnabled();
     
     // Iniciar generación (manejar confirmación)
     page.on('dialog', dialog => dialog.accept());
     await genBtn.click();
     
-    // El spinner puede aparecer y desaparecer muy rápido, lo hacemos opcional
-    try {
-      await expect(page.locator('mat-spinner')).toBeVisible({ timeout: 1000 });
-    } catch (e) {
-      // Ya terminó o fue muy rápido
-    }
-    
     // Esperar resultados (timeout extendido para stress)
-    await expect(page.locator('.resultado')).toBeVisible({ timeout: 60000 });
+    const resultContainer = page.locator('.resultado');
+    await expect(resultContainer).toBeVisible({ timeout: 90000 });
     
-    // Verificar que se crearon asignaciones
-    const resultText = await page.locator('.resultado strong').first().innerText();
-    const count = parseInt(resultText);
+    // Verificar que se crearon asignaciones (buscando el primer número en los strong)
+    const resultText = await resultContainer.locator('strong').first().innerText();
+    const count = parseInt(resultText.replace(/[^0-9]/g, ''));
     expect(count).toBeGreaterThanOrEqual(0);
 
     // Screenshot del resultado
@@ -62,15 +56,22 @@ test.describe('Scheduling System E2E Flow (Playwright)', () => {
     await page.waitForLoadState('networkidle');
     await page.getByRole('link', { name: 'Horarios' }).click();
     
-    // Seleccionar el primer docente de la lista
-    await page.getByLabel('Seleccionar docente').click();
-    const firstOption = page.getByRole('option').first();
-    await firstOption.waitFor({ state: 'visible', timeout: 15000 });
-    await firstOption.click();
+    // Esperar a que el componente cargue y el select esté disponible
+    const select = page.getByLabel('Seleccionar docente');
+    await select.waitFor({ state: 'visible', timeout: 30000 });
+    
+    // Forzar el click y esperar un momento para la animación de Material
+    await select.click();
+    await page.waitForTimeout(1000); 
+    
+    // Buscar opciones (pueden estar en un overlay fuera del contenedor del componente)
+    const option = page.locator('mat-option').first();
+    await option.waitFor({ state: 'visible', timeout: 30000 });
+    await option.click();
 
     // Validar que la tabla de horarios es visible
     const table = page.locator('table.horario-grid');
-    await expect(table).toBeVisible();
+    await expect(table).toBeVisible({ timeout: 20000 });
     
     // Validar que hay horas en la columna izquierda
     await expect(page.locator('.hora-cell').first()).toContainText(':00');

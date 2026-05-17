@@ -62,6 +62,13 @@ const routes: Routes = [
           ),
       },
       {
+        path: 'analytics',
+        loadChildren: () =>
+          import('./modules/analytics/analytics.module').then(
+            (m) => m.AnalyticsModule,
+          ),
+      },
+      {
         path: 'operador',
         loadChildren: () =>
           import('./modules/operador/operador.module').then(

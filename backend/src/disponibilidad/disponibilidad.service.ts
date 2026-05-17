@@ -133,7 +133,7 @@ export class DisponibilidadService {
   }
 
   async getRestricciones(periodo: string, page = 1, limit = 20) {
-    const [data, total] = await this.restriccionRepo
+    const [items, total] = await this.restriccionRepo
       .createQueryBuilder('restriccion')
       .where('restriccion.periodo_academico = :periodo', { periodo })
       .andWhere('restriccion.activo = :activo', { activo: true })
@@ -143,7 +143,7 @@ export class DisponibilidadService {
       .cache(`restricciones_periodo_${periodo}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items, total, page, limit };
   }
 
   async upsertRestriccion(
@@ -159,7 +159,7 @@ export class DisponibilidadService {
   }
 
   async getPeriodos(page = 1, limit = 20) {
-    const [data, total] = await this.periodoRepo
+    const [items, total] = await this.periodoRepo
       .createQueryBuilder('periodo')
       .orderBy('periodo.codigo', 'DESC')
       .skip((page - 1) * limit)
@@ -167,6 +167,6 @@ export class DisponibilidadService {
       .cache(`periodos_${page}_${limit}`, 60000)
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items, total, page, limit };
   }
 }

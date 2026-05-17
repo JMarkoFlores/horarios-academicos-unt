@@ -48,6 +48,7 @@ export class LayoutComponent implements OnInit {
     disponibilidad: 'Disponibilidad Docente',
     reportes: 'Reportes',
     horarios: 'Horarios — Vista de Asignaciones',
+    analytics: 'Análisis Inteligente',
     operador: 'Operador — Sistema de Turnos',
   };
 

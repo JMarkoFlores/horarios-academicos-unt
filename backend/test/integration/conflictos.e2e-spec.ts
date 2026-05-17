@@ -138,18 +138,17 @@ describe("Conflictos Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveProperty("data");
-      expect(Array.isArray(response.body.data.data)).toBe(true);
-    });
+      expect(response.body.data).toHaveProperty("items");
+      expect(Array.isArray(response.body.data.items)).toBe(true);
+      });
 
-    it("debe retornar array vacío si no hay conflictos", async () => {
+      it("debe retornar array vacío si no hay conflictos", async () => {
       const response = await request(app.getHttpServer())
         .get("/horarios/conflictos/2026-II")
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.data.data).toEqual([]);
-    });
+      expect(response.body.data.items).toEqual([]);    });
 
     it("debe incluir relaciones en la respuesta de conflictos", async () => {
       await request(app.getHttpServer())
@@ -162,9 +161,9 @@ describe("Conflictos Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      if (response.body.data.data.length > 0) {
-        expect(response.body.data.data[0]).toHaveProperty("docente");
-        expect(response.body.data.data[0]).toHaveProperty("ambiente");
+      if (response.body.data.items.length > 0) {
+        expect(response.body.data.items[0]).toHaveProperty("docente");
+        expect(response.body.data.items[0]).toHaveProperty("ambiente");
       }
     });
   });

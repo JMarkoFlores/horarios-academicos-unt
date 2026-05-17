@@ -263,7 +263,7 @@ describe("Asignaciones Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(Array.isArray(response.body.data.data)).toBe(true);
+      expect(Array.isArray(response.body.data.items)).toBe(true);
     });
 
     it("debe ordenar horarios por día y hora", async () => {
@@ -277,10 +277,10 @@ describe("Asignaciones Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      if (response.body.data.data.length > 1) {
-        for (let i = 0; i < response.body.data.data.length - 1; i++) {
-          const actual = response.body.data.data[i];
-          const siguiente = response.body.data.data[i + 1];
+      if (response.body.data.items.length > 1) {
+        for (let i = 0; i < response.body.data.items.length - 1; i++) {
+          const actual = response.body.data.items[i];
+          const siguiente = response.body.data.items[i + 1];
 
           if (actual.dia_semana === siguiente.dia_semana) {
             // Comparación de strings de hora ("08:00" <= "10:00")

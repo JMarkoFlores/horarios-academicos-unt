@@ -126,8 +126,8 @@ describe("Horarios Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveProperty("data");
-      expect(Array.isArray(response.body.data.data)).toBe(true);
+      expect(response.body.data).toHaveProperty("items");
+      expect(Array.isArray(response.body.data.items)).toBe(true);
     });
 
     it("debe retornar array vacío si no hay horarios", async () => {
@@ -136,7 +136,7 @@ describe("Horarios Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.data.data).toEqual([]);
+      expect(response.body.data.items).toEqual([]);
     });
   });
 
@@ -150,8 +150,8 @@ describe("Horarios Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveProperty("data");
-      expect(Array.isArray(response.body.data.data)).toBe(true);
+      expect(response.body.data).toHaveProperty("items");
+      expect(Array.isArray(response.body.data.items)).toBe(true);
     });
 
     it("debe requerir parámetro periodo", async () => {
@@ -177,8 +177,8 @@ describe("Horarios Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveProperty("data");
-      expect(Array.isArray(response.body.data.data)).toBe(true);
+      expect(response.body.data).toHaveProperty("items");
+      expect(Array.isArray(response.body.data.items)).toBe(true);
     });
   });
 
@@ -189,8 +189,8 @@ describe("Horarios Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.data).toHaveProperty("data");
-      expect(Array.isArray(response.body.data.data)).toBe(true);
+      expect(response.body.data).toHaveProperty("items");
+      expect(Array.isArray(response.body.data.items)).toBe(true);
     });
   });
 
@@ -207,8 +207,8 @@ describe("Horarios Integration Tests", () => {
         .get("/horarios/conflictos/2026-I")
         .set("Authorization", `Bearer ${authToken}`);
 
-      if (conflictosResponse.body.data.length > 0) {
-        const conflictoId = conflictosResponse.body.data[0].id;
+      if (conflictosResponse.body.data.items.length > 0) {
+        const conflictoId = conflictosResponse.body.data.items[0].id;
 
         const response = await request(app.getHttpServer())
           .patch(`/horarios/conflictos/${conflictoId}/resolver`)
@@ -235,8 +235,8 @@ describe("Horarios Integration Tests", () => {
         .get("/horarios/periodo/2026-I")
         .set("Authorization", `Bearer ${authToken}`);
 
-      if (horariosResponse.body.data.length > 0) {
-        const horarioId = horariosResponse.body.data[0].id;
+      if (horariosResponse.body.data.items.length > 0) {
+        const horarioId = horariosResponse.body.data.items[0].id;
         const ambientes = await ambienteRepository.find();
 
         const reasignarDto = {
@@ -265,8 +265,8 @@ describe("Horarios Integration Tests", () => {
         .get("/horarios/periodo/2026-I")
         .set("Authorization", `Bearer ${authToken}`);
 
-      if (horariosResponse.body.data.length > 0) {
-        const horarioId = horariosResponse.body.data[0].id;
+      if (horariosResponse.body.data.items.length > 0) {
+        const horarioId = horariosResponse.body.data.items[0].id;
 
         const reasignarDto = {
           dia_semana: 2,

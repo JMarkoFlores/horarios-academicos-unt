@@ -88,7 +88,7 @@ describe("HorariosService", () => {
     it("debe retornar horarios paginados", async () => {
       mockQueryBuilder.getManyAndCount.mockResolvedValue([[mockHorario], 1]);
       const result = await service.findAllByPeriodo("2026-I");
-      expect(result.data).toEqual([mockHorario]);
+      expect(result.items).toEqual([mockHorario]);
     });
   });
 

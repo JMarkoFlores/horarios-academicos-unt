@@ -74,7 +74,7 @@ describe("DocentesService", () => {
       const result = await service.findAll(query);
 
       expect(result).toEqual({
-        data: [{ ...mockDocente, antiguedad: expect.any(Object) }],
+        items: [{ ...mockDocente, antiguedad: expect.any(Object) }],
         total: 1,
         page: 1,
         limit: 10,

@@ -50,9 +50,10 @@ export async function clearDatabase(app: INestApplication) {
 
   for (const table of tablesInOrder) {
     try {
-      await dataSource.query(`DELETE FROM "${table}"`);
+      await dataSource.query(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`);
     } catch (e) {
-      // Ignore if table doesn't exist
+      // Ignore if table doesn't exist or other issues
+      console.warn(`Could not truncate table ${table}:`, e.message);
     }
   }
 }

@@ -77,7 +77,7 @@ describe("CursosService", () => {
     it("debe retornar cursos paginados", async () => {
       mockQueryBuilder.getManyAndCount.mockResolvedValue([[mockCurso], 1]);
       const result = await service.findAll({ page: 1, limit: 10 });
-      expect(result.data).toEqual([mockCurso]);
+      expect(result.items).toEqual([mockCurso]);
     });
   });
 

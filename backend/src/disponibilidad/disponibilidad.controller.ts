@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -17,15 +18,15 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
-} from '@nestjs/swagger';
-import { DisponibilidadService } from './disponibilidad.service';
-import { GuardarDisponibilidadDto } from './dto/guardar-disponibilidad.dto';
-import { CreateRestriccionDto } from './dto/create-restriccion.dto';
-import { QueryListDto } from './dto/query-list.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { RolUsuario } from '../common/enums/rol-usuario.enum';
+} from "@nestjs/swagger";
+import { DisponibilidadService } from "./disponibilidad.service";
+import { GuardarDisponibilidadDto } from "./dto/guardar-disponibilidad.dto";
+import { CreateRestriccionDto } from "./dto/create-restriccion.dto";
+import { QueryListDto } from "./dto/query-list.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { RolUsuario } from "../common/enums/rol-usuario.enum";
 
 @ApiTags("disponibilidad")
 @Controller("disponibilidad")
@@ -77,23 +78,38 @@ export class DisponibilidadController {
     return { data: result, message: "Resumen de disponibilidad obtenido" };
   }
 
-  @Get('restricciones')
-  @ApiOperation({ summary: 'Listar restricciones institucionales activas' })
-  @ApiQuery({ name: 'periodo', required: true, example: '2026-I' })
+  @Get("restricciones")
+  @ApiOperation({ summary: "Listar restricciones institucionales activas" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async getRestricciones(
-    @Query('periodo') periodo: string,
+    @Query("periodo") periodo: string,
     @Query() query: QueryListDto,
   ) {
     const result = await this.disponibilidadService.getRestricciones(
-      periodo ?? '',
+      periodo ?? "",
       query.page ?? 1,
       query.limit ?? 20,
     );
-    return { data: result, message: 'Restricciones obtenidas' };
+    return { data: result, message: "Restricciones obtenidas" };
+  }
+
+  @Delete("docente/:id")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Eliminar disponibilidad de un docente en un período",
+  })
+  @ApiParam({ name: "id", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async eliminarDisponibilidad(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo: string,
+  ) {
+    await this.disponibilidadService.eliminarDisponibilidad(id, periodo ?? "");
+    return { data: null, message: "Disponibilidad eliminada exitosamente" };
   }
 
   @Post("restricciones")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear o actualizar una restricción institucional" })
   async upsertRestriccion(@Body() dto: CreateRestriccionDto) {
     const result = await this.disponibilidadService.upsertRestriccion(dto);

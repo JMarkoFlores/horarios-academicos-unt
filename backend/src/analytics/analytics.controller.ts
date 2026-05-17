@@ -7,7 +7,7 @@ import { RolUsuario } from "../common/enums/rol-usuario.enum";
 
 @Controller("analytics")
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+@Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

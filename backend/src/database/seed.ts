@@ -80,7 +80,7 @@ async function seed() {
       nombre: "Administrador del Sistema",
       email: "admin@unt.edu.pe",
       password_hash: await bcrypt.hash("Admin123!", 10),
-      rol: RolUsuario.ADMIN,
+      rol: RolUsuario.ADMINISTRADOR_SISTEMA,
       activo: true,
     });
     await usuarioRepo.save(admin);

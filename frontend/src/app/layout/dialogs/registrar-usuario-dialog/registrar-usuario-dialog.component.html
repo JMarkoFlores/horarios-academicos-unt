@@ -1,0 +1,54 @@
+<h2 mat-dialog-title>
+  <mat-icon style="vertical-align:middle;margin-right:8px;color:var(--color-primary)">person_add</mat-icon>
+  Registrar Usuario al Sistema
+</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="dialog-form">
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Nombre completo</mat-label>
+      <input matInput formControlName="nombre" placeholder="Juan Pérez García" />
+      <mat-icon matSuffix>person</mat-icon>
+      <mat-error *ngIf="form.get('nombre')?.hasError('required')">El nombre es obligatorio</mat-error>
+      <mat-error *ngIf="form.get('nombre')?.hasError('minlength')">Mínimo 3 caracteres</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Correo electrónico</mat-label>
+      <input matInput formControlName="email" type="email" placeholder="usuario@unt.edu.pe" />
+      <mat-icon matSuffix>email</mat-icon>
+      <mat-error *ngIf="form.get('email')?.hasError('required')">El correo es obligatorio</mat-error>
+      <mat-error *ngIf="form.get('email')?.hasError('email')">Ingresa un correo válido</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Contraseña inicial</mat-label>
+      <input matInput formControlName="password" [type]="hidePassword ? 'password' : 'text'" />
+      <button mat-icon-button matSuffix type="button" (click)="hidePassword = !hidePassword">
+        <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+      </button>
+      <mat-hint>Mínimo 8 caracteres</mat-hint>
+      <mat-error *ngIf="form.get('password')?.hasError('required')">La contraseña es obligatoria</mat-error>
+      <mat-error *ngIf="form.get('password')?.hasError('minlength')">Mínimo 8 caracteres</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Rol del usuario</mat-label>
+      <mat-select formControlName="rol">
+        <mat-option *ngFor="let r of roles" [value]="r.value">{{ r.label }}</mat-option>
+      </mat-select>
+      <mat-icon matSuffix>badge</mat-icon>
+      <mat-error *ngIf="form.get('rol')?.hasError('required')">Selecciona un rol</mat-error>
+    </mat-form-field>
+
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancelar()" [disabled]="loading">Cancelar</button>
+  <button mat-flat-button color="primary" (click)="guardar()" [disabled]="form.invalid || loading">
+    <mat-spinner *ngIf="loading" diameter="18" style="display:inline-block;margin-right:8px"></mat-spinner>
+    Registrar
+  </button>
+</mat-dialog-actions>

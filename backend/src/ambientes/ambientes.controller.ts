@@ -63,21 +63,21 @@ export class AmbientesController {
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async getDisponibilidad(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('periodo') periodo: string,
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo: string,
     @Query() query: QueryAmbienteDto,
   ) {
     const result = await this.ambientesService.getDisponibilidad(
       id,
-      periodo ?? '',
+      periodo ?? "",
       query.page ?? 1,
       query.limit ?? 20,
     );
-    return { data: result, message: 'Disponibilidad del ambiente obtenida' };
+    return { data: result, message: "Disponibilidad del ambiente obtenida" };
   }
 
   @Post()
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear nuevo ambiente" })
   @ApiResponse({ status: 409, description: "Código de ambiente duplicado" })
   async create(@Body() dto: CreateAmbienteDto) {
@@ -86,7 +86,7 @@ export class AmbientesController {
   }
 
   @Patch(":id")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Actualizar datos de un ambiente" })
   @ApiParam({ name: "id", type: Number })
   async update(
@@ -98,7 +98,7 @@ export class AmbientesController {
   }
 
   @Delete(":id")
-  @Roles(RolUsuario.ADMIN)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Desactivar un ambiente (soft delete)" })
   @ApiParam({ name: "id", type: Number })

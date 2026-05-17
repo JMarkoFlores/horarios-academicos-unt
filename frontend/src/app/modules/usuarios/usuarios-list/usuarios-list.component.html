@@ -1,0 +1,101 @@
+<div class="page-header">
+  <div class="header-left">
+    <h1 class="page-title">Usuarios del Sistema</h1>
+    <p class="page-sub">Gestiona los usuarios y sus roles de acceso</p>
+  </div>
+  <button mat-flat-button color="primary" class="btn-crear" (click)="abrirCrear()">
+    <mat-icon>person_add</mat-icon>
+    Crear usuario del sistema
+  </button>
+</div>
+
+<mat-card class="table-card">
+  <mat-card-content>
+
+    <!-- Barra de búsqueda -->
+    <div class="toolbar">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>Buscar usuario</mat-label>
+        <input matInput (keyup)="aplicarFiltro($event)" placeholder="Nombre, correo o rol…" />
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+      <span class="count-badge">{{ dataSource.filteredData.length }} usuario(s)</span>
+    </div>
+
+    <!-- Spinner de carga -->
+    <div *ngIf="loading" class="loading-center">
+      <mat-spinner diameter="40"></mat-spinner>
+    </div>
+
+    <!-- Tabla -->
+    <div class="table-wrap" *ngIf="!loading">
+      <table mat-table [dataSource]="dataSource" matSort class="usuarios-table">
+
+        <!-- Nombre -->
+        <ng-container matColumnDef="nombre">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Usuario</th>
+          <td mat-cell *matCellDef="let u">
+            <div class="user-cell">
+              <div class="avatar">{{ u.nombre[0] }}</div>
+              <div class="user-info">
+                <span class="user-name">{{ u.nombre }}</span>
+                <span class="user-email">{{ u.email }}</span>
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Email (hidden, usado en filtro) -->
+        <ng-container matColumnDef="email">
+          <th mat-header-cell *matHeaderCellDef style="display:none"></th>
+          <td mat-cell *matCellDef="let u" style="display:none"></td>
+        </ng-container>
+
+        <!-- Rol -->
+        <ng-container matColumnDef="rol">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Rol</th>
+          <td mat-cell *matCellDef="let u">
+            <span class="rol-chip" [attr.data-rol]="u.rol">{{ getRolLabel(u.rol) }}</span>
+          </td>
+        </ng-container>
+
+        <!-- Estado -->
+        <ng-container matColumnDef="estado">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Estado</th>
+          <td mat-cell *matCellDef="let u">
+            <span class="estado-chip" [class.activo]="u.activo" [class.inactivo]="!u.activo">
+              <mat-icon class="estado-icon">{{ u.activo ? 'check_circle' : 'cancel' }}</mat-icon>
+              {{ u.activo ? 'Activo' : 'Inactivo' }}
+            </span>
+          </td>
+        </ng-container>
+
+        <!-- Acciones -->
+        <ng-container matColumnDef="acciones">
+          <th mat-header-cell *matHeaderCellDef>Acciones</th>
+          <td mat-cell *matCellDef="let u">
+            <button mat-icon-button color="primary" matTooltip="Editar usuario" (click)="abrirEditar(u)">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" matTooltip="Eliminar usuario" (click)="confirmarEliminar(u)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="table-row"></tr>
+
+        <tr class="mat-row" *matNoDataRow>
+          <td class="mat-cell no-data" [attr.colspan]="displayedColumns.length">
+            <mat-icon>person_off</mat-icon>
+            <span>No se encontraron usuarios</span>
+          </td>
+        </tr>
+      </table>
+
+      <mat-paginator [pageSizeOptions]="[10, 25, 50]" showFirstLastButtons></mat-paginator>
+    </div>
+
+  </mat-card-content>
+</mat-card>

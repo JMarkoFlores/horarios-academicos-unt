@@ -69,7 +69,7 @@ export class DocentesController {
   }
 
   @Post()
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear nuevo docente" })
   @ApiResponse({ status: 201, description: "Docente creado exitosamente" })
   @ApiResponse({ status: 409, description: "Email o código duplicado" })
@@ -79,7 +79,7 @@ export class DocentesController {
   }
 
   @Patch(":id")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Actualizar datos de un docente" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente actualizado" })
@@ -92,7 +92,7 @@ export class DocentesController {
   }
 
   @Delete(":id")
-  @Roles(RolUsuario.ADMIN)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Desactivar un docente (soft delete)" })
   @ApiParam({ name: "id", type: Number })

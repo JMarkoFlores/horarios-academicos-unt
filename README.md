@@ -97,9 +97,9 @@ La aplicación estará disponible en: **http://localhost:4200**
 
 ## Credenciales por defecto
 
-| Usuario             | Contraseña | Rol   |
-| ------------------- | ---------- | ----- |
-| admin@unitru.edu.pe | Admin123!  | ADMIN |
+| Usuario          | Contraseña | Rol   |
+| ---------------- | ---------- | ----- |
+| admin@unt.edu.pe | Admin123!  | ADMIN |
 
 ---
 

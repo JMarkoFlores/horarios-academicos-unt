@@ -93,9 +93,72 @@
   </div>
 </mat-card>
 
-<mat-card *ngIf="!docenteSeleccionado" class="empty-hint">
-  <mat-icon>event_available</mat-icon>
-  <p>
-    Busca y selecciona un docente para ver y editar su disponibilidad horaria.
-  </p>
-</mat-card>
+<!-- Resumen de docentes con disponibilidad registrada -->
+<div *ngIf="!docenteSeleccionado">
+  <div *ngIf="loadingResumen" class="loading-center">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <div *ngIf="!loadingResumen && resumen.length === 0" class="empty-hint-card">
+    <mat-card class="empty-hint">
+      <mat-icon>event_available</mat-icon>
+      <p>
+        Selecciona un docente arriba para registrar su disponibilidad horaria.
+      </p>
+    </mat-card>
+  </div>
+
+  <div *ngIf="!loadingResumen && resumen.length > 0">
+    <h2 class="resumen-titulo">
+      Docentes con disponibilidad registrada — {{ periodoService.periodo }}
+    </h2>
+    <div class="resumen-grid">
+      <mat-card *ngFor="let item of resumen" class="docente-card">
+        <mat-card-header>
+          <div mat-card-avatar class="card-avatar">
+            <mat-icon>person</mat-icon>
+          </div>
+          <mat-card-title
+            >{{ item.docente.apellidos }},
+            {{ item.docente.nombres }}</mat-card-title
+          >
+          <mat-card-subtitle
+            >{{ item.docente.codigo }} ·
+            {{ item.docente.categoria }}</mat-card-subtitle
+          >
+        </mat-card-header>
+        <mat-card-content>
+          <div class="card-stats">
+            <span class="stat"
+              ><mat-icon>schedule</mat-icon>
+              {{ item.horas_disponibles | number: "1.0-1" }} horas</span
+            >
+            <span class="stat"
+              ><mat-icon>grid_on</mat-icon>
+              {{ item.slots_disponibles }} slots</span
+            >
+          </div>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button
+            mat-icon-button
+            color="primary"
+            matTooltip="Editar disponibilidad"
+            (click)="editarDesdeResumen(item)"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            color="warn"
+            matTooltip="Eliminar disponibilidad"
+            [disabled]="eliminando === item.docente.id"
+            (click)="eliminarDisponibilidad(item)"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+  </div>
+</div>

@@ -75,6 +75,13 @@ const routes: Routes = [
             (m) => m.OperadorModule,
           ),
       },
+      {
+        path: 'usuarios',
+        loadChildren: () =>
+          import('./modules/usuarios/usuarios.module').then(
+            (m) => m.UsuariosModule,
+          ),
+      },
       { path: '**', component: NotFoundComponent },
     ],
   },

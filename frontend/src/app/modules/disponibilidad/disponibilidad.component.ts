@@ -16,6 +16,9 @@ import {
 export class DisponibilidadComponent implements OnInit {
   todosDocentes: Docente[] = [];
   docenteSeleccionado: Docente | null = null;
+  resumen: any[] = [];
+  loadingResumen = false;
+  eliminando: number | null = null;
 
   dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   horas = Array.from({ length: 15 }, (_, i) => i + 7);
@@ -37,6 +40,59 @@ export class DisponibilidadComponent implements OnInit {
         this.todosDocentes = r?.data?.items ?? [];
       },
     });
+    this.cargarResumen();
+  }
+
+  cargarResumen(): void {
+    this.loadingResumen = true;
+    this.api
+      .get<any>('/disponibilidad/resumen', {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (r: any) => {
+          this.resumen = r?.data ?? [];
+          this.loadingResumen = false;
+        },
+        error: () => {
+          this.loadingResumen = false;
+        },
+      });
+  }
+
+  editarDesdeResumen(item: any): void {
+    const docente =
+      this.todosDocentes.find((d) => d.id === item.docente.id) ??
+      (item.docente as Docente);
+    this.docenteSeleccionado = docente;
+    this.cargarDisponibilidad();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  eliminarDisponibilidad(item: any): void {
+    if (
+      !confirm(
+        `¿Eliminar disponibilidad de ${item.docente.apellidos}, ${item.docente.nombres}?`,
+      )
+    )
+      return;
+    this.eliminando = item.docente.id;
+    this.api
+      .delete<any>(
+        `/disponibilidad/docente/${item.docente.id}?periodo=${this.periodoService.periodo}`,
+      )
+      .subscribe({
+        next: () => {
+          this.snackBar.open('Disponibilidad eliminada', 'OK', {
+            duration: 2000,
+          });
+          this.eliminando = null;
+          this.cargarResumen();
+        },
+        error: () => {
+          this.eliminando = null;
+        },
+      });
   }
 
   resetGrilla(): void {
@@ -117,6 +173,9 @@ export class DisponibilidadComponent implements OnInit {
             duration: 3000,
           });
           this.saving = false;
+          this.docenteSeleccionado = null;
+          this.resetGrilla();
+          this.cargarResumen();
         },
         error: () => {
           this.saving = false;

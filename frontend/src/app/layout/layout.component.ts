@@ -1,9 +1,12 @@
 import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
 import { MatSidenav } from '@angular/material/sidenav';
+import { MatDialog } from '@angular/material/dialog';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { AuthService } from '../core/services/auth.service';
 import { PeriodoService } from '../core/services/periodo.service';
+import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
+import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialog/cambiar-password-dialog.component';
 
 @Component({
   selector: 'app-layout',
@@ -16,8 +19,19 @@ export class LayoutComponent implements OnInit {
   isDark = false;
   sectionTitle = 'Dashboard';
 
-  navLinks = [
+  navLinks: {
+    icon: string;
+    label: string;
+    route: string;
+    adminOnly?: boolean;
+  }[] = [
     { icon: 'dashboard', label: 'Dashboard', route: '/app/dashboard' },
+    {
+      icon: 'manage_accounts',
+      label: 'Usuarios',
+      route: '/app/usuarios',
+      adminOnly: true,
+    },
     { icon: 'people', label: 'Docentes', route: '/app/docentes' },
     { icon: 'menu_book', label: 'Cursos', route: '/app/cursos' },
     { icon: 'meeting_room', label: 'Ambientes', route: '/app/ambientes' },
@@ -50,18 +64,20 @@ export class LayoutComponent implements OnInit {
     horarios: 'Horarios — Vista de Asignaciones',
     analytics: 'Análisis Inteligente',
     operador: 'Operador — Sistema de Turnos',
+    usuarios: 'Usuarios del Sistema',
   };
 
   constructor(
     public authService: AuthService,
     public periodoService: PeriodoService,
     private router: Router,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
     this.isMobile = window.innerWidth < 768;
     this.isDark = document.body.classList.contains('dark-theme');
-    
+
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe((e: any) => {
@@ -72,6 +88,11 @@ export class LayoutComponent implements OnInit {
 
   get usuario() {
     return this.authService.getUsuarioActual();
+  }
+
+  get visibleNavLinks() {
+    const isAdmin = this.authService.hasRole('administradorsistema');
+    return this.navLinks.filter((l) => !l.adminOnly || isAdmin);
   }
 
   toggleSidenav(): void {
@@ -87,6 +108,20 @@ export class LayoutComponent implements OnInit {
       document.body.classList.remove('dark-theme');
       document.body.classList.add('light-theme');
     }
+  }
+
+  openRegistrarUsuario(): void {
+    this.dialog.open(RegistrarUsuarioDialogComponent, {
+      width: '480px',
+      disableClose: true,
+    });
+  }
+
+  openCambiarPassword(): void {
+    this.dialog.open(CambiarPasswordDialogComponent, {
+      width: '440px',
+      disableClose: true,
+    });
   }
 
   logout(): void {

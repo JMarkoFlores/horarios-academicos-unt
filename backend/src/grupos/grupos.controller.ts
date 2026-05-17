@@ -52,7 +52,7 @@ export class GruposController {
   }
 
   @Post()
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear nuevo grupo/sección" })
   @ApiResponse({
     status: 409,
@@ -64,7 +64,7 @@ export class GruposController {
   }
 
   @Patch(":id")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Actualizar datos de un grupo" })
   @ApiParam({ name: "id", type: Number })
   async update(
@@ -76,7 +76,7 @@ export class GruposController {
   }
 
   @Delete(":id")
-  @Roles(RolUsuario.ADMIN)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Eliminar un grupo" })
   @ApiParam({ name: "id", type: Number })

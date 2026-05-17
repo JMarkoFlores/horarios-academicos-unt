@@ -18,7 +18,7 @@
     <mat-nav-list>
       <a
         mat-list-item
-        *ngFor="let link of navLinks"
+        *ngFor="let link of visibleNavLinks"
         [routerLink]="link.route"
         routerLinkActive="active-link"
       >
@@ -29,20 +29,35 @@
 
     <div class="sidenav-footer">
       <mat-divider></mat-divider>
-      <div class="user-row">
-        <div class="user-avatar">
-          {{ (usuario?.nombre || "A")[0] }}
-        </div>
+
+      <!-- Trigger del dropdown -->
+      <button mat-button class="user-row-btn" [matMenuTriggerFor]="userMenu">
+        <div class="user-avatar">{{ (usuario?.nombre || "A")[0] }}</div>
         <div class="user-info">
           <span class="user-name">{{
             usuario?.nombre || "Administrador"
           }}</span>
           <span class="user-role">{{ usuario?.rol }}</span>
         </div>
-      </div>
-      <button mat-button class="logout-btn" (click)="logout()">
-        <mat-icon>logout</mat-icon> Cerrar sesión
+        <mat-icon class="user-chevron">expand_less</mat-icon>
       </button>
+
+      <!-- Dropdown menu -->
+      <mat-menu #userMenu="matMenu" yPosition="above" class="user-dropdown">
+        <!-- <button mat-menu-item (click)="openRegistrarUsuario()">
+          <mat-icon>person_add</mat-icon>
+          <span>Registrar usuario al sistema</span>
+        </button> -->
+        <button mat-menu-item (click)="openCambiarPassword()">
+          <mat-icon>lock_reset</mat-icon>
+          <span>Cambiar contraseña</span>
+        </button>
+        <mat-divider></mat-divider>
+        <button mat-menu-item class="logout-menu-item" (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>Cerrar sesión</span>
+        </button>
+      </mat-menu>
     </div>
   </mat-sidenav>
 

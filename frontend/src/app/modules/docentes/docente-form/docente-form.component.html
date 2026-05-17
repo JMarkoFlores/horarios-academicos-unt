@@ -1,78 +1,119 @@
-<div class="page-header">
-  <h1>{{ isEdit ? 'Editar Docente' : 'Nuevo Docente' }}</h1>
+<div class="docente-form-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <button mat-icon-button (click)="cancelar()" class="btn-back">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <h1 class="gradient-text">{{ isEdit ? 'Editar Perfil Docente' : 'Registrar Nuevo Docente' }}</h1>
+        <p class="subtitle">{{ isEdit ? 'Actualiza la información profesional del académico' : 'Completa los datos para integrar al docente al sistema' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <mat-card class="form-card-premium" *ngIf="!loading">
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-sections-grid">
+        <!-- Personal Information Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <mat-icon>account_circle</mat-icon>
+            <h3>Información Personal</h3>
+          </div>
+          
+          <div class="fields-grid">
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Nombres</mat-label>
+              <input matInput formControlName="nombres" placeholder="Ej. Juan Pedro">
+              <mat-icon matPrefix>person</mat-icon>
+              <mat-error *ngIf="form.get('nombres')?.hasError('required')">Este campo es obligatorio</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Apellidos</mat-label>
+              <input matInput formControlName="apellidos" placeholder="Ej. García Pérez">
+              <mat-icon matPrefix>badge</mat-icon>
+              <mat-error *ngIf="form.get('apellidos')?.hasError('required')">Este campo es obligatorio</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Email Institucional</mat-label>
+              <input matInput type="email" formControlName="email" placeholder="usuario@unitru.edu.pe">
+              <mat-icon matPrefix>alternate_email</mat-icon>
+              <mat-error *ngIf="form.get('email')?.hasError('required')">Requerido</mat-error>
+              <mat-error *ngIf="form.get('email')?.hasError('email')">Formato de email no válido</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Teléfono / WhatsApp</mat-label>
+              <input matInput formControlName="telefono" placeholder="+51 999 999 999">
+              <mat-icon matPrefix>phone_iphone</mat-icon>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Academic Information Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <mat-icon>school</mat-icon>
+            <h3>Datos Académicos</h3>
+          </div>
+
+          <div class="fields-grid">
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Código de Docente</mat-label>
+              <input matInput formControlName="codigo" maxlength="10" placeholder="Ej. 123456">
+              <mat-icon matPrefix>pin</mat-icon>
+              <mat-error *ngIf="form.get('codigo')?.hasError('required')">El código es necesario</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Fecha de Ingreso</mat-label>
+              <input matInput [matDatepicker]="dpIngreso" formControlName="fecha_ingreso">
+              <mat-datepicker-toggle matSuffix [for]="dpIngreso"></mat-datepicker-toggle>
+              <mat-datepicker #dpIngreso></mat-datepicker>
+              <mat-icon matPrefix>calendar_today</mat-icon>
+              <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('required')">Selecciona una fecha</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Categoría</mat-label>
+              <mat-select formControlName="categoria">
+                <mat-option *ngFor="let c of categorias" [value]="c">
+                  {{ c }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>workspace_premium</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Tipo de Contrato</mat-label>
+              <mat-select formControlName="tipo_contrato">
+                <mat-option *ngFor="let t of tiposContrato" [value]="t">
+                  {{ t }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>history_edu</mat-icon>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-footer-premium">
+        <button mat-button type="button" (click)="cancelar()" class="btn-cancel">
+          Cancelar
+        </button>
+        <button mat-raised-button class="btn-submit" type="submit" [disabled]="saving">
+          <mat-spinner diameter="20" *ngIf="saving"></mat-spinner>
+          <mat-icon *ngIf="!saving">cloud_done</mat-icon>
+          <span>{{ saving ? 'Procesando...' : (isEdit ? 'Actualizar Docente' : 'Finalizar Registro') }}</span>
+        </button>
+      </div>
+    </form>
+  </mat-card>
+
+  <div class="loading-center" *ngIf="loading">
+    <mat-spinner strokeWidth="3"></mat-spinner>
+    <p>Cargando información del docente...</p>
+  </div>
 </div>
-
-<mat-card class="form-card" *ngIf="!loading">
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <div class="form-grid">
-      <mat-form-field appearance="outline">
-        <mat-label>Código *</mat-label>
-        <input matInput formControlName="codigo" maxlength="10" />
-        <mat-error *ngIf="form.get('codigo')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Email *</mat-label>
-        <input matInput type="email" formControlName="email" />
-        <mat-error *ngIf="form.get('email')?.hasError('required')">Requerido</mat-error>
-        <mat-error *ngIf="form.get('email')?.hasError('email')">Email inválido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Nombres *</mat-label>
-        <input matInput formControlName="nombres" />
-        <mat-error *ngIf="form.get('nombres')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Apellidos *</mat-label>
-        <input matInput formControlName="apellidos" />
-        <mat-error *ngIf="form.get('apellidos')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Teléfono</mat-label>
-        <input matInput formControlName="telefono" />
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Fecha de Ingreso *</mat-label>
-        <input matInput [matDatepicker]="dpIngreso" formControlName="fecha_ingreso" />
-        <mat-datepicker-toggle matSuffix [for]="dpIngreso"></mat-datepicker-toggle>
-        <mat-datepicker #dpIngreso></mat-datepicker>
-        <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Categoría *</mat-label>
-        <mat-select formControlName="categoria">
-          <mat-option *ngFor="let c of categorias" [value]="c">{{ c }}</mat-option>
-        </mat-select>
-        <mat-error *ngIf="form.get('categoria')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Tipo de Contrato *</mat-label>
-        <mat-select formControlName="tipo_contrato">
-          <mat-option *ngFor="let t of tiposContrato" [value]="t">{{ t }}</mat-option>
-        </mat-select>
-        <mat-error *ngIf="form.get('tipo_contrato')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-    </div>
-
-    <mat-divider class="divider"></mat-divider>
-
-    <div class="form-actions">
-      <button mat-button type="button" (click)="cancelar()">
-        <mat-icon>cancel</mat-icon> Cancelar
-      </button>
-      <button mat-raised-button color="primary" type="submit" [disabled]="saving">
-        <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
-        <mat-icon *ngIf="!saving">save</mat-icon>
-        {{ saving ? 'Guardando...' : 'Guardar' }}
-      </button>
-    </div>
-  </form>
-</mat-card>
-
-<div class="loading-center" *ngIf="loading"><mat-spinner></mat-spinner></div>

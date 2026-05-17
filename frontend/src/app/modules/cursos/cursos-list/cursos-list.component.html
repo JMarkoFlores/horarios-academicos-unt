@@ -1,82 +1,127 @@
-<div class="page-header">
-  <h1>Cursos</h1>
-  <a mat-raised-button color="primary" routerLink="/app/cursos/nuevo">
-    <mat-icon>add</mat-icon> Nuevo Curso
-  </a>
+<div class="cursos-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Plan de Estudios</h1>
+      <p class="subtitle">Gestión de cursos y mallas curriculares</p>
+    </div>
+    <div class="header-actions">
+      <a mat-raised-button class="btn-new" routerLink="/app/cursos/nuevo">
+        <mat-icon>library_add</mat-icon>
+        <span>Nuevo Curso</span>
+      </a>
+    </div>
+  </div>
+
+  <mat-card class="filter-card-premium">
+    <div class="filter-grid">
+      <div class="search-wrapper">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input
+          type="text"
+          [formControl]="searchControl"
+          placeholder="Buscar por nombre o código de curso..."
+          class="premium-input"
+        />
+      </div>
+      <div class="select-group">
+        <mat-form-field appearance="outline" class="premium-select">
+          <mat-label>Filtrar por Ciclo</mat-label>
+          <mat-select [(ngModel)]="cicloFilter" (ngModelChange)="onFilterChange()">
+            <mat-option value="">Todos los ciclos</mat-option>
+            <mat-option *ngFor="let c of ciclos" [value]="c">Ciclo {{ c }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+  </mat-card>
+
+  <mat-card class="table-container-premium">
+    <div *ngIf="loading" class="loading-overlay">
+      <mat-spinner diameter="50" strokeWidth="3"></mat-spinner>
+      <span>Actualizando catálogo...</span>
+    </div>
+
+    <div class="table-scroll" *ngIf="!loading">
+      <table mat-table [dataSource]="dataSource" class="premium-table">
+        <ng-container matColumnDef="codigo">
+          <th mat-header-cell *matHeaderCellDef>Código</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="code-badge">{{ c.codigo }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="nombre">
+          <th mat-header-cell *matHeaderCellDef>Nombre del Curso</th>
+          <td mat-cell *matCellDef="let c">
+            <div class="course-name-cell">
+              <span class="course-title">{{ c.nombre }}</span>
+              <span class="course-cycle">Ciclo {{ c.ciclo }}</span>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="creditos">
+          <th mat-header-cell *matHeaderCellDef>Créditos</th>
+          <td mat-cell *matCellDef="let c">
+            <div class="credit-badge">{{ c.creditos }}</div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="horas_teoria">
+          <th mat-header-cell *matHeaderCellDef>Horas</th>
+          <td mat-cell *matCellDef="let c">
+            <div class="hours-cell">
+              <span class="hour-tag theory" matTooltip="Horas de Teoría">
+                <mat-icon>menu_book</mat-icon> {{ c.horas_teoria }}h
+              </span>
+              <span class="hour-tag lab" *ngIf="c.horas_laboratorio" matTooltip="Horas de Laboratorio">
+                <mat-icon>biotech</mat-icon> {{ c.horas_laboratorio }}h
+              </span>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="tiene_lab">
+          <th mat-header-cell *matHeaderCellDef>Laboratorio</th>
+          <td mat-cell *matCellDef="let c">
+            <span [class]="'badge-pill ' + (c.tiene_laboratorio ? 'badge-LABORATORIO' : 'badge-INACTIVO')">
+              {{ c.tiene_laboratorio ? 'REQUERIDO' : 'NO APLICA' }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="acciones">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let c" class="actions-cell">
+            <div class="btn-group">
+              <a mat-icon-button class="btn-action edit" [routerLink]="['/app/cursos', c.id, 'editar']" matTooltip="Editar curso">
+                <mat-icon>edit_calendar</mat-icon>
+              </a>
+              <button mat-icon-button class="btn-action delete" (click)="eliminar(c)" matTooltip="Eliminar curso">
+                <mat-icon>delete_sweep</mat-icon>
+              </button>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns; let i = index" 
+            class="premium-row" 
+            [style.animation-delay]="i * 50 + 'ms'">
+        </tr>
+      </table>
+
+      <div *ngIf="dataSource.length === 0" class="empty-state-premium">
+        <div class="empty-illustration">
+          <mat-icon>auto_stories</mat-icon>
+        </div>
+        <h3>Sin resultados</h3>
+        <p>No hay cursos que coincidan con los criterios de búsqueda.</p>
+      </div>
+    </div>
+
+    <mat-paginator [length]="total" [pageSize]="pageSize" [pageSizeOptions]="[10, 20, 50]"
+      [pageIndex]="currentPage" (page)="onPageChange($event)" showFirstLastButtons
+      class="premium-paginator"></mat-paginator>
+  </mat-card>
 </div>
-
-<mat-card class="filter-card">
-  <div class="filter-row">
-    <mat-form-field appearance="outline" class="search-field">
-      <mat-label>Buscar por nombre</mat-label>
-      <input matInput [formControl]="searchControl" />
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
-    <mat-form-field appearance="outline">
-      <mat-label>Ciclo</mat-label>
-      <mat-select [(value)]="cicloFilter" (selectionChange)="onFilterChange()">
-        <mat-option value="">Todos</mat-option>
-        <mat-option *ngFor="let c of ciclos" [value]="c">Ciclo {{ c }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-  </div>
-</mat-card>
-
-<mat-card>
-  <div *ngIf="loading" class="loading-row"><mat-spinner diameter="40"></mat-spinner></div>
-
-  <table mat-table [dataSource]="dataSource" class="full-width" *ngIf="!loading">
-    <ng-container matColumnDef="codigo">
-      <th mat-header-cell *matHeaderCellDef>Código</th>
-      <td mat-cell *matCellDef="let c">{{ c.codigo }}</td>
-    </ng-container>
-    <ng-container matColumnDef="nombre">
-      <th mat-header-cell *matHeaderCellDef>Nombre</th>
-      <td mat-cell *matCellDef="let c">{{ c.nombre }}</td>
-    </ng-container>
-    <ng-container matColumnDef="ciclo">
-      <th mat-header-cell *matHeaderCellDef>Ciclo</th>
-      <td mat-cell *matCellDef="let c">{{ c.ciclo }}</td>
-    </ng-container>
-    <ng-container matColumnDef="creditos">
-      <th mat-header-cell *matHeaderCellDef>Créditos</th>
-      <td mat-cell *matCellDef="let c">{{ c.creditos }}</td>
-    </ng-container>
-    <ng-container matColumnDef="horas_teoria">
-      <th mat-header-cell *matHeaderCellDef>H. Teoría</th>
-      <td mat-cell *matCellDef="let c">{{ c.horas_teoria }}h</td>
-    </ng-container>
-    <ng-container matColumnDef="horas_lab">
-      <th mat-header-cell *matHeaderCellDef>H. Lab</th>
-      <td mat-cell *matCellDef="let c">{{ c.horas_laboratorio ?? 0 }}h</td>
-    </ng-container>
-    <ng-container matColumnDef="tiene_lab">
-      <th mat-header-cell *matHeaderCellDef>Lab</th>
-      <td mat-cell *matCellDef="let c">
-        <mat-icon [color]="c.tiene_laboratorio ? 'primary' : ''">
-          {{ c.tiene_laboratorio ? 'check_circle' : 'radio_button_unchecked' }}
-        </mat-icon>
-      </td>
-    </ng-container>
-    <ng-container matColumnDef="acciones">
-      <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let c">
-        <a mat-icon-button color="primary" [routerLink]="['/app/cursos', c.id, 'editar']" matTooltip="Editar">
-          <mat-icon>edit</mat-icon>
-        </a>
-        <button mat-icon-button color="warn" (click)="eliminar(c)" matTooltip="Eliminar">
-          <mat-icon>delete</mat-icon>
-        </button>
-      </td>
-    </ng-container>
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-  </table>
-
-  <div *ngIf="!loading && dataSource.length === 0" class="empty-state">
-    <mat-icon>menu_book</mat-icon><p>No se encontraron cursos</p>
-  </div>
-
-  <mat-paginator [length]="total" [pageSize]="pageSize" [pageSizeOptions]="[10, 20, 50]"
-    [pageIndex]="currentPage" (page)="onPageChange($event)" showFirstLastButtons></mat-paginator>
-</mat-card>

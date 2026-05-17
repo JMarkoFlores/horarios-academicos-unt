@@ -57,6 +57,13 @@ const routes: Routes = [
           ),
       },
       {
+        path: 'asignaciones',
+        loadChildren: () =>
+          import('./modules/asignaciones/asignaciones.module').then(
+            (m) => m.AsignacionesModule,
+          ),
+      },
+      {
         path: 'horarios',
         loadChildren: () =>
           import('./modules/horarios/horarios.module').then(

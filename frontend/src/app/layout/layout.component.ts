@@ -21,6 +21,7 @@ export class LayoutComponent implements OnInit {
     { icon: 'people', label: 'Docentes', route: '/app/docentes' },
     { icon: 'menu_book', label: 'Cursos', route: '/app/cursos' },
     { icon: 'meeting_room', label: 'Ambientes', route: '/app/ambientes' },
+    { icon: 'assignment_ind', label: 'Asignaciones', route: '/app/asignaciones' },
     {
       icon: 'event_available',
       label: 'Disponibilidad',
@@ -48,6 +49,7 @@ export class LayoutComponent implements OnInit {
     disponibilidad: 'Disponibilidad Docente',
     reportes: 'Reportes',
     horarios: 'Horarios — Vista de Asignaciones',
+    asignaciones: 'Gestión de Asignaciones',
     analytics: 'Análisis Inteligente',
     operador: 'Operador — Sistema de Turnos',
   };

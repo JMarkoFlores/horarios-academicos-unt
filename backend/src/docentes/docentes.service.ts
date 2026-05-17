@@ -51,7 +51,7 @@ export class DocentesService {
       .getManyAndCount();
 
     return {
-      data: items.map((d) => ({ ...d, antiguedad: this.calcularAntiguedad(d.fecha_ingreso) })),
+      items: items.map((d) => ({ ...d, antiguedad: this.calcularAntiguedad(d.fecha_ingreso) })),
       total,
       page,
       limit,

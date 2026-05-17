@@ -49,7 +49,7 @@ export class GruposService {
       )
       .getManyAndCount();
 
-    return { data, total, page, limit };
+    return { items: data, total, page, limit };
   }
 
   async findOne(id: number): Promise<Grupo> {

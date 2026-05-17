@@ -49,7 +49,7 @@ export class CursosService {
       .getManyAndCount();
 
     return {
-      data: items,
+      items: items,
       total,
       page,
       limit,

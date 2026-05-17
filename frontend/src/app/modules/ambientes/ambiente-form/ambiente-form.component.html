@@ -1,62 +1,107 @@
-<div class="page-header">
-  <h1>{{ isEdit ? 'Editar Ambiente' : 'Nuevo Ambiente' }}</h1>
-</div>
-
-<mat-card class="form-card" *ngIf="!loading">
-  <form [formGroup]="form" (ngSubmit)="submit()">
-    <div class="form-grid">
-      <mat-form-field appearance="outline">
-        <mat-label>Código *</mat-label>
-        <input matInput formControlName="codigo" />
-        <mat-error *ngIf="form.get('codigo')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Nombre *</mat-label>
-        <input matInput formControlName="nombre" />
-        <mat-error *ngIf="form.get('nombre')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Tipo *</mat-label>
-        <mat-select formControlName="tipo">
-          <mat-option value="AULA">Aula</mat-option>
-          <mat-option value="LABORATORIO">Laboratorio</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Capacidad *</mat-label>
-        <input matInput type="number" formControlName="capacidad" min="1" />
-        <mat-error *ngIf="form.get('capacidad')?.hasError('required')">Requerido</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Piso</mat-label>
-        <input matInput type="number" formControlName="piso" />
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Pabellón</mat-label>
-        <input matInput formControlName="pabellon" />
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="col-span-2">
-        <mat-label>Equipamiento</mat-label>
-        <input matInput formControlName="equipamiento" />
-      </mat-form-field>
-    </div>
-
-    <mat-divider class="divider"></mat-divider>
-
-    <div class="form-actions">
-      <button mat-button type="button" (click)="cancelar()"><mat-icon>cancel</mat-icon> Cancelar</button>
-      <button mat-raised-button color="primary" type="submit" [disabled]="saving">
-        <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
-        <mat-icon *ngIf="!saving">save</mat-icon>
-        {{ saving ? 'Guardando...' : 'Guardar' }}
+<div class="ambiente-form-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <button mat-icon-button (click)="cancelar()" class="btn-back">
+        <mat-icon>arrow_back</mat-icon>
       </button>
+      <div>
+        <h1 class="gradient-text">{{ isEdit ? 'Actualizar Ambiente' : 'Nuevo Espacio Académico' }}</h1>
+        <p class="subtitle">{{ isEdit ? 'Modifica las propiedades físicas del aula o laboratorio' : 'Registra un nuevo ambiente en la infraestructura de la facultad' }}</p>
+      </div>
     </div>
-  </form>
-</mat-card>
-<div class="loading-center" *ngIf="loading"><mat-spinner></mat-spinner></div>
+  </div>
+
+  <mat-card class="form-card-premium" *ngIf="!loading">
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-sections-grid">
+        <!-- Identification Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <mat-icon>domain</mat-icon>
+            <h3>Identificación y Tipo</h3>
+          </div>
+          
+          <div class="fields-grid">
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Código de Ambiente</mat-label>
+              <input matInput formControlName="codigo" placeholder="Ej. A-101">
+              <mat-icon matPrefix>qr_code</mat-icon>
+              <mat-error *ngIf="form.get('codigo')?.hasError('required')">El código es obligatorio</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Nombre / Alias</mat-label>
+              <input matInput formControlName="nombre" placeholder="Ej. Aula Magna">
+              <mat-icon matPrefix>title</mat-icon>
+              <mat-error *ngIf="form.get('nombre')?.hasError('required')">El nombre es necesario</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Tipo de Espacio</mat-label>
+              <mat-select formControlName="tipo">
+                <mat-option value="AULA">
+                  <mat-icon>meeting_room</mat-icon> Aula Común
+                </mat-option>
+                <mat-option value="LABORATORIO">
+                  <mat-icon>biotech</mat-icon> Laboratorio Especializado
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>category</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Capacidad Máxima</mat-label>
+              <input matInput type="number" formControlName="capacidad" min="1">
+              <mat-icon matPrefix>groups</mat-icon>
+              <mat-error *ngIf="form.get('capacidad')?.hasError('required')">Indica el aforo</mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Location Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <mat-icon>location_on</mat-icon>
+            <h3>Ubicación Geográfica</h3>
+          </div>
+
+          <div class="fields-grid">
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Pabellón</mat-label>
+              <input matInput formControlName="pabellon" placeholder="Ej. Pabellón B">
+              <mat-icon matPrefix>apartment</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Nivel / Piso</mat-label>
+              <input matInput type="number" formControlName="piso" placeholder="1">
+              <mat-icon matPrefix>layers</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field full-width-field">
+              <mat-label>Equipamiento Disponible</mat-label>
+              <textarea matInput formControlName="equipamiento" rows="3" placeholder="Ej. Proyector, 40 PCs i7, Aire acondicionado..."></textarea>
+              <mat-icon matPrefix>settings_input_component</mat-icon>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-footer-premium">
+        <button mat-button type="button" (click)="cancelar()" class="btn-cancel">
+          Cancelar
+        </button>
+        <button mat-raised-button class="btn-submit" type="submit" [disabled]="saving">
+          <mat-spinner diameter="20" *ngIf="saving"></mat-spinner>
+          <mat-icon *ngIf="!saving">save_as</mat-icon>
+          <span>{{ saving ? 'Guardando...' : (isEdit ? 'Actualizar Ambiente' : 'Crear Ambiente') }}</span>
+        </button>
+      </div>
+    </form>
+  </mat-card>
+
+  <div class="loading-center" *ngIf="loading">
+    <mat-spinner strokeWidth="3"></mat-spinner>
+    <p>Sincronizando con la infraestructura...</p>
+  </div>
+</div>

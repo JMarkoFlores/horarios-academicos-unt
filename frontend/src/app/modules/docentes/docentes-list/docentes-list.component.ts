@@ -14,7 +14,6 @@ import { Docente, ApiResponse } from '../../../core/interfaces/entities';
 })
 export class DocentesListComponent implements OnInit, AfterViewInit {
   displayedColumns = [
-    'codigo',
     'nombre',
     'categoria',
     'tipo_contrato',
@@ -89,6 +88,15 @@ export class DocentesListComponent implements OnInit, AfterViewInit {
   onFilterChange(): void {
     this.currentPage = 0;
     this.loadDocentes();
+  }
+
+  getAvatarColor(name: string): string {
+    const colors = ['#4f46e5', '#7c3aed', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
   }
 
   desactivar(docente: Docente): void {

@@ -30,7 +30,9 @@
     <div class="sidenav-footer">
       <mat-divider></mat-divider>
       <div class="user-row">
-        <mat-icon>account_circle</mat-icon>
+        <div class="user-avatar">
+          {{ (usuario?.nombre || "A")[0] }}
+        </div>
         <div class="user-info">
           <span class="user-name">{{
             usuario?.nombre || "Administrador"
@@ -45,7 +47,7 @@
   </mat-sidenav>
 
   <mat-sidenav-content>
-    <mat-toolbar class="topbar" color="primary">
+    <mat-toolbar class="topbar">
       <button
         mat-icon-button
         *ngIf="isMobile"
@@ -56,17 +58,23 @@
       </button>
       <span class="section-title">{{ sectionTitle }}</span>
       <span class="spacer"></span>
-      <mat-form-field appearance="outline" class="periodo-field">
-        <mat-label>Período</mat-label>
-        <mat-select [(value)]="periodoService.periodo">
-          <mat-option *ngFor="let p of periodoService.periodos" [value]="p">{{
-            p
-          }}</mat-option>
-        </mat-select>
-      </mat-form-field>
+
+      <div class="topbar-actions">
+        <button mat-icon-button (click)="toggleDarkMode()" class="theme-toggle">
+          <mat-icon>{{ isDark ? "light_mode" : "dark_mode" }}</mat-icon>
+        </button>
+
+        <mat-form-field appearance="outline" class="periodo-field">
+          <mat-select [(value)]="periodoService.periodo">
+            <mat-option *ngFor="let p of periodoService.periodos" [value]="p">{{
+              p
+            }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
     </mat-toolbar>
 
-    <div class="content-area">
+    <div class="content-area animate-fadein">
       <router-outlet></router-outlet>
     </div>
   </mat-sidenav-content>

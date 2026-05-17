@@ -15,8 +15,6 @@ export class AmbientesListComponent implements OnInit {
     'nombre',
     'tipo',
     'capacidad',
-    'piso',
-    'pabellon',
     'equipamiento',
     'estado',
     'acciones',

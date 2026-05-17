@@ -12,7 +12,7 @@ import { Curso, ApiResponse } from '../../../core/interfaces/entities';
   styleUrls: ['./cursos-list.component.scss'],
 })
 export class CursosListComponent implements OnInit {
-  displayedColumns = ['codigo', 'nombre', 'ciclo', 'creditos', 'horas_teoria', 'horas_lab', 'tiene_lab', 'acciones'];
+  displayedColumns = ['codigo', 'nombre', 'creditos', 'horas_teoria', 'tiene_lab', 'acciones'];
   dataSource: Curso[] = [];
   total = 0;
   pageSize = 10;

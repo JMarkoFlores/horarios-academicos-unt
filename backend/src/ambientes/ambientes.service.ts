@@ -44,7 +44,7 @@ export class AmbientesService {
       .getManyAndCount();
 
     return {
-      data: items,
+      items: items,
       total,
       page,
       limit,

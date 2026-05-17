@@ -16,6 +16,7 @@ export class AnalyticsComponent implements OnInit {
   loading = true;
   kpis: any = {};
   suggestions: any[] = [];
+  utilizationPercent = 0;
   
   // Saturation Chart
   public barChartOptions: ChartConfiguration['options'] = {
@@ -60,21 +61,30 @@ export class AnalyticsComponent implements OnInit {
           datasets: [{ 
             data: saturationData.map((s: any) => s.total_horas), 
             label: 'Horas Asignadas',
-            backgroundColor: 'rgba(63, 81, 181, 0.7)',
-            borderColor: 'rgba(63, 81, 181, 1)',
-            borderWidth: 1
+            backgroundColor: [
+              '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', 
+              '#d97706', '#059669', '#0891b2', '#0284c7', '#4f46e5'
+            ],
+            borderColor: 'white',
+            borderWidth: 1,
+            borderRadius: 8
           }]
         };
 
         // Prepare Utilization Chart
+        const totalUsed = utilizationData.reduce((a: any, b: any) => a + Number(b.horas_usadas), 0);
+        const totalCapacity = utilizationData.length * 75; // 75 horas max por ambiente
+        const totalAvailable = Math.max(0, totalCapacity - totalUsed);
+        
+        this.utilizationPercent = totalCapacity > 0 ? (totalUsed / totalCapacity) * 100 : 0;
+
         this.doughnutChartData = {
           labels: ['En Uso', 'Disponible'],
           datasets: [{
-            data: [
-              utilizationData.reduce((a: any, b: any) => a + Number(b.horas_usadas), 0),
-              utilizationData.length * 75 - utilizationData.reduce((a: any, b: any) => a + Number(b.horas_usadas), 0)
-            ],
-            backgroundColor: ['#4caf50', '#eeeeee']
+            data: [totalUsed, totalAvailable],
+            backgroundColor: ['#10b981', '#f1f5f9'],
+            hoverBackgroundColor: ['#059669', '#e2e8f0'],
+            borderWidth: 0
           }]
         };
 

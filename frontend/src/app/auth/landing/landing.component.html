@@ -1,0 +1,90 @@
+<div class="landing-page">
+  <!-- Fondo decorativo animado -->
+  <div class="background-decor">
+    <div class="stars"></div>
+    <div class="moving-grid"></div>
+    <div class="floating-blobs">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+    </div>
+  </div>
+
+  <div class="landing-content">
+    <!-- Columna Izquierda: Hero -->
+    <div class="hero-section">
+      <div class="badge-container animate-fade-in">
+        <div class="status-badge">
+          <mat-icon>verified</mat-icon>
+          <span>Plataforma Oficial UNT</span>
+        </div>
+      </div>
+
+      <h1 class="hero-title animate-slide-up" style="--delay: 0.1s">
+        Sistema de Gestión de <br>
+        <span>Horarios Académicos</span>
+      </h1>
+
+      <p class="hero-description animate-slide-up" style="--delay: 0.2s">
+        Centraliza la disponibilidad docente, optimiza el uso de ambientes y resuelve conflictos 
+        de programación en una sola experiencia moderna y eficiente.
+      </p>
+
+      <div class="features-grid animate-fade-in" style="--delay: 0.5s">
+        <div class="feature-card">
+          <div class="feature-icon primary">
+            <mat-icon>groups</mat-icon>
+          </div>
+          <div class="feature-info">
+            <h3>Docentes</h3>
+            <p>Disponibilidad y carga horaria.</p>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon accent">
+            <mat-icon>meeting_room</mat-icon>
+          </div>
+          <div class="feature-info">
+            <h3>Ambientes</h3>
+            <p>Control de aforo y ocupación.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna Derecha: Acciones y Pasos -->
+    <div class="steps-section animate-slide-up" style="--delay: 0.3s">
+      <mat-card class="glass-card steps-card">
+        <div class="card-header">
+          <h2>¿Cómo empezar?</h2>
+          <p>Gestiona el período académico en 3 pasos:</p>
+        </div>
+
+        <div class="steps-list">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-text">Ingresa con tu cuenta institucional.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-text">Valida disponibilidad y ambientes.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-text">Genera y publica los horarios.</div>
+          </div>
+        </div>
+
+        <button mat-flat-button class="full-width start-btn premium-btn primary" (click)="goToLogin()">
+          <mat-icon>login</mat-icon>
+          <span>INGRESAR AL SISTEMA</span>
+          <div class="btn-shimmer"></div>
+        </button>
+      </mat-card>
+      
+      <p class="footer-hint animate-fade-in" style="--delay: 0.6s">
+        &copy; 2026 Universidad Nacional de Trujillo
+      </p>
+    </div>
+  </div>
+</div>

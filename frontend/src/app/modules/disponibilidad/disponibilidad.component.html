@@ -1,101 +1,137 @@
-<div class="page-header">
-  <h1>Disponibilidad Docente</h1>
+<div class="disponibilidad-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Disponibilidad Docente</h1>
+      <p class="subtitle">Gestiona los horarios disponibles para el dictado de clases</p>
+    </div>
+  </div>
+
+  <!-- Advanced Toolbar -->
+  <mat-card class="toolbar-card-premium">
+    <div class="toolbar-grid">
+      <div class="search-wrapper">
+        <mat-form-field appearance="outline" class="premium-select">
+          <mat-label>Seleccionar Docente</mat-label>
+          <mat-select (selectionChange)="seleccionarDocente($event.value)">
+            <mat-option *ngFor="let d of todosDocentes" [value]="d">
+              <div class="option-content">
+                <span class="name">{{ d.apellidos }}, {{ d.nombres }}</span>
+                <span class="code">{{ d.codigo }}</span>
+              </div>
+            </mat-option>
+          </mat-select>
+          <mat-icon matPrefix>person_search</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <div class="actions-group" *ngIf="docenteSeleccionado">
+        <button mat-stroked-button class="btn-secondary" (click)="marcarTodo(true)" matTooltip="Marcar todas las horas">
+          <mat-icon>select_all</mat-icon> <span>Marcar todo</span>
+        </button>
+        <button mat-stroked-button class="btn-secondary" (click)="marcarTodo(false)" matTooltip="Limpiar todas las horas">
+          <mat-icon>deselect</mat-icon> <span>Limpiar todo</span>
+        </button>
+        <div class="divider"></div>
+        <button
+          mat-raised-button
+          class="btn-save"
+          (click)="guardar()"
+          [disabled]="saving"
+        >
+          <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
+          <mat-icon *ngIf="!saving">save_as</mat-icon>
+          <span>{{ saving ? "Guardando..." : "Guardar Cambios" }}</span>
+        </button>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Main Grid Section -->
+  <mat-card class="grid-card-premium" *ngIf="docenteSeleccionado">
+    <div *ngIf="loading" class="loading-overlay">
+      <mat-spinner diameter="50" strokeWidth="3"></mat-spinner>
+      <span>Cargando disponibilidad...</span>
+    </div>
+
+    <div class="grid-content-wrapper" *ngIf="!loading" [class.animate-grid]="!loading">
+      <div class="docente-header-premium">
+        <div class="docente-main">
+          <div class="avatar-circle" [style.background-color]="getAvatarColor(docenteSeleccionado.nombres)">
+            {{ docenteSeleccionado.nombres[0] }}{{ docenteSeleccionado.apellidos[0] }}
+          </div>
+          <div class="text-info">
+            <h2>{{ docenteSeleccionado.apellidos }}, {{ docenteSeleccionado.nombres }}</h2>
+            <div class="sub-info">
+              <span class="periodo-badge">
+                <mat-icon>calendar_today</mat-icon>
+                Período {{ periodoService.periodo }}
+              </span>
+              <span class="status-indicator">
+                <span class="dot"></span>
+                Planificando disponibilidad
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grilla-scroll">
+        <table class="premium-grilla">
+          <thead>
+            <tr>
+              <th class="hora-col">Hora</th>
+              <th *ngFor="let dia of dias" class="dia-col">{{ dia }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let hora of horas; let hi = index">
+              <td class="hora-cell">
+                <div class="time-box">
+                  <span class="start">{{ formatHora(hora) }}</span>
+                  <span class="end">{{ formatHora(hora + 1) }}</span>
+                </div>
+              </td>
+              <td
+                *ngFor="let dia of dias; let di = index"
+                class="slot-cell"
+                [class.disponible]="grilla[hi][di]"
+                (click)="toggleCelda(hi, di)"
+              >
+                <div class="cell-inner">
+                  <mat-icon class="status-icon">
+                    {{ grilla[hi][di] ? "verified" : "block" }}
+                  </mat-icon>
+                  <span class="status-text">{{ grilla[hi][di] ? 'Disponible' : '' }}</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="legend-premium">
+        <div class="legend-item available">
+          <div class="color-box">
+            <mat-icon>verified</mat-icon>
+          </div>
+          <span>Disponible para clases</span>
+        </div>
+        <div class="legend-item busy">
+          <div class="color-box">
+            <mat-icon>block</mat-icon>
+          </div>
+          <span>No disponible / Ocupado</span>
+        </div>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Empty State -->
+  <mat-card *ngIf="!docenteSeleccionado" class="empty-state-premium">
+    <div class="empty-illustration">
+      <mat-icon class="pulse-icon">event_available</mat-icon>
+    </div>
+    <h3>Gestión de Disponibilidad</h3>
+    <p>Selecciona un docente de la lista para configurar su disponibilidad horaria en el período actual.</p>
+  </mat-card>
 </div>
-
-<!-- Selectors -->
-<mat-card class="selector-card">
-  <div class="selector-row">
-    <mat-form-field appearance="outline" class="docente-field">
-      <mat-label>Seleccionar Docente</mat-label>
-      <mat-select (selectionChange)="seleccionarDocente($event.value)">
-        <mat-option *ngFor="let d of todosDocentes" [value]="d">
-          {{ d.apellidos }}, {{ d.nombres }} — <small>{{ d.codigo }}</small>
-        </mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <div class="actions" *ngIf="docenteSeleccionado">
-      <button mat-stroked-button (click)="marcarTodo(true)">
-        <mat-icon>select_all</mat-icon> Marcar todo
-      </button>
-      <button mat-stroked-button (click)="marcarTodo(false)">
-        <mat-icon>deselect</mat-icon> Limpiar todo
-      </button>
-      <button
-        mat-raised-button
-        color="primary"
-        (click)="guardar()"
-        [disabled]="saving"
-      >
-        <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
-        <mat-icon *ngIf="!saving">save</mat-icon>
-        {{ saving ? "Guardando..." : "Guardar Disponibilidad" }}
-      </button>
-    </div>
-  </div>
-</mat-card>
-
-<!-- Grilla -->
-<mat-card *ngIf="docenteSeleccionado">
-  <div *ngIf="loading" class="loading-center"><mat-spinner></mat-spinner></div>
-
-  <div class="grilla-container" *ngIf="!loading">
-    <div class="docente-info">
-      <mat-icon>person</mat-icon>
-      <strong
-        >{{ docenteSeleccionado.apellidos }},
-        {{ docenteSeleccionado.nombres }}</strong
-      >
-      &nbsp;—&nbsp; Período: <strong>{{ periodoService.periodo }}</strong>
-    </div>
-
-    <div class="grilla-scroll">
-      <table class="grilla-table">
-        <thead>
-          <tr>
-            <th class="hora-col">Hora</th>
-            <th *ngFor="let dia of dias" class="dia-col">{{ dia }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let hora of horas; let hi = index">
-            <td class="hora-cell">{{ formatHora(hora) }}</td>
-            <td
-              *ngFor="let dia of dias; let di = index"
-              class="slot-cell"
-              [class.disponible]="grilla[hi][di]"
-              (click)="toggleCelda(hi, di)"
-              [matTooltip]="
-                (grilla[hi][di] ? 'Disponible' : 'No disponible') +
-                ' — ' +
-                dia +
-                ' ' +
-                formatHora(hora)
-              "
-            >
-              <mat-icon>{{
-                grilla[hi][di] ? "check_circle" : "radio_button_unchecked"
-              }}</mat-icon>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="legend">
-      <span class="legend-item disponible"
-        ><mat-icon>check_circle</mat-icon> Disponible</span
-      >
-      <span class="legend-item"
-        ><mat-icon>radio_button_unchecked</mat-icon> No disponible</span
-      >
-    </div>
-  </div>
-</mat-card>
-
-<mat-card *ngIf="!docenteSeleccionado" class="empty-hint">
-  <mat-icon>event_available</mat-icon>
-  <p>
-    Busca y selecciona un docente para ver y editar su disponibilidad horaria.
-  </p>
-</mat-card>

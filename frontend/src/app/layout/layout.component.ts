@@ -12,7 +12,7 @@ import { PeriodoService } from '../core/services/periodo.service';
 })
 export class LayoutComponent implements OnInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
-  isMobile = false;
+  isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
   isDark = false;
   sectionTitle = 'Dashboard';
 
@@ -59,8 +59,10 @@ export class LayoutComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.isMobile = window.innerWidth < 768;
-    this.isDark = document.body.classList.contains('dark-theme');
+    // Forzar modo claro al iniciar
+    this.isDark = false;
+    document.body.classList.remove('dark-theme');
+    document.body.classList.add('light-theme');
     
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))

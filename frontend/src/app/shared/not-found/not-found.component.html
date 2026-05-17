@@ -1,9 +1,16 @@
-<div class="not-found-page">
-  <mat-icon class="not-found-icon">search_off</mat-icon>
-  <h1>404</h1>
-  <h2>Página no encontrada</h2>
-  <p>La ruta que buscas no existe o no tienes permisos para acceder.</p>
-  <button mat-raised-button color="primary" (click)="goHome()">
-    <mat-icon>home</mat-icon> Ir al Dashboard
-  </button>
+<div class="not-found-container">
+  <h1 class="error-code">404</h1>
+  <h2 class="error-title">Página no encontrada</h2>
+  <p class="error-msg">La ruta que buscas no existe o no tienes permisos para acceder.</p>
+  
+  <div class="actions">
+    <button mat-flat-button color="primary" (click)="goHome()">
+      <mat-icon>home</mat-icon>
+      Ir al Inicio (Landing)
+    </button>
+    <button mat-stroked-button color="accent" (click)="goLogin()" style="margin-left: 12px;">
+      <mat-icon>login</mat-icon>
+      Ir al Login
+    </button>
+  </div>
 </div>

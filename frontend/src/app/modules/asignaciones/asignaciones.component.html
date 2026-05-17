@@ -1,0 +1,154 @@
+<div class="asignaciones-container animate-fadein">
+  <header class="page-header">
+    <div class="header-info">
+      <h1>Gestión de Asignaciones</h1>
+      <p>Asigna cursos y ambientes de forma manual a los docentes.</p>
+    </div>
+  </header>
+
+  <!-- Selector de Docente -->
+  <mat-card class="selector-card glass-card">
+    <div class="selector-content">
+      <mat-form-field appearance="outline" class="docente-field">
+        <mat-label>Seleccionar Docente</mat-label>
+        <mat-select [value]="docenteSeleccionado" (selectionChange)="seleccionarDocente($event.value)">
+          <mat-select-trigger *ngIf="docenteSeleccionado">
+            <div class="selected-docente">
+              <div class="avatar-mini" [style.background-color]="getAvatarColor(docenteSeleccionado.apellidos)">
+                {{ docenteSeleccionado.nombres[0] }}{{ docenteSeleccionado.apellidos[0] }}
+              </div>
+              <span>{{ docenteSeleccionado.apellidos }}, {{ docenteSeleccionado.nombres }}</span>
+            </div>
+          </mat-select-trigger>
+          <mat-option *ngFor="let d of docentes" [value]="d">
+            {{ d.apellidos }}, {{ d.nombres }} ({{ d.codigo }})
+          </mat-option>
+        </mat-select>
+        <mat-hint *ngIf="!serviciosDisponibles.docentes" class="error-text">Servicio de docentes no disponible</mat-hint>
+      </mat-form-field>
+    </div>
+  </mat-card>
+
+  <div class="asignaciones-grid" *ngIf="docenteSeleccionado; else noSelection">
+    <!-- Panel de Cursos -->
+    <mat-card class="asignacion-panel glass-card animate-slide-up" style="--delay: 0.1s">
+      <div class="panel-header">
+        <div class="header-title">
+          <mat-icon color="primary">auto_stories</mat-icon>
+          <h2>Cursos Asignados</h2>
+        </div>
+        <button mat-mini-fab color="primary" [matMenuTriggerFor]="cursosMenu" matTooltip="Agregar curso">
+          <mat-icon>add</mat-icon>
+        </button>
+      </div>
+
+      <div class="panel-content">
+        <div class="empty-state" *ngIf="cursosAsignados.length === 0">
+          <mat-icon>history_edu</mat-icon>
+          <p>No hay cursos asignados todavía.</p>
+        </div>
+
+        <div class="items-list" *ngIf="cursosAsignados.length > 0">
+          <div class="item-card curso-item" *ngFor="let curso of cursosAsignados">
+            <div class="item-info">
+              <span class="item-code">{{ curso.codigo }}</span>
+              <span class="item-name">{{ curso.nombre }}</span>
+              <div class="item-meta">
+                <span class="badge">Ciclo {{ curso.ciclo }}</span>
+                <span class="badge secondary">{{ curso.creditos }} Cred.</span>
+              </div>
+            </div>
+            <button mat-icon-button color="warn" (click)="quitarCurso(curso.id)" matTooltip="Quitar">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+
+    <!-- Panel de Aulas -->
+    <mat-card class="asignacion-panel glass-card animate-slide-up" style="--delay: 0.2s">
+      <div class="panel-header">
+        <div class="header-title">
+          <mat-icon color="accent">meeting_room</mat-icon>
+          <h2>Aulas / Labs Asignados</h2>
+        </div>
+        <button mat-mini-fab color="accent" [matMenuTriggerFor]="ambientesMenu" matTooltip="Agregar ambiente">
+          <mat-icon>add</mat-icon>
+        </button>
+      </div>
+
+      <div class="panel-content">
+        <div class="empty-state" *ngIf="ambientesAsignados.length === 0">
+          <mat-icon>apartment</mat-icon>
+          <p>No hay ambientes asignados todavía.</p>
+        </div>
+
+        <div class="items-list" *ngIf="ambientesAsignados.length > 0">
+          <div class="item-card ambiente-item" *ngFor="let amb of ambientesAsignados">
+            <div class="item-info">
+              <span class="item-code">{{ amb.codigo }}</span>
+              <span class="item-name">{{ amb.nombre }}</span>
+              <div class="item-meta">
+                <span class="badge accent">{{ amb.tipo }}</span>
+                <span class="badge secondary">Cap: {{ amb.capacidad }}</span>
+              </div>
+            </div>
+            <button mat-icon-button color="warn" (click)="quitarAmbiente(amb.id)" matTooltip="Quitar">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+  </div>
+
+  <ng-template #noSelection>
+    <div class="no-selection animate-fadein">
+      <mat-icon>assignment_ind</mat-icon>
+      <h3>Selecciona un docente para comenzar</h3>
+      <p>Podrás gestionar su carga académica y espacios físicos asignados.</p>
+    </div>
+  </ng-template>
+
+  <!-- Botón Guardar -->
+  <div class="actions-footer" *ngIf="docenteSeleccionado">
+    <button mat-flat-button color="primary" 
+            class="save-btn premium-btn" 
+            disabled 
+            matTooltip="Pendiente de implementación en backend">
+      <mat-icon>save</mat-icon>
+      <span>GUARDAR ASIGNACIONES</span>
+      <div class="btn-shimmer"></div>
+    </button>
+  </div>
+</div>
+
+<!-- Menús de Selección -->
+<mat-menu #cursosMenu="matMenu" class="premium-menu">
+  <div class="menu-search" (click)="$event.stopPropagation()">
+    <mat-icon>search</mat-icon>
+    <input type="text" placeholder="Buscar curso..." #cursoSearch (input)="0">
+  </div>
+  <div class="menu-items">
+    <button mat-menu-item *ngFor="let curso of todosCursos" (click)="agregarCurso(curso)">
+      <span class="menu-code">{{ curso.codigo }}</span>
+      <span>{{ curso.nombre }}</span>
+    </button>
+    <div class="menu-empty" *ngIf="!serviciosDisponibles.cursos">Servicio no disponible</div>
+  </div>
+</mat-menu>
+
+<mat-menu #ambientesMenu="matMenu" class="premium-menu">
+  <div class="menu-search" (click)="$event.stopPropagation()">
+    <mat-icon>search</mat-icon>
+    <input type="text" placeholder="Buscar ambiente..." #ambSearch (input)="0">
+  </div>
+  <div class="menu-items">
+    <button mat-menu-item *ngFor="let amb of todosAmbientes" (click)="agregarAmbiente(amb)">
+      <span class="menu-code">{{ amb.codigo }}</span>
+      <span>{{ amb.nombre }}</span>
+    </button>
+    <div class="menu-empty" *ngIf="!serviciosDisponibles.ambientes">Servicio no disponible</div>
+  </div>
+</mat-menu>

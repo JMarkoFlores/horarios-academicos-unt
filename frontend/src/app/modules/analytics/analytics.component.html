@@ -1,111 +1,183 @@
 <div class="analytics-container">
-  <div class="header-row">
-    <h1>Análisis Inteligente de Horarios</h1>
-    <div class="periodo-badge">Semestre {{ periodoService.periodo }}</div>
+  <div class="page-header animate-fade-in">
+    <div class="header-content">
+      <h1>Análisis Inteligente de Horarios</h1>
+      <p class="header-subtitle">Monitoreo de métricas, optimización de recursos y detección de patrones en tiempo real</p>
+    </div>
+    <div class="header-actions">
+      <span class="periodo-badge">
+        <mat-icon>calendar_today</mat-icon>
+        Semestre {{ periodoService.periodo }}
+      </span>
+    </div>
   </div>
 
   <div *ngIf="loading" class="loading-overlay">
-    <mat-spinner diameter="50"></mat-spinner>
-    <p>Calculando métricas en tiempo real...</p>
+    <div class="spinner-box">
+      <mat-spinner diameter="60"></mat-spinner>
+      <p>Calculando métricas con IA...</p>
+    </div>
   </div>
 
   <div *ngIf="!loading" class="dashboard-grid">
     <!-- KPIs -->
-    <div class="kpi-row">
-      <mat-card class="kpi-card efficiency">
-        <mat-card-header>
-          <mat-icon mat-card-avatar>speed</mat-icon>
-          <mat-card-title>Eficiencia Algoritmo</mat-card-title>
-        </mat-card-header>
+    <div class="kpi-grid">
+      <mat-card class="kpi-card efficiency animate-staggered" style="--index: 1">
+        <div class="kpi-bg-icon"><mat-icon>speed</mat-icon></div>
         <mat-card-content>
-          <div class="kpi-value">{{ kpis.eficiencia }}%</div>
-          <mat-progress-bar mode="determinate" [value]="kpis.eficiencia"></mat-progress-bar>
+          <div class="kpi-info">
+            <span class="kpi-label">Eficiencia del Motor</span>
+            <div class="kpi-value-row">
+              <span class="kpi-number">{{ kpis.eficiencia }}%</span>
+              <mat-icon class="trend-icon success">trending_up</mat-icon>
+            </div>
+          </div>
+          <div class="kpi-footer">
+            <mat-progress-bar mode="determinate" [value]="kpis.eficiencia"></mat-progress-bar>
+          </div>
         </mat-card-content>
       </mat-card>
 
-      <mat-card class="kpi-card assignments">
-        <mat-card-header>
-          <mat-icon mat-card-avatar>event_available</mat-icon>
-          <mat-card-title>Asignaciones Totales</mat-card-title>
-        </mat-card-header>
+      <mat-card class="kpi-card assignments animate-staggered" style="--index: 2">
+        <div class="kpi-bg-icon"><mat-icon>event_available</mat-icon></div>
         <mat-card-content>
-          <div class="kpi-value">{{ kpis.totalAsignaciones }}</div>
-          <div class="kpi-sub">Horas bloque programadas</div>
+          <div class="kpi-info">
+            <span class="kpi-label">Asignaciones Totales</span>
+            <div class="kpi-value-row">
+              <span class="kpi-number">{{ kpis.totalAsignaciones }}</span>
+              <span class="kpi-unit">bloques</span>
+            </div>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub">Programación semanal activa</span>
+          </div>
         </mat-card-content>
       </mat-card>
 
-      <mat-card class="kpi-card conflicts">
-        <mat-card-header>
-          <mat-icon mat-card-avatar>warning</mat-icon>
-          <mat-card-title>Conflictos Activos</mat-card-title>
-        </mat-card-header>
+      <mat-card class="kpi-card conflicts animate-staggered" style="--index: 3">
+        <div class="kpi-bg-icon"><mat-icon>warning</mat-icon></div>
         <mat-card-content>
-          <div class="kpi-value" [class.error-text]="kpis.totalConflictos > 0">{{ kpis.totalConflictos }}</div>
-          <div class="kpi-sub">Requieren atención manual</div>
+          <div class="kpi-info">
+            <span class="kpi-label">Conflictos Críticos</span>
+            <div class="kpi-value-row">
+              <span class="kpi-number" [class.error-text]="kpis.totalConflictos > 0">{{ kpis.totalConflictos }}</span>
+              <mat-icon *ngIf="kpis.totalConflictos > 0" class="trend-icon error">report_problem</mat-icon>
+            </div>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub">Requieren intervención inmediata</span>
+          </div>
         </mat-card-content>
       </mat-card>
 
-      <mat-card class="kpi-card courses">
-        <mat-card-header>
-          <mat-icon mat-card-avatar>school</mat-icon>
-          <mat-card-title>Cursos Cubiertos</mat-card-title>
-        </mat-card-header>
+      <mat-card class="kpi-card courses animate-staggered" style="--index: 4">
+        <div class="kpi-bg-icon"><mat-icon>school</mat-icon></div>
         <mat-card-content>
-          <div class="kpi-value">{{ kpis.totalCursos }}</div>
-          <div class="kpi-sub">Población total de cursos</div>
+          <div class="kpi-info">
+            <span class="kpi-label">Cobertura Curricular</span>
+            <div class="kpi-value-row">
+              <span class="kpi-number">{{ kpis.totalCursos }}</span>
+              <span class="kpi-unit">cursos</span>
+            </div>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub">Población académica total</span>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
 
     <!-- Charts Row -->
-    <div class="charts-row">
-      <mat-card class="chart-card saturation">
-        <mat-card-header>
-          <mat-card-title>Top 10 Docentes Saturados</mat-card-title>
-        </mat-card-header>
+    <div class="charts-grid">
+      <mat-card class="chart-card-premium animate-slide-up">
+        <div class="chart-header">
+          <div class="chart-title-box">
+            <mat-icon class="primary">leaderboard</mat-icon>
+            <div>
+              <h3>Carga por Docente</h3>
+              <p>Top 10 docentes con mayor saturación horaria</p>
+            </div>
+          </div>
+        </div>
         <mat-card-content>
-          <canvas baseChart
-            [data]="barChartData"
-            [options]="barChartOptions"
-            [type]="barChartType">
-          </canvas>
+          <div class="chart-container">
+            <canvas baseChart
+              [data]="barChartData"
+              [options]="barChartOptions"
+              [type]="barChartType">
+            </canvas>
+          </div>
         </mat-card-content>
       </mat-card>
 
-      <mat-card class="chart-card utilization">
-        <mat-card-header>
-          <mat-card-title>Utilización de Ambientes</mat-card-title>
-        </mat-card-header>
+      <mat-card class="chart-card-premium animate-slide-up">
+        <div class="chart-header">
+          <div class="chart-title-box">
+            <mat-icon class="accent">pie_chart</mat-icon>
+            <div>
+              <h3>Uso de Infraestructura</h3>
+              <p>Porcentaje de ocupación de ambientes</p>
+            </div>
+          </div>
+        </div>
         <mat-card-content>
-          <canvas baseChart
-            [data]="doughnutChartData"
-            [type]="'doughnut'">
-          </canvas>
+          <div class="chart-container doughnut">
+            <canvas baseChart
+              [data]="doughnutChartData"
+              [type]="'doughnut'">
+            </canvas>
+            <div class="chart-overlay-info">
+              <span class="percent">{{ utilizationPercent | number:'1.0-0' }}%</span>
+              <span class="label">Ocupado</span>
+            </div>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
 
     <!-- Suggestions & Alarms -->
-    <div class="suggestions-row">
-      <h3>Sugerencias Inteligentes & Detección de Patrones</h3>
-      <div class="suggestions-list">
-        <mat-card *ngFor="let s of suggestions" class="suggestion-card" [ngClass]="s.priority.toLowerCase()">
-          <mat-card-header>
-            <mat-icon [ngSwitch]="s.type">
-              <span *ngSwitchCase="'WARNING'">report_problem</span>
-              <span *ngSwitchCase="'OPTIMIZATION'">insights</span>
-              <span *ngSwitchDefault>info</span>
-            </mat-icon>
-            <mat-card-title>{{ s.title }}</mat-card-title>
-          </mat-card-header>
+    <div class="suggestions-section animate-fade-in">
+      <div class="section-header">
+        <div class="header-title">
+          <div class="icon-pulse">
+            <mat-icon>psychology</mat-icon>
+          </div>
+          <div>
+            <h2>Sugerencias Inteligentes & Patrones</h2>
+            <p>Detección automática de cuellos de botella y oportunidades de mejora</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="suggestions-grid">
+        <mat-card *ngFor="let s of suggestions; let i = index" 
+                  class="suggestion-card-premium animate-staggered" 
+                  [ngClass]="s.priority.toLowerCase()"
+                  [style.--index]="i + 5">
+          <div class="card-glow"></div>
           <mat-card-content>
+            <div class="suggestion-header">
+              <div class="icon-wrapper" [ngSwitch]="s.type">
+                <mat-icon *ngSwitchCase="'WARNING'">report_problem</mat-icon>
+                <mat-icon *ngSwitchCase="'OPTIMIZATION'">auto_awesome</mat-icon>
+                <mat-icon *ngSwitchDefault>info</mat-icon>
+              </div>
+              <span class="priority-tag">{{ s.priority }}</span>
+            </div>
+            <h3>{{ s.title }}</h3>
             <p>{{ s.message }}</p>
+            <div class="card-footer">
+              <button mat-button class="action-btn">Ver Detalles</button>
+            </div>
           </mat-card-content>
         </mat-card>
         
-        <div *ngIf="suggestions.length === 0" class="no-suggestions">
-          <mat-icon>check_circle</mat-icon>
-          <p>No se detectaron anomalías o cuellos de botella importantes.</p>
+        <div *ngIf="suggestions.length === 0" class="empty-suggestions animate-slide-up">
+          <div class="success-icon-box">
+            <mat-icon>verified</mat-icon>
+          </div>
+          <h3>Sistema Optimizado</h3>
+          <p>No se han detectado anomalías críticas en el horario actual.</p>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialo
 })
 export class LayoutComponent implements OnInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
-  isMobile = false;
+  isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
   isDark = false;
   sectionTitle = 'Dashboard';
 

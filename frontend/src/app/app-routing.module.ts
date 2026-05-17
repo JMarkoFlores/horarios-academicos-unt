@@ -1,13 +1,15 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { LoginComponent } from './auth/login/login.component';
+import { LandingComponent } from './auth/landing/landing.component';
 import { NotFoundComponent } from './shared/not-found/not-found.component';
 import { LayoutComponent } from './layout/layout.component';
 import { AuthGuard } from './core/guards/auth.guard';
 
 const routes: Routes = [
-  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  { path: '', component: LandingComponent, pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
+  { path: 'welcome', component: LandingComponent },
   {
     path: 'app',
     component: LayoutComponent,

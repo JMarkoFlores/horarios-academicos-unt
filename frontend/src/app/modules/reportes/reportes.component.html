@@ -1,146 +1,196 @@
-<div class="page-header">
-  <h1>Reportes</h1>
-  <span class="periodo-chip"
-    >Período: <strong>{{ periodoService.periodo }}</strong></span
-  >
+<div class="reports-container">
+  <div class="page-header animate-fade-in">
+    <div class="header-content">
+      <h1>Módulo de Reportes</h1>
+      <p class="header-subtitle">Genera y descarga la documentación oficial del período académico</p>
+    </div>
+    <span class="periodo-chip">
+      <mat-icon>calendar_today</mat-icon>
+      Período: <strong>{{ periodoService.periodo }}</strong>
+    </span>
+  </div>
+
+  <!-- Reportes Operacionales -->
+  <section class="report-group">
+    <div class="group-header animate-slide-up">
+      <div class="group-title">
+        <div class="icon-box primary">
+          <mat-icon>assignment</mat-icon>
+        </div>
+        <div>
+          <h2>Reportes Operacionales</h2>
+          <p>Documentación técnica y horarios detallados por entidad</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="reports-grid">
+      <!-- Reporte por Docente -->
+      <mat-card class="report-card animate-staggered" style="--index: 1">
+        <div class="card-accent primary"></div>
+        <mat-card-content>
+          <div class="card-header">
+            <div class="report-icon-wrapper primary">
+              <mat-icon>person</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Reporte por Docente</h3>
+              <p>Horario individualizado con carga académica detallada</p>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <mat-form-field appearance="fill" class="integrated-select">
+              <mat-label>Seleccionar Docente</mat-label>
+              <mat-select [(ngModel)]="docenteSeleccionado">
+                <mat-option *ngFor="let d of todosDocentes" [value]="d">
+                  {{ d.apellidos }}, {{ d.nombres }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>search</mat-icon>
+            </mat-form-field>
+          </div>
+
+          <mat-card-actions>
+            <button
+              mat-flat-button
+              class="download-btn primary"
+              (click)="descargarDocente()"
+              [disabled]="descargando['docente']"
+            >
+              <mat-spinner diameter="20" *ngIf="descargando['docente']"></mat-spinner>
+              <mat-icon *ngIf="!descargando['docente']">picture_as_pdf</mat-icon>
+              <span>{{ descargando['docente'] ? 'Generando...' : 'Descargar PDF' }}</span>
+              <div class="btn-shimmer"></div>
+            </button>
+          </mat-card-actions>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Reporte por Ambiente -->
+      <mat-card class="report-card animate-staggered" style="--index: 2">
+        <div class="card-accent accent"></div>
+        <mat-card-content>
+          <div class="card-header">
+            <div class="report-icon-wrapper accent">
+              <mat-icon>meeting_room</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Reporte por Ambiente</h3>
+              <p>Grilla de ocupación y disponibilidad de aulas y laboratorios</p>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <mat-form-field appearance="fill" class="integrated-select">
+              <mat-label>Seleccionar Ambiente</mat-label>
+              <mat-select [(ngModel)]="ambienteSeleccionado">
+                <mat-option *ngFor="let a of todosAmbientes" [value]="a">
+                  {{ a.codigo }} — {{ a.nombre }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>location_on</mat-icon>
+            </mat-form-field>
+          </div>
+
+          <mat-card-actions>
+            <button
+              mat-flat-button
+              class="download-btn accent"
+              (click)="descargarAmbiente()"
+              [disabled]="descargando['ambiente']"
+            >
+              <mat-spinner diameter="20" *ngIf="descargando['ambiente']"></mat-spinner>
+              <mat-icon *ngIf="!descargando['ambiente']">picture_as_pdf</mat-icon>
+              <span>{{ descargando['ambiente'] ? 'Generando...' : 'Descargar PDF' }}</span>
+              <div class="btn-shimmer"></div>
+            </button>
+          </mat-card-actions>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Reporte Operacional Completo -->
+      <mat-card class="report-card animate-staggered" style="--index: 3">
+        <div class="card-accent info"></div>
+        <mat-card-content>
+          <div class="card-header">
+            <div class="report-icon-wrapper info">
+              <mat-icon>table_chart</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Consolidado General</h3>
+              <p>Registro completo de todas las asignaciones del período</p>
+            </div>
+          </div>
+
+          <div class="card-body empty-body">
+            <div class="info-badge">
+              <mat-icon>info</mat-icon>
+              <span>Incluye todas las facultades y escuelas</span>
+            </div>
+          </div>
+
+          <mat-card-actions>
+            <button
+              mat-flat-button
+              class="download-btn info"
+              (click)="descargarOperacional()"
+              [disabled]="descargando['operacional']"
+            >
+              <mat-spinner diameter="20" *ngIf="descargando['operacional']"></mat-spinner>
+              <mat-icon *ngIf="!descargando['operacional']">picture_as_pdf</mat-icon>
+              <span>{{ descargando['operacional'] ? 'Generando...' : 'Descargar PDF' }}</span>
+              <div class="btn-shimmer"></div>
+            </button>
+          </mat-card-actions>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </section>
+
+  <!-- Reportes de Gestión -->
+  <section class="report-group">
+    <div class="group-header animate-slide-up">
+      <div class="group-title">
+        <div class="icon-box warn">
+          <mat-icon>analytics</mat-icon>
+        </div>
+        <div>
+          <h2>Reportes de Gestión</h2>
+          <p>Análisis estadístico e indicadores clave de rendimiento (KPIs)</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="reports-grid">
+      <mat-card class="report-card full-width animate-staggered" style="--index: 4">
+        <div class="card-accent warn"></div>
+        <mat-card-content class="horizontal-layout">
+          <div class="card-header">
+            <div class="report-icon-wrapper warn">
+              <mat-icon>bar_chart</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Reporte Estadístico de Gestión</h3>
+              <p>Distribución de carga, optimización de espacios y resolución de conflictos</p>
+            </div>
+          </div>
+
+          <div class="card-actions-wrapper">
+            <button
+              mat-flat-button
+              class="download-btn warn large"
+              (click)="descargarGestion()"
+              [disabled]="descargando['gestion']"
+            >
+              <mat-spinner diameter="24" *ngIf="descargando['gestion']"></mat-spinner>
+              <mat-icon *ngIf="!descargando['gestion']">auto_graph</mat-icon>
+              <span>{{ descargando['gestion'] ? 'Analizando...' : 'Generar Reporte de Gestión' }}</span>
+              <div class="btn-shimmer"></div>
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </section>
 </div>
-
-<!-- Reportes Operacionales -->
-<mat-card class="report-section">
-  <mat-card-header>
-    <mat-card-title
-      ><mat-icon>description</mat-icon> Reportes Operacionales</mat-card-title
-    >
-  </mat-card-header>
-  <mat-card-content>
-    <div class="report-item">
-      <div class="report-info">
-        <mat-icon color="primary">person</mat-icon>
-        <div>
-          <div class="report-title">Reporte por Docente</div>
-          <div class="report-desc">
-            Horario asignado de un docente específico
-          </div>
-        </div>
-      </div>
-      <div class="report-controls">
-        <mat-form-field appearance="outline" class="search-field">
-          <mat-label>Docente</mat-label>
-          <mat-select [(ngModel)]="docenteSeleccionado">
-            <mat-option *ngFor="let d of todosDocentes" [value]="d">
-              {{ d.apellidos }}, {{ d.nombres }}
-            </mat-option>
-          </mat-select>
-        </mat-form-field>
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="descargarDocente()"
-          [disabled]="descargando['docente']"
-        >
-          <mat-spinner
-            diameter="18"
-            *ngIf="descargando['docente']"
-          ></mat-spinner>
-          <mat-icon *ngIf="!descargando['docente']">download</mat-icon>
-          Descargar PDF
-        </button>
-      </div>
-    </div>
-
-    <mat-divider></mat-divider>
-
-    <div class="report-item">
-      <div class="report-info">
-        <mat-icon color="accent">meeting_room</mat-icon>
-        <div>
-          <div class="report-title">Reporte por Ambiente</div>
-          <div class="report-desc">Horario de uso de un aula o laboratorio</div>
-        </div>
-      </div>
-      <div class="report-controls">
-        <mat-form-field appearance="outline" class="search-field">
-          <mat-label>Ambiente</mat-label>
-          <mat-select [(ngModel)]="ambienteSeleccionado">
-            <mat-option *ngFor="let a of todosAmbientes" [value]="a">
-              {{ a.codigo }} — {{ a.nombre }}
-            </mat-option>
-          </mat-select>
-        </mat-form-field>
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="descargarAmbiente()"
-          [disabled]="descargando['ambiente']"
-        >
-          <mat-spinner
-            diameter="18"
-            *ngIf="descargando['ambiente']"
-          ></mat-spinner>
-          <mat-icon *ngIf="!descargando['ambiente']">download</mat-icon>
-          Descargar PDF
-        </button>
-      </div>
-    </div>
-
-    <mat-divider></mat-divider>
-
-    <div class="report-item">
-      <div class="report-info">
-        <mat-icon>table_view</mat-icon>
-        <div>
-          <div class="report-title">Reporte Operacional Completo</div>
-          <div class="report-desc">
-            Consolidado de todos los horarios asignados del período
-          </div>
-        </div>
-      </div>
-      <button
-        mat-raised-button
-        color="primary"
-        (click)="descargarOperacional()"
-        [disabled]="descargando['operacional']"
-      >
-        <mat-spinner
-          diameter="18"
-          *ngIf="descargando['operacional']"
-        ></mat-spinner>
-        <mat-icon *ngIf="!descargando['operacional']">download</mat-icon>
-        Descargar PDF
-      </button>
-    </div>
-  </mat-card-content>
-</mat-card>
-
-<!-- Reportes de Gestión -->
-<mat-card class="report-section">
-  <mat-card-header>
-    <mat-card-title
-      ><mat-icon>analytics</mat-icon> Reportes de Gestión</mat-card-title
-    >
-  </mat-card-header>
-  <mat-card-content>
-    <div class="report-item">
-      <div class="report-info">
-        <mat-icon color="warn">bar_chart</mat-icon>
-        <div>
-          <div class="report-title">Reporte de Gestión</div>
-          <div class="report-desc">
-            Indicadores, distribución de carga, conflictos y estadísticas del
-            período
-          </div>
-        </div>
-      </div>
-      <button
-        mat-raised-button
-        color="accent"
-        (click)="descargarGestion()"
-        [disabled]="descargando['gestion']"
-      >
-        <mat-spinner diameter="18" *ngIf="descargando['gestion']"></mat-spinner>
-        <mat-icon *ngIf="!descargando['gestion']">download</mat-icon>
-        Descargar PDF
-      </button>
-    </div>
-  </mat-card-content>
-</mat-card>

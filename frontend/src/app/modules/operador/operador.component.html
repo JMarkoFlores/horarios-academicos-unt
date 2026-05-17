@@ -1,170 +1,250 @@
-<div class="page-header">
-  <h1>Operador — Sistema de Turnos</h1>
-</div>
-
-<div *ngIf="loadingVentana" class="spinner-center"><mat-spinner diameter="40"></mat-spinner></div>
-
-<ng-container *ngIf="!loadingVentana">
-
-  <!-- ── SIN VENTANA ACTIVA: FORMULARIO DE CREACIÓN ── -->
-  <mat-card *ngIf="!ventanaActiva" class="create-card">
-    <mat-card-header>
-      <mat-card-title><mat-icon>add_circle</mat-icon> Crear Ventana de Atención</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="ventanaForm" class="ventana-form">
-        <mat-form-field appearance="outline">
-          <mat-label>Período</mat-label>
-          <mat-select formControlName="periodo">
-            <mat-option *ngFor="let p of periodoService.periodos" [value]="p">{{ p }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Fecha</mat-label>
-          <input matInput type="date" formControlName="fecha">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Hora inicio</mat-label>
-          <input matInput type="time" formControlName="hora_inicio">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Hora fin</mat-label>
-          <input matInput type="time" formControlName="hora_fin">
-        </mat-form-field>
-      </form>
-    </mat-card-content>
-    <mat-card-actions>
-      <button mat-raised-button color="primary" (click)="crearVentana()" [disabled]="creandoVentana || ventanaForm.invalid">
-        <mat-spinner diameter="18" *ngIf="creandoVentana"></mat-spinner>
-        <mat-icon *ngIf="!creandoVentana">event</mat-icon>
-        {{ creandoVentana ? 'Creando...' : 'Crear Ventana' }}
-      </button>
-    </mat-card-actions>
-  </mat-card>
-
-  <!-- ── CON VENTANA ACTIVA: PANEL PRINCIPAL ── -->
-  <div *ngIf="ventanaActiva" class="operador-layout">
-
-    <!-- COLUMNA IZQUIERDA: COLA -->
-    <div class="cola-panel">
-      <mat-card class="ventana-info-card">
-        <div class="ventana-header">
-          <mat-icon>event</mat-icon>
-          <div>
-            <div class="ventana-titulo">Ventana Activa</div>
-            <div class="ventana-sub">{{ ventanaActiva.fecha }} · {{ ventanaActiva.hora_inicio }} – {{ ventanaActiva.hora_fin }}</div>
-            <div class="ventana-sub">Período: {{ ventanaActiva.periodo }}</div>
-          </div>
-          <span [class]="'badge-estado badge-' + ventanaActiva.estado">{{ ventanaActiva.estado }}</span>
-        </div>
-
-        <div class="cola-actions" *ngIf="ventanaActiva.estado === 'PENDIENTE'">
-          <button mat-raised-button color="primary" (click)="iniciarVentana()">
-            <mat-icon>play_arrow</mat-icon> Iniciar Ventana
-          </button>
-        </div>
-
-        <div class="cola-actions" *ngIf="ventanaActiva.estado === 'ACTIVA'">
-          <button mat-raised-button color="accent" (click)="llamarSiguiente()" [disabled]="llamandoSiguiente">
-            <mat-spinner diameter="16" *ngIf="llamandoSiguiente"></mat-spinner>
-            <mat-icon *ngIf="!llamandoSiguiente">forward</mat-icon>
-            Llamar siguiente
-          </button>
-          <mat-chip-listbox class="contador-chip">
-            <mat-chip>{{ docentesEnEspera }} en espera</mat-chip>
-          </mat-chip-listbox>
-        </div>
-      </mat-card>
-
-      <mat-card class="cola-list-card">
-        <div class="cola-list-header">Cola de Docentes</div>
-        <div *ngIf="cola.length === 0" class="empty-cola">Sin docentes en cola</div>
-        <div class="cola-item" *ngFor="let item of cola" [ngClass]="estadoClass(item.estado)">
-          <div class="cola-item-info">
-            <div class="cola-nombre">{{ item.docente?.apellidos }}, {{ item.docente?.nombres }}</div>
-            <div class="cola-cat">{{ item.docente?.categoria }}</div>
-          </div>
-          <div class="cola-estado-badge">
-            <span *ngIf="item.estado === 'EN_ATENCION'" class="atencion-label">⬅ Atendiendo ahora</span>
-            <span *ngIf="item.estado === 'ESPERANDO'" class="orden-label">#{{ item.orden }}</span>
-            <span *ngIf="item.estado === 'COMPLETADO'" class="completado-label">✓</span>
-            <span *ngIf="item.estado === 'AUSENTE'" class="ausente-label">Ausente</span>
-          </div>
-        </div>
-      </mat-card>
+<div class="operador-container">
+  <div class="page-header animate-fade-in">
+    <div class="header-content">
+      <h1>Operador — Sistema de Turnos</h1>
+      <p class="header-subtitle">Gestión de atención presencial y asignación de horarios en tiempo real</p>
     </div>
-
-    <!-- COLUMNA DERECHA: GRILLA DE SELECCIÓN -->
-    <div class="grid-panel">
-      <mat-card class="grid-card">
-        <div class="grid-header">
-          <span *ngIf="docenteActual" class="docente-actual">
-            <mat-icon>person</mat-icon>
-            Seleccionando: <strong>{{ docenteActual.apellidos }}, {{ docenteActual.nombres }}</strong>
-          </span>
-          <span *ngIf="!docenteActual" class="sin-docente-label">
-            <mat-icon>hourglass_empty</mat-icon> Esperando llamada...
-          </span>
-        </div>
-
-        <div class="grid-wrapper">
-          <table class="sel-grid">
-            <thead>
-              <tr>
-                <th class="hora-col">Hora</th>
-                <th *ngFor="let dia of dias">{{ dia }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let hora of horas">
-                <td class="hora-cell">{{ fmtH(hora) }}</td>
-                <td *ngFor="let dNum of diasNum"
-                    class="celda"
-                    [ngClass]="'celda-' + getCeldaEstado(dNum, hora)"
-                    [matTooltip]="getCeldaEstado(dNum, hora) === 'libre' ? 'Click para asignar' : ''"
-                    (click)="clickCelda(dNum, hora)">
-                  <ng-container *ngIf="asignacionesMap.get(dNum + '-' + fmtH(hora)) as a">
-                    <div class="mini-text">{{ a.curso?.nombre }}</div>
-                  </ng-container>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- LEYENDA -->
-        <div class="grid-legend">
-          <span class="leg-item"><span class="leg-dot libre"></span> Libre</span>
-          <span class="leg-item"><span class="leg-dot no-disponible"></span> No disponible</span>
-          <span class="leg-item"><span class="leg-dot ocupado"></span> Ocupado</span>
-          <span class="leg-item"><span class="leg-dot seleccion-propia"></span> Mi selección</span>
-          <span class="leg-item"><span class="leg-dot seleccion-otro"></span> Otro docente</span>
-        </div>
-
-        <!-- SELECCIONES ACTUALES -->
-        <mat-divider *ngIf="docenteActual"></mat-divider>
-        <div class="selecciones-panel" *ngIf="docenteActual">
-          <div class="sel-titulo">Selecciones actuales ({{ seleccionesPropias.length }})</div>
-          <div *ngIf="seleccionesPropias.length === 0" class="sel-empty">Ninguna celda seleccionada</div>
-          <div class="sel-chips">
-            <mat-chip *ngFor="let s of seleccionesPropias">
-              {{ ['','Lun','Mar','Mié','Jue','Vie'][s.dia] }} {{ s.hora }}
-            </mat-chip>
-          </div>
-
-          <div class="confirm-actions">
-            <button mat-raised-button color="primary" (click)="confirmarTurno()" [disabled]="confirmando || seleccionesPropias.length === 0">
-              <mat-spinner diameter="16" *ngIf="confirmando"></mat-spinner>
-              <mat-icon *ngIf="!confirmando">check_circle</mat-icon>
-              {{ confirmando ? 'Confirmando...' : 'Confirmar y cerrar turno' }}
-            </button>
-            <button mat-stroked-button color="warn" (click)="cancelarSelecciones()" [disabled]="cancelando">
-              <mat-icon>cancel</mat-icon> Cancelar selecciones
-            </button>
-          </div>
-        </div>
-      </mat-card>
+    <div class="header-actions" *ngIf="ventanaActiva">
+      <div class="live-badge animate-pulse">
+        <span class="pulse-dot"></span>
+        EN VIVO
+      </div>
     </div>
-
   </div>
-</ng-container>
+
+  <div *ngIf="loadingVentana" class="loading-state">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Sincronizando con el servidor...</p>
+  </div>
+
+  <ng-container *ngIf="!loadingVentana">
+
+    <!-- ── SIN VENTANA ACTIVA: FORMULARIO DE CREACIÓN ── -->
+    <div *ngIf="!ventanaActiva" class="setup-container animate-slide-up">
+      <mat-card class="premium-card setup-card">
+        <div class="card-accent primary"></div>
+        <mat-card-header>
+          <div class="setup-icon-box">
+            <mat-icon>add_task</mat-icon>
+          </div>
+          <mat-card-title>Crear Ventana de Atención</mat-card-title>
+          <mat-card-subtitle>Configura el horario y período para iniciar la recepción de docentes</mat-card-subtitle>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <form [formGroup]="ventanaForm" class="premium-form">
+            <div class="form-grid">
+              <mat-form-field appearance="fill" class="full-width">
+                <mat-label>Período Académico</mat-label>
+                <mat-select formControlName="periodo">
+                  <mat-option *ngFor="let p of periodoService.periodos" [value]="p">{{ p }}</mat-option>
+                </mat-select>
+                <mat-icon matPrefix>calendar_today</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="fill" class="full-width">
+                <mat-label>Fecha de Atención</mat-label>
+                <input matInput type="date" formControlName="fecha">
+                <mat-icon matPrefix>event</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="fill">
+                <mat-label>Hora de Inicio</mat-label>
+                <input matInput type="time" formControlName="hora_inicio">
+                <mat-icon matPrefix>schedule</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="fill">
+                <mat-label>Hora de Finalización</mat-label>
+                <input matInput type="time" formControlName="hora_fin">
+                <mat-icon matPrefix>timer_off</mat-icon>
+              </mat-form-field>
+            </div>
+          </form>
+        </mat-card-content>
+
+        <mat-card-actions align="end">
+          <button 
+            mat-flat-button 
+            class="action-btn create-btn" 
+            (click)="crearVentana()" 
+            [disabled]="creandoVentana || ventanaForm.invalid"
+          >
+            <mat-spinner diameter="20" *ngIf="creandoVentana"></mat-spinner>
+            <mat-icon *ngIf="!creandoVentana">bolt</mat-icon>
+            <span>{{ creandoVentana ? 'Iniciando...' : 'Crear Ventana de Atención' }}</span>
+            <div class="btn-shimmer"></div>
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+
+    <!-- ── CON VENTANA ACTIVA: PANEL PRINCIPAL ── -->
+    <div *ngIf="ventanaActiva" class="operador-layout animate-fade-in">
+
+      <!-- COLUMNA IZQUIERDA: COLA -->
+      <aside class="side-panel">
+        <mat-card class="premium-card active-info-card">
+          <div class="card-header-premium">
+            <div class="info-group">
+              <span class="label">Ventana de Atención</span>
+              <div class="value-row">
+                <h3>{{ ventanaActiva.fecha | date:'dd/MM/yyyy' }}</h3>
+                <span class="status-pill" [ngClass]="ventanaActiva.estado.toLowerCase()">
+                  {{ ventanaActiva.estado }}
+                </span>
+              </div>
+              <p class="time-range">{{ ventanaActiva.hora_inicio }} – {{ ventanaActiva.hora_fin }}</p>
+            </div>
+          </div>
+
+          <div class="active-actions" *ngIf="ventanaActiva.estado === 'PENDIENTE'">
+            <button mat-flat-button class="action-btn start-btn" (click)="iniciarVentana()">
+              <mat-icon>play_circle</mat-icon> 
+              <span>Iniciar Recepción</span>
+            </button>
+          </div>
+
+          <div class="active-actions" *ngIf="ventanaActiva.estado === 'ACTIVA'">
+            <button mat-flat-button class="action-btn call-btn" (click)="llamarSiguiente()" [disabled]="llamandoSiguiente">
+              <mat-spinner diameter="20" *ngIf="llamandoSiguiente"></mat-spinner>
+              <mat-icon *ngIf="!llamandoSiguiente">forward_to_inbox</mat-icon>
+              <span>Llamar Siguiente</span>
+            </button>
+            <div class="queue-status">
+              <span class="count">{{ docentesEnEspera }}</span>
+              <span class="label">docentes en espera</span>
+            </div>
+          </div>
+        </mat-card>
+
+        <mat-card class="premium-card queue-card">
+          <div class="queue-header">
+            <mat-icon>groups</mat-icon>
+            <h4>Cola de Atención</h4>
+          </div>
+          
+          <div class="queue-list custom-scrollbar">
+            <div *ngIf="cola.length === 0" class="empty-queue animate-slide-up">
+              <div class="empty-icon-box">
+                <mat-icon>hourglass_empty</mat-icon>
+              </div>
+              <p>No hay docentes en espera</p>
+            </div>
+
+            <div 
+              class="queue-item animate-staggered" 
+              *ngFor="let item of cola; let i = index" 
+              [ngClass]="estadoClass(item.estado)"
+              [style.--index]="i"
+            >
+              <div class="item-accent"></div>
+              <div class="item-main">
+                <div class="doc-info">
+                  <span class="name">{{ item.docente?.apellidos }}, {{ item.docente?.nombres }}</span>
+                  <span class="category">{{ item.docente?.categoria }}</span>
+                </div>
+                <div class="status-indicator">
+                  <span *ngIf="item.estado === 'EN_ATENCION'" class="live-tag">ATENDIENDO</span>
+                  <span *ngIf="item.estado === 'ESPERANDO'" class="order-tag">#{{ item.orden }}</span>
+                  <mat-icon *ngIf="item.estado === 'COMPLETADO'" class="done-icon">check_circle</mat-icon>
+                  <span *ngIf="item.estado === 'AUSENTE'" class="absent-tag">AUSENTE</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-card>
+      </aside>
+
+      <!-- COLUMNA DERECHA: GRILLA DE SELECCIÓN -->
+      <main class="main-panel">
+        <mat-card class="premium-card grid-container-card">
+          <div class="grid-toolbar">
+            <div class="current-docente-box" *ngIf="docenteActual" class="animate-fade-in">
+              <div class="avatar-box primary">
+                <mat-icon>person</mat-icon>
+              </div>
+              <div class="doc-details">
+                <span class="label">Atendiendo a:</span>
+                <span class="value">{{ docenteActual.apellidos }}, {{ docenteActual.nombres }}</span>
+              </div>
+            </div>
+
+            <div class="waiting-box animate-shimmer" *ngIf="!docenteActual">
+              <mat-icon>sync</mat-icon>
+              <span>Esperando llamada de docente...</span>
+            </div>
+          </div>
+
+          <div class="grid-content">
+            <div class="grid-wrapper custom-scrollbar">
+              <table class="horario-grid-operador">
+                <thead>
+                  <tr>
+                    <th class="hora-col">BLOQUE</th>
+                    <th *ngFor="let dia of dias">{{ dia }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let hora of horas">
+                    <td class="hora-cell">{{ fmtH(hora) }}</td>
+                    <td *ngFor="let dNum of diasNum"
+                        class="celda"
+                        [ngClass]="'celda-' + getCeldaEstado(dNum, hora)"
+                        [matTooltip]="getCeldaEstado(dNum, hora) === 'libre' ? 'Click para asignar' : ''"
+                        (click)="clickCelda(dNum, hora)">
+                      <ng-container *ngIf="asignacionesMap.get(dNum + '-' + fmtH(hora)) as a">
+                        <div class="celda-inner">
+                          <span class="curso-code">{{ a.curso?.nombre }}</span>
+                        </div>
+                      </ng-container>
+                      <div class="celda-overlay" *ngIf="getCeldaEstado(dNum, hora) === 'libre'">
+                        <mat-icon>add</mat-icon>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- LEYENDA PREMIUM -->
+            <div class="legend-bar">
+              <div class="leg-item"><span class="swatch libre"></span> Libre</div>
+              <div class="leg-item"><span class="swatch no-disponible"></span> Bloqueado</div>
+              <div class="leg-item"><span class="swatch ocupado"></span> Ocupado</div>
+              <div class="leg-item"><span class="swatch seleccion-propia"></span> Mi Selección</div>
+              <div class="leg-item"><span class="swatch seleccion-otro"></span> Otros</div>
+            </div>
+          </div>
+
+          <!-- SELECCIONES ACTUALES -->
+          <div class="selection-footer" *ngIf="docenteActual" class="animate-slide-up">
+            <div class="selection-info">
+              <div class="count-badge">{{ seleccionesPropias.length }}</div>
+              <span class="label">celdas seleccionadas</span>
+            </div>
+            
+            <div class="selection-chips custom-scrollbar">
+              <mat-chip-row *ngFor="let s of seleccionesPropias">
+                {{ ['','Lun','Mar','Mié','Jue','Vie'][s.dia] }} {{ s.hora }}
+              </mat-chip-row>
+            </div>
+
+            <div class="selection-actions">
+              <button mat-flat-button class="action-btn confirm-btn" (click)="confirmarTurno()" [disabled]="confirmando || seleccionesPropias.length === 0">
+                <mat-spinner diameter="18" *ngIf="confirmando"></mat-spinner>
+                <mat-icon *ngIf="!confirmando">verified</mat-icon>
+                <span>{{ confirmando ? 'Confirmando...' : 'Finalizar Turno' }}</span>
+              </button>
+              <button mat-button class="cancel-btn" (click)="cancelarSelecciones()" [disabled]="cancelando">
+                <mat-icon>remove_circle_outline</mat-icon>
+                <span>Limpiar</span>
+              </button>
+            </div>
+          </div>
+        </mat-card>
+      </main>
+
+    </div>
+  </ng-container>
+</div>

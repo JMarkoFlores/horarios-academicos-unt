@@ -105,18 +105,6 @@ $unt-dark-theme: mat.define-dark-theme((
 }
 
 // ── 4. REFINAMIENTO DARK MODE (Legibilidad Mejorada) ──────────────────────
-@media (prefers-color-scheme: dark) {
-  body:not(.light-theme) {
-    --color-surface: #1e293b; // Slate 800 (Fondo de cards)
-    --color-background: #0f172a; // Slate 900 (Fondo principal)
-    --color-text: #f8fafc; // Slate 50
-    --color-text-muted: #94a3b8; // Slate 400
-    --color-border: #334155; // Slate 700
-    --color-primary-light: rgba(59, 130, 246, 0.15);
-    background-color: var(--color-background);
-  }
-}
-
 body.dark-theme {
   --color-surface: #1e293b;
   --color-background: #0f172a;
@@ -132,12 +120,17 @@ body.dark-theme {
   box-sizing: border-box;
 }
 
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden; // Prevenir doble barra global
+}
+
 body {
   font-family: var(--mat-typography-body-1-font-family);
   font-size: 14px;
   background-color: var(--color-background);
   color: var(--color-text);
-  margin: 0;
   transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 

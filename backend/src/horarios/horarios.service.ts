@@ -272,37 +272,28 @@ export class HorariosService {
         "El ambiente tiene un cruce en ese horario",
       );
 
-    let grupo: Grupo;
-    if (dto.grupo_id) {
-      grupo = await this.grupoRepo.findOne({ where: { id: dto.grupo_id } });
-      if (!grupo)
-        throw new NotFoundException(`Grupo ${dto.grupo_id} no encontrado`);
-    } else {
-      grupo = await this.grupoRepo.findOne({
-        where: {
-          codigo: "UNICO",
-          curso: { id: dto.curso_id },
-        },
-      });
-      if (!grupo) {
-        const periodo = await this.periodoRepo.findOne({
-          where: { codigo: dto.periodo_academico },
-        });
-        if (!periodo)
-          throw new NotFoundException(
-            `Período académico ${dto.periodo_academico} no encontrado`,
-          );
-        grupo = this.grupoRepo.create({
-          codigo: "UNICO",
-          nombre: "Sección Única",
-          ciclo: curso.ciclo,
-          cupo_maximo: 999,
-          periodo_academico: periodo,
-          curso,
-        });
-        grupo = await this.grupoRepo.save(grupo);
-      }
+    const grupo = await this.grupoRepo.findOne({
+      where: { id: dto.grupo_id },
+      relations: ["curso"],
+    });
+    if (!grupo)
+      throw new NotFoundException(`Grupo con ID ${dto.grupo_id} no encontrado`);
+
+    if (grupo.curso.id !== dto.curso_id) {
+      throw new BadRequestException(
+        `El grupo con ID ${dto.grupo_id} no pertenece al curso seleccionado`,
+      );
     }
+
+    const cruceGrupo = await this.validacionesService.verificarCruceGrupo(
+      dto.grupo_id,
+      dto.dia_semana,
+      dto.hora_inicio,
+      dto.hora_fin,
+      dto.periodo_academico,
+    );
+    if (cruceGrupo)
+      throw new BadRequestException("El grupo tiene un cruce en ese horario");
 
     const nuevaAsignacion = this.horarioRepo.create({
       docente,

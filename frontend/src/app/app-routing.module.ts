@@ -98,6 +98,13 @@ const routes: Routes = [
             (m) => m.UsuariosModule,
           ),
       },
+      {
+        path: 'configuracion',
+        loadChildren: () =>
+          import('./modules/configuracion/configuracion.module').then(
+            (m) => m.ConfiguracionModule,
+          ),
+      },
       { path: '**', component: NotFoundComponent },
     ],
   },

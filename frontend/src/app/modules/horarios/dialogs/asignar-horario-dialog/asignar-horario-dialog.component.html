@@ -33,6 +33,19 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline">
+      <mat-label>Grupo / Sección</mat-label>
+      <mat-select formControlName="grupo_id" [disabled]="!form.get('curso_id')?.value">
+        <mat-option *ngFor="let g of grupos" [value]="g.id">
+          {{ g.codigo }} – {{ g.nombre }} (Aforo: {{ g.cupo_maximo }})
+        </mat-option>
+      </mat-select>
+      <mat-error>Selecciona un grupo</mat-error>
+      <mat-hint *ngIf="form.get('curso_id')?.value && grupos.length === 0" style="color: #f44336; font-size: 11px;">
+        ⚠️ No hay grupos registrados para este curso.
+      </mat-hint>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
       <mat-label>Tipo de clase</mat-label>
       <mat-select formControlName="tipo_clase">
         <mat-option *ngFor="let t of tiposClase" [value]="t.value">

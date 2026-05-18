@@ -51,6 +51,12 @@ export class LayoutComponent implements OnInit {
       route: '/app/periodos',
       adminOnly: true,
     },
+    {
+      icon: 'settings',
+      label: 'Configuración',
+      route: '/app/configuracion',
+      adminOnly: true,
+    },
   ];
 
   @HostListener('window:resize')
@@ -74,6 +80,7 @@ export class LayoutComponent implements OnInit {
     operador: 'Operador — Sistema de Turnos',
     periodos: 'Períodos Académicos',
     usuarios: 'Usuarios del Sistema',
+    configuracion: 'Configuración del Sistema',
   };
 
   constructor(

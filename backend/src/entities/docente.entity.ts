@@ -5,12 +5,16 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToMany,
+  JoinTable,
 } from "typeorm";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { DisponibilidadDocente } from "./disponibilidad-docente.entity";
 import { HorarioAsignado } from "./horario-asignado.entity";
 import { ColaDocentes } from "./cola-docentes.entity";
+import { Ambiente } from "./ambiente.entity";
+
 
 @Entity("docente")
 export class Docente {
@@ -61,4 +65,12 @@ export class Docente {
 
   @OneToMany(() => ColaDocentes, (cola) => cola.docente)
   colas: ColaDocentes[];
+
+  @ManyToMany(() => Ambiente)
+  @JoinTable({
+    name: "docente_ambiente",
+    joinColumn: { name: "docente_id", referencedColumnName: "id" },
+    inverseJoinColumn: { name: "ambiente_id", referencedColumnName: "id" }
+  })
+  ambientes: Ambiente[];
 }

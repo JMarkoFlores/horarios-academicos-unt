@@ -139,6 +139,29 @@ export class GruposService {
       grupo.curso = curso;
     }
 
+    // Check uniqueness of group code per course and period
+    const codigoToCheck = dto.codigo !== undefined ? dto.codigo : grupo.codigo;
+    const periodoIdToCheck = dto.periodo_academico_id !== undefined ? dto.periodo_academico_id : grupo.periodo_academico.id;
+    const cursoIdToCheck = dto.curso_id !== undefined ? dto.curso_id : grupo.curso.id;
+
+    const existe = await this.grupoRepo
+      .createQueryBuilder("grupo")
+      .leftJoin("grupo.periodo_academico", "periodo")
+      .leftJoin("grupo.curso", "curso")
+      .where("grupo.codigo = :codigo", { codigo: codigoToCheck })
+      .andWhere("periodo.id = :periodoId", {
+        periodoId: periodoIdToCheck,
+      })
+      .andWhere("curso.id = :cursoId", { cursoId: cursoIdToCheck })
+      .andWhere("grupo.id != :id", { id })
+      .getOne();
+
+    if (existe) {
+      throw new ConflictException(
+        `Ya existe otro grupo con código '${codigoToCheck}' para este curso y período`,
+      );
+    }
+
     const { periodo_academico_id: _p, curso_id: _c, ...rest } = dto;
     const actualizado = this.grupoRepo.merge(grupo, rest);
     return this.grupoRepo.save(actualizado);
@@ -146,6 +169,16 @@ export class GruposService {
 
   async remove(id: number): Promise<void> {
     const grupo = await this.findOne(id);
-    await this.grupoRepo.remove(grupo);
+    try {
+      await this.grupoRepo.remove(grupo);
+    } catch (error) {
+      if (error.code === "23503") { // PostgreSQL foreign key constraint violation
+        throw new ConflictException(
+          `No se puede eliminar el grupo porque está siendo utilizado en otras asignaciones de horarios`,
+        );
+      }
+      throw error;
+    }
   }
 }
+

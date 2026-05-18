@@ -23,11 +23,13 @@ import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.
 import { Preasignacion } from "../entities/preasignacion.entity";
 import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
 import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
+import { DocenteCurso } from "../entities/docente-curso.entity";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
 
 const AppDataSource = new DataSource({
   type: "postgres",
@@ -54,145 +56,125 @@ const AppDataSource = new DataSource({
     Preasignacion,
     RestriccionInstitucional,
     DiaNoLaborable,
+    DocenteCurso,
   ],
   synchronize: false,
   logging: false,
 });
 
 async function seed() {
-  console.log("🌱 Iniciando seed de la base de datos...");
+  console.log("🌱 Iniciando seed de la base de datos con TODOS los cursos...");
 
   await AppDataSource.initialize();
-  console.log("✅ Conexión a la base de datos establecida\n");
+  console.log("✅ Conexión a la base de datos establecida");
+
+  // ── 0. LIMPIEZA DE BASE DE DATOS (TRUNCATE CASCADE) ──────────────────────
+  console.log("🧹 Limpiando base de datos existente...");
+  await AppDataSource.query('TRUNCATE TABLE "horario_asignado" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "conflicto_asignacion" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "preasignacion" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "cola_docentes" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "ventana_atencion" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "seleccion_temporal" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "disponibilidad_docente" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "docente_curso" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "curso_ambiente" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "grupo" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "curso" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "docente" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "ambiente" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "periodo_academico" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "usuario" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "restriccion_institucional" CASCADE');
+  await AppDataSource.query('TRUNCATE TABLE "dia_no_laborable" CASCADE');
+  console.log("🧹 Base de datos limpia y lista\n");
 
   const usuarioRepo = AppDataSource.getRepository(Usuario);
   const docenteRepo = AppDataSource.getRepository(Docente);
   const periodoRepo = AppDataSource.getRepository(PeriodoAcademico);
   const cursoRepo = AppDataSource.getRepository(Curso);
   const ambienteRepo = AppDataSource.getRepository(Ambiente);
+  const docenteCursoRepo = AppDataSource.getRepository(DocenteCurso);
+  const restriccionRepo = AppDataSource.getRepository(RestriccionInstitucional);
+  const diaNoLaborableRepo = AppDataSource.getRepository(DiaNoLaborable);
+  const disponibilidadRepo = AppDataSource.getRepository(DisponibilidadDocente);
 
-  // ── 1. USUARIO ADMIN ─────────────────────────────────────────────────────
-  const adminExistente = await usuarioRepo.findOne({
-    where: { email: "admin@unt.edu.pe" },
-  });
+  const passwordHash = await bcrypt.hash("Admin123!", 10);
 
-  if (!adminExistente) {
-    const admin = usuarioRepo.create({
+  // ── 1. USUARIOS POR ROL (ADMINISTRADOR, DIRECTOR, COORDINADOR, OPERADOR) ─
+  console.log("👤 Creando usuarios de sistema...");
+  const usuariosSistemas = [
+    {
       nombre: "Administrador del Sistema",
       email: "admin@unt.edu.pe",
-      password_hash: await bcrypt.hash("Admin123!", 10),
+      password_hash: passwordHash,
       rol: RolUsuario.ADMINISTRADOR_SISTEMA,
       activo: true,
-    });
-    await usuarioRepo.save(admin);
-    console.log("✅ Usuario admin creado: admin@unt.edu.pe / Admin123!");
-  } else {
-    console.log("⏭️  Usuario admin ya existe, omitiendo...");
-  }
-
-  const usuariosData = [
+    },
     {
       nombre: "Director de Escuela",
       email: "director@unt.edu.pe",
+      password_hash: passwordHash,
       rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
     },
     {
       nombre: "Coordinador Académico",
       email: "coordinador@unt.edu.pe",
+      password_hash: passwordHash,
       rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
     },
     {
       nombre: "Operador de Horarios",
       email: "operador@unt.edu.pe",
+      password_hash: passwordHash,
       rol: RolUsuario.OPERADOR_HORARIOS,
-    },
-    {
-      nombre: "Docente de Prueba",
-      email: "docente@unt.edu.pe",
-      rol: RolUsuario.DOCENTE,
+      activo: true,
     },
   ];
 
-  for (const u of usuariosData) {
-    const existe = await usuarioRepo.findOne({ where: { email: u.email } });
-    if (!existe) {
-      await usuarioRepo.save(
-        usuarioRepo.create({
-          ...u,
-          password_hash: await bcrypt.hash("Admin123!", 10),
-          activo: true,
-        }),
-      );
-      console.log(`✅ Usuario ${u.rol} creado: ${u.email} / Admin123!`);
-    } else {
-      console.log(`⏭️  Usuario ${u.email} ya existe, omitiendo...`);
-    }
+  for (const u of usuariosSistemas) {
+    await usuarioRepo.save(usuarioRepo.create(u));
   }
+  console.log("✅ Usuarios del sistema creados (Contraseña por defecto: Admin123!)\n");
 
   // ── 2. PERÍODOS ACADÉMICOS ──────────────────────────────────────────────────
+  console.log("📅 Creando periodos académicos...");
   const periodosData = [
-    {
-      codigo: "2024-I",
-      nombre: "Semestre 2024-I",
-      fecha_inicio: "2024-03-16",
-      fecha_fin: "2024-07-31",
-      estado: EstadoPeriodo.FINALIZADO,
-    },
-    {
-      codigo: "2024-II",
-      nombre: "Semestre 2024-II",
-      fecha_inicio: "2024-08-16",
-      fecha_fin: "2024-12-20",
-      estado: EstadoPeriodo.FINALIZADO,
-    },
     {
       codigo: "2025-I",
       nombre: "Semestre 2025-I",
-      fecha_inicio: "2025-03-16",
-      fecha_fin: "2025-07-31",
+      fecha_inicio: new Date("2025-03-16"),
+      fecha_fin: new Date("2025-07-31"),
       estado: EstadoPeriodo.FINALIZADO,
+      activo: false,
     },
     {
       codigo: "2025-II",
       nombre: "Semestre 2025-II",
-      fecha_inicio: "2025-08-16",
-      fecha_fin: "2025-12-20",
+      fecha_inicio: new Date("2025-08-16"),
+      fecha_fin: new Date("2025-12-20"),
       estado: EstadoPeriodo.FINALIZADO,
+      activo: false,
     },
     {
       codigo: "2026-I",
       nombre: "Semestre 2026-I",
-      fecha_inicio: "2026-03-16",
-      fecha_fin: "2026-07-31",
+      fecha_inicio: new Date("2026-03-16"),
+      fecha_fin: new Date("2026-07-31"),
       estado: EstadoPeriodo.EN_CURSO,
-    },
-    {
-      codigo: "2026-II",
-      nombre: "Semestre 2026-II",
-      fecha_inicio: "2026-08-16",
-      fecha_fin: "2026-12-20",
-      estado: EstadoPeriodo.PLANIFICACION,
+      activo: true,
     },
   ];
 
   for (const p of periodosData) {
-    const existe = await periodoRepo.findOne({ where: { codigo: p.codigo } });
-    if (!existe) {
-      await periodoRepo.save(
-        periodoRepo.create({
-          ...p,
-          fecha_inicio: new Date(p.fecha_inicio),
-          fecha_fin: new Date(p.fecha_fin),
-          activo: p.codigo === "2026-I",
-        }),
-      );
-      console.log(`✅ Período académico creado: ${p.codigo}`);
-    } else {
-      console.log(`⏭️  Período ${p.codigo} ya existe, omitiendo...`);
-    }
+    await periodoRepo.save(periodoRepo.create(p));
   }
+  console.log("✅ Períodos académicos creados (2026-I Activo)\n");
 
-  // ── 3. DOCENTES ───────────────────────────────────────────────────────────
+  // ── 3. DOCENTES Y SUS USUARIOS ASOCIADOS ───────────────────────────────
+  console.log("👨‍🏫 Creando docentes y sus usuarios asociados...");
   const docentesData = [
     {
       codigo: "DOC001",
@@ -202,6 +184,7 @@ async function seed() {
       categoria: CategoriaDocente.PRINCIPAL,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("2000-03-01"),
+      activo: true,
     },
     {
       codigo: "DOC002",
@@ -211,6 +194,7 @@ async function seed() {
       categoria: CategoriaDocente.ASOCIADO,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("2005-06-15"),
+      activo: true,
     },
     {
       codigo: "DOC003",
@@ -220,6 +204,7 @@ async function seed() {
       categoria: CategoriaDocente.AUXILIAR,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("2010-09-01"),
+      activo: true,
     },
     {
       codigo: "DOC004",
@@ -229,6 +214,7 @@ async function seed() {
       categoria: CategoriaDocente.JEFE_PRACTICA,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("2015-03-01"),
+      activo: true,
     },
     {
       codigo: "DOC005",
@@ -238,6 +224,7 @@ async function seed() {
       categoria: CategoriaDocente.PRINCIPAL,
       tipo_contrato: TipoContrato.NOMBRADO,
       fecha_ingreso: new Date("1998-01-10"),
+      activo: true,
     },
     {
       codigo: "DOC006",
@@ -247,6 +234,7 @@ async function seed() {
       categoria: CategoriaDocente.PRINCIPAL,
       tipo_contrato: TipoContrato.CONTRATADO,
       fecha_ingreso: new Date("2020-03-01"),
+      activo: true,
     },
     {
       codigo: "DOC007",
@@ -256,6 +244,7 @@ async function seed() {
       categoria: CategoriaDocente.ASOCIADO,
       tipo_contrato: TipoContrato.CONTRATADO,
       fecha_ingreso: new Date("2021-03-01"),
+      activo: true,
     },
     {
       codigo: "DOC008",
@@ -265,189 +254,388 @@ async function seed() {
       categoria: CategoriaDocente.AUXILIAR,
       tipo_contrato: TipoContrato.CONTRATADO,
       fecha_ingreso: new Date("2022-03-01"),
+      activo: true,
     },
   ];
 
-  let docentesCreados = 0;
+  const dbDocentes: Docente[] = [];
   for (const d of docentesData) {
-    const existe = await docenteRepo.findOne({ where: { codigo: d.codigo } });
-    if (!existe) {
-      await docenteRepo.save(docenteRepo.create({ ...d, activo: true }));
-      docentesCreados++;
-    }
+    const docente = await docenteRepo.save(docenteRepo.create(d));
+    dbDocentes.push(docente);
+
+    // Crear usuario asociado
+    await usuarioRepo.save(
+      usuarioRepo.create({
+        nombre: `${d.nombres} ${d.apellidos}`,
+        email: d.email,
+        password_hash: passwordHash,
+        rol: RolUsuario.DOCENTE,
+        activo: true,
+      })
+    );
   }
-  console.log(
-    docentesCreados > 0
-      ? `✅ ${docentesCreados} docente(s) creado(s)`
-      : "⏭️  Docentes ya existen, omitiendo...",
-  );
+  console.log("✅ 8 docentes y sus 8 usuarios de acceso creados correctamente\n");
 
-  // ── 4. CURSOS ─────────────────────────────────────────────────────────────
-  const cursosData = [
-    {
-      codigo: "CS101",
-      nombre: "Programación I",
-      creditos: 4,
-      horas_teoria: 4,
-      horas_laboratorio: 2,
-      ciclo: 1,
-      tiene_laboratorio: true,
-    },
-    {
-      codigo: "CS102",
-      nombre: "Programación II",
-      creditos: 4,
-      horas_teoria: 4,
-      horas_laboratorio: 2,
-      ciclo: 2,
-      tiene_laboratorio: true,
-    },
-    {
-      codigo: "CS201",
-      nombre: "Estructuras de Datos",
-      creditos: 4,
-      horas_teoria: 3,
-      horas_laboratorio: 2,
-      ciclo: 3,
-      tiene_laboratorio: true,
-    },
-    {
-      codigo: "CS301",
-      nombre: "Base de Datos I",
-      creditos: 4,
-      horas_teoria: 3,
-      horas_laboratorio: 2,
-      ciclo: 4,
-      tiene_laboratorio: true,
-    },
-    {
-      codigo: "CS202",
-      nombre: "Algoritmos",
-      creditos: 4,
-      horas_teoria: 4,
-      horas_laboratorio: 0,
-      ciclo: 3,
-      tiene_laboratorio: false,
-    },
-    {
-      codigo: "CS401",
-      nombre: "Redes",
-      creditos: 4,
-      horas_teoria: 3,
-      horas_laboratorio: 2,
-      ciclo: 5,
-      tiene_laboratorio: true,
-    },
-    {
-      codigo: "CS302",
-      nombre: "Sistemas Operativos",
-      creditos: 4,
-      horas_teoria: 4,
-      horas_laboratorio: 2,
-      ciclo: 4,
-      tiene_laboratorio: true,
-    },
-    {
-      codigo: "CS501",
-      nombre: "Ingeniería de Software",
-      creditos: 4,
-      horas_teoria: 4,
-      horas_laboratorio: 0,
-      ciclo: 6,
-      tiene_laboratorio: false,
-    },
-  ];
-
-  let cursosCreados = 0;
-  for (const c of cursosData) {
-    const existe = await cursoRepo.findOne({ where: { codigo: c.codigo } });
-    if (!existe) {
-      await cursoRepo.save(cursoRepo.create({ ...c, activo: true }));
-      cursosCreados++;
-    }
-  }
-  console.log(
-    cursosCreados > 0
-      ? `✅ ${cursosCreados} curso(s) creado(s)`
-      : "⏭️  Cursos ya existen, omitiendo...",
-  );
-
-  // ── 5. AMBIENTES ──────────────────────────────────────────────────────────
+  // ── 4. AMBIENTES (6 AULAS Y 4 LABORATORIOS) ──────────────────────────────
+  console.log("🏢 Creando ambientes de estudio (aulas y laboratorios)...");
   const ambientesData = [
+    // Aulas
     {
       codigo: "A-101",
-      nombre: "Aula A-101",
+      nombre: "Aula Pabellón A - 101",
       tipo: TipoAmbiente.AULA,
-      capacidad: 35,
+      capacidad: 40,
       piso: 1,
       pabellon: "A",
+      activo: true,
     },
     {
       codigo: "A-102",
-      nombre: "Aula A-102",
+      nombre: "Aula Pabellón A - 102",
       tipo: TipoAmbiente.AULA,
-      capacidad: 35,
+      capacidad: 40,
       piso: 1,
       pabellon: "A",
+      activo: true,
     },
     {
       codigo: "A-201",
-      nombre: "Aula A-201",
+      nombre: "Aula Pabellón A - 201",
       tipo: TipoAmbiente.AULA,
-      capacidad: 40,
+      capacidad: 35,
       piso: 2,
       pabellon: "A",
+      activo: true,
     },
     {
       codigo: "A-202",
-      nombre: "Aula A-202",
+      nombre: "Aula Pabellón A - 202",
       tipo: TipoAmbiente.AULA,
-      capacidad: 40,
+      capacidad: 35,
       piso: 2,
       pabellon: "A",
+      activo: true,
     },
     {
+      codigo: "A-301",
+      nombre: "Aula Pabellón A - 301",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 30,
+      piso: 3,
+      pabellon: "A",
+      activo: true,
+    },
+    {
+      codigo: "A-302",
+      nombre: "Aula Pabellón A - 302",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 30,
+      piso: 3,
+      pabellon: "A",
+      activo: true,
+    },
+    // Laboratorios
+    {
       codigo: "LAB-1",
-      nombre: "Laboratorio 1",
+      nombre: "Laboratorio de Cómputo 1 (Software)",
       tipo: TipoAmbiente.LABORATORIO,
       capacidad: 30,
       piso: 1,
       pabellon: "B",
-      equipamiento: "30 PCs",
+      equipamiento: "30 PCs de alto rendimiento, Proyector HD, Aire acondicionado",
+      activo: true,
     },
     {
       codigo: "LAB-2",
-      nombre: "Laboratorio 2",
+      nombre: "Laboratorio de Cómputo 2 (Sistemas Inteligentes)",
       tipo: TipoAmbiente.LABORATORIO,
       capacidad: 30,
       piso: 1,
       pabellon: "B",
-      equipamiento: "30 PCs",
+      equipamiento: "30 PCs de alto rendimiento con GPUs, Pizarra inteligente",
+      activo: true,
+    },
+    {
+      codigo: "LAB-3",
+      nombre: "Laboratorio de Redes y Telecomunicaciones",
+      tipo: TipoAmbiente.LABORATORIO,
+      capacidad: 25,
+      piso: 2,
+      pabellon: "B",
+      equipamiento: "Equipos Cisco (Routers, Switches), Racks, Herramientas de cableado",
+      activo: true,
+    },
+    {
+      codigo: "LAB-4",
+      nombre: "Laboratorio de Robótica y Arquitectura de Computadoras",
+      tipo: TipoAmbiente.LABORATORIO,
+      capacidad: 25,
+      piso: 2,
+      pabellon: "B",
+      equipamiento: "Kits Arduino/Raspberry, Multímetros, Osciloscopios, Estaciones de soldadura",
+      activo: true,
     },
   ];
 
-  let ambientesCreados = 0;
+  const dbAmbientes: Ambiente[] = [];
   for (const a of ambientesData) {
-    const existe = await ambienteRepo.findOne({ where: { codigo: a.codigo } });
-    if (!existe) {
-      await ambienteRepo.save(ambienteRepo.create({ ...a, activo: true }));
-      ambientesCreados++;
+    const ambiente = await ambienteRepo.save(ambienteRepo.create(a));
+    dbAmbientes.push(ambiente);
+  }
+  console.log("✅ 6 aulas y 4 laboratorios creados exitosamente\n");
+
+  // ── 5. PLAN DE ESTUDIOS COMPLETO INGENIERÍA DE SISTEMAS 2018 (82 CURSOS) ─
+  console.log("📚 Creando plan de estudios completo de Ingeniería de Sistemas 2018...");
+  const cursosData = [
+    // === CICLO I ===
+    { codigo: "EG-101", nombre: "Desarrollo del Pensamiento Lógico Matemático", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+    { codigo: "EG-102", nombre: "Lectura Crítica y Redacción de Textos Académicos", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+    { codigo: "EG-103", nombre: "Desarrollo Personal", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+    { codigo: "EG-104", nombre: "Introducción al Análisis Matemático", creditos: 4, horas_teoria: 2, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+    { codigo: "EG-105", nombre: "Estadística General", creditos: 4, horas_teoria: 2, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+    { codigo: "EE-101", nombre: "Introducción a la Ingeniería de Sistemas", creditos: 2, horas_teoria: 1, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+    { codigo: "EE-102", nombre: "Introducción a la Programación", creditos: 3, horas_teoria: 2, horas_laboratorio: 2, ciclo: 1, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-101", nombre: "Electivo 1a: Técnicas de comunicación eficaz", creditos: 1, horas_teoria: 0, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+    { codigo: "EL-102", nombre: "Electivo 1b: Taller de Música", creditos: 1, horas_teoria: 0, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+    { codigo: "EL-103", nombre: "Electivo 1c: Taller de Liderazgo y trabajo en equipo", creditos: 1, horas_teoria: 0, horas_laboratorio: 0, ciclo: 1, tiene_laboratorio: false, activo: true },
+
+    // === CICLO II ===
+    { codigo: "EG-201", nombre: "Ética, Convivencia Humana y Ciudadanía", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 2, tiene_laboratorio: false, activo: true },
+    { codigo: "EG-202", nombre: "Sociedad, Cultura y Ecología", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 2, tiene_laboratorio: false, activo: true },
+    { codigo: "EG-203", nombre: "Cultura Investigativa y Pensamiento Crítico", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 2, tiene_laboratorio: false, activo: true },
+    { codigo: "EG-204", nombre: "Análisis Matemático", creditos: 4, horas_teoria: 2, horas_laboratorio: 0, ciclo: 2, tiene_laboratorio: false, activo: true },
+    { codigo: "EG-205", nombre: "Física General", creditos: 4, horas_teoria: 2, horas_laboratorio: 2, ciclo: 2, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-201", nombre: "Programación Orientada a Objetos I", creditos: 4, horas_teoria: 2, horas_laboratorio: 4, ciclo: 2, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-201", nombre: "Electivo 2a: Taller de Manejo de TIC", credited: 1, creditos: 1, horas_teoria: 0, horas_laboratorio: 2, ciclo: 2, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-202", nombre: "Electivo 2b: Taller de Danzas Folklóricas", creditos: 1, horas_teoria: 0, horas_laboratorio: 2, ciclo: 2, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-203", nombre: "Electivo 2c: Taller de Deporte", creditos: 1, horas_teoria: 0, horas_laboratorio: 2, ciclo: 2, tiene_laboratorio: true, activo: true },
+
+    // === CICLO III ===
+    { codigo: "EP-301", nombre: "Administración General", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 3, tiene_laboratorio: false, activo: true },
+    { codigo: "EE-301", nombre: "Sistémica", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 3, tiene_laboratorio: true, activo: true },
+    { codigo: "EP-302", nombre: "Estadística Aplicada", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 3, tiene_laboratorio: true, activo: true },
+    { codigo: "EP-303", nombre: "Matemática Aplicada", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 3, tiene_laboratorio: true, activo: true },
+    { codigo: "EP-304", nombre: "Física Electrónica", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 3, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-302", nombre: "Programación Orientada a Objetos II", creditos: 4, horas_teoria: 2, horas_laboratorio: 4, ciclo: 3, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-301", nombre: "Electivo 3a: Ingeniería Gráfica", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 3, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-302", nombre: "Electivo 3b: Sicología Organizacional", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 3, tiene_laboratorio: false, activo: true },
+
+    // === CICLO IV ===
+    { codigo: "EP-401", nombre: "Economía General", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 4, tiene_laboratorio: false, activo: true },
+    { codigo: "EE-401", nombre: "Diseño Web", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 4, tiene_laboratorio: true, activo: true },
+    { codigo: "EP-402", nombre: "Pensamiento de Diseño", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 4, tiene_laboratorio: true, activo: true },
+    { codigo: "EP-403", nombre: "Gestión por Procesos", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 4, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-402", nombre: "Sistemas Digitales", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 4, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-403", nombre: "Estructura de Datos Orientado a Objetos", creditos: 4, horas_teoria: 2, horas_laboratorio: 3, ciclo: 4, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-401", nombre: "Electivo 4a: Computación Gráfica y Visual", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 4, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-402", nombre: "Electivo 4b: Plataformas Tecnológicas", creditos: 3, horas_teoria: 2, horas_laboratorio: 2, ciclo: 4, tiene_laboratorio: true, activo: true },
+
+    // === CICLO V ===
+    { codigo: "EP-501", nombre: "Contabilidad Gerencial", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 5, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-501", nombre: "Tecnologías Web", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 5, tiene_laboratorio: true, activo: true },
+    { codigo: "EP-502", nombre: "Investigación de Operaciones", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 5, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-502", nombre: "Ingeniería de Datos I", creditos: 4, horas_teoria: 2, horas_laboratorio: 3, ciclo: 5, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-503", nombre: "Arquitectura y Organización de Computadoras", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 5, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-504", nombre: "Sistemas de Información", creditos: 4, horas_teoria: 2, horas_laboratorio: 2, ciclo: 5, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-501", nombre: "Electivo 5a: Teleinformática", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 5, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-502", nombre: "Electivo 5b: Transformación Digital", creditos: 3, horas_teoria: 2, horas_laboratorio: 2, ciclo: 5, tiene_laboratorio: true, activo: true },
+
+    // === CICLO VI ===
+    { codigo: "EP-601", nombre: "Finanzas Corporativas", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 6, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-601", nombre: "Sistemas Inteligentes", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 6, tiene_laboratorio: true, activo: true },
+    { codigo: "EP-602", nombre: "Ingeniería Económica", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 6, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-602", nombre: "Ingeniería de Datos II", creditos: 4, horas_teoria: 2, horas_laboratorio: 3, ciclo: 6, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-603", nombre: "Sistemas Operativos", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 6, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-604", nombre: "Ingeniería de Requerimientos", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 6, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-601", nombre: "Electivo 6a: Ingeniería Ambiental", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 6, tiene_laboratorio: false, activo: true },
+    { codigo: "EL-602", nombre: "Electivo 6b: Gestión del Talento Humano", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 6, tiene_laboratorio: false, activo: true },
+
+    // === CICLO VII ===
+    { codigo: "EP-701", nombre: "Cadena de Suministro", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 7, tiene_laboratorio: false, activo: true },
+    { codigo: "EE-701", nombre: "Gestión de Servicios de TIC", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 7, tiene_laboratorio: true, activo: true },
+    { codigo: "EI-701", nombre: "Metodología de la Investigación Científica", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 7, tiene_laboratorio: false, activo: true },
+    { codigo: "EE-702", nombre: "Planeamiento Estratégico de la Información", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 7, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-703", nombre: "Redes y Comunicaciones I", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 7, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-704", nombre: "Ingeniería del Software I", creditos: 4, horas_teoria: 2, horas_laboratorio: 3, ciclo: 7, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-701", nombre: "Electivo 7a: Administración de Base de Datos", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 7, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-702", nombre: "Electivo 7b: Negocios Electrónicos", creditos: 3, horas_teoria: 2, horas_laboratorio: 2, ciclo: 7, tiene_laboratorio: true, activo: true },
+
+    // === CICLO VIII ===
+    { codigo: "EP-801", nombre: "Marketing y Medios Sociales", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 8, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-801", nombre: "Seguridad de la Información", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 8, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-802", nombre: "Internet de las Cosas", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 8, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-803", nombre: "Inteligencia de Negocios", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 8, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-804", nombre: "Redes y Comunicaciones II", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 8, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-805", nombre: "Ingeniería del Software II", creditos: 4, horas_teoria: 2, horas_laboratorio: 3, ciclo: 8, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-801", nombre: "Electivo 8a: Deontología y Derecho Informático", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 8, tiene_laboratorio: false, activo: true },
+    { codigo: "EL-802", nombre: "Electivo 8b: Arquitectura basada en Microservicios", creditos: 3, horas_teoria: 2, horas_laboratorio: 2, ciclo: 8, tiene_laboratorio: true, activo: true },
+
+    // === CICLO IX ===
+    { codigo: "EE-901", nombre: "Gestión de Proyectos de TIC", creditos: 1, horas_teoria: 1, horas_laboratorio: 2, ciclo: 9, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-902", nombre: "Auditoría Informática", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 9, tiene_laboratorio: true, activo: true },
+    { codigo: "EI-901", nombre: "Tesis I", creditos: 4, horas_teoria: 2, horas_laboratorio: 2, ciclo: 9, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-903", nombre: "Analítica de Negocios", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 9, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-904", nombre: "Computación en la Nube", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 9, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-905", nombre: "Ingeniería Web", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 9, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-901", nombre: "Electivo 9a: Emprendedurismo Tecnológico", creditos: 3, horas_teoria: 2, horas_laboratorio: 2, ciclo: 9, tiene_laboratorio: true, activo: true },
+    { codigo: "EL-902", nombre: "Electivo 9b: Hackeo Ético", creditos: 3, horas_teoria: 2, horas_laboratorio: 2, ciclo: 9, tiene_laboratorio: true, activo: true },
+
+    // === CICLO X ===
+    { codigo: "EE-X01", nombre: "Sistemas de Información Empresarial", creditos: 4, horas_teoria: 2, horas_laboratorio: 3, ciclo: 10, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-X02", nombre: "Gobierno de TIC", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 10, tiene_laboratorio: true, activo: true },
+    { codigo: "EI-X01", nombre: "Tesis II", creditos: 4, horas_teoria: 2, horas_laboratorio: 2, ciclo: 10, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-X03", nombre: "Arquitectura Empresarial", creditos: 3, horas_teoria: 1, horas_laboratorio: 2, ciclo: 10, tiene_laboratorio: true, activo: true },
+    { codigo: "EP-X01", nombre: "Responsabilidad Social Corporativa", creditos: 3, horas_teoria: 2, horas_laboratorio: 0, ciclo: 10, tiene_laboratorio: false, activo: true },
+    { codigo: "EE-X04", nombre: "Aplicaciones Móviles", creditos: 3, horas_teoria: 1, horas_laboratorio: 3, ciclo: 10, tiene_laboratorio: true, activo: true },
+    { codigo: "EE-X05", nombre: "Prácticas Pre Profesionales", creditos: 4, horas_teoria: 2, horas_laboratorio: 3, ciclo: 10, tiene_laboratorio: true, activo: true },
+  ];
+
+  const dbCursos: Curso[] = [];
+  for (const c of cursosData) {
+    const curso = await cursoRepo.save(cursoRepo.create(c));
+    dbCursos.push(curso);
+  }
+  console.log(`✅ ¡Éxito! ${dbCursos.length} cursos reales del Plan de Estudios 2018 creados (100% de la malla curricular)`);
+
+  // ── 6. RELACIÓN CURSO-AMBIENTE (curso_ambiente) ───────────────────────────
+  console.log("🔗 Configurando relaciones Curso-Ambiente...");
+  const laboratorios = dbAmbientes.filter((a) => a.tipo === TipoAmbiente.LABORATORIO);
+  const aulas = dbAmbientes.filter((a) => a.tipo === TipoAmbiente.AULA);
+
+  for (const curso of dbCursos) {
+    if (curso.tiene_laboratorio) {
+      // Cursos con laboratorio pueden programar teoría en aulas y prácticas en laboratorios
+      curso.ambientes = [...aulas, ...laboratorios];
+    } else {
+      // Cursos teóricos se programan únicamente en aulas
+      curso.ambientes = [...aulas];
+    }
+    await cursoRepo.save(curso);
+  }
+  console.log("✅ Relaciones Curso-Ambiente mapeadas de forma lógica y consistente\n");
+
+  // ── 7. RELACIÓN DOCENTE-CURSO (DocenteCurso) ─────────────────────────────
+  console.log("🔗 Asignando docentes a asignaturas (DocenteCurso)...");
+  const asignacionesDocenteCurso = [
+    // Juan Carlos Pérez -> Introducción a la Programación y POO I
+    { docenteCodigo: "DOC001", cursoCodigo: "EE-102", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC001", cursoCodigo: "EE-102", tipo: TipoClase.LABORATORIO },
+    { docenteCodigo: "DOC001", cursoCodigo: "EE-201", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC001", cursoCodigo: "EE-201", tipo: TipoClase.LABORATORIO },
+
+    // María Elena García -> POO II y Estructura de Datos
+    { docenteCodigo: "DOC002", cursoCodigo: "EE-302", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC002", cursoCodigo: "EE-302", tipo: TipoClase.LABORATORIO },
+    { docenteCodigo: "DOC002", cursoCodigo: "EE-403", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC002", cursoCodigo: "EE-403", tipo: TipoClase.LABORATORIO },
+
+    // Carlos Alberto López -> Tecnologías Web y Ingeniería de Datos I
+    { docenteCodigo: "DOC003", cursoCodigo: "EE-501", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC003", cursoCodigo: "EE-501", tipo: TipoClase.LABORATORIO },
+    { docenteCodigo: "DOC003", cursoCodigo: "EE-502", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC003", cursoCodigo: "EE-502", tipo: TipoClase.LABORATORIO },
+
+    // Ana Patricia Torres -> Diseño Web y Aplicaciones Móviles
+    { docenteCodigo: "DOC004", cursoCodigo: "EE-401", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC004", cursoCodigo: "EE-401", tipo: TipoClase.LABORATORIO },
+    { docenteCodigo: "DOC004", cursoCodigo: "EE-X04", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC004", cursoCodigo: "EE-X04", tipo: TipoClase.LABORATORIO },
+
+    // Pedro Manuel Ruiz -> Ingeniería de Software I y II
+    { docenteCodigo: "DOC005", cursoCodigo: "EE-704", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC005", cursoCodigo: "EE-704", tipo: TipoClase.LABORATORIO },
+    { docenteCodigo: "DOC005", cursoCodigo: "EE-805", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC005", cursoCodigo: "EE-805", tipo: TipoClase.LABORATORIO },
+
+    // Luis Fernando Vargas -> Redes y Comunicaciones I y II
+    { docenteCodigo: "DOC006", cursoCodigo: "EE-703", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC006", cursoCodigo: "EE-703", tipo: TipoClase.LABORATORIO },
+    { docenteCodigo: "DOC006", cursoCodigo: "EE-804", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC006", cursoCodigo: "EE-804", tipo: TipoClase.LABORATORIO },
+
+    // Rosa Amelia Mendoza -> Sistemas Operativos y Computación en la Nube
+    { docenteCodigo: "DOC007", cursoCodigo: "EE-603", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC007", cursoCodigo: "EE-603", tipo: TipoClase.LABORATORIO },
+    { docenteCodigo: "DOC007", cursoCodigo: "EE-904", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC007", cursoCodigo: "EE-904", tipo: TipoClase.LABORATORIO },
+
+    // Jorge Luis Silva -> Internet de las Cosas y Ingeniería Web
+    { docenteCodigo: "DOC008", cursoCodigo: "EE-802", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC008", cursoCodigo: "EE-802", tipo: TipoClase.LABORATORIO },
+    { docenteCodigo: "DOC008", cursoCodigo: "EE-905", tipo: TipoClase.TEORIA },
+    { docenteCodigo: "DOC008", cursoCodigo: "EE-905", tipo: TipoClase.LABORATORIO },
+  ];
+
+  for (const a of asignacionesDocenteCurso) {
+    const doc = dbDocentes.find((d) => d.codigo === a.docenteCodigo);
+    const cur = dbCursos.find((c) => c.codigo === a.cursoCodigo);
+    if (doc && cur) {
+      await docenteCursoRepo.save(
+        docenteCursoRepo.create({
+          docenteId: doc.id,
+          cursoId: cur.id,
+          tipo_clase: a.tipo,
+        })
+      );
     }
   }
-  console.log(
-    ambientesCreados > 0
-      ? `✅ ${ambientesCreados} ambiente(s) creado(s)`
-      : "⏭️  Ambientes ya existen, omitiendo...",
+  console.log("✅ Carga docente asignada coherentemente según especialidad\n");
+
+  // ── 8. DISPONIBILIDAD DOCENTE (LUNES A VIERNES 07:00 - 22:00) ─────────────
+  console.log("🕐 Registrando disponibilidad horaria para todos los docentes...");
+  for (const doc of dbDocentes) {
+    for (let dia = 1; dia <= 5; dia++) {
+      await disponibilidadRepo.save(
+        disponibilidadRepo.create({
+          docente: doc,
+          dia_semana: dia,
+          hora_inicio: "07:00:00",
+          hora_fin: "22:00:00",
+          disponible: true,
+          periodo_academico: "2026-I",
+        })
+      );
+    }
+  }
+  console.log("✅ Lunes a Viernes de 07:00 a 22:00 programado de forma predeterminada para todos los docentes\n");
+
+  // ── 9. RESTRICCIÓN INSTITUCIONAL Y DÍA NO LABORABLE DE EJEMPLO ──────────
+  console.log("⚙️  Configurando parámetros de validación académica...");
+  await restriccionRepo.save(
+    restriccionRepo.create({
+      tipo_restriccion: "MAX_HORAS_DIA",
+      valor: { max_horas: 8 },
+      periodo_academico: "2026-I",
+      activo: true,
+    })
   );
+  console.log("✅ Restricción institucional MAX_HORAS_DIA (8 horas) configurada para 2026-I");
+
+  await diaNoLaborableRepo.save(
+    diaNoLaborableRepo.create({
+      fecha: new Date("2026-05-25"), // Feriado de prueba
+      descripcion: "Feriado de Integración Universitaria",
+      tipo: "FERIADO",
+      periodo_academico: "2026-I",
+      afecta_aulas: true,
+      afecta_laboratorios: true,
+    })
+  );
+  console.log("✅ Día no laborable (2026-05-25) creado para pruebas de negocio\n");
 
   await AppDataSource.destroy();
-  console.log("\n🎉 Seed completado exitosamente!");
-  console.log("─────────────────────────────────────────");
-  console.log("  Admin: admin@unt.edu.pe / Admin123!");
-  console.log("─────────────────────────────────────────");
+  console.log("🎉 ¡Seed completado exitosamente con TODOS los 82 cursos!");
+  console.log("─────────────────────────────────────────────────────────────");
+  console.log("  Cuentas de acceso creadas (todas con clave: Admin123!):");
+  console.log("   - admin@unt.edu.pe       (Rol: Administrador)");
+  console.log("   - director@unt.edu.pe    (Rol: Director)");
+  console.log("   - coordinador@unt.edu.pe (Rol: Coordinador)");
+  console.log("   - operador@unt.edu.pe    (Rol: Operador)");
+  console.log("   - jperez@unt.edu.pe      (Rol: Docente - Juan Carlos Pérez)");
+  console.log("─────────────────────────────────────────────────────────────");
 }
 
 seed().catch((error) => {
-  console.error("❌ Error durante el seed:", error);
+  console.error("❌ Error durante la ejecución del seed:", error);
   process.exit(1);
 });

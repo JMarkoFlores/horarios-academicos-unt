@@ -3,6 +3,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
 import { DisponibilidadDocente } from "../../entities/disponibilidad-docente.entity";
+import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
+import { RestriccionInstitucional } from "../../entities/restriccion-institucional.entity";
 
 @Injectable()
 export class ValidacionesService {
@@ -11,6 +13,10 @@ export class ValidacionesService {
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(DisponibilidadDocente)
     private readonly disponibilidadRepo: Repository<DisponibilidadDocente>,
+    @InjectRepository(DiaNoLaborable)
+    private readonly diaNoLaborableRepo: Repository<DiaNoLaborable>,
+    @InjectRepository(RestriccionInstitucional)
+    private readonly restriccionRepo: Repository<RestriccionInstitucional>,
   ) {}
 
   async verificarCruceDocente(
@@ -117,5 +123,84 @@ export class ValidacionesService {
     const inicioMin = toMinutes(horaInicio);
     const finMin = toMinutes(horaFin);
     return inicioMin >= 7 * 60 && finMin <= 22 * 60 && inicioMin < finMin;
+  }
+
+  async verificarDiaNoLaborable(
+    fecha: Date | string,
+    periodo: string,
+  ): Promise<boolean> {
+    let fechaStr: string;
+
+    if (typeof fecha === "string") {
+      if (/^\d{4}-\d{2}-\d{2}/.test(fecha)) {
+        fechaStr = fecha.substring(0, 10);
+      } else {
+        const fechaDate = new Date(fecha);
+        const year = fechaDate.getFullYear();
+        const month = String(fechaDate.getMonth() + 1).padStart(2, "0");
+        const day = String(fechaDate.getDate()).padStart(2, "0");
+        fechaStr = `${year}-${month}-${day}`;
+      }
+    } else {
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, "0");
+      const day = String(fecha.getDate()).padStart(2, "0");
+      fechaStr = `${year}-${month}-${day}`;
+    }
+
+    const count = await this.diaNoLaborableRepo
+      .createQueryBuilder("d")
+      .where("d.fecha = :fechaStr", { fechaStr })
+      .andWhere("d.periodo_academico = :periodo", { periodo })
+      .getCount();
+
+    return count > 0;
+  }
+
+  async verificarMaxHorasDocente(
+    docenteId: number,
+    dia: number,
+    duracion: number,
+    periodo: string,
+  ): Promise<boolean> {
+    const restriccion = await this.restriccionRepo.findOne({
+      where: {
+        tipo_restriccion: "MAX_HORAS_DIA",
+        periodo_academico: periodo,
+        activo: true,
+      },
+    });
+
+    let maxHoras = 8; // Fallback por defecto si no existe una restricción específica
+    if (restriccion && restriccion.valor && typeof restriccion.valor === "object") {
+      const valor = restriccion.valor as Record<string, any>;
+      if (typeof valor.max_horas === "number") {
+        maxHoras = valor.max_horas;
+      }
+    }
+
+    const horarios = await this.horarioRepo.find({
+      where: {
+        docente: { id: docenteId },
+        dia_semana: dia,
+        periodo_academico: periodo,
+      },
+    });
+
+    let totalHoras = 0;
+    const toMinutes = (t: string): number => {
+      const parts = t.split(":").map(Number);
+      const h = parts[0] || 0;
+      const m = parts[1] || 0;
+      return h * 60 + m;
+    };
+
+    for (const h of horarios) {
+      const inicioMin = toMinutes(h.hora_inicio);
+      const finMin = toMinutes(h.hora_fin);
+      totalHoras += (finMin - inicioMin) / 60;
+    }
+
+    return totalHoras + duracion <= maxHoras;
   }
 }

@@ -181,6 +181,15 @@
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let c" class="actions-cell">
             <div class="btn-group">
+              <button
+                mat-icon-button
+                class="btn-action groups"
+                (click)="abrirGestionarGrupos(c)"
+                matTooltip="Gestionar grupos/secciones"
+                style="color: #8b5cf6;"
+              >
+                <mat-icon>groups</mat-icon>
+              </button>
               <a
                 mat-icon-button
                 class="btn-action edit"

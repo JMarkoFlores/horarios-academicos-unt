@@ -4,18 +4,31 @@ import { Repository } from "typeorm";
 import { ValidacionesService } from "./validaciones.service";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
 import { DisponibilidadDocente } from "../../entities/disponibilidad-docente.entity";
+import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
+import { RestriccionInstitucional } from "../../entities/restriccion-institucional.entity";
 
 describe("ValidacionesService", () => {
   let service: ValidacionesService;
   let horarioRepo: Repository<HorarioAsignado>;
   let disponibilidadRepo: Repository<DisponibilidadDocente>;
+  let diaNoLaborableRepo: Repository<DiaNoLaborable>;
+  let restriccionRepo: Repository<RestriccionInstitucional>;
 
   const mockHorarioRepo = {
     createQueryBuilder: jest.fn(),
+    find: jest.fn(),
   };
 
   const mockDisponibilidadRepo = {
     createQueryBuilder: jest.fn(),
+  };
+
+  const mockDiaNoLaborableRepo = {
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockRestriccionRepo = {
+    findOne: jest.fn(),
   };
 
   const mockQueryBuilder = {
@@ -37,6 +50,14 @@ describe("ValidacionesService", () => {
           provide: getRepositoryToken(DisponibilidadDocente),
           useValue: mockDisponibilidadRepo,
         },
+        {
+          provide: getRepositoryToken(DiaNoLaborable),
+          useValue: mockDiaNoLaborableRepo,
+        },
+        {
+          provide: getRepositoryToken(RestriccionInstitucional),
+          useValue: mockRestriccionRepo,
+        },
       ],
     }).compile();
 
@@ -47,10 +68,17 @@ describe("ValidacionesService", () => {
     disponibilidadRepo = module.get<Repository<DisponibilidadDocente>>(
       getRepositoryToken(DisponibilidadDocente),
     );
+    diaNoLaborableRepo = module.get<Repository<DiaNoLaborable>>(
+      getRepositoryToken(DiaNoLaborable),
+    );
+    restriccionRepo = module.get<Repository<RestriccionInstitucional>>(
+      getRepositoryToken(RestriccionInstitucional),
+    );
 
     jest.clearAllMocks();
     mockHorarioRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder);
     mockDisponibilidadRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+    mockDiaNoLaborableRepo.createQueryBuilder.mockReturnValue(mockQueryBuilder);
   });
 
   describe("verificarCruceDocente", () => {
@@ -376,6 +404,105 @@ describe("ValidacionesService", () => {
       expect(result1).toBe(true);
       expect(result2).toBe(false);
       expect(result3).toBe(false);
+    });
+  });
+
+  describe("verificarDiaNoLaborable", () => {
+    it("debe retornar true si el día es no laborable", async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(1);
+
+      const result = await service.verificarDiaNoLaborable("2026-05-25", "2026-I");
+
+      expect(result).toBe(true);
+      expect(diaNoLaborableRepo.createQueryBuilder).toHaveBeenCalledWith("d");
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith("d.fecha = :fechaStr", {
+        fechaStr: "2026-05-25",
+      });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        "d.periodo_academico = :periodo",
+        { periodo: "2026-I" },
+      );
+    });
+
+    it("debe retornar false si el día es laborable regular", async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+
+      const result = await service.verificarDiaNoLaborable("2026-05-26", "2026-I");
+
+      expect(result).toBe(false);
+    });
+
+    it("debe aceptar un objeto Date directamente", async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(1);
+      const fecha = new Date(2026, 4, 25); // 2026-05-25 (month is 0-indexed)
+
+      const result = await service.verificarDiaNoLaborable(fecha, "2026-I");
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe("verificarMaxHorasDocente", () => {
+    it("debe retornar true si la asignación no supera el límite de horas diarias (con restricción personalizada)", async () => {
+      mockRestriccionRepo.findOne.mockResolvedValue({
+        tipo_restriccion: "MAX_HORAS_DIA",
+        valor: { max_horas: 6 },
+        activo: true,
+      });
+
+      mockHorarioRepo.find.mockResolvedValue([
+        { hora_inicio: "08:00", hora_fin: "10:00" }, // 2 horas
+        { hora_inicio: "14:00", hora_fin: "16:00" }, // 2 horas
+      ]);
+
+      const result = await service.verificarMaxHorasDocente(1, 1, 2, "2026-I"); // +2 horas = 6 total (dentro de limite 6)
+
+      expect(result).toBe(true);
+      expect(mockRestriccionRepo.findOne).toHaveBeenCalledWith({
+        where: {
+          tipo_restriccion: "MAX_HORAS_DIA",
+          periodo_academico: "2026-I",
+          activo: true,
+        },
+      });
+      expect(mockHorarioRepo.find).toHaveBeenCalledWith({
+        where: {
+          docente: { id: 1 },
+          dia_semana: 1,
+          periodo_academico: "2026-I",
+        },
+      });
+    });
+
+    it("debe retornar false si la asignación supera el límite de horas diarias", async () => {
+      mockRestriccionRepo.findOne.mockResolvedValue({
+        tipo_restriccion: "MAX_HORAS_DIA",
+        valor: { max_horas: 6 },
+        activo: true,
+      });
+
+      mockHorarioRepo.find.mockResolvedValue([
+        { hora_inicio: "08:00", hora_fin: "10:00" }, // 2 horas
+        { hora_inicio: "14:00", hora_fin: "16:00" }, // 2 horas
+      ]);
+
+      const result = await service.verificarMaxHorasDocente(1, 1, 3, "2026-I"); // +3 horas = 7 total (excede limite 6)
+
+      expect(result).toBe(false);
+    });
+
+    it("debe usar límite fallback de 8 horas si no hay restricción registrada", async () => {
+      mockRestriccionRepo.findOne.mockResolvedValue(null);
+
+      mockHorarioRepo.find.mockResolvedValue([
+        { hora_inicio: "08:00", hora_fin: "12:00" }, // 4 horas
+      ]);
+
+      const resultPermitido = await service.verificarMaxHorasDocente(1, 1, 4, "2026-I"); // +4 horas = 8 total (limite 8)
+      const resultExcedido = await service.verificarMaxHorasDocente(1, 1, 5, "2026-I"); // +5 horas = 9 total (excede limite 8)
+
+      expect(resultPermitido).toBe(true);
+      expect(resultExcedido).toBe(false);
     });
   });
 });

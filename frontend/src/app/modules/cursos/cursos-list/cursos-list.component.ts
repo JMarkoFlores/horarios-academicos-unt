@@ -11,6 +11,7 @@ import {
   ApiResponse,
 } from '../../../core/interfaces/entities';
 import { AsignarAmbientesDialogComponent } from '../dialogs/asignar-ambientes-dialog/asignar-ambientes-dialog.component';
+import { GestionarGruposDialogComponent } from '../dialogs/gestionar-grupos-dialog/gestionar-grupos-dialog.component';
 
 @Component({
   selector: 'app-cursos-list',
@@ -101,6 +102,18 @@ export class CursosListComponent implements OnInit {
       width: '540px',
       maxWidth: '95vw',
       data: { curso, tipo_clase: tipo },
+    });
+
+    dialogRef.afterClosed().subscribe((result: boolean) => {
+      if (result) this.loadCursos();
+    });
+  }
+
+  abrirGestionarGrupos(curso: Curso): void {
+    const dialogRef = this.dialog.open(GestionarGruposDialogComponent, {
+      width: '750px',
+      maxWidth: '95vw',
+      data: { curso },
     });
 
     dialogRef.afterClosed().subscribe((result: boolean) => {

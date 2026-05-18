@@ -23,10 +23,9 @@ export class CrearAsignacionDto {
   @IsInt()
   ambiente_id: number;
 
-  @ApiPropertyOptional({ description: "ID del grupo (opcional)" })
-  @IsOptional()
+  @ApiProperty({ description: "ID del grupo" })
   @IsInt()
-  grupo_id?: number;
+  grupo_id: number;
 
   @ApiProperty({
     description: "Día semana 1=Lun…5=Vie",

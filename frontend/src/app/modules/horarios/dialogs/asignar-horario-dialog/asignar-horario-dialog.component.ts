@@ -8,6 +8,7 @@ import {
   Curso,
   Ambiente,
   ApiResponse,
+  Grupo,
 } from '../../../../core/interfaces/entities';
 
 export interface AsignarHorarioData {
@@ -27,6 +28,7 @@ export class AsignarHorarioDialogComponent implements OnInit {
   form!: FormGroup;
   cursos: Curso[] = [];
   ambientes: Ambiente[] = [];
+  grupos: Grupo[] = [];
   loading = false;
   guardando = false;
 
@@ -48,8 +50,18 @@ export class AsignarHorarioDialogComponent implements OnInit {
   ngOnInit(): void {
     this.form = this.fb.group({
       curso_id: [null, Validators.required],
+      grupo_id: [null, Validators.required],
       ambiente_id: [null, Validators.required],
       tipo_clase: ['TEORIA', Validators.required],
+    });
+
+    this.form.get('curso_id')?.valueChanges.subscribe((cursoId) => {
+      if (cursoId) {
+        this.cargarGrupos(cursoId);
+      } else {
+        this.grupos = [];
+        this.form.get('grupo_id')?.reset();
+      }
     });
 
     this.loading = true;
@@ -73,6 +85,23 @@ export class AsignarHorarioDialogComponent implements OnInit {
       });
   }
 
+  cargarGrupos(cursoId: number): void {
+    this.form.get('grupo_id')?.reset();
+    this.grupos = [];
+    this.api
+      .get<ApiResponse<any>>('/grupos', {
+        curso_id: cursoId,
+        periodo: this.data.periodo,
+        limit: 100,
+      })
+      .subscribe({
+        next: (r: any) => {
+          this.grupos = r?.data?.items ?? r?.data ?? [];
+        },
+        error: () => {},
+      });
+  }
+
   get diaLabel(): string {
     return this.dias[this.data.dia] ?? '';
   }
@@ -84,6 +113,7 @@ export class AsignarHorarioDialogComponent implements OnInit {
     const payload = {
       docente_id: this.data.docente.id,
       curso_id: this.form.value.curso_id,
+      grupo_id: this.form.value.grupo_id,
       ambiente_id: this.form.value.ambiente_id,
       dia_semana: this.data.dia,
       hora_inicio: this.data.horaInicio,

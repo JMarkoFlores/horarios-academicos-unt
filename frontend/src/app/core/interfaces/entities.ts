@@ -32,6 +32,7 @@ export interface Docente {
     anios: number;
     meses: number;
   };
+  disponibilidades?: any[];
 }
 
 export interface Curso {

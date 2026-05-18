@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { Docente } from "../entities/docente.entity";
@@ -20,6 +21,7 @@ import { CommonModule } from "../common/common.module";
   imports: [
     TypeOrmModule.forFeature([
       HorarioAsignado,
+      AuditoriaHorario,
       ConflictoAsignacion,
       Ambiente,
       Docente,

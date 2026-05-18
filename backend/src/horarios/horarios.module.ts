@@ -14,6 +14,7 @@ import { AsignacionService } from "./asignacion.service";
 import { HorariosService } from "./horarios.service";
 import { HorariosGateway } from "./horarios.gateway";
 import { HorariosController } from "./horarios.controller";
+import { ValidadorHorarioService } from "./validador-horario.service";
 import { DocentesModule } from "../docentes/docentes.module";
 import { CommonModule } from "../common/common.module";
 
@@ -35,7 +36,7 @@ import { CommonModule } from "../common/common.module";
     CommonModule,
   ],
   controllers: [HorariosController],
-  providers: [AsignacionService, HorariosService, HorariosGateway],
-  exports: [AsignacionService, HorariosService, HorariosGateway],
+  providers: [AsignacionService, HorariosService, HorariosGateway, ValidadorHorarioService],
+  exports: [AsignacionService, HorariosService, HorariosGateway, ValidadorHorarioService],
 })
 export class HorariosModule {}

@@ -6,7 +6,6 @@ import { ColaDocentes } from "../entities/cola-docentes.entity";
 import { VentanaAtencion } from "../entities/ventana-atencion.entity";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 import { Preasignacion } from "../entities/preasignacion.entity";
-import { SeleccionTemporal } from "../entities/seleccion-temporal.entity";
 import { NotificacionDocente } from "../entities/notificacion-docente.entity";
 import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.entity";
 import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
@@ -24,7 +23,6 @@ import { ValidacionesController } from "./controllers/validaciones.controller";
       VentanaAtencion,
       ConflictoAsignacion,
       Preasignacion,
-      SeleccionTemporal,
       NotificacionDocente,
       PreferenciasNotificacion,
       DiaNoLaborable,
@@ -36,4 +34,3 @@ import { ValidacionesController } from "./controllers/validaciones.controller";
   exports: [ValidacionesService, AuditLogService],
 })
 export class CommonModule {}
-

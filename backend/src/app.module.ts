@@ -15,7 +15,6 @@ import { AmbientesModule } from "./ambientes/ambientes.module";
 import { DisponibilidadModule } from "./disponibilidad/disponibilidad.module";
 import { GruposModule } from "./grupos/grupos.module";
 import { HorariosModule } from "./horarios/horarios.module";
-import { VentanasModule } from "./ventanas/ventanas.module";
 import { ReportesModule } from "./reportes/reportes.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
@@ -24,6 +23,7 @@ import { UsuariosModule } from "./usuarios/usuarios.module";
 import { PeriodosModule } from "./periodos/periodos.module";
 import { ConfiguracionModule } from "./configuracion/configuracion.module";
 import { PreasignacionesModule } from "./modules/preasignaciones/preasignaciones.module";
+import { VentanasModule } from "./modules/ventanas/ventanas.module";
 
 @Module({
   imports: [

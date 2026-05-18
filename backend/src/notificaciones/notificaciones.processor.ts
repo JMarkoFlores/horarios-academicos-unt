@@ -11,7 +11,7 @@ export class NotificacionesProcessor {
 
   @Process("recordatorio-24h")
   async handleRecordatorio24h(
-    job: Job<{ docenteId: number; ventanaId: number }>,
+    job: Job<{ docenteId: number; ventanaId: string }>,
   ) {
     this.logger.log(
       `Procesando recordatorio-24h: docente ${job.data.docenteId}`,
@@ -25,7 +25,7 @@ export class NotificacionesProcessor {
 
   @Process("recordatorio-15min")
   async handleRecordatorio15min(
-    job: Job<{ docenteId: number; ventanaId: number }>,
+    job: Job<{ docenteId: number; ventanaId: string }>,
   ) {
     this.logger.log(
       `Procesando recordatorio-15min: docente ${job.data.docenteId}`,

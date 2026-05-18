@@ -1,24 +1,39 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
-  OneToMany,
+  CreateDateColumn,
+  Entity,
   Index,
-} from 'typeorm';
-import { ColaDocentes } from './cola-docentes.entity';
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from "typeorm";
+import { ColaDocente } from "./cola-docentes.entity";
 
-@Entity('ventana_atencion')
-@Index('idx_ventana_periodo', ['periodo_academico'])
-@Index('idx_ventana_hora', ['hora_inicio'])
+export enum EstadoVentanaAtencion {
+  PROGRAMADA = "PROGRAMADA",
+  EN_CURSO = "EN_CURSO",
+  COMPLETADA = "COMPLETADA",
+  CANCELADA = "CANCELADA",
+}
+
+@Entity("ventana_atencion")
+@Index("idx_ventana_periodo", ["periodo"])
+@Index("idx_ventana_fecha", ["fecha"])
+@Index("idx_ventana_categoria", ["categoria"])
 export class VentanaAtencion {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn("uuid")
+  id: string;
 
   @Column({ length: 20 })
-  periodo_academico: string;
+  periodo: string;
 
   @Column({ type: "date" })
   fecha: Date;
+
+  @Column({ length: 120 })
+  categoria: string;
+
+  @Column({ nullable: true, length: 120 })
+  modalidad: string | null;
 
   @Column({ type: "time" })
   hora_inicio: string;
@@ -26,9 +41,56 @@ export class VentanaAtencion {
   @Column({ type: "time" })
   hora_fin: string;
 
-  @Column({ default: true })
-  activo: boolean;
+  @Column({ default: 30 })
+  intervalo_minutos: number;
 
-  @OneToMany(() => ColaDocentes, (cola) => cola.ventana)
-  cola: ColaDocentes[];
+  @Column({
+    type: "enum",
+    enum: EstadoVentanaAtencion,
+    default: EstadoVentanaAtencion.PROGRAMADA,
+  })
+  estado: EstadoVentanaAtencion;
+
+  @CreateDateColumn({ name: "creado_en" })
+  creado_en: Date;
+
+  @OneToMany(() => ColaDocente, (cola) => cola.ventana)
+  colas: ColaDocente[];
+
+  get periodo_academico(): string {
+    return this.periodo;
+  }
+
+  set periodo_academico(value: string) {
+    this.periodo = value;
+  }
+
+  get activo(): boolean {
+    return ![
+      EstadoVentanaAtencion.COMPLETADA,
+      EstadoVentanaAtencion.CANCELADA,
+    ].includes(this.estado);
+  }
+
+  set activo(value: boolean) {
+    if (!value) {
+      this.estado = EstadoVentanaAtencion.CANCELADA;
+      return;
+    }
+
+    if (
+      this.estado === EstadoVentanaAtencion.CANCELADA ||
+      this.estado === EstadoVentanaAtencion.COMPLETADA
+    ) {
+      this.estado = EstadoVentanaAtencion.PROGRAMADA;
+    }
+  }
+
+  get cola(): ColaDocente[] {
+    return this.colas;
+  }
+
+  set cola(value: ColaDocente[]) {
+    this.colas = value;
+  }
 }

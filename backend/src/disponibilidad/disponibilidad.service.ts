@@ -134,16 +134,32 @@ export class DisponibilidadService {
 
   async getRestricciones(periodo: string, page = 1, limit = 20) {
     const [items, total] = await this.restriccionRepo
-      .createQueryBuilder('restriccion')
-      .where('restriccion.periodo_academico = :periodo', { periodo })
-      .andWhere('restriccion.activo = :activo', { activo: true })
-      .orderBy('restriccion.id', 'DESC')
+      .createQueryBuilder("restriccion")
+      .where("restriccion.periodo_academico = :periodo", { periodo })
+      .andWhere("restriccion.activo = :activo", { activo: true })
+      .orderBy("restriccion.id", "DESC")
       .skip((page - 1) * limit)
       .take(limit)
       .cache(`restricciones_periodo_${periodo}_${page}_${limit}`, 60000)
       .getManyAndCount();
 
     return { items, total, page, limit };
+  }
+
+  async eliminarDisponibilidad(docenteId: number, periodo: string) {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
+    if (!docente) {
+      throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
+    }
+    await this.dataSource
+      .createQueryBuilder()
+      .delete()
+      .from(DisponibilidadDocente)
+      .where('"docente_id" = :docenteId', { docenteId })
+      .andWhere("periodo_academico = :periodo", { periodo })
+      .execute();
   }
 
   async upsertRestriccion(
@@ -160,8 +176,8 @@ export class DisponibilidadService {
 
   async getPeriodos(page = 1, limit = 20) {
     const [items, total] = await this.periodoRepo
-      .createQueryBuilder('periodo')
-      .orderBy('periodo.codigo', 'DESC')
+      .createQueryBuilder("periodo")
+      .orderBy("periodo.codigo", "DESC")
       .skip((page - 1) * limit)
       .take(limit)
       .cache(`periodos_${page}_${limit}`, 60000)

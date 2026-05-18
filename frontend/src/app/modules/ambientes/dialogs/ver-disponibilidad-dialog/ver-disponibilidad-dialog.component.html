@@ -1,0 +1,66 @@
+<div class="dialog-header">
+  <div class="header-title">
+    <mat-icon>calendar_month</mat-icon>
+    <div>
+      <h2>Disponibilidad – {{ ambiente.nombre }}</h2>
+      <span class="periodo-label">Período {{ periodoService.periodo }}</span>
+    </div>
+  </div>
+  <button mat-icon-button class="close-btn" (click)="cerrar()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content>
+  <div class="stats-row">
+    <div class="stat-chip">
+      <mat-icon>schedule</mat-icon>
+      <span><strong>{{ totalHoras }}</strong> horas ocupadas</span>
+    </div>
+    <div class="stat-chip">
+      <span class="dot teoria"></span>
+      <span>Teoría</span>
+    </div>
+    <div class="stat-chip">
+      <span class="dot lab"></span>
+      <span>Laboratorio</span>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="spinner-center">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <div class="grid-wrapper" *ngIf="!loading">
+    <table class="schedule-grid">
+      <thead>
+        <tr>
+          <th class="hora-header">Hora</th>
+          <th *ngFor="let d of dias">{{ d }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let h of horas">
+          <td class="hora-cell">{{ fmtH(h) }}</td>
+          <td
+            *ngFor="let dia of diasNum"
+            [class]="cls(dia, h)"
+            [matTooltip]="getSlot(dia, h)?.curso ?? ''"
+          >
+            <ng-container *ngIf="getSlot(dia, h) as slot">
+              <div class="slot-info">
+                <mat-icon class="slot-icon">check_circle</mat-icon>
+                <span class="slot-curso">{{ slot.curso }}</span>
+                <span class="slot-docente" *ngIf="slot.docente">{{ slot.docente }}</span>
+              </div>
+            </ng-container>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="cerrar()">Cerrar</button>
+</mat-dialog-actions>

@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsString,
   IsEnum,
+  IsBoolean,
   IsInt,
   IsOptional,
   Min,
@@ -44,4 +45,9 @@ export class CreateAmbienteDto {
   @IsOptional()
   @IsString()
   equipamiento?: string;
+
+  @ApiPropertyOptional({ description: "Estado activo/inactivo" })
+  @IsOptional()
+  @IsBoolean()
+  activo?: boolean;
 }

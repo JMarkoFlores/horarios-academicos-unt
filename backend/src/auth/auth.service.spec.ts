@@ -26,7 +26,7 @@ describe("AuthService", () => {
     id: 1,
     email: "test@example.com",
     nombre: "Test User",
-    rol: RolUsuario.OPERADOR,
+    rol: RolUsuario.OPERADOR_HORARIOS,
     password_hash: "hashedPassword",
     activo: true,
     created_at: new Date(),

@@ -30,9 +30,8 @@ export class AmbientesService {
     }
 
     if (activo !== undefined) {
-      qb.andWhere("ambiente.activo = :activo", { activo });
-    } else {
-      qb.andWhere("ambiente.activo = :activo", { activo: true });
+      const activoBool = activo === "true";
+      qb.andWhere("ambiente.activo = :activo", { activo: activoBool });
     }
 
     const [items, total] = await qb
@@ -40,7 +39,10 @@ export class AmbientesService {
       .addOrderBy("ambiente.codigo", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
-      .cache(`ambientes_list_${tipo ?? 'all'}_${activo ?? 'default'}_${page}_${limit}`, 60000)
+      .cache(
+        `ambientes_list_${tipo ?? "all"}_${activo ?? "default"}_${page}_${limit}`,
+        60000,
+      )
       .getManyAndCount();
 
     return {
@@ -99,22 +101,30 @@ export class AmbientesService {
     await this.ambienteRepo.save({ ...ambiente, activo: false });
   }
 
-  async getDisponibilidad(ambienteId: number, periodo: string, page = 1, limit = 20) {
+  async getDisponibilidad(
+    ambienteId: number,
+    periodo: string,
+    page = 1,
+    limit = 20,
+  ) {
     await this.findOne(ambienteId);
 
     const [horarios, total] = await this.horarioRepo
-      .createQueryBuilder('horario')
-      .leftJoinAndSelect('horario.docente', 'docente')
-      .leftJoinAndSelect('horario.curso', 'curso')
-      .leftJoinAndSelect('horario.grupo', 'grupo')
-      .leftJoinAndSelect('horario.ambiente', 'ambiente')
-      .where('ambiente.id = :ambienteId', { ambienteId })
-      .andWhere('horario.periodo_academico = :periodo', { periodo })
-      .orderBy('horario.dia_semana', 'ASC')
-      .addOrderBy('horario.hora_inicio', 'ASC')
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .where("ambiente.id = :ambienteId", { ambienteId })
+      .andWhere("horario.periodo_academico = :periodo", { periodo })
+      .orderBy("horario.dia_semana", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
-      .cache(`horarios_periodo_${periodo}_ambiente_${ambienteId}_${page}_${limit}`, 60000)
+      .cache(
+        `horarios_periodo_${periodo}_ambiente_${ambienteId}_${page}_${limit}`,
+        60000,
+      )
       .getManyAndCount();
 
     const diasNombre = [

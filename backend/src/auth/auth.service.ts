@@ -1,10 +1,21 @@
-import { Injectable, UnauthorizedException, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
+import * as crypto from "crypto";
 import { Usuario } from "../entities/usuario.entity";
 import { LoginDto } from "./dto/login.dto";
+import { CambiarPasswordDto } from "./dto/cambiar-password.dto";
+import { RecuperarPasswordDto } from "./dto/recuperar-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { MailService } from "../mail/mail.service";
 
 export interface JwtPayload {
   sub: number;
@@ -25,6 +36,7 @@ export class AuthService {
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<LoginResult> {
@@ -94,5 +106,57 @@ export class AuthService {
       return false;
     }
     return await bcrypt.compare(password, hash);
+  }
+
+  async cambiarPassword(
+    usuario: Usuario,
+    dto: CambiarPasswordDto,
+  ): Promise<void> {
+    if (dto.password_nueva !== dto.confirmar_password) {
+      throw new BadRequestException("Las contraseñas no coinciden");
+    }
+    const valida = await this.comparePassword(
+      dto.password_actual,
+      usuario.password_hash,
+    );
+    if (!valida) {
+      throw new UnauthorizedException("Contraseña actual incorrecta");
+    }
+    usuario.password_hash = await this.hashPassword(dto.password_nueva);
+    await this.usuarioRepository.save(usuario);
+  }
+
+  async recuperarPassword(dto: RecuperarPasswordDto): Promise<void> {
+    const usuario = await this.usuarioRepository.findOne({
+      where: { email: dto.email },
+    });
+    if (usuario) {
+      const token = crypto.randomUUID();
+      const expira = new Date();
+      expira.setHours(expira.getHours() + 1);
+      usuario.reset_token = token;
+      usuario.reset_token_expira = expira;
+      await this.usuarioRepository.save(usuario);
+      this.mailService.sendPasswordReset(dto.email, token);
+    }
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    if (dto.password_nueva !== dto.confirmar_password) {
+      throw new BadRequestException("Las contraseñas no coinciden");
+    }
+    const usuario = await this.usuarioRepository.findOne({
+      where: { reset_token: dto.token },
+    });
+    if (!usuario || !usuario.reset_token_expira) {
+      throw new NotFoundException("Token inválido o expirado");
+    }
+    if (usuario.reset_token_expira < new Date()) {
+      throw new BadRequestException("El token ha expirado");
+    }
+    usuario.password_hash = await this.hashPassword(dto.password_nueva);
+    usuario.reset_token = null;
+    usuario.reset_token_expira = null;
+    await this.usuarioRepository.save(usuario);
   }
 }

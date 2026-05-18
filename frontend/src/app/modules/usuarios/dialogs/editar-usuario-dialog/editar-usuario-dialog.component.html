@@ -1,0 +1,48 @@
+<h2 mat-dialog-title>
+  <mat-icon style="vertical-align:middle;margin-right:8px;color:var(--color-primary)">edit</mat-icon>
+  Editar Usuario
+</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="dialog-form">
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Nombre completo</mat-label>
+      <input matInput formControlName="nombre" />
+      <mat-icon matSuffix>person</mat-icon>
+      <mat-error *ngIf="form.get('nombre')?.hasError('required')">El nombre es obligatorio</mat-error>
+      <mat-error *ngIf="form.get('nombre')?.hasError('minlength')">Mínimo 3 caracteres</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Correo electrónico</mat-label>
+      <input matInput formControlName="email" type="email" />
+      <mat-icon matSuffix>email</mat-icon>
+      <mat-error *ngIf="form.get('email')?.hasError('required')">El correo es obligatorio</mat-error>
+      <mat-error *ngIf="form.get('email')?.hasError('email')">Ingresa un correo válido</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Rol del usuario</mat-label>
+      <mat-select formControlName="rol">
+        <mat-option *ngFor="let r of roles" [value]="r.value">{{ r.label }}</mat-option>
+      </mat-select>
+      <mat-icon matSuffix>badge</mat-icon>
+    </mat-form-field>
+
+    <div class="activo-toggle">
+      <mat-slide-toggle formControlName="activo" color="primary">
+        Usuario {{ form.get('activo')?.value ? 'Activo' : 'Inactivo' }}
+      </mat-slide-toggle>
+    </div>
+
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancelar()" [disabled]="loading">Cancelar</button>
+  <button mat-flat-button color="primary" (click)="guardar()" [disabled]="form.invalid || loading">
+    <mat-spinner *ngIf="loading" diameter="18" style="display:inline-block;margin-right:8px"></mat-spinner>
+    Guardar cambios
+  </button>
+</mat-dialog-actions>

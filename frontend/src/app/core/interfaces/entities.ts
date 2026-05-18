@@ -32,6 +32,7 @@ export interface Docente {
     anios: number;
     meses: number;
   };
+  disponibilidades?: any[];
 }
 
 export interface Curso {
@@ -46,6 +47,15 @@ export interface Curso {
   activo: boolean;
   ambientes_teoria?: Ambiente[];
   ambientes_laboratorio?: Ambiente[];
+  ambientes?: Ambiente[];
+}
+
+export interface Grupo {
+  id: number;
+  codigo: string;
+  nombre: string;
+  ciclo: number;
+  cupo_maximo: number;
 }
 
 export interface Ambiente {
@@ -92,6 +102,22 @@ export interface ConflictoAsignacion {
   ambiente?: Ambiente;
 }
 
+export type EstadoPeriodo =
+  | 'planificacion'
+  | 'asignacionhorarios'
+  | 'encurso'
+  | 'finalizado';
+
+export interface PeriodoAcademico {
+  id: number;
+  codigo: string;
+  nombre: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  estado: EstadoPeriodo;
+  activo: boolean;
+}
+
 export interface KPIs {
   total_docentes: number;
   docentes_con_horario: number;
@@ -107,6 +133,10 @@ export interface KPIs {
   cursos_asignados: number;
   conflictos_activos: number;
   horas_promedio_por_docente: number;
-  distribucion_por_categoria: { categoria: string; total: number; con_horario: number }[];
+  distribucion_por_categoria: {
+    categoria: string;
+    total: number;
+    con_horario: number;
+  }[];
   progreso_semanal: { semana: string; cursos_asignados: number }[];
 }

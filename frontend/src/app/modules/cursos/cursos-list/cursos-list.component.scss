@@ -15,7 +15,11 @@
     .gradient-text {
       font-size: 28px;
       font-weight: 800;
-      background: linear-gradient(135deg, var(--color-primary), var(--color-accent)); // Azul a Esmeralda
+      background: linear-gradient(
+        135deg,
+        var(--color-primary),
+        var(--color-accent)
+      ); // Azul a Esmeralda
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin: 0;
@@ -44,7 +48,9 @@
       filter: brightness(1.1);
     }
 
-    mat-icon { margin-right: 8px; }
+    mat-icon {
+      margin-right: 8px;
+    }
   }
 }
 
@@ -66,7 +72,7 @@
       flex: 1;
       min-width: 300px;
       position: relative;
-      
+
       .search-icon {
         position: absolute;
         left: 14px;
@@ -101,7 +107,7 @@
     .select-group {
       display: flex;
       gap: 12px;
-      
+
       .premium-select {
         width: 180px;
         margin-bottom: -1.25em;
@@ -120,7 +126,10 @@
 
   .loading-overlay {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(var(--color-surface), 0.8);
     z-index: 10;
     display: flex;
@@ -139,7 +148,7 @@
     .mat-mdc-header-row {
       background-color: var(--color-background) !important;
       height: 52px;
-      
+
       .mat-mdc-header-cell {
         color: var(--color-text-muted);
         font-weight: 700;
@@ -159,7 +168,7 @@
 
       &:hover {
         background-color: var(--color-primary-light) !important;
-        
+
         .code-badge {
           background-color: var(--color-primary);
           color: white;
@@ -184,7 +193,7 @@
   color: var(--color-primary);
   padding: 4px 8px;
   border-radius: 6px;
-  font-family: 'Monaco', 'Consolas', monospace;
+  font-family: "Monaco", "Consolas", monospace;
   font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--color-border);
@@ -195,7 +204,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  
+
   .course-title {
     font-weight: 600;
     color: var(--color-text);
@@ -257,22 +266,26 @@
     display: flex;
     gap: 6px;
     justify-content: flex-end;
-    
+
     .btn-action {
       opacity: 0.5;
       transition: all var(--transition-fast);
       width: 36px;
       height: 36px;
       line-height: 36px;
-      
+
       &.edit {
         color: var(--color-primary);
-        &:hover { background: var(--color-primary-light); }
+        &:hover {
+          background: var(--color-primary-light);
+        }
       }
-      
+
       &.delete {
         color: #ef4444;
-        &:hover { background: rgba(239, 68, 68, 0.1); }
+        &:hover {
+          background: rgba(239, 68, 68, 0.1);
+        }
       }
 
       mat-icon {
@@ -306,7 +319,7 @@
     align-items: center;
     justify-content: center;
     margin: 0 auto 16px;
-    
+
     mat-icon {
       font-size: 32px;
       width: 32px;
@@ -316,6 +329,60 @@
     }
   }
 
-  h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--color-text); }
-  p { color: var(--color-text-muted); font-size: 13px; }
+  h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--color-text);
+  }
+  p {
+    color: var(--color-text-muted);
+    font-size: 13px;
+  }
+}
+
+// ── AMBIENTE COLUMNS ──────────────────────────────────────────────────────
+.ambiente-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ambiente-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+
+  &.aula {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+  }
+
+  &.laboratorio {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+  }
+}
+
+.btn-assign {
+  color: var(--color-primary) !important;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.na-badge {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-style: italic;
 }

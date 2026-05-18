@@ -10,16 +10,18 @@ export class AuthService {
   private readonly TOKEN_KEY = 'unt_token';
   private readonly USER_KEY = 'unt_user';
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+  ) {}
 
   login(email: string, password: string): Observable<any> {
     return this.http
-      .post<{ data: { access_token: string; usuario: Usuario } }>(
-        `${environment.apiUrl}/auth/login`,
-        { email, password },
-      )
+      .post<{
+        data: { access_token: string; usuario: Usuario };
+      }>(`${environment.apiUrl}/auth/login`, { email, password })
       .pipe(
-        tap(res => {
+        tap((res) => {
           localStorage.setItem(this.TOKEN_KEY, res.data.access_token);
           localStorage.setItem(this.USER_KEY, JSON.stringify(res.data.usuario));
         }),
@@ -55,5 +57,16 @@ export class AuthService {
   hasRole(...roles: string[]): boolean {
     const user = this.getUsuarioActual();
     return !!user && roles.includes(user.rol);
+  }
+
+  cambiarPassword(payload: {
+    password_actual: string;
+    password_nueva: string;
+    confirmar_password: string;
+  }): Observable<any> {
+    return this.http.post(
+      `${environment.apiUrl}/auth/cambiar-password`,
+      payload,
+    );
   }
 }

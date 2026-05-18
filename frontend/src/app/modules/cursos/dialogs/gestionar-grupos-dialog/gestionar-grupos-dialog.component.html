@@ -1,0 +1,118 @@
+<div class="dialog-container">
+  <div class="dialog-header-premium">
+    <div class="header-main">
+      <h2 mat-dialog-title class="gradient-title">Grupos y Secciones</h2>
+      <p class="subtitle">{{ data.curso.codigo }} – {{ data.curso.nombre }}</p>
+    </div>
+    <div class="header-badge">
+      <span>Período {{ periodoService.periodo }}</span>
+    </div>
+  </div>
+
+  <mat-dialog-content class="dialog-body-premium">
+    <!-- Formulario Inline de Creación / Edición -->
+    <div class="premium-form-panel">
+      <h3 class="panel-subtitle">
+        {{ editingGroupId ? 'Editar Grupo' : 'Nuevo Grupo / Sección' }}
+      </h3>
+      <form [formGroup]="form" class="inline-form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Código</mat-label>
+          <input matInput formControlName="codigo" placeholder="Ej. A, B, Sec1" />
+          <mat-error>Código requerido (máx 10)</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre del Grupo</mat-label>
+          <input matInput formControlName="nombre" placeholder="Ej. Grupo A, Laboratorio 1" />
+          <mat-error>Nombre requerido</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Ciclo</mat-label>
+          <input type="number" matInput formControlName="ciclo" />
+          <mat-error>Ciclo válido (1 - 12)</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Cupo Máx.</mat-label>
+          <input type="number" matInput formControlName="cupo_maximo" />
+          <mat-error>Cupo válido</mat-error>
+        </mat-form-field>
+
+        <div class="form-actions-inline">
+          <button
+            mat-flat-button
+            color="primary"
+            class="btn-save-inline"
+            (click)="guardar()"
+            [disabled]="form.invalid || guardando"
+          >
+            <mat-spinner *ngIf="guardando" diameter="16" class="inline-spinner"></mat-spinner>
+            <span *ngIf="!guardando">{{ editingGroupId ? 'Guardar Cambios' : 'Agregar' }}</span>
+          </button>
+          <button
+            *ngIf="editingGroupId"
+            mat-stroked-button
+            color="warn"
+            class="btn-cancel-inline"
+            (click)="cancelarEdicion()"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Lista de Grupos Existentes -->
+    <div class="grupos-list-panel">
+      <h3 class="panel-subtitle">Grupos Registrados</h3>
+
+      <div *ngIf="loading" class="spinner-center">
+        <mat-spinner diameter="36" strokeWidth="3"></mat-spinner>
+        <span>Cargando secciones...</span>
+      </div>
+
+      <div *ngIf="!loading && grupos.length === 0" class="empty-state-dialog">
+        <mat-icon class="empty-icon">groups</mat-icon>
+        <p>No se han registrado grupos para este curso en el período activo.</p>
+      </div>
+
+      <div *ngIf="!loading && grupos.length > 0" class="grupos-grid">
+        <div *ngFor="let g of grupos" class="grupo-premium-card">
+          <div class="card-left">
+            <span class="grupo-code-badge">{{ g.codigo }}</span>
+            <div class="grupo-details">
+              <span class="grupo-name">{{ g.nombre }}</span>
+              <span class="grupo-meta">Ciclo {{ g.ciclo }} · Cupo: {{ g.cupo_maximo }} alumnos</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button
+              mat-icon-button
+              class="btn-card-edit"
+              (click)="activarEdicion(g)"
+              matTooltip="Editar"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              class="btn-card-delete"
+              (click)="eliminar(g)"
+              matTooltip="Eliminar"
+            >
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="dialog-actions-premium">
+    <button mat-flat-button color="accent" class="btn-close" (click)="cerrar()">
+      Aceptar y Cerrar
+    </button>
+  </mat-dialog-actions>
+</div>

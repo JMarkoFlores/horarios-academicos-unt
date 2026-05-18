@@ -68,7 +68,7 @@ export class CursosController {
   }
 
   @Post()
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear nuevo curso" })
   @ApiResponse({ status: 201, description: "Curso creado" })
   @ApiResponse({ status: 409, description: "Código de curso duplicado" })
@@ -78,7 +78,7 @@ export class CursosController {
   }
 
   @Post(":id/ambientes")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Asignar ambientes compatibles a un curso" })
   @ApiParam({ name: "id", type: Number })
   async asignarAmbientes(
@@ -94,7 +94,7 @@ export class CursosController {
   }
 
   @Patch(":id")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Actualizar datos de un curso" })
   @ApiParam({ name: "id", type: Number })
   async update(
@@ -106,7 +106,7 @@ export class CursosController {
   }
 
   @Delete(":id")
-  @Roles(RolUsuario.ADMIN)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Desactivar un curso (soft delete)" })
   @ApiParam({ name: "id", type: Number })

@@ -1,8 +1,10 @@
 import { Component, OnInit } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { PageEvent } from '@angular/material/paginator';
 import { ApiService } from '../../../core/services/api.service';
 import { Ambiente, ApiResponse } from '../../../core/interfaces/entities';
+import { VerDisponibilidadDialogComponent } from '../dialogs/ver-disponibilidad-dialog/ver-disponibilidad-dialog.component';
 
 @Component({
   selector: 'app-ambientes-list',
@@ -25,10 +27,12 @@ export class AmbientesListComponent implements OnInit {
   currentPage = 0;
   loading = false;
   tipoFilter = '';
+  estadoFilter = '';
 
   constructor(
     private api: ApiService,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -42,6 +46,7 @@ export class AmbientesListComponent implements OnInit {
       limit: this.pageSize,
     };
     if (this.tipoFilter) params['tipo'] = this.tipoFilter;
+    if (this.estadoFilter !== '') params['activo'] = this.estadoFilter;
 
     this.api
       .get<
@@ -67,6 +72,25 @@ export class AmbientesListComponent implements OnInit {
   onFilterChange(): void {
     this.currentPage = 0;
     this.loadAmbientes();
+  }
+
+  verDisponibilidad(a: Ambiente): void {
+    this.dialog.open(VerDisponibilidadDialogComponent, {
+      width: '720px',
+      maxWidth: '98vw',
+      data: a,
+    });
+  }
+
+  activar(a: Ambiente): void {
+    this.api
+      .patch<ApiResponse<any>>(`/ambientes/${a.id}`, { activo: true })
+      .subscribe({
+        next: () => {
+          this.snackBar.open('Ambiente activado', 'OK', { duration: 2000 });
+          this.loadAmbientes();
+        },
+      });
   }
 
   desactivar(a: Ambiente): void {

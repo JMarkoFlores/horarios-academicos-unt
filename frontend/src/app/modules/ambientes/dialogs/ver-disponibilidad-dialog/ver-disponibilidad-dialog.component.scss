@@ -1,0 +1,192 @@
+:host {
+  display: block;
+  min-width: 680px;
+  max-width: 95vw;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0 24px;
+  margin-bottom: 8px;
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    mat-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+      color: var(--color-primary);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .periodo-label {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+  }
+
+  .close-btn {
+    color: var(--color-text-muted);
+  }
+}
+
+.stats-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  .stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    font-size: 12px;
+    color: #e2e8f0;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: var(--color-primary);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+
+      &.teoria { background: #3b82f6; }
+      &.lab { background: #10b981; }
+    }
+  }
+}
+
+.spinner-center {
+  display: flex;
+  justify-content: center;
+  padding: 32px;
+}
+
+.grid-wrapper {
+  overflow-x: auto;
+}
+
+.schedule-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 4px;
+  min-width: 560px;
+
+  th, td {
+    padding: 8px;
+    text-align: center;
+    border-radius: 8px;
+  }
+
+  thead th {
+    background: #1e3a5f;
+    color: #e2e8f0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid #2563eb;
+  }
+
+  .hora-header {
+    width: 50px;
+  }
+
+  .hora-cell {
+    background: #1e293b;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #334155;
+    width: 50px;
+  }
+
+  td {
+    height: 56px;
+    vertical-align: middle;
+    font-size: 11px;
+    transition: background 0.15s;
+  }
+
+  .celda-vacia {
+    background: transparent;
+    border: 1px dashed #334155;
+  }
+
+  .celda-ocupado {
+    background: rgba(59, 130, 246, 0.18);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: #bfdbfe;
+    cursor: default;
+
+    .slot-icon {
+      color: #3b82f6;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .celda-lab {
+    background: rgba(16, 185, 129, 0.18);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #a7f3d0;
+
+    .slot-icon {
+      color: #10b981;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .slot-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    line-height: 1.2;
+
+    .slot-curso {
+      font-weight: 600;
+      font-size: 10px;
+      max-width: 90px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .slot-docente {
+      font-size: 9px;
+      opacity: 0.8;
+      max-width: 90px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+mat-dialog-actions {
+  padding: 8px 24px 16px;
+}

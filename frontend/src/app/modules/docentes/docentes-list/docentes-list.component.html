@@ -5,8 +5,22 @@
       <p class="subtitle">Administra el cuerpo académico de la facultad</p>
     </div>
     <div class="header-actions">
+      <button
+        mat-stroked-button
+        class="btn-export"
+        (click)="exportarExcel()"
+        [disabled]="exportando"
+      >
+        <mat-spinner
+          *ngIf="exportando"
+          diameter="16"
+          class="export-spinner"
+        ></mat-spinner>
+        <mat-icon *ngIf="!exportando">download</mat-icon>
+        <span>{{ exportando ? "Exportando…" : "Exportar Excel" }}</span>
+      </button>
       <a mat-raised-button class="btn-new" routerLink="/app/docentes/nuevo">
-        <mat-icon>person_add</mat-icon> 
+        <mat-icon>person_add</mat-icon>
         <span>Nuevo Docente</span>
       </a>
     </div>
@@ -17,28 +31,38 @@
     <div class="filter-grid">
       <div class="search-wrapper">
         <mat-icon class="search-icon">search</mat-icon>
-        <input 
-          type="text" 
-          [formControl]="searchControl" 
+        <input
+          type="text"
+          [formControl]="searchControl"
           placeholder="Buscar por nombre, código o email..."
           class="premium-input"
-        >
+        />
       </div>
 
       <div class="select-group">
         <mat-form-field appearance="outline" class="premium-select">
           <mat-label>Categoría</mat-label>
-          <mat-select [(ngModel)]="categoriaFilter" (ngModelChange)="onFilterChange()">
+          <mat-select
+            [(ngModel)]="categoriaFilter"
+            (ngModelChange)="onFilterChange()"
+          >
             <mat-option value="">Todas las categorías</mat-option>
-            <mat-option *ngFor="let c of categorias" [value]="c">{{ c }}</mat-option>
+            <mat-option *ngFor="let c of categorias" [value]="c">{{
+              c
+            }}</mat-option>
           </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="premium-select">
           <mat-label>Tipo Contrato</mat-label>
-          <mat-select [(ngModel)]="tipoContratoFilter" (ngModelChange)="onFilterChange()">
+          <mat-select
+            [(ngModel)]="tipoContratoFilter"
+            (ngModelChange)="onFilterChange()"
+          >
             <mat-option value="">Todos los tipos</mat-option>
-            <mat-option *ngFor="let t of tiposContrato" [value]="t">{{ t }}</mat-option>
+            <mat-option *ngFor="let t of tiposContrato" [value]="t">{{
+              t
+            }}</mat-option>
           </mat-select>
         </mat-form-field>
       </div>
@@ -54,17 +78,21 @@
 
     <div class="table-scroll" *ngIf="!loading">
       <table mat-table [dataSource]="dataSource" matSort class="premium-table">
-
         <!-- Avatar + Name Column -->
         <ng-container matColumnDef="nombre">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Docente</th>
           <td mat-cell *matCellDef="let d">
             <div class="user-cell">
-              <div class="avatar-circle" [style.background-color]="getAvatarColor(d.nombres)">
+              <div
+                class="avatar-circle"
+                [style.background-color]="getAvatarColor(d.nombres)"
+              >
                 {{ d.nombres[0] }}{{ d.apellidos[0] }}
               </div>
               <div class="user-info">
-                <span class="full-name">{{ d.apellidos }}, {{ d.nombres }}</span>
+                <span class="full-name"
+                  >{{ d.apellidos }}, {{ d.nombres }}</span
+                >
                 <span class="user-code">{{ d.codigo }}</span>
               </div>
             </div>
@@ -75,7 +103,9 @@
         <ng-container matColumnDef="categoria">
           <th mat-header-cell *matHeaderCellDef>Categoría</th>
           <td mat-cell *matCellDef="let d">
-            <span [class]="'badge-pill badge-' + d.categoria">{{ d.categoria }}</span>
+            <span [class]="'badge-pill badge-' + d.categoria">{{
+              d.categoria
+            }}</span>
           </td>
         </ng-container>
 
@@ -84,8 +114,15 @@
           <th mat-header-cell *matHeaderCellDef>Contrato</th>
           <td mat-cell *matCellDef="let d">
             <div class="contract-cell">
-              <mat-icon class="contract-icon" [color]="d.tipo_contrato === 'NOMBRADO' ? 'primary' : ''">
-                {{ d.tipo_contrato === 'NOMBRADO' ? 'verified_user' : 'assignment' }}
+              <mat-icon
+                class="contract-icon"
+                [color]="d.tipo_contrato === 'NOMBRADO' ? 'primary' : ''"
+              >
+                {{
+                  d.tipo_contrato === "NOMBRADO"
+                    ? "verified_user"
+                    : "assignment"
+                }}
               </mat-icon>
               <span>{{ d.tipo_contrato }}</span>
             </div>
@@ -98,7 +135,9 @@
           <td mat-cell *matCellDef="let d">
             <div class="antiguedad-cell" *ngIf="d.antiguedad">
               <span class="years">{{ d.antiguedad.anios }} años</span>
-              <span class="months" *ngIf="d.antiguedad.meses > 0">{{ d.antiguedad.meses }} m</span>
+              <span class="months" *ngIf="d.antiguedad.meses > 0"
+                >{{ d.antiguedad.meses }} m</span
+              >
             </div>
           </td>
         </ng-container>
@@ -108,10 +147,28 @@
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let d" class="actions-cell">
             <div class="btn-group">
-              <a mat-icon-button class="btn-action edit" [routerLink]="['/app/docentes', d.id, 'editar']" matTooltip="Editar">
+              <button
+                mat-icon-button
+                class="btn-action schedule"
+                (click)="verHorario(d)"
+                matTooltip="Ver horario"
+              >
+                <mat-icon>calendar_month</mat-icon>
+              </button>
+              <a
+                mat-icon-button
+                class="btn-action edit"
+                [routerLink]="['/app/docentes', d.id, 'editar']"
+                matTooltip="Editar"
+              >
                 <mat-icon>edit_note</mat-icon>
               </a>
-              <button mat-icon-button class="btn-action delete" (click)="desactivar(d)" matTooltip="Desactivar">
+              <button
+                mat-icon-button
+                class="btn-action delete"
+                (click)="desactivar(d)"
+                matTooltip="Desactivar"
+              >
                 <mat-icon>person_remove</mat-icon>
               </button>
             </div>
@@ -119,7 +176,11 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="premium-row"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          class="premium-row"
+        ></tr>
       </table>
 
       <!-- Empty State -->
@@ -139,7 +200,8 @@
       [pageIndex]="currentPage"
       (page)="onPageChange($event)"
       showFirstLastButtons
-      class="premium-paginator">
+      class="premium-paginator"
+    >
     </mat-paginator>
   </mat-card>
 </div>

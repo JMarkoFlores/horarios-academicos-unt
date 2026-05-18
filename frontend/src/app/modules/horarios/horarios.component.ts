@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { NotifToastService } from '../../core/services/notif-toast.service';
@@ -9,6 +10,7 @@ import {
   HorarioAsignado,
   ConflictoAsignacion,
 } from '../../core/interfaces/entities';
+import { AsignarHorarioDialogComponent } from './dialogs/asignar-horario-dialog/asignar-horario-dialog.component';
 
 @Component({
   selector: 'app-horarios',
@@ -53,6 +55,7 @@ export class HorariosComponent implements OnInit {
     private api: ApiService,
     public periodoService: PeriodoService,
     private notif: NotifToastService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -62,7 +65,7 @@ export class HorariosComponent implements OnInit {
       },
     });
 
-    this.api.get<any>('/ambientes', { limit: 100 }).subscribe({
+    this.api.get<any>('/ambientes', { limit: 100, activo: 'true' }).subscribe({
       next: (r: any) => {
         this.todosAmbientes = r?.data?.items ?? r?.data ?? [];
       },
@@ -107,11 +110,16 @@ export class HorariosComponent implements OnInit {
       });
   }
 
+  private normalizeHora(hora: string | undefined): string {
+    if (!hora) return '';
+    return hora.length >= 5 ? hora.substring(0, 5) : hora;
+  }
+
   getAsigDoc(dia: number, hora: number): HorarioAsignado | null {
     const h = this.fmtH(hora);
     return (
       this.asignacionesDocente.find(
-        (a) => a.dia_semana === dia && a.hora_inicio === h,
+        (a) => a.dia_semana === dia && this.normalizeHora(a.hora_inicio) === h,
       ) ?? null
     );
   }
@@ -120,7 +128,7 @@ export class HorariosComponent implements OnInit {
     const h = this.fmtH(hora);
     return (
       this.asignacionesAmbiente.find(
-        (a) => a.dia_semana === dia && a.hora_inicio === h,
+        (a) => a.dia_semana === dia && this.normalizeHora(a.hora_inicio) === h,
       ) ?? null
     );
   }
@@ -139,6 +147,30 @@ export class HorariosComponent implements OnInit {
 
   fmtH(h: number): string {
     return `${String(h).padStart(2, '0')}:00`;
+  }
+
+  abrirAsignar(dia: number, hora: number): void {
+    if (!this.docenteSeleccionado) return;
+    const hInicio = this.fmtH(hora);
+    const hFin = this.fmtH(hora + 2);
+
+    const dialogRef = this.dialog.open(AsignarHorarioDialogComponent, {
+      width: '480px',
+      maxWidth: '95vw',
+      data: {
+        docente: this.docenteSeleccionado,
+        dia,
+        horaInicio: hInicio,
+        horaFin: hFin,
+        periodo: this.periodoService.periodo,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((result: boolean) => {
+      if (result) {
+        this.selectDocente(this.docenteSeleccionado!);
+      }
+    });
   }
 
   get horasAsignadas(): number {
@@ -172,7 +204,9 @@ export class HorariosComponent implements OnInit {
   loadConflictos(): void {
     this.loadingConflictos = true;
     this.api
-      .get<ApiResponse<any>>(`/horarios/conflictos/${this.periodoService.periodo}`)
+      .get<
+        ApiResponse<any>
+      >(`/horarios/conflictos/${this.periodoService.periodo}`)
       .subscribe({
         next: (r) => {
           this.conflictos = r.data?.items ?? r.data ?? [];
@@ -214,7 +248,7 @@ export class HorariosComponent implements OnInit {
           this.generando = false;
           this.resultadoGeneracion = {
             asignaciones: r.data?.asignaciones_creadas ?? 0,
-            conflictos: r.data?.conflictos ?? 0
+            conflictos: r.data?.conflictos ?? 0,
           };
           this.notif.success('Horario generado');
         },

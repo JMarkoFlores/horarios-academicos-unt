@@ -54,6 +54,7 @@
         </div>
       </div>
 
+<<<<<<< HEAD
       <div *ngIf="loadingDocente" class="spinner-center">
         <mat-spinner diameter="50"></mat-spinner>
       </div>
@@ -93,6 +94,35 @@
               </tbody>
             </table>
           </div>
+=======
+        <div class="grid-wrapper">
+          <table class="horario-grid">
+            <thead>
+              <tr>
+                <th class="hora-col">Hora</th>
+                <th *ngFor="let dia of dias">{{ dia }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let hora of horas">
+                <td class="hora-cell">{{ fmtH(hora) }}</td>
+                <td
+                  *ngFor="let dNum of diasNum"
+                  class="celda"
+                  [ngClass]="clsDoc(dNum, hora)"
+                  (click)="!getAsigDoc(dNum, hora) && abrirAsignar(dNum, hora)"
+                >
+                  <ng-container *ngIf="getAsigDoc(dNum, hora) as a">
+                    <div class="celda-content">
+                      <div class="curso-txt">{{ a.curso?.nombre }}</div>
+                      <div class="amb-txt">{{ a.ambiente?.codigo }}</div>
+                    </div>
+                  </ng-container>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+>>>>>>> develop
         </div>
 
         <div class="legend-premium animate-fade-in">

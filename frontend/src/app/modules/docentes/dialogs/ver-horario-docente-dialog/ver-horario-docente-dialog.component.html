@@ -1,0 +1,87 @@
+<div class="dialog-header">
+  <div class="dialog-title-block">
+    <mat-icon class="title-icon">calendar_month</mat-icon>
+    <div>
+      <h2 mat-dialog-title class="dialog-title">
+        Horario de {{ docente.apellidos }}, {{ docente.nombres }}
+      </h2>
+      <p class="dialog-subtitle">
+        Período {{ periodoService.periodo }} &middot; {{ horasAsignadas }} horas
+        asignadas
+      </p>
+    </div>
+  </div>
+  <button mat-icon-button (click)="cerrar()" class="close-btn">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<mat-dialog-content class="dialog-content">
+  <div *ngIf="loading" class="spinner-center">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div *ngIf="asignaciones.length === 0" class="empty-state">
+      <mat-icon>event_busy</mat-icon>
+      <p>
+        No hay asignaciones de horario para este docente en el período actual.
+      </p>
+    </div>
+
+    <div *ngIf="asignaciones.length > 0" class="grid-wrapper">
+      <table class="horario-grid">
+        <thead>
+          <tr>
+            <th class="hora-col">Hora</th>
+            <th *ngFor="let dia of dias">{{ dia }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let hora of horas">
+            <td class="hora-cell">{{ fmtH(hora) }}</td>
+            <td
+              *ngFor="let dNum of diasNum"
+              class="celda"
+              [ngClass]="cls(dNum, hora)"
+            >
+              <ng-container *ngIf="getAsig(dNum, hora) as a">
+                <div class="celda-content">
+                  <div class="curso-txt">{{ a.curso?.nombre }}</div>
+                  <div class="amb-txt">{{ a.ambiente?.codigo }}</div>
+                </div>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="asignaciones.length > 0" class="legend">
+      <span class="legend-item"
+        ><span class="dot dot-teoria"></span> Teoría</span
+      >
+      <span class="legend-item"
+        ><span class="dot dot-lab"></span> Laboratorio</span
+      >
+    </div>
+  </ng-container>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-stroked-button (click)="cerrar()">Cerrar</button>
+  <button
+    mat-flat-button
+    color="primary"
+    (click)="descargarPdf()"
+    [disabled]="descargando || asignaciones.length === 0"
+  >
+    <mat-spinner
+      *ngIf="descargando"
+      diameter="16"
+      class="inline-spinner"
+    ></mat-spinner>
+    <mat-icon *ngIf="!descargando">download</mat-icon>
+    Descargar PDF
+  </button>
+</mat-dialog-actions>

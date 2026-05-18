@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { DocentesListComponent } from './docentes-list/docentes-list.component';
 import { DocenteFormComponent } from './docente-form/docente-form.component';
+import { VerHorarioDocenteDialogComponent } from './dialogs/ver-horario-docente-dialog/ver-horario-docente-dialog.component';
 
 const routes: Routes = [
   { path: '', component: DocentesListComponent },
@@ -11,7 +12,11 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  declarations: [DocentesListComponent, DocenteFormComponent],
+  declarations: [
+    DocentesListComponent,
+    DocenteFormComponent,
+    VerHorarioDocenteDialogComponent,
+  ],
   imports: [SharedModule, RouterModule.forChild(routes)],
 })
 export class DocentesModule {}

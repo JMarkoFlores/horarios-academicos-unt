@@ -33,7 +33,7 @@ export class VentanasController {
   constructor(private readonly ventanasService: VentanasService) {}
 
   @Post()
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear ventana de atención" })
   async crear(@Body() dto: CreateVentanaDto) {
     const result = await this.ventanasService.crearVentana(dto);
@@ -41,7 +41,7 @@ export class VentanasController {
   }
 
   @Post(":id/iniciar")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Iniciar ventana y cargar cola de docentes por jerarquía",
@@ -53,7 +53,7 @@ export class VentanasController {
   }
 
   @Post(":id/siguiente")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Llamar al siguiente docente en la cola" })
   @ApiParam({ name: "id", type: Number })

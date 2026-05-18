@@ -20,6 +20,9 @@ import { ReportesModule } from "./reportes/reportes.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { NotificacionesModule } from "./notificaciones/notificaciones.module";
+import { UsuariosModule } from "./usuarios/usuarios.module";
+import { PeriodosModule } from "./periodos/periodos.module";
+import { ConfiguracionModule } from "./configuracion/configuracion.module";
 
 @Module({
   imports: [
@@ -93,6 +96,9 @@ import { NotificacionesModule } from "./notificaciones/notificaciones.module";
     DashboardModule,
     AnalyticsModule,
     NotificacionesModule,
+    UsuariosModule,
+    PeriodosModule,
+    ConfiguracionModule,
   ],
   providers: [
     {

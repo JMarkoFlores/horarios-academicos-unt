@@ -1,0 +1,95 @@
+<h2 mat-dialog-title>Asignar Horario</h2>
+
+<mat-dialog-content>
+  <div class="info-row">
+    <mat-icon>person</mat-icon>
+    <span
+      ><strong
+        >{{ data.docente.apellidos }}, {{ data.docente.nombres }}</strong
+      ></span
+    >
+  </div>
+  <div class="info-row">
+    <mat-icon>calendar_today</mat-icon>
+    <span
+      >{{ diaLabel }} · {{ data.horaInicio }} – {{ data.horaFin }} · Período
+      {{ data.periodo }}</span
+    >
+  </div>
+
+  <div *ngIf="loading" class="spinner-center">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <form [formGroup]="form" class="form-grid" *ngIf="!loading">
+    <mat-form-field appearance="outline">
+      <mat-label>Curso</mat-label>
+      <mat-select formControlName="curso_id">
+        <mat-option *ngFor="let c of cursos" [value]="c.id">
+          {{ c.codigo }} – {{ c.nombre }}
+        </mat-option>
+      </mat-select>
+      <mat-error>Selecciona un curso</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Grupo / Sección</mat-label>
+      <mat-select formControlName="grupo_id" [disabled]="!form.get('curso_id')?.value">
+        <mat-option *ngFor="let g of grupos" [value]="g.id">
+          {{ g.codigo }} – {{ g.nombre }} (Aforo: {{ g.cupo_maximo }})
+        </mat-option>
+      </mat-select>
+      <mat-error>Selecciona un grupo</mat-error>
+      <mat-hint *ngIf="form.get('curso_id')?.value && grupos.length === 0" style="color: #f44336; font-size: 11px;">
+        ⚠️ No hay grupos registrados para este curso.
+      </mat-hint>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Tipo de clase</mat-label>
+      <mat-select formControlName="tipo_clase">
+        <mat-option *ngFor="let t of tiposClase" [value]="t.value">
+          {{ t.label }}
+        </mat-option>
+      </mat-select>
+      <mat-error>Selecciona el tipo</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Ambiente</mat-label>
+      <mat-select formControlName="ambiente_id">
+        <mat-option *ngFor="let a of ambientes" [value]="a.id">
+          {{ a.codigo }} – {{ a.nombre }}
+        </mat-option>
+      </mat-select>
+      <mat-error>Selecciona un ambiente</mat-error>
+    </mat-form-field>
+
+    <!-- <mat-form-field appearance="outline">
+      <mat-label>Tipo de clase</mat-label>
+      <mat-select formControlName="tipo_clase">
+        <mat-option *ngFor="let t of tiposClase" [value]="t.value">
+          {{ t.label }}
+        </mat-option>
+      </mat-select>
+      <mat-error>Selecciona el tipo</mat-error>
+    </mat-form-field> -->
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="cancelar()">Cancelar</button>
+  <button
+    mat-flat-button
+    color="primary"
+    (click)="guardar()"
+    [disabled]="form.invalid || guardando"
+  >
+    <mat-spinner
+      *ngIf="guardando"
+      diameter="16"
+      class="inline-spinner"
+    ></mat-spinner>
+    <span *ngIf="!guardando">Asignar</span>
+  </button>
+</mat-dialog-actions>

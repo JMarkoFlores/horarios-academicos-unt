@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
+
 import { Docente, Curso, Ambiente } from '../../core/interfaces/entities';
 
 @Component({
@@ -19,7 +20,7 @@ export class AsignacionesComponent implements OnInit {
   
   loadingDocentes = false;
   loadingData = false;
-  
+ 
   serviciosDisponibles = {
     docentes: true,
     cursos: true,
@@ -79,21 +80,27 @@ export class AsignacionesComponent implements OnInit {
   agregarCurso(curso: Curso): void {
     if (!this.cursosAsignados.find(c => c.id === curso.id)) {
       this.cursosAsignados.push(curso);
+ 
+
     }
   }
 
   quitarCurso(id: number): void {
     this.cursosAsignados = this.cursosAsignados.filter(c => c.id !== id);
+
+
   }
 
   agregarAmbiente(ambiente: Ambiente): void {
     if (!this.ambientesAsignados.find(a => a.id === ambiente.id)) {
       this.ambientesAsignados.push(ambiente);
+
     }
   }
 
   quitarAmbiente(id: number): void {
     this.ambientesAsignados = this.ambientesAsignados.filter(a => a.id !== id);
+
   }
 
   getAvatarColor(name: string): string {

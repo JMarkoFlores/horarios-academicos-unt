@@ -24,6 +24,8 @@ import { DocentesService } from "./docentes.service";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
+import { AsignarCursosDto } from "./dto/asignar-cursos.dto";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -58,6 +60,24 @@ export class DocentesController {
     return { data: result, message: "Docentes ordenados por jerarquía" };
   }
 
+  @Get("exportar")
+  @ApiOperation({ summary: "Exportar todos los docentes sin paginación" })
+  @ApiQuery({ name: "categoria", required: false })
+  @ApiQuery({ name: "tipo_contrato", required: false })
+  @ApiQuery({ name: "busqueda", required: false })
+  async exportar(
+    @Query("categoria") categoria?: string,
+    @Query("tipo_contrato") tipo_contrato?: string,
+    @Query("busqueda") busqueda?: string,
+  ) {
+    const result = await this.docentesService.findAllParaExportar({
+      categoria,
+      tipo_contrato,
+      busqueda,
+    });
+    return { data: result, message: "Docentes para exportar" };
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Obtener un docente por ID" })
   @ApiParam({ name: "id", type: Number })
@@ -69,7 +89,7 @@ export class DocentesController {
   }
 
   @Post()
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear nuevo docente" })
   @ApiResponse({ status: 201, description: "Docente creado exitosamente" })
   @ApiResponse({ status: 409, description: "Email o código duplicado" })
@@ -79,7 +99,7 @@ export class DocentesController {
   }
 
   @Patch(":id")
-  @Roles(RolUsuario.ADMIN, RolUsuario.COORDINADOR)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Actualizar datos de un docente" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente actualizado" })
@@ -92,7 +112,7 @@ export class DocentesController {
   }
 
   @Delete(":id")
-  @Roles(RolUsuario.ADMIN)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Desactivar un docente (soft delete)" })
   @ApiParam({ name: "id", type: Number })
@@ -100,5 +120,90 @@ export class DocentesController {
   async remove(@Param("id", ParseIntPipe) id: number) {
     await this.docentesService.remove(id);
     return { data: null, message: "Docente desactivado correctamente" };
+  }
+
+  @Post(":id/cursos")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: "Asignar cursos que puede dictar un docente" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiResponse({ status: 201, description: "Cursos asignados correctamente" })
+  @ApiResponse({ status: 404, description: "Docente o Curso no encontrado" })
+  async asignarCursos(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: AsignarCursosDto,
+  ) {
+    const result = await this.docentesService.asignarCursos(id, dto);
+    return {
+      data: result,
+      message: "Cursos asignados correctamente",
+      statusCode: HttpStatus.CREATED,
+    };
+  }
+
+  @Get(":id/cursos")
+  @ApiOperation({ summary: "Listar cursos habilitados para un docente" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiQuery({
+    name: "tipo_clase",
+    enum: TipoClase,
+    required: false,
+    description: "Filtrar por tipo de clase",
+  })
+  @ApiResponse({ status: 200, description: "Cursos habilitados obtenidos" })
+  async findCursosHabilitados(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("tipo_clase") tipoClase?: TipoClase,
+  ) {
+    const result = await this.docentesService.findCursosHabilitados(id, tipoClase);
+    return {
+      data: result,
+      message: "Cursos habilitados obtenidos correctamente",
+    };
+  }
+
+  @Delete(":id/cursos/:cursoId/:tipoclase")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Quitar la asignación de un curso a un docente" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiParam({ name: "cursoId", type: Number, description: "ID del curso" })
+  @ApiParam({ name: "tipoclase", enum: TipoClase, description: "Tipo de clase" })
+  @ApiResponse({ status: 200, description: "Asignación eliminada correctamente" })
+  @ApiResponse({ status: 404, description: "Asignación no encontrada" })
+  async removeAsignacion(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("cursoId", ParseIntPipe) cursoId: number,
+    @Param("tipoclase") tipoClase: TipoClase,
+  ) {
+    await this.docentesService.removeAsignacion(id, cursoId, tipoClase);
+    return { data: null, message: "Asignación eliminada correctamente" };
+  }
+
+  @Get(":id/ambientes")
+  @ApiOperation({ summary: "Listar ambientes asignados a un docente" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiResponse({ status: 200, description: "Ambientes asignados obtenidos correctamente" })
+  async findAmbientesAsignados(@Param("id", ParseIntPipe) id: number) {
+    const result = await this.docentesService.findAmbientesAsignados(id);
+    return {
+      data: result,
+      message: "Ambientes asignados obtenidos correctamente",
+    };
+  }
+
+  @Post(":id/ambientes")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: "Asignar ambientes a un docente" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiResponse({ status: 201, description: "Ambientes asignados correctamente" })
+  async asignarAmbientes(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { ambienteIds: number[] },
+  ) {
+    const result = await this.docentesService.asignarAmbientes(id, body.ambienteIds);
+    return {
+      data: result,
+      message: "Ambientes asignados correctamente",
+    };
   }
 }

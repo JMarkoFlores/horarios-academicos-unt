@@ -1,0 +1,178 @@
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  .header-left {
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 0 0 4px;
+    }
+    .page-sub {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      margin: 0;
+    }
+  }
+
+  .btn-crear {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    font-weight: 600;
+  }
+}
+
+.table-card {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  .search-field {
+    flex: 1;
+    min-width: 200px;
+    max-width: 400px;
+  }
+
+  .count-badge {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    background: var(--color-background);
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    white-space: nowrap;
+  }
+}
+
+.loading-center {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.usuarios-table {
+  width: 100%;
+
+  th.mat-mdc-header-cell {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    background: var(--color-background);
+  }
+
+  .table-row:hover {
+    background-color: var(--color-background);
+  }
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .user-info {
+    display: flex;
+    flex-direction: column;
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .user-email {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+  }
+}
+
+.rol-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+
+  &[data-rol="administradorsistema"] { background: #fce7f3; color: #be185d; }
+  &[data-rol="directorescuela"]      { background: #ede9fe; color: #7c3aed; }
+  &[data-rol="coordinadoracademico"] { background: #dbeafe; color: #1d4ed8; }
+  &[data-rol="operadorhorarios"]     { background: #dcfce7; color: #16a34a; }
+  &[data-rol="docente"]              { background: #ffedd5; color: #c2410c; }
+}
+
+.estado-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+
+  .estado-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.activo   { background: #dcfce7; color: #16a34a; }
+  &.inactivo { background: #fee2e2; color: #dc2626; }
+}
+
+.no-data {
+  text-align: center;
+  padding: 48px !important;
+  color: var(--color-text-muted);
+
+  mat-icon {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    display: block;
+    margin: 0 auto 8px;
+    opacity: 0.4;
+  }
+}
+
+.activo-toggle {
+  padding: 8px 0 4px;
+}

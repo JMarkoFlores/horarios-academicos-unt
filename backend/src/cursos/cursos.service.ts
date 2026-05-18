@@ -28,6 +28,7 @@ export class CursosService {
 
     const qb = this.cursoRepo
       .createQueryBuilder("curso")
+      .leftJoinAndSelect("curso.ambientes", "ambientes")
       .where("curso.activo = :activo", { activo: true });
 
     if (ciclo !== undefined) {
@@ -45,7 +46,10 @@ export class CursosService {
       .addOrderBy("curso.nombre", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
-      .cache(`cursos_list_${ciclo ?? 'all'}_${tiene_laboratorio ?? 'all'}_${page}_${limit}`, 60000)
+      .cache(
+        `cursos_list_v2_${ciclo ?? "all"}_${tiene_laboratorio ?? "all"}_${page}_${limit}`,
+        60000,
+      )
       .getManyAndCount();
 
     return {
@@ -58,9 +62,9 @@ export class CursosService {
 
   async findOne(id: number): Promise<Curso> {
     const curso = await this.cursoRepo
-      .createQueryBuilder('curso')
-      .leftJoinAndSelect('curso.ambientes', 'ambientes')
-      .where('curso.id = :id', { id })
+      .createQueryBuilder("curso")
+      .leftJoinAndSelect("curso.ambientes", "ambientes")
+      .where("curso.id = :id", { id })
       .cache(`curso_${id}_detalle`, 60000)
       .getOne();
 
@@ -134,9 +138,9 @@ export class CursosService {
     }
 
     const curso = await this.cursoRepo
-      .createQueryBuilder('curso')
-      .leftJoinAndSelect('curso.ambientes', 'ambientes')
-      .where('curso.id = :cursoId', { cursoId })
+      .createQueryBuilder("curso")
+      .leftJoinAndSelect("curso.ambientes", "ambientes")
+      .where("curso.id = :cursoId", { cursoId })
       .cache(`curso_${cursoId}_ambientes`, 60000)
       .getOne();
 
@@ -159,9 +163,9 @@ export class CursosService {
         : TipoAmbiente.LABORATORIO;
 
     const curso = await this.cursoRepo
-      .createQueryBuilder('curso')
-      .leftJoinAndSelect('curso.ambientes', 'ambientes')
-      .where('curso.id = :cursoId', { cursoId })
+      .createQueryBuilder("curso")
+      .leftJoinAndSelect("curso.ambientes", "ambientes")
+      .where("curso.id = :cursoId", { cursoId })
       .cache(`curso_${cursoId}_ambientes_compatibles`, 60000)
       .getOne();
 

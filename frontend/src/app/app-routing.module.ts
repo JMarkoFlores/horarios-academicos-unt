@@ -84,6 +84,27 @@ const routes: Routes = [
             (m) => m.OperadorModule,
           ),
       },
+      {
+        path: 'periodos',
+        loadChildren: () =>
+          import('./modules/periodos/periodos.module').then(
+            (m) => m.PeriodosModule,
+          ),
+      },
+      {
+        path: 'usuarios',
+        loadChildren: () =>
+          import('./modules/usuarios/usuarios.module').then(
+            (m) => m.UsuariosModule,
+          ),
+      },
+      {
+        path: 'configuracion',
+        loadChildren: () =>
+          import('./modules/configuracion/configuracion.module').then(
+            (m) => m.ConfiguracionModule,
+          ),
+      },
       { path: '**', component: NotFoundComponent },
     ],
   },

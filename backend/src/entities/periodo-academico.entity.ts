@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 
 @Entity("periodo_academico")
 export class PeriodoAcademico {
@@ -16,6 +17,13 @@ export class PeriodoAcademico {
 
   @Column({ type: "date" })
   fecha_fin: Date;
+
+  @Column({
+    type: "enum",
+    enum: EstadoPeriodo,
+    default: EstadoPeriodo.PLANIFICACION,
+  })
+  estado: EstadoPeriodo;
 
   @Column({ default: false })
   activo: boolean;

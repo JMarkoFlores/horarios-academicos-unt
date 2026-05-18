@@ -219,3 +219,5 @@
 {"usuario":"admin@unt.edu.pe","accion":"CREAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":2,"ip":"::1","timestamp":"2026-05-18T03:36:05.140Z"}
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":1,"ip":"::1","timestamp":"2026-05-18T03:36:09.322Z"}
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":1,"ip":"::1","timestamp":"2026-05-18T03:36:13.859Z"}
+{"usuario":"admin@unt.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::1","timestamp":"2026-05-18T13:28:49.180Z"}
+{"usuario":"admin@unt.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::1","timestamp":"2026-05-18T13:28:56.327Z"}

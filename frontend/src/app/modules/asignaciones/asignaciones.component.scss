@@ -68,12 +68,15 @@
 // ── GRID & PANELS ──
 .asignaciones-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 24px;
   margin-bottom: 40px;
 
-  @media (max-width: 900px) {
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr 1fr;
+  }
 
+  @media (max-width: 800px) {
     grid-template-columns: 1fr;
   }
 }
@@ -81,8 +84,7 @@
 .asignacion-panel {
   display: flex;
   flex-direction: column;
-  height: 500px;
-
+  height: 520px;
   padding: 0 !important;
   overflow: hidden;
 
@@ -99,8 +101,7 @@
       align-items: center;
       gap: 12px;
       h2 {
-        font-size: 18px;
-
+        font-size: 17px;
         font-weight: 700;
         margin: 0;
         color: var(--color-text);
@@ -112,6 +113,97 @@
     flex: 1;
     overflow-y: auto;
     padding: 20px;
+  }
+}
+
+// ── DIAGNOSTIC PANEL STYLES ──
+.diagnostic-panel {
+  .status-ok {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #10b981 !important;
+  }
+  .status-warning {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: #f59e0b !important;
+  }
+  .status-error {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #ef4444 !important;
+  }
+}
+
+.dynamic-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.diagnostic-item {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all var(--transition-normal);
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+  }
+
+  .diag-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .diag-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .diag-status {
+      display: flex;
+      align-items: center;
+      
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+
+      &.ok { color: #10b981; }
+      &.warning { color: #f59e0b; }
+      &.error { color: #ef4444; }
+    }
+  }
+
+  .diag-msg {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .diag-progress-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 4px;
+
+    .diag-progress-fill {
+      height: 100%;
+      border-radius: 10px;
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+      &.ok { background: linear-gradient(90deg, #10b981, #34d399); }
+      &.warning { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+      &.error { background: linear-gradient(90deg, #ef4444, #f87171); }
+    }
   }
 }
 

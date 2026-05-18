@@ -2,22 +2,10 @@
   padding: 32px 0;
 }
 
-<<<<<<< HEAD
 // ── PAGE HEADER ──
 .page-header {
-=======
-.selector-row {
-  margin-bottom: 16px;
-  .search-field {
-    width: 380px;
-  }
-}
-
-.info-bar {
->>>>>>> develop
   display: flex;
   justify-content: space-between;
-<<<<<<< HEAD
   align-items: center;
   margin-bottom: 32px;
 
@@ -179,13 +167,6 @@
       color: var(--color-text-muted);
       span { color: var(--color-primary); font-weight: 700; }
     }
-=======
-  margin-bottom: 16px;
-  h2 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 500;
->>>>>>> develop
   }
 }
 
@@ -198,25 +179,9 @@
   border-collapse: separate;
   border-spacing: 4px;
   width: 100%;
-<<<<<<< HEAD
   min-width: 800px;
 
   th {
-    background: var(--color-primary);
-=======
-
-  th,
-  td {
-    border: 1px solid #e0e0e0;
-    padding: 4px 6px;
-    font-size: 12px;
-    text-align: center;
-    vertical-align: middle;
-  }
-
-  th {
-    background: #1565c0;
->>>>>>> develop
     color: white;
     font-weight: 700;
     text-transform: uppercase;
@@ -225,9 +190,9 @@
     padding: 12px;
     border-radius: var(--radius-sm);
     text-align: center;
+    background: var(--color-primary);
   }
 
-<<<<<<< HEAD
   .hora-col { width: 80px; background: transparent; color: var(--color-text-muted); }
 
   .hora-cell {
@@ -238,15 +203,6 @@
     border-radius: var(--radius-sm);
     text-align: center;
     height: 60px;
-=======
-  .hora-col {
-    width: 60px;
-  }
-  .hora-cell {
-    font-weight: 500;
-    color: #555;
-    background: #f5f5f5;
->>>>>>> develop
   }
 
   .celda {
@@ -257,58 +213,24 @@
     border: 1px solid transparent;
 
     &.celda-vacia {
-<<<<<<< HEAD
       background: #f8fafc;
       &:hover { background: #f1f5f9; border-color: var(--color-border); }
-=======
-      background: white;
-      cursor: pointer;
-      &:hover {
-        background: #e8f0fe;
-      }
->>>>>>> develop
     }
 
     &.celda-teoria {
-<<<<<<< HEAD
       background: var(--color-primary);
       box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
       .curso-txt { color: white; }
       .amb-txt { color: rgba(255, 255, 255, 0.8); }
       &:hover { transform: scale(1.02); z-index: 10; box-shadow: var(--shadow-lg); }
-=======
-      background: #bbdefb;
-      .curso-txt {
-        color: #0d47a1;
-        font-weight: 500;
-        font-size: 11px;
-      }
-      .amb-txt {
-        color: #1565c0;
-        font-size: 10px;
-      }
->>>>>>> develop
     }
 
     &.celda-lab {
-<<<<<<< HEAD
       background: var(--color-accent);
       box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
       .curso-txt { color: white; }
       .amb-txt { color: rgba(255, 255, 255, 0.8); }
       &:hover { transform: scale(1.02); z-index: 10; box-shadow: var(--shadow-lg); }
-=======
-      background: #c8e6c9;
-      .curso-txt {
-        color: #1b5e20;
-        font-weight: 500;
-        font-size: 11px;
-      }
-      .amb-txt {
-        color: #2e7d32;
-        font-size: 10px;
-      }
->>>>>>> develop
     }
   }
 
@@ -355,7 +277,6 @@
   .legend-item {
     display: flex;
     align-items: center;
-<<<<<<< HEAD
     gap: 12px;
 
     .legend-swatch {
@@ -373,24 +294,6 @@
 
     &.teoria .legend-swatch { background: var(--color-primary); }
     &.lab .legend-swatch { background: var(--color-accent); }
-=======
-    gap: 8px;
-    font-size: 13px;
-  }
-  .dot {
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-    display: inline-block;
-    &.dot-teoria {
-      background: #bbdefb;
-      border: 1px solid #90caf9;
-    }
-    &.dot-lab {
-      background: #c8e6c9;
-      border: 1px solid #a5d6a7;
-    }
->>>>>>> develop
   }
 }
 
@@ -399,21 +302,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-<<<<<<< HEAD
-=======
-  padding: 60px;
-  color: #9e9e9e;
-  mat-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
-    margin-bottom: 12px;
-  }
-}
-
-.spinner-center {
-  display: flex;
->>>>>>> develop
   justify-content: center;
   padding: 80px 40px;
   text-align: center;
@@ -437,6 +325,12 @@
     padding: 60px;
     .success-icon { color: var(--color-accent); font-size: 48px; width: 48px; height: 48px; margin-bottom: 16px; }
   }
+}
+
+.spinner-center {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
 }
 
 // ── PREMIUM TABLE ──
@@ -473,9 +367,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-<<<<<<< HEAD
     font-weight: 600;
     color: #b45309;
+    mat-icon { color: #f59e0b; }
   }
 
   .status-badge {
@@ -495,19 +389,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 24px;
-=======
-    mat-icon {
-      color: #1565c0;
-    }
-  }
-  mat-card-actions {
-    padding: 16px;
-  }
-}
-
-.danger-card mat-card-title mat-icon {
-  color: #c62828;
->>>>>>> develop
 }
 
 .gestion-card-premium {
@@ -561,7 +442,6 @@
   .res-divider { width: 1px; height: 40px; background: var(--color-border); margin: 0 16px; }
 }
 
-<<<<<<< HEAD
 .danger-warning {
   display: flex;
   gap: 12px;
@@ -618,16 +498,8 @@
   padding: 4px 0;
   .main-text { font-weight: 600; font-size: 14px; }
   .sub-text { font-size: 11px; color: var(--color-text-muted); }
-=======
-.full-width {
-  width: 100%;
 }
 
-.badge-warn {
-  background: #ff6f00;
-  color: #fff;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
->>>>>>> develop
+.full-width {
+  width: 100%;
 }

@@ -41,7 +41,7 @@ import { ConfiguracionModule } from "./configuracion/configuracion.module";
         username: config.get<string>("DATABASE_USER", "unt_user"),
         password: config.get<string>("DATABASE_PASSWORD", "unt_pass123"),
         autoLoadEntities: true,
-        synchronize: false,
+        synchronize: config.get<string>("NODE_ENV") === "development",
         logging: config.get<string>("NODE_ENV") === "development",
         ssl: false,
       }),

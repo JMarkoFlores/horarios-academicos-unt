@@ -403,7 +403,6 @@ export class AsignacionesComponent implements OnInit {
     if (states.includes('ERROR')) return 'INCOMPATIBLE';
     if (states.includes('WARNING')) return 'ADVERTENCIA';
     return 'APTO';
->>>>>>> 6ca46c6 (nuevo seed con cursos reales)
   }
 
   getAvatarColor(name: string): string {

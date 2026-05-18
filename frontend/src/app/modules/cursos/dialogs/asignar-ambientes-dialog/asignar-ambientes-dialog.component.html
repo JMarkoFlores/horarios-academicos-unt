@@ -1,0 +1,48 @@
+<h2 mat-dialog-title>{{ titulo }}</h2>
+
+<mat-dialog-content>
+  <div class="info-row">
+    <mat-icon>school</mat-icon>
+    <span><strong>{{ data.curso.codigo }}</strong> – {{ data.curso.nombre }}</span>
+  </div>
+
+  <div *ngIf="loading" class="spinner-center">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <div *ngIf="!loading" class="ambientes-grid">
+    <div
+      *ngFor="let a of ambientesDisponibles"
+      class="ambiente-card"
+      [class.selected]="isSelected(a.id)"
+      (click)="toggleSeleccion(a.id)"
+    >
+      <mat-icon class="ambiente-icon">
+        {{ data.tipo_clase === 'TEORIA' ? 'meeting_room' : 'biotech' }}
+      </mat-icon>
+      <div class="ambiente-info">
+        <div class="ambiente-codigo">{{ a.codigo }}</div>
+        <div class="ambiente-nombre">{{ a.nombre }}</div>
+        <div class="ambiente-capacidad">Cap: {{ a.capacidad }}</div>
+      </div>
+      <mat-icon class="check-icon" *ngIf="isSelected(a.id)">check_circle</mat-icon>
+    </div>
+
+    <div *ngIf="ambientesDisponibles.length === 0" class="empty-msg">
+      No hay ambientes disponibles de este tipo.
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="cancelar()">Cancelar</button>
+  <button
+    mat-flat-button
+    color="primary"
+    (click)="guardar()"
+    [disabled]="guardando"
+  >
+    <mat-spinner *ngIf="guardando" diameter="16" class="inline-spinner"></mat-spinner>
+    <span *ngIf="!guardando">Guardar</span>
+  </button>
+</mat-dialog-actions>

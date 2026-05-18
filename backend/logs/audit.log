@@ -210,3 +210,4 @@
 {"usuario":"admin@unitru.edu.pe","accion":"LIMPIAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-16T19:13:08.667Z"}
 {"usuario":"admin@unitru.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-16T19:13:08.773Z"}
 {"usuario":"admin@unitru.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-16T19:13:08.884Z"}
+{"usuario":"admin@unt.edu.pe","accion":"CREAR_ASIGNACION","entidad":"horario","entidadId":2,"ip":"::1","timestamp":"2026-05-17T21:54:22.623Z"}

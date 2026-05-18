@@ -27,6 +27,7 @@ import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
+import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 
 const AppDataSource = new DataSource({
   type: "postgres",
@@ -89,23 +90,106 @@ async function seed() {
     console.log("⏭️  Usuario admin ya existe, omitiendo...");
   }
 
-  // ── 2. PERÍODO ACADÉMICO ──────────────────────────────────────────────────
-  const periodoExistente = await periodoRepo.findOne({
-    where: { codigo: "2026-I" },
-  });
+  const usuariosData = [
+    {
+      nombre: "Director de Escuela",
+      email: "director@unt.edu.pe",
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+    },
+    {
+      nombre: "Coordinador Académico",
+      email: "coordinador@unt.edu.pe",
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+    },
+    {
+      nombre: "Operador de Horarios",
+      email: "operador@unt.edu.pe",
+      rol: RolUsuario.OPERADOR_HORARIOS,
+    },
+    {
+      nombre: "Docente de Prueba",
+      email: "docente@unt.edu.pe",
+      rol: RolUsuario.DOCENTE,
+    },
+  ];
 
-  if (!periodoExistente) {
-    const periodo = periodoRepo.create({
+  for (const u of usuariosData) {
+    const existe = await usuarioRepo.findOne({ where: { email: u.email } });
+    if (!existe) {
+      await usuarioRepo.save(
+        usuarioRepo.create({
+          ...u,
+          password_hash: await bcrypt.hash("Admin123!", 10),
+          activo: true,
+        }),
+      );
+      console.log(`✅ Usuario ${u.rol} creado: ${u.email} / Admin123!`);
+    } else {
+      console.log(`⏭️  Usuario ${u.email} ya existe, omitiendo...`);
+    }
+  }
+
+  // ── 2. PERÍODOS ACADÉMICOS ──────────────────────────────────────────────────
+  const periodosData = [
+    {
+      codigo: "2024-I",
+      nombre: "Semestre 2024-I",
+      fecha_inicio: "2024-03-16",
+      fecha_fin: "2024-07-31",
+      estado: EstadoPeriodo.FINALIZADO,
+    },
+    {
+      codigo: "2024-II",
+      nombre: "Semestre 2024-II",
+      fecha_inicio: "2024-08-16",
+      fecha_fin: "2024-12-20",
+      estado: EstadoPeriodo.FINALIZADO,
+    },
+    {
+      codigo: "2025-I",
+      nombre: "Semestre 2025-I",
+      fecha_inicio: "2025-03-16",
+      fecha_fin: "2025-07-31",
+      estado: EstadoPeriodo.FINALIZADO,
+    },
+    {
+      codigo: "2025-II",
+      nombre: "Semestre 2025-II",
+      fecha_inicio: "2025-08-16",
+      fecha_fin: "2025-12-20",
+      estado: EstadoPeriodo.FINALIZADO,
+    },
+    {
       codigo: "2026-I",
       nombre: "Semestre 2026-I",
-      fecha_inicio: new Date("2026-03-16"),
-      fecha_fin: new Date("2026-07-31"),
-      activo: true,
-    });
-    await periodoRepo.save(periodo);
-    console.log("✅ Período académico creado: 2026-I");
-  } else {
-    console.log("⏭️  Período 2026-I ya existe, omitiendo...");
+      fecha_inicio: "2026-03-16",
+      fecha_fin: "2026-07-31",
+      estado: EstadoPeriodo.EN_CURSO,
+    },
+    {
+      codigo: "2026-II",
+      nombre: "Semestre 2026-II",
+      fecha_inicio: "2026-08-16",
+      fecha_fin: "2026-12-20",
+      estado: EstadoPeriodo.PLANIFICACION,
+    },
+  ];
+
+  for (const p of periodosData) {
+    const existe = await periodoRepo.findOne({ where: { codigo: p.codigo } });
+    if (!existe) {
+      await periodoRepo.save(
+        periodoRepo.create({
+          ...p,
+          fecha_inicio: new Date(p.fecha_inicio),
+          fecha_fin: new Date(p.fecha_fin),
+          activo: p.codigo === "2026-I",
+        }),
+      );
+      console.log(`✅ Período académico creado: ${p.codigo}`);
+    } else {
+      console.log(`⏭️  Período ${p.codigo} ya existe, omitiendo...`);
+    }
   }
 
   // ── 3. DOCENTES ───────────────────────────────────────────────────────────

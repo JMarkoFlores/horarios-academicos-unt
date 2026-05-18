@@ -4,7 +4,9 @@
 
 .selector-row {
   margin-bottom: 16px;
-  .search-field { width: 380px; }
+  .search-field {
+    width: 380px;
+  }
 }
 
 .info-bar {
@@ -19,7 +21,11 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
-  h2 { margin: 0; font-size: 18px; font-weight: 500; }
+  h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+  }
 }
 
 .grid-wrapper {
@@ -31,7 +37,8 @@
   min-width: 700px;
   width: 100%;
 
-  th, td {
+  th,
+  td {
     border: 1px solid #e0e0e0;
     padding: 4px 6px;
     font-size: 12px;
@@ -40,15 +47,21 @@
   }
 
   th {
-    background: #1565C0;
+    background: #1565c0;
     color: white;
     font-weight: 500;
     white-space: nowrap;
     padding: 8px 6px;
   }
 
-  .hora-col { width: 60px; }
-  .hora-cell { font-weight: 500; color: #555; background: #f5f5f5; }
+  .hora-col {
+    width: 60px;
+  }
+  .hora-cell {
+    font-weight: 500;
+    color: #555;
+    background: #f5f5f5;
+  }
 
   .celda {
     height: 48px;
@@ -57,17 +70,34 @@
 
     &.celda-vacia {
       background: white;
-      &:hover { background: #f5f5f5; }
+      cursor: pointer;
+      &:hover {
+        background: #e8f0fe;
+      }
     }
     &.celda-teoria {
-      background: #BBDEFB;
-      .curso-txt { color: #0D47A1; font-weight: 500; font-size: 11px; }
-      .amb-txt { color: #1565C0; font-size: 10px; }
+      background: #bbdefb;
+      .curso-txt {
+        color: #0d47a1;
+        font-weight: 500;
+        font-size: 11px;
+      }
+      .amb-txt {
+        color: #1565c0;
+        font-size: 10px;
+      }
     }
     &.celda-lab {
-      background: #C8E6C9;
-      .curso-txt { color: #1B5E20; font-weight: 500; font-size: 11px; }
-      .amb-txt { color: #2E7D32; font-size: 10px; }
+      background: #c8e6c9;
+      .curso-txt {
+        color: #1b5e20;
+        font-weight: 500;
+        font-size: 11px;
+      }
+      .amb-txt {
+        color: #2e7d32;
+        font-size: 10px;
+      }
     }
   }
 
@@ -96,8 +126,14 @@
     height: 16px;
     border-radius: 3px;
     display: inline-block;
-    &.dot-teoria { background: #BBDEFB; border: 1px solid #90CAF9; }
-    &.dot-lab { background: #C8E6C9; border: 1px solid #A5D6A7; }
+    &.dot-teoria {
+      background: #bbdefb;
+      border: 1px solid #90caf9;
+    }
+    &.dot-lab {
+      background: #c8e6c9;
+      border: 1px solid #a5d6a7;
+    }
   }
 }
 
@@ -107,7 +143,12 @@
   align-items: center;
   padding: 60px;
   color: #9e9e9e;
-  mat-icon { font-size: 48px; width: 48px; height: 48px; margin-bottom: 12px; }
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+  }
 }
 
 .spinner-center {
@@ -127,12 +168,18 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    mat-icon { color: #1565C0; }
+    mat-icon {
+      color: #1565c0;
+    }
   }
-  mat-card-actions { padding: 16px; }
+  mat-card-actions {
+    padding: 16px;
+  }
 }
 
-.danger-card mat-card-title mat-icon { color: #c62828; }
+.danger-card mat-card-title mat-icon {
+  color: #c62828;
+}
 
 .resultado {
   display: flex;
@@ -142,10 +189,12 @@
   font-size: 14px;
 }
 
-.full-width { width: 100%; }
+.full-width {
+  width: 100%;
+}
 
 .badge-warn {
-  background: #FF6F00;
+  background: #ff6f00;
   color: #fff;
   padding: 2px 8px;
   border-radius: 12px;

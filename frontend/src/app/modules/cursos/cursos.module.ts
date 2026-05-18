@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { CursosListComponent } from './cursos-list/cursos-list.component';
 import { CursoFormComponent } from './curso-form/curso-form.component';
+import { AsignarAmbientesDialogComponent } from './dialogs/asignar-ambientes-dialog/asignar-ambientes-dialog.component';
 
 const routes: Routes = [
   { path: '', component: CursosListComponent },
@@ -11,7 +12,11 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  declarations: [CursosListComponent, CursoFormComponent],
+  declarations: [
+    CursosListComponent,
+    CursoFormComponent,
+    AsignarAmbientesDialogComponent,
+  ],
   imports: [SharedModule, RouterModule.forChild(routes)],
 })
 export class CursosModule {}

@@ -26,9 +26,14 @@
       <div class="select-group">
         <mat-form-field appearance="outline" class="premium-select">
           <mat-label>Filtrar por Ciclo</mat-label>
-          <mat-select [(ngModel)]="cicloFilter" (ngModelChange)="onFilterChange()">
+          <mat-select
+            [(ngModel)]="cicloFilter"
+            (ngModelChange)="onFilterChange()"
+          >
             <mat-option value="">Todos los ciclos</mat-option>
-            <mat-option *ngFor="let c of ciclos" [value]="c">Ciclo {{ c }}</mat-option>
+            <mat-option *ngFor="let c of ciclos" [value]="c"
+              >Ciclo {{ c }}</mat-option
+            >
           </mat-select>
         </mat-form-field>
       </div>
@@ -74,7 +79,11 @@
               <span class="hour-tag theory" matTooltip="Horas de Teoría">
                 <mat-icon>menu_book</mat-icon> {{ c.horas_teoria }}h
               </span>
-              <span class="hour-tag lab" *ngIf="c.horas_laboratorio" matTooltip="Horas de Laboratorio">
+              <span
+                class="hour-tag lab"
+                *ngIf="c.horas_laboratorio"
+                matTooltip="Horas de Laboratorio"
+              >
                 <mat-icon>biotech</mat-icon> {{ c.horas_laboratorio }}h
               </span>
             </div>
@@ -84,9 +93,87 @@
         <ng-container matColumnDef="tiene_lab">
           <th mat-header-cell *matHeaderCellDef>Laboratorio</th>
           <td mat-cell *matCellDef="let c">
-            <span [class]="'badge-pill ' + (c.tiene_laboratorio ? 'badge-LABORATORIO' : 'badge-INACTIVO')">
-              {{ c.tiene_laboratorio ? 'REQUERIDO' : 'NO APLICA' }}
+            <span
+              [class]="
+                'badge-pill ' +
+                (c.tiene_laboratorio ? 'badge-LABORATORIO' : 'badge-INACTIVO')
+              "
+            >
+              {{ c.tiene_laboratorio ? "REQUERIDO" : "NO APLICA" }}
             </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="ambiente_teoria">
+          <th mat-header-cell *matHeaderCellDef>Ambiente Teoría</th>
+          <td mat-cell *matCellDef="let c">
+            <div class="ambiente-cell">
+              <ng-container *ngIf="ambientesTeoria(c) as teoria">
+                <ng-container *ngIf="teoria.length > 0; else sinTeoria">
+                  <span *ngFor="let a of teoria" class="ambiente-chip aula">{{
+                    a.codigo
+                  }}</span>
+                  <button
+                    mat-icon-button
+                    class="btn-assign"
+                    (click)="abrirAsignarAmbientes(c, 'TEORIA')"
+                    matTooltip="Editar ambientes de teoría"
+                  >
+                    <mat-icon>edit_location_alt</mat-icon>
+                  </button>
+                </ng-container>
+              </ng-container>
+              <ng-template #sinTeoria>
+                <button
+                  mat-icon-button
+                  class="btn-assign"
+                  (click)="abrirAsignarAmbientes(c, 'TEORIA')"
+                  matTooltip="Asignar ambiente de teoría"
+                >
+                  <mat-icon>add_location_alt</mat-icon>
+                </button>
+              </ng-template>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="ambiente_laboratorio">
+          <th mat-header-cell *matHeaderCellDef>Ambiente Laboratorio</th>
+          <td mat-cell *matCellDef="let c">
+            <div class="ambiente-cell">
+              <ng-container *ngIf="c.tiene_laboratorio">
+                <ng-container *ngIf="ambientesLaboratorio(c) as labs">
+                  <ng-container *ngIf="labs.length > 0; else sinLab">
+                    <span
+                      *ngFor="let a of labs"
+                      class="ambiente-chip laboratorio"
+                      >{{ a.codigo }}</span
+                    >
+                    <button
+                      mat-icon-button
+                      class="btn-assign"
+                      (click)="abrirAsignarAmbientes(c, 'LABORATORIO')"
+                      matTooltip="Editar ambientes de laboratorio"
+                    >
+                      <mat-icon>edit_location_alt</mat-icon>
+                    </button>
+                  </ng-container>
+                </ng-container>
+                <ng-template #sinLab>
+                  <button
+                    mat-icon-button
+                    class="btn-assign"
+                    (click)="abrirAsignarAmbientes(c, 'LABORATORIO')"
+                    matTooltip="Asignar ambiente de laboratorio"
+                  >
+                    <mat-icon>add_location_alt</mat-icon>
+                  </button>
+                </ng-template>
+              </ng-container>
+              <span *ngIf="!c.tiene_laboratorio" class="na-badge"
+                >NO APLICA</span
+              >
+            </div>
           </td>
         </ng-container>
 
@@ -94,10 +181,20 @@
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let c" class="actions-cell">
             <div class="btn-group">
-              <a mat-icon-button class="btn-action edit" [routerLink]="['/app/cursos', c.id, 'editar']" matTooltip="Editar curso">
+              <a
+                mat-icon-button
+                class="btn-action edit"
+                [routerLink]="['/app/cursos', c.id, 'editar']"
+                matTooltip="Editar curso"
+              >
                 <mat-icon>edit_calendar</mat-icon>
               </a>
-              <button mat-icon-button class="btn-action delete" (click)="eliminar(c)" matTooltip="Eliminar curso">
+              <button
+                mat-icon-button
+                class="btn-action delete"
+                (click)="eliminar(c)"
+                matTooltip="Eliminar curso"
+              >
                 <mat-icon>delete_sweep</mat-icon>
               </button>
             </div>
@@ -105,10 +202,12 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns; let i = index" 
-            class="premium-row" 
-            [style.animation-delay]="i * 50 + 'ms'">
-        </tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns; let i = index"
+          class="premium-row"
+          [style.animation-delay]="i * 50 + 'ms'"
+        ></tr>
       </table>
 
       <div *ngIf="dataSource.length === 0" class="empty-state-premium">
@@ -120,8 +219,14 @@
       </div>
     </div>
 
-    <mat-paginator [length]="total" [pageSize]="pageSize" [pageSizeOptions]="[10, 20, 50]"
-      [pageIndex]="currentPage" (page)="onPageChange($event)" showFirstLastButtons
-      class="premium-paginator"></mat-paginator>
+    <mat-paginator
+      [length]="total"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="[10, 20, 50]"
+      [pageIndex]="currentPage"
+      (page)="onPageChange($event)"
+      showFirstLastButtons
+      class="premium-paginator"
+    ></mat-paginator>
   </mat-card>
 </div>

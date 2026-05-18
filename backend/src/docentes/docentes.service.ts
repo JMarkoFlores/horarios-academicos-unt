@@ -45,26 +45,66 @@ export class DocentesService {
       .skip((page - 1) * limit)
       .take(limit)
       .cache(
-        `docentes_list_${categoria ?? 'all'}_${tipo_contrato ?? 'all'}_${busqueda ?? 'none'}_${page}_${limit}`,
+        `docentes_list_${categoria ?? "all"}_${tipo_contrato ?? "all"}_${busqueda ?? "none"}_${page}_${limit}`,
         60000,
       )
       .getManyAndCount();
 
     return {
-      items: items.map((d) => ({ ...d, antiguedad: this.calcularAntiguedad(d.fecha_ingreso) })),
+      items: items.map((d) => ({
+        ...d,
+        antiguedad: this.calcularAntiguedad(d.fecha_ingreso),
+      })),
       total,
       page,
       limit,
     };
   }
 
+  async findAllParaExportar(filters: {
+    categoria?: string;
+    tipo_contrato?: string;
+    busqueda?: string;
+  }) {
+    const qb = this.docenteRepo
+      .createQueryBuilder("docente")
+      .where("docente.activo = :activo", { activo: true });
+
+    if (filters.categoria) {
+      qb.andWhere("docente.categoria = :categoria", {
+        categoria: filters.categoria,
+      });
+    }
+    if (filters.tipo_contrato) {
+      qb.andWhere("docente.tipo_contrato = :tipo_contrato", {
+        tipo_contrato: filters.tipo_contrato,
+      });
+    }
+    if (filters.busqueda) {
+      qb.andWhere(
+        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda)",
+        { busqueda: `%${filters.busqueda}%` },
+      );
+    }
+
+    const docentes = await qb
+      .orderBy("docente.apellidos", "ASC")
+      .addOrderBy("docente.nombres", "ASC")
+      .getMany();
+
+    return docentes.map((d) => ({
+      ...d,
+      antiguedad: this.calcularAntiguedad(d.fecha_ingreso),
+    }));
+  }
+
   async findOne(id: number): Promise<Docente> {
     const docente = await this.docenteRepo
-      .createQueryBuilder('docente')
-      .leftJoinAndSelect('docente.disponibilidades', 'disponibilidades')
-      .leftJoinAndSelect('docente.horarios', 'horarios')
-      .leftJoinAndSelect('docente.colas', 'colas')
-      .where('docente.id = :id', { id })
+      .createQueryBuilder("docente")
+      .leftJoinAndSelect("docente.disponibilidades", "disponibilidades")
+      .leftJoinAndSelect("docente.horarios", "horarios")
+      .leftJoinAndSelect("docente.colas", "colas")
+      .where("docente.id = :id", { id })
       .cache(`docente_${id}_detalle`, 60000)
       .getOne();
 

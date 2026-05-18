@@ -1,0 +1,81 @@
+<div class="page-header">
+  <h1>{{ isEdit ? "Editar Período" : "Nuevo Período Académico" }}</h1>
+</div>
+
+<mat-card>
+  <div *ngIf="loading" class="loading-center"><mat-spinner></mat-spinner></div>
+
+  <form
+    *ngIf="!loading"
+    [formGroup]="form"
+    (ngSubmit)="guardar()"
+    class="form-grid"
+  >
+    <mat-form-field appearance="outline">
+      <mat-label>Código</mat-label>
+      <input matInput formControlName="codigo" placeholder="Ej: 2026-I" />
+      <mat-error *ngIf="form.get('codigo')?.hasError('required')"
+        >Requerido</mat-error
+      >
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Nombre</mat-label>
+      <input
+        matInput
+        formControlName="nombre"
+        placeholder="Ej: Semestre 2026-I"
+      />
+      <mat-error *ngIf="form.get('nombre')?.hasError('required')"
+        >Requerido</mat-error
+      >
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Fecha Inicio</mat-label>
+      <input matInput type="date" formControlName="fecha_inicio" />
+      <mat-error *ngIf="form.get('fecha_inicio')?.hasError('required')"
+        >Requerido</mat-error
+      >
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Fecha Fin</mat-label>
+      <input matInput type="date" formControlName="fecha_fin" />
+      <mat-error *ngIf="form.get('fecha_fin')?.hasError('required')"
+        >Requerido</mat-error
+      >
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Estado</mat-label>
+      <mat-select formControlName="estado">
+        <mat-option *ngFor="let e of estados" [value]="e.value">{{
+          e.label
+        }}</mat-option>
+      </mat-select>
+      <mat-error *ngIf="form.get('estado')?.hasError('required')"
+        >Requerido</mat-error
+      >
+    </mat-form-field>
+
+    <div class="toggle-row">
+      <mat-slide-toggle formControlName="activo" color="primary"
+        >Activo</mat-slide-toggle
+      >
+    </div>
+
+    <div class="form-actions">
+      <a mat-stroked-button routerLink="/app/periodos">Cancelar</a>
+      <button
+        mat-raised-button
+        color="primary"
+        type="submit"
+        [disabled]="form.invalid || saving"
+      >
+        <mat-spinner diameter="16" *ngIf="saving"></mat-spinner>
+        <span *ngIf="!saving">{{ isEdit ? "Actualizar" : "Guardar" }}</span>
+      </button>
+    </div>
+  </form>
+</mat-card>

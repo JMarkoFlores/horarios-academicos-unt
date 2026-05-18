@@ -19,6 +19,7 @@ export class DisponibilidadComponent implements OnInit {
   resumen: any[] = [];
   loadingResumen = false;
   eliminando: number | null = null;
+  docentesSinDisponibilidad: Docente[] = [];
 
   dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   horas = Array.from({ length: 15 }, (_, i) => i + 7);
@@ -38,9 +39,17 @@ export class DisponibilidadComponent implements OnInit {
     this.api.get<any>('/docentes', { limit: 100 }).subscribe({
       next: (r: any) => {
         this.todosDocentes = r?.data?.items ?? [];
+        this.calcularSinDisponibilidad();
       },
     });
     this.cargarResumen();
+  }
+
+  calcularSinDisponibilidad(): void {
+    const conDispIds = new Set(this.resumen.map((item) => item.docente.id));
+    this.docentesSinDisponibilidad = this.todosDocentes.filter(
+      (d) => !conDispIds.has(d.id),
+    );
   }
 
   cargarResumen(): void {
@@ -52,6 +61,7 @@ export class DisponibilidadComponent implements OnInit {
       .subscribe({
         next: (r: any) => {
           this.resumen = r?.data ?? [];
+          this.calcularSinDisponibilidad();
           this.loadingResumen = false;
         },
         error: () => {

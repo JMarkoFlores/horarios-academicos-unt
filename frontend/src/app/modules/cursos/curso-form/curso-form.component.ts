@@ -58,7 +58,9 @@ export class CursoFormComponent implements OnInit {
 
   loadAmbientes(): void {
     this.api
-      .get<ApiResponse<{ items: Ambiente[] }>>('/ambientes', { limit: 100 })
+      .get<
+        ApiResponse<{ items: Ambiente[] }>
+      >('/ambientes', { limit: 100, activo: 'true' })
       .subscribe({
         next: (res) => {
           const all = res.data.items ?? (res.data as unknown as Ambiente[]);

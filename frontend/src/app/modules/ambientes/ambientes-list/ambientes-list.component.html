@@ -2,7 +2,9 @@
   <div class="page-header-premium">
     <div class="title-section">
       <h1 class="gradient-text">Infraestructura</h1>
-      <p class="subtitle">Gestión de aulas, laboratorios y espacios académicos</p>
+      <p class="subtitle">
+        Gestión de aulas, laboratorios y espacios académicos
+      </p>
     </div>
     <div class="header-actions">
       <a mat-raised-button class="btn-new" routerLink="/app/ambientes/nuevo">
@@ -18,10 +20,30 @@
         <mat-icon>filter_list</mat-icon>
         <span>Filtrar por tipo:</span>
       </div>
-      <mat-chip-listbox [(ngModel)]="tipoFilter" (ngModelChange)="onFilterChange()" class="premium-chips">
+      <mat-chip-listbox
+        [(ngModel)]="tipoFilter"
+        (ngModelChange)="onFilterChange()"
+        class="premium-chips"
+      >
         <mat-chip-option [value]="''">Todos</mat-chip-option>
         <mat-chip-option value="AULA">Aulas</mat-chip-option>
         <mat-chip-option value="LABORATORIO">Laboratorios</mat-chip-option>
+      </mat-chip-listbox>
+
+      <div class="filter-divider"></div>
+
+      <div class="filter-label-group">
+        <mat-icon>toggle_on</mat-icon>
+        <span>Filtrar por estado:</span>
+      </div>
+      <mat-chip-listbox
+        [(ngModel)]="estadoFilter"
+        (ngModelChange)="onFilterChange()"
+        class="premium-chips"
+      >
+        <mat-chip-option [value]="''">Todos</mat-chip-option>
+        <mat-chip-option value="true">Operativo</mat-chip-option>
+        <mat-chip-option value="false">Inactivo</mat-chip-option>
       </mat-chip-listbox>
     </div>
   </mat-card>
@@ -49,7 +71,8 @@
             <div class="env-name-cell">
               <span class="env-title">{{ a.nombre }}</span>
               <span class="env-location" *ngIf="a.pabellon || a.piso">
-                {{ a.pabellon }}{{ a.pabellon && a.piso ? ' • ' : '' }}Piso {{ a.piso }}
+                {{ a.pabellon }}{{ a.pabellon && a.piso ? " • " : "" }}Piso
+                {{ a.piso }}
               </span>
             </div>
           </td>
@@ -60,7 +83,9 @@
           <th mat-header-cell *matHeaderCellDef>Tipo</th>
           <td mat-cell *matCellDef="let a">
             <div [class]="'type-indicator ' + a.tipo">
-              <mat-icon>{{ a.tipo === 'AULA' ? 'meeting_room' : 'biotech' }}</mat-icon>
+              <mat-icon>{{
+                a.tipo === "AULA" ? "meeting_room" : "biotech"
+              }}</mat-icon>
               <span>{{ a.tipo }}</span>
             </div>
           </td>
@@ -81,7 +106,9 @@
         <ng-container matColumnDef="equipamiento">
           <th mat-header-cell *matHeaderCellDef>Equipamiento</th>
           <td mat-cell *matCellDef="let a">
-            <span class="equipment-text" [matTooltip]="a.equipamiento">{{ a.equipamiento || 'Sin equipamiento' }}</span>
+            <span class="equipment-text" [matTooltip]="a.equipamiento">{{
+              a.equipamiento || "Sin equipamiento"
+            }}</span>
           </td>
         </ng-container>
 
@@ -91,7 +118,7 @@
           <td mat-cell *matCellDef="let a">
             <div [class]="'status-live ' + (a.activo ? 'active' : 'inactive')">
               <span class="dot"></span>
-              <span>{{ a.activo ? 'Operativo' : 'Inactivo' }}</span>
+              <span>{{ a.activo ? "Operativo" : "Inactivo" }}</span>
             </div>
           </td>
         </ng-container>
@@ -101,21 +128,52 @@
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let a" class="actions-cell">
             <div class="btn-group">
-              <a mat-icon-button class="btn-action edit" [routerLink]="['/app/ambientes', a.id, 'editar']" matTooltip="Editar ambiente">
+              <button
+                mat-icon-button
+                class="btn-action info"
+                (click)="verDisponibilidad(a)"
+                matTooltip="Ver disponibilidad horaria"
+              >
+                <mat-icon>calendar_month</mat-icon>
+              </button>
+              <a
+                mat-icon-button
+                class="btn-action edit"
+                [routerLink]="['/app/ambientes', a.id, 'editar']"
+                matTooltip="Editar ambiente"
+              >
                 <mat-icon>edit_location</mat-icon>
               </a>
-              <button mat-icon-button class="btn-action delete" (click)="desactivar(a)" matTooltip="Desactivar">
+              <button
+                *ngIf="a.activo; else btnActivar"
+                mat-icon-button
+                class="btn-action delete"
+                (click)="desactivar(a)"
+                matTooltip="Desactivar"
+              >
                 <mat-icon>location_off</mat-icon>
               </button>
+              <ng-template #btnActivar>
+                <button
+                  mat-icon-button
+                  class="btn-action activate"
+                  (click)="activar(a)"
+                  matTooltip="Activar"
+                >
+                  <mat-icon>location_on</mat-icon>
+                </button>
+              </ng-template>
             </div>
           </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns; let i = index" 
-            class="premium-row" 
-            [style.animation-delay]="i * 40 + 'ms'">
-        </tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns; let i = index"
+          class="premium-row"
+          [style.animation-delay]="i * 40 + 'ms'"
+        ></tr>
       </table>
 
       <div *ngIf="dataSource.length === 0" class="empty-state-premium">
@@ -127,8 +185,14 @@
       </div>
     </div>
 
-    <mat-paginator [length]="total" [pageSize]="pageSize" [pageSizeOptions]="[10, 20, 50]"
-      [pageIndex]="currentPage" (page)="onPageChange($event)" showFirstLastButtons
-      class="premium-paginator"></mat-paginator>
+    <mat-paginator
+      [length]="total"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="[10, 20, 50]"
+      [pageIndex]="currentPage"
+      (page)="onPageChange($event)"
+      showFirstLastButtons
+      class="premium-paginator"
+    ></mat-paginator>
   </mat-card>
 </div>

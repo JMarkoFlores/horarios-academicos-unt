@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  DefaultValuePipe,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -62,16 +63,19 @@ export class AmbientesController {
   @ApiOperation({ summary: "Grilla semanal de ocupación de un ambiente" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   async getDisponibilidad(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
-    @Query() query: QueryAmbienteDto,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(200), ParseIntPipe) limit: number,
   ) {
     const result = await this.ambientesService.getDisponibilidad(
       id,
       periodo ?? "",
-      query.page ?? 1,
-      query.limit ?? 20,
+      page,
+      limit,
     );
     return { data: result, message: "Disponibilidad del ambiente obtenida" };
   }

@@ -58,6 +58,24 @@ export class DocentesController {
     return { data: result, message: "Docentes ordenados por jerarquía" };
   }
 
+  @Get("exportar")
+  @ApiOperation({ summary: "Exportar todos los docentes sin paginación" })
+  @ApiQuery({ name: "categoria", required: false })
+  @ApiQuery({ name: "tipo_contrato", required: false })
+  @ApiQuery({ name: "busqueda", required: false })
+  async exportar(
+    @Query("categoria") categoria?: string,
+    @Query("tipo_contrato") tipo_contrato?: string,
+    @Query("busqueda") busqueda?: string,
+  ) {
+    const result = await this.docentesService.findAllParaExportar({
+      categoria,
+      tipo_contrato,
+      busqueda,
+    });
+    return { data: result, message: "Docentes para exportar" };
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Obtener un docente por ID" })
   @ApiParam({ name: "id", type: Number })

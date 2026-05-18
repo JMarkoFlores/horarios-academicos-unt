@@ -6,7 +6,12 @@ import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { SocketService } from '../../core/services/socket.service';
 import { NotifToastService } from '../../core/services/notif-toast.service';
-import { ApiResponse, Docente, HorarioAsignado, Ambiente } from '../../core/interfaces/entities';
+import {
+  ApiResponse,
+  Docente,
+  HorarioAsignado,
+  Ambiente,
+} from '../../core/interfaces/entities';
 import { CeldaDialogComponent } from './celda-dialog/celda-dialog.component';
 
 @Component({
@@ -60,22 +65,34 @@ export class OperadorComponent implements OnInit, OnDestroy {
     this.socket.connect();
 
     this.subs.push(
-      this.socket.cola$.subscribe(cola => { this.cola = cola; this.syncDocenteActual(); }),
-      this.socket.celdaSeleccionada$.subscribe(d => this.seleccionesMap.set(`${d.dia_semana}-${d.hora_inicio}`, { docenteId: d.docenteId })),
-      this.socket.celdaLiberada$.subscribe(d => this.seleccionesMap.delete(`${d.dia_semana}-${d.hora_inicio}`)),
-      this.socket.horarioConfirmado$.subscribe(() => { this.notif.success('Horario confirmado'); this.reloadEstado(); }),
+      this.socket.cola$.subscribe((cola) => {
+        this.cola = cola;
+        this.syncDocenteActual();
+      }),
+      this.socket.celdaSeleccionada$.subscribe((d) =>
+        this.seleccionesMap.set(`${d.dia_semana}-${d.hora_inicio}`, {
+          docenteId: d.docenteId,
+        }),
+      ),
+      this.socket.celdaLiberada$.subscribe((d) =>
+        this.seleccionesMap.delete(`${d.dia_semana}-${d.hora_inicio}`),
+      ),
+      this.socket.horarioConfirmado$.subscribe(() => {
+        this.notif.success('Horario confirmado');
+        this.reloadEstado();
+      }),
     );
   }
 
   ngOnDestroy(): void {
-    this.subs.forEach(s => s.unsubscribe());
+    this.subs.forEach((s) => s.unsubscribe());
     this.socket.disconnect();
   }
 
   loadVentanaActiva(): void {
     this.loadingVentana = true;
     this.api.get<ApiResponse<any>>('/ventanas/activa').subscribe({
-      next: r => {
+      next: (r) => {
         this.ventanaActiva = r.data;
         if (this.ventanaActiva) {
           this.socket.joinVentana(this.ventanaActiva.id);
@@ -83,15 +100,22 @@ export class OperadorComponent implements OnInit, OnDestroy {
         }
         this.loadingVentana = false;
       },
-      error: () => { this.loadingVentana = false; },
+      error: () => {
+        this.loadingVentana = false;
+      },
     });
   }
 
   loadCola(): void {
     if (!this.ventanaActiva) return;
-    this.api.get<ApiResponse<any[]>>(`/ventanas/${this.ventanaActiva.id}/cola`).subscribe({
-      next: r => { this.cola = r.data ?? []; this.syncDocenteActual(); },
-    });
+    this.api
+      .get<ApiResponse<any[]>>(`/ventanas/${this.ventanaActiva.id}/cola`)
+      .subscribe({
+        next: (r) => {
+          this.cola = r.data ?? [];
+          this.syncDocenteActual();
+        },
+      });
   }
 
   syncDocenteActual(): void {
@@ -109,33 +133,56 @@ export class OperadorComponent implements OnInit, OnDestroy {
     const id = this.docenteActual.id;
     const periodo = this.periodoService.periodo;
 
-    this.api.get<ApiResponse<any[]>>(`/disponibilidad/docente/${id}`, { periodo }).subscribe({
-      next: r => {
-        this.disponibilidadMap.clear();
-        (r.data ?? []).forEach((d: any) => this.disponibilidadMap.set(`${d.dia_semana}-${d.hora_inicio}`, d.disponible));
-      },
-    });
-
-    this.api.get<ApiResponse<HorarioAsignado[]>>(`/horarios/docente/${id}`, { periodo }).subscribe({
-      next: r => {
-        this.asignacionesMap.clear();
-        (r.data ?? []).forEach((a: HorarioAsignado) => this.asignacionesMap.set(`${a.dia_semana}-${a.hora_inicio}`, a));
-      },
-    });
-
-    if (this.ventanaActiva) {
-      this.api.get<ApiResponse<any[]>>(`/ventanas/${this.ventanaActiva.id}/selecciones`).subscribe({
-        next: r => {
-          this.seleccionesMap.clear();
-          (r.data ?? []).forEach((s: any) => this.seleccionesMap.set(`${s.dia_semana}-${s.hora_inicio}`, { docenteId: s.docenteId }));
+    this.api
+      .get<ApiResponse<any[]>>(`/disponibilidad/docente/${id}`, { periodo })
+      .subscribe({
+        next: (r) => {
+          this.disponibilidadMap.clear();
+          (r.data ?? []).forEach((d: any) =>
+            this.disponibilidadMap.set(
+              `${d.dia_semana}-${d.hora_inicio}`,
+              d.disponible,
+            ),
+          );
         },
       });
+
+    this.api
+      .get<
+        ApiResponse<HorarioAsignado[]>
+      >(`/horarios/docente/${id}`, { periodo })
+      .subscribe({
+        next: (r) => {
+          this.asignacionesMap.clear();
+          (r.data ?? []).forEach((a: HorarioAsignado) =>
+            this.asignacionesMap.set(`${a.dia_semana}-${a.hora_inicio}`, a),
+          );
+        },
+      });
+
+    if (this.ventanaActiva) {
+      this.api
+        .get<
+          ApiResponse<any[]>
+        >(`/ventanas/${this.ventanaActiva.id}/selecciones`)
+        .subscribe({
+          next: (r) => {
+            this.seleccionesMap.clear();
+            (r.data ?? []).forEach((s: any) =>
+              this.seleccionesMap.set(`${s.dia_semana}-${s.hora_inicio}`, {
+                docenteId: s.docenteId,
+              }),
+            );
+          },
+        });
     }
   }
 
   loadAmbientes(): void {
-    this.api.get<any>('/ambientes', { limit: 100 }).subscribe({
-      next: (r: any) => { this.ambientesDisp = r?.data?.items ?? (r?.data ?? []); },
+    this.api.get<any>('/ambientes', { limit: 100, activo: 'true' }).subscribe({
+      next: (r: any) => {
+        this.ambientesDisp = r?.data?.items ?? r?.data ?? [];
+      },
     });
   }
 
@@ -144,8 +191,12 @@ export class OperadorComponent implements OnInit, OnDestroy {
     const key = `${dia}-${horaStr}`;
     if (this.asignacionesMap.has(key)) return 'ocupado';
     const sel = this.seleccionesMap.get(key);
-    if (sel) return sel.docenteId === this.docenteActual?.id ? 'seleccion-propia' : 'seleccion-otro';
-    if (this.docenteActual && this.disponibilidadMap.get(key) === false) return 'no-disponible';
+    if (sel)
+      return sel.docenteId === this.docenteActual?.id
+        ? 'seleccion-propia'
+        : 'seleccion-otro';
+    if (this.docenteActual && this.disponibilidadMap.get(key) === false)
+      return 'no-disponible';
     if (!this.docenteActual) return 'sin-docente';
     return 'libre';
   }
@@ -158,10 +209,16 @@ export class OperadorComponent implements OnInit, OnDestroy {
     const key = `${dia}-${horaStr}`;
 
     if (estado === 'seleccion-propia') {
-      this.api.delete<any>(`/ventanas/${this.ventanaActiva.id}/celda?dia_semana=${dia}&hora_inicio=${horaStr}`).subscribe({
-        next: () => { this.seleccionesMap.delete(key); },
-        error: () => this.notif.error('Error al liberar celda'),
-      });
+      this.api
+        .delete<any>(
+          `/ventanas/${this.ventanaActiva.id}/celda?dia_semana=${dia}&hora_inicio=${horaStr}`,
+        )
+        .subscribe({
+          next: () => {
+            this.seleccionesMap.delete(key);
+          },
+          error: () => this.notif.error('Error al liberar celda'),
+        });
       return;
     }
 
@@ -169,20 +226,37 @@ export class OperadorComponent implements OnInit, OnDestroy {
 
     this.api.get<any>('/cursos', { limit: 100 }).subscribe({
       next: (r: any) => {
-        const cursos = r?.data?.items ?? (r?.data ?? []);
+        const cursos = r?.data?.items ?? r?.data ?? [];
         const ref = this.dialog.open(CeldaDialogComponent, {
           width: '420px',
-          data: { dia, hora: horaStr, docente: this.docenteActual, cursos, ambientes: this.ambientesDisp },
+          data: {
+            dia,
+            hora: horaStr,
+            docente: this.docenteActual,
+            cursos,
+            ambientes: this.ambientesDisp,
+          },
         });
         ref.afterClosed().subscribe((result: any) => {
           if (!result) return;
-          this.api.post<any>(`/ventanas/${this.ventanaActiva!.id}/celda`, {
-            dia_semana: dia, hora_inicio: horaStr, hora_fin: horaFinStr,
-            cursoId: result.cursoId, ambienteId: result.ambienteId, docenteId: this.docenteActual!.id,
-          }).subscribe({
-            next: () => { this.seleccionesMap.set(key, { docenteId: this.docenteActual!.id }); this.notif.success('Celda asignada'); },
-            error: () => this.notif.error('Error al asignar celda'),
-          });
+          this.api
+            .post<any>(`/ventanas/${this.ventanaActiva!.id}/celda`, {
+              dia_semana: dia,
+              hora_inicio: horaStr,
+              hora_fin: horaFinStr,
+              cursoId: result.cursoId,
+              ambienteId: result.ambienteId,
+              docenteId: this.docenteActual!.id,
+            })
+            .subscribe({
+              next: () => {
+                this.seleccionesMap.set(key, {
+                  docenteId: this.docenteActual!.id,
+                });
+                this.notif.success('Celda asignada');
+              },
+              error: () => this.notif.error('Error al asignar celda'),
+            });
         });
       },
     });
@@ -206,45 +280,93 @@ export class OperadorComponent implements OnInit, OnDestroy {
   crearVentana(): void {
     if (this.ventanaForm.invalid) return;
     this.creandoVentana = true;
-    this.api.post<ApiResponse<any>>('/ventanas', this.ventanaForm.value).subscribe({
-      next: r => { this.ventanaActiva = r.data; this.socket.joinVentana(r.data.id); this.creandoVentana = false; this.notif.success('Ventana creada'); },
-      error: () => { this.creandoVentana = false; this.notif.error('Error al crear ventana'); },
-    });
+    this.api
+      .post<ApiResponse<any>>('/ventanas', this.ventanaForm.value)
+      .subscribe({
+        next: (r) => {
+          this.ventanaActiva = r.data;
+          this.socket.joinVentana(r.data.id);
+          this.creandoVentana = false;
+          this.notif.success('Ventana creada');
+        },
+        error: () => {
+          this.creandoVentana = false;
+          this.notif.error('Error al crear ventana');
+        },
+      });
   }
 
   iniciarVentana(): void {
     if (!this.ventanaActiva) return;
-    this.api.post<ApiResponse<any>>(`/ventanas/${this.ventanaActiva.id}/iniciar`, {}).subscribe({
-      next: r => { this.ventanaActiva = r.data; this.loadCola(); this.notif.success('Ventana iniciada'); },
-      error: () => this.notif.error('Error al iniciar ventana'),
-    });
+    this.api
+      .post<ApiResponse<any>>(`/ventanas/${this.ventanaActiva.id}/iniciar`, {})
+      .subscribe({
+        next: (r) => {
+          this.ventanaActiva = r.data;
+          this.loadCola();
+          this.notif.success('Ventana iniciada');
+        },
+        error: () => this.notif.error('Error al iniciar ventana'),
+      });
   }
 
   llamarSiguiente(): void {
     if (!this.ventanaActiva) return;
     this.llamandoSiguiente = true;
-    this.api.post<ApiResponse<any>>(`/ventanas/${this.ventanaActiva.id}/siguiente`, {}).subscribe({
-      next: () => { this.llamandoSiguiente = false; this.loadCola(); this.notif.info('Siguiente docente llamado'); },
-      error: () => { this.llamandoSiguiente = false; this.notif.error('Error al llamar siguiente'); },
-    });
+    this.api
+      .post<
+        ApiResponse<any>
+      >(`/ventanas/${this.ventanaActiva.id}/siguiente`, {})
+      .subscribe({
+        next: () => {
+          this.llamandoSiguiente = false;
+          this.loadCola();
+          this.notif.info('Siguiente docente llamado');
+        },
+        error: () => {
+          this.llamandoSiguiente = false;
+          this.notif.error('Error al llamar siguiente');
+        },
+      });
   }
 
   confirmarTurno(): void {
     if (!this.ventanaActiva) return;
     this.confirmando = true;
-    this.api.post<ApiResponse<any>>(`/ventanas/${this.ventanaActiva.id}/confirmar`, {}).subscribe({
-      next: () => { this.confirmando = false; this.seleccionesMap.clear(); this.loadCola(); this.notif.success('Turno confirmado'); },
-      error: () => { this.confirmando = false; this.notif.error('Error al confirmar turno'); },
-    });
+    this.api
+      .post<
+        ApiResponse<any>
+      >(`/ventanas/${this.ventanaActiva.id}/confirmar`, {})
+      .subscribe({
+        next: () => {
+          this.confirmando = false;
+          this.seleccionesMap.clear();
+          this.loadCola();
+          this.notif.success('Turno confirmado');
+        },
+        error: () => {
+          this.confirmando = false;
+          this.notif.error('Error al confirmar turno');
+        },
+      });
   }
 
   cancelarSelecciones(): void {
     if (!this.ventanaActiva) return;
     this.cancelando = true;
-    this.api.post<ApiResponse<any>>(`/ventanas/${this.ventanaActiva.id}/cancelar`, {}).subscribe({
-      next: () => { this.cancelando = false; this.seleccionesMap.clear(); this.notif.info('Selecciones canceladas'); },
-      error: () => { this.cancelando = false; this.notif.error('Error al cancelar'); },
-    });
+    this.api
+      .post<ApiResponse<any>>(`/ventanas/${this.ventanaActiva.id}/cancelar`, {})
+      .subscribe({
+        next: () => {
+          this.cancelando = false;
+          this.seleccionesMap.clear();
+          this.notif.info('Selecciones canceladas');
+        },
+        error: () => {
+          this.cancelando = false;
+          this.notif.error('Error al cancelar');
+        },
+      });
   }
 
   reloadEstado(): void {
@@ -252,12 +374,16 @@ export class OperadorComponent implements OnInit, OnDestroy {
     if (this.docenteActual) this.loadGridData();
   }
 
-  fmtH(h: number): string { return `${String(h).padStart(2, '0')}:00`; }
+  fmtH(h: number): string {
+    return `${String(h).padStart(2, '0')}:00`;
+  }
 
   estadoClass(estado: string): string {
     const map: Record<string, string> = {
-      ESPERANDO: 'estado-esperando', EN_ATENCION: 'estado-atencion',
-      COMPLETADO: 'estado-completado', AUSENTE: 'estado-ausente',
+      ESPERANDO: 'estado-esperando',
+      EN_ATENCION: 'estado-atencion',
+      COMPLETADO: 'estado-completado',
+      AUSENTE: 'estado-ausente',
     };
     return map[estado] ?? '';
   }

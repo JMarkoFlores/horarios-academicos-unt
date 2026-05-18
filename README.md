@@ -97,9 +97,15 @@ La aplicación estará disponible en: **http://localhost:4200**
 
 ## Credenciales por defecto
 
-| Usuario          | Contraseña | Rol   |
-| ---------------- | ---------- | ----- |
-| admin@unt.edu.pe | Admin123!  | ADMIN |
+El seeder (`npm run seed`) crea los siguientes usuarios de prueba. **La contraseña de todos es `Admin123!`.**
+
+| Usuario                | Contraseña | Rol                   |
+| ---------------------- | ---------- | --------------------- |
+| admin@unt.edu.pe       | Admin123!  | Administrador Sistema |
+| director@unt.edu.pe    | Admin123!  | Director de Escuela   |
+| coordinador@unt.edu.pe | Admin123!  | Coordinador Académico |
+| operador@unt.edu.pe    | Admin123!  | Operador de Horarios  |
+| docente@unt.edu.pe     | Admin123!  | Docente               |
 
 ---
 

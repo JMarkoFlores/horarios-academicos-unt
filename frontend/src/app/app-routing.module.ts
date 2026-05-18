@@ -76,6 +76,13 @@ const routes: Routes = [
           ),
       },
       {
+        path: 'periodos',
+        loadChildren: () =>
+          import('./modules/periodos/periodos.module').then(
+            (m) => m.PeriodosModule,
+          ),
+      },
+      {
         path: 'usuarios',
         loadChildren: () =>
           import('./modules/usuarios/usuarios.module').then(

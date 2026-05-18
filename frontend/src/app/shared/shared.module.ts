@@ -28,6 +28,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { NgChartsModule } from 'ng2-charts';
 
 const MATERIAL = [
@@ -57,6 +58,7 @@ const MATERIAL = [
   MatDividerModule,
   MatBadgeModule,
   MatTabsModule,
+  MatSlideToggleModule,
 ];
 
 @NgModule({

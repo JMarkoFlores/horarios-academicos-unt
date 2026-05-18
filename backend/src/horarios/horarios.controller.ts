@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  DefaultValuePipe,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -27,7 +28,7 @@ import { HorariosService } from "./horarios.service";
 import { GenerarHorarioDto } from "./dto/generar-horario.dto";
 import { LimpiarHorarioDto } from "./dto/limpiar-horario.dto";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
-import { QueryHorarioListDto } from "./dto/query-horario-list.dto";
+import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -96,14 +97,17 @@ export class HorariosController {
   @CacheTTL(600)
   @ApiOperation({ summary: "Horario paginado por período" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   async getHorarios(
     @Query("periodo") periodo: string,
-    @Query() query: QueryHorarioListDto,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
     const result = await this.horariosService.findAllByPeriodo(
       periodo ?? "",
-      query.page ?? 1,
-      query.limit ?? 20,
+      page,
+      limit,
     );
     return { data: result, message: "Horario del período obtenido" };
   }
@@ -113,14 +117,17 @@ export class HorariosController {
   @CacheTTL(600)
   @ApiOperation({ summary: "Horario completo de un período" })
   @ApiParam({ name: "periodo", example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   async getByPeriodo(
     @Param("periodo") periodo: string,
-    @Query() query: QueryHorarioListDto,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
     const result = await this.horariosService.findAllByPeriodo(
       periodo,
-      query.page ?? 1,
-      query.limit ?? 20,
+      page,
+      limit,
     );
     return { data: result, message: "Horario del período obtenido" };
   }
@@ -131,16 +138,19 @@ export class HorariosController {
   @ApiOperation({ summary: "Horario de un docente en un período" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   async getByDocente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
-    @Query() query: QueryHorarioListDto,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
     const result = await this.horariosService.findByDocente(
       id,
       periodo ?? "",
-      query.page ?? 1,
-      query.limit ?? 20,
+      page,
+      limit,
     );
     return { data: result, message: "Horario del docente obtenido" };
   }
@@ -151,16 +161,19 @@ export class HorariosController {
   @ApiOperation({ summary: "Horario de un ambiente en un período" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   async getByAmbiente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
-    @Query() query: QueryHorarioListDto,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
     const result = await this.horariosService.findByAmbiente(
       id,
       periodo ?? "",
-      query.page ?? 1,
-      query.limit ?? 20,
+      page,
+      limit,
     );
     return { data: result, message: "Horario del ambiente obtenido" };
   }
@@ -170,14 +183,17 @@ export class HorariosController {
   @CacheTTL(600)
   @ApiOperation({ summary: "Lista de conflictos del período" })
   @ApiParam({ name: "periodo", example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   async getConflictos(
     @Param("periodo") periodo: string,
-    @Query() query: QueryHorarioListDto,
+    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
     const result = await this.horariosService.findConflictos(
       periodo,
-      query.page ?? 1,
-      query.limit ?? 20,
+      page,
+      limit,
     );
     return { data: result, message: "Conflictos obtenidos" };
   }
@@ -223,6 +239,25 @@ export class HorariosController {
       ip: this.getRequestIp(request),
     });
     return { data: result, message: "Horario reasignado correctamente" };
+  }
+
+  @Post("asignar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: "Crear una asignación de horario manualmente" })
+  async asignar(
+    @Body() dto: CrearAsignacionDto,
+    @CurrentUser() usuario: Usuario,
+    @Req() request: Request,
+  ) {
+    const result = await this.horariosService.crearAsignacion(dto);
+    await this.auditLogService.log({
+      usuario: this.getAuditActor(usuario),
+      accion: "CREAR_ASIGNACION",
+      entidad: "horario",
+      entidadId: result.id,
+      ip: this.getRequestIp(request),
+    });
+    return { data: result, message: "Asignación creada correctamente" };
   }
 
   private getAuditActor(usuario: Usuario): string {

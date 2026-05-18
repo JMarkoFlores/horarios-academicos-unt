@@ -161,4 +161,33 @@
       </mat-card>
     </div>
   </div>
+
+  <div *ngIf="!loadingResumen && docentesSinDisponibilidad.length > 0">
+    <h2 class="resumen-titulo sin-disp">
+      Docentes que no registraron disponibilidad — {{ periodoService.periodo }}
+    </h2>
+    <div class="resumen-grid">
+      <mat-card
+        *ngFor="let d of docentesSinDisponibilidad"
+        class="docente-card sin-disponibilidad"
+        (click)="seleccionarDocente(d)"
+      >
+        <mat-card-header>
+          <div mat-card-avatar class="card-avatar muted">
+            <mat-icon>person_off</mat-icon>
+          </div>
+          <mat-card-title>{{ d.apellidos }}, {{ d.nombres }}</mat-card-title>
+          <mat-card-subtitle
+            >{{ d.codigo }} · {{ d.categoria }}</mat-card-subtitle
+          >
+        </mat-card-header>
+        <mat-card-content>
+          <div class="card-hint">
+            <mat-icon>touch_app</mat-icon>
+            <span>Clic para asignar disponibilidad</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
 </div>

@@ -1,0 +1,98 @@
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--color-text);
+
+  mat-icon {
+    color: var(--color-primary);
+  }
+}
+
+.spinner-center {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ambientes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ambiente-card {
+  position: relative;
+  border: 2px solid #334155;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #1e293b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  &:hover {
+    border-color: #60a5fa;
+  }
+
+  &.selected {
+    border-color: #3b82f6;
+    background: #1d3a5c;
+  }
+}
+
+.ambiente-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.ambiente-info {
+  .ambiente-codigo {
+    font-weight: 600;
+    font-size: 13px;
+    color: #e2e8f0;
+  }
+  .ambiente-nombre {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+  .ambiente-capacidad {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+}
+
+.check-icon {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: #3b82f6;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.empty-msg {
+  text-align: center;
+  color: #94a3b8;
+  padding: 20px;
+  grid-column: 1 / -1;
+}
+
+.inline-spinner {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}

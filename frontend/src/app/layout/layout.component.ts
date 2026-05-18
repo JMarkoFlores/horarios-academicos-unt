@@ -44,6 +44,12 @@ export class LayoutComponent implements OnInit {
     { icon: 'schedule', label: 'Horarios', route: '/app/horarios' },
     { icon: 'analytics', label: 'Analytics', route: '/app/analytics' },
     { icon: 'support_agent', label: 'Operador', route: '/app/operador' },
+    {
+      icon: 'event_note',
+      label: 'Periodos',
+      route: '/app/periodos',
+      adminOnly: true,
+    },
   ];
 
   @HostListener('window:resize')
@@ -64,6 +70,7 @@ export class LayoutComponent implements OnInit {
     horarios: 'Horarios — Vista de Asignaciones',
     analytics: 'Análisis Inteligente',
     operador: 'Operador — Sistema de Turnos',
+    periodos: 'Períodos Académicos',
     usuarios: 'Usuarios del Sistema',
   };
 

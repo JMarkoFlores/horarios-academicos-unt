@@ -29,7 +29,7 @@ export class ReportesComponent implements OnInit {
       },
     });
 
-    this.api.get<any>('/ambientes', { limit: 100 }).subscribe({
+    this.api.get<any>('/ambientes', { limit: 100, activo: 'true' }).subscribe({
       next: (r: any) => {
         this.todosAmbientes = r?.data?.items ?? r?.data ?? [];
       },

@@ -1,26 +1,16 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
 import * as request from "supertest";
-import { HorariosController } from "./horarios.controller";
-import { HorariosService } from "./horarios.service";
-import { AsignacionService } from "./asignacion.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
-
-import { AuditLogService } from "../common/services/audit-log.service";
+import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { AsignacionService } from "./asignacion.service";
+import { HorariosController } from "./horarios.controller";
 
 describe("HorariosController (e2e)", () => {
   let app: INestApplication;
-  let horariosService: HorariosService;
-  let asignacionService: AsignacionService;
-
-  const mockHorariosService = {
-    findAllByPeriodo: jest.fn(),
-    findByDocente: jest.fn(),
-    findByAmbiente: jest.fn(),
-    findConflictos: jest.fn(),
-    resolverConflicto: jest.fn(),
-  };
 
   const mockAsignacionService = {
     generarHorario: jest.fn(),
@@ -28,257 +18,111 @@ describe("HorariosController (e2e)", () => {
     reasignarManual: jest.fn(),
   };
 
-  const mockJwtAuthGuard = {
-    canActivate: jest.fn(() => true),
+  const qb = {
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    getMany: jest.fn(),
   };
 
-  const mockRolesGuard = {
-    canActivate: jest.fn(() => true),
+  const mockHorarioRepo = {
+    createQueryBuilder: jest.fn(() => qb),
+    findOne: jest.fn(),
+    save: jest.fn(),
   };
 
-  const mockAuditLogService = {
-    log: jest.fn(),
+  const mockAuditoriaRepo = {
+    create: jest.fn((x) => x),
+    save: jest.fn(),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HorariosController],
       providers: [
-        {
-          provide: HorariosService,
-          useValue: mockHorariosService,
-        },
-        {
-          provide: AsignacionService,
-          useValue: mockAsignacionService,
-        },
-        {
-          provide: AuditLogService,
-          useValue: mockAuditLogService,
-        },
-        {
-          provide: "CACHE_MANAGER",
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
-            del: jest.fn(),
-          },
-        },
+        { provide: AsignacionService, useValue: mockAsignacionService },
+        { provide: getRepositoryToken(HorarioAsignado), useValue: mockHorarioRepo },
+        { provide: getRepositoryToken(AuditoriaHorario), useValue: mockAuditoriaRepo },
       ],
     })
       .overrideGuard(JwtAuthGuard)
-      .useValue(mockJwtAuthGuard)
+      .useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard)
-      .useValue(mockRolesGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     app = module.createNestApplication();
-    horariosService = module.get<HorariosService>(HorariosService);
-    asignacionService = module.get<AsignacionService>(AsignacionService);
-
     await app.init();
-
     jest.clearAllMocks();
   });
 
   afterEach(async () => {
-    if (app) {
-      await app.close();
-    }
+    await app.close();
   });
 
-  describe("GET /horarios/periodo/:periodo", () => {
-    it("debe retornar horarios de un período", async () => {
-      const mockHorarios = [
-        {
-          id: 1,
-          dia_semana: 1,
-          hora_inicio: "08:00",
-          hora_fin: "10:00",
-          periodo_academico: "2026-I",
-        },
-      ];
-      mockHorariosService.findAllByPeriodo.mockResolvedValue(mockHorarios);
-
-      const response = await request(app.getHttpServer())
-        .get("/horarios/periodo/2026-I")
-        .expect(200);
-
-      expect(response.body).toEqual({
-        data: mockHorarios,
-        message: "Horario del período obtenido",
-      });
-      expect(horariosService.findAllByPeriodo).toHaveBeenCalledWith("2026-I", 1, 20);
+  it("POST /horarios/generar", async () => {
+    mockAsignacionService.generarHorario.mockResolvedValue({
+      asignaciones_creadas: 2,
+      conflictos: 0,
+      detalle_conflictos: [],
     });
+
+    const response = await request(app.getHttpServer())
+      .post("/horarios/generar")
+      .send({ periodo: "2026-I" })
+      .expect(201);
+
+    expect(response.body.message).toBe("Horario generado");
+    expect(response.body.statusCode).toBe(201);
   });
 
-  describe("GET /horarios/docente/:id", () => {
-    it("debe retornar horarios de un docente", async () => {
-      const mockHorarios = [
-        {
-          id: 1,
-          dia_semana: 1,
-          hora_inicio: "08:00",
-          hora_fin: "10:00",
-          docente: { id: 1, nombre: "Dr. Test" },
-        },
-      ];
-      mockHorariosService.findByDocente.mockResolvedValue(mockHorarios);
+  it("DELETE /horarios/limpiar", async () => {
+    mockAsignacionService.limpiarHorario.mockResolvedValue({ eliminados: 3 });
 
-      const response = await request(app.getHttpServer())
-        .get("/horarios/docente/1?periodo=2026-I")
-        .expect(200);
+    const response = await request(app.getHttpServer())
+      .delete("/horarios/limpiar?periodo=2026-I")
+      .expect(200);
 
-      expect(response.body).toEqual({
-        data: mockHorarios,
-        message: "Horario del docente obtenido",
-      });
-      expect(horariosService.findByDocente).toHaveBeenCalledWith(1, "2026-I", 1, 20);
-    });
+    expect(response.body.data).toEqual({ eliminados: 3 });
   });
 
-  describe("GET /horarios/ambiente/:id", () => {
-    it("debe retornar horarios de un ambiente", async () => {
-      const mockHorarios = [
-        {
-          id: 1,
-          dia_semana: 1,
-          hora_inicio: "08:00",
-          hora_fin: "10:00",
-          ambiente: { id: 1, codigo: "A-101" },
-        },
-      ];
-      mockHorariosService.findByAmbiente.mockResolvedValue(mockHorarios);
+  it("GET /horarios/periodo/:periodo", async () => {
+    qb.getMany.mockResolvedValue([{ id: 1 }]);
 
-      const response = await request(app.getHttpServer())
-        .get("/horarios/ambiente/1?periodo=2026-I")
-        .expect(200);
+    const response = await request(app.getHttpServer())
+      .get("/horarios/periodo/2026-I?estado=CONFIRMADO&tipo_clase=TEORIA")
+      .expect(200);
 
-      expect(response.body).toEqual({
-        data: mockHorarios,
-        message: "Horario del ambiente obtenido",
-      });
-      expect(horariosService.findByAmbiente).toHaveBeenCalledWith(1, "2026-I", 1, 20);
-    });
+    expect(response.body.data).toEqual([{ id: 1 }]);
+    expect(mockHorarioRepo.createQueryBuilder).toHaveBeenCalledWith("horario");
   });
 
-  describe("GET /horarios/conflictos/:periodo", () => {
-    it("debe retornar conflictos de un período", async () => {
-      const mockConflictos = [
-        {
-          id: 1,
-          resuelto: false,
-          docente: { id: 1, nombre: "Dr. Test" },
-        },
-      ];
-      mockHorariosService.findConflictos.mockResolvedValue(mockConflictos);
-
-      const response = await request(app.getHttpServer())
-        .get("/horarios/conflictos/2026-I")
-        .expect(200);
-
-      expect(response.body).toEqual({
-        data: mockConflictos,
-        message: "Conflictos obtenidos",
-      });
-      expect(horariosService.findConflictos).toHaveBeenCalledWith("2026-I", 1, 20);
+  it("PATCH /horarios/conflictos/:id/resolver", async () => {
+    mockHorarioRepo.findOne.mockResolvedValue({
+      id: 7,
+      estado: "CONFLICTO",
+      dia: 2,
+      hora_inicio: "08:00",
+      hora_fin: "09:00",
+      ambiente_id: 1,
     });
-  });
-
-  describe("PATCH /horarios/conflictos/:id/resolver", () => {
-    it("debe marcar un conflicto como resuelto", async () => {
-      const mockConflictoResuelto = {
-        id: 1,
-        resuelto: true,
-      };
-      mockHorariosService.resolverConflicto.mockResolvedValue(
-        mockConflictoResuelto,
-      );
-
-      const response = await request(app.getHttpServer())
-        .patch("/horarios/conflictos/1/resolver")
-        .expect(200);
-
-      expect(response.body).toEqual({
-        data: mockConflictoResuelto,
-        message: "Conflicto marcado como resuelto",
-      });
-      expect(horariosService.resolverConflicto).toHaveBeenCalledWith(1);
+    mockHorarioRepo.save.mockResolvedValue({
+      id: 7,
+      estado: "BORRADOR",
+      dia: 2,
+      hora_inicio: "08:00",
+      hora_fin: "09:00",
+      ambiente_id: 1,
     });
-  });
 
-  describe("PATCH /horarios/:id", () => {
-    it("debe reasignar un horario manualmente", async () => {
-      const mockHorarioReasignado = {
-        id: 1,
-        dia_semana: 2,
-        hora_inicio: "09:00",
-        hora_fin: "11:00",
-      };
-      const reasignarDto = {
-        dia_semana: 2,
-        hora_inicio: "09:00",
-        hora_fin: "11:00",
-        ambiente_id: 2,
-      };
-      mockAsignacionService.reasignarManual.mockResolvedValue(
-        mockHorarioReasignado,
-      );
+    const response = await request(app.getHttpServer())
+      .patch("/horarios/conflictos/7/resolver")
+      .send({ motivo: "ajuste" })
+      .expect(200);
 
-      const response = await request(app.getHttpServer())
-        .patch("/horarios/1")
-        .send(reasignarDto)
-        .expect(200);
-
-      expect(response.body).toEqual({
-        data: mockHorarioReasignado,
-        message: "Horario reasignado correctamente",
-      });
-      expect(asignacionService.reasignarManual).toHaveBeenCalledWith(
-        1,
-        expect.objectContaining(reasignarDto),
-      );
-    });
-  });
-
-  describe("POST /horarios/generar", () => {
-    it("debe generar horario para un período", async () => {
-      const mockResult = {
-        asignaciones_creadas: 100,
-        conflictos: 5,
-      };
-      const generarDto = { periodo: "2026-I" };
-      mockAsignacionService.generarHorario.mockResolvedValue(mockResult);
-
-      const response = await request(app.getHttpServer())
-        .post("/horarios/generar")
-        .send(generarDto)
-        .expect(201);
-
-      expect(response.body).toEqual({
-        data: mockResult,
-        message: "Horario generado: 100 asignaciones, 5 conflictos",
-      });
-      expect(asignacionService.generarHorario).toHaveBeenCalledWith("2026-I");
-    });
-  });
-
-  describe("DELETE /horarios/limpiar", () => {
-    it("debe limpiar horario de un período", async () => {
-      const mockResult = { eliminados: 100 };
-      const limpiarDto = { periodo: "2026-I" };
-      mockAsignacionService.limpiarHorario.mockResolvedValue(mockResult);
-
-      const response = await request(app.getHttpServer())
-        .delete("/horarios/limpiar")
-        .send(limpiarDto)
-        .expect(200);
-
-      expect(response.body).toEqual({
-        data: mockResult,
-        message: "Período 2026-I limpiado",
-      });
-      expect(asignacionService.limpiarHorario).toHaveBeenCalledWith("2026-I");
-    });
+    expect(response.body.data.estado).toBe("BORRADOR");
+    expect(mockAuditoriaRepo.save).toHaveBeenCalled();
   });
 });

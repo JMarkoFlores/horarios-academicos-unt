@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -8,275 +9,240 @@ import {
   Param,
   Query,
   ParseIntPipe,
-  DefaultValuePipe,
   HttpCode,
   HttpStatus,
   UseGuards,
-  UseInterceptors,
   Req,
 } from "@nestjs/common";
 import {
-  ApiTags,
-  ApiOperation,
   ApiBearerAuth,
-  ApiParam,
+  ApiOperation,
   ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from "@nestjs/swagger";
-import { CacheTTL } from "@nestjs/cache-manager";
-import { AsignacionService } from "./asignacion.service";
-import { HorariosService } from "./horarios.service";
-import { GenerarHorarioDto } from "./dto/generar-horario.dto";
-import { LimpiarHorarioDto } from "./dto/limpiar-horario.dto";
-import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
-import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { RolesGuard } from "../auth/guards/roles.guard";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Request } from "express";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
-import { HttpCacheInterceptor } from "../common/interceptors/http-cache.interceptor";
-import { AuditLogService } from "../common/services/audit-log.service";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { Usuario } from "../entities/usuario.entity";
-import { Request } from "express";
+import { AsignacionService } from "./asignacion.service";
+import { GenerarHorarioDto } from "./dto/generar-horario.dto";
+import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
+import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
 
 @ApiTags("horarios")
 @Controller("horarios")
 @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth("JWT")
 export class HorariosController {
   constructor(
     private readonly asignacionService: AsignacionService,
-    private readonly horariosService: HorariosService,
-    private readonly auditLogService: AuditLogService,
+    @InjectRepository(HorarioAsignado)
+    private readonly horarioRepo: Repository<HorarioAsignado>,
+    @InjectRepository(AuditoriaHorario)
+    private readonly auditoriaRepo: Repository<AuditoriaHorario>,
   ) {}
 
   @Post("generar")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Generar horario para un período" })
+  @ApiResponse({ status: 201, description: "Horario generado correctamente" })
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Ejecutar el motor de asignación para un período" })
-  async generarHorario(
-    @Body() dto: GenerarHorarioDto,
-    @CurrentUser() usuario: Usuario,
-    @Req() request: Request,
-  ) {
-    const result = await this.asignacionService.generarHorario(dto.periodo);
-    await this.auditLogService.log({
-      usuario: this.getAuditActor(usuario),
-      accion: "GENERAR_HORARIO",
-      entidad: "asignacion_horarios",
-      entidadId: dto.periodo,
-      ip: this.getRequestIp(request),
-    });
+  async generarHorario(@Body() dto: GenerarHorarioDto) {
+    const resultado = await this.asignacionService.generarHorario(dto.periodo);
     return {
-      data: result,
-      message: `Horario generado: ${result.asignaciones_creadas} asignaciones, ${result.conflictos} conflictos`,
+      data: resultado,
+      message: "Horario generado",
+      statusCode: HttpStatus.CREATED,
     };
   }
 
   @Delete("limpiar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Eliminar todas las asignaciones de un período" })
-  async limpiarHorario(
-    @Body() dto: LimpiarHorarioDto,
-    @CurrentUser() usuario: Usuario,
-    @Req() request: Request,
-  ) {
-    const result = await this.asignacionService.limpiarHorario(dto.periodo);
-    await this.auditLogService.log({
-      usuario: this.getAuditActor(usuario),
-      accion: "LIMPIAR_HORARIO",
-      entidad: "asignacion_horarios",
-      entidadId: dto.periodo,
-      ip: this.getRequestIp(request),
-    });
-    return { data: result, message: `Período ${dto.periodo} limpiado` };
-  }
-
-  @Get()
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(600)
-  @ApiOperation({ summary: "Horario paginado por período" })
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Limpiar horario en BORRADOR/CONFLICTO por período" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  async getHorarios(
-    @Query("periodo") periodo: string,
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
-  ) {
-    const result = await this.horariosService.findAllByPeriodo(
-      periodo ?? "",
-      page,
-      limit,
-    );
-    return { data: result, message: "Horario del período obtenido" };
+  @ApiResponse({ status: 200, description: "Horario limpiado correctamente" })
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @HttpCode(HttpStatus.OK)
+  async limpiarHorario(@Query("periodo") periodo: string) {
+    const resultado = await this.asignacionService.limpiarHorario(periodo);
+    return { data: resultado, message: "Horario limpiado", statusCode: HttpStatus.OK };
   }
 
   @Get("periodo/:periodo")
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(600)
-  @ApiOperation({ summary: "Horario completo de un período" })
-  @ApiParam({ name: "periodo", example: "2026-I" })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  async getByPeriodo(
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Listar horario por período" })
+  @ApiQuery({ name: "estado", required: false, enum: EstadoHorario })
+  @ApiQuery({ name: "tipo_clase", required: false, enum: TipoClase })
+  @ApiResponse({ status: 200, description: "Horarios del período" })
+  async getPorPeriodo(
     @Param("periodo") periodo: string,
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query("estado") estado?: EstadoHorario,
+    @Query("tipo_clase") tipoClase?: TipoClase,
   ) {
-    const result = await this.horariosService.findAllByPeriodo(
-      periodo,
-      page,
-      limit,
-    );
-    return { data: result, message: "Horario del período obtenido" };
+    const qb = this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .where("horario.periodo = :periodo", { periodo });
+
+    if (estado) {
+      qb.andWhere("horario.estado = :estado", { estado });
+    }
+    if (tipoClase) {
+      qb.andWhere("horario.tipo_clase = :tipoClase", { tipoClase });
+    }
+
+    const data = await qb.orderBy("horario.dia", "ASC").addOrderBy("horario.hora_inicio", "ASC").getMany();
+    return { data, message: "Horario del período obtenido", statusCode: HttpStatus.OK };
   }
 
   @Get("docente/:id")
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(600)
-  @ApiOperation({ summary: "Horario de un docente en un período" })
-  @ApiParam({ name: "id", type: Number })
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Listar horario de un docente por período" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  async getByDocente(
+  @ApiResponse({ status: 200, description: "Horario del docente" })
+  async getPorDocente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
-    const result = await this.horariosService.findByDocente(
-      id,
-      periodo ?? "",
-      page,
-      limit,
-    );
-    return { data: result, message: "Horario del docente obtenido" };
+    const data = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .where("horario.docente_id = :id", { id })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
+
+    return { data, message: "Horario del docente obtenido", statusCode: HttpStatus.OK };
   }
 
   @Get("ambiente/:id")
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(600)
-  @ApiOperation({ summary: "Horario de un ambiente en un período" })
-  @ApiParam({ name: "id", type: Number })
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Listar ocupación de un ambiente por período" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  async getByAmbiente(
+  @ApiResponse({ status: 200, description: "Ocupación del ambiente" })
+  async getPorAmbiente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
-    const result = await this.horariosService.findByAmbiente(
-      id,
-      periodo ?? "",
-      page,
-      limit,
-    );
-    return { data: result, message: "Horario del ambiente obtenido" };
-  }
+    const data = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .where("horario.ambiente_id = :id", { id })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
 
-  @Get("conflictos/:periodo")
-  @UseInterceptors(HttpCacheInterceptor)
-  @CacheTTL(600)
-  @ApiOperation({ summary: "Lista de conflictos del período" })
-  @ApiParam({ name: "periodo", example: "2026-I" })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "limit", required: false, type: Number })
-  async getConflictos(
-    @Param("periodo") periodo: string,
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query("limit", new DefaultValuePipe(20), ParseIntPipe) limit: number,
-  ) {
-    const result = await this.horariosService.findConflictos(
-      periodo,
-      page,
-      limit,
-    );
-    return { data: result, message: "Conflictos obtenidos" };
-  }
-
-  @Patch("conflictos/:id/resolver")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Marcar un conflicto como resuelto" })
-  @ApiParam({ name: "id", type: Number })
-  async resolverConflicto(
-    @Param("id", ParseIntPipe) id: number,
-    @CurrentUser() usuario: Usuario,
-    @Req() request: Request,
-  ) {
-    const result = await this.horariosService.resolverConflicto(id);
-    await this.auditLogService.log({
-      usuario: this.getAuditActor(usuario),
-      accion: "RESOLVER_CONFLICTO",
-      entidad: "conflicto_asignacion",
-      entidadId: id,
-      ip: this.getRequestIp(request),
-    });
-    return { data: result, message: "Conflicto marcado como resuelto" };
+    return { data, message: "Horario del ambiente obtenido", statusCode: HttpStatus.OK };
   }
 
   @Patch(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({
-    summary: "Reasignación manual de un horario (valida cruces)",
-  })
-  @ApiParam({ name: "id", type: Number })
-  async reasignar(
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Reasignar manualmente un horario" })
+  @ApiResponse({ status: 200, description: "Horario reasignado correctamente" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async reasignarHorario(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: ReasignarHorarioDto,
     @CurrentUser() usuario: Usuario,
     @Req() request: Request,
   ) {
-    const result = await this.asignacionService.reasignarManual(id, {
+    const data = await this.asignacionService.reasignarManual(id, {
       ...dto,
       usuario_id: usuario?.id,
-      ip: this.getRequestIp(request),
+      ip: request.ip,
     });
-    await this.auditLogService.log({
-      usuario: this.getAuditActor(usuario),
-      accion: "REASIGNAR_HORARIO",
-      entidad: "horario",
-      entidadId: id,
-      ip: this.getRequestIp(request),
-    });
-    return { data: result, message: "Horario reasignado correctamente" };
+    return { data, message: "Horario reasignado", statusCode: HttpStatus.OK };
   }
 
-  @Post("asignar")
+  @Get("conflictos/:periodo")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Listar conflictos del período" })
+  @ApiResponse({ status: 200, description: "Conflictos del período" })
+  async getConflictos(@Param("periodo") periodo: string) {
+    const data = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .where("horario.periodo = :periodo", { periodo })
+      .andWhere("horario.estado = :estado", { estado: EstadoHorario.CONFLICTO })
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
+
+    return { data, message: "Conflictos obtenidos", statusCode: HttpStatus.OK };
+  }
+
+  @Patch("conflictos/:id/resolver")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Resolver conflicto y pasar estado a BORRADOR" })
+  @ApiResponse({ status: 200, description: "Conflicto resuelto correctamente" })
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Crear una asignación de horario manualmente" })
-  async asignar(
-    @Body() dto: CrearAsignacionDto,
+  async resolverConflicto(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: ResolverConflictoDto,
     @CurrentUser() usuario: Usuario,
     @Req() request: Request,
   ) {
-    const result = await this.horariosService.crearAsignacion(dto);
-    await this.auditLogService.log({
-      usuario: this.getAuditActor(usuario),
-      accion: "CREAR_ASIGNACION",
-      entidad: "horario",
-      entidadId: result.id,
-      ip: this.getRequestIp(request),
-    });
-    return { data: result, message: "Asignación creada correctamente" };
-  }
-
-  private getAuditActor(usuario: Usuario): string {
-    return (
-      usuario?.email ??
-      `${usuario?.nombre ?? "usuario"}#${usuario?.id ?? "anonimo"}`
-    );
-  }
-
-  private getRequestIp(request: Request): string {
-    const forwardedFor = request.headers["x-forwarded-for"];
-    if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
-      return forwardedFor.split(",")[0].trim();
+    const horario = await this.horarioRepo.findOne({ where: { id } });
+    if (!horario) {
+      throw new BadRequestException(`Horario ${id} no encontrado`);
     }
 
-    return request.ip ?? request.socket.remoteAddress ?? "desconocida";
+    const datosAnteriores = {
+      estado: horario.estado,
+      dia: horario.dia,
+      hora_inicio: horario.hora_inicio,
+      hora_fin: horario.hora_fin,
+      ambiente_id: horario.ambiente_id,
+    };
+
+    horario.estado = EstadoHorario.BORRADOR;
+    const actualizado = await this.horarioRepo.save(horario);
+
+    await this.auditoriaRepo.save(
+      this.auditoriaRepo.create({
+        horario_id: actualizado.id,
+        usuario_id: usuario?.id ?? 1,
+        accion: "resolver_conflicto",
+        datos_anteriores: datosAnteriores,
+        datos_nuevos: {
+          estado: actualizado.estado,
+          dia: actualizado.dia,
+          hora_inicio: actualizado.hora_inicio,
+          hora_fin: actualizado.hora_fin,
+          ambiente_id: actualizado.ambiente_id,
+        },
+        ip: request.ip ?? "desconocida",
+        motivo: dto.motivo,
+      }),
+    );
+
+    return { data: actualizado, message: "Conflicto resuelto", statusCode: HttpStatus.OK };
   }
 }

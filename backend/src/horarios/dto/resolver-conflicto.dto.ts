@@ -1,9 +1,8 @@
-import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
+import { IsString } from "class-validator";
 
 export class ResolverConflictoDto {
-  @ApiPropertyOptional({ description: "Observación de la resolución" })
-  @IsOptional()
+  @ApiProperty({ description: "Motivo de resolución del conflicto" })
   @IsString()
-  observacion?: string;
+  motivo: string;
 }

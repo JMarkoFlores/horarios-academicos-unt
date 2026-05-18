@@ -346,6 +346,9 @@ export class AsignacionService {
       estado: horario.estado,
     };
 
+    const nuevoDia = dto.dia_semana ?? horario.dia;
+    const nuevaHoraInicio = dto.hora_inicio ?? horario.hora_inicio;
+    const nuevaHoraFin = dto.hora_fin ?? horario.hora_fin;
     const nuevoAmbienteId = dto.ambiente_id ?? horario.ambiente_id;
     const resultado = await this.validadorHorarioService.validarSlot({
       docente_id: horario.docente_id,
@@ -354,11 +357,11 @@ export class AsignacionService {
       laboratorio_ambiente_id:
         horario.tipo_clase === TipoClase.LABORATORIO ? nuevoAmbienteId : undefined,
       periodo: horario.periodo,
-      dia: dto.dia_semana,
-      hora_inicio: dto.hora_inicio,
-      hora_fin: dto.hora_fin,
+      dia: nuevoDia,
+      hora_inicio: nuevaHoraInicio,
+      hora_fin: nuevaHoraFin,
       tipo_clase: horario.tipo_clase,
-      fecha: this.construirFechaDesdeDia(horario.periodo, dto.dia_semana),
+      fecha: this.construirFechaDesdeDia(horario.periodo, nuevoDia),
     });
 
     if (!resultado.valido) {
@@ -368,9 +371,9 @@ export class AsignacionService {
       });
     }
 
-    horario.dia = dto.dia_semana;
-    horario.hora_inicio = dto.hora_inicio;
-    horario.hora_fin = dto.hora_fin;
+    horario.dia = nuevoDia;
+    horario.hora_inicio = nuevaHoraInicio;
+    horario.hora_fin = nuevaHoraFin;
     horario.ambiente_id = nuevoAmbienteId;
     horario.estado = EstadoHorario.BORRADOR;
 

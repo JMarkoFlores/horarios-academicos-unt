@@ -230,7 +230,11 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
     @Req() request: Request,
   ) {
-    const result = await this.horariosService.reasignarManual(id, dto);
+    const result = await this.asignacionService.reasignarManual(id, {
+      ...dto,
+      usuario_id: usuario?.id,
+      ip: this.getRequestIp(request),
+    });
     await this.auditLogService.log({
       usuario: this.getAuditActor(usuario),
       accion: "REASIGNAR_HORARIO",

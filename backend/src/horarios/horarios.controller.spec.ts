@@ -20,12 +20,12 @@ describe("HorariosController (e2e)", () => {
     findByAmbiente: jest.fn(),
     findConflictos: jest.fn(),
     resolverConflicto: jest.fn(),
-    reasignarManual: jest.fn(),
   };
 
   const mockAsignacionService = {
     generarHorario: jest.fn(),
     limpiarHorario: jest.fn(),
+    reasignarManual: jest.fn(),
   };
 
   const mockJwtAuthGuard = {
@@ -221,7 +221,7 @@ describe("HorariosController (e2e)", () => {
         hora_fin: "11:00",
         ambiente_id: 2,
       };
-      mockHorariosService.reasignarManual.mockResolvedValue(
+      mockAsignacionService.reasignarManual.mockResolvedValue(
         mockHorarioReasignado,
       );
 
@@ -234,9 +234,9 @@ describe("HorariosController (e2e)", () => {
         data: mockHorarioReasignado,
         message: "Horario reasignado correctamente",
       });
-      expect(horariosService.reasignarManual).toHaveBeenCalledWith(
+      expect(asignacionService.reasignarManual).toHaveBeenCalledWith(
         1,
-        reasignarDto,
+        expect.objectContaining(reasignarDto),
       );
     });
   });

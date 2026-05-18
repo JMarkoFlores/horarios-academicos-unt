@@ -25,4 +25,17 @@ export class ReasignarHorarioDto {
   @IsOptional()
   @IsInt()
   ambiente_id?: number;
+
+  @ApiPropertyOptional({ description: "Motivo de reasignación" })
+  @IsOptional()
+  @IsString()
+  motivo?: string;
+
+  @IsOptional()
+  @IsInt()
+  usuario_id?: number;
+
+  @IsOptional()
+  @IsString()
+  ip?: string;
 }

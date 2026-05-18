@@ -10,6 +10,7 @@ import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity
 import { Grupo } from "../entities/grupo.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Preasignacion } from "../entities/preasignacion.entity";
+import { DocenteCurso } from "../entities/docente-curso.entity";
 import { AsignacionService } from "./asignacion.service";
 import { HorariosService } from "./horarios.service";
 import { HorariosGateway } from "./horarios.gateway";
@@ -31,6 +32,7 @@ import { CommonModule } from "../common/common.module";
       PeriodoAcademico,
       DisponibilidadDocente,
       Preasignacion,
+      DocenteCurso,
     ]),
     DocentesModule,
     CommonModule,

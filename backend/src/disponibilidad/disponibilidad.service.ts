@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
@@ -25,6 +25,13 @@ export class DisponibilidadService {
   ) {}
 
   async getByDocente(docenteId: number, periodo: string) {
+    const periodoAcademico = await this.periodoRepo.findOne({
+      where: { codigo: periodo },
+    });
+    if (!periodoAcademico) {
+      throw new NotFoundException(`Periodo académico ${periodo} no encontrado`);
+    }
+
     const docente = await this.docenteRepo.findOne({
       where: { id: docenteId },
     });
@@ -32,13 +39,52 @@ export class DisponibilidadService {
       throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
     }
 
-    const slots = await this.disponibilidadRepo.find({
+    const dbSlots = await this.disponibilidadRepo.find({
       where: {
         docente: { id: docenteId },
         periodo_academico: periodo,
       },
-      order: { dia_semana: "ASC", hora_inicio: "ASC" },
     });
+
+    const timeToMinutes = (t: string): number => {
+      const parts = t.split(":").map(Number);
+      const h = parts[0] || 0;
+      const m = parts[1] || 0;
+      return h * 60 + m;
+    };
+
+    const isAvailable = (dia: number, hour: number): boolean => {
+      const blockStart = hour * 60;
+      const blockEnd = (hour + 1) * 60;
+
+      const coveringSlots = dbSlots.filter((s) => {
+        if (s.dia_semana !== dia) return false;
+        const start = timeToMinutes(s.hora_inicio);
+        const end = timeToMinutes(s.hora_fin);
+        return start <= blockStart && end >= blockEnd;
+      });
+
+      if (coveringSlots.length === 0) return false;
+
+      // Si algún slot que lo cubre es disponible, se considera disponible
+      return coveringSlots.some((s) => s.disponible);
+    };
+
+    const slots: any[] = [];
+    // 15 horas desde las 07:00 hasta las 21:00 (bloques de 1 hora hasta las 22:00)
+    for (let h = 7; h <= 21; h++) {
+      for (let d = 1; d <= 5; d++) {
+        const hInicioStr = `${h.toString().padStart(2, "0")}:00:00`;
+        const hFinStr = `${(h + 1).toString().padStart(2, "0")}:00:00`;
+        slots.push({
+          dia_semana: d,
+          hora_inicio: hInicioStr,
+          hora_fin: hFinStr,
+          disponible: isAvailable(d, h),
+          periodo_academico: periodo,
+        });
+      }
+    }
 
     return {
       docente: {
@@ -56,6 +102,13 @@ export class DisponibilidadService {
     docenteId: number,
     dto: GuardarDisponibilidadDto,
   ) {
+    const periodoAcademico = await this.periodoRepo.findOne({
+      where: { codigo: dto.periodo },
+    });
+    if (!periodoAcademico) {
+      throw new NotFoundException(`Periodo académico ${dto.periodo} no encontrado`);
+    }
+
     const docente = await this.docenteRepo.findOne({
       where: { id: docenteId },
     });
@@ -64,6 +117,7 @@ export class DisponibilidadService {
     }
 
     await this.dataSource.transaction(async (manager) => {
+      // Eliminar disponibilidad previa para este período y docente
       await manager
         .createQueryBuilder()
         .delete()
@@ -72,16 +126,28 @@ export class DisponibilidadService {
         .andWhere("periodo_academico = :periodo", { periodo: dto.periodo })
         .execute();
 
-      const nuevosSlots = dto.slots.map((slot) =>
-        manager.create(DisponibilidadDocente, {
+      // Mapear y normalizar los nuevos slots a HH:mm:00
+      const nuevosSlots = dto.slots.map((slot) => {
+        const hInicio = slot.hora_inicio.length === 5 ? `${slot.hora_inicio}:00` : slot.hora_inicio;
+        const hFin = slot.hora_fin.length === 5 ? `${slot.hora_fin}:00` : slot.hora_fin;
+
+        const [hiH, hiM] = hInicio.split(":").map(Number);
+        const [hfH, hfM] = hFin.split(":").map(Number);
+        if (hiH * 60 + hiM >= hfH * 60 + hfM) {
+          throw new BadRequestException(
+            `La hora de inicio (${slot.hora_inicio}) debe ser menor que la hora de fin (${slot.hora_fin})`,
+          );
+        }
+
+        return manager.create(DisponibilidadDocente, {
           dia_semana: slot.dia_semana,
-          hora_inicio: slot.hora_inicio,
-          hora_fin: slot.hora_fin,
+          hora_inicio: hInicio,
+          hora_fin: hFin,
           disponible: slot.disponible,
           periodo_academico: dto.periodo,
           docente,
-        }),
-      );
+        });
+      });
 
       await manager.save(DisponibilidadDocente, nuevosSlots);
     });
@@ -90,11 +156,25 @@ export class DisponibilidadService {
   }
 
   async getResumenDocentes(periodo: string) {
+    const periodoAcademico = await this.periodoRepo.findOne({
+      where: { codigo: periodo },
+    });
+    if (!periodoAcademico) {
+      throw new NotFoundException(`Periodo académico ${periodo} no encontrado`);
+    }
+
+    const allTeachers = await this.docenteRepo.find({
+      where: { activo: true },
+      order: { apellidos: "ASC" },
+    });
+
+    // Obtener los slots donde disponible = true para este período
     const registros = await this.disponibilidadRepo
       .createQueryBuilder("d")
       .innerJoinAndSelect("d.docente", "docente")
       .where("d.periodo_academico = :periodo", { periodo })
       .andWhere("d.disponible = :disponible", { disponible: true })
+      .andWhere("docente.activo = :activo", { activo: true })
       .orderBy("docente.apellidos", "ASC")
       .getMany();
 
@@ -129,7 +209,17 @@ export class DisponibilidadService {
       entry.horas_disponibles += (hfH * 60 + hfM - hiH * 60 - hiM) / 60;
     }
 
-    return Array.from(docenteMap.values());
+    const detalle = Array.from(docenteMap.values());
+    const declaredTeacherIds = new Set(docenteMap.keys());
+
+    const declararon = declaredTeacherIds.size;
+    const faltan = allTeachers.filter((t) => !declaredTeacherIds.has(t.id)).length;
+
+    return {
+      declararon,
+      faltan,
+      detalle,
+    };
   }
 
   async getRestricciones(periodo: string, page = 1, limit = 20) {

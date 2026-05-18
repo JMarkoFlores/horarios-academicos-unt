@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
+import { PeriodoService } from '../../../core/services/periodo.service';
 import {
   ApiResponse,
   PeriodoAcademico,
@@ -36,6 +37,7 @@ export class PeriodosListComponent implements OnInit {
   constructor(
     private api: ApiService,
     private snackBar: MatSnackBar,
+    private periodoService: PeriodoService,
   ) {}
 
   ngOnInit(): void {
@@ -75,6 +77,7 @@ export class PeriodosListComponent implements OnInit {
     this.api.delete<ApiResponse<any>>(`/periodos/${p.id}`).subscribe({
       next: () => {
         this.snackBar.open('Periodo eliminado', 'OK', { duration: 2000 });
+        this.periodoService.cargarPeriodos();
         this.loadPeriodos();
       },
     });

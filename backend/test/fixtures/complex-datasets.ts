@@ -24,7 +24,7 @@ export class ComplexDatasetGenerator {
         {
           email: "admin@unitru.edu.pe",
           nombre: "Admin User",
-          rol: RolUsuario.ADMIN,
+          rol: RolUsuario.ADMINISTRADOR_SISTEMA,
           password_hash: "$2b$10$hash",
           activo: true,
         },
@@ -181,7 +181,7 @@ export class ComplexDatasetGenerator {
         {
           email: "admin@unitru.edu.pe",
           nombre: "Admin User",
-          rol: RolUsuario.ADMIN,
+          rol: RolUsuario.ADMINISTRADOR_SISTEMA,
           password_hash: "$2b$10$hash",
           activo: true,
         },
@@ -338,7 +338,7 @@ export class ComplexDatasetGenerator {
         {
           email: "admin@unitru.edu.pe",
           nombre: "Admin User",
-          rol: RolUsuario.ADMIN,
+          rol: RolUsuario.ADMINISTRADOR_SISTEMA,
           password_hash: "$2b$10$hash",
           activo: true,
         },
@@ -424,7 +424,7 @@ export class ComplexDatasetGenerator {
         {
           email: "admin@unitru.edu.pe",
           nombre: "Admin User",
-          rol: RolUsuario.ADMIN,
+          rol: RolUsuario.ADMINISTRADOR_SISTEMA,
           password_hash: "$2b$10$hash",
           activo: true,
         },
@@ -521,7 +521,7 @@ export class ComplexDatasetGenerator {
         {
           email: "admin@unitru.edu.pe",
           nombre: "Admin User",
-          rol: RolUsuario.ADMIN,
+          rol: RolUsuario.ADMINISTRADOR_SISTEMA,
           password_hash: "$2b$10$hash",
           activo: true,
         },
@@ -690,7 +690,7 @@ export class ComplexDatasetGenerator {
         {
           email: "admin@unitru.edu.pe",
           nombre: "Admin User",
-          rol: RolUsuario.ADMIN,
+          rol: RolUsuario.ADMINISTRADOR_SISTEMA,
           password_hash: "$2b$10$hash",
           activo: true,
         },
@@ -722,7 +722,7 @@ export class ComplexDatasetGenerator {
         {
           email: "admin@unitru.edu.pe",
           nombre: "Admin User",
-          rol: RolUsuario.ADMIN,
+          rol: RolUsuario.ADMINISTRADOR_SISTEMA,
           password_hash: "$2b$10$hash",
           activo: true,
         },
@@ -877,7 +877,7 @@ export class ComplexDatasetGenerator {
         {
           email: "admin@unitru.edu.pe",
           nombre: "Admin User",
-          rol: RolUsuario.ADMIN,
+          rol: RolUsuario.ADMINISTRADOR_SISTEMA,
           password_hash: "$2b$10$hash",
           activo: true,
         },

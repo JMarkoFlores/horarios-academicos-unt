@@ -71,6 +71,16 @@
                 Planificando disponibilidad
               </span>
             </div>
+            <div class="teacher-metrics">
+              <span class="metric-badge category">
+                <mat-icon>assignment_ind</mat-icon>
+                {{ docenteSeleccionado.categoria }} | {{ docenteSeleccionado.tipo_contrato }}
+              </span>
+              <span class="metric-badge hours" [class.hours-good]="getHorasDeclaradas() >= 20">
+                <mat-icon>history_toggle_off</mat-icon>
+                Horas Declaradas: <strong>{{ getHorasDeclaradas() }} / 75 hrs</strong>
+              </span>
+            </div>
           </div>
         </div>
       </div>

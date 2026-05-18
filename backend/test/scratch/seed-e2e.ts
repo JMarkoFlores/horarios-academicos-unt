@@ -87,7 +87,7 @@ async function main() {
     {
       email: "admin@unitru.edu.pe",
       nombre: "Admin User",
-      rol: RolUsuario.ADMIN,
+      rol: RolUsuario.ADMINISTRADOR_SISTEMA,
       password_hash: pass,
       activo: true,
     },

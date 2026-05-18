@@ -96,6 +96,8 @@ export class LayoutComponent implements OnInit {
     document.body.classList.remove('dark-theme');
     document.body.classList.add('light-theme');
     
+    // Cargar periodos desde la base de datos
+    this.periodoService.cargarPeriodos();
 
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))

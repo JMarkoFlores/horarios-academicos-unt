@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
+import { PeriodoService } from '../../../core/services/periodo.service';
 import {
   ApiResponse,
   PeriodoAcademico,
@@ -33,6 +34,7 @@ export class PeriodoFormComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private snackBar: MatSnackBar,
+    private periodoService: PeriodoService,
   ) {}
 
   ngOnInit(): void {
@@ -63,6 +65,7 @@ export class PeriodoFormComponent implements OnInit {
           nombre: p.nombre,
           fecha_inicio: p.fecha_inicio,
           fecha_fin: p.fecha_fin,
+          estado: p.estado,
           activo: p.activo,
         });
         this.loading = false;
@@ -93,6 +96,7 @@ export class PeriodoFormComponent implements OnInit {
           'OK',
           { duration: 2000 },
         );
+        this.periodoService.cargarPeriodos();
         this.saving = false;
         this.router.navigate(['/app/periodos']);
       },

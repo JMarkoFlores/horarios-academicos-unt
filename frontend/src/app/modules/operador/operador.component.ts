@@ -65,6 +65,12 @@ export class OperadorComponent implements OnInit, OnDestroy {
     this.socket.connect();
 
     this.subs.push(
+      this.periodoService.periodo$.subscribe((p) => {
+        if (this.ventanaForm) {
+          this.ventanaForm.patchValue({ periodo: p });
+        }
+        this.reloadEstado();
+      }),
       this.socket.cola$.subscribe((cola) => {
         this.cola = cola;
         this.syncDocenteActual();

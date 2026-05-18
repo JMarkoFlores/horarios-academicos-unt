@@ -36,6 +36,7 @@ describe("ValidacionesService", () => {
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     getCount: jest.fn(),
+    getMany: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -278,8 +279,11 @@ describe("ValidacionesService", () => {
   });
 
   describe("verificarDisponibilidadDocente", () => {
-    it("debe verificar disponibilidad del docente", async () => {
-      mockQueryBuilder.getCount.mockResolvedValue(1);
+    it("debe verificar disponibilidad del docente (cobertura continua en bloques de 1 hora)", async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { hora_inicio: "08:00:00", hora_fin: "09:00:00", disponible: true },
+        { hora_inicio: "09:00:00", hora_fin: "10:00:00", disponible: true },
+      ]);
 
       const result = await service.verificarDisponibilidadDocente(
         1,
@@ -305,7 +309,7 @@ describe("ValidacionesService", () => {
     });
 
     it("debe retornar false si no hay disponibilidad", async () => {
-      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
 
       const result = await service.verificarDisponibilidadDocente(
         1,
@@ -318,8 +322,11 @@ describe("ValidacionesService", () => {
       expect(result).toBe(false);
     });
 
-    it("debe verificar que el horario esté dentro de la disponibilidad", async () => {
-      mockQueryBuilder.getCount.mockResolvedValue(1);
+    it("debe retornar false si la disponibilidad está fragmentada o incompleta", async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { hora_inicio: "09:00:00", hora_fin: "10:00:00", disponible: true },
+        // Falta el bloque de 10:00 a 11:00
+      ]);
 
       const result = await service.verificarDisponibilidadDocente(
         1,
@@ -329,15 +336,7 @@ describe("ValidacionesService", () => {
         "2026-I",
       );
 
-      expect(result).toBe(true);
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        "CAST(:horaInicio AS TIME) >= d.hora_inicio",
-        { horaInicio: "09:00" },
-      );
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        "CAST(:horaFin AS TIME) <= d.hora_fin",
-        { horaFin: "11:00" },
-      );
+      expect(result).toBe(false);
     });
   });
 

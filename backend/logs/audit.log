@@ -219,8 +219,19 @@
 {"usuario":"admin@unt.edu.pe","accion":"CREAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":2,"ip":"::1","timestamp":"2026-05-18T03:36:05.140Z"}
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":1,"ip":"::1","timestamp":"2026-05-18T03:36:09.322Z"}
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":1,"ip":"::1","timestamp":"2026-05-18T03:36:13.859Z"}
+<<<<<<< Updated upstream
 {"usuario":"admin@unt.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::1","timestamp":"2026-05-18T13:28:49.180Z"}
 {"usuario":"admin@unt.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::1","timestamp":"2026-05-18T13:28:56.327Z"}
 {"usuario":"admin@unt.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::1","timestamp":"2026-05-18T13:51:22.128Z"}
 {"usuario":"admin@unt.edu.pe","accion":"CREAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":2,"ip":"::1","timestamp":"2026-05-18T13:52:06.670Z"}
 {"usuario":"admin@unt.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::1","timestamp":"2026-05-18T13:52:26.339Z"}
+=======
+{"usuario":"admin@unitru.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-18T14:30:12.720Z"}
+{"usuario":"admin@unitru.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-18T14:30:13.259Z"}
+{"usuario":"admin@unitru.edu.pe","accion":"RESOLVER_CONFLICTO","entidad":"conflicto_asignacion","entidadId":1,"ip":"::ffff:127.0.0.1","timestamp":"2026-05-18T14:30:13.335Z"}
+{"usuario":"admin@unitru.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-18T14:30:16.728Z"}
+{"usuario":"admin@unitru.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-18T14:30:17.273Z"}
+{"usuario":"admin@unitru.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-18T14:30:25.838Z"}
+{"usuario":"admin@unitru.edu.pe","accion":"GENERAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-18T14:30:27.375Z"}
+{"usuario":"admin@unitru.edu.pe","accion":"LIMPIAR_HORARIO","entidad":"asignacion_horarios","entidadId":"2026-I","ip":"::ffff:127.0.0.1","timestamp":"2026-05-18T14:30:27.984Z"}
+>>>>>>> Stashed changes

@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
@@ -17,7 +18,7 @@ import { AsignarHorarioDialogComponent } from './dialogs/asignar-horario-dialog/
   templateUrl: './horarios.component.html',
   styleUrls: ['./horarios.component.scss'],
 })
-export class HorariosComponent implements OnInit {
+export class HorariosComponent implements OnInit, OnDestroy {
   dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   diasNum = [1, 2, 3, 4, 5];
   horas = Array.from({ length: 15 }, (_, i) => i + 7);
@@ -50,6 +51,7 @@ export class HorariosComponent implements OnInit {
   generando = false;
   limpiando = false;
   resultadoGeneracion: any = null;
+  private periodSub?: Subscription;
 
   constructor(
     private api: ApiService,
@@ -71,7 +73,21 @@ export class HorariosComponent implements OnInit {
       },
     });
 
-    this.loadConflictos();
+    this.periodSub = this.periodoService.periodo$.subscribe(() => {
+      this.loadConflictos();
+      if (this.docenteSeleccionado) {
+        this.selectDocente(this.docenteSeleccionado);
+      }
+      if (this.ambienteSeleccionado) {
+        this.selectAmbiente(this.ambienteSeleccionado);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.periodSub) {
+      this.periodSub.unsubscribe();
+    }
   }
 
   selectDocente(d: Docente): void {

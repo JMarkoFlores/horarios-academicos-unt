@@ -1,22 +1,23 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-analytics',
   templateUrl: './analytics.component.html',
   styleUrls: ['./analytics.component.scss']
 })
-export class AnalyticsComponent implements OnInit {
+export class AnalyticsComponent implements OnInit, OnDestroy {
   @ViewChild(BaseChartDirective) chart: BaseChartDirective | undefined;
 
   loading = true;
   kpis: any = {};
   suggestions: any[] = [];
   utilizationPercent = 0;
+  private periodSub?: Subscription;
   
   // Saturation Chart
   public barChartOptions: ChartConfiguration['options'] = {
@@ -35,7 +36,15 @@ export class AnalyticsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.loadData();
+    this.periodSub = this.periodoService.periodo$.subscribe(() => {
+      this.loadData();
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.periodSub) {
+      this.periodSub.unsubscribe();
+    }
   }
 
   loadData() {

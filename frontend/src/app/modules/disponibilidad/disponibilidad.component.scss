@@ -433,5 +433,50 @@
 @keyframes statusPulse {
   0% { transform: scale(1); opacity: 0.8; }
   100% { transform: scale(2.5); opacity: 0; }
+}
 
+// ── TEACHER METRICS ───────────────────────────────────────────────────────
+.teacher-metrics {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+
+  .metric-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    padding: 6px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text);
+    transition: all var(--transition-fast);
+
+    mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--color-text-muted); }
+
+    &.category {
+      background: rgba(var(--color-primary-rgb), 0.05);
+      border-color: rgba(var(--color-primary-rgb), 0.15);
+      color: var(--color-primary);
+      mat-icon { color: var(--color-primary); }
+    }
+
+    &.hours {
+      background: rgba(220, 38, 38, 0.05);
+      border-color: rgba(220, 38, 38, 0.15);
+      color: rgb(220, 38, 38);
+      mat-icon { color: rgb(220, 38, 38); }
+
+      &.hours-good {
+        background: rgba(16, 185, 129, 0.05);
+        border-color: rgba(16, 185, 129, 0.15);
+        color: rgb(16, 185, 129);
+        mat-icon { color: rgb(16, 185, 129); }
+      }
+    }
+  }
 }

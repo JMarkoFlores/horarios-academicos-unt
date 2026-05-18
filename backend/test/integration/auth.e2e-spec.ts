@@ -50,7 +50,7 @@ describe("Auth Integration Tests", () => {
       expect(response.body.usuario).toHaveProperty("id");
       expect(response.body.usuario).toHaveProperty("email", loginDto.email);
       expect(response.body.usuario).toHaveProperty("nombre", "Admin User");
-      expect(response.body.usuario).toHaveProperty("rol", "ADMIN");
+      expect(response.body.usuario).toHaveProperty("rol", "administradorsistema");
       expect(response.body.usuario).not.toHaveProperty("password_hash");
     });
 
@@ -163,7 +163,7 @@ describe("Auth Integration Tests", () => {
       expect(response.body.usuario).toMatchObject({
         email: "coordinador@unitru.edu.pe",
         nombre: "Coordinador User",
-        rol: "COORDINADOR",
+        rol: "coordinadoracademico",
       });
       expect(response.body.usuario).not.toHaveProperty("password_hash");
       expect(response.body.usuario).not.toHaveProperty("created_at");

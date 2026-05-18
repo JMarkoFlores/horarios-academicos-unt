@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
@@ -49,12 +49,43 @@ export class PeriodosService {
   }
 
   async create(dto: CreatePeriodoDto) {
+    if (new Date(dto.fecha_inicio) >= new Date(dto.fecha_fin)) {
+      throw new BadRequestException("La fecha de inicio debe ser anterior a la fecha de fin");
+    }
+
+    const existe = await this.periodoRepo.findOne({ where: { codigo: dto.codigo } });
+    if (existe) {
+      throw new ConflictException(`El periodo académico con código ${dto.codigo} ya existe`);
+    }
+
+    if (dto.activo) {
+      await this.periodoRepo.update({ activo: true }, { activo: false });
+    }
+
     const periodo = this.periodoRepo.create(dto);
     return this.periodoRepo.save(periodo);
   }
 
   async update(id: number, dto: UpdatePeriodoDto) {
     const periodo = await this.findOne(id);
+
+    const inicio = dto.fecha_inicio ?? periodo.fecha_inicio;
+    const fin = dto.fecha_fin ?? periodo.fecha_fin;
+    if (new Date(inicio) >= new Date(fin)) {
+      throw new BadRequestException("La fecha de inicio debe ser anterior a la fecha de fin");
+    }
+
+    if (dto.codigo && dto.codigo !== periodo.codigo) {
+      const existe = await this.periodoRepo.findOne({ where: { codigo: dto.codigo } });
+      if (existe) {
+        throw new ConflictException(`El periodo académico con código ${dto.codigo} ya existe`);
+      }
+    }
+
+    if (dto.activo && !periodo.activo) {
+      await this.periodoRepo.update({ activo: true }, { activo: false });
+    }
+
     Object.assign(periodo, dto);
     return this.periodoRepo.save(periodo);
   }

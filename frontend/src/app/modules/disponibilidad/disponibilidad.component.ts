@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import {
@@ -13,7 +14,7 @@ import {
   templateUrl: './disponibilidad.component.html',
   styleUrls: ['./disponibilidad.component.scss'],
 })
-export class DisponibilidadComponent implements OnInit {
+export class DisponibilidadComponent implements OnInit, OnDestroy {
   todosDocentes: Docente[] = [];
   docenteSeleccionado: Docente | null = null;
   resumen: any[] = [];
@@ -27,6 +28,7 @@ export class DisponibilidadComponent implements OnInit {
   grilla: boolean[][] = [];
   saving = false;
   loading = false;
+  private periodSub?: Subscription;
 
   constructor(
     private api: ApiService,
@@ -42,7 +44,19 @@ export class DisponibilidadComponent implements OnInit {
         this.calcularSinDisponibilidad();
       },
     });
-    this.cargarResumen();
+
+    this.periodSub = this.periodoService.periodo$.subscribe(() => {
+      this.cargarResumen();
+      if (this.docenteSeleccionado) {
+        this.cargarDisponibilidad();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.periodSub) {
+      this.periodSub.unsubscribe();
+    }
   }
 
   calcularSinDisponibilidad(): void {
@@ -179,8 +193,40 @@ export class DisponibilidadComponent implements OnInit {
     this.grilla = Array.from({ length: 15 }, () => Array(5).fill(val));
   }
 
+  getHorasDeclaradas(): number {
+    if (!this.grilla) return 0;
+    let count = 0;
+    this.grilla.forEach((row) => {
+      row.forEach((cell) => {
+        if (cell) count++;
+      });
+    });
+    return count;
+  }
+
   guardar(): void {
     if (!this.docenteSeleccionado) return;
+
+    const horasDeclaradas = this.getHorasDeclaradas();
+
+    if (horasDeclaradas === 0) {
+      this.snackBar.open(
+        '⚠️ Error: Debes marcar al menos 1 hora disponible para el docente.',
+        'Cerrar',
+        { duration: 4000 }
+      );
+      return;
+    }
+
+    if (horasDeclaradas < 20) {
+      const confirmacion = confirm(
+        `⚠️ ADVERTENCIA:\n\nHas seleccionado solo ${horasDeclaradas} horas disponibles para este docente.\n` +
+        `Una disponibilidad menor a 20 horas podría dificultar o imposibilitar la programación de sus clases.\n\n` +
+        `¿Estás seguro de que deseas guardar esta disponibilidad?`
+      );
+      if (!confirmacion) return;
+    }
+
     this.saving = true;
 
     const slots: any[] = [];

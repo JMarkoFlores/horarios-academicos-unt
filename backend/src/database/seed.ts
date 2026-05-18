@@ -581,23 +581,74 @@ async function seed() {
   }
   console.log("✅ Carga docente asignada coherentemente según especialidad\n");
 
-  // ── 8. DISPONIBILIDAD DOCENTE (LUNES A VIERNES 07:00 - 22:00) ─────────────
-  console.log("🕐 Registrando disponibilidad horaria para todos los docentes...");
+  // Helper para simular perfiles reales de disponibilidad docente
+  const isDocenteDisponible = (codigo: string, dia: number, hora: number): boolean => {
+    switch (codigo) {
+      case "DOC001": // Juan Carlos Pérez Rodríguez (Nombrado, Principal)
+        // Lunes a Jueves: mañanas y tardes (7:00 a 15:00). Viernes: tardes (14:00 a 22:00)
+        if (dia >= 1 && dia <= 4) return hora >= 7 && hora < 15;
+        if (dia === 5) return hora >= 14 && hora < 22;
+        return false;
+
+      case "DOC002": // María Elena García Sánchez (Nombrado, Asociado)
+        // Lunes a Viernes: tarde/noche (14:00 a 22:00)
+        return hora >= 14 && hora < 22;
+
+      case "DOC003": // Carlos Alberto López Flores (Nombrado, Auxiliar)
+        // Lunes a Jueves: horario partido (8:00 a 12:00 y 15:00 a 19:00). Viernes libre.
+        if (dia >= 1 && dia <= 4) {
+          return (hora >= 8 && hora < 12) || (hora >= 15 && hora < 19);
+        }
+        return false;
+
+      case "DOC004": // Ana Patricia Torres Vega (Nombrado, Jefe de Práctica)
+        // Lunes, Martes y Miércoles: todo el día (7:00 a 22:00). Jueves y Viernes no disponible.
+        return dia >= 1 && dia <= 3;
+
+      case "DOC005": // Pedro Manuel Ruiz Castillo (Nombrado, Principal)
+        // Lunes a Viernes: horario partido corporativo (7:00 a 13:00 y 16:00 a 20:00)
+        return (hora >= 7 && hora < 13) || (hora >= 16 && hora < 20);
+
+      case "DOC006": // Luis Fernando Vargas Mendoza (Contratado)
+        // Solo mañanas (7:00 a 14:00) de lunes a viernes
+        return hora >= 7 && hora < 14;
+
+      case "DOC007": // Rosa Amelia Mendoza Torres (Contratado)
+        // Solo noches (16:00 a 22:00) de lunes a viernes
+        return hora >= 16 && hora < 22;
+
+      case "DOC008": // Jorge Luis Silva Paredes (Contratado)
+        // Solo Martes y Jueves todo el día (7:00 a 22:00). Otros días libre.
+        return dia === 2 || dia === 4;
+
+      default:
+        return true;
+    }
+  };
+
+  // ── 8. DISPONIBILIDAD DOCENTE (LUNES A VIERNES EN BLOQUES DE 1 HORA CON PERFILES REALES) ─────────────
+  console.log("🕐 Registrando disponibilidad horaria en bloques de 1 hora con perfiles reales...");
+  const slotsToSave: DisponibilidadDocente[] = [];
   for (const doc of dbDocentes) {
     for (let dia = 1; dia <= 5; dia++) {
-      await disponibilidadRepo.save(
-        disponibilidadRepo.create({
-          docente: doc,
-          dia_semana: dia,
-          hora_inicio: "07:00:00",
-          hora_fin: "22:00:00",
-          disponible: true,
-          periodo_academico: "2026-I",
-        })
-      );
+      for (let h = 7; h < 22; h++) {
+        const hInicio = `${h.toString().padStart(2, "0")}:00:00`;
+        const hFin = `${(h + 1).toString().padStart(2, "0")}:00:00`;
+        slotsToSave.push(
+          disponibilidadRepo.create({
+            docente: doc,
+            dia_semana: dia,
+            hora_inicio: hInicio,
+            hora_fin: hFin,
+            disponible: isDocenteDisponible(doc.codigo, dia, h),
+            periodo_academico: "2026-I",
+          })
+        );
+      }
     }
   }
-  console.log("✅ Lunes a Viernes de 07:00 a 22:00 programado de forma predeterminada para todos los docentes\n");
+  await disponibilidadRepo.save(slotsToSave);
+  console.log("✅ Disponibilidad horaria realista (mañanas, tardes, partidos y días libres) registrada exitosamente\n");
 
   // ── 9. RESTRICCIÓN INSTITUCIONAL Y DÍA NO LABORABLE DE EJEMPLO ──────────
   console.log("⚙️  Configurando parámetros de validación académica...");

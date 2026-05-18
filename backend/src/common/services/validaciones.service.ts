@@ -101,18 +101,45 @@ export class ValidacionesService {
     horaFin: string,
     periodo: string,
   ): Promise<boolean> {
-    const count = await this.disponibilidadRepo
+    const toMinutes = (t: string): number => {
+      const parts = t.split(":");
+      const h = parseInt(parts[0] || "0", 10);
+      const m = parseInt(parts[1] || "0", 10);
+      return h * 60 + m;
+    };
+
+    const inicioMin = toMinutes(horaInicio);
+    const finMin = toMinutes(horaFin);
+
+    if (inicioMin >= finMin) return false;
+
+    // Obtener todos los slots declarados como disponibles para el docente, día y periodo
+    const disponibilidades = await this.disponibilidadRepo
       .createQueryBuilder("d")
       .innerJoin("d.docente", "doc")
       .where("doc.id = :docenteId", { docenteId })
       .andWhere("d.dia_semana = :diaSemana", { diaSemana })
       .andWhere("d.periodo_academico = :periodo", { periodo })
       .andWhere("d.disponible = true")
-      .andWhere("CAST(:horaInicio AS TIME) >= d.hora_inicio", { horaInicio })
-      .andWhere("CAST(:horaFin AS TIME) <= d.hora_fin", { horaFin })
-      .getCount();
+      .getMany();
 
-    return count > 0;
+    // Mapear slots a minutos y ordenarlos por hora de inicio
+    const slots = disponibilidades
+      .map((d) => ({
+        inicio: toMinutes(d.hora_inicio),
+        fin: toMinutes(d.hora_fin),
+      }))
+      .sort((a, b) => a.inicio - b.inicio);
+
+    // Verificar cobertura continua
+    let currentCovered = inicioMin;
+    for (const slot of slots) {
+      if (slot.inicio <= currentCovered && slot.fin > currentCovered) {
+        currentCovered = Math.max(currentCovered, slot.fin);
+      }
+    }
+
+    return currentCovered >= finMin;
   }
 
   verificarFranjaInstitucional(horaInicio: string, horaFin: string): boolean {

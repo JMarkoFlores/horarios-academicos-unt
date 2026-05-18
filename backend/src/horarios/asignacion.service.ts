@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
@@ -11,6 +15,7 @@ import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { Grupo } from "../entities/grupo.entity";
+import { Preasignacion } from "../entities/preasignacion.entity";
 import { DocentesService } from "../docentes/docentes.service";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ValidadorHorarioService } from "./validador-horario.service";
@@ -40,6 +45,8 @@ export class AsignacionService {
   private horasAsignadasMap = new Map<number, number>();
   private habilitacionDocenteMap = new Map<string, Set<number>>();
   private disponibilidadMap = new Map<number, Set<string>>();
+  private docentesPreferentesPorCurso = new Map<number, number>();
+  private slotsPreasignadosPorAmbiente = new Map<number, Set<string>>();
 
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -57,6 +64,8 @@ export class AsignacionService {
     private readonly disponibilidadRepo: Repository<DisponibilidadDocente>,
     @InjectRepository(DocenteCurso)
     private readonly docenteCursoRepo: Repository<DocenteCurso>,
+    @InjectRepository(Preasignacion)
+    private readonly preasignacionRepo: Repository<Preasignacion>,
     private readonly docentesService: DocentesService,
     private readonly validadorHorarioService: ValidadorHorarioService,
   ) {}
@@ -71,13 +80,41 @@ export class AsignacionService {
     if (this.horasAsignadasMap.size === 0) {
       for (const asignacion of asignacionesActuales) {
         const actual = this.horasAsignadasMap.get(asignacion.docente_id) ?? 0;
-        this.horasAsignadasMap.set(asignacion.docente_id, actual + this.calcularDuracionHoras(asignacion.hora_inicio, asignacion.hora_fin));
+        this.horasAsignadasMap.set(
+          asignacion.docente_id,
+          actual +
+            this.calcularDuracionHoras(
+              asignacion.hora_inicio,
+              asignacion.hora_fin,
+            ),
+        );
+      }
+    }
+
+    const preferenteId = this.docentesPreferentesPorCurso.get(curso.id);
+    const docentesOrdenados = [...docentes];
+    if (preferenteId) {
+      const preferente = docentesOrdenados.find(
+        (docente) => docente.id === preferenteId,
+      );
+      if (preferente) {
+        const resto = docentesOrdenados.filter(
+          (docente) => docente.id !== preferenteId,
+        );
+        docentesOrdenados.splice(
+          0,
+          docentesOrdenados.length,
+          preferente,
+          ...resto,
+        );
       }
     }
 
     const claveTipo = `${tipoClase}`;
-    for (const docente of docentes) {
-      const cursosHabilitados = this.habilitacionDocenteMap.get(`${docente.id}_${claveTipo}`);
+    for (const docente of docentesOrdenados) {
+      const cursosHabilitados = this.habilitacionDocenteMap.get(
+        `${docente.id}_${claveTipo}`,
+      );
       if (!cursosHabilitados || !cursosHabilitados.has(curso.id)) {
         continue;
       }
@@ -113,6 +150,12 @@ export class AsignacionService {
         }
 
         for (const ambiente of ambientes) {
+          const slotsAmbientePreasignados =
+            this.slotsPreasignadosPorAmbiente.get(ambiente.id);
+          if (slotsAmbientePreasignados?.has(claveDisponibilidad)) {
+            continue;
+          }
+
           const resultado = await this.validadorHorarioService.validarSlot({
             docente_id: docente.id,
             grupo_id: grupoId,
@@ -128,7 +171,12 @@ export class AsignacionService {
           });
 
           if (resultado.valido) {
-            return { dia, hora_inicio: horaInicio, hora_fin: horaFin, ambiente };
+            return {
+              dia,
+              hora_inicio: horaInicio,
+              hora_fin: horaFin,
+              ambiente,
+            };
           }
         }
       }
@@ -147,7 +195,8 @@ export class AsignacionService {
     await queryRunner.startTransaction();
 
     try {
-      const docentesOrdenados = await this.docentesService.findOrdenadosPorJerarquia(periodo);
+      const docentesOrdenados =
+        await this.docentesService.findOrdenadosPorJerarquia(periodo);
       const cursos = await this.cursoRepo.find({
         where: { activo: true },
         relations: ["ambientes"],
@@ -160,6 +209,9 @@ export class AsignacionService {
         where: { periodo_academico: periodo, disponible: true },
         relations: ["docente"],
       });
+      const preasignaciones = await this.preasignacionRepo.find({
+        where: { periodo },
+      });
       const habilitaciones = await this.docenteCursoRepo.find();
 
       const docenteMap = new Map<number, DocenteJerarquia>(
@@ -168,8 +220,11 @@ export class AsignacionService {
       const cursoAmbientesMap = new Map<number, Ambiente[]>(
         cursos.map((curso) => [curso.id, curso.ambientes ?? []]),
       );
-      this.disponibilidadMap = this.construirDisponibilidadMap(disponibilidades);
-      this.habilitacionDocenteMap = this.construirHabilitacionesMap(habilitaciones);
+      this.disponibilidadMap =
+        this.construirDisponibilidadMap(disponibilidades);
+      this.habilitacionDocenteMap =
+        this.construirHabilitacionesMap(habilitaciones);
+      this.aplicarPreasignaciones(preasignaciones);
       this.horasAsignadasMap = new Map<number, number>();
 
       const gruposPorCurso = new Map<number, Grupo[]>();
@@ -251,7 +306,11 @@ export class AsignacionService {
           periodo,
         );
         asignacionesActuales.push(horarioTeoria);
-        this.incrementarHorasAsignadas(docenteTeoria.id, slotTeoria.hora_inicio, slotTeoria.hora_fin);
+        this.incrementarHorasAsignadas(
+          docenteTeoria.id,
+          slotTeoria.hora_inicio,
+          slotTeoria.hora_fin,
+        );
 
         if (curso.tiene_laboratorio) {
           const docenteLab = this.encontrarDocenteElegible(
@@ -304,7 +363,11 @@ export class AsignacionService {
               periodo,
             );
             asignacionesActuales.push(horarioLab);
-            this.incrementarHorasAsignadas(docenteLab.id, slotLab.hora_inicio, slotLab.hora_fin);
+            this.incrementarHorasAsignadas(
+              docenteLab.id,
+              slotLab.hora_inicio,
+              slotLab.hora_fin,
+            );
           }
         }
       }
@@ -331,7 +394,10 @@ export class AsignacionService {
     return { eliminados: result.affected ?? 0 };
   }
 
-  async reasignarManual(id: number, dto: ReasignarHorarioDto): Promise<HorarioAsignado> {
+  async reasignarManual(
+    id: number,
+    dto: ReasignarHorarioDto,
+  ): Promise<HorarioAsignado> {
     const horario = await this.horarioRepo.findOne({ where: { id } });
     if (!horario) {
       throw new NotFoundException(`Horario ${id} no encontrado`);
@@ -355,7 +421,9 @@ export class AsignacionService {
       grupo_id: horario.grupo_id,
       ambiente_id: nuevoAmbienteId,
       laboratorio_ambiente_id:
-        horario.tipo_clase === TipoClase.LABORATORIO ? nuevoAmbienteId : undefined,
+        horario.tipo_clase === TipoClase.LABORATORIO
+          ? nuevoAmbienteId
+          : undefined,
       periodo: horario.periodo,
       dia: nuevoDia,
       hora_inicio: nuevaHoraInicio,
@@ -422,10 +490,60 @@ export class AsignacionService {
       }
 
       const slots = map.get(docenteId) ?? new Set<string>();
-      slots.add(`${disponibilidad.dia_semana}_${disponibilidad.hora_inicio.substring(0, 5)}`);
+      slots.add(
+        `${disponibilidad.dia_semana}_${disponibilidad.hora_inicio.substring(0, 5)}`,
+      );
       map.set(docenteId, slots);
     }
     return map;
+  }
+
+  private aplicarPreasignaciones(preasignaciones: Preasignacion[]): void {
+    this.docentesPreferentesPorCurso = new Map<number, number>();
+    this.slotsPreasignadosPorAmbiente = new Map<number, Set<string>>();
+
+    for (const preasignacion of preasignaciones) {
+      const tienePreferenciaDocenteCurso =
+        typeof preasignacion.docente_id === "number" &&
+        typeof preasignacion.curso_id === "number" &&
+        preasignacion.dia == null &&
+        preasignacion.hora_inicio == null &&
+        preasignacion.ambiente_id == null;
+
+      if (tienePreferenciaDocenteCurso) {
+        this.docentesPreferentesPorCurso.set(
+          preasignacion.curso_id,
+          preasignacion.docente_id,
+        );
+      }
+
+      const tieneSlotBloqueado =
+        typeof preasignacion.docente_id === "number" &&
+        typeof preasignacion.dia === "number" &&
+        typeof preasignacion.hora_inicio === "string" &&
+        typeof preasignacion.ambiente_id === "number";
+
+      if (!tieneSlotBloqueado) {
+        continue;
+      }
+
+      const slots = this.disponibilidadMap.get(preasignacion.docente_id);
+      if (!slots) {
+        continue;
+      }
+
+      const clave = `${preasignacion.dia}_${preasignacion.hora_inicio.substring(0, 5)}`;
+      slots.delete(clave);
+
+      const slotsAmbiente =
+        this.slotsPreasignadosPorAmbiente.get(preasignacion.ambiente_id) ??
+        new Set<string>();
+      slotsAmbiente.add(clave);
+      this.slotsPreasignadosPorAmbiente.set(
+        preasignacion.ambiente_id,
+        slotsAmbiente,
+      );
+    }
   }
 
   private construirHabilitacionesMap(
@@ -446,7 +564,9 @@ export class AsignacionService {
     tipoClase: TipoClase,
   ): Ambiente[] {
     const tipoRequerido =
-      tipoClase === TipoClase.TEORIA ? TipoAmbiente.AULA : TipoAmbiente.LABORATORIO;
+      tipoClase === TipoClase.TEORIA
+        ? TipoAmbiente.AULA
+        : TipoAmbiente.LABORATORIO;
     return ambientes.filter((ambiente) => ambiente.tipo === tipoRequerido);
   }
 

@@ -23,6 +23,7 @@ import { NotificacionesModule } from "./notificaciones/notificaciones.module";
 import { UsuariosModule } from "./usuarios/usuarios.module";
 import { PeriodosModule } from "./periodos/periodos.module";
 import { ConfiguracionModule } from "./configuracion/configuracion.module";
+import { PreasignacionesModule } from "./modules/preasignaciones/preasignaciones.module";
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { ConfiguracionModule } from "./configuracion/configuracion.module";
     UsuariosModule,
     PeriodosModule,
     ConfiguracionModule,
+    PreasignacionesModule,
   ],
   providers: [
     {

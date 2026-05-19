@@ -31,7 +31,7 @@ export class NotificacionesService {
 
   async enviarRecordatorio24h(
     docenteId: number,
-    ventanaId: number,
+    ventanaId: string,
   ): Promise<void> {
     const ventana = await this.ventanaRepo.findOne({
       where: { id: ventanaId },
@@ -57,7 +57,7 @@ export class NotificacionesService {
 
   async enviarRecordatorio15min(
     docenteId: number,
-    ventanaId: number,
+    ventanaId: string,
   ): Promise<void> {
     const ventana = await this.ventanaRepo.findOne({
       where: { id: ventanaId },
@@ -90,7 +90,7 @@ export class NotificacionesService {
 
   async procesarRecordatorio(
     docenteId: number,
-    ventanaId: number,
+    ventanaId: string,
     tipo: string,
   ): Promise<void> {
     const docente = await this.docenteRepo.findOne({
@@ -123,15 +123,18 @@ export class NotificacionesService {
     if (!docente) return;
 
     const horarios = await this.horarioRepo
-      .createQueryBuilder('horario')
-      .leftJoinAndSelect('horario.curso', 'curso')
-      .leftJoinAndSelect('horario.ambiente', 'ambiente')
-      .leftJoinAndSelect('horario.docente', 'docente')
-      .where('docente.id = :docenteId', { docenteId })
-      .andWhere('horario.periodo_academico = :periodo', { periodo })
-      .orderBy('horario.dia_semana', 'ASC')
-      .addOrderBy('horario.hora_inicio', 'ASC')
-      .cache(`horarios_periodo_${periodo}_docente_${docenteId}_notificacion`, 60000)
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .where("docente.id = :docenteId", { docenteId })
+      .andWhere("horario.periodo_academico = :periodo", { periodo })
+      .orderBy("horario.dia_semana", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .cache(
+        `horarios_periodo_${periodo}_docente_${docenteId}_notificacion`,
+        60000,
+      )
       .getMany();
 
     const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -156,17 +159,21 @@ export class NotificacionesService {
     this.logger.log(`[EMAIL HORARIO CONFIRMADO] → ${docente.email}`);
   }
 
-  async getHistorial(docenteId: number, page = 1, limit = 20): Promise<{
+  async getHistorial(
+    docenteId: number,
+    page = 1,
+    limit = 20,
+  ): Promise<{
     items: NotificacionDocente[];
     total: number;
     page: number;
     limit: number;
   }> {
     const [items, total] = await this.notificacionRepo
-      .createQueryBuilder('notificacion')
-      .leftJoinAndSelect('notificacion.docente', 'docente')
-      .where('docente.id = :docenteId', { docenteId })
-      .orderBy('notificacion.created_at', 'DESC')
+      .createQueryBuilder("notificacion")
+      .leftJoinAndSelect("notificacion.docente", "docente")
+      .where("docente.id = :docenteId", { docenteId })
+      .orderBy("notificacion.created_at", "DESC")
       .skip((page - 1) * limit)
       .take(limit)
       .cache(`notificaciones_docente_${docenteId}_${page}_${limit}`, 60000)

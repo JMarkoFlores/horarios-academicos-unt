@@ -1,4 +1,4 @@
-import { Logger } from "@nestjs/common";
+import { Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -7,99 +7,119 @@ import {
   OnGatewayDisconnect,
   ConnectedSocket,
   MessageBody,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+} from "@nestjs/websockets";
+import { Server, Socket } from "socket.io";
+import { ConfigService } from "@nestjs/config";
+import Redis from "ioredis";
 
 @WebSocketGateway({
-  namespace: '/horarios',
+  namespace: "/horarios",
+  cors: { origin: process.env.FRONTEND_URL || "*" },
+  transports: ["websocket"],
   pingTimeout: 60000,
   pingInterval: 25000,
-  transports: ['websocket'],
-  cors: { origin: process.env.FRONTEND_URL },
 })
-export class HorariosGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class HorariosGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
+{
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(HorariosGateway.name);
+  private pubClient: Redis;
+  private subClient: Redis;
+  private readonly redisChannel = "canal_disponibilidad";
+
+  constructor(private readonly configService: ConfigService) {
+    const host = this.configService.get<string>("REDIS_HOST", "localhost");
+    const port = this.configService.get<number>("REDIS_PORT", 6379);
+    this.pubClient = new Redis({ host, port });
+    this.subClient = new Redis({ host, port });
+  }
+
+  async onModuleInit() {
+    await this.subClient.subscribe(this.redisChannel);
+    this.subClient.on("message", (channel, message) => {
+      if (channel === this.redisChannel) {
+        try {
+          const { ventanaId, event, data } = JSON.parse(message);
+          this.server.to(`ventana_${ventanaId}`).emit(event, data);
+        } catch (err) {
+          this.logger.error("Error al procesar mensaje de Redis", err);
+        }
+      }
+    });
+  }
+
+  async onModuleDestroy() {
+    await this.pubClient.quit();
+    await this.subClient.quit();
+  }
 
   handleConnection(client: Socket) {
-    try {
-      const periodoId = this.getPeriodoId(client);
-      if (periodoId) {
-        const room = this.getPeriodoRoom(periodoId);
-        client.join(room);
-        this.logger.log(`Cliente conectado a /horarios: ${client.id} (room: ${room})`);
-        return;
-      }
-      this.logger.warn(`Cliente conectado a /horarios sin periodoId: ${client.id}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error en conexión WS /horarios (${client.id}): ${message}`);
-    }
+    this.logger.log(`Cliente conectado a /horarios: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    try {
-      this.logger.log(`Cliente desconectado de /horarios: ${client.id}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error en desconexión WS /horarios (${client.id}): ${message}`);
-    }
+    this.logger.log(`Cliente desconectado de /horarios: ${client.id}`);
   }
 
-  @SubscribeMessage('ping')
-  handlePing(@ConnectedSocket() client: Socket) {
-    client.emit('pong', { timestamp: Date.now() });
-  }
-
-  @SubscribeMessage('suscribir_ventana')
-  handleSuscribir(@ConnectedSocket() client: Socket, @MessageBody() ventanaId: number) {
-    client.join(`ventana_${ventanaId}`);
-    this.logger.log(`Cliente ${client.id} suscrito a ventana_${ventanaId}`);
-    return { event: "suscrito", data: { ventanaId } };
-  }
-
-  @SubscribeMessage('suscribir_periodo')
-  handleSuscribirPeriodo(
+  @SubscribeMessage("join_ventana")
+  handleJoinVentana(
     @ConnectedSocket() client: Socket,
-    @MessageBody() periodoId: string,
+    @MessageBody() payload: { ventanaId: string | number },
   ) {
-    const room = this.getPeriodoRoom(periodoId);
-    client.join(room);
-    this.logger.log(`Cliente ${client.id} suscrito a /horarios ${room}`);
-    return { event: 'suscrito_periodo', data: { periodoId } };
+    if (payload?.ventanaId) {
+      const room = `ventana_${payload.ventanaId}`;
+      client.join(room);
+      this.logger.log(`Cliente ${client.id} se unió a ${room}`);
+    }
   }
 
-  @SubscribeMessage('desuscribir_ventana')
-  handleDesuscribir(@ConnectedSocket() client: Socket, @MessageBody() ventanaId: number) {
-    client.leave(`ventana_${ventanaId}`);
-    return { event: "desuscrito", data: { ventanaId } };
+  @SubscribeMessage("leave_ventana")
+  handleLeaveVentana(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { ventanaId: string | number },
+  ) {
+    if (payload?.ventanaId) {
+      const room = `ventana_${payload.ventanaId}`;
+      client.leave(room);
+      this.logger.log(`Cliente ${client.id} salió de ${room}`);
+    }
   }
 
-  emitirActualizacion(periodoId: string, evento: string, data: unknown) {
-    this.server.to(this.getPeriodoRoom(periodoId)).emit(evento, data);
+  @SubscribeMessage("ping")
+  handlePing(@ConnectedSocket() client: Socket) {
+    client.emit("pong", { timestamp: Date.now() });
   }
 
+  private publishEvent(ventanaId: string | number, event: string, data: any) {
+    const payload = JSON.stringify({ ventanaId, event, data });
+    this.pubClient.publish(this.redisChannel, payload);
+  }
+
+  emitirColaActualizada(ventanaId: string | number, estadoCola: any) {
+    this.publishEvent(ventanaId, "cola_actualizada", estadoCola);
+  }
+
+  emitirCeldaSeleccionada(ventanaId: string | number, datos: any) {
+    this.publishEvent(ventanaId, "celda_seleccionada", datos);
+  }
+
+  emitirCeldaLiberada(ventanaId: string | number, datos: any) {
+    this.publishEvent(ventanaId, "celda_liberada", datos);
+  }
+
+  emitirHorarioConfirmado(ventanaId: string | number, datos: any) {
+    this.publishEvent(ventanaId, "horario_confirmado", datos);
+  }
+
+  emitirVentanaCompletada(ventanaId: string | number, pendientes: any) {
+    this.publishEvent(ventanaId, "ventana_completada", pendientes);
+  }
+
+  // Compatibilidad con código existente
   emitirPeriodo(periodoId: string, evento: string, data: unknown) {
-    this.server.to(this.getPeriodoRoom(periodoId)).emit(evento, data);
-  }
-
-  private getPeriodoId(client: Socket): string | null {
-    const queryPeriodo = client.handshake.query?.periodoId ?? client.handshake.query?.periodo;
-    if (typeof queryPeriodo === 'string' && queryPeriodo.trim().length > 0) {
-      return queryPeriodo.trim();
-    }
-
-    const headerPeriodo = client.handshake.headers['x-periodo-id'];
-    if (typeof headerPeriodo === 'string' && headerPeriodo.trim().length > 0) {
-      return headerPeriodo.trim();
-    }
-
-    return null;
-  }
-
-  private getPeriodoRoom(periodoId: string): string {
-    return `periodo_${periodoId}`;
+    this.server.to(`periodo_${periodoId}`).emit(evento, data);
   }
 }

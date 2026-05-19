@@ -11,6 +11,7 @@ import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import { Usuario } from "../entities/usuario.entity";
+import { Docente } from "../entities/docente.entity";
 import { LoginDto } from "./dto/login.dto";
 import { CambiarPasswordDto } from "./dto/cambiar-password.dto";
 import { RecuperarPasswordDto } from "./dto/recuperar-password.dto";
@@ -25,7 +26,7 @@ export interface JwtPayload {
 
 export interface LoginResult {
   access_token: string;
-  usuario: Partial<Usuario>;
+  usuario: Partial<Usuario> & { docenteId?: number | null };
 }
 
 @Injectable()
@@ -35,6 +36,8 @@ export class AuthService {
   constructor(
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>,
+    @InjectRepository(Docente)
+    private readonly docenteRepository: Repository<Docente>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
   ) {}
@@ -51,6 +54,10 @@ export class AuthService {
 
     this.logger.log(`Login exitoso: ${usuario.email}`);
 
+    const docente = await this.docenteRepository.findOne({
+      where: { email: usuario.email },
+    });
+
     return {
       access_token: this.jwtService.sign(payload),
       usuario: {
@@ -58,6 +65,7 @@ export class AuthService {
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
+        docenteId: docente?.id ?? null,
       },
     };
   }

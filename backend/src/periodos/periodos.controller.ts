@@ -45,7 +45,7 @@ export class PeriodosController {
   }
 
   @Get("todos")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DOCENTE)
   @ApiOperation({ summary: "Listar todos los periodos sin paginación" })
   async findAllSinPaginar() {
     const result = await this.periodosService.findAllSinPaginar();

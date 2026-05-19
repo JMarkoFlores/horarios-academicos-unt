@@ -10,13 +10,13 @@ import { Docente } from "./docente.entity";
 
 export enum CanalNotificacion {
   CORREO = "correo",
-  WHATSAPP = "whatsapp",
   TELEGRAM = "telegram",
 }
 
 export enum EstadoNotificacion {
   PENDIENTE = "PENDIENTE",
   ENVIADO = "ENVIADO",
+  ENTREGADO = "ENTREGADO",
   FALLIDO = "FALLIDO",
 }
 
@@ -43,6 +43,15 @@ export class NotificacionDocente {
 
   @Column({ type: "timestamp", nullable: true })
   enviado_at: Date;
+
+  @Column({ length: 50, nullable: true })
+  codigo_error: string;
+
+  @Column({ length: 100, nullable: true })
+  job_id: string;
+
+  @Column({ default: 1 })
+  intentos: number;
 
   @CreateDateColumn()
   created_at: Date;

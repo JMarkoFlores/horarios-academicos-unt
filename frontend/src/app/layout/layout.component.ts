@@ -71,6 +71,7 @@ export class LayoutComponent implements OnInit {
     },
     { icon: 'schedule', label: 'Horarios', route: '/app/horarios', roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
     { icon: 'schedule', label: 'Mis Horarios', route: '/app/mis-horarios', roles: ['docente'] },
+    { icon: 'notifications', label: 'Notificaciones', route: '/app/notificaciones', roles: ['docente', 'administradorsistema'] },
     { 
       icon: 'analytics', 
       label: 'Analytics', 
@@ -133,6 +134,7 @@ export class LayoutComponent implements OnInit {
     periodos: 'Períodos Académicos',
     usuarios: 'Usuarios del Sistema',
     configuracion: 'Configuración del Sistema',
+    notificaciones: 'Notificaciones y Preferencias',
   };
 
   constructor(

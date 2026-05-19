@@ -10,17 +10,6 @@ export class UpdatePreferenciasDto {
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
-  canal_whatsapp?: boolean;
-
-  @ApiPropertyOptional({ example: "944123456" })
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  telefono?: string;
-
-  @ApiPropertyOptional({ default: false })
-  @IsOptional()
-  @IsBoolean()
   canal_telegram?: boolean;
 
   @ApiPropertyOptional({ example: "123456789" })
@@ -28,4 +17,10 @@ export class UpdatePreferenciasDto {
   @IsString()
   @MaxLength(50)
   telegram_chat_id?: string;
+
+  @ApiPropertyOptional({ example: "docente@gmail.com" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  correo_alternativo?: string;
 }

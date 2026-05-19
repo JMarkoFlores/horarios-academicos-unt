@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleDestroy,
 } from "@nestjs/common";
@@ -32,6 +33,7 @@ import { Cache } from "cache-manager";
 
 @Injectable()
 export class VentanasService implements OnModuleDestroy {
+  private readonly logger = new Logger(VentanasService.name);
   private readonly redis: Redis;
   private static readonly TTL_COLA_SEGUNDOS = 12 * 60 * 60;
 
@@ -114,19 +116,20 @@ export class VentanasService implements OnModuleDestroy {
       ventanas.push(savedVentana);
 
       // Pre-asignar docentes y programar notificaciones
-      for (const [index, docente] of docentes.entries()) {
+      for (const docente of docentes) {
         await this.colaRepo.save(this.colaRepo.create({
             ventana_id: savedVentana.id,
             docente_id: docente.id,
-            orden: index + 1,
+            orden: docentes.indexOf(docente) + 1,
             estado: EstadoCola.ESPERANDO,
             ventana: savedVentana,
             docente
         }));
         
         // Programar notificaciones
+        this.logger.log(`Programando notificaciones para docente ${docente.id} en ventana ${savedVentana.id}`);
         await this.notificacionesService.enviarRecordatorio24h(docente.id, savedVentana.id);
-        await this.notificacionesService.enviarRecordatorio15min(docente.id, savedVentana.id);
+        await this.notificacionesService.enviarAlerta15min(docente.id, savedVentana.id);
       }
 
       fechaActual = this.siguienteDiaHabil(fechaActual);

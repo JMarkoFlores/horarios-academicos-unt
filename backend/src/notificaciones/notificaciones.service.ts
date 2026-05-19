@@ -1,16 +1,37 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { InjectQueue } from "@nestjs/bull";
 import { Repository } from "typeorm";
-import { Queue } from "bull";
+import { Queue, JobOptions } from "bull";
 import { NotificacionDocente, CanalNotificacion, EstadoNotificacion } from "../entities/notificacion-docente.entity";
 import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.entity";
 import { VentanaAtencion } from "../entities/ventana-atencion.entity";
 import { Docente } from "../entities/docente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { ColaDocente } from "../entities/cola-docentes.entity";
 import { UpdatePreferenciasDto } from "./dto/update-preferencias.dto";
 import { MailService } from "../mail/mail.service";
 import { ConfigService } from "@nestjs/config";
+
+export interface ResultadoEnvio {
+  exito: boolean;
+  canal: 'email' | 'telegram';
+  error?: string;
+  codigoError?: string;
+  timestamp: Date;
+}
+
+export interface RegistroResultadoParams {
+  docenteId: number;
+  tipo: string;
+  canal: 'email' | 'telegram' | 'ambos';
+  exito: boolean;
+  error?: string;
+  codigoError?: string;
+  jobId?: string;
+  intento?: number;
+  final?: boolean;
+}
 
 @Injectable()
 export class NotificacionesService {
@@ -27,43 +48,73 @@ export class NotificacionesService {
     private readonly docenteRepo: Repository<Docente>,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
+    @InjectRepository(ColaDocente)
+    private readonly colaRepo: Repository<ColaDocente>,
     @InjectQueue("notificaciones")
     private readonly notificacionesQueue: Queue,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
   ) {}
 
-  async enviarRecordatorio24h(docenteId: number, ventanaId: string): Promise<void> {
-    const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
-    if (!ventana) return;
-
+  private calcularDelayHasta(ventana: VentanaAtencion, minutosAntes: number): number {
     const fecha = new Date(ventana.fecha);
     const [h, m] = ventana.hora_inicio.split(":").map(Number);
     fecha.setHours(h, m, 0, 0);
+    return fecha.getTime() - Date.now() - minutosAntes * 60 * 1000;
+  }
 
-    const delay = fecha.getTime() - Date.now() - 24 * 60 * 60 * 1000;
+  async enviarRecordatorio24h(docenteId: number, ventanaId: string): Promise<void> {
+    const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
+    if (!ventana) {
+      this.logger.warn(`Ventana ${ventanaId} no encontrada para recordatorio 24h`);
+      return;
+    }
+
+    const delay = this.calcularDelayHasta(ventana, 24 * 60);
+    this.logger.log(`Calculando delay 24h: ventana ${ventanaId}, docente ${docenteId}, delay=${delay}ms (${delay/1000/60}min)`);
     if (delay > 0) {
       await this.notificacionesQueue.add("recordatorio-24h", { docenteId, ventanaId }, { delay });
-      this.logger.log(`Recordatorio 24h programado para docente ${docenteId}, ventana ${ventanaId}`);
+      this.logger.log(`Recordatorio 24h programado para docente ${docenteId}, ventana ${ventanaId}, ejecuta en ${delay/1000/60} minutos`);
+    } else {
+      this.logger.warn(`No se programó recordatorio 24h: delay negativo (${delay}ms). La ventana es muy cercana o ya pasó.`);
     }
   }
 
-  async enviarRecordatorio15min(docenteId: number, ventanaId: string): Promise<void> {
+  async enviarAlerta15min(docenteId: number, ventanaId: string): Promise<void> {
     const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
-    if (!ventana) return;
+    if (!ventana) {
+      this.logger.warn(`Ventana ${ventanaId} no encontrada para alerta 15min`);
+      return;
+    }
 
-    const fecha = new Date(ventana.fecha);
-    const [h, m] = ventana.hora_inicio.split(":").map(Number);
-    fecha.setHours(h, m, 0, 0);
-
-    const delay = fecha.getTime() - Date.now() - 15 * 60 * 1000;
+    const delay = this.calcularDelayHasta(ventana, 15);
+    this.logger.log(`Calculando delay 15min: ventana ${ventanaId}, docente ${docenteId}, delay=${delay}ms (${delay/1000/60}min)`);
     if (delay > 0) {
-      await this.notificacionesQueue.add("recordatorio-15min", { docenteId, ventanaId }, { delay });
+      await this.notificacionesQueue.add("alerta-15min", { docenteId, ventanaId }, { delay });
+      this.logger.log(`Alerta 15min programada para docente ${docenteId}, ventana ${ventanaId}, ejecuta en ${delay/1000/60} minutos`);
+    } else {
+      this.logger.warn(`No se programó alerta 15min: delay negativo (${delay}ms). La ventana es muy cercana o ya pasó.`);
     }
   }
 
   async enviarHorarioConfirmado(docenteId: number, periodo: string): Promise<void> {
     await this.notificacionesQueue.add("horario-confirmado", { docenteId, periodo });
+  }
+
+  async programarNotificacionesVentana(ventanaId: string): Promise<void> {
+    const colas = await this.colaRepo.find({ where: { ventana_id: ventanaId }, relations: ["docente"] });
+    if (!colas || colas.length === 0) {
+      this.logger.warn(`No hay docentes en la ventana ${ventanaId} para programar notificaciones`);
+      return;
+    }
+
+    for (const cola of colas) {
+      if (cola.docente) {
+        await this.enviarRecordatorio24h(cola.docente.id, ventanaId);
+        await this.enviarAlerta15min(cola.docente.id, ventanaId);
+      }
+    }
+    this.logger.log(`Notificaciones programadas para ${colas.length} docentes de la ventana ${ventanaId}`);
   }
 
   async procesarRecordatorio(docenteId: number, ventanaId: string, tipo: string): Promise<void> {
@@ -73,20 +124,60 @@ export class NotificacionesService {
 
     if (!docente || !ventana) return;
 
-    const fechaStr = new Date(ventana.fecha).toLocaleDateString("es-PE");
-    const mensaje = tipo === "24h"
-      ? `Estimado/a ${docente.nombres} ${docente.apellidos}, mañana ${fechaStr} a las ${ventana.hora_inicio} es su turno de selección de horario.`
-      : `Estimado/a ${docente.nombres} ${docente.apellidos}, en 15 minutos (${ventana.hora_inicio}) es su turno de selección de horario.`;
+    const fechaStr = new Date(ventana.fecha).toLocaleDateString("es-PE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
-    // Enviar por correo
-    if (!prefs || prefs.canal_correo) {
-      await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Recordatorio de Selección - ${tipo}`, mensaje);
+    if (tipo === "24h") {
+      const html = this.buildHtmlRecordatorio24h(docente, ventana, fechaStr);
+      if (!prefs || prefs.canal_correo) {
+        await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Recordatorio: Turno de selección mañana`, html);
+      }
+      if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
+        const text = `Recordatorio: mañana ${fechaStr} a las ${ventana.hora_inicio} es tu turno de selección de horario (${ventana.categoria}).`;
+        await this.enviarNotificacion(docente, CanalNotificacion.TELEGRAM, `Recordatorio 24h`, text, prefs.telegram_chat_id);
+      }
+    } else {
+      // 15min solo por Telegram
+      if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
+        const text = `⏰ ¡Atención! En 15 minutos (${ventana.hora_inicio}) es tu turno de selección de horario. ¡No te lo pierdas!`;
+        await this.enviarNotificacion(docente, CanalNotificacion.TELEGRAM, `Alerta 15 min`, text, prefs.telegram_chat_id);
+      }
     }
+  }
 
-    // Enviar por Telegram
-    if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
-      await this.enviarNotificacion(docente, CanalNotificacion.TELEGRAM, `Recordatorio`, mensaje, prefs.telegram_chat_id);
-    }
+  private buildHtmlRecordatorio24h(docente: Docente, ventana: VentanaAtencion, fechaStr: string): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #003366; color: #fff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Recordatorio de Ventana de Atención</h2>
+        </div>
+        <div style="padding: 24px;">
+          <p>Estimado/a <strong>${docente.nombres} ${docente.apellidos}</strong>,</p>
+          <p>Le recordamos que mañana tiene asignado su turno de selección de horario académico:</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+            <thead>
+              <tr style="background-color: #f5f5f5;">
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Fecha</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Hora inicio</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Hora fin</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Categoría</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 10px;">${fechaStr}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.hora_inicio}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.hora_fin}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.categoria}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="margin-top: 20px; color: #555;">Por favor, esté atento a la hora indicada para realizar su selección.</p>
+        </div>
+        <div style="background-color: #f5f5f5; padding: 12px; text-align: center; font-size: 12px; color: #888;">
+          Sistema de Horarios Académicos — UNT
+        </div>
+      </div>
+    `;
   }
 
   async procesarHorarioConfirmado(docenteId: number, periodo: string): Promise<void> {
@@ -94,30 +185,60 @@ export class NotificacionesService {
     const prefs = await this.preferenciasRepo.findOne({ where: { docente: { id: docenteId } } });
     if (!docente) return;
 
-    const horarios = await this.horarioRepo.find({ where: { docente_id: docenteId, periodo }, relations: ["curso", "ambiente"] });
-    const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-    const filas = horarios.map(h => `<tr><td>${dias[h.dia]}</td><td>${h.hora_inicio}-${h.hora_fin}</td><td>${h.curso?.nombre}</td><td>${h.ambiente?.codigo}</td></tr>`).join("");
+    const horarios = await this.horarioRepo.find({ where: { docente_id: docenteId, periodo }, relations: ["curso", "ambiente", "grupo"], order: { dia: "ASC", hora_inicio: "ASC" } });
+    const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const filas = horarios.map(h => `<tr><td style="border:1px solid #ddd;padding:8px;">${dias[h.dia]}</td><td style="border:1px solid #ddd;padding:8px;">${h.hora_inicio}–${h.hora_fin}</td><td style="border:1px solid #ddd;padding:8px;">${h.curso?.nombre || ""}</td><td style="border:1px solid #ddd;padding:8px;">${h.ambiente?.codigo || ""}</td><td style="border:1px solid #ddd;padding:8px;">${h.grupo?.nombre || ""}</td></tr>`).join("");
 
     const html = `
-      <h2>Horario Confirmado — Período ${periodo}</h2>
-      <p>Estimado/a ${docente.nombres} ${docente.apellidos},</p>
-      <p>Su horario para el período <strong>${periodo}</strong> ha sido confirmado:</p>
-      <table border="1" cellpadding="5"><thead><tr><th>Día</th><th>Hora</th><th>Curso</th><th>Ambiente</th></tr></thead><tbody>${filas}</tbody></table>
+      <div style="font-family: Arial, sans-serif; max-width: 700px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #003366; color: #fff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">Horario Confirmado</h2>
+        </div>
+        <div style="padding: 24px;">
+          <p>Estimado/a <strong>${docente.nombres} ${docente.apellidos}</strong>,</p>
+          <p>Su horario para el período <strong>${periodo}</strong> ha sido confirmado:</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+            <thead>
+              <tr style="background-color: #f5f5f5;">
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Día</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Hora</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Curso</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Ambiente</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Grupo</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </div>
+        <div style="background-color: #f5f5f5; padding: 12px; text-align: center; font-size: 12px; color: #888;">
+          Sistema de Horarios Académicos — UNT
+        </div>
+      </div>
     `;
 
-    // Enviar por correo
     if (!prefs || prefs.canal_correo) {
-      await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Horario Confirmado - ${periodo}`, html);
+      const destinatario = prefs?.correo_alternativo || docente.email;
+      await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Horario Confirmado - ${periodo}`, html, undefined, destinatario);
     }
 
-    // Enviar por Telegram
     if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
-      const text = `Su horario para el período ${periodo} ha sido confirmado. Revise su correo para más detalles.`;
+      const lines = [`*Horario Confirmado — ${periodo}*`];
+      for (const h of horarios) {
+        lines.push(`• ${dias[h.dia]} ${h.hora_inicio}–${h.hora_fin}: ${h.curso?.nombre} (${h.ambiente?.codigo})`);
+      }
+      const text = lines.join("\n");
       await this.enviarNotificacion(docente, CanalNotificacion.TELEGRAM, `Horario Confirmado`, text, prefs.telegram_chat_id);
     }
   }
 
-  private async enviarNotificacion(docente: Docente, canal: CanalNotificacion, subject: string, content: string, target?: string): Promise<void> {
+  private async enviarNotificacion(
+    docente: Docente,
+    canal: CanalNotificacion,
+    subject: string,
+    content: string,
+    target?: string,
+    overrideEmail?: string,
+  ): Promise<void> {
     const n = this.notificacionRepo.create({
       tipo: subject,
       mensaje: content,
@@ -129,9 +250,10 @@ export class NotificacionesService {
 
     try {
       if (canal === CanalNotificacion.CORREO) {
-        await this.mailService.sendMail(docente.email, subject, content);
+        const to = overrideEmail || docente.email;
+        await this.mailService.sendMail(to, subject, content);
       } else if (canal === CanalNotificacion.TELEGRAM && target) {
-        await this.enviarTelegram(target, content);
+        await this.enviarTelegramDirecto(target, content);
       }
       n.estado = EstadoNotificacion.ENVIADO;
       n.enviado_at = new Date();
@@ -142,7 +264,7 @@ export class NotificacionesService {
     await this.notificacionRepo.save(n);
   }
 
-  async enviarTelegram(chatId: string, text: string): Promise<void> {
+  async enviarTelegramDirecto(chatId: string, text: string): Promise<void> {
     const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
     if (!token) {
       throw new Error('TELEGRAM_BOT_TOKEN no configurado');
@@ -167,20 +289,248 @@ export class NotificacionesService {
     return { items, total, page, limit };
   }
 
+  async getPreferencias(docenteId: number) {
+    this.logger.log(`Buscando preferencias para docenteId: ${docenteId}`);
+    let prefs = await this.preferenciasRepo.findOne({ where: { docente: { id: docenteId } } });
+    if (!prefs) {
+      this.logger.log(`No se encontraron preferencias, retornando defaults`);
+      // Retornar valores por defecto si no existen preferencias
+      return {
+        canal_correo: true,
+        canal_telegram: false,
+        telegram_chat_id: null,
+        correo_alternativo: null,
+      };
+    }
+    this.logger.log(`Preferencias encontradas: ${JSON.stringify(prefs)}`);
+    return prefs;
+  }
+
+  async enviarNotificacionPrueba(docenteId: number): Promise<{ emailEnviado: boolean; telegramEnviado: boolean; errores: string[] }> {
+    this.logger.log(`========== INICIANDO NOTIFICACIÓN DE PRUEBA ==========`);
+    this.logger.log(`Docente ID: ${docenteId}`);
+    
+    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    if (!docente) {
+      this.logger.error(`Docente ${docenteId} no encontrado`);
+      throw new NotFoundException("Docente no encontrado");
+    }
+    this.logger.log(`Docente encontrado: ${docente.nombres} (${docente.email})`);
+
+    const prefs = await this.getPreferencias(docenteId);
+    this.logger.log(`Preferencias cargadas: ${JSON.stringify(prefs)}`);
+
+    const resultados = { emailEnviado: false, telegramEnviado: false, errores: [] as string[] };
+
+    // Notificación por correo
+    if (prefs.canal_correo) {
+      this.logger.log(`[EMAIL] Canal habilitado, intentando enviar...`);
+      try {
+        await this.enviarNotificacion(
+          docente,
+          CanalNotificacion.CORREO,
+          "Notificación de Prueba - Horarios UNT",
+          `<p>Hola <strong>${docente.nombres}</strong>,</p><p>Esta es una notificación de prueba del sistema de horarios.</p>`,
+          prefs.correo_alternativo || undefined,
+        );
+        resultados.emailEnviado = true;
+        this.logger.log(`[EMAIL] ✅ Enviado exitosamente a ${prefs.correo_alternativo || docente.email}`);
+      } catch (error: any) {
+        resultados.errores.push(`Email: ${error.message}`);
+        this.logger.error(`[EMAIL] ❌ Error: ${error.message}`);
+      }
+    } else {
+      this.logger.warn(`[EMAIL] Canal deshabilitado en preferencias`);
+      resultados.errores.push('Email: Canal deshabilitado en preferencias');
+    }
+
+    // Notificación por Telegram
+    if (prefs.canal_telegram) {
+      this.logger.log(`[TELEGRAM] Canal habilitado`);
+      if (prefs.telegram_chat_id) {
+        this.logger.log(`[TELEGRAM] Chat ID configurado: ${prefs.telegram_chat_id}`);
+        try {
+          await this.enviarNotificacion(
+            docente,
+            CanalNotificacion.TELEGRAM,
+            "",
+            `Hola ${docente.nombres}, esta es una notificación de prueba del sistema de horarios UNT.`,
+            prefs.telegram_chat_id,
+          );
+          resultados.telegramEnviado = true;
+          this.logger.log(`[TELEGRAM] ✅ Enviado exitosamente a ${prefs.telegram_chat_id}`);
+        } catch (error: any) {
+          resultados.errores.push(`Telegram: ${error.message}`);
+          this.logger.error(`[TELEGRAM] ❌ Error: ${error.message}`);
+        }
+      } else {
+        this.logger.warn(`[TELEGRAM] Chat ID NO configurado`);
+        resultados.errores.push('Telegram: Chat ID no configurado');
+      }
+    } else {
+      this.logger.warn(`[TELEGRAM] Canal deshabilitado en preferencias`);
+      resultados.errores.push('Telegram: Canal deshabilitado en preferencias');
+    }
+
+    this.logger.log(`========== RESUMEN ==========`);
+    this.logger.log(`Email: ${resultados.emailEnviado ? 'ENVIADO' : 'NO ENVIADO'}`);
+    this.logger.log(`Telegram: ${resultados.telegramEnviado ? 'ENVIADO' : 'NO ENVIADO'}`);
+    this.logger.log(`Errores: ${resultados.errores.length > 0 ? resultados.errores.join(', ') : 'Ninguno'}`);
+    this.logger.log(`========== FIN NOTIFICACIÓN DE PRUEBA ==========`);
+
+    return resultados;
+  }
+
   async upsertPreferencias(docenteId: number, dto: UpdatePreferenciasDto) {
+    this.logger.log(`Guardando preferencias para docenteId: ${docenteId}, dto: ${JSON.stringify(dto)}`);
     let prefs = await this.preferenciasRepo.findOne({ where: { docente: { id: docenteId } } });
     const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    if (!docente) throw new NotFoundException("Docente no encontrado");
 
     if (!prefs) {
+      this.logger.log(`Creando nuevas preferencias para docente ${docenteId}`);
       prefs = this.preferenciasRepo.create({ docente });
+    } else {
+      this.logger.log(`Actualizando preferencias existentes: ${JSON.stringify(prefs)}`);
     }
 
     if (dto.canal_correo !== undefined) prefs.canal_correo = dto.canal_correo;
-    if (dto.canal_whatsapp !== undefined) prefs.canal_whatsapp = dto.canal_whatsapp;
     if (dto.canal_telegram !== undefined) prefs.canal_telegram = dto.canal_telegram;
-    if (dto.telefono !== undefined) prefs.telefono = dto.telefono;
     if (dto.telegram_chat_id !== undefined) prefs.telegram_chat_id = dto.telegram_chat_id;
-    
-    return this.preferenciasRepo.save(prefs);
+    if (dto.correo_alternativo !== undefined) prefs.correo_alternativo = dto.correo_alternativo;
+
+    await this.preferenciasRepo.save(prefs);
+    this.logger.log(`Preferencias guardadas para docente ${docenteId}`);
+  }
+
+  async getEstadisticas(periodo?: string) {
+    const qb = this.notificacionRepo.createQueryBuilder("n");
+
+    if (periodo) {
+      qb.where("n.tipo LIKE :periodo", { periodo: `%${periodo}%` });
+    }
+
+    const total = await qb.getCount();
+
+    const enviados = await qb
+      .clone()
+      .andWhere("n.estado = :enviado", { enviado: EstadoNotificacion.ENVIADO })
+      .getCount();
+
+    const fallidos = await qb
+      .clone()
+      .andWhere("n.estado = :fallido", { fallido: EstadoNotificacion.FALLIDO })
+      .getCount();
+
+    const porCanal = await qb
+      .select("n.canal", "canal")
+      .addSelect("COUNT(*)", "cantidad")
+      .groupBy("n.canal")
+      .getRawMany();
+
+    return {
+      total,
+      enviados,
+      fallidos,
+      pendientes: total - enviados - fallidos,
+      por_canal: porCanal,
+      periodo: periodo || "todos",
+    };
+  }
+
+  /**
+   * Enviar notificación por email
+   */
+  async enviarEmail(
+    docenteId: number,
+    tipo: string,
+    ventanaId?: string,
+    periodo?: string,
+  ): Promise<ResultadoEnvio> {
+    const timestamp = new Date();
+    try {
+      const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+      if (!docente) {
+        return { exito: false, canal: 'email', error: 'Docente no encontrado', timestamp };
+      }
+
+      const prefs = await this.preferenciasRepo.findOne({ where: { docente: { id: docenteId } } });
+      if (!prefs?.canal_correo) {
+        return { exito: false, canal: 'email', error: 'Canal email deshabilitado', timestamp };
+      }
+
+      // Aquí iría la lógica de envío de email real
+      this.logger.log(`Enviando email a ${docente.email} para tipo ${tipo}`);
+      
+      // Simulación de envío exitoso por ahora
+      return { exito: true, canal: 'email', timestamp };
+    } catch (error: any) {
+      this.logger.error(`Error enviando email: ${error.message}`);
+      return { exito: false, canal: 'email', error: error.message, timestamp };
+    }
+  }
+
+  /**
+   * Enviar notificación por Telegram
+   */
+  async enviarTelegram(
+    docenteId: number,
+    tipo: string,
+    ventanaId?: string,
+    periodo?: string,
+  ): Promise<ResultadoEnvio> {
+    const timestamp = new Date();
+    try {
+      const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+      if (!docente) {
+        return { exito: false, canal: 'telegram', error: 'Docente no encontrado', timestamp };
+      }
+
+      const prefs = await this.preferenciasRepo.findOne({ where: { docente: { id: docenteId } } });
+      if (!prefs?.canal_telegram) {
+        return { exito: false, canal: 'telegram', error: 'Canal Telegram deshabilitado', timestamp };
+      }
+
+      if (!prefs.telegram_chat_id) {
+        return { exito: false, canal: 'telegram', error: 'Chat ID no configurado', timestamp };
+      }
+
+      // Aquí iría la lógica de envío de Telegram real
+      this.logger.log(`Enviando Telegram a ${prefs.telegram_chat_id} para tipo ${tipo}`);
+      
+      // Simulación de envío exitoso por ahora
+      return { exito: true, canal: 'telegram', timestamp };
+    } catch (error: any) {
+      this.logger.error(`Error enviando Telegram: ${error.message}`);
+      return { exito: false, canal: 'telegram', error: error.message, timestamp };
+    }
+  }
+
+  /**
+   * Registrar resultado de notificación en historial
+   */
+  async registrarResultado(params: RegistroResultadoParams): Promise<void> {
+    try {
+      const notificacion = this.notificacionRepo.create({
+        docente: { id: params.docenteId } as any,
+        tipo: params.tipo,
+        canal: params.canal === 'email' ? CanalNotificacion.CORREO : 
+               params.canal === 'telegram' ? CanalNotificacion.TELEGRAM : CanalNotificacion.CORREO,
+        estado: params.exito ? EstadoNotificacion.ENTREGADO : EstadoNotificacion.FALLIDO,
+        mensaje: params.error || undefined,
+        codigo_error: params.codigoError || undefined,
+        job_id: params.jobId || undefined,
+        intentos: params.intento || 1,
+        enviado_at: params.exito ? new Date() : undefined,
+      });
+
+      await this.notificacionRepo.save(notificacion);
+      
+      this.logger.log(
+        `Resultado registrado: ${params.tipo} - ${params.canal} - ${params.exito ? 'EXITO' : 'FALLO'}`
+      );
+    } catch (error: any) {
+      this.logger.error(`Error registrando resultado: ${error.message}`);
+    }
   }
 }

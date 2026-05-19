@@ -14,6 +14,7 @@ export interface Usuario {
   email: string;
   nombre: string;
   rol: string;
+  docenteId?: number;
 }
 
 export interface Docente {

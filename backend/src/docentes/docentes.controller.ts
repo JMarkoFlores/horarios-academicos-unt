@@ -82,7 +82,7 @@ export class DocentesController {
   }
 
   @Get(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DOCENTE)
   @ApiOperation({ summary: "Obtener un docente por ID" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente encontrado" })

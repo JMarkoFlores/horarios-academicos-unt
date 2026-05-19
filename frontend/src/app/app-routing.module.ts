@@ -65,6 +65,11 @@ const routes: Routes = [
         canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] }
       },
       {
+        path: 'notificaciones',
+        loadChildren: () => import('./modules/notificaciones/notificaciones.module').then(m => m.NotificacionesModule),
+        canActivate: [RolesGuard], data: { roles: ['docente', 'administradorsistema'] }
+      },
+      {
         path: 'asignaciones',
         loadChildren: () => import('./modules/asignaciones/asignaciones.module').then(m => m.AsignacionesModule),
         canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
@@ -99,6 +104,11 @@ const routes: Routes = [
       {
         path: 'mis-horarios',
         loadChildren: () => import('./modules/docente-horario/docente-horario.module').then(m => m.DocenteHorarioModule),
+        canActivate: [RolesGuard], data: { roles: ['docente', 'administradorsistema'] }
+      },
+      {
+        path: 'notificaciones',
+        loadChildren: () => import('./modules/notificaciones/notificaciones.module').then(m => m.NotificacionesModule),
         canActivate: [RolesGuard], data: { roles: ['docente', 'administradorsistema'] }
       },
       { path: '**', component: NotFoundComponent },

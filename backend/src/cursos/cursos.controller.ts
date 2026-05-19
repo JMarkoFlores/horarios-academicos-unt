@@ -39,6 +39,7 @@ export class CursosController {
   constructor(private readonly cursosService: CursosService) {}
 
   @Get()
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Listar cursos paginado con filtros" })
   async findAll(@Query() query: QueryCursoDto) {
     const result = await this.cursosService.findAll(query);
@@ -46,6 +47,7 @@ export class CursosController {
   }
 
   @Get(":id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Obtener un curso por ID" })
   @ApiParam({ name: "id", type: Number })
   async findOne(@Param("id", ParseIntPipe) id: number) {
@@ -54,6 +56,7 @@ export class CursosController {
   }
 
   @Get(":id/ambientes")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Ambientes compatibles asignados al curso" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "tipo_clase", enum: TipoClase, required: false })

@@ -36,7 +36,7 @@ export class ReportesController {
   ) {
     const buffer = await this.reportesService.generarReporteDocentePDF(
       id,
-      periodo ?? "",
+      periodo,
     );
     res.set({
       "Content-Type": "application/pdf",
@@ -46,40 +46,43 @@ export class ReportesController {
     res.end(buffer);
   }
 
-  @Get("ambiente/:id/pdf")
-  @ApiOperation({ summary: "PDF del horario de un ambiente" })
+  @Get("aula/:id/pdf")
+  @ApiOperation({ summary: "PDF del horario de un aula" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  async ambientePDF(
+  async aulaPDF(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
     @Res() res: Response,
   ) {
     const buffer = await this.reportesService.generarReporteAulaPDF(
       id,
-      periodo ?? "",
+      periodo,
     );
     res.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename=horario-ambiente-${id}-${periodo}.pdf`,
+      "Content-Disposition": `attachment; filename=horario-aula-${id}-${periodo}.pdf`,
       "Content-Length": buffer.length,
     });
     res.end(buffer);
   }
 
-  @Get("operacional/pdf")
-  @ApiOperation({ summary: "Reporte operacional completo en PDF" })
+  @Get("laboratorio/:id/pdf")
+  @ApiOperation({ summary: "PDF del horario de un laboratorio" })
+  @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  async operacionalPDF(
+  async laboratorioPDF(
+    @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
     @Res() res: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteOperacionalPDF(
-      periodo ?? "",
+    const buffer = await this.reportesService.generarReporteLaboratorioPDF(
+      id,
+      periodo,
     );
     res.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename=reporte-operacional-${periodo}.pdf`,
+      "Content-Disposition": `attachment; filename=horario-laboratorio-${id}-${periodo}.pdf`,
       "Content-Length": buffer.length,
     });
     res.end(buffer);
@@ -89,12 +92,48 @@ export class ReportesController {
   @ApiOperation({ summary: "Reporte de gestión con KPIs en PDF" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async gestionPDF(@Query("periodo") periodo: string, @Res() res: Response) {
-    const buffer = await this.reportesService.generarReporteGestionPDF(
-      periodo ?? "",
-    );
+    const buffer = await this.reportesService.generarReporteGestionPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=reporte-gestion-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("docente/:id/excel")
+  @ApiOperation({ summary: "Excel del horario de un docente" })
+  @ApiParam({ name: "id", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async docenteExcel(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteDocenteExcel(
+      id,
+      periodo,
+    );
+    res.set({
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename=horario-docente-${id}-${periodo}.xlsx`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("completo/excel")
+  @ApiOperation({ summary: "Excel completo de horarios" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async completoExcel(@Query("periodo") periodo: string, @Res() res: Response) {
+    const buffer = await this.reportesService.generarReporteCompletoExcel(
+      periodo,
+    );
+    res.set({
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename=horario-completo-${periodo}.xlsx`,
       "Content-Length": buffer.length,
     });
     res.end(buffer);

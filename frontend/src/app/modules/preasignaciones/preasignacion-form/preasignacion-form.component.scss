@@ -1,0 +1,16 @@
+.page-container { padding: 20px; max-width: 720px; margin: 0 auto; }
+.page-header { margin-bottom: 20px; }
+.form-card { padding: 24px; }
+.row { display: flex; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+.full-width { flex: 1; min-width: 300px; }
+.half { flex: 1; min-width: 200px; }
+.third { flex: 1; min-width: 140px; }
+.hint { color: #666; font-size: 13px; margin-bottom: 8px; }
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+.animate-fadein { animation: fadeIn 0.3s ease-in; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

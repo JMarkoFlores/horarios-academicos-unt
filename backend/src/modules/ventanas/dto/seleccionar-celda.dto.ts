@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsInt, IsString, Matches } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsInt, IsOptional, IsString, Matches } from "class-validator";
 import { TipoClase } from "../../../common/enums/tipo-clase.enum";
 
 export class SeleccionarCeldaDto {
@@ -18,6 +18,11 @@ export class SeleccionarCeldaDto {
   @ApiProperty()
   @IsInt()
   cursoId: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  grupoId?: number;
 
   @ApiProperty({ enum: TipoClase })
   @IsString()

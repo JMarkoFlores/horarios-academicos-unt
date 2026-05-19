@@ -17,4 +17,15 @@ export class UpdatePreferenciasDto {
   @IsString()
   @MaxLength(20)
   telefono?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  canal_telegram?: boolean;
+
+  @ApiPropertyOptional({ example: "123456789" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  telegram_chat_id?: string;
 }

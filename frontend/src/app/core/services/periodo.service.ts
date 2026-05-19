@@ -6,6 +6,7 @@ import { ApiService } from './api.service';
 export class PeriodoService {
   private _periodo = new BehaviorSubject<string>('2026-I');
   private _periodosList = new BehaviorSubject<string[]>(['2025-II', '2026-I', '2026-II', '2027-I']);
+  private _periodoActivo = new BehaviorSubject<any>(null);
 
   constructor(private api: ApiService) {}
 
@@ -20,10 +21,12 @@ export class PeriodoService {
           const activo = list.find((p: any) => p.activo);
           if (activo) {
             this._periodo.next(activo.codigo);
+            this._periodoActivo.next(activo);
           } else {
             const current = this._periodo.getValue();
             if (!codigos.includes(current)) {
               this._periodo.next(codigos[0]);
+              this._periodoActivo.next(list[0]);
             }
           }
         }
@@ -52,5 +55,13 @@ export class PeriodoService {
 
   get periodo$() {
     return this._periodo.asObservable();
+  }
+
+  get periodoActivo(): any {
+    return this._periodoActivo.getValue();
+  }
+
+  get periodoActivo$() {
+    return this._periodoActivo.asObservable();
   }
 }

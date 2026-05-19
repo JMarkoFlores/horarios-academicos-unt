@@ -10,6 +10,10 @@ import { NotificacionDocente } from "../entities/notificacion-docente.entity";
 import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.entity";
 import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
 import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
+import { Ambiente } from "../entities/ambiente.entity";
+import { Curso } from "../entities/curso.entity";
+import { Grupo } from "../entities/grupo.entity";
+import { Docente } from "../entities/docente.entity";
 import { AuditLogService } from "./services/audit-log.service";
 import { ValidacionesService } from "./services/validaciones.service";
 import { ValidacionesController } from "./controllers/validaciones.controller";
@@ -27,6 +31,10 @@ import { ValidacionesController } from "./controllers/validaciones.controller";
       PreferenciasNotificacion,
       DiaNoLaborable,
       RestriccionInstitucional,
+      Ambiente,
+      Curso,
+      Grupo,
+      Docente,
     ]),
   ],
   controllers: [ValidacionesController],

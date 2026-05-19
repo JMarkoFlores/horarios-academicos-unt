@@ -19,6 +19,16 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Tipo de Clase *</mat-label>
+      <mat-select formControlName="tipoClase">
+        <mat-option *ngFor="let t of tiposClase" [value]="t.valor">
+          {{ t.label }}
+        </mat-option>
+      </mat-select>
+      <mat-error>Seleccione el tipo de clase</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
       <mat-label>Ambiente *</mat-label>
       <mat-select formControlName="ambienteId">
         <mat-option *ngFor="let a of data.ambientes" [value]="a.id">

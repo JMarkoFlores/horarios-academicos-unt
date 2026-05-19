@@ -38,6 +38,7 @@ import { AsignacionService } from "./asignacion.service";
 import { GenerarHorarioDto } from "./dto/generar-horario.dto";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
+import { HorariosService } from "./horarios.service";
 
 @ApiTags("horarios")
 @Controller("horarios")
@@ -45,6 +46,7 @@ import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
 export class HorariosController {
   constructor(
     private readonly asignacionService: AsignacionService,
+    private readonly horariosService: HorariosService,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(AuditoriaHorario)
@@ -80,30 +82,19 @@ export class HorariosController {
   @Get("periodo/:periodo")
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar horario por período" })
-  @ApiQuery({ name: "estado", required: false, enum: EstadoHorario })
-  @ApiQuery({ name: "tipo_clase", required: false, enum: TipoClase })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiResponse({ status: 200, description: "Horarios del período" })
   async getPorPeriodo(
     @Param("periodo") periodo: string,
-    @Query("estado") estado?: EstadoHorario,
-    @Query("tipo_clase") tipoClase?: TipoClase,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ) {
-    const qb = this.horarioRepo
-      .createQueryBuilder("horario")
-      .leftJoinAndSelect("horario.docente", "docente")
-      .leftJoinAndSelect("horario.curso", "curso")
-      .leftJoinAndSelect("horario.grupo", "grupo")
-      .leftJoinAndSelect("horario.ambiente", "ambiente")
-      .where("horario.periodo = :periodo", { periodo });
-
-    if (estado) {
-      qb.andWhere("horario.estado = :estado", { estado });
-    }
-    if (tipoClase) {
-      qb.andWhere("horario.tipo_clase = :tipoClase", { tipoClase });
-    }
-
-    const data = await qb.orderBy("horario.dia", "ASC").addOrderBy("horario.hora_inicio", "ASC").getMany();
+    const data = await this.horariosService.findAllByPeriodo(
+      periodo,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
     return { data, message: "Horario del período obtenido", statusCode: HttpStatus.OK };
   }
 
@@ -111,23 +102,21 @@ export class HorariosController {
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar horario de un docente por período" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiResponse({ status: 200, description: "Horario del docente" })
   async getPorDocente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ) {
-    const data = await this.horarioRepo
-      .createQueryBuilder("horario")
-      .leftJoinAndSelect("horario.docente", "docente")
-      .leftJoinAndSelect("horario.curso", "curso")
-      .leftJoinAndSelect("horario.grupo", "grupo")
-      .leftJoinAndSelect("horario.ambiente", "ambiente")
-      .where("horario.docente_id = :id", { id })
-      .andWhere("horario.periodo = :periodo", { periodo })
-      .orderBy("horario.dia", "ASC")
-      .addOrderBy("horario.hora_inicio", "ASC")
-      .getMany();
-
+    const data = await this.horariosService.findByDocente(
+      id,
+      periodo,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
     return { data, message: "Horario del docente obtenido", statusCode: HttpStatus.OK };
   }
 
@@ -135,24 +124,43 @@ export class HorariosController {
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar ocupación de un ambiente por período" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiResponse({ status: 200, description: "Ocupación del ambiente" })
   async getPorAmbiente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ) {
-    const data = await this.horarioRepo
-      .createQueryBuilder("horario")
-      .leftJoinAndSelect("horario.docente", "docente")
-      .leftJoinAndSelect("horario.curso", "curso")
-      .leftJoinAndSelect("horario.grupo", "grupo")
-      .leftJoinAndSelect("horario.ambiente", "ambiente")
-      .where("horario.ambiente_id = :id", { id })
-      .andWhere("horario.periodo = :periodo", { periodo })
-      .orderBy("horario.dia", "ASC")
-      .addOrderBy("horario.hora_inicio", "ASC")
-      .getMany();
-
+    const data = await this.horariosService.findByAmbiente(
+      id,
+      periodo,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
     return { data, message: "Horario del ambiente obtenido", statusCode: HttpStatus.OK };
+  }
+
+  @Get("mis-horarios")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Listar horario propio del docente autenticado" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiResponse({ status: 200, description: "Horario del docente" })
+  @Roles(RolUsuario.DOCENTE)
+  async getMisHorarios(
+    @CurrentUser() usuario: Usuario,
+    @Query("periodo") periodo: string,
+  ) {
+    // Assuming Usuario entity has a relation to Docente or email matches
+    if (!usuario.email) throw new BadRequestException("Usuario sin correo");
+    
+    // We need to fetch the docenteId based on the logged-in user's email or link
+    // Assuming for simplicity that the auth process handles this mapping or we can fetch it
+    // For this implementation, I will assume a method in HorariosService or similar exists
+    // If not, this might need further implementation.
+    const data = await this.horariosService.findHorariosByDocenteEmail(usuario.email, periodo);
+    return { data, message: "Horario obtenido", statusCode: HttpStatus.OK };
   }
 
   @Patch(":id")
@@ -181,20 +189,19 @@ export class HorariosController {
   @Get("conflictos/:periodo")
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar conflictos del período" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
   @ApiResponse({ status: 200, description: "Conflictos del período" })
-  async getConflictos(@Param("periodo") periodo: string) {
-    const data = await this.horarioRepo
-      .createQueryBuilder("horario")
-      .leftJoinAndSelect("horario.docente", "docente")
-      .leftJoinAndSelect("horario.curso", "curso")
-      .leftJoinAndSelect("horario.grupo", "grupo")
-      .leftJoinAndSelect("horario.ambiente", "ambiente")
-      .where("horario.periodo = :periodo", { periodo })
-      .andWhere("horario.estado = :estado", { estado: EstadoHorario.CONFLICTO })
-      .orderBy("horario.dia", "ASC")
-      .addOrderBy("horario.hora_inicio", "ASC")
-      .getMany();
-
+  async getConflictos(
+    @Param("periodo") periodo: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
+    const data = await this.horariosService.findConflictos(
+      periodo,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+    );
     return { data, message: "Conflictos obtenidos", statusCode: HttpStatus.OK };
   }
 

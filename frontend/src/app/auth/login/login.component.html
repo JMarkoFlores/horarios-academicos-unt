@@ -33,7 +33,7 @@
             <input matInput type="email" formControlName="email" autocomplete="email" />
             <mat-icon matPrefix>alternate_email</mat-icon>
             <mat-error *ngIf="form.get('email')?.hasError('required')">El correo es obligatorio</mat-error>
-            <mat-error *ngIf="form.get('email')?.hasError('email')">Formato de correo inválido</mat-error>
+            <mat-error *ngIf="form.get('email')?.hasError('pattern')">Formato de correo inválido</mat-error>
           </mat-form-field>
         </div>
 

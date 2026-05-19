@@ -103,6 +103,54 @@ export class ValidadorHorarioService {
         () => this.validarCruceLaboratorio(params),
         "El laboratorio seleccionado ya está ocupado en ese horario.",
       ),
+      params.curso_id
+        ? this.ejecutarValidacion(
+            async () => {
+              const res = await this.validacionesService.verificarHorasCurso(
+                params.curso_id!,
+                params.tipo_clase,
+                duracion,
+                params.periodo,
+              );
+              return res.valido;
+            },
+            "El curso ya tiene asignadas todas las horas requeridas para este tipo de clase.",
+          )
+        : Promise.resolve(null),
+      this.ejecutarValidacion(
+        async () => {
+          const res = await this.validacionesService.verificarCapacidadAmbiente(
+            params.ambiente_id,
+            params.grupo_id,
+          );
+          return res.valido;
+        },
+        "La capacidad del ambiente es menor al cupo del grupo.",
+      ),
+      this.ejecutarValidacion(
+        async () => {
+          const res = await this.validacionesService.verificarDescansoMinimoDocente(
+            params.docente_id,
+            params.dia,
+            params.hora_inicio,
+            params.hora_fin,
+            params.periodo,
+          );
+          return res.valido;
+        },
+        "El docente no cumple el descanso mínimo de 1 hora entre clases.",
+      ),
+      this.ejecutarValidacion(
+        async () => {
+          const res = await this.validacionesService.verificarCargaHorariaSemanalDocente(
+            params.docente_id,
+            duracion,
+            params.periodo,
+          );
+          return res.valido;
+        },
+        "El docente supera su carga horaria semanal máxima permitida.",
+      ),
     ]);
 
     const errores = validaciones.filter((error): error is string => error !== null);

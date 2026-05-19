@@ -6,6 +6,8 @@ import { PreferenciasNotificacion } from '../entities/preferencias-notificacion.
 import { VentanaAtencion } from '../entities/ventana-atencion.entity';
 import { Docente } from '../entities/docente.entity';
 import { HorarioAsignado } from '../entities/horario-asignado.entity';
+import { MailService } from '../mail/mail.service';
+
 import { NotificacionesService } from './notificaciones.service';
 import { NotificacionesController } from './notificaciones.controller';
 import { NotificacionesProcessor } from './notificaciones.processor';
@@ -23,7 +25,7 @@ import { NotificacionesGateway } from './notificaciones.gateway';
     BullModule.registerQueue({ name: "notificaciones" }),
   ],
   controllers: [NotificacionesController],
-  providers: [NotificacionesService, NotificacionesProcessor, NotificacionesGateway],
+  providers: [NotificacionesService, NotificacionesProcessor, NotificacionesGateway, MailService],
   exports: [NotificacionesService, NotificacionesGateway],
 })
 export class NotificacionesModule {}

@@ -20,8 +20,14 @@ export class PreferenciasNotificacion {
   @Column({ default: false })
   canal_whatsapp: boolean;
 
+  @Column({ default: false })
+  canal_telegram: boolean;
+
   @Column({ nullable: true, length: 20 })
   telefono: string;
+
+  @Column({ nullable: true, length: 50 })
+  telegram_chat_id: string;
 
   @CreateDateColumn()
   created_at: Date;

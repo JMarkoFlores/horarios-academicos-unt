@@ -39,6 +39,7 @@ export class DocentesController {
   constructor(private readonly docentesService: DocentesService) {}
 
   @Get()
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Listar docentes paginado con filtros" })
   @ApiResponse({ status: 200, description: "Lista paginada de docentes" })
   async findAll(@Query() query: QueryDocenteDto) {
@@ -47,6 +48,7 @@ export class DocentesController {
   }
 
   @Get("jerarquia")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Docentes ordenados por jerarquía institucional" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({
@@ -61,6 +63,7 @@ export class DocentesController {
   }
 
   @Get("exportar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Exportar todos los docentes sin paginación" })
   @ApiQuery({ name: "categoria", required: false })
   @ApiQuery({ name: "tipo_contrato", required: false })
@@ -79,6 +82,7 @@ export class DocentesController {
   }
 
   @Get(":id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Obtener un docente por ID" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente encontrado" })

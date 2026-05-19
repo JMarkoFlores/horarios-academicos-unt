@@ -1,4 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { Cache } from "cache-manager";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
@@ -20,9 +22,16 @@ export class DashboardService {
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
     @InjectRepository(Curso) private readonly cursoRepo: Repository<Curso>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async getKPIs(periodo: string) {
+    const cacheKey = `dashboard_kpis_${periodo}`;
+    const cachedData = await this.cacheManager.get(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
     const [
       totalDocentes,
       totalAulas,
@@ -46,7 +55,7 @@ export class DashboardService {
         .leftJoinAndSelect('horario.docente', 'docente')
         .leftJoinAndSelect('horario.curso', 'curso')
         .leftJoinAndSelect('horario.ambiente', 'ambiente')
-        .where('horario.periodo_academico = :periodo', { periodo })
+        .where('horario.periodo = :periodo', { periodo })
         .cache(`horarios_periodo_${periodo}_dashboard_kpis`, 60000)
         .getMany(),
       this.docenteRepo.find({ where: { activo: true } }),
@@ -95,7 +104,7 @@ export class DashboardService {
 
     const progresoSemanal = this.calcularProgresoSemanal(horarios);
 
-    return {
+    const result = {
       total_docentes: totalDocentes,
       docentes_con_horario: docentesConHorario,
       docentes_pendientes: totalDocentes - docentesConHorario,
@@ -120,6 +129,10 @@ export class DashboardService {
       distribucion_por_categoria: distribucionCategoria,
       progreso_semanal: progresoSemanal,
     };
+
+    await this.cacheManager.set(cacheKey, result, 60000);
+
+    return result;
   }
 
   private calcularProgresoSemanal(horarios: HorarioAsignado[]) {

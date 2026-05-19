@@ -13,6 +13,8 @@ import { VentanasController } from "./ventanas.controller";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
 import { VentanasService } from "./ventanas.service";
 import { CommonModule } from "../../common/common.module";
+import { NotificacionesModule } from "../../notificaciones/notificaciones.module";
+import { AuditoriaModule } from "../../modules/auditoria/auditoria.module";
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { CommonModule } from "../../common/common.module";
     ]),
     HorariosModule,
     CommonModule,
+    NotificacionesModule,
+    AuditoriaModule,
   ],
   controllers: [VentanasController],
   providers: [VentanasService, GestorSeleccionTemporalService],

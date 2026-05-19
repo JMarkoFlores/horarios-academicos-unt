@@ -18,6 +18,8 @@ import { ValidadorHorarioService } from "../../horarios/validador-horario.servic
 import { SeleccionarCeldaDto } from "./dto/seleccionar-celda.dto";
 import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
 import { ValidacionesService } from "../../common/services/validaciones.service";
+import { AuditoriaService } from "../../modules/auditoria/auditoria.service";
+import { Ambiente } from "../../entities/ambiente.entity";
 
 type SeleccionTemporalRedis = {
   ventanaId: string;
@@ -43,8 +45,11 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
+    @InjectRepository(Ambiente)
+    private readonly ambienteRepo: Repository<Ambiente>,
     private readonly validadorHorarioService: ValidadorHorarioService,
     private readonly validacionesService: ValidacionesService,
+    private readonly auditoriaService: AuditoriaService,
   ) {
     this.redis = new Redis({
       host: this.configService.get<string>("REDIS_HOST", "localhost"),
@@ -62,6 +67,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     exito: boolean;
     motivo?: string;
     expira_en?: string;
+    alternativas?: Array<{ id: number; codigo: string; nombre: string }>;
   }> {
     const clave = this.crearClaveSeleccion(
       datos.ambienteId,
@@ -76,6 +82,78 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       if (seleccionActual.sesionId !== datos.sesionId) {
         return { exito: false, motivo: "Celda reservada por otro operador" };
       }
+    }
+
+    // 1. Resolver período y grupo para las validaciones
+    const periodo = await this.periodoRepo.findOne({
+      where: { codigo: datos.periodo },
+    });
+    if (!periodo) {
+      return { exito: false, motivo: "Período académico no encontrado." };
+    }
+
+    const grupo = await this.grupoRepo
+      .createQueryBuilder("grupo")
+      .innerJoin("grupo.curso", "curso")
+      .innerJoin("grupo.periodo_academico", "periodo")
+      .where("curso.id = :cursoId", { cursoId: datos.cursoId })
+      .andWhere("periodo.id = :periodoId", { periodoId: periodo.id })
+      .select(["grupo.id AS grupo_id"])
+      .getRawOne<{ grupo_id: number }>();
+
+    if (!grupo) {
+      return { exito: false, motivo: "No existe grupo asociado al curso en el período indicado." };
+    }
+
+    const fechaSlot = this.construirFechaDesdeDia(
+      new Date(periodo.fecha_inicio),
+      datos.dia,
+    );
+
+    // 2. Ejecutar las 8 validaciones en paralelo (objetivo <200ms)
+    const validacion = await this.validadorHorarioService.validarSlot({
+      docente_id: datos.docenteId,
+      curso_id: datos.cursoId,
+      grupo_id: grupo.grupo_id,
+      ambiente_id: datos.ambienteId,
+      laboratorio_ambiente_id:
+        datos.tipoClase === "LABORATORIO" ? datos.ambienteId : undefined,
+      periodo: datos.periodo,
+      dia: datos.dia,
+      hora_inicio: datos.horaInicio,
+      hora_fin: datos.horaFin,
+      tipo_clase: datos.tipoClase as any,
+      fecha: fechaSlot,
+    });
+
+    if (!validacion.valido) {
+      const ocupado = validacion.errores.some((e) =>
+        e.includes("ambiente") || e.includes("ocupado"),
+      );
+      if (ocupado) {
+        const alternativas = await this.sugerirAmbientesAlternativos(
+          datos.ambienteId,
+          datos.dia,
+          datos.horaInicio,
+          datos.horaFin,
+          datos.periodo,
+        );
+        return {
+          exito: false,
+          motivo: validacion.errores.join("; "),
+          alternativas,
+        };
+      }
+      return { exito: false, motivo: validacion.errores.join("; ") };
+    }
+
+    // 3. Validar horas consecutivas del mismo curso+tipo en la sesión
+    const consecutivas = await this.verificarHorasConsecutivas(datos);
+    if (!consecutivas.valido) {
+      return {
+        exito: false,
+        motivo: consecutivas.motivo,
+      };
     }
 
     const payload: SeleccionTemporalRedis = {
@@ -100,6 +178,96 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       exito: true,
       expira_en: new Date(Date.now() + 1800 * 1000).toISOString(),
     };
+  }
+
+  private async verificarHorasConsecutivas(
+    datos: SeleccionarCeldaDto,
+  ): Promise<{ valido: boolean; motivo?: string }> {
+    const claves = await this.redis.smembers(this.crearClaveSesion(datos.sesionId));
+    if (!claves || claves.length === 0) return { valido: true };
+
+    const existentesRaw = await this.redis.mget(...claves);
+    const existentes = (existentesRaw || [])
+      .filter((v): v is string => v !== null)
+      .map((v) => this.parseSeleccion(v))
+      .filter(
+        (s) => s.cursoId === datos.cursoId && s.tipoClase === datos.tipoClase,
+      );
+
+    if (existentes.length === 0) return { valido: true };
+
+    // Regla: todas las selecciones del mismo curso+tipo deben ser del mismo día
+    const diasDistintos = new Set(existentes.map((s) => s.dia));
+    if (diasDistintos.size > 1 || (diasDistintos.size === 1 && !diasDistintos.has(datos.dia))) {
+      return {
+        valido: false,
+        motivo: `Las horas del curso deben estar todas en el mismo día. Ya tiene selecciones en ${[...diasDistintos].map(d => ['Lunes','Martes','Miércoles','Jueves','Viernes'][d-1]).join(', ')}.`,
+      };
+    }
+
+    // Regla: el nuevo slot debe ser consecutivo a alguno existente
+    const aMinutos = (t: string): number => {
+      const [h, m] = t.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+
+    const iniNuevo = aMinutos(datos.horaInicio);
+    const finNuevo = aMinutos(datos.horaFin);
+
+    const esConsecutivo = existentes.some((s) => {
+      const iniEx = aMinutos(s.horaInicio);
+      const finEx = aMinutos(s.horaFin);
+      return finEx === iniNuevo || finNuevo === iniEx;
+    });
+
+    if (!esConsecutivo) {
+      return {
+        valido: false,
+        motivo: `Las horas del curso deben ser consecutivas. Ya tiene selecciones en ${existentes.map(s => `${s.horaInicio}-${s.horaFin}`).join(', ')}. Seleccione un slot adyacente.`,
+      };
+    }
+
+    return { valido: true };
+  }
+
+  private async sugerirAmbientesAlternativos(
+    ambienteIdExcluir: number,
+    dia: number,
+    horaInicio: string,
+    horaFin: string,
+    periodo: string,
+  ): Promise<Array<{ id: number; codigo: string; nombre: string }>> {
+    const ambientes = await this.ambienteRepo.find({
+      where: { activo: true },
+      select: ["id", "codigo", "nombre"],
+      order: { capacidad: "DESC" },
+      take: 20,
+    });
+
+    const alternativas: Array<{ id: number; codigo: string; nombre: string }> = [];
+
+    await Promise.all(
+      ambientes
+        .filter((a) => a.id !== ambienteIdExcluir)
+        .map(async (amb) => {
+          const clave = this.crearClaveSeleccion(amb.id, dia, horaInicio, periodo);
+          const enRedis = await this.redis.get(clave);
+          if (enRedis) return;
+
+          const hayCruce = await this.validacionesService.verificarCruceAmbiente(
+            amb.id,
+            dia,
+            horaInicio,
+            horaFin,
+            periodo,
+          );
+          if (!hayCruce) {
+            alternativas.push({ id: amb.id, codigo: amb.codigo, nombre: amb.nombre });
+          }
+        }),
+    );
+
+    return alternativas.slice(0, 5);
   }
 
   async deseleccionarCelda(
@@ -133,6 +301,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
   async confirmarSelecciones(
     sesionId: string,
     periodoId: number,
+    usuarioOperadorId?: number,
   ): Promise<{ confirmados: number; errores: Array<Record<string, unknown>> }> {
     const periodo = await this.periodoRepo.findOne({
       where: { id: periodoId },
@@ -162,6 +331,8 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    const horariosCreados: HorarioAsignado[] = [];
+
     try {
       const gruposMap = await this.resolverGruposPorCurso(
         periodoId,
@@ -180,6 +351,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
         const validacion = await this.validadorHorarioService.validarSlot({
           docente_id: seleccion.docenteId,
+          curso_id: seleccion.cursoId,
           grupo_id: grupoId,
           ambiente_id: seleccion.ambienteId,
           laboratorio_ambiente_id:
@@ -228,7 +400,8 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           estado: EstadoHorario.CONFIRMADO,
         });
 
-        await queryRunner.manager.save(HorarioAsignado, horario);
+        const saved = await queryRunner.manager.save(HorarioAsignado, horario);
+        horariosCreados.push(saved);
       }
 
       await queryRunner.commitTransaction();
@@ -250,6 +423,33 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
       await this.redis.del(claveSesion);
       await this.redis.srem("selecciones_sesiones_activas", sesionId);
+
+      // Invalidar caché de estadísticas en Redis
+      await this.redis.del(`stats_periodo_${periodo.codigo}`);
+
+      // Registrar auditoría para cada horario confirmado
+      if (usuarioOperadorId) {
+        for (const horario of horariosCreados) {
+          await this.auditoriaService.registrar({
+            horario_id: horario.id,
+            usuario_id: usuarioOperadorId,
+            accion: "CONFIRMACION_VENTANA",
+            datos_anteriores: null,
+            datos_nuevos: {
+              docente_id: horario.docente_id,
+              curso_id: horario.curso_id,
+              ambiente_id: horario.ambiente_id,
+              dia: horario.dia,
+              hora_inicio: horario.hora_inicio,
+              hora_fin: horario.hora_fin,
+              tipo_clase: horario.tipo_clase,
+              periodo: horario.periodo,
+            },
+            ip: "0.0.0.0",
+            motivo: `Confirmación desde sesión ${sesionId}`,
+          });
+        }
+      }
 
       return { confirmados: selecciones.length, errores };
     } catch (error) {
@@ -332,7 +532,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
       const esNoLaborable = await this.validacionesService.verificarDiaNoLaborable(fechaSlot, periodo);
 
-      for (let h = 7; h <= 20; h++) {
+      for (let h = 7; h <= 21; h++) {
         const horaInicio = `${h.toString().padStart(2, '0')}:00`;
         const horaFin = `${(h + 1).toString().padStart(2, '0')}:00`;
 

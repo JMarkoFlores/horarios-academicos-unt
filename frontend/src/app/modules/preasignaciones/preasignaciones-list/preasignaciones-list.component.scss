@@ -1,0 +1,34 @@
+.page-container { padding: 20px; }
+.page-header { margin-bottom: 20px; }
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.filtros {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.filtros mat-form-field { width: 160px; }
+.table-container { overflow-x: auto; }
+.badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #e0e0e0;
+}
+.badge.teoria { background: #e3f2fd; color: #1565c0; }
+.badge.lab { background: #e8f5e9; color: #2e7d32; }
+.estado-vacio {
+  text-align: center;
+  padding: 40px;
+  color: #888;
+  mat-icon { font-size: 48px; width: 48px; height: 48px; color: #bdbdbd; }
+}
+.animate-fadein { animation: fadeIn 0.3s ease-in; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

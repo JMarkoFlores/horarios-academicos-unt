@@ -1,0 +1,55 @@
+<div class="cola-container">
+  <div class="cola-header">
+    <h3>Cola de Docentes</h3>
+    <button mat-raised-button color="primary" (click)="llamarSiguiente()" [disabled]="loading">
+      <mat-icon>play_arrow</mat-icon> Llamar siguiente docente
+    </button>
+  </div>
+
+  <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
+
+  <!-- En Atención -->
+  <mat-card class="atencion-card" *ngIf="estadoCola?.en_atencion">
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="atencion-icon">record_voice_over</mat-icon>
+      <mat-card-title>En Atención</mat-card-title>
+      <mat-card-subtitle>
+        {{ estadoCola.en_atencion.docente.apellidos }}, {{ estadoCola.en_atencion.docente.nombres }}
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p><strong>Código:</strong> {{ estadoCola.en_atencion.docente.codigo }}</p>
+      <p><strong>Categoría:</strong> {{ estadoCola.en_atencion.docente.categoria }}</p>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <button mat-button color="warn" (click)="marcarAusente(estadoCola.en_atencion.docente.id)">
+        <mat-icon>person_off</mat-icon> Marcar ausente
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <div class="estado-vacio" *ngIf="!estadoCola?.en_atencion">
+    <mat-icon>pending_actions</mat-icon>
+    <p>Ningún docente en atención. Presione "Llamar siguiente docente".</p>
+  </div>
+
+  <!-- Esperando -->
+  <div class="seccion-cola" *ngIf="estadoCola?.esperando?.length > 0">
+    <h4>En Espera ({{ estadoCola.esperando.length }})</h4>
+    <mat-list>
+      <mat-list-item *ngFor="let d of estadoCola.esperando; let i = index">
+        <mat-icon matListItemIcon>schedule</mat-icon>
+        <div matListItemTitle>{{ i + 1 }}. {{ d.docente.apellidos }}, {{ d.docente.nombres }}</div>
+        <div matListItemLine>{{ d.docente.categoria }} — {{ d.docente.codigo }}</div>
+      </mat-list-item>
+    </mat-list>
+  </div>
+
+  <!-- Resumen -->
+  <div class="resumen-cola" *ngIf="estadoCola">
+    <mat-chip-set>
+      <mat-chip color="primary" highlighted>Completados: {{ estadoCola.completados || 0 }}</mat-chip>
+      <mat-chip color="warn" highlighted>Ausentes: {{ estadoCola.ausentes || 0 }}</mat-chip>
+    </mat-chip-set>
+  </div>
+</div>

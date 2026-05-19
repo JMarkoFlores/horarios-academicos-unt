@@ -19,6 +19,7 @@ import { Preasignacion } from "../entities/preasignacion.entity";
 import { DocentesService } from "../docentes/docentes.service";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ValidadorHorarioService } from "./validador-horario.service";
+import { AuditoriaService } from "../modules/auditoria/auditoria.service";
 
 type DocenteJerarquia = {
   id: number;
@@ -52,8 +53,7 @@ export class AsignacionService {
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
-    @InjectRepository(AuditoriaHorario)
-    private readonly auditoriaRepo: Repository<AuditoriaHorario>,
+    private readonly auditoriaService: AuditoriaService,
     @InjectRepository(Curso)
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(Ambiente)
@@ -447,23 +447,21 @@ export class AsignacionService {
 
     const actualizado = await this.horarioRepo.save(horario);
 
-    await this.auditoriaRepo.save(
-      this.auditoriaRepo.create({
-        horario_id: id,
-        usuario_id: dto.usuario_id ?? 1,
-        accion: "reasignar",
-        datos_anteriores: datosAnteriores,
-        datos_nuevos: {
-          dia: actualizado.dia,
-          hora_inicio: actualizado.hora_inicio,
-          hora_fin: actualizado.hora_fin,
-          ambiente_id: actualizado.ambiente_id,
-          estado: actualizado.estado,
-        },
-        ip: dto.ip ?? "desconocida",
-        motivo: dto.motivo ?? null,
-      }),
-    );
+    await this.auditoriaService.registrar({
+      horario_id: id,
+      usuario_id: dto.usuario_id ?? 1,
+      accion: "reasignar",
+      datos_anteriores: datosAnteriores,
+      datos_nuevos: {
+        dia: actualizado.dia,
+        hora_inicio: actualizado.hora_inicio,
+        hora_fin: actualizado.hora_fin,
+        ambiente_id: actualizado.ambiente_id,
+        estado: actualizado.estado,
+      },
+      ip: dto.ip ?? "desconocida",
+      motivo: dto.motivo ?? null,
+    });
 
     await this.validadorHorarioService.invalidarCacheAmbiente(
       ambienteAnterior,

@@ -24,6 +24,7 @@ import { PeriodosModule } from "./periodos/periodos.module";
 import { ConfiguracionModule } from "./configuracion/configuracion.module";
 import { PreasignacionesModule } from "./modules/preasignaciones/preasignaciones.module";
 import { VentanasModule } from "./modules/ventanas/ventanas.module";
+import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { VentanasModule } from "./modules/ventanas/ventanas.module";
     PeriodosModule,
     ConfiguracionModule,
     PreasignacionesModule,
+    AuditoriaModule,
   ],
   providers: [
     {

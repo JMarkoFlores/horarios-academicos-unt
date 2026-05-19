@@ -18,6 +18,7 @@ import { HorariosController } from "./horarios.controller";
 import { ValidadorHorarioService } from "./validador-horario.service";
 import { DocentesModule } from "../docentes/docentes.module";
 import { CommonModule } from "../common/common.module";
+import { AuditoriaModule } from "../modules/auditoria/auditoria.module";
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { CommonModule } from "../common/common.module";
     ]),
     DocentesModule,
     CommonModule,
+    AuditoriaModule,
   ],
   controllers: [HorariosController],
   providers: [AsignacionService, HorariosService, HorariosGateway, ValidadorHorarioService],

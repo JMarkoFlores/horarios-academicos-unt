@@ -16,6 +16,8 @@ import { HorarioAsignado } from "../../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
 import { ValidadorHorarioService } from "../../horarios/validador-horario.service";
 import { SeleccionarCeldaDto } from "./dto/seleccionar-celda.dto";
+import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
+import { ValidacionesService } from "../../common/services/validaciones.service";
 
 type SeleccionTemporalRedis = {
   ventanaId: string;
@@ -42,6 +44,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     private readonly validadorHorarioService: ValidadorHorarioService,
+    private readonly validacionesService: ValidacionesService,
   ) {
     this.redis = new Redis({
       host: this.configService.get<string>("REDIS_HOST", "localhost"),
@@ -301,6 +304,77 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     }
 
     return selecciones;
+  }
+
+  async obtenerDisponibilidadMatriz(
+    ventanaId: string,
+    ambienteId: number,
+    sesionIdQuery?: string,
+  ): Promise<any[]> {
+    const ventana = await this.dataSource.getRepository(VentanaAtencion).findOne({
+      where: { id: ventanaId },
+    });
+    if (!ventana) throw new NotFoundException('Ventana no encontrada');
+    const periodo = ventana.periodo;
+
+    const horariosConfirmados = await this.dataSource.getRepository(HorarioAsignado).find({
+      where: { ambiente_id: ambienteId, periodo },
+    });
+
+    const matriz = [];
+    const periodoEntity = await this.periodoRepo.findOne({ where: { codigo: periodo } });
+    
+    for (let dia = 1; dia <= 5; dia++) {
+      let fechaSlot = new Date();
+      if (periodoEntity) {
+        fechaSlot = new Date(this.construirFechaDesdeDia(new Date(periodoEntity.fecha_inicio), dia));
+      }
+
+      const esNoLaborable = await this.validacionesService.verificarDiaNoLaborable(fechaSlot, periodo);
+
+      for (let h = 7; h <= 20; h++) {
+        const horaInicio = `${h.toString().padStart(2, '0')}:00`;
+        const horaFin = `${(h + 1).toString().padStart(2, '0')}:00`;
+
+        let estado = 'LIBRE';
+        let metadata = null;
+
+        const fueraDeFranja = !this.validacionesService.verificarFranjaInstitucional(horaInicio, horaFin);
+        if (fueraDeFranja || esNoLaborable) {
+          estado = 'BLOQUEADO';
+        } else {
+          const confirmado = horariosConfirmados.find(
+            hc => hc.dia === dia && hc.hora_inicio === horaInicio
+          );
+          if (confirmado) {
+            estado = 'CONFIRMADO';
+            metadata = { docenteId: confirmado.docente_id, cursoId: confirmado.curso_id };
+          } else {
+            const claveRedis = this.crearClaveSeleccion(ambienteId, dia, horaInicio, periodo);
+            const enRedis = await this.redis.get(claveRedis);
+            if (enRedis) {
+              const seleccion = this.parseSeleccion(enRedis);
+              if (sesionIdQuery && seleccion.sesionId === sesionIdQuery) {
+                estado = 'TEMPORAL_PROPIO';
+              } else {
+                estado = 'TEMPORAL_OTRO';
+              }
+              metadata = { docenteId: seleccion.docenteId, cursoId: seleccion.cursoId, sesionId: seleccion.sesionId };
+            }
+          }
+        }
+
+        matriz.push({
+          dia,
+          horaInicio,
+          horaFin,
+          estado,
+          metadata
+        });
+      }
+    }
+
+    return matriz;
   }
 
   private async resolverGruposPorCurso(

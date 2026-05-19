@@ -1,17 +1,19 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
-  Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
@@ -30,7 +32,6 @@ import { VentanasService } from "./ventanas.service";
 @ApiTags("ventanas")
 @ApiBearerAuth("JWT")
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
 @Controller("ventanas")
 export class VentanasController {
   constructor(
@@ -39,6 +40,7 @@ export class VentanasController {
   ) {}
 
   @Post()
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear ventana de atención" })
   @ApiResponse({ status: 201, description: "Ventana creada" })
   async crear(@Body() dto: CreateVentanaDto) {
@@ -47,6 +49,7 @@ export class VentanasController {
   }
 
   @Post("configurar-periodo")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Configurar ventanas automáticas para un período" })
   async configurarPeriodo(@Body() dto: ConfigurarVentanasPeriodoDto) {
     const data = await this.ventanasService.configurarVentanasPeriodo(
@@ -62,6 +65,11 @@ export class VentanasController {
   }
 
   @Post(":id/iniciar")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Iniciar ventana y cargar cola" })
   async iniciar(@Param("id") id: string) {
@@ -70,6 +78,11 @@ export class VentanasController {
   }
 
   @Post(":id/siguiente")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Llamar al siguiente docente" })
   async llamarSiguiente(@Param("id") id: string) {
@@ -77,30 +90,24 @@ export class VentanasController {
     return { data, message: "Cola actualizada", statusCode: HttpStatus.OK };
   }
 
-  @Patch(":id/ausente/:docenteId")
+  @Post(":id/ausente")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Marcar docente ausente" })
   async marcarAusente(
     @Param("id") id: string,
-    @Param("docenteId") docenteId: string,
+    @Body("docente_id") docenteId: string,
   ) {
-    const data = await this.ventanasService.marcarAusente(
-      id,
-      Number(docenteId),
-    );
+    const data = await this.ventanasService.marcarAusente(id, Number(docenteId));
     return {
       data,
       message: "Docente marcado como ausente",
       statusCode: HttpStatus.OK,
     };
-  }
-
-  @Patch(":id/completar")
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Completar ventana" })
-  async completar(@Param("id") id: string) {
-    const data = await this.ventanasService.completarVentana(id);
-    return { data, message: "Ventana completada", statusCode: HttpStatus.OK };
   }
 
   @Get(":id/cola")
@@ -114,30 +121,35 @@ export class VentanasController {
     };
   }
 
-  @Post(":id/reprogramar")
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Reprogramar pendientes de una ventana" })
-  async reprogramar(@Param("id") id: string) {
-    const data = await this.ventanasService.reprogramarPendientes(id);
-    return {
-      data,
-      message: "Pendientes reprogramados",
-      statusCode: HttpStatus.OK,
-    };
-  }
-
-  @Post("selecciones")
+  @Post(":id/celda")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Seleccionar celda temporalmente" })
-  async seleccionarCelda(@Body() dto: SeleccionarCeldaDto) {
-    const data = await this.gestorSeleccionService.seleccionarCelda(dto);
+  async seleccionarCelda(
+    @Param("id") id: string,
+    @Body() dto: SeleccionarCeldaDto,
+  ) {
+    const dtoConVentana = { ...dto, ventanaId: id } as any;
+    const data = await this.gestorSeleccionService.seleccionarCelda(dtoConVentana);
     return { data, message: "Celda procesada", statusCode: HttpStatus.OK };
   }
 
-  @Patch("selecciones/deseleccionar")
+  @Delete(":id/celda")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Deseleccionar celda temporal" })
-  async deseleccionarCelda(@Body() dto: DeseleccionarCeldaDto) {
+  async deseleccionarCelda(
+    @Param("id") id: string,
+    @Body() dto: DeseleccionarCeldaDto,
+  ) {
     await this.gestorSeleccionService.deseleccionarCelda(
       dto.sesionId,
       dto.ambienteId,
@@ -148,10 +160,18 @@ export class VentanasController {
     return { data: null, message: "Celda liberada", statusCode: HttpStatus.OK };
   }
 
-  @Post("selecciones/confirmar")
+  @Post(":id/confirmar")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Confirmar selecciones temporales" })
-  async confirmarSelecciones(@Body() dto: ConfirmarSeleccionesDto) {
+  async confirmarSelecciones(
+    @Param("id") id: string,
+    @Body() dto: ConfirmarSeleccionesDto,
+  ) {
     const data = await this.gestorSeleccionService.confirmarSelecciones(
       dto.sesionId,
       dto.periodoId,
@@ -159,6 +179,27 @@ export class VentanasController {
     return {
       data,
       message: "Selecciones confirmadas",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get(":id/disponibilidad-matriz")
+  @ApiOperation({ summary: "Obtener grilla completa del ambiente para la semana" })
+  @ApiQuery({ name: 'ambiente_id', required: true, type: Number })
+  @ApiQuery({ name: 'sesionId', required: false, type: String })
+  async getDisponibilidadMatriz(
+    @Param("id") id: string,
+    @Query("ambiente_id") ambienteId: string,
+    @Query("sesionId") sesionId?: string,
+  ) {
+    const data = await this.gestorSeleccionService.obtenerDisponibilidadMatriz(
+      id,
+      Number(ambienteId),
+      sesionId,
+    );
+    return {
+      data,
+      message: "Matriz de disponibilidad obtenida",
       statusCode: HttpStatus.OK,
     };
   }

@@ -12,6 +12,7 @@ import { HorariosModule } from "../../horarios/horarios.module";
 import { VentanasController } from "./ventanas.controller";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
 import { VentanasService } from "./ventanas.service";
+import { CommonModule } from "../../common/common.module";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { VentanasService } from "./ventanas.service";
       Ambiente,
     ]),
     HorariosModule,
+    CommonModule,
   ],
   controllers: [VentanasController],
   providers: [VentanasService, GestorSeleccionTemporalService],

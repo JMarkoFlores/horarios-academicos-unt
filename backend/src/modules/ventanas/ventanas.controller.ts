@@ -28,6 +28,7 @@ import { DeseleccionarCeldaDto } from "./dto/deseleccionar-celda.dto";
 import { SeleccionarCeldaDto } from "./dto/seleccionar-celda.dto";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
 import { VentanasService } from "./ventanas.service";
+import { HorariosGateway } from "../../horarios/horarios.gateway";
 
 @ApiTags("ventanas")
 @ApiBearerAuth("JWT")
@@ -37,6 +38,7 @@ export class VentanasController {
   constructor(
     private readonly ventanasService: VentanasService,
     private readonly gestorSeleccionService: GestorSeleccionTemporalService,
+    private readonly gateway: HorariosGateway,
   ) {}
 
   @Post()
@@ -74,6 +76,7 @@ export class VentanasController {
   @ApiOperation({ summary: "Iniciar ventana y cargar cola" })
   async iniciar(@Param("id") id: string) {
     const data = await this.ventanasService.iniciarVentana(id);
+    this.gateway.emitirColaActualizada(id, data);
     return { data, message: "Ventana iniciada", statusCode: HttpStatus.OK };
   }
 
@@ -87,6 +90,7 @@ export class VentanasController {
   @ApiOperation({ summary: "Llamar al siguiente docente" })
   async llamarSiguiente(@Param("id") id: string) {
     const data = await this.ventanasService.llamarSiguiente(id);
+    this.gateway.emitirColaActualizada(id, data);
     return { data, message: "Cola actualizada", statusCode: HttpStatus.OK };
   }
 
@@ -103,6 +107,7 @@ export class VentanasController {
     @Body("docente_id") docenteId: string,
   ) {
     const data = await this.ventanasService.marcarAusente(id, Number(docenteId));
+    this.gateway.emitirColaActualizada(id, data);
     return {
       data,
       message: "Docente marcado como ausente",
@@ -135,6 +140,11 @@ export class VentanasController {
   ) {
     const dtoConVentana = { ...dto, ventanaId: id } as any;
     const data = await this.gestorSeleccionService.seleccionarCelda(dtoConVentana);
+    
+    if (data.exito) {
+      this.gateway.emitirCeldaSeleccionada(id, dtoConVentana);
+    }
+    
     return { data, message: "Celda procesada", statusCode: HttpStatus.OK };
   }
 
@@ -157,6 +167,7 @@ export class VentanasController {
       dto.horaInicio,
       dto.periodo,
     );
+    this.gateway.emitirCeldaLiberada(id, dto);
     return { data: null, message: "Celda liberada", statusCode: HttpStatus.OK };
   }
 
@@ -176,6 +187,7 @@ export class VentanasController {
       dto.sesionId,
       dto.periodoId,
     );
+    this.gateway.emitirHorarioConfirmado(id, dto);
     return {
       data,
       message: "Selecciones confirmadas",

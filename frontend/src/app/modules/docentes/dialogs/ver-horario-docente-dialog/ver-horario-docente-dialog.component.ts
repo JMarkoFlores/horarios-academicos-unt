@@ -59,7 +59,9 @@ export class VerHorarioDocenteDialogComponent implements OnInit {
     const h = this.fmtH(hora);
     return (
       this.asignaciones.find(
-        (a) => a.dia_semana === dia && this.normalizeHora(a.hora_inicio) === h,
+        (a) =>
+          (a.dia_semana ?? a.dia) === dia &&
+          this.normalizeHora(a.hora_inicio) === h,
       ) ?? null
     );
   }

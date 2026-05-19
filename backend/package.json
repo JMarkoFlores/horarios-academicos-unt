@@ -42,6 +42,7 @@
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^10.0.2",
     "@nestjs/websockets": "^10.4.22",
+    "@types/exceljs": "^0.5.3",
     "bcrypt": "^5.1.1",
     "bull": "^4.16.5",
     "cache-manager": "^7.2.8",

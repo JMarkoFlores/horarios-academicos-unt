@@ -39,7 +39,7 @@ export class ReportesService {
     try {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "load" });
-      
+
       const headerTemplate = `
         <div style="font-size: 9px; width: 100%; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin: 0 20px; color: #555;">
           <span style="float: left; font-weight: bold;">UNIVERSIDAD NACIONAL DE TRUJILLO</span>
@@ -70,8 +70,13 @@ export class ReportesService {
     }
   }
 
-  async generarReporteDocentePDF(docenteId: number, periodo: string): Promise<Buffer> {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+  async generarReporteDocentePDF(
+    docenteId: number,
+    periodo: string,
+  ): Promise<Buffer> {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
     if (!docente) throw new Error("Docente no encontrado");
 
     const horarios = await this.horarioRepo
@@ -88,10 +93,11 @@ export class ReportesService {
     const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
     let totalHoras = 0;
 
-    const filas = horarios.map(h => {
-      const duracion = this.calcularDuracionHoras(h.hora_inicio, h.hora_fin);
-      totalHoras += duracion;
-      return `
+    const filas = horarios
+      .map((h) => {
+        const duracion = this.calcularDuracionHoras(h.hora_inicio, h.hora_fin);
+        totalHoras += duracion;
+        return `
         <tr>
           <td>${dias[h.dia] || h.dia}</td>
           <td>${h.hora_inicio.substring(0, 5)}</td>
@@ -101,7 +107,8 @@ export class ReportesService {
           <td>${h.ambiente?.codigo || "-"}</td>
         </tr>
       `;
-    }).join("");
+      })
+      .join("");
 
     const antiguedad = this.calcularAntiguedad(docente.fecha_ingreso);
 
@@ -145,8 +152,13 @@ export class ReportesService {
     return this.generarPDF(html);
   }
 
-  async generarReporteAulaPDF(ambienteId: number, periodo: string): Promise<Buffer> {
-    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
+  async generarReporteAulaPDF(
+    ambienteId: number,
+    periodo: string,
+  ): Promise<Buffer> {
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: ambienteId },
+    });
     if (!ambiente) throw new Error("Ambiente no encontrado");
 
     const horarios = await this.horarioRepo
@@ -181,10 +193,16 @@ export class ReportesService {
     return this.generarPDF(html);
   }
 
-  async generarReporteLaboratorioPDF(ambienteId: number, periodo: string): Promise<Buffer> {
-    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
+  async generarReporteLaboratorioPDF(
+    ambienteId: number,
+    periodo: string,
+  ): Promise<Buffer> {
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: ambienteId },
+    });
     if (!ambiente) throw new Error("Ambiente no encontrado");
-    if (ambiente.tipo !== TipoAmbiente.LABORATORIO) throw new Error("El ambiente no es un laboratorio");
+    if (ambiente.tipo !== TipoAmbiente.LABORATORIO)
+      throw new Error("El ambiente no es un laboratorio");
 
     const horarios = await this.horarioRepo
       .createQueryBuilder("horario")
@@ -198,7 +216,8 @@ export class ReportesService {
     const gridHtml = this.generarGrillaSemanal(horarios, true);
     const ocupacion = this.calcularPorcentajeOcupacion(horarios);
 
-    const html = this.htmlWrapper(`
+    const html = this.htmlWrapper(
+      `
       <div class="content-header">
         <h1>REPORTE DE HORARIO POR LABORATORIO</h1>
         <div class="meta-info">
@@ -216,28 +235,146 @@ export class ReportesService {
       <div class="summary">
         <p><strong>Porcentaje de ocupación:</strong> ${ocupacion.toFixed(1)}%</p>
       </div>
-    `, true);
+    `,
+      true,
+    );
+
+    return this.generarPDF(html);
+  }
+
+  async generarReporteAmbientePDF(
+    ambienteId: number,
+    periodo: string,
+  ): Promise<{ buffer: Buffer; tipo: string }> {
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: ambienteId },
+    });
+    if (!ambiente) throw new Error("Ambiente no encontrado");
+
+    if (ambiente.tipo === TipoAmbiente.LABORATORIO) {
+      const buffer = await this.generarReporteLaboratorioPDF(
+        ambienteId,
+        periodo,
+      );
+      return { buffer, tipo: "laboratorio" };
+    }
+
+    const buffer = await this.generarReporteAulaPDF(ambienteId, periodo);
+    return { buffer, tipo: "aula" };
+  }
+
+  async generarReporteOperacionalPDF(periodo: string): Promise<Buffer> {
+    const horarios = await this.horarioRepo.find({
+      where: { periodo },
+      relations: ["docente", "ambiente", "curso", "grupo"],
+      order: { dia: "ASC", hora_inicio: "ASC" },
+    });
+
+    const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+
+    const filas = horarios
+      .map((h) => {
+        const duracion = this.calcularDuracionHoras(h.hora_inicio, h.hora_fin);
+        return `
+        <tr>
+          <td>${dias[h.dia] || h.dia}</td>
+          <td>${h.hora_inicio.substring(0, 5)}</td>
+          <td>${h.hora_fin.substring(0, 5)}</td>
+          <td>${h.curso?.nombre || "-"}</td>
+          <td>${h.grupo?.codigo || "-"}</td>
+          <td>${h.docente ? `${h.docente.apellidos}, ${h.docente.nombres}` : "-"}</td>
+          <td>${h.ambiente?.codigo || "-"}</td>
+          <td>${h.tipo_clase === TipoClase.TEORIA ? "Teoría" : "Laboratorio"}</td>
+          <td>${duracion.toFixed(1)}</td>
+        </tr>
+      `;
+      })
+      .join("");
+
+    const totalHoras = horarios.reduce(
+      (sum, h) => sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin),
+      0,
+    );
+
+    const html = this.htmlWrapper(`
+      <div class="content-header">
+        <h1>REPORTE CONSOLIDADO DE ASIGNACIONES</h1>
+        <p>Período Académico: ${periodo}</p>
+      </div>
+
+      <div class="summary">
+        <p><strong>Total asignaciones:</strong> ${horarios.length}</p>
+        <p><strong>Total horas programadas:</strong> ${totalHoras.toFixed(1)}</p>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Día</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Curso</th>
+            <th>Grupo</th>
+            <th>Docente</th>
+            <th>Ambiente</th>
+            <th>Tipo</th>
+            <th>Horas</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filas || '<tr><td colspan="9" style="text-align:center">Sin asignaciones registradas</td></tr>'}
+        </tbody>
+      </table>
+    `);
 
     return this.generarPDF(html);
   }
 
   async generarReporteGestionPDF(periodo: string): Promise<Buffer> {
-    const [totalDocentes, docentesConHorario, totalAulas, totalLabs, horarios, conflictos, cursos, grupos] = await Promise.all([
+    const [
+      totalDocentes,
+      docentesConHorario,
+      totalAulas,
+      totalLabs,
+      horarios,
+      conflictos,
+      cursos,
+      grupos,
+    ] = await Promise.all([
       this.docenteRepo.count({ where: { activo: true } }),
-      this.docenteRepo.createQueryBuilder("docente")
+      this.docenteRepo
+        .createQueryBuilder("docente")
         .innerJoin("docente.horarios", "horario")
         .where("horario.periodo = :periodo", { periodo })
         .getCount(),
-      this.ambienteRepo.count({ where: { tipo: TipoAmbiente.AULA, activo: true } }),
-      this.ambienteRepo.count({ where: { tipo: TipoAmbiente.LABORATORIO, activo: true } }),
-      this.horarioRepo.find({ where: { periodo }, relations: ["docente", "ambiente", "curso"] }),
-      this.conflictoRepo.find({ where: { periodo_academico: periodo, resuelto: false }, relations: ["docente", "ambiente"] }),
+      this.ambienteRepo.count({
+        where: { tipo: TipoAmbiente.AULA, activo: true },
+      }),
+      this.ambienteRepo.count({
+        where: { tipo: TipoAmbiente.LABORATORIO, activo: true },
+      }),
+      this.horarioRepo.find({
+        where: { periodo },
+        relations: ["docente", "ambiente", "curso"],
+      }),
+      this.conflictoRepo.find({
+        where: { periodo_academico: periodo, resuelto: false },
+        relations: ["docente", "ambiente"],
+      }),
       this.cursoRepo.find({ where: { activo: true } }),
       this.grupoRepo.find({ relations: ["curso", "periodo_academico"] }),
     ]);
 
-    const ocupacionAulas = this.calcularOcupacionTipo(horarios, TipoAmbiente.AULA, totalAulas);
-    const ocupacionLabs = this.calcularOcupacionTipo(horarios, TipoAmbiente.LABORATORIO, totalLabs);
+    const ocupacionAulas = this.calcularOcupacionTipo(
+      horarios,
+      TipoAmbiente.AULA,
+      totalAulas,
+    );
+    const ocupacionLabs = this.calcularOcupacionTipo(
+      horarios,
+      TipoAmbiente.LABORATORIO,
+      totalLabs,
+    );
 
     const cargaPorCategoria = this.calcularCargaPorCategoria(horarios);
 
@@ -271,7 +408,7 @@ export class ReportesService {
             <tr><th>Categoría</th><th>Total Horas</th><th>% del Total</th></tr>
           </thead>
           <tbody>
-            ${cargaPorCategoria.map(c => `<tr><td>${c.categoria}</td><td>${c.horas.toFixed(1)}</td><td>${c.porcentaje.toFixed(1)}%</td></tr>`).join("")}
+            ${cargaPorCategoria.map((c) => `<tr><td>${c.categoria}</td><td>${c.horas.toFixed(1)}</td><td>${c.porcentaje.toFixed(1)}%</td></tr>`).join("")}
           </tbody>
         </table>
       </div>
@@ -284,7 +421,7 @@ export class ReportesService {
             <table>
               <thead><tr><th>Docente</th><th>Horas</th></tr></thead>
               <tbody>
-                ${top5Mayor.map(d => `<tr><td>${d.nombre}</td><td>${d.horas.toFixed(1)}</td></tr>`).join("")}
+                ${top5Mayor.map((d) => `<tr><td>${d.nombre}</td><td>${d.horas.toFixed(1)}</td></tr>`).join("")}
               </tbody>
             </table>
           </div>
@@ -293,7 +430,7 @@ export class ReportesService {
             <table>
               <thead><tr><th>Docente</th><th>Horas</th></tr></thead>
               <tbody>
-                ${top5Menor.map(d => `<tr><td>${d.nombre}</td><td>${d.horas.toFixed(1)}</td></tr>`).join("")}
+                ${top5Menor.map((d) => `<tr><td>${d.nombre}</td><td>${d.horas.toFixed(1)}</td></tr>`).join("")}
               </tbody>
             </table>
           </div>
@@ -307,7 +444,7 @@ export class ReportesService {
             <tr><th>Curso</th><th>Horas Requeridas</th><th>Horas Asignadas</th></tr>
           </thead>
           <tbody>
-            ${cursosIncompletos.map(c => `<tr><td>${c.nombre}</td><td>${c.requeridas}</td><td>${c.asignadas.toFixed(1)}</td></tr>`).join("")}
+            ${cursosIncompletos.map((c) => `<tr><td>${c.nombre}</td><td>${c.requeridas}</td><td>${c.asignadas.toFixed(1)}</td></tr>`).join("")}
           </tbody>
         </table>
       </div>
@@ -319,7 +456,7 @@ export class ReportesService {
             <tr><th>Tipo</th><th>Descripción</th><th>Docente/Ambiente</th></tr>
           </thead>
           <tbody>
-            ${conflictos.map(c => `<tr><td>${c.tipo_conflicto}</td><td>${c.descripcion}</td><td>${c.docente?.apellidos || c.ambiente?.codigo || "-"}</td></tr>`).join("")}
+            ${conflictos.map((c) => `<tr><td>${c.tipo_conflicto}</td><td>${c.descripcion}</td><td>${c.docente?.apellidos || c.ambiente?.codigo || "-"}</td></tr>`).join("")}
           </tbody>
         </table>
       </div>
@@ -328,9 +465,17 @@ export class ReportesService {
     return this.generarPDF(html);
   }
 
-  async generarReporteDocenteExcel(docenteId: number, periodo: string): Promise<Buffer> {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
-    const horarios = await this.horarioRepo.find({ where: { docente_id: docenteId, periodo }, relations: ["curso", "ambiente"] });
+  async generarReporteDocenteExcel(
+    docenteId: number,
+    periodo: string,
+  ): Promise<Buffer> {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
+    const horarios = await this.horarioRepo.find({
+      where: { docente_id: docenteId, periodo },
+      relations: ["curso", "ambiente"],
+    });
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Horario");
@@ -345,7 +490,7 @@ export class ReportesService {
     ];
 
     const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-    horarios.forEach(h => {
+    horarios.forEach((h) => {
       sheet.addRow({
         dia: dias[h.dia] || h.dia,
         inicio: h.hora_inicio,
@@ -361,7 +506,7 @@ export class ReportesService {
 
   async generarReporteCompletoExcel(periodo: string): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
-    
+
     // Hoja Resumen (already added)
     // Hoja Docentes (already added)
     const sheetDocentes = workbook.addWorksheet("Docentes");
@@ -379,8 +524,7 @@ export class ReportesService {
         relations: ["curso"],
       });
       const totalHoras = horariosDocente.reduce(
-        (sum, h) =>
-          sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin),
+        (sum, h) => sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin),
         0,
       );
       sheetDocentes.addRow({
@@ -399,11 +543,24 @@ export class ReportesService {
       { header: "Capacidad", key: "capacidad" },
       { header: "Horas Asignadas", key: "horas", width: 15 },
     ];
-    const aulas = await this.ambienteRepo.find({ where: { tipo: TipoAmbiente.AULA, activo: true } });
+    const aulas = await this.ambienteRepo.find({
+      where: { tipo: TipoAmbiente.AULA, activo: true },
+    });
     for (const aula of aulas) {
-      const horariosAula = await this.horarioRepo.find({ where: { ambiente_id: aula.id, periodo } });
-      const totalHoras = horariosAula.reduce((sum, h) => sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin), 0);
-      sheetAulas.addRow({ id: aula.id, codigo: aula.codigo, nombre: aula.nombre, capacidad: aula.capacidad, horas: totalHoras });
+      const horariosAula = await this.horarioRepo.find({
+        where: { ambiente_id: aula.id, periodo },
+      });
+      const totalHoras = horariosAula.reduce(
+        (sum, h) => sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin),
+        0,
+      );
+      sheetAulas.addRow({
+        id: aula.id,
+        codigo: aula.codigo,
+        nombre: aula.nombre,
+        capacidad: aula.capacidad,
+        horas: totalHoras,
+      });
     }
 
     // Hoja Laboratorios
@@ -415,11 +572,24 @@ export class ReportesService {
       { header: "Capacidad", key: "capacidad" },
       { header: "Horas Asignadas", key: "horas", width: 15 },
     ];
-    const labs = await this.ambienteRepo.find({ where: { tipo: TipoAmbiente.LABORATORIO, activo: true } });
+    const labs = await this.ambienteRepo.find({
+      where: { tipo: TipoAmbiente.LABORATORIO, activo: true },
+    });
     for (const lab of labs) {
-      const horariosLab = await this.horarioRepo.find({ where: { ambiente_id: lab.id, periodo } });
-      const totalHoras = horariosLab.reduce((sum, h) => sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin), 0);
-      sheetLabs.addRow({ id: lab.id, codigo: lab.codigo, nombre: lab.nombre, capacidad: lab.capacidad, horas: totalHoras });
+      const horariosLab = await this.horarioRepo.find({
+        where: { ambiente_id: lab.id, periodo },
+      });
+      const totalHoras = horariosLab.reduce(
+        (sum, h) => sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin),
+        0,
+      );
+      sheetLabs.addRow({
+        id: lab.id,
+        codigo: lab.codigo,
+        nombre: lab.nombre,
+        capacidad: lab.capacidad,
+        horas: totalHoras,
+      });
     }
 
     // Return buffer
@@ -472,21 +642,40 @@ export class ReportesService {
     return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
   }
 
-  private generarGrillaSemanal(horarios: HorarioAsignado[], isLab = false): string {
+  private generarGrillaSemanal(
+    horarios: HorarioAsignado[],
+    isLab = false,
+  ): string {
     const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
     const horas = [
-      "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
-      "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"
+      "07:00",
+      "08:00",
+      "09:00",
+      "10:00",
+      "11:00",
+      "12:00",
+      "13:00",
+      "14:00",
+      "15:00",
+      "16:00",
+      "17:00",
+      "18:00",
+      "19:00",
+      "20:00",
+      "21:00",
     ];
 
     let html = "<table><thead><tr><th>Hora</th>";
-    dias.forEach(d => html += `<th>${d}</th>`);
+    dias.forEach((d) => (html += `<th>${d}</th>`));
     html += "</tr></thead><tbody>";
 
-    horas.forEach(hora => {
+    horas.forEach((hora) => {
       html += `<tr><td>${hora}</td>`;
       for (let dia = 1; dia <= 5; dia++) {
-        const hFound = horarios.find(h => h.dia === dia && h.hora_inicio.startsWith(hora.substring(0, 2)));
+        const hFound = horarios.find(
+          (h) =>
+            h.dia === dia && h.hora_inicio.startsWith(hora.substring(0, 2)),
+        );
         if (hFound) {
           const className = isLab ? "grid-cell-lab" : "";
           html += `<td class="${className}">${hFound.curso?.nombre || ""}<br>${hFound.docente?.apellidos || ""}<br>${hFound.grupo?.codigo || ""}</td>`;
@@ -504,21 +693,31 @@ export class ReportesService {
   private calcularPorcentajeOcupacion(horarios: HorarioAsignado[]): number {
     const totalHorasDisponibles = 15 * 5; // 15 horas x 5 días
     let horasOcupadas = 0;
-    horarios.forEach(h => horasOcupadas += this.calcularDuracionHoras(h.hora_inicio, h.hora_fin));
+    horarios.forEach(
+      (h) =>
+        (horasOcupadas += this.calcularDuracionHoras(
+          h.hora_inicio,
+          h.hora_fin,
+        )),
+    );
     return (horasOcupadas / totalHorasDisponibles) * 100;
   }
 
-  private calcularOcupacionTipo(horarios: HorarioAsignado[], tipo: TipoAmbiente, totalAmbientes: number): number {
+  private calcularOcupacionTipo(
+    horarios: HorarioAsignado[],
+    tipo: TipoAmbiente,
+    totalAmbientes: number,
+  ): number {
     if (totalAmbientes === 0) return 0;
-    const filtrados = horarios.filter(h => h.ambiente?.tipo === tipo);
-    const ambientesOcupados = new Set(filtrados.map(h => h.ambiente_id)).size;
+    const filtrados = horarios.filter((h) => h.ambiente?.tipo === tipo);
+    const ambientesOcupados = new Set(filtrados.map((h) => h.ambiente_id)).size;
     return (ambientesOcupados / totalAmbientes) * 100;
   }
 
   private calcularCargaPorCategoria(horarios: HorarioAsignado[]): any[] {
     const map = new Map<string, number>();
     let total = 0;
-    horarios.forEach(h => {
+    horarios.forEach((h) => {
       if (h.docente?.categoria) {
         const dur = this.calcularDuracionHoras(h.hora_inicio, h.hora_fin);
         map.set(h.docente.categoria, (map.get(h.docente.categoria) || 0) + dur);
@@ -535,7 +734,7 @@ export class ReportesService {
 
   private calcularHorasPorDocente(horarios: HorarioAsignado[]): any[] {
     const map = new Map<string, number>();
-    horarios.forEach(h => {
+    horarios.forEach((h) => {
       if (h.docente) {
         const nombre = `${h.docente.apellidos}, ${h.docente.nombres}`;
         const dur = this.calcularDuracionHoras(h.hora_inicio, h.hora_fin);
@@ -548,12 +747,23 @@ export class ReportesService {
       .sort((a, b) => b.horas - a.horas);
   }
 
-  private calcularCursosIncompletos(cursos: Curso[], horarios: HorarioAsignado[]): any[] {
+  private calcularCursosIncompletos(
+    cursos: Curso[],
+    horarios: HorarioAsignado[],
+  ): any[] {
     // Simplificado por brevedad, asumiendo que si no hay horarios asignados o menos de lo esperado, está incompleto.
-    return cursos.map(c => {
-      const asignadas = horarios.filter(h => h.curso_id === c.id).reduce((acc, h) => acc + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin), 0);
-      const requeridas = c.horas_teoria + c.horas_laboratorio;
-      return { nombre: c.nombre, requeridas, asignadas };
-    }).filter(c => c.asignadas < c.requeridas);
+    return cursos
+      .map((c) => {
+        const asignadas = horarios
+          .filter((h) => h.curso_id === c.id)
+          .reduce(
+            (acc, h) =>
+              acc + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin),
+            0,
+          );
+        const requeridas = c.horas_teoria + c.horas_laboratorio;
+        return { nombre: c.nombre, requeridas, asignadas };
+      })
+      .filter((c) => c.asignadas < c.requeridas);
   }
 }

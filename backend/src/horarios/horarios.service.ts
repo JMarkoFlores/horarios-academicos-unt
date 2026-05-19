@@ -263,8 +263,18 @@ export class HorariosService {
       dto.hora_fin,
       dto.periodo_academico,
     );
-    if (cruceDoc)
-      throw new BadRequestException("El docente tiene un cruce en ese horario");
+    if (cruceDoc) {
+      const conflictos = await this.obtenerConflictosDocente(
+        dto.docente_id,
+        dto.dia_semana,
+        dto.hora_inicio,
+        dto.hora_fin,
+        dto.periodo_academico,
+      );
+      throw new BadRequestException(
+        `El docente tiene un cruce en ese horario: ${conflictos}`,
+      );
+    }
 
     const cruceAmb = await this.validacionesService.verificarCruceAmbiente(
       dto.ambiente_id,
@@ -273,10 +283,18 @@ export class HorariosService {
       dto.hora_fin,
       dto.periodo_academico,
     );
-    if (cruceAmb)
-      throw new BadRequestException(
-        "El ambiente tiene un cruce en ese horario",
+    if (cruceAmb) {
+      const conflictos = await this.obtenerConflictosAmbiente(
+        dto.ambiente_id,
+        dto.dia_semana,
+        dto.hora_inicio,
+        dto.hora_fin,
+        dto.periodo_academico,
       );
+      throw new BadRequestException(
+        `El ambiente tiene un cruce en ese horario: ${conflictos}`,
+      );
+    }
 
     const grupo = await this.grupoRepo.findOne({
       where: { id: dto.grupo_id },
@@ -306,17 +324,67 @@ export class HorariosService {
       curso,
       ambiente,
       grupo,
-      dia_semana: dto.dia_semana,
+      dia: dto.dia_semana,
       hora_inicio: dto.hora_inicio,
       hora_fin: dto.hora_fin,
       tipo_clase: dto.tipo_clase,
-      periodo_academico: dto.periodo_academico,
+      periodo: dto.periodo_academico,
       estado: EstadoHorario.BORRADOR,
     });
 
     const saved = await this.horarioRepo.save(nuevaAsignacion);
     await this.invalidateHorariosCache();
     return saved;
+  }
+
+  private async obtenerConflictosDocente(
+    docenteId: number,
+    diaSemana: number,
+    horaInicio: string,
+    horaFin: string,
+    periodo: string,
+  ): Promise<string> {
+    const conflictos = await this.horarioRepo
+      .createQueryBuilder("h")
+      .leftJoinAndSelect("h.curso", "curso")
+      .where("h.docente_id = :docenteId", { docenteId })
+      .andWhere("h.dia = :diaSemana", { diaSemana })
+      .andWhere("h.periodo = :periodo", { periodo })
+      .andWhere("h.hora_inicio < CAST(:horaFin AS TIME)", { horaFin })
+      .andWhere("h.hora_fin > CAST(:horaInicio AS TIME)", { horaInicio })
+      .getMany();
+
+    return conflictos
+      .map(
+        (c) =>
+          `${c.curso?.nombre || "Asignación"} (${c.hora_inicio.substring(0, 5)} - ${c.hora_fin.substring(0, 5)})`,
+      )
+      .join(", ");
+  }
+
+  private async obtenerConflictosAmbiente(
+    ambienteId: number,
+    diaSemana: number,
+    horaInicio: string,
+    horaFin: string,
+    periodo: string,
+  ): Promise<string> {
+    const conflictos = await this.horarioRepo
+      .createQueryBuilder("h")
+      .leftJoinAndSelect("h.curso", "curso")
+      .where("h.ambiente_id = :ambienteId", { ambienteId })
+      .andWhere("h.dia = :diaSemana", { diaSemana })
+      .andWhere("h.periodo = :periodo", { periodo })
+      .andWhere("h.hora_inicio < CAST(:horaFin AS TIME)", { horaFin })
+      .andWhere("h.hora_fin > CAST(:horaInicio AS TIME)", { horaInicio })
+      .getMany();
+
+    return conflictos
+      .map(
+        (c) =>
+          `${c.curso?.nombre || "Asignación"} (${c.hora_inicio.substring(0, 5)} - ${c.hora_fin.substring(0, 5)})`,
+      )
+      .join(", ");
   }
 
   private async invalidateHorariosCache(): Promise<void> {

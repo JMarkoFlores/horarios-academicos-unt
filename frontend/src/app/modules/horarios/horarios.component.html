@@ -1,7 +1,9 @@
 <div class="page-header animate-fade-in">
   <div class="header-content">
     <h1>Gestión de Horarios</h1>
-    <p class="header-subtitle">Visualiza, valida y genera la programación académica del período</p>
+    <p class="header-subtitle">
+      Visualiza, valida y genera la programación académica del período
+    </p>
   </div>
   <div class="header-actions">
     <span class="periodo-badge">
@@ -18,7 +20,7 @@
       <mat-icon>person</mat-icon>
       <span>Vista por Docente</span>
     </ng-template>
-    
+
     <div class="tab-container">
       <div class="premium-toolbar animate-slide-up">
         <div class="toolbar-search">
@@ -28,7 +30,9 @@
             <mat-select (selectionChange)="selectDocente($event.value)">
               <mat-option *ngFor="let d of todosDocentes" [value]="d">
                 <div class="option-content">
-                  <span class="main-text">{{ d.apellidos }}, {{ d.nombres }}</span>
+                  <span class="main-text"
+                    >{{ d.apellidos }}, {{ d.nombres }}</span
+                  >
                   <span class="sub-text">{{ d.categoria }}</span>
                 </div>
               </mat-option>
@@ -36,10 +40,15 @@
           </mat-form-field>
         </div>
 
-        <div class="toolbar-actions" *ngIf="docenteSeleccionado && !loadingDocente">
+        <div
+          class="toolbar-actions"
+          *ngIf="docenteSeleccionado && !loadingDocente"
+        >
           <div class="stat-pill">
             <mat-icon>timer</mat-icon>
-            <span><strong>{{ horasAsignadas }}</strong> horas</span>
+            <span
+              ><strong>{{ horasAsignadas }}</strong> horas</span
+            >
           </div>
           <button
             mat-flat-button
@@ -61,7 +70,13 @@
       <ng-container *ngIf="docenteSeleccionado && !loadingDocente">
         <div class="grid-card animate-fade-in">
           <div class="grid-header-info">
-            <h3>Horario Semanal: <span>{{ docenteSeleccionado.apellidos }}, {{ docenteSeleccionado.nombres }}</span></h3>
+            <h3>
+              Horario Semanal:
+              <span
+                >{{ docenteSeleccionado.apellidos }},
+                {{ docenteSeleccionado.nombres }}</span
+              >
+            </h3>
           </div>
           <div class="grid-wrapper">
             <table class="horario-grid">
@@ -78,9 +93,16 @@
                     *ngFor="let dNum of diasNum"
                     class="celda"
                     [ngClass]="clsDoc(dNum, hora)"
+                    (click)="abrirAsignar(dNum, hora)"
                   >
                     <ng-container *ngIf="getAsigDoc(dNum, hora) as a">
-                      <div class="celda-content" [matTooltip]="a.curso?.nombre + ' - ' + a.ambiente?.nombre" matTooltipPosition="above">
+                      <div
+                        class="celda-content"
+                        [matTooltip]="
+                          a.curso?.nombre + ' - ' + a.ambiente?.nombre
+                        "
+                        matTooltipPosition="above"
+                      >
                         <div class="curso-txt">{{ a.curso?.nombre }}</div>
                         <div class="amb-txt">
                           <mat-icon>location_on</mat-icon>
@@ -113,12 +135,18 @@
         </div>
       </ng-container>
 
-      <div *ngIf="!docenteSeleccionado && !loadingDocente" class="empty-state animate-slide-up">
+      <div
+        *ngIf="!docenteSeleccionado && !loadingDocente"
+        class="empty-state animate-slide-up"
+      >
         <div class="empty-icon-box">
           <mat-icon>person_search</mat-icon>
         </div>
         <h2>Sin docente seleccionado</h2>
-        <p>Utiliza el buscador superior para visualizar el horario detallado del docente.</p>
+        <p>
+          Utiliza el buscador superior para visualizar el horario detallado del
+          docente.
+        </p>
       </div>
     </div>
   </mat-tab>
@@ -155,7 +183,13 @@
       <ng-container *ngIf="ambienteSeleccionado && !loadingAmbiente">
         <div class="grid-card animate-fade-in">
           <div class="grid-header-info">
-            <h3>Disponibilidad de Ambiente: <span>{{ ambienteSeleccionado.codigo }} — {{ ambienteSeleccionado.nombre }}</span></h3>
+            <h3>
+              Disponibilidad de Ambiente:
+              <span
+                >{{ ambienteSeleccionado.codigo }} —
+                {{ ambienteSeleccionado.nombre }}</span
+              >
+            </h3>
           </div>
           <div class="grid-wrapper">
             <table class="horario-grid">
@@ -174,7 +208,13 @@
                     [ngClass]="clsAmb(dNum, hora)"
                   >
                     <ng-container *ngIf="getAsigAmb(dNum, hora) as a">
-                      <div class="celda-content" [matTooltip]="a.curso?.nombre + ' - ' + a.docente?.apellidos" matTooltipPosition="above">
+                      <div
+                        class="celda-content"
+                        [matTooltip]="
+                          a.curso?.nombre + ' - ' + a.docente?.apellidos
+                        "
+                        matTooltipPosition="above"
+                      >
                         <div class="curso-txt">{{ a.curso?.nombre }}</div>
                         <div class="amb-txt">
                           <mat-icon>person</mat-icon>
@@ -188,7 +228,7 @@
             </table>
           </div>
         </div>
-        
+
         <div class="legend-premium animate-fade-in">
           <div class="legend-item teoria">
             <div class="legend-swatch"></div>
@@ -207,12 +247,17 @@
         </div>
       </ng-container>
 
-      <div *ngIf="!ambienteSeleccionado && !loadingAmbiente" class="empty-state animate-slide-up">
+      <div
+        *ngIf="!ambienteSeleccionado && !loadingAmbiente"
+        class="empty-state animate-slide-up"
+      >
         <div class="empty-icon-box">
           <mat-icon>meeting_room</mat-icon>
         </div>
         <h2>Ambiente no seleccionado</h2>
-        <p>Selecciona un aula o laboratorio para visualizar su ocupación semanal.</p>
+        <p>
+          Selecciona un aula o laboratorio para visualizar su ocupación semanal.
+        </p>
       </div>
     </div>
   </mat-tab>
@@ -220,7 +265,12 @@
   <!-- ── TAB 3: CONFLICTOS ── -->
   <mat-tab>
     <ng-template mat-tab-label>
-      <mat-icon [matBadge]="conflictos.length" matBadgeColor="warn" [matBadgeHidden]="conflictos.length === 0">error_outline</mat-icon>
+      <mat-icon
+        [matBadge]="conflictos.length"
+        matBadgeColor="warn"
+        [matBadgeHidden]="conflictos.length === 0"
+        >error_outline</mat-icon
+      >
       <span>Conflictos</span>
     </ng-template>
 
@@ -228,9 +278,17 @@
       <div class="premium-toolbar animate-slide-up">
         <div class="toolbar-title">
           <h2>Conflictos Detectados</h2>
-          <p>Se han encontrado {{ conflictos.length }} incidencias en el período {{ periodoService.periodo }}</p>
+          <p>
+            Se han encontrado {{ conflictos.length }} incidencias en el período
+            {{ periodoService.periodo }}
+          </p>
         </div>
-        <button mat-flat-button class="action-btn" (click)="loadConflictos()" [disabled]="loadingConflictos">
+        <button
+          mat-flat-button
+          class="action-btn"
+          (click)="loadConflictos()"
+          [disabled]="loadingConflictos"
+        >
           <mat-icon>refresh</mat-icon>
           <span>Actualizar</span>
         </button>
@@ -262,7 +320,10 @@
           <ng-container matColumnDef="resuelto">
             <th mat-header-cell *matHeaderCellDef>Estado</th>
             <td mat-cell *matCellDef="let c">
-              <span class="status-badge" [ngClass]="c.resuelto ? 'resuelto' : 'activo'">
+              <span
+                class="status-badge"
+                [ngClass]="c.resuelto ? 'resuelto' : 'activo'"
+              >
                 {{ c.resuelto ? "Resuelto" : "Pendiente" }}
               </span>
             </td>
@@ -282,7 +343,11 @@
             </td>
           </ng-container>
           <tr mat-header-row *matHeaderRowDef="colsConflictos"></tr>
-          <tr mat-row *matRowDef="let row; columns: colsConflictos" class="table-row"></tr>
+          <tr
+            mat-row
+            *matRowDef="let row; columns: colsConflictos"
+            class="table-row"
+          ></tr>
         </table>
         <div *ngIf="conflictos.length === 0" class="empty-state table-empty">
           <mat-icon class="success-icon">verified</mat-icon>
@@ -309,13 +374,19 @@
       </div>
 
       <div class="gestion-grid">
-        <mat-card class="gestion-card-premium animate-staggered" style="--index: 1">
+        <mat-card
+          class="gestion-card-premium animate-staggered"
+          style="--index: 1"
+        >
           <div class="card-icon primary">
             <mat-icon>auto_fix_high</mat-icon>
           </div>
           <mat-card-header>
             <mat-card-title>Generación Automática</mat-card-title>
-            <mat-card-subtitle>Aplica algoritmos de optimización para asignar cursos basándose en disponibilidad y preferencias.</mat-card-subtitle>
+            <mat-card-subtitle
+              >Aplica algoritmos de optimización para asignar cursos basándose
+              en disponibilidad y preferencias.</mat-card-subtitle
+            >
           </mat-card-header>
           <mat-card-content>
             <div class="resultado-box" *ngIf="resultadoGeneracion">
@@ -325,7 +396,9 @@
               </div>
               <div class="res-divider"></div>
               <div class="res-item">
-                <span class="val warn">{{ resultadoGeneracion.conflictos }}</span>
+                <span class="val warn">{{
+                  resultadoGeneracion.conflictos
+                }}</span>
                 <span class="lab">Conflictos</span>
               </div>
             </div>
@@ -345,17 +418,27 @@
           </mat-card-actions>
         </mat-card>
 
-        <mat-card class="gestion-card-premium animate-staggered" style="--index: 2">
+        <mat-card
+          class="gestion-card-premium animate-staggered"
+          style="--index: 2"
+        >
           <div class="card-icon danger">
             <mat-icon>delete_sweep</mat-icon>
           </div>
           <mat-card-header>
             <mat-card-title>Reinicio de Período</mat-card-title>
-            <mat-card-subtitle>Limpia todas las asignaciones actuales del período {{ periodoService.periodo }} para comenzar un nuevo proceso.</mat-card-subtitle>
+            <mat-card-subtitle
+              >Limpia todas las asignaciones actuales del período
+              {{ periodoService.periodo }} para comenzar un nuevo
+              proceso.</mat-card-subtitle
+            >
           </mat-card-header>
           <mat-card-content class="danger-warning">
             <mat-icon>warning</mat-icon>
-            <span>Esta acción no se puede deshacer. Todos los datos de horarios serán eliminados.</span>
+            <span
+              >Esta acción no se puede deshacer. Todos los datos de horarios
+              serán eliminados.</span
+            >
           </mat-card-content>
           <mat-card-actions>
             <button

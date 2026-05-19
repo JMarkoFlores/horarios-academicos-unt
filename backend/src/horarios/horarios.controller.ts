@@ -38,6 +38,7 @@ import { AsignacionService } from "./asignacion.service";
 import { GenerarHorarioDto } from "./dto/generar-horario.dto";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
+import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
 import { HorariosService } from "./horarios.service";
 
 @ApiTags("horarios")
@@ -52,6 +53,24 @@ export class HorariosController {
     @InjectRepository(AuditoriaHorario)
     private readonly auditoriaRepo: Repository<AuditoriaHorario>,
   ) {}
+
+  @Post("asignar")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Asignar manualmente un horario" })
+  @ApiResponse({ status: 201, description: "Horario asignado correctamente" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async asignarHorario(@Body() dto: CrearAsignacionDto) {
+    const data = await this.horariosService.crearAsignacion(dto);
+    return {
+      data,
+      message: "Horario asignado",
+      statusCode: HttpStatus.CREATED,
+    };
+  }
 
   @Post("generar")
   @ApiBearerAuth("JWT")
@@ -69,14 +88,20 @@ export class HorariosController {
 
   @Delete("limpiar")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Limpiar horario en BORRADOR/CONFLICTO por período" })
+  @ApiOperation({
+    summary: "Limpiar horario en BORRADOR/CONFLICTO por período",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({ status: 200, description: "Horario limpiado correctamente" })
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @HttpCode(HttpStatus.OK)
   async limpiarHorario(@Query("periodo") periodo: string) {
     const resultado = await this.asignacionService.limpiarHorario(periodo);
-    return { data: resultado, message: "Horario limpiado", statusCode: HttpStatus.OK };
+    return {
+      data: resultado,
+      message: "Horario limpiado",
+      statusCode: HttpStatus.OK,
+    };
   }
 
   @Get("periodo/:periodo")
@@ -95,7 +120,11 @@ export class HorariosController {
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
     );
-    return { data, message: "Horario del período obtenido", statusCode: HttpStatus.OK };
+    return {
+      data,
+      message: "Horario del período obtenido",
+      statusCode: HttpStatus.OK,
+    };
   }
 
   @Get("docente/:id")
@@ -117,7 +146,11 @@ export class HorariosController {
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
     );
-    return { data, message: "Horario del docente obtenido", statusCode: HttpStatus.OK };
+    return {
+      data,
+      message: "Horario del docente obtenido",
+      statusCode: HttpStatus.OK,
+    };
   }
 
   @Get("ambiente/:id")
@@ -139,7 +172,11 @@ export class HorariosController {
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
     );
-    return { data, message: "Horario del ambiente obtenido", statusCode: HttpStatus.OK };
+    return {
+      data,
+      message: "Horario del ambiente obtenido",
+      statusCode: HttpStatus.OK,
+    };
   }
 
   @Get("mis-horarios")
@@ -154,12 +191,15 @@ export class HorariosController {
   ) {
     // Assuming Usuario entity has a relation to Docente or email matches
     if (!usuario.email) throw new BadRequestException("Usuario sin correo");
-    
+
     // We need to fetch the docenteId based on the logged-in user's email or link
     // Assuming for simplicity that the auth process handles this mapping or we can fetch it
     // For this implementation, I will assume a method in HorariosService or similar exists
     // If not, this might need further implementation.
-    const data = await this.horariosService.findHorariosByDocenteEmail(usuario.email, periodo);
+    const data = await this.horariosService.findHorariosByDocenteEmail(
+      usuario.email,
+      periodo,
+    );
     return { data, message: "Horario obtenido", statusCode: HttpStatus.OK };
   }
 
@@ -250,6 +290,10 @@ export class HorariosController {
       }),
     );
 
-    return { data: actualizado, message: "Conflicto resuelto", statusCode: HttpStatus.OK };
+    return {
+      data: actualizado,
+      message: "Conflicto resuelto",
+      statusCode: HttpStatus.OK,
+    };
   }
 }

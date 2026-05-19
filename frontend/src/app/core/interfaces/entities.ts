@@ -147,10 +147,40 @@ export interface KPIs {
   cursos_asignados: number;
   conflictos_activos: number;
   horas_promedio_por_docente: number;
+  horas_mediana_por_docente: number;
   distribucion_por_categoria: {
     categoria: string;
+    modalidad: string;
     total: number;
     con_horario: number;
+    porcentaje: number;
+  }[];
+  top_docentes_mayor_carga: {
+    nombre: string;
+    categoria: string;
+    horas: number;
+  }[];
+  top_docentes_menor_carga: {
+    nombre: string;
+    categoria: string;
+    horas: number;
+  }[];
+  ocupacion_por_ambiente: {
+    codigo: string;
+    tipo: string;
+    capacidad: number;
+    porcentaje_ocupacion: number;
+  }[];
+  mapa_calor: {
+    dia: string;
+    hora: string;
+    intensidad: number;
+    tipo_clase: string | null;
+  }[];
+  actividad_reciente: {
+    timestamp: string | Date;
+    descripcion: string;
+    tipo: string;
   }[];
   progreso_semanal: { semana: string; cursos_asignados: number }[];
 }

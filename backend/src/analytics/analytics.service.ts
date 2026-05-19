@@ -27,7 +27,7 @@ export class AnalyticsService {
 
   async getKPIMetrics(periodo: string) {
     const totalAsignaciones = await this.horarioRepo.count({
-      where: { periodo_academico: periodo },
+      where: { periodo },
     });
     const totalConflictos = await this.conflictoRepo.count({
       where: { periodo_academico: periodo },
@@ -39,7 +39,7 @@ export class AnalyticsService {
       `
       SELECT COUNT(DISTINCT curso_id) as count 
       FROM horario_asignado 
-      WHERE periodo_academico = $1
+      WHERE periodo = $1
     `,
       [periodo],
     );
@@ -65,7 +65,7 @@ export class AnalyticsService {
         d.nombres || ' ' || d.apellidos as nombre, 
         COUNT(h.id) as total_horas
       FROM docente d
-      LEFT JOIN horario_asignado h ON h.docente_id = d.id AND h.periodo_academico = $1
+      LEFT JOIN horario_asignado h ON h.docente_id = d.id AND h.periodo = $1
       GROUP BY d.id
       ORDER BY total_horas DESC
       LIMIT 10
@@ -86,7 +86,7 @@ export class AnalyticsService {
         COUNT(h.id) as horas_usadas,
         ROUND((COUNT(h.id)::numeric / $2::numeric) * 100, 2) as porcentaje_uso
       FROM ambiente a
-      LEFT JOIN horario_asignado h ON h.ambiente_id = a.id AND h.periodo_academico = $1
+      LEFT JOIN horario_asignado h ON h.ambiente_id = a.id AND h.periodo = $1
       GROUP BY a.id
       ORDER BY porcentaje_uso DESC
     `,
@@ -98,13 +98,13 @@ export class AnalyticsService {
     return this.dataSource.query(
       `
       SELECT 
-        dia_semana, 
+        dia, 
         SUBSTRING(hora_inicio::text, 1, 5) as hora, 
         COUNT(*) as cantidad
       FROM horario_asignado
-      WHERE periodo_academico = $1
-      GROUP BY dia_semana, hora
-      ORDER BY dia_semana, hora
+      WHERE periodo = $1
+      GROUP BY dia, hora
+      ORDER BY dia, hora
     `,
       [periodo],
     );

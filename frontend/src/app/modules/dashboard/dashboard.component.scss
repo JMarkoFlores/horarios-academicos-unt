@@ -51,7 +51,9 @@
       cursor: not-allowed;
     }
 
-    mat-icon { margin-right: 4px; }
+    mat-icon {
+      margin-right: 4px;
+    }
   }
 }
 
@@ -70,7 +72,12 @@
 
   @for $i from 1 through 4 {
     .kpi-card-premium:nth-child(#{$i}) {
-      animation: fadeInUp 400ms cubic-bezier(0.16, 1, 0.3, 1) #{$i * 100}ms backwards;
+      animation: fadeInUp
+        400ms
+        cubic-bezier(0.16, 1, 0.3, 1)
+        #{$i *
+        100}ms
+        backwards;
     }
   }
 }
@@ -92,12 +99,12 @@
   &:hover {
     transform: translateY(-4px); // Reducido de -6px
     box-shadow: var(--shadow-lg) !important;
-    
+
     .watermark-icon {
       transform: scale(1.1) rotate(-5deg);
       opacity: 0.15;
     }
-    
+
     .kpi-value {
       animation: pulse 400ms ease-in-out;
     }
@@ -144,7 +151,7 @@
     opacity: 0.35; // Mucho más brillante e intenso
     transition: all 500ms cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: none;
-    filter: drop-shadow(0 0 8px rgba(0,0,0,0.1)); // Sombra para dar volumen
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.1)); // Sombra para dar volumen
   }
 }
 
@@ -152,7 +159,9 @@
   .kpi-card-premium {
     .watermark-icon {
       opacity: 0.45; // Aún más intenso en modo oscuro
-      filter: drop-shadow(0 0 12px var(--accent-color)); // Brillo (glow) del color del ícono
+      filter: drop-shadow(
+        0 0 12px var(--accent-color)
+      ); // Brillo (glow) del color del ícono
     }
   }
 }
@@ -181,7 +190,7 @@
   // Específico para el gráfico de barras para que sea más alto
   &:first-child {
     .chart-body {
-      canvas { 
+      canvas {
         max-height: 320px; // Reducido de 400px
         height: 320px !important;
       }
@@ -217,11 +226,11 @@
     align-items: center;
     justify-content: center;
     min-height: 280px; // Altura mínima garantizada
-    
-    canvas { 
-      max-height: 280px; 
+
+    canvas {
+      max-height: 280px;
       width: 100% !important; // Obliga a ocupar el ancho
-    } 
+    }
   }
 }
 
@@ -248,7 +257,11 @@
       font-size: 16px;
       font-weight: 700;
       margin: 0;
-      mat-icon { font-size: 20px; width: 20px; height: 20px; }
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
     }
 
     .conflict-count {
@@ -266,8 +279,10 @@
     background: transparent !important;
     border: none !important;
 
-    .mat-mdc-header-row { background: transparent !important; }
-    
+    .mat-mdc-header-row {
+      background: transparent !important;
+    }
+
     .mat-mdc-row {
       transition: background-color var(--transition-fast);
       cursor: pointer;
@@ -290,8 +305,12 @@
       font-weight: 600;
     }
 
-    .text-muted { color: var(--color-text-muted); }
-    .text-right { text-align: right; }
+    .text-muted {
+      color: var(--color-text-muted);
+    }
+    .text-right {
+      text-align: right;
+    }
 
     .btn-resolve {
       border-radius: 8px !important;
@@ -315,7 +334,7 @@
   border-radius: var(--radius-lg);
   border: 1px dashed var(--color-border);
   text-align: center;
-  
+
   // Pattern points background
   background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
   background-size: 20px 20px;
@@ -355,13 +374,252 @@
   }
 }
 
+// ── 6. RANKING LISTS ─────────────────────────────────────────────────────
+.list-body {
+  padding: 8px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .rank-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    transition: background var(--transition-fast);
+
+    &:hover {
+      background: var(--color-primary-light);
+    }
+
+    .rank-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .rank-info {
+      flex: 1;
+      min-width: 0;
+
+      .rank-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .rank-meta {
+        font-size: 11px;
+        color: var(--color-text-muted);
+        margin-top: 1px;
+      }
+    }
+
+    .rank-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-primary);
+      white-space: nowrap;
+    }
+  }
+}
+
+// ── 7. HEATMAP ────────────────────────────────────────────────────────────
+.heatmap-card {
+  width: 100%;
+}
+
+.heatmap-body {
+  padding: 12px 16px 16px;
+  overflow-x: auto;
+}
+
+.heatmap-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 500px;
+}
+
+.heatmap-header,
+.heatmap-row {
+  display: grid;
+  grid-template-columns: 48px repeat(5, 1fr);
+  gap: 3px;
+}
+
+.heatmap-cell {
+  height: 28px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  transition: opacity 200ms;
+  cursor: default;
+
+  &.header-cell {
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  &.time-cell {
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+    font-size: 10px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+}
+
+// ── 8. PROGRESS BARS ─────────────────────────────────────────────────────
+.progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+
+  .progress-fill {
+    height: 6px;
+    background: var(--color-primary);
+    border-radius: 3px;
+    flex: 1;
+    max-width: 100px;
+    transition: width 600ms ease;
+  }
+
+  span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+}
+
+.badge-type {
+  &.aula {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  &.lab {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+}
+
+// ── 9. ACTIVITY FEED ─────────────────────────────────────────────────────
+.activity-list {
+  .activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: background var(--transition-fast);
+
+    &:hover {
+      background: var(--color-bg);
+    }
+
+    .activity-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3b82f6;
+      margin-top: 4px;
+      flex-shrink: 0;
+
+      &.lab {
+        background: #22c55e;
+      }
+    }
+
+    .activity-info {
+      flex: 1;
+
+      .activity-desc {
+        font-size: 13px;
+        color: var(--color-text);
+        font-weight: 500;
+      }
+
+      .activity-time {
+        font-size: 11px;
+        color: var(--color-text-muted);
+        margin-top: 2px;
+      }
+    }
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+// ── 10. TABLE inside chart-container ─────────────────────────────────────
+.chart-container-premium {
+  .table-wrapper {
+    padding: 0 8px 8px;
+    overflow-x: auto;
+  }
+
+  .premium-table {
+    background: transparent !important;
+
+    .mat-mdc-header-row {
+      background: transparent !important;
+    }
+
+    .mat-mdc-row {
+      transition: background-color var(--transition-fast);
+      &:hover {
+        background-color: var(--color-primary-light) !important;
+      }
+    }
+
+    .mat-mdc-cell {
+      padding: 12px !important;
+      font-size: 13px;
+    }
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
-    
-    .btn-generate { width: 100%; }
+
+    .btn-generate {
+      width: 100%;
+    }
   }
 
   .charts-grid {

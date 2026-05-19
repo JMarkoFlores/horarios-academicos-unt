@@ -88,6 +88,48 @@ export class ReportesController {
     res.end(buffer);
   }
 
+  @Get("ambiente/:id/pdf")
+  @ApiOperation({
+    summary: "PDF del horario de un ambiente (aula o laboratorio)",
+  })
+  @ApiParam({ name: "id", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async ambientePDF(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.reportesService.generarReporteAmbientePDF(
+      id,
+      periodo,
+    );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=horario-${result.tipo}-${id}-${periodo}.pdf`,
+      "Content-Length": result.buffer.length,
+    });
+    res.end(result.buffer);
+  }
+
+  @Get("operacional/pdf")
+  @ApiOperation({
+    summary: "PDF consolidado de todas las asignaciones del período",
+  })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async operacionalPDF(
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer =
+      await this.reportesService.generarReporteOperacionalPDF(periodo);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=reporte-operacional-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
   @Get("gestion/pdf")
   @ApiOperation({ summary: "Reporte de gestión con KPIs en PDF" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -127,9 +169,8 @@ export class ReportesController {
   @ApiOperation({ summary: "Excel completo de horarios" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async completoExcel(@Query("periodo") periodo: string, @Res() res: Response) {
-    const buffer = await this.reportesService.generarReporteCompletoExcel(
-      periodo,
-    );
+    const buffer =
+      await this.reportesService.generarReporteCompletoExcel(periodo);
     res.set({
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

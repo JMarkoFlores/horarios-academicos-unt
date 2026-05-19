@@ -18,6 +18,10 @@ export interface CeldaDialogData {
 export class CeldaDialogComponent {
   form: FormGroup;
   diaLabels = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+  tiposClase = [
+    { valor: 'TEORIA', label: 'Teoría' },
+    { valor: 'LABORATORIO', label: 'Laboratorio' },
+  ];
 
   constructor(
     private fb: FormBuilder,
@@ -26,6 +30,7 @@ export class CeldaDialogComponent {
   ) {
     this.form = this.fb.group({
       cursoId: [null, Validators.required],
+      tipoClase: ['TEORIA', Validators.required],
       ambienteId: [null, Validators.required],
     });
   }

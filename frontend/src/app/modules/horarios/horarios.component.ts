@@ -135,7 +135,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
     const h = this.fmtH(hora);
     return (
       this.asignacionesDocente.find(
-        (a) => a.dia_semana === dia && this.normalizeHora(a.hora_inicio) === h,
+        (a) => (a.dia_semana ?? a.dia) === dia && this.normalizeHora(a.hora_inicio) === h,
       ) ?? null
     );
   }
@@ -144,7 +144,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
     const h = this.fmtH(hora);
     return (
       this.asignacionesAmbiente.find(
-        (a) => a.dia_semana === dia && this.normalizeHora(a.hora_inicio) === h,
+        (a) => (a.dia_semana ?? a.dia) === dia && this.normalizeHora(a.hora_inicio) === h,
       ) ?? null
     );
   }
@@ -266,6 +266,13 @@ export class HorariosComponent implements OnInit, OnDestroy {
             asignaciones: r.data?.asignaciones_creadas ?? 0,
             conflictos: r.data?.conflictos ?? 0,
           };
+          this.loadConflictos();
+          if (this.docenteSeleccionado) {
+            this.selectDocente(this.docenteSeleccionado);
+          }
+          if (this.ambienteSeleccionado) {
+            this.selectAmbiente(this.ambienteSeleccionado);
+          }
           this.notif.success('Horario generado');
         },
         error: () => {
@@ -291,6 +298,9 @@ export class HorariosComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.limpiando = false;
+          this.asignacionesDocente = [];
+          this.asignacionesAmbiente = [];
+          this.conflictos = [];
           this.notif.success('Horarios eliminados');
         },
         error: () => {

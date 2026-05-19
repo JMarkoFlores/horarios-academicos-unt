@@ -1,0 +1,81 @@
+<div class="page-container animate-fadein">
+  <header class="page-header">
+    <h1>{{ isEdit ? 'Editar' : 'Nueva' }} Preasignación</h1>
+    <p>Asignar curso a docente antes del proceso general</p>
+  </header>
+
+  <mat-card class="form-card mat-elevation-z2">
+    <form [formGroup]="form" (ngSubmit)="guardar()">
+      <div class="row">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Docente</mat-label>
+          <mat-select formControlName="docente_id">
+            <mat-option *ngFor="let d of docentes" [value]="d.id">{{ d.apellidos }}, {{ d.nombres }}</mat-option>
+          </mat-select>
+          <mat-error>Seleccione un docente</mat-error>
+        </mat-form-field>
+      </div>
+
+      <div class="row">
+        <mat-form-field appearance="outline" class="half">
+          <mat-label>Curso</mat-label>
+          <mat-select formControlName="curso_id" (selectionChange)="onCursoChange()">
+            <mat-option *ngFor="let c of cursos" [value]="c.id">{{ c.codigo }} — {{ c.nombre }}</mat-option>
+          </mat-select>
+          <mat-error>Seleccione un curso</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="half">
+          <mat-label>Grupo</mat-label>
+          <mat-select formControlName="grupo_id">
+            <mat-option *ngFor="let g of grupos" [value]="g.id">{{ g.codigo }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="row">
+        <mat-form-field appearance="outline" class="half">
+          <mat-label>Tipo de Clase</mat-label>
+          <mat-select formControlName="tipo_clase">
+            <mat-option value="TEORIA">Teoría</mat-option>
+            <mat-option value="LABORATORIO">Laboratorio</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="half">
+          <mat-label>Período</mat-label>
+          <input matInput formControlName="periodo">
+        </mat-form-field>
+      </div>
+
+      <mat-divider style="margin: 16px 0;"></mat-divider>
+      <p class="hint">Dejar día y hora en blanco para preasignar solo docente+curso sin horario fijo.</p>
+
+      <div class="row">
+        <mat-form-field appearance="outline" class="third">
+          <mat-label>Día</mat-label>
+          <mat-select formControlName="dia">
+            <mat-option *ngFor="let d of dias" [value]="d.valor">{{ d.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="third">
+          <mat-label>Hora Inicio</mat-label>
+          <input matInput type="time" formControlName="hora_inicio">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="third">
+          <mat-label>Hora Fin</mat-label>
+          <input matInput type="time" formControlName="hora_fin">
+        </mat-form-field>
+      </div>
+
+      <div class="actions">
+        <button mat-stroked-button type="button" routerLink="/app/preasignaciones">Cancelar</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="loading || form.invalid">
+          <mat-icon>save</mat-icon> Guardar
+        </button>
+      </div>
+    </form>
+  </mat-card>
+</div>

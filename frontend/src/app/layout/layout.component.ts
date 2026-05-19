@@ -7,6 +7,7 @@ import { AuthService } from '../core/services/auth.service';
 import { PeriodoService } from '../core/services/periodo.service';
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
 import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialog/cambiar-password-dialog.component';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-layout',
@@ -23,39 +24,88 @@ export class LayoutComponent implements OnInit {
     icon: string;
     label: string;
     route: string;
-    adminOnly?: boolean;
+    roles?: string[];
   }[] = [
     { icon: 'dashboard', label: 'Dashboard', route: '/app/dashboard' },
     {
       icon: 'manage_accounts',
       label: 'Usuarios',
       route: '/app/usuarios',
-      adminOnly: true,
+      roles: ['administradorsistema'],
     },
-    { icon: 'people', label: 'Docentes', route: '/app/docentes' },
-    { icon: 'menu_book', label: 'Cursos', route: '/app/cursos' },
-    { icon: 'meeting_room', label: 'Ambientes', route: '/app/ambientes' },
-    { icon: 'assignment_ind', label: 'Asignaciones', route: '/app/asignaciones' },
+    { 
+      icon: 'people', 
+      label: 'Docentes', 
+      route: '/app/docentes',
+      roles: ['administradorsistema', 'coordinadoracademico'] 
+    },
+    { 
+      icon: 'menu_book', 
+      label: 'Cursos', 
+      route: '/app/cursos',
+      roles: ['administradorsistema', 'coordinadoracademico'] 
+    },
+    { 
+      icon: 'meeting_room', 
+      label: 'Ambientes', 
+      route: '/app/ambientes',
+      roles: ['administradorsistema', 'coordinadoracademico'] 
+    },
+    { 
+      icon: 'assignment_ind', 
+      label: 'Asignaciones', 
+      route: '/app/asignaciones',
+      roles: ['administradorsistema', 'coordinadoracademico'] 
+    },
     {
       icon: 'event_available',
       label: 'Disponibilidad',
       route: '/app/disponibilidad',
+      roles: ['administradorsistema', 'coordinadoracademico']
     },
-    { icon: 'table_chart', label: 'Reportes', route: '/app/reportes' },
-    { icon: 'schedule', label: 'Horarios', route: '/app/horarios' },
-    { icon: 'analytics', label: 'Analytics', route: '/app/analytics' },
-    { icon: 'support_agent', label: 'Operador', route: '/app/operador' },
+    { 
+      icon: 'table_chart', 
+      label: 'Reportes', 
+      route: '/app/reportes',
+      roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] 
+    },
+    { icon: 'schedule', label: 'Horarios', route: '/app/horarios', roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
+    { icon: 'schedule', label: 'Mis Horarios', route: '/app/mis-horarios', roles: ['docente'] },
+    { 
+      icon: 'analytics', 
+      label: 'Analytics', 
+      route: '/app/analytics',
+      roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] 
+    },
+    { 
+      icon: 'support_agent', 
+      label: 'Operador', 
+      route: '/app/operador',
+      roles: ['administradorsistema', 'coordinadoracademico', 'operadorhorarios'] 
+    },
+    {
+      icon: 'assignment_turned_in',
+      label: 'Preasignaciones',
+      route: '/app/preasignaciones',
+      roles: ['administradorsistema', 'coordinadoracademico']
+    },
+    {
+      icon: 'history',
+      label: 'Auditoría',
+      route: '/app/auditoria',
+      roles: ['administradorsistema', 'coordinadoracademico']
+    },
     {
       icon: 'event_note',
       label: 'Periodos',
       route: '/app/periodos',
-      adminOnly: true,
+      roles: ['administradorsistema', 'coordinadoracademico'],
     },
     {
       icon: 'settings',
       label: 'Configuración',
       route: '/app/configuracion',
-      adminOnly: true,
+      roles: ['administradorsistema'],
     },
   ];
 
@@ -78,6 +128,8 @@ export class LayoutComponent implements OnInit {
     asignaciones: 'Gestión de Asignaciones',
     analytics: 'Análisis Inteligente',
     operador: 'Operador — Sistema de Turnos',
+    preasignaciones: 'Preasignaciones de Cursos',
+    auditoria: 'Auditoría de Horarios',
     periodos: 'Períodos Académicos',
     usuarios: 'Usuarios del Sistema',
     configuracion: 'Configuración del Sistema',
@@ -112,8 +164,10 @@ export class LayoutComponent implements OnInit {
   }
 
   get visibleNavLinks() {
-    const isAdmin = this.authService.hasRole('administradorsistema');
-    return this.navLinks.filter((l) => !l.adminOnly || isAdmin);
+    return this.navLinks.filter((l) => {
+      if (!l.roles || l.roles.length === 0) return true;
+      return this.authService.hasRole(...l.roles);
+    });
   }
 
   toggleSidenav(): void {

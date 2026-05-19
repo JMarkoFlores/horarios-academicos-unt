@@ -5,6 +5,10 @@ import { HorarioAsignado } from "../../entities/horario-asignado.entity";
 import { DisponibilidadDocente } from "../../entities/disponibilidad-docente.entity";
 import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
 import { RestriccionInstitucional } from "../../entities/restriccion-institucional.entity";
+import { Ambiente } from "../../entities/ambiente.entity";
+import { Curso } from "../../entities/curso.entity";
+import { Grupo } from "../../entities/grupo.entity";
+import { Docente } from "../../entities/docente.entity";
 
 @Injectable()
 export class ValidacionesService {
@@ -17,6 +21,14 @@ export class ValidacionesService {
     private readonly diaNoLaborableRepo: Repository<DiaNoLaborable>,
     @InjectRepository(RestriccionInstitucional)
     private readonly restriccionRepo: Repository<RestriccionInstitucional>,
+    @InjectRepository(Ambiente)
+    private readonly ambienteRepo: Repository<Ambiente>,
+    @InjectRepository(Curso)
+    private readonly cursoRepo: Repository<Curso>,
+    @InjectRepository(Grupo)
+    private readonly grupoRepo: Repository<Grupo>,
+    @InjectRepository(Docente)
+    private readonly docenteRepo: Repository<Docente>,
   ) {}
 
   async verificarCruceDocente(
@@ -31,8 +43,8 @@ export class ValidacionesService {
       .createQueryBuilder("h")
       .innerJoin("h.docente", "d")
       .where("d.id = :docenteId", { docenteId })
-      .andWhere("h.dia_semana = :diaSemana", { diaSemana })
-      .andWhere("h.periodo_academico = :periodo", { periodo })
+      .andWhere("h.dia = :diaSemana", { diaSemana })
+      .andWhere("h.periodo = :periodo", { periodo })
       .andWhere("h.hora_inicio < CAST(:horaFin AS TIME)", { horaFin })
       .andWhere("h.hora_fin > CAST(:horaInicio AS TIME)", { horaInicio });
 
@@ -56,8 +68,8 @@ export class ValidacionesService {
       .createQueryBuilder("h")
       .innerJoin("h.ambiente", "a")
       .where("a.id = :ambienteId", { ambienteId })
-      .andWhere("h.dia_semana = :diaSemana", { diaSemana })
-      .andWhere("h.periodo_academico = :periodo", { periodo })
+      .andWhere("h.dia = :diaSemana", { diaSemana })
+      .andWhere("h.periodo = :periodo", { periodo })
       .andWhere("h.hora_inicio < CAST(:horaFin AS TIME)", { horaFin })
       .andWhere("h.hora_fin > CAST(:horaInicio AS TIME)", { horaInicio });
 
@@ -81,8 +93,8 @@ export class ValidacionesService {
       .createQueryBuilder("h")
       .innerJoin("h.grupo", "g")
       .where("g.id = :grupoId", { grupoId })
-      .andWhere("h.dia_semana = :diaSemana", { diaSemana })
-      .andWhere("h.periodo_academico = :periodo", { periodo })
+      .andWhere("h.dia = :diaSemana", { diaSemana })
+      .andWhere("h.periodo = :periodo", { periodo })
       .andWhere("h.hora_inicio < CAST(:horaFin AS TIME)", { horaFin })
       .andWhere("h.hora_fin > CAST(:horaInicio AS TIME)", { horaInicio });
 
@@ -208,9 +220,9 @@ export class ValidacionesService {
 
     const horarios = await this.horarioRepo.find({
       where: {
-        docente: { id: docenteId },
-        dia_semana: dia,
-        periodo_academico: periodo,
+        docente_id: docenteId,
+        dia,
+        periodo,
       },
     });
 
@@ -229,5 +241,138 @@ export class ValidacionesService {
     }
 
     return totalHoras + duracion <= maxHoras;
+  }
+
+  async verificarHorasCurso(
+    cursoId: number,
+    tipoClase: string,
+    duracionHoras: number,
+    periodo: string,
+  ): Promise<{ valido: boolean; horasAsignadas: number; horasRequeridas: number }> {
+    const curso = await this.cursoRepo.findOne({ where: { id: cursoId } });
+    if (!curso) return { valido: false, horasAsignadas: 0, horasRequeridas: 0 };
+
+    const horasRequeridas =
+      tipoClase === "LABORATORIO"
+        ? curso.horas_laboratorio
+        : curso.horas_teoria;
+
+    if (horasRequeridas === 0) {
+      return { valido: false, horasAsignadas: 0, horasRequeridas: 0 };
+    }
+
+    const horarios = await this.horarioRepo
+      .createQueryBuilder("h")
+      .where("h.curso_id = :cursoId", { cursoId })
+      .andWhere("h.tipo_clase = :tipoClase", { tipoClase })
+      .andWhere("h.periodo = :periodo", { periodo })
+      .getMany();
+
+    let horasAsignadas = 0;
+    const toMinutes = (t: string): number => {
+      const [h, m] = t.split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    for (const h of horarios) {
+      horasAsignadas += (toMinutes(h.hora_fin) - toMinutes(h.hora_inicio)) / 60;
+    }
+
+    return {
+      valido: horasAsignadas + duracionHoras <= horasRequeridas,
+      horasAsignadas,
+      horasRequeridas,
+    };
+  }
+
+  async verificarCapacidadAmbiente(
+    ambienteId: number,
+    grupoId: number,
+  ): Promise<{ valido: boolean; capacidad: number; cupo: number }> {
+    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
+    const grupo = await this.grupoRepo.findOne({ where: { id: grupoId } });
+
+    if (!ambiente || !grupo) return { valido: false, capacidad: 0, cupo: 0 };
+
+    return {
+      valido: ambiente.capacidad >= grupo.cupo_maximo,
+      capacidad: ambiente.capacidad,
+      cupo: grupo.cupo_maximo,
+    };
+  }
+
+  async verificarDescansoMinimoDocente(
+    docenteId: number,
+    dia: number,
+    horaInicio: string,
+    horaFin: string,
+    periodo: string,
+  ): Promise<{ valido: boolean; descansoMin: number }> {
+    const descansoMin = 60; // minutos
+
+    const horarios = await this.horarioRepo.find({
+      where: { docente_id: docenteId, dia, periodo },
+    });
+
+    const toMin = (t: string): number => {
+      const [h, m] = t.split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+
+    const ini = toMin(horaInicio);
+    const fin = toMin(horaFin);
+
+    for (const h of horarios) {
+      const hIni = toMin(h.hora_inicio);
+      const hFin = toMin(h.hora_fin);
+
+      // Si el nuevo slot termina justo donde empieza otro (o antes)
+      if (Math.abs(ini - hFin) < descansoMin && ini >= hFin) {
+        continue; // ok, descanso suficiente
+      }
+      // Si el nuevo slot empieza justo donde termina otro (o después)
+      if (Math.abs(hIni - fin) < descansoMin && hIni >= fin) {
+        continue; // ok
+      }
+      // Si se solapan
+      if (ini < hFin && fin > hIni) {
+        return { valido: false, descansoMin };
+      }
+      // Si el descanso entre ellos es menor al mínimo
+      if (ini >= hFin && ini - hFin < descansoMin) {
+        return { valido: false, descansoMin };
+      }
+      if (hIni >= fin && hIni - fin < descansoMin) {
+        return { valido: false, descansoMin };
+      }
+    }
+
+    return { valido: true, descansoMin };
+  }
+
+  async verificarCargaHorariaSemanalDocente(
+    docenteId: number,
+    duracionHoras: number,
+    periodo: string,
+  ): Promise<{ valido: boolean; horasSemana: number; maxSemanal: number }> {
+    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    if (!docente) return { valido: false, horasSemana: 0, maxSemanal: 0 };
+
+    // Límite semanal según tipo de contrato
+    const maxSemanal = docente.tipo_contrato === "NOMBRADO" ? 20 : 24;
+
+    const horarios = await this.horarioRepo.find({
+      where: { docente_id: docenteId, periodo },
+    });
+
+    let horasSemana = 0;
+    const toMin = (t: string): number => {
+      const [h, m] = t.split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    for (const h of horarios) {
+      horasSemana += (toMin(h.hora_fin) - toMin(h.hora_inicio)) / 60;
+    }
+
+    return { valido: horasSemana + duracionHoras <= maxSemanal, horasSemana, maxSemanal };
   }
 }

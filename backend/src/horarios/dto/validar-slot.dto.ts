@@ -7,6 +7,11 @@ export class ValidarSlotDto {
   @IsInt()
   docente_id: number;
 
+  @ApiPropertyOptional({ description: "ID del curso" })
+  @IsOptional()
+  @IsInt()
+  curso_id?: number;
+
   @ApiProperty({ description: "ID del grupo" })
   @IsInt()
   grupo_id: number;

@@ -81,15 +81,29 @@ export interface DisponibilidadDocente {
 
 export interface HorarioAsignado {
   id: number;
+  dia?: number;
   dia_semana: number;
   hora_inicio: string;
   hora_fin: string;
   tipo_clase: string;
+  periodo?: string;
   periodo_academico: string;
   estado: string;
   docente?: Docente;
   curso?: Curso;
   ambiente?: Ambiente;
+}
+
+export interface VentanaAtencion {
+  id: string;
+  periodo: string;
+  fecha: string;
+  categoria: string;
+  modalidad: string | null;
+  hora_inicio: string;
+  hora_fin: string;
+  intervalo_minutos: number;
+  estado: string;
 }
 
 export interface ConflictoAsignacion {

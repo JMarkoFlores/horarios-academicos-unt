@@ -1,0 +1,37 @@
+<div class="grilla-container">
+  <div class="grilla-header">
+    <h4>Grilla de Disponibilidad</h4>
+    <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
+  </div>
+
+  <div class="leyenda">
+    <span class="leyenda-item"><span class="color-libre"></span> Libre</span>
+    <span class="leyenda-item"><span class="color-bloqueado"></span> Restricción</span>
+    <span class="leyenda-item"><span class="color-confirmado"></span> Confirmado</span>
+    <span class="leyenda-item"><span class="color-temporal-otro"></span> Ocupado (otro)</span>
+    <span class="leyenda-item"><span class="color-temporal-propio"></span> Mi selección</span>
+  </div>
+
+  <div class="tabla-wrapper">
+    <table class="grilla-tabla">
+      <thead>
+        <tr>
+          <th class="hora-header">Hora</th>
+          <th *ngFor="let d of dias">{{ d.label }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let hora of horas">
+          <td class="hora-cell">{{ hora }}</td>
+          <td
+            *ngFor="let d of dias"
+            class="grilla-celda"
+            [ngClass]="getClaseCelda(getCelda(d.valor, hora))"
+            [matTooltip]="getTooltipCelda(getCelda(d.valor, hora))"
+            (click)="onCeldaClick(d.valor, hora)"
+          ></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

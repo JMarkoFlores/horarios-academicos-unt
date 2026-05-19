@@ -1,0 +1,92 @@
+<div class="page-container animate-fadein">
+  <header class="page-header">
+    <h1>Auditoría de Horarios</h1>
+    <p>Historial de cambios y reasignaciones</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="filtros">
+      <mat-form-field appearance="outline">
+        <mat-label>Período</mat-label>
+        <input matInput [(ngModel)]="filtros.periodo" (change)="cargarAuditoria()">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Usuario ID</mat-label>
+        <input matInput type="number" [(ngModel)]="filtros.usuario_id" (change)="cargarAuditoria()">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Acción</mat-label>
+        <mat-select [(ngModel)]="filtros.accion" (selectionChange)="cargarAuditoria()">
+          <mat-option value="">Todas</mat-option>
+          <mat-option value="crear">Crear</mat-option>
+          <mat-option value="actualizar">Actualizar</mat-option>
+          <mat-option value="eliminar">Eliminar</mat-option>
+          <mat-option value="confirmar">Confirmar</mat-option>
+          <mat-option value="reasignar">Reasignar</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Desde</mat-label>
+        <input matInput type="date" [(ngModel)]="filtros.desde" (change)="cargarAuditoria()">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Hasta</mat-label>
+        <input matInput type="date" [(ngModel)]="filtros.hasta" (change)="cargarAuditoria()">
+      </mat-form-field>
+      <button mat-stroked-button (click)="cargarAuditoria()">
+        <mat-icon>refresh</mat-icon> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
+
+  <div class="table-container" *ngIf="!loading">
+    <table mat-table [dataSource]="registros" class="mat-elevation-z2">
+      <ng-container matColumnDef="fecha">
+        <th mat-header-cell *matHeaderCellDef>Fecha</th>
+        <td mat-cell *matCellDef="let r">{{ r.created_at | date:'short' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="usuario">
+        <th mat-header-cell *matHeaderCellDef>Usuario</th>
+        <td mat-cell *matCellDef="let r">{{ r.usuario?.nombre || r.usuario_id || '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="accion">
+        <th mat-header-cell *matHeaderCellDef>Acción</th>
+        <td mat-cell *matCellDef="let r"><span class="badge" [class]="r.accion">{{ r.accion }}</span></td>
+      </ng-container>
+      <ng-container matColumnDef="docente">
+        <th mat-header-cell *matHeaderCellDef>Docente</th>
+        <td mat-cell *matCellDef="let r">{{ r.docente?.apellidos || '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="curso">
+        <th mat-header-cell *matHeaderCellDef>Curso</th>
+        <td mat-cell *matCellDef="let r">{{ r.curso?.codigo || '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="periodo">
+        <th mat-header-cell *matHeaderCellDef>Período</th>
+        <td mat-cell *matCellDef="let r">{{ r.periodo }}</td>
+      </ng-container>
+      <ng-container matColumnDef="datos_anteriores">
+        <th mat-header-cell *matHeaderCellDef>Anterior</th>
+        <td mat-cell *matCellDef="let r"><pre class="json-preview">{{ formatJson(r.datos_anteriores) }}</pre></td>
+      </ng-container>
+      <ng-container matColumnDef="datos_nuevos">
+        <th mat-header-cell *matHeaderCellDef>Nuevo</th>
+        <td mat-cell *matCellDef="let r"><pre class="json-preview">{{ formatJson(r.datos_nuevos) }}</pre></td>
+      </ng-container>
+      <ng-container matColumnDef="motivo">
+        <th mat-header-cell *matHeaderCellDef>Motivo</th>
+        <td mat-cell *matCellDef="let r">{{ r.motivo || '—' }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+
+    <div *ngIf="registros.length === 0" class="estado-vacio">
+      <mat-icon>history</mat-icon>
+      <p>No hay registros de auditoría</p>
+    </div>
+  </div>
+</div>

@@ -38,6 +38,7 @@ export class AmbientesController {
   constructor(private readonly ambientesService: AmbientesService) {}
 
   @Get()
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Listar ambientes paginado con filtros" })
   @ApiQuery({
     name: "tipo",
@@ -51,6 +52,7 @@ export class AmbientesController {
   }
 
   @Get(":id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Obtener un ambiente por ID" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 404, description: "Ambiente no encontrado" })
@@ -60,6 +62,7 @@ export class AmbientesController {
   }
 
   @Get(":id/disponibilidad")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Grilla semanal de ocupación de un ambiente" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })

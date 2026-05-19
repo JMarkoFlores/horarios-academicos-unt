@@ -1,0 +1,79 @@
+<div class="page-container animate-fadein">
+  <header class="page-header">
+    <h1>Preasignaciones</h1>
+    <p>Cursos fijados por dirección antes del proceso general de horarios</p>
+  </header>
+
+  <div class="toolbar">
+    <div class="filtros">
+      <mat-form-field appearance="outline">
+        <mat-label>Período</mat-label>
+        <input matInput [(ngModel)]="filtros.periodo" (change)="cargarPreasignaciones()">
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Docente ID</mat-label>
+        <input matInput type="number" [(ngModel)]="filtros.docente_id" (change)="cargarPreasignaciones()">
+      </mat-form-field>
+      <button mat-stroked-button (click)="cargarPreasignaciones()">
+        <mat-icon>refresh</mat-icon> Actualizar
+      </button>
+    </div>
+    <button mat-raised-button color="primary" routerLink="/app/preasignaciones/nuevo">
+      <mat-icon>add</mat-icon> Nueva Preasignación
+    </button>
+  </div>
+
+  <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
+
+  <div class="table-container" *ngIf="!loading">
+    <table mat-table [dataSource]="preasignaciones" class="mat-elevation-z2">
+      <ng-container matColumnDef="docente">
+        <th mat-header-cell *matHeaderCellDef>Docente</th>
+        <td mat-cell *matCellDef="let p">{{ p.docente?.apellidos }}, {{ p.docente?.nombres }}</td>
+      </ng-container>
+      <ng-container matColumnDef="curso">
+        <th mat-header-cell *matHeaderCellDef>Curso</th>
+        <td mat-cell *matCellDef="let p">{{ p.curso?.codigo }} — {{ p.curso?.nombre }}</td>
+      </ng-container>
+      <ng-container matColumnDef="grupo">
+        <th mat-header-cell *matHeaderCellDef>Grupo</th>
+        <td mat-cell *matCellDef="let p">{{ p.grupo?.codigo || '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="tipo_clase">
+        <th mat-header-cell *matHeaderCellDef>Tipo</th>
+        <td mat-cell *matCellDef="let p"><span class="badge" [class.teoria]="p.tipo_clase === 'TEORIA'" [class.lab]="p.tipo_clase === 'LABORATORIO'">{{ p.tipo_clase }}</span></td>
+      </ng-container>
+      <ng-container matColumnDef="dia">
+        <th mat-header-cell *matHeaderCellDef>Día</th>
+        <td mat-cell *matCellDef="let p">{{ getDiaLabel(p.dia) || '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="hora_inicio">
+        <th mat-header-cell *matHeaderCellDef>Inicio</th>
+        <td mat-cell *matCellDef="let p">{{ p.hora_inicio || '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="hora_fin">
+        <th mat-header-cell *matHeaderCellDef>Fin</th>
+        <td mat-cell *matCellDef="let p">{{ p.hora_fin || '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="acciones">
+        <th mat-header-cell *matHeaderCellDef>Acciones</th>
+        <td mat-cell *matCellDef="let p">
+          <button mat-icon-button color="primary" [routerLink]="['/app/preasignaciones/editar', p.id]">
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button mat-icon-button color="warn" (click)="eliminar(p.id)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+
+    <div *ngIf="preasignaciones.length === 0" class="estado-vacio">
+      <mat-icon>assignment_ind</mat-icon>
+      <p>No hay preasignaciones registradas</p>
+    </div>
+  </div>
+</div>

@@ -20,6 +20,7 @@ import { DocentesService } from "../docentes/docentes.service";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ValidadorHorarioService } from "./validador-horario.service";
 import { AuditoriaService } from "../modules/auditoria/auditoria.service";
+import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 
 type DocenteJerarquia = {
   id: number;
@@ -137,6 +138,7 @@ export class AsignacionService {
     tipoClase: TipoClase,
     periodo: string,
     grupoId: number,
+    asignacionesActuales: HorarioAsignado[] = [],
   ): Promise<SlotEncontrado | null> {
     for (let dia = 1; dia <= 5; dia++) {
       for (let hora = 7; hora <= 21; hora++) {
@@ -153,6 +155,21 @@ export class AsignacionService {
           const slotsAmbientePreasignados =
             this.slotsPreasignadosPorAmbiente.get(ambiente.id);
           if (slotsAmbientePreasignados?.has(claveDisponibilidad)) {
+            continue;
+          }
+
+          if (
+            this.tieneCruceEnMemoria(
+              asignacionesActuales,
+              docente.id,
+              grupoId,
+              ambiente.id,
+              periodo,
+              dia,
+              horaInicio,
+              horaFin,
+            )
+          ) {
             continue;
           }
 
@@ -195,186 +212,272 @@ export class AsignacionService {
     await queryRunner.startTransaction();
 
     try {
+      // 1. Cargar datos maestros
       const docentesOrdenados =
         await this.docentesService.findOrdenadosPorJerarquia(periodo);
       const cursos = await this.cursoRepo.find({
         where: { activo: true },
         relations: ["ambientes"],
       });
+      const ambientesActivos = await this.ambienteRepo.find({
+        where: { activo: true },
+      });
       const grupos = await this.grupoRepo.find({
         where: { periodo_academico: { codigo: periodo } },
-        relations: ["curso", "periodo_academico"],
+        relations: ["curso"],
       });
       const disponibilidades = await this.disponibilidadRepo.find({
         where: { periodo_academico: periodo, disponible: true },
         relations: ["docente"],
       });
-      const preasignaciones = await this.preasignacionRepo.find({
-        where: { periodo },
-      });
       const habilitaciones = await this.docenteCursoRepo.find();
 
-      const docenteMap = new Map<number, DocenteJerarquia>(
-        docentesOrdenados.map((docente) => [docente.id, docente]),
-      );
-      const cursoAmbientesMap = new Map<number, Ambiente[]>(
-        cursos.map((curso) => [curso.id, curso.ambientes ?? []]),
-      );
-      this.disponibilidadMap =
-        this.construirDisponibilidadMap(disponibilidades);
-      this.habilitacionDocenteMap =
-        this.construirHabilitacionesMap(habilitaciones);
-      this.aplicarPreasignaciones(preasignaciones);
-      this.horasAsignadasMap = new Map<number, number>();
+      // 2. Inicializar rastreo en memoria (dia, hora)
+      // slots[id][dia][hora] = true si ocupado
+      const docenteOcupado = new Map<number, boolean[][]>();
+      const ambienteOcupado = new Map<number, boolean[][]>();
+      const grupoOcupado = new Map<number, boolean[][]>();
 
-      const gruposPorCurso = new Map<number, Grupo[]>();
-      for (const grupo of grupos) {
-        const list = gruposPorCurso.get(grupo.curso.id) ?? [];
-        list.push(grupo);
-        gruposPorCurso.set(grupo.curso.id, list);
-      }
+      const initSlots = () => {
+        const d = [];
+        for (let i = 0; i <= 6; i++) {
+          d[i] = new Array(24).fill(false);
+        }
+        return d;
+      };
 
-      const asignacionesActuales: HorarioAsignado[] = [];
+      // Pre-llenar ocupación de docentes basada en disponibilidad (si no está disponible, está ocupado)
+      docentesOrdenados.forEach((doc) => {
+        const slots = initSlots();
+        for (let dia = 1; dia <= 5; dia++) {
+          for (let h = 7; h < 22; h++) {
+            slots[dia][h] = true; // Asumir ocupado
+          }
+        }
+        docenteOcupado.set(doc.id, slots);
+      });
+
+      disponibilidades.forEach((disp) => {
+        const slots = docenteOcupado.get(disp.docente.id);
+        if (slots) {
+          const hInicio = parseInt(disp.hora_inicio.split(":")[0], 10);
+          slots[disp.dia_semana][hInicio] = false; // Marcar como libre
+        }
+      });
+
+      ambientesActivos.forEach((amb) => {
+        ambienteOcupado.set(amb.id, initSlots());
+      });
+
+      grupos.forEach((gru) => {
+        grupoOcupado.set(gru.id, initSlots());
+      });
+
+      // 3. Mapear habilitaciones
+      const habilitacionMap = new Map<string, Set<number>>();
+      habilitaciones.forEach((h) => {
+        const key = `${h.docenteId}_${h.tipo_clase}`;
+        if (!habilitacionMap.has(key)) habilitacionMap.set(key, new Set());
+        habilitacionMap.get(key).add(h.cursoId);
+      });
+
+      const asignacionesCreadas: HorarioAsignado[] = [];
       const detalleConflictos: DetalleConflicto[] = [];
+      const entidadesConflictos: ConflictoAsignacion[] = [];
+      const horasAsignadas = new Map<number, number>();
 
+      // 4. Proceso de asignación
       for (const curso of cursos) {
-        const grupo = gruposPorCurso.get(curso.id)?.[0];
+        const grupo = grupos.find((g) => g.curso.id === curso.id);
         if (!grupo) {
+          const c = new ConflictoAsignacion();
+          c.descripcion = `No existe grupo para el curso ${curso.codigo} (${curso.nombre}).`;
+          c.tipo_conflicto = "GRUPO_NO_ENCONTRADO";
+          c.periodo_academico = periodo;
+          entidadesConflictos.push(c);
+
           detalleConflictos.push({
             curso_id: curso.id,
             tipo_clase: TipoClase.TEORIA,
-            motivo: "No existe grupo configurado para el curso y período.",
+            motivo: "No existe grupo para el curso.",
           });
           continue;
         }
 
-        const docenteTeoria = this.encontrarDocenteElegible(
-          [...docenteMap.values()],
-          curso,
-          asignacionesActuales,
-          periodo,
-          TipoClase.TEORIA,
-        );
-
-        if (!docenteTeoria) {
-          detalleConflictos.push({
-            curso_id: curso.id,
-            tipo_clase: TipoClase.TEORIA,
-            motivo: "No se encontró docente habilitado disponible.",
-          });
-          continue;
-        }
-
-        const ambientesTeoria = this.filtrarAmbientesCompatibles(
-          cursoAmbientesMap.get(curso.id) ?? [],
-          TipoClase.TEORIA,
-        );
-        const slotTeoria = await this.buscarSlotLibre(
-          docenteTeoria,
-          curso,
-          ambientesTeoria,
-          TipoClase.TEORIA,
-          periodo,
-          grupo.id,
-        );
-
-        if (!slotTeoria) {
-          detalleConflictos.push({
-            curso_id: curso.id,
-            tipo_clase: TipoClase.TEORIA,
-            motivo: "No se encontró slot libre para teoría.",
-          });
-          continue;
-        }
-
-        const horarioTeoria = this.horarioRepo.create({
-          docente_id: docenteTeoria.id,
-          curso_id: curso.id,
-          grupo_id: grupo.id,
-          ambiente_id: slotTeoria.ambiente.id,
-          periodo,
-          dia: slotTeoria.dia,
-          hora_inicio: slotTeoria.hora_inicio,
-          hora_fin: slotTeoria.hora_fin,
-          tipo_clase: TipoClase.TEORIA,
-          estado: EstadoHorario.BORRADOR,
-        });
-
-        await queryRunner.manager.save(HorarioAsignado, horarioTeoria);
-        await this.validadorHorarioService.invalidarCacheAmbiente(
-          slotTeoria.ambiente.id,
-          periodo,
-        );
-        asignacionesActuales.push(horarioTeoria);
-        this.incrementarHorasAsignadas(
-          docenteTeoria.id,
-          slotTeoria.hora_inicio,
-          slotTeoria.hora_fin,
-        );
-
-        if (curso.tiene_laboratorio) {
-          const docenteLab = this.encontrarDocenteElegible(
-            [...docenteMap.values()],
-            curso,
-            asignacionesActuales,
-            periodo,
-            TipoClase.LABORATORIO,
+        // --- ASIGNAR TEORÍA ---
+        let horasPendientesTeoria = curso.horas_teoria;
+        while (horasPendientesTeoria > 0) {
+          const duracion = Math.min(2, horasPendientesTeoria); // Intentar bloques de 2 horas
+          const docente = this.buscarDocenteElegible(
+            docentesOrdenados,
+            curso.id,
+            TipoClase.TEORIA,
+            habilitacionMap,
+            horasAsignadas,
+            duracion,
           );
-          const ambientesLab = this.filtrarAmbientesCompatibles(
-            cursoAmbientesMap.get(curso.id) ?? [],
-            TipoClase.LABORATORIO,
-          );
-          const slotLab =
-            docenteLab &&
-            (await this.buscarSlotLibre(
-              docenteLab,
-              curso,
-              ambientesLab,
-              TipoClase.LABORATORIO,
-              periodo,
-              grupo.id,
-            ));
 
-          if (!docenteLab || !slotLab) {
+          if (!docente) {
+            const c = new ConflictoAsignacion();
+            c.descripcion = `No hay docente habilitado con carga disponible para Teoría de ${curso.codigo}.`;
+            c.tipo_conflicto = "DOCENTE_NO_HABILITADO_O_CARGA_EXCEDIDA";
+            c.periodo_academico = periodo;
+            entidadesConflictos.push(c);
+
             detalleConflictos.push({
               curso_id: curso.id,
-              tipo_clase: TipoClase.LABORATORIO,
-              motivo: !docenteLab
-                ? "No se encontró docente habilitado para laboratorio."
-                : "No se encontró slot libre para laboratorio.",
+              tipo_clase: TipoClase.TEORIA,
+              motivo: "No hay docente habilitado o carga excedida.",
             });
-          } else {
-            const horarioLab = this.horarioRepo.create({
-              docente_id: docenteLab.id,
+            break;
+          }
+
+          const slot = this.buscarSlotEnMemoria(
+            duracion,
+            docenteOcupado.get(docente.id),
+            grupoOcupado.get(grupo.id),
+            ambientesActivos.filter((a) => a.tipo === TipoAmbiente.AULA),
+            ambienteOcupado,
+          );
+
+          if (slot) {
+            const nuevaAsig = this.horarioRepo.create({
+              docente_id: docente.id,
               curso_id: curso.id,
               grupo_id: grupo.id,
-              ambiente_id: slotLab.ambiente.id,
+              ambiente_id: slot.ambienteId,
               periodo,
-              dia: slotLab.dia,
-              hora_inicio: slotLab.hora_inicio,
-              hora_fin: slotLab.hora_fin,
-              tipo_clase: TipoClase.LABORATORIO,
+              dia: slot.dia,
+              hora_inicio: this.fmtHora(slot.hora),
+              hora_fin: this.fmtHora(slot.hora + duracion),
+              tipo_clase: TipoClase.TEORIA,
               estado: EstadoHorario.BORRADOR,
             });
+            asignacionesCreadas.push(nuevaAsig);
+            this.marcarOcupado(
+              slot.dia,
+              slot.hora,
+              duracion,
+              docenteOcupado.get(docente.id),
+              grupoOcupado.get(grupo.id),
+              ambienteOcupado.get(slot.ambienteId),
+            );
+            
+            // Incrementar carga horaria del docente
+            const cargaActual = horasAsignadas.get(docente.id) ?? 0;
+            horasAsignadas.set(docente.id, cargaActual + duracion);
+            
+            horasPendientesTeoria -= duracion;
+          } else {
+            const c = new ConflictoAsignacion();
+            c.descripcion = `No se encontró slot de ${duracion}h para Teoría de ${curso.codigo}.`;
+            c.tipo_conflicto = "SIN_HORARIO_DISPONIBLE";
+            c.periodo_academico = periodo;
+            c.docente = docente;
+            entidadesConflictos.push(c);
 
-            await queryRunner.manager.save(HorarioAsignado, horarioLab);
-            await this.validadorHorarioService.invalidarCacheAmbiente(
-              slotLab.ambiente.id,
-              periodo,
+            detalleConflictos.push({
+              curso_id: curso.id,
+              tipo_clase: TipoClase.TEORIA,
+              motivo: `No se encontró slot de ${duracion}h.`,
+            });
+            break;
+          }
+        }
+
+        // --- ASIGNAR LABORATORIO ---
+        if (curso.tiene_laboratorio && curso.horas_laboratorio > 0) {
+          let horasPendientesLab = curso.horas_laboratorio;
+          while (horasPendientesLab > 0) {
+            const duracion = Math.min(3, horasPendientesLab); // Labs suelen ser de 2-3h
+            const docente = this.buscarDocenteElegible(
+              docentesOrdenados,
+              curso.id,
+              TipoClase.LABORATORIO,
+              habilitacionMap,
+              horasAsignadas,
+              duracion,
             );
-            asignacionesActuales.push(horarioLab);
-            this.incrementarHorasAsignadas(
-              docenteLab.id,
-              slotLab.hora_inicio,
-              slotLab.hora_fin,
+
+            if (!docente) {
+              const c = new ConflictoAsignacion();
+              c.descripcion = `No hay docente habilitado con carga disponible para Lab de ${curso.codigo}.`;
+              c.tipo_conflicto = "DOCENTE_NO_HABILITADO_O_CARGA_EXCEDIDA";
+              c.periodo_academico = periodo;
+              entidadesConflictos.push(c);
+
+              detalleConflictos.push({
+                curso_id: curso.id,
+                tipo_clase: TipoClase.LABORATORIO,
+                motivo: "No hay docente habilitado o carga excedida.",
+              });
+              break;
+            }
+
+            const slot = this.buscarSlotEnMemoria(
+              duracion,
+              docenteOcupado.get(docente.id),
+              grupoOcupado.get(grupo.id),
+              ambientesActivos.filter((a) => a.tipo === TipoAmbiente.LABORATORIO),
+              ambienteOcupado,
             );
+
+            if (slot) {
+              const nuevaAsig = this.horarioRepo.create({
+                docente_id: docente.id,
+                curso_id: curso.id,
+                grupo_id: grupo.id,
+                ambiente_id: slot.ambienteId,
+                periodo,
+                dia: slot.dia,
+                hora_inicio: this.fmtHora(slot.hora),
+                hora_fin: this.fmtHora(slot.hora + duracion),
+                tipo_clase: TipoClase.LABORATORIO,
+                estado: EstadoHorario.BORRADOR,
+              });
+              asignacionesCreadas.push(nuevaAsig);
+              this.marcarOcupado(
+                slot.dia,
+                slot.hora,
+                duracion,
+                docenteOcupado.get(docente.id),
+                grupoOcupado.get(grupo.id),
+                ambienteOcupado.get(slot.ambienteId),
+              );
+
+              // Incrementar carga horaria del docente
+              const cargaActual = horasAsignadas.get(docente.id) ?? 0;
+              horasAsignadas.set(docente.id, cargaActual + duracion);
+
+              horasPendientesLab -= duracion;
+            } else {
+              const c = new ConflictoAsignacion();
+              c.descripcion = `No se encontró slot de lab de ${duracion}h para ${curso.codigo}.`;
+              c.tipo_conflicto = "SIN_HORARIO_DISPONIBLE";
+              c.periodo_academico = periodo;
+              c.docente = docente;
+              entidadesConflictos.push(c);
+
+              detalleConflictos.push({
+                curso_id: curso.id,
+                tipo_clase: TipoClase.LABORATORIO,
+                motivo: `No se encontró slot de lab de ${duracion}h.`,
+              });
+              break;
+            }
           }
         }
       }
 
+      // 5. Guardar todo
+      await queryRunner.manager.save(HorarioAsignado, asignacionesCreadas);
+      if (entidadesConflictos.length > 0) {
+        await queryRunner.manager.save(ConflictoAsignacion, entidadesConflictos);
+      }
       await queryRunner.commitTransaction();
+
       return {
-        asignaciones_creadas: asignacionesActuales.length,
+        asignaciones_creadas: asignacionesCreadas.length,
         conflictos: detalleConflictos.length,
         detalle_conflictos: detalleConflictos,
       };
@@ -384,6 +487,87 @@ export class AsignacionService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  private buscarDocenteElegible(
+    docentes: any[],
+    cursoId: number,
+    tipo: TipoClase,
+    habilitacionMap: Map<string, Set<number>>,
+    horasAsignadas: Map<number, number>,
+    duracion: number,
+  ) {
+    return docentes.find((d) => {
+      const key = `${d.id}_${tipo}`;
+      const tieneHabilitacion = habilitacionMap.get(key)?.has(cursoId);
+      if (!tieneHabilitacion) return false;
+
+      // Verificar carga horaria
+      const cargaActual = horasAsignadas.get(d.id) ?? 0;
+      if (cargaActual + duracion > AsignacionService.MAX_HORAS_DOCENTE) {
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  private buscarSlotEnMemoria(
+    duracion: number,
+    docenteSlots: boolean[][],
+    grupoSlots: boolean[][],
+    ambientes: Ambiente[],
+    ambienteOcupado: Map<number, boolean[][]>,
+  ) {
+    for (let dia = 1; dia <= 5; dia++) {
+      for (let h = 7; h <= 22 - duracion; h++) {
+        // Verificar si docente y grupo están libres el bloque completo
+        let bloqueLibre = true;
+        for (let k = 0; k < duracion; k++) {
+          if (docenteSlots[dia][h + k] || grupoSlots[dia][h + k]) {
+            bloqueLibre = false;
+            break;
+          }
+        }
+
+        if (!bloqueLibre) continue;
+
+        // Buscar ambiente libre
+        for (const amb of ambientes) {
+          const aSlots = ambienteOcupado.get(amb.id);
+          let ambLibre = true;
+          for (let k = 0; k < duracion; k++) {
+            if (aSlots[dia][h + k]) {
+              ambLibre = false;
+              break;
+            }
+          }
+          if (ambLibre) {
+            return { dia, hora: h, ambienteId: amb.id };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private marcarOcupado(
+    dia: number,
+    hora: number,
+    duracion: number,
+    d: boolean[][],
+    g: boolean[][],
+    a: boolean[][],
+  ) {
+    for (let k = 0; k < duracion; k++) {
+      d[dia][hora + k] = true;
+      g[dia][hora + k] = true;
+      a[dia][hora + k] = true;
+    }
+  }
+
+  private fmtHora(h: number): string {
+    return `${h.toString().padStart(2, "0")}:00:00`;
   }
 
   async limpiarHorario(periodo: string): Promise<{ eliminados: number }> {
@@ -566,6 +750,67 @@ export class AsignacionService {
         ? TipoAmbiente.AULA
         : TipoAmbiente.LABORATORIO;
     return ambientes.filter((ambiente) => ambiente.tipo === tipoRequerido);
+  }
+
+  private obtenerAmbientesParaCurso(
+    ambientesCurso: Ambiente[],
+    ambientesActivos: Ambiente[],
+  ): Ambiente[] {
+    return ambientesCurso.length > 0 ? ambientesCurso : ambientesActivos;
+  }
+
+  private tieneCruceEnMemoria(
+    asignaciones: HorarioAsignado[],
+    docenteId: number,
+    grupoId: number,
+    ambienteId: number,
+    periodo: string,
+    dia: number,
+    horaInicio: string,
+    horaFin: string,
+  ): boolean {
+    return asignaciones.some((asignacion) => {
+      if (asignacion.periodo !== periodo || asignacion.dia !== dia) {
+        return false;
+      }
+
+      const mismoRecurso =
+        asignacion.docente_id === docenteId ||
+        asignacion.grupo_id === grupoId ||
+        asignacion.ambiente_id === ambienteId;
+
+      return (
+        mismoRecurso &&
+        this.solapan(
+          asignacion.hora_inicio,
+          asignacion.hora_fin,
+          horaInicio,
+          horaFin,
+        )
+      );
+    });
+  }
+
+  private solapan(
+    inicioA: string,
+    finA: string,
+    inicioB: string,
+    finB: string,
+  ): boolean {
+    const inicioAMinutos = this.aMinutos(inicioA);
+    const finAMinutos = this.aMinutos(finA);
+    const inicioBMinutos = this.aMinutos(inicioB);
+    const finBMinutos = this.aMinutos(finB);
+
+    return (
+      inicioAMinutos < finBMinutos &&
+      finAMinutos > inicioBMinutos
+    );
+  }
+
+  private aMinutos(hora: string): number {
+    const [horas, minutos] = hora.split(":").map(Number);
+    return (horas || 0) * 60 + (minutos || 0);
   }
 
   private incrementarHorasAsignadas(

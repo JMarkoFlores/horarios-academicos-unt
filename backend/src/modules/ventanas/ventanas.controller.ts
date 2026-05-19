@@ -10,6 +10,8 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -18,9 +20,11 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { Roles } from "../../auth/decorators/roles.decorator";
+import { CurrentUser } from "../../auth/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../../auth/guards/roles.guard";
 import { RolUsuario } from "../../common/enums/rol-usuario.enum";
+import { Usuario } from "../../entities/usuario.entity";
 import { ConfirmarSeleccionesDto } from "./dto/confirmar-selecciones.dto";
 import { ConfigurarVentanasPeriodoDto } from "./dto/configurar-ventanas-periodo.dto";
 import { CreateVentanaDto } from "./dto/create-ventana.dto";
@@ -29,6 +33,7 @@ import { SeleccionarCeldaDto } from "./dto/seleccionar-celda.dto";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
 import { VentanasService } from "./ventanas.service";
 import { HorariosGateway } from "../../horarios/horarios.gateway";
+import { VentanaAtencion, EstadoVentanaAtencion } from "../../entities/ventana-atencion.entity";
 
 @ApiTags("ventanas")
 @ApiBearerAuth("JWT")
@@ -39,7 +44,21 @@ export class VentanasController {
     private readonly ventanasService: VentanasService,
     private readonly gestorSeleccionService: GestorSeleccionTemporalService,
     private readonly gateway: HorariosGateway,
+    @InjectRepository(VentanaAtencion)
+    private readonly ventanaRepo: Repository<VentanaAtencion>,
   ) {}
+
+  @Get()
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.OPERADOR_HORARIOS)
+  @ApiOperation({ summary: "Listar ventanas de atención" })
+  @ApiQuery({ name: "estado", required: false, enum: EstadoVentanaAtencion })
+  async listarVentanas(@Query('estado') estado?: EstadoVentanaAtencion) {
+    const data = await this.ventanaRepo.find({ 
+      where: estado ? { estado } : {}, 
+      order: { fecha: 'ASC' } 
+    });
+    return { data, message: 'Ventanas listadas', statusCode: HttpStatus.OK };
+  }
 
   @Post()
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
@@ -115,6 +134,30 @@ export class VentanasController {
     };
   }
 
+  @Post(":id/finalizar")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Finalizar ventana de atención" })
+  async completar(@Param("id") id: string) {
+    const data = await this.ventanasService.completarVentana(id);
+    return { data, message: "Ventana finalizada correctamente", statusCode: HttpStatus.OK };
+  }
+
+  @Get("activa")
+  @ApiOperation({ summary: "Obtener la ventana de atención activa actual" })
+  async getVentanaActiva() {
+    const data = await this.ventanasService.obtenerVentanaActiva();
+    return {
+      data,
+      message: "Ventana activa obtenida",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
   @Get(":id/cola")
   @ApiOperation({ summary: "Obtener estado de cola" })
   async getEstadoCola(@Param("id") id: string) {
@@ -148,7 +191,7 @@ export class VentanasController {
     return { data, message: "Celda procesada", statusCode: HttpStatus.OK };
   }
 
-  @Delete(":id/celda")
+  @Post(":id/celda/deseleccionar")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
@@ -182,10 +225,12 @@ export class VentanasController {
   async confirmarSelecciones(
     @Param("id") id: string,
     @Body() dto: ConfirmarSeleccionesDto,
+    @CurrentUser() user: Usuario,
   ) {
     const data = await this.gestorSeleccionService.confirmarSelecciones(
       dto.sesionId,
       dto.periodoId,
+      user?.id,
     );
     this.gateway.emitirHorarioConfirmado(id, dto);
     return {

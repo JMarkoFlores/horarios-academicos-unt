@@ -49,8 +49,8 @@ export class HorariosService {
       .leftJoinAndSelect("horario.curso", "curso")
       .leftJoinAndSelect("horario.ambiente", "ambiente")
       .leftJoinAndSelect("horario.grupo", "grupo")
-      .where("horario.periodo_academico = :periodo", { periodo })
-      .orderBy("horario.dia_semana", "ASC")
+      .where("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
@@ -73,8 +73,8 @@ export class HorariosService {
       .leftJoinAndSelect("horario.ambiente", "ambiente")
       .leftJoinAndSelect("horario.grupo", "grupo")
       .where("docente.id = :docenteId", { docenteId })
-      .andWhere("horario.periodo_academico = :periodo", { periodo })
-      .orderBy("horario.dia_semana", "ASC")
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
@@ -100,8 +100,8 @@ export class HorariosService {
       .leftJoinAndSelect("horario.ambiente", "ambiente")
       .leftJoinAndSelect("horario.grupo", "grupo")
       .where("ambiente.id = :ambienteId", { ambienteId })
-      .andWhere("horario.periodo_academico = :periodo", { periodo })
-      .orderBy("horario.dia_semana", "ASC")
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
@@ -129,15 +129,21 @@ export class HorariosService {
     return { items, total, page, limit };
   }
 
-  async resolverConflicto(id: number): Promise<ConflictoAsignacion> {
-    const conflicto = await this.conflictoRepo.findOne({ where: { id } });
-    if (!conflicto)
-      throw new NotFoundException(`Conflicto ${id} no encontrado`);
+  async findHorariosByDocenteEmail(email: string, periodo: string) {
+    const docente = await this.docenteRepo.findOne({ where: { email } });
+    if (!docente) throw new NotFoundException("Docente no encontrado");
 
-    conflicto.resuelto = true;
-    const updated = await this.conflictoRepo.save(conflicto);
-    await this.invalidateHorariosCache();
-    return updated;
+    return await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("docente.id = :docenteId", { docenteId: docente.id })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
   }
 
   async reasignarManual(

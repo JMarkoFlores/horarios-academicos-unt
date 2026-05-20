@@ -62,7 +62,9 @@ const MATERIAL = [
 ];
 
 @NgModule({
-  declarations: [ConfirmDialogComponent],
+  declarations: [
+    ConfirmDialogComponent,
+  ],
   imports: [
     CommonModule,
     FormsModule,

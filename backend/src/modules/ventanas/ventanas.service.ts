@@ -24,6 +24,7 @@ import { ColaDocente, EstadoCola } from "../../entities/cola-docentes.entity";
 import { Docente } from "../../entities/docente.entity";
 import { HorariosGateway } from "../../horarios/horarios.gateway";
 import { CreateVentanaDto } from "./dto/create-ventana.dto";
+import { UpdateVentanaDto } from "./dto/update-ventana.dto";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
 import { ConfiguracionVentanaCategoriaDto } from "./dto/configurar-ventanas-periodo.dto";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
@@ -69,6 +70,66 @@ export class VentanasService implements OnModuleDestroy {
     return ventana;
   }
 
+  async actualizarVentana(ventanaId: string, dto: UpdateVentanaDto): Promise<VentanaAtencion> {
+    this.logger.log(`[actualizarVentana] ID=${ventanaId}, DTO=${JSON.stringify(dto)}`);
+
+    const ventana = await this.obtenerVentana(ventanaId);
+
+    // Solo se puede editar ventanas PROGRAMADA o CANCELADA
+    if (ventana.estado === EstadoVentanaAtencion.EN_CURSO) {
+      throw new BadRequestException('❌ No se puede editar una ventana que está en curso');
+    }
+    if (ventana.estado === EstadoVentanaAtencion.COMPLETADA) {
+      throw new BadRequestException('❌ No se puede editar una ventana que ya fue completada');
+    }
+
+    // Validar solapamiento si cambia fecha/hora
+    if (dto.fecha || dto.hora_inicio || dto.hora_fin) {
+      const nuevaFecha = dto.fecha ? new Date(dto.fecha) : ventana.fecha;
+      const nuevaHoraInicio = dto.hora_inicio ?? ventana.hora_inicio;
+      const nuevaHoraFin = dto.hora_fin ?? ventana.hora_fin;
+
+      const solapamiento = await this.ventanaRepo.createQueryBuilder('v')
+        .where('v.id != :id', { id: ventanaId })
+        .andWhere('v.periodo = :periodo', { periodo: ventana.periodo })
+        .andWhere('v.fecha = :fecha', { fecha: nuevaFecha })
+        .andWhere('v.estado != :estado', { estado: EstadoVentanaAtencion.CANCELADA })
+        .andWhere('(:horaInicio < v.hora_fin AND :horaFin > v.hora_inicio)', {
+          horaInicio: nuevaHoraInicio,
+          horaFin: nuevaHoraFin,
+        })
+        .getOne();
+
+      if (solapamiento) {
+        throw new BadRequestException(
+          `❌ Solapamiento con ventana existente: ${solapamiento.hora_inicio}-${solapamiento.hora_fin}`
+        );
+      }
+    }
+
+    Object.assign(ventana, dto);
+    const guardada = await this.ventanaRepo.save(ventana);
+    this.logger.log(`✅ Ventana ${ventanaId} actualizada`);
+    return guardada;
+  }
+
+  async eliminarVentana(ventanaId: string): Promise<void> {
+    this.logger.log(`[eliminarVentana] ID=${ventanaId}`);
+
+    const ventana = await this.obtenerVentana(ventanaId);
+
+    // Restricciones de eliminación
+    if (ventana.estado === EstadoVentanaAtencion.EN_CURSO) {
+      throw new BadRequestException('❌ No se puede eliminar una ventana que está en curso. Finalícela primero.');
+    }
+    if (ventana.estado === EstadoVentanaAtencion.COMPLETADA) {
+      throw new BadRequestException('❌ No se puede eliminar una ventana que ya fue completada.');
+    }
+
+    await this.ventanaRepo.delete(ventanaId);
+    this.logger.log(`✅ Ventana ${ventanaId} eliminada`);
+  }
+
   async obtenerVentanaActiva() {
     return await this.ventanaRepo.findOne({
       where: { estado: EstadoVentanaAtencion.EN_CURSO },
@@ -76,11 +137,106 @@ export class VentanasService implements OnModuleDestroy {
     });
   }
 
+  async listarVentanasConFiltros(
+    periodo?: string,
+    estado?: string,
+    categoria?: string,
+    fechaDesde?: string,
+    fechaHasta?: string,
+  ): Promise<VentanaAtencion[]> {
+    const qb = this.ventanaRepo.createQueryBuilder('v');
+
+    if (periodo) {
+      qb.andWhere('v.periodo = :periodo', { periodo });
+    }
+
+    if (estado) {
+      qb.andWhere('v.estado = :estado', { estado });
+    }
+
+    if (categoria) {
+      qb.andWhere('v.categoria = :categoria', { categoria });
+    }
+
+    if (fechaDesde) {
+      const [year, month, day] = fechaDesde.split('-').map(Number);
+      const desde = new Date(year, month - 1, day);
+      qb.andWhere('v.fecha >= :fechaDesde', { fechaDesde: desde });
+    }
+
+    if (fechaHasta) {
+      const [year, month, day] = fechaHasta.split('-').map(Number);
+      const hasta = new Date(year, month - 1, day);
+      qb.andWhere('v.fecha <= :fechaHasta', { fechaHasta: hasta });
+    }
+
+    qb.orderBy('v.fecha', 'DESC').addOrderBy('v.hora_inicio', 'ASC');
+
+    return qb.getMany();
+  }
+
   async crearVentana(dto: CreateVentanaDto): Promise<VentanaAtencion> {
+    this.logger.log(`[crearVentana] DTO recibido: ${JSON.stringify(dto)}`);
+
+    // Validaciones básicas
+    if (!dto.fecha || !dto.hora_inicio || !dto.hora_fin) {
+      this.logger.error(`[crearVentana] ❌ Campos obligatorios faltantes: fecha=${dto.fecha}, hora_inicio=${dto.hora_inicio}, hora_fin=${dto.hora_fin}`);
+      throw new BadRequestException('Fecha, hora de inicio y hora fin son obligatorios');
+    }
+    
+    // Validar formato de hora
+    const horaRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    if (!horaRegex.test(dto.hora_inicio) || !horaRegex.test(dto.hora_fin)) {
+      throw new BadRequestException('Formato de hora inválido. Use HH:MM (24h)');
+    }
+    
+    // Validar que hora inicio sea menor que hora fin
+    const [hInicio, mInicio] = dto.hora_inicio.split(':').map(Number);
+    const [hFin, mFin] = dto.hora_fin.split(':').map(Number);
+    const minutosInicio = hInicio * 60 + mInicio;
+    const minutosFin = hFin * 60 + mFin;
+    
+    if (minutosInicio >= minutosFin) {
+      throw new BadRequestException('La hora de inicio debe ser menor que la hora de fin');
+    }
+    
+    // Validar duración mínima (al menos 15 minutos)
+    if (minutosFin - minutosInicio < 15) {
+      throw new BadRequestException('La ventana debe tener una duración mínima de 15 minutos');
+    }
+    
     const [year, month, day] = dto.fecha.split("-").map(Number);
+    const fechaVentana = new Date(year, month - 1, day);
+    const hoy = this.normalizarFecha(new Date());
+    
+    // Validar que la fecha no sea en el pasado
+    if (fechaVentana < hoy) {
+      throw new BadRequestException('No se pueden crear ventanas en fechas pasadas');
+    }
+    
+    // Verificar solapamiento con otras ventanas del mismo período Y categoría
+    const solapamiento = await this.ventanaRepo.createQueryBuilder('v')
+      .where('v.periodo = :periodo', { periodo: dto.periodo })
+      .andWhere('v.categoria = :categoria', { categoria: dto.categoria })
+      .andWhere('v.fecha = :fecha', { fecha: fechaVentana })
+      .andWhere('v.estado != :estado', { estado: EstadoVentanaAtencion.CANCELADA })
+      .andWhere('(CAST(:horaInicio AS time) < v.hora_fin AND CAST(:horaFin AS time) > v.hora_inicio)', {
+        horaInicio: dto.hora_inicio + ':00',
+        horaFin: dto.hora_fin + ':00'
+      })
+      .getOne();
+    
+    if (solapamiento) {
+      throw new BadRequestException(
+        `Ya existe una ventana programada en ese horario: ${solapamiento.hora_inicio}-${solapamiento.hora_fin}`
+      );
+    }
+    
+    this.logger.log(`Creando ventana: ${dto.fecha} ${dto.hora_inicio}-${dto.hora_fin} (${dto.categoria})`);
+    
     const ventana = this.ventanaRepo.create({
       periodo: dto.periodo,
-      fecha: new Date(year, month - 1, day),
+      fecha: fechaVentana,
       categoria: dto.categoria,
       modalidad: dto.modalidad ?? null,
       hora_inicio: dto.hora_inicio,
@@ -88,7 +244,22 @@ export class VentanasService implements OnModuleDestroy {
       intervalo_minutos: dto.intervalo_minutos ?? 30,
       estado: EstadoVentanaAtencion.PROGRAMADA,
     });
-    return this.ventanaRepo.save(ventana);
+    
+    const savedVentana = await this.ventanaRepo.save(ventana);
+    this.logger.log(`✅ Ventana ${savedVentana.id} creada exitosamente`);
+    
+    // Notificaciones: Si la ventana es futura (más allá de mañana), programar recordatorio 24h
+    // La alerta de 15min solo se programa cuando se inicia la ventana (se asignan docentes)
+    const manana = new Date(hoy);
+    manana.setDate(manana.getDate() + 1);
+    
+    if (fechaVentana > manana) {
+      this.logger.log(`Ventana programada para fecha futura (${dto.fecha}). Notificaciones se programarán al iniciar la ventana.`);
+    } else {
+      this.logger.warn(`Ventana programada para fecha cercana (${dto.fecha}). Recordatorio 24h no se enviará.`);
+    }
+    
+    return savedVentana;
   }
 
   async configurarVentanasPeriodo(idPeriodo: number, fechaInicio: string, config: ConfiguracionVentanaCategoriaDto[]): Promise<VentanaAtencion[]> {
@@ -138,21 +309,72 @@ export class VentanasService implements OnModuleDestroy {
   }
 
   async iniciarVentana(ventanaId: string) {
+    this.logger.log(`🚀 Iniciando ventana ${ventanaId}...`);
+    
     const ventana = await this.obtenerVentana(ventanaId);
+    
+    // Validaciones de estado
     if (ventana.estado === EstadoVentanaAtencion.COMPLETADA) {
-      throw new BadRequestException("La ventana ya fue completada.");
+      throw new BadRequestException("❌ La ventana ya fue completada.");
     }
-
+    
+    if (ventana.estado === EstadoVentanaAtencion.EN_CURSO) {
+      throw new BadRequestException("❌ La ventana ya está en curso.");
+    }
+    
+    if (ventana.estado === EstadoVentanaAtencion.CANCELADA) {
+      throw new BadRequestException("❌ La ventana fue cancelada.");
+    }
+    
+    // Validar que no haya otra ventana en curso para el mismo período
+    const ventanaActiva = await this.ventanaRepo.findOne({
+      where: { 
+        periodo: ventana.periodo,
+        estado: EstadoVentanaAtencion.EN_CURSO 
+      }
+    });
+    
+    if (ventanaActiva && ventanaActiva.id !== ventanaId) {
+      throw new BadRequestException(
+        `❌ Ya existe una ventana en curso (${ventanaActiva.fecha} ${ventanaActiva.hora_inicio}). Finalice esa ventana primero.`
+      );
+    }
+    
+    // Validar fecha: no se puede iniciar una ventana de fecha futura
+    const hoy = this.normalizarFecha(new Date());
+    const fechaVentana = this.normalizarFecha(ventana.fecha);
+    
+    if (fechaVentana > hoy) {
+      throw new BadRequestException(
+        `❌ No se puede iniciar una ventana programada para fecha futura (${ventana.fecha.toISOString().split('T')[0]})`
+      );
+    }
+    
+    this.logger.log(`✅ Validaciones pasadas. Cambiando estado a EN_CURSO...`);
+    
+    // Cambiar estado
     ventana.estado = EstadoVentanaAtencion.EN_CURSO;
     await this.ventanaRepo.save(ventana);
-
+    this.logger.log(`✅ Estado actualizado a EN_CURSO`);
+    
+    // Limpiar cola anterior si existe
+    this.logger.log(`🧹 Limpiando cola anterior...`);
     await this.colaRepo.delete({ ventana_id: ventana.id });
-
+    
+    // Obtener docentes elegibles
+    this.logger.log(`👥 Buscando docentes para categoría ${ventana.categoria}...`);
     const docentes = await this.buscarDocentesPorCategoria(
       ventana.categoria,
       ventana.modalidad ?? undefined,
     );
-
+    
+    if (docentes.length === 0) {
+      this.logger.warn(`⚠️ No se encontraron docentes para la categoría ${ventana.categoria}`);
+    } else {
+      this.logger.log(`✅ ${docentes.length} docente(s) encontrados`);
+    }
+    
+    // Crear cola de docentes
     const colas = docentes.map((docente, index) =>
       this.colaRepo.create({
         ventana_id: ventana.id,
@@ -167,10 +389,75 @@ export class VentanasService implements OnModuleDestroy {
     );
 
     await this.colaRepo.save(colas);
+    this.logger.log(`✅ Cola creada con ${colas.length} docente(s)`);
+    
+    // Programar notificaciones para docentes recién asignados
+    this.logger.log(`📨 Programando notificaciones...`);
+    let notificacionesExitosas = 0;
+    let notificacionesFallidas = 0;
+    
+    for (const cola of colas) {
+      if (cola.docente) {
+        try {
+          this.logger.log(`  → Programando para docente ${cola.docente.id} (${cola.docente.nombres} ${cola.docente.apellidos})...`);
+          
+          // Recordatorio 24h (solo si la ventana es mañana o posterior)
+          await this.notificacionesService.enviarRecordatorio24h(cola.docente.id, ventana.id);
+          
+          // Alerta 15min (siempre programar)
+          await this.notificacionesService.enviarAlerta15min(cola.docente.id, ventana.id);
+          
+          notificacionesExitosas++;
+          this.logger.log(`    ✅ Notificaciones programadas`);
+        } catch (err: any) {
+          notificacionesFallidas++;
+          this.logger.error(`    ❌ Error programando notificaciones: ${err.message}`);
+        }
+      }
+    }
+    
+    this.logger.log(`📊 Resumen notificaciones: ${notificacionesExitosas} exitosas, ${notificacionesFallidas} fallidas`);
+    
+    // Emitir estado actualizado
     const estado = await this.reconstruirEstadoCola(ventana.id);
     await this.guardarEstadoColaCache(ventana.id, estado);
     this.gateway.emitirPeriodo(ventana.periodo, "cola_actualizada", estado);
+    this.gateway.emitirPeriodo(ventana.periodo, "ventana_iniciada", { ventanaId, estado });
+    
+    this.logger.log(`🎉 Ventana ${ventanaId} iniciada exitosamente`);
     return estado;
+  }
+
+  async programarNotificacionesVentana(ventanaId: string): Promise<void> {
+    this.logger.log(`Programando notificaciones para ventana ${ventanaId}`);
+    
+    const ventana = await this.obtenerVentana(ventanaId);
+    if (!ventana) {
+      throw new Error(`Ventana ${ventanaId} no encontrada`);
+    }
+    
+    // Obtener docentes asignados a esta ventana
+    const colaDocentes = await this.colaRepo.find({ 
+      where: { ventana_id: ventanaId },
+      relations: ['docente']
+    });
+    
+    if (colaDocentes.length === 0) {
+      this.logger.warn(`No hay docentes asignados a ventana ${ventanaId}`);
+      return;
+    }
+    
+    this.logger.log(`Programando notificaciones para ${colaDocentes.length} docente(s)`);
+    
+    for (const item of colaDocentes) {
+      if (item.docente) {
+        this.logger.log(`Programando para docente ${item.docente.id} (${item.docente.nombres})`);
+        await this.notificacionesService.enviarRecordatorio24h(item.docente.id, ventanaId);
+        await this.notificacionesService.enviarAlerta15min(item.docente.id, ventanaId);
+      }
+    }
+    
+    this.logger.log(`Notificaciones programadas exitosamente para ventana ${ventanaId}`);
   }
 
   async llamarSiguiente(ventanaId: string) {

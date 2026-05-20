@@ -5,6 +5,9 @@ import { ConflictoAsignacion } from '../entities/conflicto-asignacion.entity';
 import { Docente } from '../entities/docente.entity';
 import { Ambiente } from '../entities/ambiente.entity';
 import { Curso } from '../entities/curso.entity';
+import { DisponibilidadDocente } from '../entities/disponibilidad-docente.entity';
+import { PeriodoAcademico } from '../entities/periodo-academico.entity';
+import { AuditoriaHorario } from '../entities/auditoria-horario.entity';
 import { DashboardService } from './dashboard.service';
 import { DashboardController } from './dashboard.controller';
 import { DashboardGateway } from './dashboard.gateway';
@@ -17,6 +20,9 @@ import { DashboardGateway } from './dashboard.gateway';
       Docente,
       Ambiente,
       Curso,
+      DisponibilidadDocente,
+      PeriodoAcademico,
+      AuditoriaHorario,
     ]),
   ],
   controllers: [DashboardController],

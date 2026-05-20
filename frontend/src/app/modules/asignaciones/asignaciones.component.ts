@@ -1,5 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription, of } from 'rxjs';
+import { concatMap, catchError } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
+import { PeriodoService } from '../../core/services/periodo.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Docente, Curso, Ambiente } from '../../core/interfaces/entities';
 
@@ -8,7 +11,8 @@ import { Docente, Curso, Ambiente } from '../../core/interfaces/entities';
   templateUrl: './asignaciones.component.html',
   styleUrls: ['./asignaciones.component.scss']
 })
-export class AsignacionesComponent implements OnInit {
+export class AsignacionesComponent implements OnInit, OnDestroy {
+  private periodSub?: Subscription;
   docentes: Docente[] = [];
   docenteSeleccionado: Docente | null = null;
   
@@ -17,7 +21,9 @@ export class AsignacionesComponent implements OnInit {
   
   todosCursos: Curso[] = [];
   todosAmbientes: Ambiente[] = [];
-  
+  filtroCursos = '';
+  filtroAmbientes = '';
+
   loadingDocentes = false;
   loadingData = false;
   guardando = false;
@@ -64,12 +70,22 @@ export class AsignacionesComponent implements OnInit {
 
   constructor(
     private api: ApiService,
+    public periodoService: PeriodoService,
     private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
     this.cargarDocentes();
     this.cargarCatalogos();
+    this.periodSub = this.periodoService.periodo$.subscribe(() => {
+      if (this.docenteSeleccionado) {
+        this.cargarCursosAsignados(this.docenteSeleccionado.id);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.periodSub?.unsubscribe();
   }
 
   cargarDocentes(): void {
@@ -117,8 +133,8 @@ export class AsignacionesComponent implements OnInit {
 
   cargarCursosAsignados(docenteId: number): void {
     this.loadingData = true;
-    this.api.get<any>(`/docentes/${docenteId}/cursos`).subscribe({
-      next: (res) => {
+    this.api.get<any>(`/docentes/${docenteId}/cursos`, { periodo: this.periodoService.periodo }).pipe(
+      concatMap((res: any) => {
         const items = res?.data ?? [];
         const uniqueCursos: Curso[] = [];
         const seenIds = new Set<number>();
@@ -129,23 +145,23 @@ export class AsignacionesComponent implements OnInit {
           }
         }
         this.cursosAsignados = uniqueCursos;
-
-        // Cargar también ambientes asignados desde el servidor
-        this.api.get<any>(`/docentes/${docenteId}/ambientes`).subscribe({
-          next: (ambRes) => {
-            this.ambientesAsignados = ambRes?.data ?? [];
-            this.loadingData = false;
-            this.ejecutarDiagnostico();
-          },
-          error: () => {
-            this.loadingData = false;
-            this.ejecutarDiagnostico();
-          }
-        });
+        return this.api.get<any>(`/docentes/${docenteId}/ambientes`, { periodo: this.periodoService.periodo }).pipe(
+          catchError(() => of({ data: [] }))
+        );
+      }),
+      catchError(() => {
+        this.snackBar.open('Error al cargar cursos asignados', 'Cerrar', { duration: 3000 });
+        return of({ data: [] });
+      })
+    ).subscribe({
+      next: (ambRes: any) => {
+        this.ambientesAsignados = ambRes?.data ?? [];
+        this.loadingData = false;
+        this.ejecutarDiagnostico();
       },
       error: () => {
         this.loadingData = false;
-        this.snackBar.open('Error al cargar cursos asignados', 'Cerrar', { duration: 3000 });
+        this.ejecutarDiagnostico();
       }
     });
   }
@@ -162,33 +178,37 @@ export class AsignacionesComponent implements OnInit {
       }
     }
 
-    // 1. Guardar asignaciones de cursos
+    const ambienteIds = this.ambientesAsignados.map(a => a.id);
+
     this.api.post<any>(`/docentes/${this.docenteSeleccionado.id}/cursos`, {
-      cursos: cursosPayload
-    }).subscribe({
-      next: () => {
-        // 2. Guardar asignaciones de ambientes de forma secuencial
-        const ambienteIds = this.ambientesAsignados.map(a => a.id);
-        this.api.post<any>(`/docentes/${this.docenteSeleccionado!.id}/ambientes`, {
-          ambienteIds
-        }).subscribe({
-          next: () => {
-            this.guardando = false;
-            this.snackBar.open('Asignaciones y ambientes guardados correctamente', 'OK', { duration: 3000 });
-            this.ejecutarDiagnostico();
-          },
-          error: (err) => {
-            this.guardando = false;
-            const msg = err?.error?.message ?? 'Error al guardar ambientes asignados';
-            this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
-          }
-        });
-      },
-      error: (err) => {
+      cursos: cursosPayload,
+      periodo: this.periodoService.periodo,
+    }).pipe(
+      concatMap(() => this.api.post<any>(`/docentes/${this.docenteSeleccionado!.id}/ambientes`, {
+        ambienteIds,
+        periodo: this.periodoService.periodo,
+      }).pipe(
+        catchError((err) => {
+          const msg = err?.error?.message ?? 'Error al guardar ambientes asignados';
+          this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
+          return of(null);
+        })
+      )),
+      catchError((err) => {
         this.guardando = false;
         const msg = err?.error?.message ?? 'Error al guardar cursos asignados';
         this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
-      }
+        return of(null);
+      })
+    ).subscribe({
+      next: (res) => {
+        if (res !== null) {
+          this.guardando = false;
+          this.snackBar.open('Asignaciones y ambientes guardados correctamente', 'OK', { duration: 3000 });
+          this.ejecutarDiagnostico();
+        }
+      },
+      error: () => { this.guardando = false; }
     });
   }
 
@@ -275,32 +295,31 @@ export class AsignacionesComponent implements OnInit {
       conflictoCompatibilidad = true;
       mensajeCompatibilidad = 'Tiene cursos de laboratorio asignados pero no se ha asignado ningún ambiente tipo LABORATORIO.';
     } else {
-      // Verificación detallada por curso
+      // Verificación detallada por curso (solo si la ficha tiene ambientes definidos)
       for (const curso of this.cursosAsignados) {
-        const ambientesCurso = curso.ambientes ?? [];
-        
-        if (ambientesCurso.length > 0) {
-          const labsCompatibles = ambientesCurso.filter(a => a.tipo === 'LABORATORIO');
-          const aulasCompatibles = ambientesCurso.filter(a => a.tipo === 'AULA');
+        const ambientesCurso = curso.ambientes;
+        if (!ambientesCurso || ambientesCurso.length === 0) continue;
 
-          if (curso.tiene_laboratorio && labsCompatibles.length > 0) {
-            const tieneLabValido = this.ambientesAsignados.some(a => labsCompatibles.some(lc => lc.id === a.id));
-            if (!tieneLabValido) {
-              conflictoCompatibilidad = true;
-              const codigosLabs = labsCompatibles.map(l => l.codigo).join(', ');
-              mensajeCompatibilidad = `Conflicto: ${curso.nombre} requiere uno de los laboratorios compatibles de su ficha: [${codigosLabs}].`;
-              break;
-            }
+        const labsCompatibles = ambientesCurso.filter(a => a.tipo === 'LABORATORIO');
+        const aulasCompatibles = ambientesCurso.filter(a => a.tipo === 'AULA');
+
+        if (curso.tiene_laboratorio && labsCompatibles.length > 0) {
+          const tieneLabValido = this.ambientesAsignados.some(a => labsCompatibles.some(lc => lc.id === a.id));
+          if (!tieneLabValido) {
+            conflictoCompatibilidad = true;
+            const codigosLabs = labsCompatibles.map(l => l.codigo).join(', ');
+            mensajeCompatibilidad = `Conflicto: ${curso.nombre} requiere uno de los laboratorios compatibles de su ficha: [${codigosLabs}].`;
+            break;
           }
+        }
 
-          if (aulasCompatibles.length > 0) {
-            const tieneAulaValida = this.ambientesAsignados.some(a => aulasCompatibles.some(ac => ac.id === a.id));
-            if (!tieneAulaValida && this.ambientesAsignados.length > 0) {
-              conflictoCompatibilidad = true;
-              const codigosAulas = aulasCompatibles.map(ac => ac.codigo).join(', ');
-              mensajeCompatibilidad = `Conflicto: ${curso.nombre} requiere una de las aulas de teoría compatibles de su ficha: [${codigosAulas}].`;
-              break;
-            }
+        if (aulasCompatibles.length > 0) {
+          const tieneAulaValida = this.ambientesAsignados.some(a => aulasCompatibles.some(ac => ac.id === a.id));
+          if (!tieneAulaValida && this.ambientesAsignados.length > 0) {
+            conflictoCompatibilidad = true;
+            const codigosAulas = aulasCompatibles.map(ac => ac.codigo).join(', ');
+            mensajeCompatibilidad = `Conflicto: ${curso.nombre} requiere una de las aulas de teoría compatibles de su ficha: [${codigosAulas}].`;
+            break;
           }
         }
       }
@@ -380,6 +399,22 @@ export class AsignacionesComponent implements OnInit {
         mensaje: 'Sin asignaturas para validar nivel académico.'
       };
     }
+  }
+
+  get cursosFiltrados(): Curso[] {
+    const f = this.filtroCursos.trim().toLowerCase();
+    if (!f) return this.todosCursos;
+    return this.todosCursos.filter(c =>
+      c.nombre.toLowerCase().includes(f) || c.codigo.toLowerCase().includes(f)
+    );
+  }
+
+  get ambientesFiltrados(): Ambiente[] {
+    const f = this.filtroAmbientes.trim().toLowerCase();
+    if (!f) return this.todosAmbientes;
+    return this.todosAmbientes.filter(a =>
+      a.nombre.toLowerCase().includes(f) || a.codigo.toLowerCase().includes(f)
+    );
   }
 
   getStatusIcon(estado: string): string {

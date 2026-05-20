@@ -126,6 +126,16 @@ export class DocentesController {
     return { data: null, message: "Docente desactivado correctamente" };
   }
 
+  @Patch(":id/reactivar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @ApiOperation({ summary: "Reactivar un docente previamente desactivado" })
+  @ApiParam({ name: "id", type: Number })
+  @ApiResponse({ status: 200, description: "Docente reactivado" })
+  async reactivar(@Param("id", ParseIntPipe) id: number) {
+    const result = await this.docentesService.reactivar(id);
+    return { data: result, message: "Docente reactivado correctamente" };
+  }
+
   @Post(":id/cursos")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Asignar cursos que puede dictar un docente" })
@@ -153,12 +163,18 @@ export class DocentesController {
     required: false,
     description: "Filtrar por tipo de clase",
   })
+  @ApiQuery({
+    name: "periodo",
+    required: false,
+    description: "Código del período académico",
+  })
   @ApiResponse({ status: 200, description: "Cursos habilitados obtenidos" })
   async findCursosHabilitados(
     @Param("id", ParseIntPipe) id: number,
     @Query("tipo_clase") tipoClase?: TipoClase,
+    @Query("periodo") periodo?: string,
   ) {
-    const result = await this.docentesService.findCursosHabilitados(id, tipoClase);
+    const result = await this.docentesService.findCursosHabilitados(id, tipoClase, periodo);
     return {
       data: result,
       message: "Cursos habilitados obtenidos correctamente",
@@ -172,14 +188,20 @@ export class DocentesController {
   @ApiParam({ name: "id", type: Number, description: "ID del docente" })
   @ApiParam({ name: "cursoId", type: Number, description: "ID del curso" })
   @ApiParam({ name: "tipoclase", enum: TipoClase, description: "Tipo de clase" })
+  @ApiQuery({
+    name: "periodo",
+    required: false,
+    description: "Código del período académico",
+  })
   @ApiResponse({ status: 200, description: "Asignación eliminada correctamente" })
   @ApiResponse({ status: 404, description: "Asignación no encontrada" })
   async removeAsignacion(
     @Param("id", ParseIntPipe) id: number,
     @Param("cursoId", ParseIntPipe) cursoId: number,
     @Param("tipoclase") tipoClase: TipoClase,
+    @Query("periodo") periodo?: string,
   ) {
-    await this.docentesService.removeAsignacion(id, cursoId, tipoClase);
+    await this.docentesService.removeAsignacion(id, cursoId, tipoClase, periodo);
     return { data: null, message: "Asignación eliminada correctamente" };
   }
 

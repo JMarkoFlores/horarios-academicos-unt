@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -9,7 +10,7 @@ import { Router } from '@angular/router';
   templateUrl: './preasignaciones-list.component.html',
   styleUrls: ['./preasignaciones-list.component.scss']
 })
-export class PreasignacionesListComponent implements OnInit {
+export class PreasignacionesListComponent implements OnInit, OnDestroy {
   preasignaciones: any[] = [];
   loading = false;
   displayedColumns = ['docente', 'curso', 'grupo', 'tipo_clase', 'dia', 'hora_inicio', 'hora_fin', 'acciones'];
@@ -17,6 +18,7 @@ export class PreasignacionesListComponent implements OnInit {
     periodo: this.periodoService.periodo,
     docente_id: ''
   };
+  private periodSub?: Subscription;
 
   constructor(
     private api: ApiService,
@@ -27,6 +29,14 @@ export class PreasignacionesListComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarPreasignaciones();
+    this.periodSub = this.periodoService.periodo$.subscribe((p) => {
+      this.filtros.periodo = p;
+      this.cargarPreasignaciones();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.periodSub?.unsubscribe();
   }
 
   cargarPreasignaciones(): void {

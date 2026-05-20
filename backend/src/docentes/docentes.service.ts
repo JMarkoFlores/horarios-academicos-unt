@@ -2,13 +2,17 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Inject,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { Cache } from "cache-manager";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Docente } from "../entities/docente.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
@@ -26,15 +30,19 @@ export class DocentesService {
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
+    @InjectRepository(PeriodoAcademico)
+    private readonly periodoRepo: Repository<PeriodoAcademico>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
 
   async findAll(query: QueryDocenteDto) {
-    const { page = 1, limit = 20, categoria, tipo_contrato, busqueda } = query;
+    const { page = 1, limit = 20, categoria, tipo_contrato, busqueda, sortBy, sortDir, activo } = query;
+    const activoFiltro = activo !== undefined ? activo : true;
 
     const qb = this.docenteRepo
       .createQueryBuilder("docente")
-      .where("docente.activo = :activo", { activo: true });
+      .where("docente.activo = :activo", { activo: activoFiltro });
 
     if (categoria) {
       qb.andWhere("docente.categoria = :categoria", { categoria });
@@ -46,20 +54,26 @@ export class DocentesService {
 
     if (busqueda) {
       qb.andWhere(
-        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda)",
+        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda OR docente.email ILIKE :busqueda)",
         { busqueda: `%${busqueda}%` },
       );
     }
 
+    const allowedSortFields: Record<string, string> = {
+      apellidos: "docente.apellidos",
+      nombres: "docente.nombres",
+      categoria: "docente.categoria",
+      tipo_contrato: "docente.tipo_contrato",
+      fecha_ingreso: "docente.fecha_ingreso",
+    };
+    const sortField = allowedSortFields[sortBy ?? ""] ?? "docente.apellidos";
+    const sortDirection = sortDir === "DESC" ? "DESC" : "ASC";
+
     const [items, total] = await qb
-      .orderBy("docente.apellidos", "ASC")
+      .orderBy(sortField, sortDirection)
       .addOrderBy("docente.nombres", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
-      .cache(
-        `docentes_list_${categoria ?? "all"}_${tipo_contrato ?? "all"}_${busqueda ?? "none"}_${page}_${limit}`,
-        60000,
-      )
       .getManyAndCount();
 
     return {
@@ -181,7 +195,9 @@ export class DocentesService {
       activo: true,
     });
 
-    return this.docenteRepo.save(docente);
+    const saved = await this.docenteRepo.save(docente);
+    await this.invalidarCacheDocentes();
+    return saved;
   }
 
   async update(id: number, dto: UpdateDocenteDto): Promise<Docente> {
@@ -210,12 +226,30 @@ export class DocentesService {
       ...(dto.fecha_ingreso && { fecha_ingreso: new Date(dto.fecha_ingreso) }),
     });
 
-    return this.docenteRepo.save(actualizado);
+    const saved = await this.docenteRepo.save(actualizado);
+    await this.invalidarCacheDocentes(id);
+    return saved;
   }
 
   async remove(id: number): Promise<void> {
     const docente = await this.findOne(id);
     await this.docenteRepo.save({ ...docente, activo: false });
+    await this.invalidarCacheDocentes(id);
+  }
+
+  async reactivar(id: number): Promise<Docente> {
+    const docente = await this.docenteRepo.findOne({ where: { id } });
+    if (!docente) {
+      throw new NotFoundException(`Docente con ID ${id} no encontrado`);
+    }
+    docente.activo = true;
+    const saved = await this.docenteRepo.save(docente);
+    await this.invalidarCacheDocentes(id);
+    return saved;
+  }
+
+  private async invalidarCacheDocentes(id?: number): Promise<void> {
+    if (id) await this.cacheManager.del(`docente_${id}_detalle`);
   }
 
   calcularAntiguedad(fechaIngreso: Date): { anios: number; meses: number } {
@@ -232,9 +266,18 @@ export class DocentesService {
   async asignarCursos(docenteId: number, dto: AsignarCursosDto) {
     await this.findOne(docenteId);
 
-    // Get current assignments in database for this docente
+    let periodoId: number | null = null;
+    if (dto.periodo) {
+      const periodo = await this.periodoRepo.findOne({ where: { codigo: dto.periodo } });
+      if (!periodo) {
+        throw new NotFoundException(`Período ${dto.periodo} no encontrado`);
+      }
+      periodoId = periodo.id;
+    }
+
+    // Get current assignments in database for this docente + periodo
     const currentAssignments = await this.docenteCursoRepo.find({
-      where: { docenteId },
+      where: { docenteId, periodoId },
     });
 
     const inputKeys = new Set(
@@ -267,6 +310,7 @@ export class DocentesService {
           docenteId,
           cursoId: item.cursoId,
           tipo_clase: item.tipo_clase,
+          periodoId,
         });
         await this.docenteCursoRepo.save(asignacion);
       }
@@ -276,8 +320,14 @@ export class DocentesService {
     return asignaciones;
   }
 
-  async findCursosHabilitados(docenteId: number, tipoClase?: TipoClase) {
+  async findCursosHabilitados(docenteId: number, tipoClase?: TipoClase, periodoCodigo?: string) {
     await this.findOne(docenteId);
+
+    let periodoId: number | null = null;
+    if (periodoCodigo) {
+      const periodo = await this.periodoRepo.findOne({ where: { codigo: periodoCodigo } });
+      if (periodo) periodoId = periodo.id;
+    }
 
     const qb = this.docenteCursoRepo
       .createQueryBuilder("dc")
@@ -288,6 +338,9 @@ export class DocentesService {
 
     if (tipoClase) {
       qb.andWhere("dc.tipo_clase = :tipoClase", { tipoClase });
+    }
+    if (periodoId !== null) {
+      qb.andWhere("dc.periodoId = :periodoId", { periodoId });
     }
 
     const items = await qb.orderBy("curso.nombre", "ASC").getMany();
@@ -300,16 +353,21 @@ export class DocentesService {
     }));
   }
 
-  async removeAsignacion(docenteId: number, cursoId: number, tipoClase: TipoClase): Promise<void> {
+  async removeAsignacion(docenteId: number, cursoId: number, tipoClase: TipoClase, periodoCodigo?: string): Promise<void> {
     await this.findOne(docenteId);
 
-    const asignacion = await this.docenteCursoRepo.findOne({
-      where: {
-        docenteId,
-        cursoId,
-        tipo_clase: tipoClase,
-      },
-    });
+    const where: any = {
+      docenteId,
+      cursoId,
+      tipo_clase: tipoClase,
+    };
+
+    if (periodoCodigo) {
+      const periodo = await this.periodoRepo.findOne({ where: { codigo: periodoCodigo } });
+      if (periodo) where.periodoId = periodo.id;
+    }
+
+    const asignacion = await this.docenteCursoRepo.findOne({ where });
 
     if (!asignacion) {
       throw new NotFoundException(

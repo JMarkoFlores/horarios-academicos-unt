@@ -4,6 +4,8 @@ import { CacheTTL } from '@nestjs/cache-manager';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { HttpCacheInterceptor } from '../common/interceptors/http-cache.interceptor';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Usuario } from '../entities/usuario.entity';
 
 @ApiTags("dashboard")
 @Controller("dashboard")
@@ -30,5 +32,19 @@ export class DashboardController {
   async getKPIs(@Query('periodo') periodo: string) {
     const result = await this.dashboardService.getKPIs(periodo ?? '');
     return { data: result, message: 'KPIs obtenidos correctamente' };
+  }
+
+  @Get('mis-kpis')
+  @ApiOperation({ summary: 'KPIs personales del docente logueado' })
+  @ApiQuery({ name: 'periodo', required: true, example: '2026-I' })
+  async getMisKPIs(
+    @Query('periodo') periodo: string,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const result = await this.dashboardService.getMisKPIs(
+      usuario.email ?? '',
+      periodo ?? '',
+    );
+    return { data: result, message: 'KPIs personales obtenidos correctamente' };
   }
 }

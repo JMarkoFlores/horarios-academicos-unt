@@ -1,4 +1,5 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ApiService } from '../../../../core/services/api.service';
 import { NotifToastService } from '../../../../core/services/notif-toast.service';
@@ -23,7 +24,7 @@ interface SlotOcupado {
   templateUrl: './ver-disponibilidad-dialog.component.html',
   styleUrls: ['./ver-disponibilidad-dialog.component.scss'],
 })
-export class VerDisponibilidadDialogComponent implements OnInit {
+export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
   dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   diasNum = [1, 2, 3, 4, 5];
   horas = Array.from({ length: 15 }, (_, i) => i + 7);
@@ -31,6 +32,7 @@ export class VerDisponibilidadDialogComponent implements OnInit {
   ocupados: SlotOcupado[] = [];
   loading = false;
   totalHoras = 0;
+  private periodSub?: Subscription;
 
   constructor(
     private dialogRef: MatDialogRef<VerDisponibilidadDialogComponent>,
@@ -42,6 +44,13 @@ export class VerDisponibilidadDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarDisponibilidad();
+    this.periodSub = this.periodoService.periodo$.subscribe(() => {
+      this.cargarDisponibilidad();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.periodSub?.unsubscribe();
   }
 
   cargarDisponibilidad(): void {
@@ -55,7 +64,7 @@ export class VerDisponibilidadDialogComponent implements OnInit {
       .subscribe({
         next: (r) => {
           this.ocupados = r.data?.data ?? r.data ?? [];
-          this.totalHoras = this.ocupados.length;
+          this.totalHoras = this.calcularTotalHoras(this.ocupados);
           this.loading = false;
         },
         error: (err: any) => {
@@ -66,18 +75,21 @@ export class VerDisponibilidadDialogComponent implements OnInit {
       });
   }
 
-  private normalizeHora(hora: string | undefined): string {
-    if (!hora) return '';
-    return hora.length >= 5 ? hora.substring(0, 5) : hora;
+  getSlot(dia: number, hora: number): SlotOcupado | null {
+    return (
+      this.ocupados.find((o) => {
+        if (o.dia_semana !== dia) return false;
+        const hi = this.horaToDecimal(o.hora_inicio);
+        const hf = this.horaToDecimal(o.hora_fin);
+        return hora >= hi && hora < hf;
+      }) ?? null
+    );
   }
 
-  getSlot(dia: number, hora: number): SlotOcupado | null {
-    const h = this.fmtH(hora);
-    return (
-      this.ocupados.find(
-        (o) => o.dia_semana === dia && this.normalizeHora(o.hora_inicio) === h,
-      ) ?? null
-    );
+  private horaToDecimal(hora: string): number {
+    if (!hora) return 0;
+    const [h, m] = hora.split(':').map(Number);
+    return h + (m || 0) / 60;
   }
 
   cls(dia: number, hora: number): string {
@@ -88,6 +100,18 @@ export class VerDisponibilidadDialogComponent implements OnInit {
 
   fmtH(h: number): string {
     return `${String(h).padStart(2, '0')}:00`;
+  }
+
+  private calcularTotalHoras(slots: SlotOcupado[]): number {
+    let total = 0;
+    for (const s of slots) {
+      if (s.hora_inicio && s.hora_fin) {
+        const [hi, mi] = s.hora_inicio.split(':').map(Number);
+        const [hf, mf] = s.hora_fin.split(':').map(Number);
+        total += (hf + mf / 60) - (hi + mi / 60);
+      }
+    }
+    return Math.round(total * 10) / 10;
   }
 
   cerrar(): void {

@@ -45,7 +45,8 @@
           <td
             *ngFor="let dia of diasNum"
             [class]="cls(dia, h)"
-            [matTooltip]="getSlot(dia, h)?.curso ?? ''"
+            [matTooltip]="getSlot(dia, h)?.curso || ''"
+            [matTooltipDisabled]="!getSlot(dia, h)?.curso"
           >
             <ng-container *ngIf="getSlot(dia, h) as slot">
               <div class="slot-info">

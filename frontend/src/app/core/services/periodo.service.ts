@@ -17,17 +17,21 @@ export class PeriodoService {
         if (list.length > 0) {
           const codigos = list.map((p: any) => p.codigo);
           this._periodosList.next(codigos);
-          // Buscar el periodo activo por defecto
+
+          const guardado = localStorage.getItem('periodo_seleccionado');
           const activo = list.find((p: any) => p.activo);
-          if (activo) {
+
+          if (guardado && codigos.includes(guardado)) {
+            this._periodo.next(guardado);
+            this._periodoActivo.next(list.find((p: any) => p.codigo === guardado) ?? activo ?? list[0]);
+          } else if (activo) {
             this._periodo.next(activo.codigo);
             this._periodoActivo.next(activo);
+            localStorage.setItem('periodo_seleccionado', activo.codigo);
           } else {
-            const current = this._periodo.getValue();
-            if (!codigos.includes(current)) {
-              this._periodo.next(codigos[0]);
-              this._periodoActivo.next(list[0]);
-            }
+            this._periodo.next(codigos[0]);
+            this._periodoActivo.next(list[0]);
+            localStorage.setItem('periodo_seleccionado', codigos[0]);
           }
         }
       },
@@ -35,6 +39,13 @@ export class PeriodoService {
         // Fallback en caso de error
       }
     });
+  }
+
+  cambiarPeriodo(codigo: string): void {
+    if (this._periodosList.getValue().includes(codigo)) {
+      localStorage.setItem('periodo_seleccionado', codigo);
+      this._periodo.next(codigo);
+    }
   }
 
   get periodos(): string[] {

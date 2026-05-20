@@ -1,10 +1,11 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ApiService } from '../../../../core/services/api.service';
 import { PeriodoService } from '../../../../core/services/periodo.service';
 import { NotifToastService } from '../../../../core/services/notif-toast.service';
 import { Curso, Grupo, ApiResponse } from '../../../../core/interfaces/entities';
+import { ConfirmDialogComponent } from '../../../../shared/dialogs/confirm-dialog/confirm-dialog.component';
 
 export interface GestionarGruposData {
   curso: Curso;
@@ -30,6 +31,7 @@ export class GestionarGruposDialogComponent implements OnInit {
     private api: ApiService,
     public periodoService: PeriodoService,
     private notif: NotifToastService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -150,17 +152,27 @@ export class GestionarGruposDialogComponent implements OnInit {
   }
 
   eliminar(grupo: Grupo): void {
-    if (!confirm(`¿Eliminar el grupo "${grupo.codigo} - ${grupo.nombre}"?`)) return;
-
-    this.api.delete<ApiResponse<any>>(`/grupos/${grupo.id}`).subscribe({
-      next: () => {
-        this.notif.success('Grupo eliminado correctamente');
-        this.cargarGrupos();
+    this.dialog.open(ConfirmDialogComponent, {
+      width: '420px',
+      data: {
+        title: 'Eliminar Grupo',
+        message: `¿Eliminar el grupo "${grupo.codigo}"?`,
+        detail: `Sección: ${grupo.nombre}. Esta acción no se puede deshacer.`,
+        confirmText: 'Eliminar',
+        confirmColor: 'warn',
       },
-      error: (err) => {
-        const msg = err?.error?.message ?? 'Error al eliminar grupo';
-        this.notif.error(msg);
-      },
+    }).afterClosed().subscribe((ok: boolean) => {
+      if (!ok) return;
+      this.api.delete<ApiResponse<any>>(`/grupos/${grupo.id}`).subscribe({
+        next: () => {
+          this.notif.success('Grupo eliminado correctamente');
+          this.cargarGrupos();
+        },
+        error: (err) => {
+          const msg = err?.error?.message ?? 'Error al eliminar grupo';
+          this.notif.error(msg);
+        },
+      });
     });
   }
 

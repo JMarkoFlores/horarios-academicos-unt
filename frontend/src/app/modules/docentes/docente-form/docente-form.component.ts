@@ -1,9 +1,36 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
 import { ApiResponse, Docente } from '../../../core/interfaces/entities';
+
+export function emailInstitucionalValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (!control.value) return null;
+    const valor: string = control.value.trim();
+    const partes = valor.split('@');
+    if (partes.length !== 2) return { emailInvalido: true };
+    const [local, dominio] = partes;
+    if (!local || local.length === 0) return { emailInvalido: true };
+    if (!/^[a-zA-Z0-9_\-\.]+$/.test(dominio)) return { emailInvalido: true };
+    if (!dominio.includes('.')) return { emailInvalido: true };
+    return null;
+  };
+}
+
+export function fechaNoFuturaValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (!control.value) return null;
+    const fecha = new Date(control.value);
+    const hoy = new Date();
+    hoy.setHours(23, 59, 59, 999);
+    if (fecha > hoy) return { fechaFutura: true };
+    const minDate = new Date('1970-01-01');
+    if (fecha < minDate) return { fechaAntigua: true };
+    return null;
+  };
+}
 
 @Component({
   selector: 'app-docente-form',
@@ -16,6 +43,7 @@ export class DocenteFormComponent implements OnInit {
   docenteId!: number;
   loading = false;
   saving = false;
+  hoy = new Date();
 
   categorias = ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR', 'JEFE_PRACTICA'];
   tiposContrato = ['NOMBRADO', 'CONTRATADO'];
@@ -30,14 +58,14 @@ export class DocenteFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.form = this.fb.group({
-      codigo: ['', [Validators.required, Validators.maxLength(10)]],
-      nombres: ['', [Validators.required, Validators.maxLength(100)]],
-      apellidos: ['', [Validators.required, Validators.maxLength(100)]],
-      email: ['', [Validators.required, Validators.email]],
-      telefono: [''],
+      codigo: ['', [Validators.required, Validators.maxLength(20)]],
+      nombres: ['', [Validators.required, Validators.maxLength(150)]],
+      apellidos: ['', [Validators.required, Validators.maxLength(150)]],
+      email: ['', [Validators.required, emailInstitucionalValidator()]],
+      telefono: ['', [Validators.pattern(/^\+?[\d\s\-]{7,20}$/)]],
       categoria: ['AUXILIAR', Validators.required],
       tipo_contrato: ['NOMBRADO', Validators.required],
-      fecha_ingreso: [null, Validators.required],
+      fecha_ingreso: [null, [Validators.required, fechaNoFuturaValidator()]],
     });
 
     const id = this.route.snapshot.paramMap.get('id');
@@ -62,7 +90,9 @@ export class DocenteFormComponent implements OnInit {
           this.loading = false;
         },
         error: () => {
+          this.snackBar.open('No se encontró el docente', 'Cerrar', { duration: 3000 });
           this.loading = false;
+          this.router.navigate(['/app/docentes']);
         },
       });
   }
@@ -91,13 +121,14 @@ export class DocenteFormComponent implements OnInit {
     request.subscribe({
       next: () => {
         this.snackBar.open(
-          this.isEdit ? 'Docente actualizado' : 'Docente creado',
-          'OK',
-          { duration: 2000 },
+          this.isEdit ? 'Docente actualizado exitosamente' : 'Docente registrado exitosamente',
+          'OK', { duration: 2500 },
         );
         this.router.navigate(['/app/docentes']);
       },
-      error: () => {
+      error: (err) => {
+        const mensaje = err?.error?.message || (this.isEdit ? 'Error al actualizar docente' : 'Error al registrar docente');
+        this.snackBar.open(mensaje, 'Cerrar', { duration: 5000 });
         this.saving = false;
       },
     });

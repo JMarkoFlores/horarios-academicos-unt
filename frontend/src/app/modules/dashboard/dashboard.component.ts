@@ -1,16 +1,11 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subscription } from 'rxjs';
 import { ChartData, ChartOptions } from 'chart.js';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PeriodoService } from '../../core/services/periodo.service';
-import {
-  ApiResponse,
-  KPIs,
-  ConflictoAsignacion,
-} from '../../core/interfaces/entities';
+import { ApiResponse, KPIs, MisKPIs, ConflictoAsignacion } from '../../core/interfaces/entities';
 
 @Component({
   selector: 'app-dashboard',
@@ -19,10 +14,25 @@ import {
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   kpis: KPIs | null = null;
+  misKpis: MisKPIs | null = null;
   conflictos: ConflictoAsignacion[] = [];
   loading = false;
   generando = false;
   private sub!: Subscription;
+  private _animateTimer: any;
+  private _heatmapCache = new Map<string, { color: string; tooltip: string }>();
+
+  readonly rol = this.authService.getUsuarioActual()?.rol ?? '';
+  readonly usuario = this.authService.getUsuarioActual();
+
+  isAdmin(): boolean { return this.rol === 'administradorsistema'; }
+  isCoord(): boolean { return this.rol === 'coordinadoracademico'; }
+  isDirector(): boolean { return this.rol === 'directorescuela'; }
+  isDocente(): boolean { return this.rol === 'docente'; }
+  isOperador(): boolean { return this.rol === 'operadorhorarios'; }
+  isAdminOrCoord(): boolean { return this.isAdmin() || this.isCoord(); }
+  canViewFullDashboard(): boolean { return this.isAdminOrCoord() || this.isDirector(); }
+  canGenerateHorario(): boolean { return this.isAdminOrCoord(); }
 
   conflictosColumns = ['tipo', 'descripcion', 'periodo', 'acciones'];
   ambienteColumns = ['codigo', 'tipo', 'capacidad', 'porcentaje'];
@@ -152,10 +162,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     );
   }
 
-  get usuario() {
-    return this.authService.getUsuarioActual();
-  }
-
   constructor(
     private api: ApiService,
     private authService: AuthService,
@@ -165,24 +171,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    if (this._animateTimer) clearInterval(this._animateTimer);
   }
 
   loadAll(): void {
-    this.loadKPIs();
-    this.loadConflictos();
+    if (this.isDocente()) {
+      this.loadMisKPIs();
+    } else {
+      this.loadKPIs();
+      this.loadConflictos();
+    }
   }
 
-  loadKPIs(): void {
+  loadMisKPIs(): void {
     this.loading = true;
     this.api
-      .get<
-        ApiResponse<KPIs>
-      >('/dashboard/kpis', { periodo: this.periodoService.periodo })
+      .get<ApiResponse<MisKPIs>>('/dashboard/mis-kpis', { periodo: this.periodoService.periodo })
       .subscribe({
         next: (res) => {
-          this.kpis = res.data;
-          this.animateCounters(res.data);
-          this.buildCharts(res.data);
+          this.misKpis = res.data;
+          this.buildDocenteCharts(res.data);
           this.loading = false;
         },
         error: () => {
@@ -191,39 +199,65 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
   }
 
+  private buildDocenteCharts(k: MisKPIs): void {
+    const barColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    this.barChartData = {
+      labels: k.distribucion_dia.map((d) => d.dia),
+      datasets: [
+        {
+          data: k.distribucion_dia.map((d) => d.horas),
+          label: 'Horas',
+          backgroundColor: k.distribucion_dia.map((_, i) => barColors[i % barColors.length] + '80'),
+          hoverBackgroundColor: k.distribucion_dia.map((_, i) => barColors[i % barColors.length]),
+          borderRadius: 4,
+          borderWidth: { right: 4, top: 4 },
+          borderColor: k.distribucion_dia.map((_, i) => barColors[i % barColors.length]),
+        },
+      ],
+    };
+  }
+
+  loadKPIs(): void {
+    this.loading = true;
+    this.api
+      .get<ApiResponse<KPIs>>('/dashboard/kpis', { periodo: this.periodoService.periodo })
+      .subscribe({
+        next: (res) => {
+          this.kpis = res.data;
+          this._heatmapCache.clear();
+          this.animateCounters(res.data);
+          this.buildCharts(res.data);
+          this.loading = false;
+        },
+        error: (err) => {
+          this.loading = false;
+          this.snackBar.open('Error al cargar el dashboard', 'Cerrar', { duration: 3000 });
+        },
+      });
+  }
+
   private animateCounters(data: KPIs): void {
+    if (this._animateTimer) clearInterval(this._animateTimer);
     const duration = 1500;
     const steps = 60;
     const interval = duration / steps;
-
     let currentStep = 0;
 
-    const timer = setInterval(() => {
+    this._animateTimer = setInterval(() => {
       currentStep++;
       const progress = currentStep / steps;
 
-      this.displayKPIs.total_docentes = Math.round(
-        data.total_docentes * progress,
-      );
-      this.displayKPIs.docentes_con_horario = Math.round(
-        data.docentes_con_horario * progress,
-      );
-      this.displayKPIs.porcentaje_docentes_asignados = Math.round(
-        data.porcentaje_docentes_asignados * progress,
-      );
-      this.displayKPIs.aulas_ocupadas = Math.round(
-        data.aulas_ocupadas * progress,
-      );
+      this.displayKPIs.total_docentes = Math.round(data.total_docentes * progress);
+      this.displayKPIs.docentes_con_horario = Math.round(data.docentes_con_horario * progress);
+      this.displayKPIs.porcentaje_docentes_asignados = Math.round(data.porcentaje_docentes_asignados * progress);
+      this.displayKPIs.aulas_ocupadas = Math.round(data.aulas_ocupadas * progress);
       this.displayKPIs.total_aulas = Math.round(data.total_aulas * progress);
-      this.displayKPIs.porcentaje_ocupacion_aulas = Math.round(
-        data.porcentaje_ocupacion_aulas * progress,
-      );
-      this.displayKPIs.conflictos_activos = Math.round(
-        data.conflictos_activos * progress,
-      );
+      this.displayKPIs.porcentaje_ocupacion_aulas = Math.round(data.porcentaje_ocupacion_aulas * progress);
+      this.displayKPIs.conflictos_activos = Math.round(data.conflictos_activos * progress);
 
-      if (currentStep === steps) {
-        clearInterval(timer);
+      if (currentStep >= steps) {
+        clearInterval(this._animateTimer);
+        this._animateTimer = null;
         this.displayKPIs = { ...data };
       }
     }, interval);
@@ -231,15 +265,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   loadConflictos(): void {
     this.api
-      .get<
-        ApiResponse<any>
-      >(`/horarios/conflictos/${this.periodoService.periodo}`)
+      .get<ApiResponse<any>>(`/horarios/conflictos/${this.periodoService.periodo}`)
       .subscribe({
         next: (res: any) => {
           const rawData = res.data?.items ?? res.data ?? [];
           this.conflictos = Array.isArray(rawData)
             ? rawData.filter((c: any) => !c.resuelto)
             : [];
+        },
+        error: () => {
+          this.snackBar.open('Error al cargar conflictos', 'Cerrar', { duration: 3000 });
         },
       });
   }
@@ -352,6 +387,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.generando = false;
+          this.snackBar.open('Error al generar horario', 'Cerrar', { duration: 3000 });
         },
       });
   }
@@ -365,26 +401,56 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.loadConflictos();
           this.loadKPIs();
         },
+        error: () => {
+          this.snackBar.open('Error al resolver conflicto', 'Cerrar', { duration: 3000 });
+        },
       });
   }
 
+  private _buildHeatmapCache(): void {
+    if (!this.kpis?.mapa_calor || this._heatmapCache.size > 0) return;
+    for (const cell of this.kpis.mapa_calor) {
+      const key = `${cell.dia}|${cell.hora}`;
+      if (cell.intensidad === 0) {
+        this._heatmapCache.set(key, { color: 'rgba(0,0,0,0.04)', tooltip: 'Sin clases' });
+        continue;
+      }
+      const alpha = Math.min(0.9, cell.intensidad / 100);
+      const color = cell.tipo_clase === 'LABORATORIO'
+        ? `rgba(34, 197, 94, ${alpha})`
+        : `rgba(59, 130, 246, ${alpha})`;
+      const tooltip = `${cell.dia} ${cell.hora} — Intensidad: ${cell.intensidad}% (${cell.tipo_clase})`;
+      this._heatmapCache.set(key, { color, tooltip });
+    }
+  }
+
   getHeatmapColor(dia: string, hora: string): string {
-    if (!this.kpis?.mapa_calor) return 'transparent';
-    const cell = this.kpis.mapa_calor.find(
-      (c) => c.dia === dia && c.hora === hora,
-    );
-    if (!cell || cell.intensidad === 0) return 'rgba(0,0,0,0.04)';
-    const alpha = Math.min(0.9, cell.intensidad / 100);
-    if (cell.tipo_clase === 'LABORATORIO') return `rgba(34, 197, 94, ${alpha})`;
-    return `rgba(59, 130, 246, ${alpha})`;
+    this._buildHeatmapCache();
+    return this._heatmapCache.get(`${dia}|${hora}`)?.color ?? 'transparent';
   }
 
   getHeatmapTooltip(dia: string, hora: string): string {
-    if (!this.kpis?.mapa_calor) return '';
-    const cell = this.kpis.mapa_calor.find(
-      (c) => c.dia === dia && c.hora === hora,
-    );
-    if (!cell || cell.intensidad === 0) return 'Sin clases';
-    return `${dia} ${hora} — Intensidad: ${cell.intensidad}% (${cell.tipo_clase})`;
+    this._buildHeatmapCache();
+    return this._heatmapCache.get(`${dia}|${hora}`)?.tooltip ?? '';
+  }
+
+  estadoPeriodoTexto(estado: string): string {
+    const map: Record<string, string> = {
+      planificacion: 'Planificación',
+      asignacionhorarios: 'Asignación de Horarios',
+      encurso: 'En Curso',
+      finalizado: 'Finalizado',
+    };
+    return map[estado] ?? estado;
+  }
+
+  progresoPeriodo(): number {
+    if (!this.kpis?.fecha_inicio_periodo || !this.kpis?.fecha_fin_periodo) return 0;
+    const start = new Date(this.kpis.fecha_inicio_periodo).getTime();
+    const end = new Date(this.kpis.fecha_fin_periodo).getTime();
+    const now = Date.now();
+    if (now <= start) return 0;
+    if (now >= end) return 100;
+    return Math.round(((now - start) / (end - start)) * 100);
   }
 }

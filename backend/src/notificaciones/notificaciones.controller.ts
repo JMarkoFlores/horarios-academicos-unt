@@ -74,6 +74,16 @@ export class NotificacionesController {
     return { message: "Notificación de prueba enviada" };
   }
 
+  @Post("test-cola/:docenteId")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Probar cola Bull con job inmediato" })
+  @ApiParam({ name: "docenteId", type: Number })
+  async testCola(@Param("docenteId", ParseIntPipe) docenteId: number) {
+    await this.notificacionesService.testJobCola(docenteId);
+    return { message: "Job de prueba agregado a la cola (ejecución inmediata)" };
+  }
+
   @Get("estadisticas")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("JWT")

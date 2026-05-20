@@ -6,18 +6,23 @@ import {
   IsInt,
   IsOptional,
   Min,
+  Max,
   MaxLength,
+  MinLength,
 } from "class-validator";
 import { TipoAmbiente } from "../../common/enums/tipo-ambiente.enum";
+import { EstadoAmbiente } from "../../common/enums/estado-ambiente.enum";
 
 export class CreateAmbienteDto {
   @ApiProperty({ example: "A-101" })
   @IsString()
+  @MinLength(2)
   @MaxLength(20)
   codigo: string;
 
   @ApiProperty({ example: "Aula A-101" })
   @IsString()
+  @MinLength(3)
   @MaxLength(100)
   nombre: string;
 
@@ -28,11 +33,14 @@ export class CreateAmbienteDto {
   @ApiProperty({ example: 35 })
   @IsInt()
   @Min(1)
+  @Max(500)
   capacidad: number;
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsInt()
+  @Min(-2)
+  @Max(20)
   piso?: number;
 
   @ApiPropertyOptional({ example: "Pabellón A" })
@@ -41,12 +49,23 @@ export class CreateAmbienteDto {
   @MaxLength(50)
   pabellon?: string;
 
-  @ApiPropertyOptional({ example: "30 PCs, proyector" })
+  @ApiPropertyOptional({ example: "Campus Central" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  sede?: string;
+
+  @ApiPropertyOptional({ example: "Proyector, 30 PCs, Aire acondicionado" })
   @IsOptional()
   @IsString()
   equipamiento?: string;
 
-  @ApiPropertyOptional({ description: "Estado activo/inactivo" })
+  @ApiPropertyOptional({ enum: EstadoAmbiente, example: EstadoAmbiente.ACTIVO })
+  @IsOptional()
+  @IsEnum(EstadoAmbiente, { message: "Estado de ambiente inválido" })
+  estado?: EstadoAmbiente;
+
+  @ApiPropertyOptional({ description: "Estado activo/inactivo (deprecated, usar estado)" })
   @IsOptional()
   @IsBoolean()
   activo?: boolean;

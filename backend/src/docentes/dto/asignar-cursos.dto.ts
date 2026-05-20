@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsArray, IsEnum, IsInt, ValidateNested } from "class-validator";
+import { IsArray, IsEnum, IsInt, IsOptional, IsString, ValidateNested } from "class-validator";
 import { TipoClase } from "../../common/enums/tipo-clase.enum";
 
 export class AsignarCursoItemDto {
@@ -26,4 +26,9 @@ export class AsignarCursosDto {
   @ValidateNested({ each: true })
   @Type(() => AsignarCursoItemDto)
   cursos: AsignarCursoItemDto[];
+
+  @ApiProperty({ example: "2026-I", required: false, description: "Código del período académico" })
+  @IsOptional()
+  @IsString()
+  periodo?: string;
 }

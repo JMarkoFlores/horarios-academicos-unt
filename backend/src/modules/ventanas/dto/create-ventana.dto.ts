@@ -8,6 +8,7 @@ import {
   Matches,
   Min,
 } from "class-validator";
+import { Transform } from "class-transformer";
 import { CategoriaDocente } from "../../../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../../../common/enums/tipo-contrato.enum";
 
@@ -21,6 +22,17 @@ export class CreateVentanaDto {
   fecha: string;
 
   @ApiProperty({ enum: CategoriaDocente })
+  @Transform(({ value }) => {
+    // Normalizar formato: "Jefe Práctica" -> "JEFE_PRACTICA"
+    if (typeof value === 'string') {
+      return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // quitar acentos
+        .toUpperCase()
+        .replace(/\s+/g, '_'); // espacios -> guiones bajos
+    }
+    return value;
+  })
   @IsEnum(CategoriaDocente)
   categoria: CategoriaDocente;
 

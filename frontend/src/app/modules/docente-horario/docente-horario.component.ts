@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { ApiResponse, HorarioAsignado } from '../../core/interfaces/entities';
@@ -8,10 +9,11 @@ import { ApiResponse, HorarioAsignado } from '../../core/interfaces/entities';
   templateUrl: './docente-horario.component.html',
   styleUrls: ['./docente-horario.component.scss']
 })
-export class DocenteHorarioComponent implements OnInit {
+export class DocenteHorarioComponent implements OnInit, OnDestroy {
   horarios: HorarioAsignado[] = [];
   loading = false;
   dias = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+  private periodSub?: Subscription;
 
   constructor(
     private api: ApiService,
@@ -20,6 +22,11 @@ export class DocenteHorarioComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarHorario();
+    this.periodSub = this.periodoService.periodo$.subscribe(() => this.cargarHorario());
+  }
+
+  ngOnDestroy(): void {
+    this.periodSub?.unsubscribe();
   }
 
   cargarHorario(): void {

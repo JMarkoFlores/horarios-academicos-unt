@@ -1,121 +1,126 @@
-import { Component, OnInit, ViewChild, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, HostListener } from '@angular/core';
+import { MatSelectChange } from '@angular/material/select';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatDialog } from '@angular/material/dialog';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import {
+  trigger,
+  state,
+  style,
+  transition,
+  animate,
+} from '@angular/animations';
 import { AuthService } from '../core/services/auth.service';
 import { PeriodoService } from '../core/services/periodo.service';
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
 import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialog/cambiar-password-dialog.component';
 import { Subscription } from 'rxjs';
 
+interface NavItem {
+  icon: string;
+  label: string;
+  route: string;
+  roles?: string[];
+}
+
+interface NavGroup {
+  label: string;
+  expanded: boolean;
+  items: NavItem[];
+}
+
 @Component({
   selector: 'app-layout',
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.scss'],
+  animations: [
+    trigger('groupExpand', [
+      state(
+        'collapsed',
+        style({ height: '0px', overflow: 'hidden', opacity: 0 }),
+      ),
+      state(
+        'expanded',
+        style({ height: '*', overflow: 'hidden', opacity: 1 }),
+      ),
+      transition('collapsed <=> expanded', animate('300ms cubic-bezier(0.4, 0, 0.2, 1)')),
+    ]),
+  ],
 })
-export class LayoutComponent implements OnInit {
+export class LayoutComponent implements OnInit, OnDestroy {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
   isDark = false;
   sectionTitle = 'Dashboard';
+  sidebarCollapsed = false;
 
-  navLinks: {
-    icon: string;
-    label: string;
-    route: string;
-    roles?: string[];
-  }[] = [
-    { icon: 'dashboard', label: 'Dashboard', route: '/app/dashboard' },
+  // Cachear usuario y navGroups para evitar recálculos en change detection
+  usuario = this.authService.getUsuarioActual();
+  private _visibleNavGroups: NavGroup[] = [];
+  private _routerSub!: Subscription;
+  private _resizeTimer: any;
+
+  // Grupos de navegación para mejor organización visual
+  navGroups: NavGroup[] = [
     {
-      icon: 'manage_accounts',
-      label: 'Usuarios',
-      route: '/app/usuarios',
-      roles: ['administradorsistema'],
-    },
-    { 
-      icon: 'people', 
-      label: 'Docentes', 
-      route: '/app/docentes',
-      roles: ['administradorsistema', 'coordinadoracademico'] 
-    },
-    { 
-      icon: 'menu_book', 
-      label: 'Cursos', 
-      route: '/app/cursos',
-      roles: ['administradorsistema', 'coordinadoracademico'] 
-    },
-    { 
-      icon: 'meeting_room', 
-      label: 'Ambientes', 
-      route: '/app/ambientes',
-      roles: ['administradorsistema', 'coordinadoracademico'] 
-    },
-    { 
-      icon: 'assignment_ind', 
-      label: 'Asignaciones', 
-      route: '/app/asignaciones',
-      roles: ['administradorsistema', 'coordinadoracademico'] 
+      label: 'Principal',
+      expanded: true,
+      items: [
+        { icon: 'dashboard', label: 'Dashboard', route: '/app/dashboard' },
+      ],
     },
     {
-      icon: 'event_available',
-      label: 'Disponibilidad',
-      route: '/app/disponibilidad',
-      roles: ['administradorsistema', 'coordinadoracademico']
-    },
-    { 
-      icon: 'table_chart', 
-      label: 'Reportes', 
-      route: '/app/reportes',
-      roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] 
-    },
-    { icon: 'schedule', label: 'Horarios', route: '/app/horarios', roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
-    { icon: 'schedule', label: 'Mis Horarios', route: '/app/mis-horarios', roles: ['docente'] },
-    { icon: 'notifications', label: 'Notificaciones', route: '/app/notificaciones', roles: ['docente', 'administradorsistema'] },
-    { 
-      icon: 'analytics', 
-      label: 'Analytics', 
-      route: '/app/analytics',
-      roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] 
-    },
-    { 
-      icon: 'support_agent', 
-      label: 'Operador', 
-      route: '/app/operador',
-      roles: ['administradorsistema', 'coordinadoracademico', 'operadorhorarios'] 
+      label: 'Gestión Académica',
+      expanded: true,
+      items: [
+        { icon: 'people', label: 'Docentes', route: '/app/docentes', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'menu_book', label: 'Cursos', route: '/app/cursos', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'meeting_room', label: 'Ambientes', route: '/app/ambientes', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'assignment_ind', label: 'Asignaciones', route: '/app/asignaciones', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'event_available', label: 'Disponibilidad', route: '/app/disponibilidad', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'assignment_turned_in', label: 'Preasignaciones', route: '/app/preasignaciones', roles: ['administradorsistema', 'coordinadoracademico'] },
+      ],
     },
     {
-      icon: 'assignment_turned_in',
-      label: 'Preasignaciones',
-      route: '/app/preasignaciones',
-      roles: ['administradorsistema', 'coordinadoracademico']
+      label: 'Operaciones',
+      expanded: true,
+      items: [
+        { icon: 'schedule', label: 'Horarios', route: '/app/horarios', roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
+        { icon: 'schedule', label: 'Mis Horarios', route: '/app/mis-horarios', roles: ['docente'] },
+        { icon: 'support_agent', label: 'Operador', route: '/app/operador', roles: ['administradorsistema', 'coordinadoracademico', 'operadorhorarios'] },
+      ],
     },
     {
-      icon: 'history',
-      label: 'Auditoría',
-      route: '/app/auditoria',
-      roles: ['administradorsistema', 'coordinadoracademico']
+      label: 'Reportes y Análisis',
+      expanded: true,
+      items: [
+        { icon: 'table_chart', label: 'Reportes', route: '/app/reportes', roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
+        { icon: 'analytics', label: 'Analytics', route: '/app/analytics', roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
+      ],
     },
     {
-      icon: 'event_note',
-      label: 'Periodos',
-      route: '/app/periodos',
-      roles: ['administradorsistema', 'coordinadoracademico'],
-    },
-    {
-      icon: 'settings',
-      label: 'Configuración',
-      route: '/app/configuracion',
-      roles: ['administradorsistema'],
+      label: 'Sistema',
+      expanded: true,
+      items: [
+        { icon: 'manage_accounts', label: 'Usuarios', route: '/app/usuarios', roles: ['administradorsistema'] },
+        { icon: 'event_note', label: 'Periodos', route: '/app/periodos', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'notifications', label: 'Notificaciones', route: '/app/notificaciones', roles: ['docente', 'administradorsistema'] },
+        { icon: 'history', label: 'Auditoría', route: '/app/auditoria', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'settings', label: 'Configuración', route: '/app/configuracion', roles: ['administradorsistema'] },
+      ],
     },
   ];
 
   @HostListener('window:resize')
   onResize(): void {
-    const wasMobile = this.isMobile;
-    this.isMobile = window.innerWidth < 768;
-    if (!wasMobile && this.isMobile) this.sidenav?.close();
-    if (wasMobile && !this.isMobile) this.sidenav?.open();
+    clearTimeout(this._resizeTimer);
+    this._resizeTimer = setTimeout(() => {
+      const wasMobile = this.isMobile;
+      this.isMobile = window.innerWidth < 768;
+      if (!wasMobile && this.isMobile) this.sidenav?.close();
+      if (wasMobile && !this.isMobile) this.sidenav?.open();
+    }, 150);
   }
 
   private titleMap: Record<string, string> = {
@@ -137,6 +142,13 @@ export class LayoutComponent implements OnInit {
     notificaciones: 'Notificaciones y Preferencias',
   };
 
+  private _rutasSinPeriodo = new Set([
+    'docentes', 'cursos', 'ambientes',
+    'configuracion', 'periodos', 'usuarios',
+    'notificaciones',
+  ]);
+  showPeriodoSelector = true;
+
   constructor(
     public authService: AuthService,
     public periodoService: PeriodoService,
@@ -149,31 +161,65 @@ export class LayoutComponent implements OnInit {
     this.isDark = false;
     document.body.classList.remove('dark-theme');
     document.body.classList.add('light-theme');
-    
-    // Cargar periodos desde la base de datos
+
+    // Cachear grupos de navegación filtrados por rol (solo una vez)
+    this._computeVisibleNavGroups();
+
+    // Cargar periodos desde la base de datos (no bloqueante)
     this.periodoService.cargarPeriodos();
 
-    this.router.events
+    this._routerSub = this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe((e: any) => {
         const seg = (e.urlAfterRedirects as string).split('/')[2] ?? '';
         this.sectionTitle = this.titleMap[seg] ?? 'Sistema de Horarios UNT';
+        this.showPeriodoSelector = !this._rutasSinPeriodo.has(seg);
       });
   }
 
-  get usuario() {
-    return this.authService.getUsuarioActual();
+  ngOnDestroy(): void {
+    if (this._routerSub) {
+      this._routerSub.unsubscribe();
+    }
+    clearTimeout(this._resizeTimer);
   }
 
-  get visibleNavLinks() {
-    return this.navLinks.filter((l) => {
-      if (!l.roles || l.roles.length === 0) return true;
-      return this.authService.hasRole(...l.roles);
-    });
+  private _computeVisibleNavGroups(): void {
+    this._visibleNavGroups = this.navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          if (!item.roles || item.roles.length === 0) return true;
+          return this.authService.hasRole(...item.roles);
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }
+
+  get visibleNavGroups(): NavGroup[] {
+    return this._visibleNavGroups;
+  }
+
+  toggleGroup(group: NavGroup): void {
+    if (this.sidebarCollapsed) {
+      this.sidebarCollapsed = false;
+      group.expanded = true;
+      return;
+    }
+    group.expanded = !group.expanded;
+  }
+
+  toggleSidebarCollapsed(): void {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
   }
 
   toggleSidenav(): void {
     this.sidenav.toggle();
+  }
+
+
+  onPeriodoChange(ev: MatSelectChange): void {
+    this.periodoService.cambiarPeriodo(ev.value);
   }
 
   toggleDarkMode(): void {

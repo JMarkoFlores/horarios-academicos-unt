@@ -24,9 +24,12 @@
           <div class="fields-grid">
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Código de Ambiente</mat-label>
-              <input matInput formControlName="codigo" placeholder="Ej. A-101">
+              <input matInput formControlName="codigo" placeholder="Ej. A-101" [maxlength]="20">
               <mat-icon matPrefix>qr_code</mat-icon>
               <mat-error *ngIf="form.get('codigo')?.hasError('required')">El código es obligatorio</mat-error>
+              <mat-error *ngIf="form.get('codigo')?.hasError('minlength')">Mínimo 2 caracteres</mat-error>
+              <mat-error *ngIf="form.get('codigo')?.hasError('duplicado')">Este código ya existe</mat-error>
+              <mat-error *ngIf="form.get('codigo')?.hasError('backend')">{{ form.get('codigo')?.getError('backend') }}</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
@@ -39,21 +42,24 @@
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Tipo de Espacio</mat-label>
               <mat-select formControlName="tipo">
-                <mat-option value="AULA">
-                  <mat-icon>meeting_room</mat-icon> Aula Común
-                </mat-option>
-                <mat-option value="LABORATORIO">
-                  <mat-icon>biotech</mat-icon> Laboratorio Especializado
-                </mat-option>
+                <mat-option value="AULA">Aula Común</mat-option>
+                <mat-option value="LABORATORIO">Laboratorio Especializado</mat-option>
+                <mat-option value="AUDITORIO">Auditorio</mat-option>
+                <mat-option value="TALLER">Taller</mat-option>
+                <mat-option value="SEMINARIO">Sala de Seminario</mat-option>
+                <mat-option value="SALA_COMPUTACION">Sala de Cómputo</mat-option>
               </mat-select>
               <mat-icon matPrefix>category</mat-icon>
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Capacidad Máxima</mat-label>
-              <input matInput type="number" formControlName="capacidad" min="1">
+              <input matInput type="number" formControlName="capacidad" min="1" max="500">
               <mat-icon matPrefix>groups</mat-icon>
+              <mat-hint>1 a 500 estudiantes</mat-hint>
               <mat-error *ngIf="form.get('capacidad')?.hasError('required')">Indica el aforo</mat-error>
+              <mat-error *ngIf="form.get('capacidad')?.hasError('min')">Mínimo 1</mat-error>
+              <mat-error *ngIf="form.get('capacidad')?.hasError('max')">Máximo 500</mat-error>
             </mat-form-field>
           </div>
         </div>
@@ -67,6 +73,12 @@
 
           <div class="fields-grid">
             <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Sede / Campus</mat-label>
+              <input matInput formControlName="sede" placeholder="Ej. Campus Central">
+              <mat-icon matPrefix>location_city</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Pabellón</mat-label>
               <input matInput formControlName="pabellon" placeholder="Ej. Pabellón B">
               <mat-icon matPrefix>apartment</mat-icon>
@@ -74,15 +86,40 @@
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Nivel / Piso</mat-label>
-              <input matInput type="number" formControlName="piso" placeholder="1">
+              <input matInput type="number" formControlName="piso" placeholder="1" min="-2" max="20">
               <mat-icon matPrefix>layers</mat-icon>
+              <mat-hint>-2 a 20</mat-hint>
             </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field full-width-field">
-              <mat-label>Equipamiento Disponible</mat-label>
-              <textarea matInput formControlName="equipamiento" rows="3" placeholder="Ej. Proyector, 40 PCs i7, Aire acondicionado..."></textarea>
-              <mat-icon matPrefix>settings_input_component</mat-icon>
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Estado</mat-label>
+              <mat-select formControlName="estado">
+                <mat-option value="ACTIVO">Operativo</mat-option>
+                <mat-option value="MANTENIMIENTO">En mantenimiento</mat-option>
+                <mat-option value="RESERVADO">Reservado</mat-option>
+                <mat-option value="INACTIVO">Inactivo</mat-option>
+              </mat-select>
+              <mat-icon matPrefix>toggle_on</mat-icon>
             </mat-form-field>
+
+            <div class="premium-field full-width-field equipamiento-field">
+              <mat-label class="equip-label">Equipamiento Disponible</mat-label>
+              <mat-chip-grid #chipGrid>
+                <mat-chip-row *ngFor="let chip of equipamientoChips" (removed)="removeEquipamiento(chip)">
+                  {{ chip }}
+                  <button matChipRemove><mat-icon>cancel</mat-icon></button>
+                </mat-chip-row>
+                <input matInput formControlName="equipamiento" hidden />
+              </mat-chip-grid>
+              <div class="equip-suggestions">
+                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Proyector')">+ Proyector</button>
+                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('PCs')">+ PCs</button>
+                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Aire acondicionado')">+ A/C</button>
+                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Pizarra interactiva')">+ Pizarra</button>
+                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Internet')">+ Internet</button>
+                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Sonido')">+ Sonido</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -2,11 +2,13 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Ambiente } from "../entities/ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { CreateAmbienteDto } from "./dto/create-ambiente.dto";
 import { UpdateAmbienteDto } from "./dto/update-ambiente.dto";
 import { QueryAmbienteDto } from "./dto/query-ambiente.dto";
@@ -21,7 +23,7 @@ export class AmbientesService {
   ) {}
 
   async findAll(query: QueryAmbienteDto) {
-    const { page = 1, limit = 20, tipo, activo } = query;
+    const { page = 1, limit = 20, tipo, estado, activo, busqueda, pabellon, sede, capacidadMin, capacidadMax } = query;
 
     const qb = this.ambienteRepo.createQueryBuilder("ambiente");
 
@@ -29,9 +31,34 @@ export class AmbientesService {
       qb.andWhere("ambiente.tipo = :tipo", { tipo });
     }
 
-    if (activo !== undefined) {
+    if (estado !== undefined) {
+      qb.andWhere("ambiente.estado = :estado", { estado });
+    } else if (activo !== undefined) {
       const activoBool = activo === "true";
       qb.andWhere("ambiente.activo = :activo", { activo: activoBool });
+    }
+
+    if (busqueda) {
+      qb.andWhere(
+        "(ambiente.codigo LIKE :q OR ambiente.nombre LIKE :q OR ambiente.pabellon LIKE :q OR ambiente.equipamiento LIKE :q)",
+        { q: `%${busqueda}%` },
+      );
+    }
+
+    if (pabellon) {
+      qb.andWhere("ambiente.pabellon = :pabellon", { pabellon });
+    }
+
+    if (sede) {
+      qb.andWhere("ambiente.sede = :sede", { sede });
+    }
+
+    if (capacidadMin !== undefined) {
+      qb.andWhere("ambiente.capacidad >= :capacidadMin", { capacidadMin });
+    }
+
+    if (capacidadMax !== undefined) {
+      qb.andWhere("ambiente.capacidad <= :capacidadMax", { capacidadMax });
     }
 
     const [items, total] = await qb
@@ -39,10 +66,6 @@ export class AmbientesService {
       .addOrderBy("ambiente.codigo", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
-      .cache(
-        `ambientes_list_${tipo ?? "all"}_${activo ?? "default"}_${page}_${limit}`,
-        60000,
-      )
       .getManyAndCount();
 
     return {
@@ -72,11 +95,15 @@ export class AmbientesService {
 
     if (existe) {
       throw new ConflictException(
-        `El código de ambiente '${dto.codigo}' ya existe`,
+        { field: "codigo", value: dto.codigo },
+        `El código de ambiente '${dto.codigo}' ya está registrado. Use un código diferente.`,
       );
     }
 
-    const ambiente = this.ambienteRepo.create({ ...dto, activo: true });
+    const ambiente = this.ambienteRepo.create({
+      ...dto,
+      estado: dto.estado ?? EstadoAmbiente.ACTIVO,
+    });
     return this.ambienteRepo.save(ambiente);
   }
 
@@ -88,17 +115,39 @@ export class AmbientesService {
         where: { codigo: dto.codigo },
       });
       if (existe) {
-        throw new ConflictException(`El código '${dto.codigo}' ya está en uso`);
+        throw new ConflictException(
+          { field: "codigo", value: dto.codigo },
+          `El código '${dto.codigo}' ya está en uso por otro ambiente`,
+        );
       }
     }
 
+    // Warn if reducing capacity below assigned group size (optional future enhancement)
     const actualizado = this.ambienteRepo.merge(ambiente, dto);
     return this.ambienteRepo.save(actualizado);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, periodoActual?: string): Promise<void> {
     const ambiente = await this.findOne(id);
-    await this.ambienteRepo.save({ ...ambiente, activo: false });
+
+    // Check for active assignments before deactivating
+    if (periodoActual) {
+      const horariosAsignados = await this.horarioRepo.count({
+        where: {
+          ambiente: { id: ambiente.id },
+          periodo: periodoActual,
+        },
+      });
+
+      if (horariosAsignados > 0) {
+        throw new BadRequestException(
+          `No se puede desactivar "${ambiente.nombre}" porque tiene ${horariosAsignados} horario(s) asignado(s) en el período ${periodoActual}. Reasigne o elimine los horarios primero.`,
+        );
+      }
+    }
+
+    ambiente.estado = EstadoAmbiente.INACTIVO;
+    await this.ambienteRepo.save(ambiente);
   }
 
   async getDisponibilidad(
@@ -108,6 +157,10 @@ export class AmbientesService {
     limit = 20,
   ) {
     await this.findOne(ambienteId);
+
+    if (!periodo || periodo.trim() === "") {
+      return { data: [], total: 0, page, limit };
+    }
 
     const [horarios, total] = await this.horarioRepo
       .createQueryBuilder("horario")
@@ -121,10 +174,6 @@ export class AmbientesService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
-      .cache(
-        `horarios_periodo_${periodo}_ambiente_${ambienteId}_${page}_${limit}`,
-        60000,
-      )
       .getManyAndCount();
 
     const diasNombre = [

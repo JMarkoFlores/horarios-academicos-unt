@@ -108,6 +108,15 @@ export class CursosController {
     return { data: result, message: "Curso actualizado correctamente" };
   }
 
+  @Patch(":id/reactivar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: "Reactivar un curso desactivado" })
+  @ApiParam({ name: "id", type: Number })
+  async reactivar(@Param("id", ParseIntPipe) id: number) {
+    const result = await this.cursosService.reactivar(id);
+    return { data: result, message: "Curso reactivado correctamente" };
+  }
+
   @Delete(":id")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
   @HttpCode(HttpStatus.OK)

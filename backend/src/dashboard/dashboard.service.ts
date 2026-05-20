@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Cache } from "cache-manager";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -8,6 +8,9 @@ import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 import { Docente } from "../entities/docente.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { Curso } from "../entities/curso.entity";
+import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 
@@ -23,6 +26,12 @@ export class DashboardService {
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
     @InjectRepository(Curso) private readonly cursoRepo: Repository<Curso>,
+    @InjectRepository(DisponibilidadDocente)
+    private readonly disponibilidadRepo: Repository<DisponibilidadDocente>,
+    @InjectRepository(PeriodoAcademico)
+    private readonly periodoRepo: Repository<PeriodoAcademico>,
+    @InjectRepository(AuditoriaHorario)
+    private readonly auditoriaRepo: Repository<AuditoriaHorario>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -39,9 +48,13 @@ export class DashboardService {
       totalLaboratorios,
       totalCursos,
       conflictosActivos,
+      totalConflictos,
       horarios,
       docentes,
       ambientes,
+      docentesConDisponibilidad,
+      periodoActivo,
+      ultimaGeneracion,
     ] = await Promise.all([
       this.docenteRepo.count({ where: { activo: true } }),
       this.ambienteRepo.count({
@@ -54,6 +67,9 @@ export class DashboardService {
       this.conflictoRepo.count({
         where: { periodo_academico: periodo, resuelto: false },
       }),
+      this.conflictoRepo.count({
+        where: { periodo_academico: periodo },
+      }),
       this.horarioRepo
         .createQueryBuilder("horario")
         .leftJoinAndSelect("horario.docente", "docente")
@@ -65,6 +81,23 @@ export class DashboardService {
         .getMany(),
       this.docenteRepo.find({ where: { activo: true } }),
       this.ambienteRepo.find({ where: { activo: true } }),
+      this.disponibilidadRepo
+        .createQueryBuilder("d")
+        .select("COUNT(DISTINCT d.docente_id)", "count")
+        .where("d.periodo_academico = :periodo", { periodo })
+        .getRawOne()
+        .then((r) => Number(r?.count ?? 0)),
+      this.periodoRepo.findOne({
+        where: { codigo: periodo },
+        select: ["estado", "fecha_inicio", "fecha_fin"],
+      }),
+      this.auditoriaRepo
+        .createQueryBuilder("a")
+        .select(["a.accion", "a.creado_en"])
+        .where("a.accion LIKE :accion", { accion: "%generar%" })
+        .orderBy("a.creado_en", "DESC")
+        .limit(1)
+        .getOne(),
     ]);
 
     const docentesConHorario = new Set(
@@ -203,6 +236,14 @@ export class DashboardService {
 
     const progresoSemanal = this.calcularProgresoSemanal(horarios);
 
+    const docentesSinDisponibilidad = totalDocentes - docentesConDisponibilidad;
+    const cursosSinAsignar = totalCursos - cursosAsignados;
+    const conflictosResueltos = totalConflictos - conflictosActivos;
+    const tasaResolucion =
+      totalConflictos > 0
+        ? Math.round((conflictosResueltos / totalConflictos) * 100)
+        : 100;
+
     const result = {
       total_docentes: totalDocentes,
       docentes_con_horario: docentesConHorario,
@@ -210,6 +251,11 @@ export class DashboardService {
       porcentaje_docentes_asignados:
         totalDocentes > 0
           ? Math.round((docentesConHorario / totalDocentes) * 100)
+          : 0,
+      docentes_sin_disponibilidad: docentesSinDisponibilidad,
+      porcentaje_docentes_con_disponibilidad:
+        totalDocentes > 0
+          ? Math.round((docentesConDisponibilidad / totalDocentes) * 100)
           : 0,
       total_aulas: totalAulas,
       aulas_ocupadas: aulasOcupadas,
@@ -223,7 +269,11 @@ export class DashboardService {
           : 0,
       total_cursos: totalCursos,
       cursos_asignados: cursosAsignados,
+      cursos_sin_asignar: cursosSinAsignar,
       conflictos_activos: conflictosActivos,
+      conflictos_resueltos: conflictosResueltos,
+      tasa_resolucion_conflictos: tasaResolucion,
+      total_conflictos: totalConflictos,
       horas_promedio_por_docente: Math.round(horasPromedio * 10) / 10,
       horas_mediana_por_docente: Math.round(horasMediana * 10) / 10,
       distribucion_por_categoria: distribucionCategoria,
@@ -233,11 +283,80 @@ export class DashboardService {
       mapa_calor: mapaCalor,
       actividad_reciente: actividadReciente,
       progreso_semanal: progresoSemanal,
+      estado_periodo: periodoActivo?.estado ?? "desconocido",
+      fecha_inicio_periodo: periodoActivo?.fecha_inicio ?? null,
+      fecha_fin_periodo: periodoActivo?.fecha_fin ?? null,
+      ultima_generacion_horario: ultimaGeneracion?.creado_en ?? null,
     };
 
     await this.cacheManager.set(cacheKey, result, 60000);
 
     return result;
+  }
+
+  async getMisKPIs(email: string, periodo: string) {
+    const docente = await this.docenteRepo.findOne({ where: { email } });
+    if (!docente) throw new NotFoundException("Docente no encontrado");
+
+    const horarios = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("horario.docente_id = :docenteId", { docenteId: docente.id })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .getMany();
+
+    const totalHoras = horarios.reduce(
+      (sum, h) => sum + this.calcularDuracion(h.hora_inicio, h.hora_fin),
+      0,
+    );
+
+    const cursosUnicos = new Set(horarios.map((h) => h.curso?.nombre).filter(Boolean));
+    const ambientesUnicos = new Set(horarios.map((h) => h.ambiente?.codigo).filter(Boolean));
+    const diasConClase = new Set(horarios.map((h) => h.dia)).size;
+
+    // Próximas clases (ordenadas por día/hora)
+    const diasOrden = { Lunes: 1, Martes: 2, Miércoles: 3, Jueves: 4, Viernes: 5 };
+    const proximasClases = horarios
+      .map((h) => ({
+        dia: h.dia,
+        diaNombre: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"][h.dia] || "",
+        hora_inicio: h.hora_inicio.substring(0, 5),
+        hora_fin: h.hora_fin.substring(0, 5),
+        curso: h.curso?.nombre || "Curso",
+        ambiente: h.ambiente?.codigo || "",
+        tipo: h.tipo_clase,
+        grupo: h.grupo?.codigo || "",
+      }))
+      .sort((a, b) => a.dia - b.dia || a.hora_inicio.localeCompare(b.hora_inicio))
+      .slice(0, 5);
+
+    // Distribución por día
+    const distribucionDia = [1, 2, 3, 4, 5].map((dia) => {
+      const horasDia = horarios
+        .filter((h) => h.dia === dia)
+        .reduce((sum, h) => sum + this.calcularDuracion(h.hora_inicio, h.hora_fin), 0);
+      return {
+        dia: ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"][dia],
+        horas: Math.round(horasDia * 10) / 10,
+      };
+    });
+
+    return {
+      docente: {
+        nombre: `${docente.nombres} ${docente.apellidos}`,
+        categoria: docente.categoria,
+        tipo_contrato: docente.tipo_contrato,
+      },
+      total_horas: Math.round(totalHoras * 10) / 10,
+      total_cursos: cursosUnicos.size,
+      total_ambientes: ambientesUnicos.size,
+      dias_con_clase: diasConClase,
+      total_asignaciones: horarios.length,
+      proximas_clases: proximasClases,
+      distribucion_dia: distribucionDia,
+    };
   }
 
   private calcularDuracion(inicio: string, fin: string): number {

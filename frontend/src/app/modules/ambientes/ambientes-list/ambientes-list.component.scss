@@ -20,6 +20,7 @@
         var(--color-primary),
         var(--color-accent)
       );
+      background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin: 0;
@@ -54,6 +55,34 @@
   }
 }
 
+// ── SEARCH BAR ────────────────────────────────────────────────────────────
+.search-card-premium {
+  padding: 12px 20px !important;
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--color-border) !important;
+  background: var(--color-surface) !important;
+
+  .search-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+
+    .search-field {
+      flex: 1;
+
+      ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+      }
+    }
+
+    .btn-limpiar {
+      height: 48px;
+      border-radius: 12px;
+      color: var(--color-text-muted);
+    }
+  }
+}
+
 // ── FILTERS PREMIUM ───────────────────────────────────────────────────────
 .filter-card-premium {
   padding: 12px 20px !important;
@@ -66,6 +95,7 @@
     display: flex;
     gap: 20px;
     align-items: center;
+    flex-wrap: wrap;
 
     .filter-label-group {
       display: flex;
@@ -86,6 +116,30 @@
       width: 1px;
       height: 24px;
       background: var(--color-border);
+    }
+
+    &.secondary-filters {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--color-border);
+      gap: 12px;
+
+      .filter-field {
+        width: 180px;
+
+        &.small {
+          width: 100px;
+        }
+
+        &.invalid-range ::ng-deep .mat-mdc-text-field-wrapper {
+          border: 1.5px solid #ef4444 !important;
+          background: rgba(239, 68, 68, 0.06) !important;
+        }
+
+        ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+          display: none;
+        }
+      }
     }
   }
 }
@@ -214,6 +268,26 @@
     background: rgba(168, 85, 247, 0.1);
     color: #a855f7;
   }
+
+  &.AUDITORIO {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
+  }
+
+  &.TALLER {
+    background: rgba(249, 115, 22, 0.1);
+    color: #f97316;
+  }
+
+  &.SEMINARIO {
+    background: rgba(14, 165, 233, 0.1);
+    color: #0ea5e9;
+  }
+
+  &.SALA_COMPUTACION {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+  }
 }
 
 .capacity-badge {
@@ -273,7 +347,7 @@
     }
   }
 
-  &.active {
+  &.estado-activo {
     color: #10b981;
     background: rgba(16, 185, 129, 0.1);
     .dot {
@@ -284,7 +358,29 @@
     }
   }
 
-  &.inactive {
+  &.estado-mantenimiento {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    .dot {
+      background: #f59e0b;
+      &::after {
+        display: none;
+      }
+    }
+  }
+
+  &.estado-reservado {
+    color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.1);
+    .dot {
+      background: #8b5cf6;
+      &::after {
+        display: none;
+      }
+    }
+  }
+
+  &.estado-inactivo {
     color: #ef4444;
     background: rgba(239, 68, 68, 0.1);
     .dot {

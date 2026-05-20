@@ -44,7 +44,7 @@ import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
         password: config.get<string>("DATABASE_PASSWORD", "unt_pass123"),
         autoLoadEntities: true,
         synchronize: config.get<string>("NODE_ENV") === "development",
-        logging: config.get<string>("NODE_ENV") === "development",
+        logging: config.get<string>("DATABASE_LOGGING") === "true",
         ssl: false,
       }),
     }),

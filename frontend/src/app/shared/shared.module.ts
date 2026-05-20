@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ConfirmDialogComponent } from './dialogs/confirm-dialog/confirm-dialog.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -29,7 +30,6 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { NgChartsModule } from 'ng2-charts';
 
 const MATERIAL = [
   MatButtonModule,
@@ -62,12 +62,12 @@ const MATERIAL = [
 ];
 
 @NgModule({
+  declarations: [ConfirmDialogComponent],
   imports: [
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
-    NgChartsModule,
     ...MATERIAL,
   ],
   exports: [
@@ -75,8 +75,8 @@ const MATERIAL = [
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
-    NgChartsModule,
     ...MATERIAL,
+    ConfirmDialogComponent,
   ],
 })
 export class SharedModule {}

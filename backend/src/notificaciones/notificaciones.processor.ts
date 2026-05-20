@@ -1,4 +1,4 @@
-import { Processor, Process, OnQueueFailed, OnQueueCompleted } from "@nestjs/bull";
+import { Processor, Process, OnQueueFailed, OnQueueCompleted, OnQueueActive, OnQueueWaiting } from "@nestjs/bull";
 import { Job } from "bull";
 import { Logger } from "@nestjs/common";
 import { NotificacionesService, ResultadoEnvio } from "./notificaciones.service";
@@ -9,6 +9,53 @@ export class NotificacionesProcessor {
   private readonly logger = new Logger(NotificacionesProcessor.name);
 
   constructor(private readonly notificacionesService: NotificacionesService) {}
+
+  @Process({ name: "recordatorio-24h", concurrency: 3 })
+  async handleRecordatorio24h(job: Job<NotificacionJobData>) {
+    this.logger.log(`[Recordatorio-24h] Procesando job ${job.id} - Docente ${job.data.docenteId}`);
+    try {
+      await this.notificacionesService.procesarRecordatorio(
+        job.data.docenteId,
+        job.data.ventanaId!,
+        "24h",
+      );
+      this.logger.log(`[Recordatorio-24h] ✅ Completado job ${job.id}`);
+    } catch (error: any) {
+      this.logger.error(`[Recordatorio-24h] ❌ Error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Process({ name: "alerta-15min", concurrency: 3 })
+  async handleAlerta15min(job: Job<NotificacionJobData>) {
+    this.logger.log(`[Alerta-15min] Procesando job ${job.id} - Docente ${job.data.docenteId}`);
+    try {
+      await this.notificacionesService.procesarRecordatorio(
+        job.data.docenteId,
+        job.data.ventanaId!,
+        "15min",
+      );
+      this.logger.log(`[Alerta-15min] ✅ Completado job ${job.id}`);
+    } catch (error: any) {
+      this.logger.error(`[Alerta-15min] ❌ Error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Process({ name: "horario-confirmado", concurrency: 2 })
+  async handleHorarioConfirmado(job: Job<NotificacionJobData>) {
+    this.logger.log(`[Horario-Confirmado] Procesando job ${job.id} - Docente ${job.data.docenteId}`);
+    try {
+      await this.notificacionesService.procesarHorarioConfirmado(
+        job.data.docenteId,
+        job.data.periodo!,
+      );
+      this.logger.log(`[Horario-Confirmado] ✅ Completado job ${job.id}`);
+    } catch (error: any) {
+      this.logger.error(`[Horario-Confirmado] ❌ Error: ${error.message}`);
+      throw error;
+    }
+  }
 
   @Process({ name: "enviar-email", concurrency: 3 })
   async handleEnviarEmail(job: Job<NotificacionJobData>) {
@@ -157,17 +204,31 @@ export class NotificacionesProcessor {
     }
   }
 
+  @OnQueueActive()
+  onActive(job: Job) {
+    this.logger.log(
+      `🔄 Job ${job.id} (tipo: ${job.name}) se ha activado - Docente ${job.data.docenteId}`,
+    );
+  }
+
+  @OnQueueWaiting()
+  onWaiting(jobId: number | string) {
+    this.logger.log(
+      `⏳ Job ${jobId} está en espera en la cola`,
+    );
+  }
+
   @OnQueueCompleted()
   onCompleted(job: Job, result: any) {
     this.logger.log(
-      `✅ Job ${job.id} completado exitosamente. Resultado: ${JSON.stringify(result)}`,
+      `✅ Job ${job.id} (tipo: ${job.name}) completado exitosamente. Resultado: ${JSON.stringify(result)}`,
     );
   }
 
   @OnQueueFailed()
   onFailed(job: Job, err: Error) {
     this.logger.error(
-      `❌ Job ${job.id} falló después de ${job.attemptsMade} intentos: ${err.message}`,
+      `❌ Job ${job.id} (tipo: ${job.name}) falló después de ${job.attemptsMade} intentos: ${err.message}`,
     );
 
     // Registrar fallo final en historial

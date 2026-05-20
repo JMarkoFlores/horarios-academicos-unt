@@ -209,27 +209,27 @@
 <mat-menu #cursosMenu="matMenu" class="premium-menu">
   <div class="menu-search" (click)="$event.stopPropagation()">
     <mat-icon>search</mat-icon>
-    <input type="text" placeholder="Buscar curso..." #cursoSearch (input)="0">
+    <input type="text" placeholder="Buscar curso..." [(ngModel)]="filtroCursos" (input)="$event.stopPropagation()">
   </div>
   <div class="menu-items">
-    <button mat-menu-item *ngFor="let curso of todosCursos" (click)="agregarCurso(curso)">
+    <button mat-menu-item *ngFor="let curso of cursosFiltrados" (click)="agregarCurso(curso)">
       <span class="menu-code">{{ curso.codigo }}</span>
       <span>{{ curso.nombre }}</span>
     </button>
-    <div class="menu-empty" *ngIf="!serviciosDisponibles.cursos">Servicio no disponible</div>
+    <div class="menu-empty" *ngIf="cursosFiltrados.length === 0">No se encontraron cursos</div>
   </div>
 </mat-menu>
 
 <mat-menu #ambientesMenu="matMenu" class="premium-menu">
   <div class="menu-search" (click)="$event.stopPropagation()">
     <mat-icon>search</mat-icon>
-    <input type="text" placeholder="Buscar ambiente..." #ambSearch (input)="0">
+    <input type="text" placeholder="Buscar ambiente..." [(ngModel)]="filtroAmbientes" (input)="$event.stopPropagation()">
   </div>
   <div class="menu-items">
-    <button mat-menu-item *ngFor="let amb of todosAmbientes" (click)="agregarAmbiente(amb)">
+    <button mat-menu-item *ngFor="let amb of ambientesFiltrados" (click)="agregarAmbiente(amb)">
       <span class="menu-code">{{ amb.codigo }}</span>
       <span>{{ amb.nombre }}</span>
     </button>
-    <div class="menu-empty" *ngIf="!serviciosDisponibles.ambientes">Servicio no disponible</div>
+    <div class="menu-empty" *ngIf="ambientesFiltrados.length === 0">No se encontraron ambientes</div>
   </div>
 </mat-menu>

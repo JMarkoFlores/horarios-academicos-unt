@@ -287,6 +287,113 @@
   }
 }
 
+// ── EMAIL CELL ────────────────────────────────────────────────────────────
+.email-cell {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  cursor: default;
+}
+
+// ── ESTADO BADGE ──────────────────────────────────────────────────────────
+.badge-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+
+  .estado-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  &.activo {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    .estado-dot { background: #10b981; }
+  }
+
+  &.inactivo {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    .estado-dot { background: #ef4444; }
+  }
+}
+
+// ── HEADER SUBTITLE BADGES ─────────────────────────────────────────────────
+.badge-inactivo {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  vertical-align: middle;
+}
+
+.badge-todos {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--color-text-muted);
+  vertical-align: middle;
+}
+
+// ── INACTIVE ROW ──────────────────────────────────────────────────────────
+.row-inactive {
+  opacity: 0.6;
+
+  .full-name { text-decoration: line-through; }
+
+  &:hover { opacity: 0.8 !important; }
+}
+
+.avatar-circle.inactive {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+// ── REACTIVAR BUTTON ──────────────────────────────────────────────────────
+.btn-action.reactivar {
+  color: #10b981;
+  &:hover {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+  }
+}
+
+// ── EXPORT BUTTON ─────────────────────────────────────────────────────────
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+
+  .btn-export {
+    height: 44px;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .export-spinner { margin-right: 4px; }
+  }
+}
+
 // ── PAGINATOR ─────────────────────────────────────────────────────────────
 .premium-paginator {
   background: transparent !important;

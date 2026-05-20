@@ -21,6 +21,7 @@
         var(--color-accent)
       ); // Azul a Esmeralda
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       margin: 0;
       letter-spacing: -0.03em;
@@ -130,7 +131,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(var(--color-surface), 0.8);
+    background: var(--color-surface);
     z-index: 10;
     display: flex;
     flex-direction: column;
@@ -359,15 +360,15 @@
   letter-spacing: 0.02em;
 
   &.aula {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.25);
+    background: var(--color-info-bg);
+    color: var(--color-info);
+    border: 1px solid var(--color-info-bg);
   }
 
   &.laboratorio {
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    border: 1px solid var(--color-success-bg);
   }
 }
 
@@ -385,4 +386,150 @@
   color: var(--color-text-muted);
   font-size: 11px;
   font-style: italic;
+}
+
+// ── HEADER ACTIONS ─────────────────────────────────────────────────────────
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn-export {
+  border-radius: 10px !important;
+  height: 40px;
+  font-weight: 600 !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  mat-icon { font-size: 17px; width: 17px; height: 17px; }
+  &:hover { background: var(--color-background) !important; }
+}
+
+// ── RESULTS BAR ────────────────────────────────────────────────────────────
+.results-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+
+  .results-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--color-text-muted);
+
+    mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    strong { color: var(--color-text); }
+  }
+
+  .badge-inactivos {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger-bg);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .badge-todos {
+    background: var(--color-primary-light);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+}
+
+// ── CYCLE CHIP ──────────────────────────────────────────────────────────────
+.course-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cycle-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  border: 1px solid;
+  margin-top: 2px;
+  letter-spacing: 0.03em;
+}
+
+.inactivo-title { opacity: 0.45; text-decoration: line-through; }
+
+.inactivo-badge {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger-bg);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+// ── COMPLETITUD ────────────────────────────────────────────────────────────
+.comp-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: default;
+
+  mat-icon { font-size: 14px; width: 14px; height: 14px; }
+
+  &.comp-ok {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+    border: 1px solid var(--color-success-bg);
+  }
+
+  &.comp-warn {
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning-bg);
+  }
+}
+
+// ── ROW INACTIVE ───────────────────────────────────────────────────────────
+.row-inactive {
+  background: var(--color-danger-bg) !important;
+  opacity: 0.6;
+}
+
+// ── WARN ASSIGN ────────────────────────────────────────────────────────────
+.warn-assign {
+  color: var(--color-warning) !important;
+}
+
+// ── REACTIVAR BUTTON ───────────────────────────────────────────────────────
+.btn-action.reactivar {
+  color: var(--color-success);
+  &:hover { background: var(--color-success-bg); }
+}
+
+.btn-action.delete {
+  color: var(--color-danger);
+  &:hover { background: var(--color-danger-bg); }
+}
+
+.btn-action.groups {
+  color: var(--color-accent);
+  &:hover { background: var(--color-accent-light); }
 }

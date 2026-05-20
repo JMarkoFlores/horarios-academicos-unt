@@ -59,6 +59,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
   cursoSeleccionado: any = null;
   tipoClase = 'TEORIA';
   ambienteSeleccionado: Ambiente | null = null;
+  filtroAmbiente = '';
 
   constructor(
     private api: ApiService,
@@ -261,6 +262,20 @@ export class OperadorComponent implements OnInit, OnDestroy {
   getHorasRequeridas(curso: any, tipo: string): number {
     if (!curso?.curso) return 0;
     return tipo === 'TEORIA' ? (curso.curso.horas_teoria || 0) : (curso.curso.horas_laboratorio || 0);
+  }
+
+  get ambientesFiltrados(): Ambiente[] {
+    const f = this.filtroAmbiente.trim().toLowerCase();
+    if (!f) return this.ambientesDocente;
+    return this.ambientesDocente.filter((a: any) =>
+      a.nombre.toLowerCase().includes(f) ||
+      a.codigo.toLowerCase().includes(f) ||
+      (a.pabellon || '').toLowerCase().includes(f)
+    );
+  }
+
+  seleccionarAmbienteRapido(ambiente: Ambiente): void {
+    this.ambienteSeleccionado = ambiente;
   }
 
   finalizarSesion(): void {

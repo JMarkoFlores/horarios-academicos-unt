@@ -164,10 +164,12 @@ export class NotificacionesService {
 
     const fechaStr = new Date(ventana.fecha).toLocaleDateString("es-PE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
+    const destinatarioEmail = prefs?.correo_alternativo || docente.email;
+
     if (tipo === "24h") {
       const html = this.buildHtmlRecordatorio24h(docente, ventana, fechaStr);
       if (!prefs || prefs.canal_correo) {
-        await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Recordatorio: Turno de selección mañana`, html);
+        await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Recordatorio: Turno de selección mañana`, html, undefined, destinatarioEmail);
       }
       if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
         const text = `Recordatorio: mañana ${fechaStr} a las ${ventana.hora_inicio} es tu turno de selección de horario (${ventana.categoria}).`;
@@ -177,7 +179,7 @@ export class NotificacionesService {
       // 15min - Email + Telegram según preferencias
       const html15min = this.buildHtmlAlerta15min(docente, ventana, fechaStr);
       if (!prefs || prefs.canal_correo) {
-        await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `⏰ Alerta: Tu turno comienza en 15 minutos`, html15min);
+        await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `⏰ Alerta: Tu turno comienza en 15 minutos`, html15min, undefined, destinatarioEmail);
       }
       if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
         const text = `⏰ ¡Atención! En 15 minutos (${ventana.hora_inicio}) es tu turno de selección de horario. ¡No te lo pierdas!`;

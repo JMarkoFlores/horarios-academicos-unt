@@ -366,6 +366,7 @@ export class VentanasService implements OnModuleDestroy {
     const docentes = await this.buscarDocentesPorCategoria(
       ventana.categoria,
       ventana.modalidad ?? undefined,
+      ventana.periodo,
     );
     
     if (docentes.length === 0) {
@@ -642,7 +643,11 @@ export class VentanasService implements OnModuleDestroy {
     return `cola_ventana_${ventanaId}`;
   }
 
-  private async buscarDocentesPorCategoria(categoria: string, modalidad?: string): Promise<Docente[]> {
+  private async buscarDocentesPorCategoria(
+    categoria: string,
+    modalidad?: string,
+    periodo?: string,
+  ): Promise<Docente[]> {
     const qb = this.docenteRepo
       .createQueryBuilder("docente")
       .where("docente.activo = :activo", { activo: true })
@@ -650,6 +655,21 @@ export class VentanasService implements OnModuleDestroy {
 
     if (modalidad) {
       qb.andWhere("docente.tipo_contrato = :modalidad", { modalidad });
+    }
+
+    // Excluir docentes que ya tienen horario confirmado o publicado en este período
+    if (periodo) {
+      const subQuery = qb
+        .subQuery()
+        .select("h.docente_id")
+        .from("horario_asignado", "h")
+        .where("h.periodo = :periodo")
+        .andWhere("h.estado IN (:...estados)")
+        .getQuery();
+      qb.andWhere(`docente.id NOT IN ${subQuery}`, {
+        periodo,
+        estados: [EstadoHorario.CONFIRMADO, EstadoHorario.PUBLICADO],
+      });
     }
 
     return qb.orderBy("docente.fecha_ingreso", "ASC").getMany();

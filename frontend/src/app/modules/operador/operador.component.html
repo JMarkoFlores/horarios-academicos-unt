@@ -1,4 +1,4 @@
-<div class="operador-container animate-fadein">
+<div class="operador-container animate-fadein" [class.modo-atencion]="ventanaActiva">
   <header class="page-header">
     <div class="header-info">
       <h1><mat-icon>dashboard</mat-icon> Panel del Operador</h1>
@@ -152,6 +152,13 @@
   <!-- ESTADO B: VENTANA ACTIVA -->
   <div *ngIf="ventanaActiva" class="panel-atencion animate-fadein">
 
+    <div class="info-flujo" *ngIf="!docenteActual">
+      <mat-icon>info</mat-icon>
+      <div>
+        <strong>Flujo de atención:</strong> Presiona <em>"Llamar siguiente docente"</em> en la cola de la izquierda. Luego selecciona un curso habilitado, elige el ambiente compatible, y finalmente haz clic en las celdas libres de la grilla para asignar horarios. Termina con <em>"Confirmar y guardar horario"</em>.
+      </div>
+    </div>
+
     <!-- Header mejorado -->
     <div class="header-atencion mat-elevation-z3">
       <div class="header-left">
@@ -162,8 +169,11 @@
         <div class="header-title">
           <h2>Ventana de Atención</h2>
           <div class="header-meta">
-            <span class="meta-chip">
+            <span class="meta-chip categoria">
               <mat-icon>category</mat-icon> {{ getCategoriaLabel(ventanaActiva.categoria) }}
+            </span>
+            <span class="meta-chip modalidad" *ngIf="ventanaActiva.modalidad">
+              <mat-icon>badge</mat-icon> {{ ventanaActiva.modalidad }}
             </span>
             <span class="meta-chip">
               <mat-icon>calendar_today</mat-icon> {{ ventanaActiva.fecha | date:'EEEE d MMM, y' }}
@@ -171,8 +181,8 @@
             <span class="meta-chip">
               <mat-icon>schedule</mat-icon> {{ ventanaActiva.hora_inicio }} — {{ ventanaActiva.hora_fin }}
             </span>
-            <span class="meta-chip" *ngIf="ventanaActiva.modalidad">
-              <mat-icon>badge</mat-icon> {{ ventanaActiva.modalidad }}
+            <span class="meta-chip docente-atencion" *ngIf="docenteActual">
+              <mat-icon>person</mat-icon> {{ docenteActual.apellidos }}, {{ docenteActual.nombres }}
             </span>
           </div>
         </div>
@@ -210,6 +220,13 @@
             </div>
             <div class="docente-info">
               <span class="docente-nombre">{{ docenteActual.apellidos }}, {{ docenteActual.nombres }}</span>
+              <div class="docente-meta">
+                <span class="meta-badge categoria">{{ docenteActual.categoria }}</span>
+                <span class="meta-badge modalidad">{{ docenteActual.tipo_contrato }}</span>
+                <span class="meta-badge antiguedad" *ngIf="docenteActual.fecha_ingreso">
+                  <mat-icon>calendar_today</mat-icon> Desde {{ docenteActual.fecha_ingreso | date:'yyyy' }}
+                </span>
+              </div>
               <span class="docente-detalle" *ngIf="docenteActual.email">{{ docenteActual.email }}</span>
             </div>
             <span class="docente-badge">En atención</span>
@@ -254,6 +271,9 @@
             <div *ngIf="!cursosDocente || cursosDocente.length === 0" class="estado-vacio-mini">
               <mat-icon>school</mat-icon>
               <p>No hay cursos habilitados para este docente.</p>
+              <a routerLink="/app/docente-cursos" class="link-config">
+                <mat-icon>open_in_new</mat-icon> Configurar docente-curso
+              </a>
             </div>
           </div>
 
@@ -262,24 +282,45 @@
             <div class="step-header">
               <span class="step-number" [class.active]="cursoSeleccionado && !ambienteSeleccionado">2</span>
               <h4>Seleccionar Ambiente</h4>
+              <span class="step-count" *ngIf="ambientesDocente.length > 0">{{ ambientesDocente.length }} disponible(s)</span>
             </div>
 
-            <mat-form-field appearance="outline" class="full-width" *ngIf="ambientesDocente && ambientesDocente.length > 0">
-              <mat-label>Ambiente para {{ cursoSeleccionado.curso?.nombre }}</mat-label>
-              <mat-select [(ngModel)]="ambienteSeleccionado">
-                <mat-option *ngFor="let a of ambientesDocente" [value]="a">
-                  <div class="ambiente-option">
-                    <strong>{{ a.codigo }}</strong> — {{ a.nombre }}
-                    <span class="ambiente-cap">(cap. {{ a.capacidad }})</span>
+            <div *ngIf="ambientesDocente && ambientesDocente.length > 0">
+              <mat-form-field appearance="outline" class="buscar-ambiente-field">
+                <mat-icon matPrefix>search</mat-icon>
+                <input matInput [(ngModel)]="filtroAmbiente" placeholder="Buscar ambiente..." autocomplete="off">
+                <button mat-icon-button matSuffix *ngIf="filtroAmbiente" (click)="filtroAmbiente = ''">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </mat-form-field>
+
+              <div class="ambientes-rapidos">
+                <div
+                  class="ambiente-rapido-item"
+                  *ngFor="let a of ambientesFiltrados"
+                  [class.seleccionado]="ambienteSeleccionado?.id === a.id"
+                  (click)="seleccionarAmbienteRapido(a)"
+                >
+                  <div class="ambiente-rapido-info">
+                    <span class="ambiente-rapido-code">{{ a.codigo }}</span>
+                    <span class="ambiente-rapido-name">{{ a.nombre }}</span>
+                    <span class="ambiente-rapido-meta">{{ a.tipo }} · Cap. {{ a.capacidad }} · {{ a.pabellon || 'Sin pabellón' }}</span>
                   </div>
-                </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>meeting_room</mat-icon>
-            </mat-form-field>
+                  <mat-icon *ngIf="ambienteSeleccionado?.id === a.id" class="check-icon">check_circle</mat-icon>
+                </div>
+                <div class="empty-state-mini" *ngIf="ambientesFiltrados.length === 0">
+                  <mat-icon>search_off</mat-icon>
+                  <p>No se encontraron ambientes con "{{ filtroAmbiente }}"</p>
+                </div>
+              </div>
+            </div>
 
             <div *ngIf="!ambientesDocente || ambientesDocente.length === 0" class="estado-vacio-mini">
               <mat-icon>meeting_room</mat-icon>
-              <p>No hay ambientes asignados a este docente.</p>
+              <p>No hay ambientes compatibles para este curso.</p>
+              <a routerLink="/app/curso-ambientes" class="link-config">
+                <mat-icon>open_in_new</mat-icon> Configurar curso-ambiente
+              </a>
             </div>
           </div>
 

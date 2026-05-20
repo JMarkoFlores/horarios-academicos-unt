@@ -75,6 +75,16 @@ const routes: Routes = [
         canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
       },
       {
+        path: 'docente-cursos',
+        loadChildren: () => import('./modules/docente-cursos-config/docente-cursos-config.module').then(m => m.DocenteCursosConfigModule),
+        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+      },
+      {
+        path: 'curso-ambientes',
+        loadChildren: () => import('./modules/curso-ambientes-config/curso-ambientes-config.module').then(m => m.CursoAmbientesConfigModule),
+        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+      },
+      {
         path: 'disponibilidad',
         loadChildren: () => import('./modules/disponibilidad/disponibilidad.module').then(m => m.DisponibilidadModule),
         canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }

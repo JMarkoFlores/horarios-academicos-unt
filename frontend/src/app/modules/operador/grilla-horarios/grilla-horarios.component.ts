@@ -30,11 +30,12 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
   matriz: CeldaMatriz[] = [];
   horas: string[] = [];
   dias = [
-    { valor: 1, label: 'Lunes' },
-    { valor: 2, label: 'Martes' },
-    { valor: 3, label: 'Miércoles' },
-    { valor: 4, label: 'Jueves' },
-    { valor: 5, label: 'Viernes' },
+    { valor: 1, label: 'Lun' },
+    { valor: 2, label: 'Mar' },
+    { valor: 3, label: 'Mié' },
+    { valor: 4, label: 'Jue' },
+    { valor: 5, label: 'Vie' },
+    { valor: 6, label: 'Sáb' },
   ];
   loading = false;
 
@@ -175,11 +176,14 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
   getTooltipCelda(celda: CeldaMatriz | undefined): string {
     if (!celda) return '';
     switch (celda.estado) {
-      case 'LIBRE': return 'Disponible';
-      case 'BLOQUEADO': return 'Fuera de franja o día no laborable';
-      case 'CONFIRMADO': return `Ocupado (Docente ${celda.metadata?.docenteId})`;
-      case 'TEMPORAL_OTRO': return 'Reservado por otro operador';
-      case 'TEMPORAL_PROPIO': return 'Tu selección temporal';
+      case 'LIBRE': return 'Disponible — Haz clic para seleccionar';
+      case 'BLOQUEADO': return 'Fuera de franja institucional o restricción';
+      case 'CONFIRMADO':
+        const docente = celda.metadata?.docenteNombre || `Docente ${celda.metadata?.docenteId || ''}`;
+        const curso = celda.metadata?.cursoNombre || '';
+        return `Ocupado: ${docente}${curso ? ' — ' + curso : ''}`;
+      case 'TEMPORAL_OTRO': return 'Reservado temporalmente por otro operador';
+      case 'TEMPORAL_PROPIO': return 'Tu selección temporal — Haz clic para quitar';
       default: return '';
     }
   }

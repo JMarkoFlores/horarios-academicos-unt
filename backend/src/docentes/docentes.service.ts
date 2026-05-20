@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Inject,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -275,24 +276,6 @@ export class DocentesService {
       periodoId = periodo.id;
     }
 
-    // Get current assignments in database for this docente + periodo
-    const currentAssignments = await this.docenteCursoRepo.find({
-      where: { docenteId, periodoId },
-    });
-
-    const inputKeys = new Set(
-      dto.cursos.map((item) => `${item.cursoId}_${item.tipo_clase}`)
-    );
-
-    // 1. Remove assignments in DB that are not in the new payload
-    const assignmentsToRemove = currentAssignments.filter(
-      (item) => !inputKeys.has(`${item.cursoId}_${item.tipo_clase}`)
-    );
-    if (assignmentsToRemove.length > 0) {
-      await this.docenteCursoRepo.remove(assignmentsToRemove);
-    }
-
-    // 2. Add or find assignments from the payload
     const asignaciones: DocenteCurso[] = [];
 
     for (const item of dto.cursos) {
@@ -301,19 +284,31 @@ export class DocentesService {
         throw new NotFoundException(`Curso con ID ${item.cursoId} no encontrado o inactivo`);
       }
 
-      let asignacion = currentAssignments.find(
-        (curr) => curr.cursoId === item.cursoId && curr.tipo_clase === item.tipo_clase
-      );
-
-      if (!asignacion) {
-        asignacion = this.docenteCursoRepo.create({
-          docenteId,
-          cursoId: item.cursoId,
-          tipo_clase: item.tipo_clase,
-          periodoId,
-        });
-        await this.docenteCursoRepo.save(asignacion);
+      // Validar que el curso tenga horas para la modalidad seleccionada
+      if (item.tipo_clase === TipoClase.TEORIA && curso.horas_teoria <= 0) {
+        throw new BadRequestException(`El curso ${curso.codigo} no tiene horas de teoría`);
       }
+      if (item.tipo_clase === TipoClase.LABORATORIO && curso.horas_laboratorio <= 0) {
+        throw new BadRequestException(`El curso ${curso.codigo} no tiene horas de laboratorio`);
+      }
+
+      // Verificar duplicado exacto
+      const yaExiste = await this.docenteCursoRepo.findOne({
+        where: { docenteId, cursoId: item.cursoId, tipo_clase: item.tipo_clase, periodoId },
+      });
+      if (yaExiste) {
+        throw new ConflictException(
+          `El docente ya tiene asignado el curso ${curso.codigo} como ${item.tipo_clase}`,
+        );
+      }
+
+      const asignacion = this.docenteCursoRepo.create({
+        docenteId,
+        cursoId: item.cursoId,
+        tipo_clase: item.tipo_clase,
+        periodoId,
+      });
+      await this.docenteCursoRepo.save(asignacion);
       asignaciones.push(asignacion);
     }
 

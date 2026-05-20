@@ -78,6 +78,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
         { icon: 'menu_book', label: 'Cursos', route: '/app/cursos', roles: ['administradorsistema', 'coordinadoracademico'] },
         { icon: 'meeting_room', label: 'Ambientes', route: '/app/ambientes', roles: ['administradorsistema', 'coordinadoracademico'] },
         { icon: 'assignment_ind', label: 'Asignaciones', route: '/app/asignaciones', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'link', label: 'Docente-Curso', route: '/app/docente-cursos', roles: ['administradorsistema', 'coordinadoracademico'] },
+        { icon: 'link', label: 'Curso-Ambiente', route: '/app/curso-ambientes', roles: ['administradorsistema', 'coordinadoracademico'] },
         { icon: 'event_available', label: 'Disponibilidad', route: '/app/disponibilidad', roles: ['administradorsistema', 'coordinadoracademico'] },
         { icon: 'assignment_turned_in', label: 'Preasignaciones', route: '/app/preasignaciones', roles: ['administradorsistema', 'coordinadoracademico'] },
       ],

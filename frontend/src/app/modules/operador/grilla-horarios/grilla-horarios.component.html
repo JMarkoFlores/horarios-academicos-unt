@@ -7,8 +7,8 @@
   <div class="leyenda">
     <span class="leyenda-item"><span class="color-libre"></span> Libre</span>
     <span class="leyenda-item"><span class="color-bloqueado"></span> Restricción</span>
-    <span class="leyenda-item"><span class="color-confirmado"></span> Confirmado</span>
-    <span class="leyenda-item"><span class="color-temporal-otro"></span> Ocupado (otro)</span>
+    <span class="leyenda-item"><span class="color-confirmado"></span> Ocupado (confirmado)</span>
+    <span class="leyenda-item"><span class="color-temporal-otro"></span> Reservado (otro)</span>
     <span class="leyenda-item"><span class="color-temporal-propio"></span> Mi selección</span>
   </div>
 
@@ -29,7 +29,14 @@
             [ngClass]="getClaseCelda(getCelda(d.valor, hora))"
             [matTooltip]="getTooltipCelda(getCelda(d.valor, hora))"
             (click)="onCeldaClick(d.valor, hora)"
-          ></td>
+          >
+            <ng-container *ngIf="getCelda(d.valor, hora) as celda">
+              <mat-icon *ngIf="celda.estado === 'TEMPORAL_PROPIO'" class="celda-icon">check</mat-icon>
+              <mat-icon *ngIf="celda.estado === 'TEMPORAL_OTRO'" class="celda-icon">lock</mat-icon>
+              <mat-icon *ngIf="celda.estado === 'CONFIRMADO'" class="celda-icon">event_busy</mat-icon>
+              <span *ngIf="celda.estado === 'CONFIRMADO' && celda.metadata?.docenteNombre" class="celda-docente">{{ celda.metadata.docenteNombre }}</span>
+            </ng-container>
+          </td>
         </tr>
       </tbody>
     </table>

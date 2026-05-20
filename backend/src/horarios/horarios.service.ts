@@ -68,6 +68,9 @@ export class HorariosService {
     page = 1,
     limit = 20,
   ) {
+    // Invalidar caché para asegurar datos frescos
+    await this.cacheManager.del(`horarios_periodo_${periodo}_docente_${docenteId}_${page}_${limit}`);
+
     const [items, total] = await this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.docente", "docente")
@@ -80,10 +83,6 @@ export class HorariosService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
-      .cache(
-        `horarios_periodo_${periodo}_docente_${docenteId}_${page}_${limit}`,
-        60000,
-      )
       .getManyAndCount();
 
     return { items, total, page, limit };

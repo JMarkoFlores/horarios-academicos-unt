@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsBoolean,
   IsInt,
+  IsString,
   Min,
 } from "class-validator";
 
@@ -23,4 +24,9 @@ export class QueryPeriodoDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @ApiPropertyOptional({ description: "Filtrar por código de período" })
+  @IsOptional()
+  @IsString()
+  codigo?: string;
 }

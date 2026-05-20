@@ -27,7 +27,15 @@ export class AsignacionesComponent implements OnInit, OnDestroy {
   loadingDocentes = false;
   loadingData = false;
   guardando = false;
-  
+  generando = false;
+  publicando = false;
+  limpiando = false;
+  limpiandoTodo = false;
+
+  modoAsignacion: 'AUTOMATICA' | 'VENTANAS' | 'MIXTA' | null = null;
+  periodoId: number | null = null;
+  resumenGeneracion: any = null;
+
   serviciosDisponibles = {
     docentes: true,
     cursos: true,
@@ -77,7 +85,9 @@ export class AsignacionesComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.cargarDocentes();
     this.cargarCatalogos();
+    this.cargarModoPeriodo();
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
+      this.cargarModoPeriodo();
       if (this.docenteSeleccionado) {
         this.cargarCursosAsignados(this.docenteSeleccionado.id);
       }
@@ -426,6 +436,11 @@ export class AsignacionesComponent implements OnInit, OnDestroy {
     }
   }
 
+  get docentesPendientesCount(): number {
+    if (!this.resumenGeneracion?.detallePorDocente) return 0;
+    return this.resumenGeneracion.detallePorDocente.filter((d: any) => d.horariosPendientes > 0).length;
+  }
+
   getGlobalStatus(): string {
     if (!this.docenteSeleccionado) return 'SIN SELECCIÓN';
     const states = [
@@ -447,5 +462,183 @@ export class AsignacionesComponent implements OnInit, OnDestroy {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
     return colors[Math.abs(hash) % colors.length];
+  }
+
+  // ─── Acciones del Período ───
+
+  cargarModoPeriodo(): void {
+    this.api.get<any>(`/periodos`, { codigo: this.periodoService.periodo }).subscribe({
+      next: (res) => {
+        const periodo = res?.data?.items?.[0];
+        if (periodo) {
+          this.modoAsignacion = periodo.modo_asignacion?.toUpperCase() || 'VENTANAS';
+          this.periodoId = periodo.id;
+        }
+      },
+      error: () => {
+        this.modoAsignacion = 'VENTANAS';
+      }
+    });
+  }
+
+  cambiarModoAsignacion(nuevoModo: 'AUTOMATICA' | 'VENTANAS' | 'MIXTA'): void {
+    if (!this.periodoId) return;
+    this.api.patch<any>(`/periodos/${this.periodoId}/modo-asignacion`, {
+      modo_asignacion: nuevoModo.toLowerCase()
+    }).subscribe({
+      next: () => {
+        this.modoAsignacion = nuevoModo;
+        this.snackBar.open(`Modo cambiado a ${this.getModoLabel()}`, 'OK', { duration: 2000 });
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'Error al cambiar modo de asignación';
+        this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
+      }
+    });
+  }
+
+  generarHorariosAutomaticos(): void {
+    if (!this.periodoId) {
+      this.snackBar.open('No se pudo identificar el período actual', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    this.generando = true;
+    this.resumenGeneracion = null;
+    this.api.post<any>(`/periodos/${this.periodoId}/generar-automatico`, {}).subscribe({
+      next: (res) => {
+        this.generando = false;
+        this.resumenGeneracion = res?.data;
+        this.snackBar.open(
+          `Generados ${res?.data?.horarios_creados} horarios automáticamente`,
+          'OK',
+          { duration: 5000 }
+        );
+      },
+      error: (err) => {
+        this.generando = false;
+        const msg = err?.error?.message || 'Error al generar horarios automáticamente';
+        this.snackBar.open(msg, 'Cerrar', { duration: 5000 });
+      }
+    });
+  }
+
+  publicarHorariosAuto(): void {
+    if (!this.periodoId) {
+      this.snackBar.open('No se pudo identificar el período actual', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    this.publicando = true;
+    this.api.post<any>(`/periodos/${this.periodoId}/publicar`, {}).subscribe({
+      next: (res) => {
+        this.publicando = false;
+        this.snackBar.open(
+          `${res?.data?.horarios_publicados || 0} horarios publicados correctamente`,
+          'OK',
+          { duration: 3000 }
+        );
+      },
+      error: (err) => {
+        this.publicando = false;
+        const msg = err?.error?.message || 'Error al publicar horarios';
+        this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
+      }
+    });
+  }
+
+  irAVentanas(): void {
+    window.location.href = '/app/operador';
+  }
+
+  async crearVentanasPendientes(): Promise<void> {
+    if (!this.periodoId) {
+      this.snackBar.open('No se pudo identificar el período actual', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    this.api.post<any>(`/periodos/${this.periodoId}/crear-ventanas-pendientes`, {}).subscribe({
+      next: (res) => {
+        this.snackBar.open(
+          `${res?.data?.message}`,
+          'OK',
+          { duration: 3000 }
+        );
+        this.irAVentanas();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'Error al crear ventanas pendientes';
+        this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
+      }
+    });
+  }
+
+  limpiarHorariosInconsistentes(): void {
+    if (!this.periodoId) {
+      this.snackBar.open('No se pudo identificar el período actual', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    this.limpiando = true;
+    this.api.post<any>(`/periodos/${this.periodoId}/limpiar-inconsistentes`, {}).subscribe({
+      next: (res) => {
+        this.limpiando = false;
+        const msg = res?.data?.message || 'Horarios inconsistentes eliminados';
+        const count = res?.data?.horarios_eliminados?.length || 0;
+        this.snackBar.open(`${msg} (${count} horarios)`, 'OK', { duration: 5000 });
+      },
+      error: (err) => {
+        this.limpiando = false;
+        const msg = err?.error?.message || 'Error al limpiar horarios inconsistentes';
+        this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
+      }
+    });
+  }
+
+  limpiarHorariosPeriodo(): void {
+    if (!this.periodoId) {
+      this.snackBar.open('No se pudo identificar el período actual', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    const periodo = this.periodoService.periodo;
+    if (!periodo) {
+      this.snackBar.open('No se pudo identificar el código del período', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    
+    if (confirm(`¿Estás seguro de eliminar TODOS los horarios del período ${periodo}? Esta acción no se puede deshacer.`)) {
+      this.limpiandoTodo = true;
+      this.api.delete<any>(`/horarios/limpiar?periodo=${periodo}`).subscribe({
+        next: (res) => {
+          this.limpiandoTodo = false;
+          const msg = res?.data?.message || 'Horarios eliminados';
+          this.snackBar.open(msg, 'OK', { duration: 3000 });
+          this.resumenGeneracion = null;
+        },
+        error: (err) => {
+          this.limpiandoTodo = false;
+          const msg = err?.error?.message || 'Error al limpiar horarios del período';
+          this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
+        }
+      });
+    }
+  }
+
+  getModoLabel(): string {
+    switch (this.modoAsignacion) {
+      case 'AUTOMATICA': return 'Generación Automática';
+      case 'VENTANAS': return 'Ventanas de Atención';
+      case 'MIXTA': return 'Mixta (Auto + Ventanas)';
+      default: return 'Ventanas de Atención';
+    }
+  }
+
+  getModoDescripcion(): string {
+    switch (this.modoAsignacion) {
+      case 'AUTOMATICA':
+        return 'Los horarios se generan automáticamente sin intervención del operador.';
+      case 'VENTANAS':
+        return 'Los docentes son atendidos uno por uno en ventanas programadas por jerarquía.';
+      case 'MIXTA':
+        return 'Primero se genera automáticamente, luego se atienden docentes pendientes en ventanas.';
+      default:
+        return '';
+    }
   }
 }

@@ -20,6 +20,7 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
+  ApiParam,
 } from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -30,12 +31,17 @@ import { RolesGuard } from "../auth/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { OrigenHorario } from "../common/enums/origen-horario.enum";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { Usuario } from "../entities/usuario.entity";
 import { AsignacionService } from "./asignacion.service";
+import { GeneracionAutomaticaService } from "./generacion-automatica.service";
 import { GenerarHorarioDto } from "./dto/generar-horario.dto";
+import { GenerarAutomaticoDto } from "./dto/generar-automatico.dto";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
 import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
@@ -48,10 +54,13 @@ export class HorariosController {
   constructor(
     private readonly asignacionService: AsignacionService,
     private readonly horariosService: HorariosService,
+    private readonly generacionService: GeneracionAutomaticaService,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(AuditoriaHorario)
     private readonly auditoriaRepo: Repository<AuditoriaHorario>,
+    @InjectRepository(PeriodoAcademico)
+    private readonly periodoRepo: Repository<PeriodoAcademico>,
   ) {}
 
   @Post("asignar")
@@ -294,6 +303,102 @@ export class HorariosController {
       data: actualizado,
       message: "Conflicto resuelto",
       statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("generar-automatico")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Generar horarios automáticamente para un período" })
+  @ApiResponse({ status: 201, description: "Horarios generados correctamente" })
+  async generarAutomatico(@Body() dto: GenerarAutomaticoDto) {
+    const resultado = await this.generacionService.generarHorarios(dto.periodo);
+    return {
+      data: resultado,
+      message: "Generación automática completada",
+      statusCode: HttpStatus.CREATED,
+    };
+  }
+
+  @Post("publicar-auto-generados")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Publicar horarios auto-generados de un período" })
+  @ApiResponse({ status: 200, description: "Horarios publicados" })
+  async publicarAutoGenerados(@Body() dto: GenerarAutomaticoDto) {
+    const resultado = await this.generacionService.publicarHorariosAutoGenerados(dto.periodo);
+    return {
+      data: resultado,
+      message: "Horarios auto-generados publicados",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get("debug/:periodo")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Depurar horarios de un período (verificar consistencia)" })
+  @ApiParam({ name: "periodo", type: String })
+  async debugHorarios(@Param("periodo") periodo: string) {
+    const periodoEntity = await this.periodoRepo.findOne({ where: { codigo: periodo } });
+    const periodoId = periodoEntity?.id;
+
+    const horarios = await this.horarioRepo.find({
+      where: { periodo },
+      relations: ["docente", "curso", "ambiente", "grupo"],
+    });
+
+    const inconsistentes = [];
+    const consistentes = [];
+
+    for (const h of horarios) {
+      const habilitacion = await this.horarioRepo
+        .createQueryBuilder("h")
+        .select("h.id")
+        .from("docente_curso", "dc")
+        .where("dc.docenteId = :docenteId", { docenteId: h.docente_id })
+        .andWhere("dc.cursoId = :cursoId", { cursoId: h.curso_id })
+        .andWhere("dc.tipo_clase = :tipoClase", { tipoClase: h.tipo_clase })
+        .andWhere("dc.periodoId = :periodoId", { periodoId })
+        .getRawOne();
+
+      if (!habilitacion) {
+        inconsistentes.push({
+          id: h.id,
+          docente: h.docente?.apellidos,
+          curso: h.curso?.nombre,
+          tipo: h.tipo_clase,
+          periodoIdBuscado: periodoId,
+          error: "No tiene habilitación docente-curso",
+        });
+      } else {
+        consistentes.push({
+          id: h.id,
+          docente: h.docente?.apellidos,
+          curso: h.curso?.nombre,
+          tipo: h.tipo_clase,
+        });
+      }
+    }
+
+    // También verificar cuántas habilitaciones existen para este periodo
+    const totalHabilitaciones = await this.horarioRepo
+      .createQueryBuilder("h")
+      .select("COUNT(*)")
+      .from("docente_curso", "dc")
+      .where("dc.periodoId = :periodoId", { periodoId })
+      .getRawOne();
+
+    return {
+      data: {
+        total: horarios.length,
+        consistentes: consistentes.length,
+        inconsistentes: inconsistentes.length,
+        periodoId,
+        totalHabilitaciones: totalHabilitaciones?.count || 0,
+        inconsistentesList: inconsistentes,
+      },
+      message: "Depuración completada",
     };
   }
 }

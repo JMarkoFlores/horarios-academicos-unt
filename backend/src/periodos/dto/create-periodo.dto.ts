@@ -8,6 +8,7 @@ import {
   MaxLength,
 } from "class-validator";
 import { EstadoPeriodo } from "../../common/enums/estado-periodo.enum";
+import { ModoAsignacion } from "../../common/enums/modo-asignacion.enum";
 
 export class CreatePeriodoDto {
   @ApiProperty({ example: "2026-I" })
@@ -40,4 +41,13 @@ export class CreatePeriodoDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ModoAsignacion,
+    default: ModoAsignacion.VENTANAS,
+    description: "Modo de asignación de horarios: automatica, ventanas o mixta",
+  })
+  @IsOptional()
+  @IsEnum(ModoAsignacion)
+  modo_asignacion?: ModoAsignacion;
 }

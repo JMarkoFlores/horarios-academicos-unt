@@ -51,6 +51,8 @@ export class HorariosComponent implements OnInit, OnDestroy {
   generando = false;
   limpiando = false;
   resultadoGeneracion: any = null;
+  debugResult: any = null;
+  loadingDebug = false;
   private periodSub?: Subscription;
 
   constructor(
@@ -262,31 +264,38 @@ export class HorariosComponent implements OnInit, OnDestroy {
       )
     )
       return;
+
     this.generando = true;
-    this.resultadoGeneracion = null;
     this.api
-      .post<
-        ApiResponse<any>
-      >('/horarios/generar', { periodo: this.periodoService.periodo })
+      .post<any>("/horarios/generar", { periodo: this.periodoService.periodo })
       .subscribe({
         next: (r) => {
           this.generando = false;
-          this.resultadoGeneracion = {
-            asignaciones: r.data?.asignaciones_creadas ?? 0,
-            conflictos: r.data?.conflictos ?? 0,
-          };
+          this.resultadoGeneracion = r.data;
+          this.notif.success("Horario generado exitosamente");
           this.loadConflictos();
-          if (this.docenteSeleccionado) {
-            this.selectDocente(this.docenteSeleccionado);
-          }
-          if (this.ambienteSeleccionado) {
-            this.selectAmbiente(this.ambienteSeleccionado);
-          }
-          this.notif.success('Horario generado');
         },
         error: () => {
           this.generando = false;
-          this.notif.error('Error al generar horario');
+          this.notif.error("Error al generar horario");
+        },
+      });
+  }
+
+  depurarHorarios(): void {
+    this.loadingDebug = true;
+    this.api
+      .get<any>(`/horarios/debug/${this.periodoService.periodo}`)
+      .subscribe({
+        next: (r) => {
+          this.loadingDebug = false;
+          this.debugResult = r.data;
+          console.log("Debug result:", r.data);
+          this.notif.success(`Depuración completada: ${r.data.inconsistentes} horarios inconsistentes`);
+        },
+        error: () => {
+          this.loadingDebug = false;
+          this.notif.error("Error al depurar horarios");
         },
       });
   }

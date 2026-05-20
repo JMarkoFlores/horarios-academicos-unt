@@ -13,6 +13,8 @@ import Redis from "ioredis";
 import { DataSource, Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 import { EstadoHorario } from "../../common/enums/estado-horario.enum";
+import { ModoAsignacion } from "../../common/enums/modo-asignacion.enum";
+import { OrigenHorario } from "../../common/enums/origen-horario.enum";
 import { Grupo } from "../../entities/grupo.entity";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
@@ -657,8 +659,19 @@ export class VentanasService implements OnModuleDestroy {
       qb.andWhere("docente.tipo_contrato = :modalidad", { modalidad });
     }
 
-    // Excluir docentes que ya tienen horario confirmado o publicado en este período
     if (periodo) {
+      // Detectar modo del período para decidir qué docentes excluir
+      const periodoEntity = await this.periodoRepo.findOne({ where: { codigo: periodo } });
+      const modo = periodoEntity?.modo_asignacion ?? ModoAsignacion.VENTANAS;
+
+      // En modo AUTOMATICA: no se usan ventanas, excluir a todos con horario
+      // En modo VENTANAS: excluir docentes con horario CONFIRMADO o PUBLICADO
+      // En modo MIXTA: excluir docentes con horario CONFIRMADO o PUBLICADO
+      //                 (los AUTO_GENERADO pueden pasar por ventanas para confirmar)
+      const estadosExcluir = modo === ModoAsignacion.AUTOMATICA
+        ? [EstadoHorario.BORRADOR, EstadoHorario.CONFIRMADO, EstadoHorario.PUBLICADO, EstadoHorario.CERRADO]
+        : [EstadoHorario.CONFIRMADO, EstadoHorario.PUBLICADO];
+
       const subQuery = qb
         .subQuery()
         .select("h.docente_id")
@@ -668,7 +681,7 @@ export class VentanasService implements OnModuleDestroy {
         .getQuery();
       qb.andWhere(`docente.id NOT IN ${subQuery}`, {
         periodo,
-        estados: [EstadoHorario.CONFIRMADO, EstadoHorario.PUBLICADO],
+        estados: estadosExcluir,
       });
     }
 

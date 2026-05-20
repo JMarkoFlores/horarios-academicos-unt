@@ -415,6 +415,16 @@
               <span>{{ generando ? "Procesando..." : "Ejecutar Motor" }}</span>
               <div class="btn-shimmer"></div>
             </button>
+            <button
+              mat-stroked-button
+              class="gestion-btn warn"
+              (click)="depurarHorarios()"
+              [disabled]="loadingDebug"
+            >
+              <mat-spinner diameter="20" *ngIf="loadingDebug"></mat-spinner>
+              <mat-icon *ngIf="!loadingDebug">bug_report</mat-icon>
+              <span>{{ loadingDebug ? "Depurando..." : "Depurar Horarios" }}</span>
+            </button>
           </mat-card-actions>
         </mat-card>
 

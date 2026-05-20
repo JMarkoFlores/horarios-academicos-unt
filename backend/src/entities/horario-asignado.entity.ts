@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { TipoClase } from '../common/enums/tipo-clase.enum';
 import { EstadoHorario } from '../common/enums/estado-horario.enum';
+import { OrigenHorario } from '../common/enums/origen-horario.enum';
 import { Docente } from './docente.entity';
 import { Curso } from './curso.entity';
 import { Grupo } from './grupo.entity';
@@ -57,6 +58,13 @@ export class HorarioAsignado {
     default: EstadoHorario.BORRADOR,
   })
   estado: EstadoHorario;
+
+  @Column({
+    type: "enum",
+    enum: OrigenHorario,
+    default: OrigenHorario.AJUSTE_MANUAL,
+  })
+  origen: OrigenHorario;
 
   @CreateDateColumn({ name: "creado_en" })
   creado_en: Date;

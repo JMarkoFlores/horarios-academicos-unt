@@ -573,7 +573,6 @@ export class AsignacionService {
   async limpiarHorario(periodo: string): Promise<{ eliminados: number }> {
     const result = await this.horarioRepo.delete({
       periodo,
-      estado: In([EstadoHorario.BORRADOR, EstadoHorario.CONFLICTO]),
     });
     return { eliminados: result.affected ?? 0 };
   }

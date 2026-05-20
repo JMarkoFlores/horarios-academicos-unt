@@ -8,6 +8,7 @@ import { Curso } from "../entities/curso.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { ReportesService } from "./reportes.service";
 import { ReportesController } from "./reportes.controller";
+import { ConfiguracionModule } from "../configuracion/configuracion.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ReportesController } from "./reportes.controller";
       Curso,
       Grupo,
     ]),
+    ConfiguracionModule,
   ],
   controllers: [ReportesController],
   providers: [ReportesService],

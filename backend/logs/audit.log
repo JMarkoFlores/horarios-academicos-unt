@@ -241,3 +241,7 @@
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":15,"ip":"::1","timestamp":"2026-05-20T00:52:44.529Z"}
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":15,"ip":"::1","timestamp":"2026-05-20T01:06:50.122Z"}
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":15,"ip":"::1","timestamp":"2026-05-20T01:07:12.271Z"}
+{"usuario":"admin@unt.edu.pe","accion":"CREAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":18,"ip":"::1","timestamp":"2026-05-20T14:52:37.418Z"}
+{"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":18,"ip":"::1","timestamp":"2026-05-20T14:57:42.007Z"}
+{"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":18,"ip":"::1","timestamp":"2026-05-20T15:01:04.685Z"}
+{"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":18,"ip":"::1","timestamp":"2026-05-20T15:01:45.784Z"}

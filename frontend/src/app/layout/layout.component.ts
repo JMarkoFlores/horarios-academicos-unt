@@ -33,69 +33,100 @@ export class LayoutComponent implements OnInit {
       route: '/app/usuarios',
       roles: ['administradorsistema'],
     },
-    { 
-      icon: 'people', 
-      label: 'Docentes', 
+    {
+      icon: 'people',
+      label: 'Docentes',
       route: '/app/docentes',
-      roles: ['administradorsistema', 'coordinadoracademico'] 
+      roles: ['administradorsistema', 'coordinadoracademico'],
     },
-    { 
-      icon: 'menu_book', 
-      label: 'Cursos', 
+    {
+      icon: 'menu_book',
+      label: 'Cursos',
       route: '/app/cursos',
-      roles: ['administradorsistema', 'coordinadoracademico'] 
+      roles: ['administradorsistema', 'coordinadoracademico'],
     },
-    { 
-      icon: 'meeting_room', 
-      label: 'Ambientes', 
+    {
+      icon: 'meeting_room',
+      label: 'Ambientes',
       route: '/app/ambientes',
-      roles: ['administradorsistema', 'coordinadoracademico'] 
+      roles: ['administradorsistema', 'coordinadoracademico'],
     },
-    { 
-      icon: 'assignment_ind', 
-      label: 'Asignaciones', 
+    {
+      icon: 'assignment_ind',
+      label: 'Asignaciones',
       route: '/app/asignaciones',
-      roles: ['administradorsistema', 'coordinadoracademico'] 
+      roles: ['administradorsistema', 'coordinadoracademico'],
     },
     {
       icon: 'event_available',
       label: 'Disponibilidad',
       route: '/app/disponibilidad',
-      roles: ['administradorsistema', 'coordinadoracademico']
+      roles: ['administradorsistema', 'coordinadoracademico'],
     },
-    { 
-      icon: 'table_chart', 
-      label: 'Reportes', 
+    {
+      icon: 'table_chart',
+      label: 'Reportes',
       route: '/app/reportes',
-      roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] 
+      roles: [
+        'administradorsistema',
+        'coordinadoracademico',
+        'directorescuela',
+      ],
     },
-    { icon: 'schedule', label: 'Horarios', route: '/app/horarios', roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
-    { icon: 'schedule', label: 'Mis Horarios', route: '/app/mis-horarios', roles: ['docente'] },
-    { icon: 'notifications', label: 'Notificaciones', route: '/app/notificaciones', roles: ['docente', 'administradorsistema'] },
-    { 
-      icon: 'analytics', 
-      label: 'Analytics', 
+    {
+      icon: 'schedule',
+      label: 'Horarios',
+      route: '/app/horarios',
+      roles: [
+        'administradorsistema',
+        'coordinadoracademico',
+        'directorescuela',
+      ],
+    },
+    {
+      icon: 'schedule',
+      label: 'Mis Horarios',
+      route: '/app/mis-horarios',
+      roles: ['docente'],
+    },
+    {
+      icon: 'notifications',
+      label: 'Notificaciones',
+      route: '/app/notificaciones',
+      roles: ['docente', 'administradorsistema'],
+    },
+    {
+      icon: 'analytics',
+      label: 'Analytics',
       route: '/app/analytics',
-      roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] 
+      roles: [
+        'administradorsistema',
+        'coordinadoracademico',
+        'directorescuela',
+      ],
     },
-    { 
-      icon: 'support_agent', 
-      label: 'Operador', 
+    {
+      icon: 'support_agent',
+      label: 'Operador',
       route: '/app/operador',
-      roles: ['administradorsistema', 'coordinadoracademico', 'operadorhorarios'] 
+      roles: [
+        'administradorsistema',
+        'coordinadoracademico',
+        'operadorhorarios',
+      ],
     },
-    {
-      icon: 'assignment_turned_in',
-      label: 'Preasignaciones',
-      route: '/app/preasignaciones',
-      roles: ['administradorsistema', 'coordinadoracademico']
-    },
-    {
-      icon: 'history',
-      label: 'Auditoría',
-      route: '/app/auditoria',
-      roles: ['administradorsistema', 'coordinadoracademico']
-    },
+    // {
+    //   icon: 'assignment_turned_in',
+    //   label: 'Preasignaciones',
+    //   route: '/app/preasignaciones',
+    //   roles: ['administradorsistema', 'coordinadoracademico']
+    // },
+    // {
+    //   icon: 'history',
+    //   label: 'Auditoría',
+    //   route: '/app/auditoria',
+    //   roles: ['administradorsistema', 'coordinadoracademico']
+    // },
     {
       icon: 'event_note',
       label: 'Periodos',
@@ -149,7 +180,7 @@ export class LayoutComponent implements OnInit {
     this.isDark = false;
     document.body.classList.remove('dark-theme');
     document.body.classList.add('light-theme');
-    
+
     // Cargar periodos desde la base de datos
     this.periodoService.cargarPeriodos();
 

@@ -6,6 +6,99 @@
     </div>
   </header>
 
+  <!-- Panel de Acciones del Período -->
+  <mat-card class="acciones-periodo-card glass-card animate-slide-up" *ngIf="modoAsignacion">
+    <div class="acciones-header">
+      <div class="modo-info">
+        <mat-icon class="modo-icon">settings</mat-icon>
+        <div>
+          <span class="modo-label">Modo de asignación</span>
+          <span class="modo-valor">{{ getModoLabel() }}</span>
+        </div>
+      </div>
+      <mat-select [(value)]="modoAsignacion" (selectionChange)="cambiarModoAsignacion($event.value)" class="modo-selector">
+        <mat-option value="AUTOMATICA">Automático</mat-option>
+        <mat-option value="VENTANAS">Ventanas</mat-option>
+        <mat-option value="MIXTA">Mixto</mat-option>
+      </mat-select>
+    </div>
+    <span class="modo-desc">{{ getModoDescripcion() }}</span>
+
+    <div class="acciones-grid">
+      <!-- Botón de limpieza de datos inconsistentes (disponible para todos los modos) -->
+      <button mat-stroked-button color="warn" class="accion-btn"
+              [disabled]="limpiando" (click)="limpiarHorariosInconsistentes()">
+        <mat-spinner *ngIf="limpiando" diameter="18"></mat-spinner>
+        <mat-icon *ngIf="!limpiando">cleaning_services</mat-icon>
+        <span>Limpiar Horarios Inconsistentes</span>
+      </button>
+
+      <!-- Botón para limpiar todos los horarios del período -->
+      <button mat-stroked-button color="warn" class="accion-btn"
+              [disabled]="limpiandoTodo" (click)="limpiarHorariosPeriodo()">
+        <mat-spinner *ngIf="limpiandoTodo" diameter="18"></mat-spinner>
+        <mat-icon *ngIf="!limpiandoTodo">delete_sweep</mat-icon>
+        <span>Limpiar Todos los Horarios</span>
+      </button>
+
+      <!-- Escenario AUTOMATICA -->
+      <ng-container *ngIf="modoAsignacion === 'AUTOMATICA'">
+        <button mat-flat-button color="primary" class="accion-btn"
+                [disabled]="generando" (click)="generarHorariosAutomaticos()">
+          <mat-spinner *ngIf="generando" diameter="18"></mat-spinner>
+          <mat-icon *ngIf="!generando">auto_fix_high</mat-icon>
+          <span>Generar Horarios Automáticamente</span>
+        </button>
+        <button mat-stroked-button color="accent" class="accion-btn"
+                [disabled]="publicando" (click)="publicarHorariosAuto()">
+          <mat-spinner *ngIf="publicando" diameter="18"></mat-spinner>
+          <mat-icon *ngIf="!publicando">publish</mat-icon>
+          <span>Publicar Horarios Generados</span>
+        </button>
+      </ng-container>
+
+      <!-- Escenario VENTANAS -->
+      <ng-container *ngIf="modoAsignacion === 'VENTANAS'">
+        <button mat-flat-button color="primary" class="accion-btn" (click)="irAVentanas()">
+          <mat-icon>meeting_room</mat-icon>
+          <span>Ir a Ventanas de Atención</span>
+        </button>
+      </ng-container>
+
+      <!-- Escenario MIXTA -->
+      <ng-container *ngIf="modoAsignacion === 'MIXTA'">
+        <button mat-flat-button color="primary" class="accion-btn"
+                [disabled]="generando" (click)="generarHorariosAutomaticos()">
+          <mat-spinner *ngIf="generando" diameter="18"></mat-spinner>
+          <mat-icon *ngIf="!generando">auto_fix_high</mat-icon>
+          <span>1. Generar Horarios Automáticamente</span>
+        </button>
+        <button mat-stroked-button color="accent" class="accion-btn"
+                [disabled]="publicando" (click)="publicarHorariosAuto()">
+          <mat-spinner *ngIf="publicando" diameter="18"></mat-spinner>
+          <mat-icon *ngIf="!publicando">publish</mat-icon>
+          <span>2. Publicar Horarios Generados</span>
+        </button>
+        <button mat-flat-button color="warn" class="accion-btn" (click)="crearVentanasPendientes()">
+          <mat-icon>meeting_room</mat-icon>
+          <span>3. Atender Docentes Pendientes (Ventanas)</span>
+        </button>
+      </ng-container>
+    </div>
+
+    <!-- Resumen de generación -->
+    <div class="resumen-generacion" *ngIf="resumenGeneracion">
+      <div class="resumen-item">
+        <span class="resumen-num">{{ resumenGeneracion.horarios_creados }}</span>
+        <span class="resumen-label">Horarios generados</span>
+      </div>
+      <div class="resumen-item">
+        <span class="resumen-num">{{ resumenGeneracion.message }}</span>
+        <span class="resumen-label">Estado</span>
+      </div>
+    </div>
+  </mat-card>
+
   <!-- Selector de Docente -->
   <mat-card class="selector-card glass-card">
     <div class="selector-content">
@@ -209,27 +302,27 @@
 <mat-menu #cursosMenu="matMenu" class="premium-menu">
   <div class="menu-search" (click)="$event.stopPropagation()">
     <mat-icon>search</mat-icon>
-    <input type="text" placeholder="Buscar curso..." #cursoSearch (input)="0">
+    <input type="text" placeholder="Buscar curso..." [(ngModel)]="filtroCursos" (input)="$event.stopPropagation()">
   </div>
   <div class="menu-items">
-    <button mat-menu-item *ngFor="let curso of todosCursos" (click)="agregarCurso(curso)">
+    <button mat-menu-item *ngFor="let curso of cursosFiltrados" (click)="agregarCurso(curso)">
       <span class="menu-code">{{ curso.codigo }}</span>
       <span>{{ curso.nombre }}</span>
     </button>
-    <div class="menu-empty" *ngIf="!serviciosDisponibles.cursos">Servicio no disponible</div>
+    <div class="menu-empty" *ngIf="cursosFiltrados.length === 0">No se encontraron cursos</div>
   </div>
 </mat-menu>
 
 <mat-menu #ambientesMenu="matMenu" class="premium-menu">
   <div class="menu-search" (click)="$event.stopPropagation()">
     <mat-icon>search</mat-icon>
-    <input type="text" placeholder="Buscar ambiente..." #ambSearch (input)="0">
+    <input type="text" placeholder="Buscar ambiente..." [(ngModel)]="filtroAmbientes" (input)="$event.stopPropagation()">
   </div>
   <div class="menu-items">
-    <button mat-menu-item *ngFor="let amb of todosAmbientes" (click)="agregarAmbiente(amb)">
+    <button mat-menu-item *ngFor="let amb of ambientesFiltrados" (click)="agregarAmbiente(amb)">
       <span class="menu-code">{{ amb.codigo }}</span>
       <span>{{ amb.nombre }}</span>
     </button>
-    <div class="menu-empty" *ngIf="!serviciosDisponibles.ambientes">Servicio no disponible</div>
+    <div class="menu-empty" *ngIf="ambientesFiltrados.length === 0">No se encontraron ambientes</div>
   </div>
 </mat-menu>

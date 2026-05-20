@@ -1,10 +1,17 @@
 <div class="cursos-page animate-fadein">
+
+  <!-- HEADER -->
   <div class="page-header-premium">
     <div class="title-section">
       <h1 class="gradient-text">Plan de Estudios</h1>
       <p class="subtitle">Gestión de cursos y mallas curriculares</p>
     </div>
     <div class="header-actions">
+      <button mat-stroked-button class="btn-export" (click)="exportarExcel()" [disabled]="exportando">
+        <mat-spinner diameter="14" *ngIf="exportando"></mat-spinner>
+        <mat-icon *ngIf="!exportando">download</mat-icon>
+        <span>{{ exportando ? 'Exportando…' : 'Excel' }}</span>
+      </button>
       <a mat-raised-button class="btn-new" routerLink="/app/cursos/nuevo">
         <mat-icon>library_add</mat-icon>
         <span>Nuevo Curso</span>
@@ -12,124 +19,140 @@
     </div>
   </div>
 
+  <!-- FILTROS -->
   <mat-card class="filter-card-premium">
     <div class="filter-grid">
       <div class="search-wrapper">
         <mat-icon class="search-icon">search</mat-icon>
-        <input
-          type="text"
-          [formControl]="searchControl"
-          placeholder="Buscar por nombre o código de curso..."
-          class="premium-input"
-        />
+        <input type="text" [formControl]="searchControl"
+          placeholder="Buscar por nombre o código…" class="premium-input" />
       </div>
       <div class="select-group">
         <mat-form-field appearance="outline" class="premium-select">
-          <mat-label>Filtrar por Ciclo</mat-label>
-          <mat-select
-            [(ngModel)]="cicloFilter"
-            (ngModelChange)="onFilterChange()"
-          >
-            <mat-option value="">Todos los ciclos</mat-option>
-            <mat-option *ngFor="let c of ciclos" [value]="c"
-              >Ciclo {{ c }}</mat-option
-            >
+          <mat-label>Ciclo</mat-label>
+          <mat-select [(ngModel)]="cicloFilter" (ngModelChange)="onFilterChange()">
+            <mat-option value="">Todos</mat-option>
+            <mat-option *ngFor="let c of ciclos" [value]="c">Ciclo {{ c }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="premium-select">
+          <mat-label>Laboratorio</mat-label>
+          <mat-select [(ngModel)]="labFilter" (ngModelChange)="onFilterChange()">
+            <mat-option value="">Todos</mat-option>
+            <mat-option value="true">Con Lab</mat-option>
+            <mat-option value="false">Sin Lab</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="premium-select">
+          <mat-label>Estado</mat-label>
+          <mat-select [(ngModel)]="activoFilter" (ngModelChange)="onFilterChange()">
+            <mat-option value="true">Activos</mat-option>
+            <mat-option value="false">Inactivos</mat-option>
+            <mat-option value="">Todos</mat-option>
           </mat-select>
         </mat-form-field>
       </div>
     </div>
   </mat-card>
 
+  <!-- TABLA -->
   <mat-card class="table-container-premium">
     <div *ngIf="loading" class="loading-overlay">
       <mat-spinner diameter="50" strokeWidth="3"></mat-spinner>
-      <span>Actualizando catálogo...</span>
+      <span>Actualizando catálogo…</span>
+    </div>
+
+    <!-- contador -->
+    <div class="results-bar" *ngIf="!loading">
+      <span class="results-count">
+        <mat-icon>list_alt</mat-icon>
+        <strong>{{ total }}</strong> curso{{ total !== 1 ? 's' : '' }} encontrado{{ total !== 1 ? 's' : '' }}
+      </span>
+      <span *ngIf="activoFilter === 'false'" class="badge-inactivos">Vista: Inactivos</span>
+      <span *ngIf="activoFilter === ''" class="badge-todos">Vista: Todos</span>
     </div>
 
     <div class="table-scroll" *ngIf="!loading">
-      <table mat-table [dataSource]="dataSource" class="premium-table">
+      <table mat-table [dataSource]="dataSource" matSort (matSortChange)="onSort($event)" class="premium-table">
+
+        <!-- CÓDIGO -->
         <ng-container matColumnDef="codigo">
-          <th mat-header-cell *matHeaderCellDef>Código</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="codigo">Código</th>
           <td mat-cell *matCellDef="let c">
             <span class="code-badge">{{ c.codigo }}</span>
           </td>
         </ng-container>
 
+        <!-- NOMBRE + ciclo badge -->
         <ng-container matColumnDef="nombre">
-          <th mat-header-cell *matHeaderCellDef>Nombre del Curso</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="nombre">Nombre del Curso</th>
           <td mat-cell *matCellDef="let c">
             <div class="course-name-cell">
-              <span class="course-title">{{ c.nombre }}</span>
-              <span class="course-cycle">Ciclo {{ c.ciclo }}</span>
+              <div class="course-title-row">
+                <span class="course-title" [class.inactivo-title]="c.activo === false">{{ c.nombre }}</span>
+                <span class="inactivo-badge" *ngIf="c.activo === false">INACTIVO</span>
+              </div>
+              <span class="cycle-chip" [style.background]="cicloColor(c.ciclo) + '22'"
+                    [style.color]="cicloColor(c.ciclo)" [style.border-color]="cicloColor(c.ciclo) + '55'">
+                Ciclo {{ c.ciclo }}
+              </span>
             </div>
           </td>
         </ng-container>
 
+        <!-- CRÉDITOS -->
         <ng-container matColumnDef="creditos">
-          <th mat-header-cell *matHeaderCellDef>Créditos</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="creditos">Cr.</th>
           <td mat-cell *matCellDef="let c">
             <div class="credit-badge">{{ c.creditos }}</div>
           </td>
         </ng-container>
 
+        <!-- HORAS -->
         <ng-container matColumnDef="horas_teoria">
-          <th mat-header-cell *matHeaderCellDef>Horas</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="horas_teoria">Horas</th>
           <td mat-cell *matCellDef="let c">
             <div class="hours-cell">
               <span class="hour-tag theory" matTooltip="Horas de Teoría">
                 <mat-icon>menu_book</mat-icon> {{ c.horas_teoria }}h
               </span>
-              <span
-                class="hour-tag lab"
-                *ngIf="c.horas_laboratorio"
-                matTooltip="Horas de Laboratorio"
-              >
+              <span class="hour-tag lab" *ngIf="c.horas_laboratorio" matTooltip="Horas de Laboratorio">
                 <mat-icon>biotech</mat-icon> {{ c.horas_laboratorio }}h
               </span>
             </div>
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="tiene_lab">
-          <th mat-header-cell *matHeaderCellDef>Laboratorio</th>
+        <!-- COMPLETITUD -->
+        <ng-container matColumnDef="completitud">
+          <th mat-header-cell *matHeaderCellDef>Estado Config.</th>
           <td mat-cell *matCellDef="let c">
-            <span
-              [class]="
-                'badge-pill ' +
-                (c.tiene_laboratorio ? 'badge-LABORATORIO' : 'badge-INACTIVO')
-              "
-            >
-              {{ c.tiene_laboratorio ? "REQUERIDO" : "NO APLICA" }}
+            <span class="comp-indicator" [class]="completitudClass(c)" [matTooltip]="completitudTip(c)">
+              <mat-icon>{{ completitudClass(c) === 'comp-ok' ? 'check_circle' : 'warning' }}</mat-icon>
+              {{ completitudClass(c) === 'comp-ok' ? 'Completo' : 'Incompleto' }}
             </span>
           </td>
         </ng-container>
 
+        <!-- AMBIENTE TEORÍA -->
         <ng-container matColumnDef="ambiente_teoria">
-          <th mat-header-cell *matHeaderCellDef>Ambiente Teoría</th>
+          <th mat-header-cell *matHeaderCellDef>Ambientes Teoría</th>
           <td mat-cell *matCellDef="let c">
             <div class="ambiente-cell">
               <ng-container *ngIf="ambientesTeoria(c) as teoria">
                 <ng-container *ngIf="teoria.length > 0; else sinTeoria">
-                  <span *ngFor="let a of teoria" class="ambiente-chip aula">{{
-                    a.codigo
-                  }}</span>
-                  <button
-                    mat-icon-button
-                    class="btn-assign"
-                    (click)="abrirAsignarAmbientes(c, 'TEORIA')"
-                    matTooltip="Editar ambientes de teoría"
-                  >
+                  <span *ngFor="let a of teoria" class="ambiente-chip aula">{{ a.codigo }}</span>
+                  <button mat-icon-button class="btn-assign" (click)="abrirAsignarAmbientes(c, 'TEORIA')"
+                    matTooltip="Editar ambientes de teoría">
                     <mat-icon>edit_location_alt</mat-icon>
                   </button>
                 </ng-container>
               </ng-container>
               <ng-template #sinTeoria>
-                <button
-                  mat-icon-button
-                  class="btn-assign"
-                  (click)="abrirAsignarAmbientes(c, 'TEORIA')"
-                  matTooltip="Asignar ambiente de teoría"
-                >
+                <button mat-icon-button class="btn-assign warn-assign"
+                  (click)="abrirAsignarAmbientes(c, 'TEORIA')" matTooltip="Asignar ambiente de teoría">
                   <mat-icon>add_location_alt</mat-icon>
                 </button>
               </ng-template>
@@ -137,105 +160,76 @@
           </td>
         </ng-container>
 
+        <!-- AMBIENTE LAB -->
         <ng-container matColumnDef="ambiente_laboratorio">
-          <th mat-header-cell *matHeaderCellDef>Ambiente Laboratorio</th>
+          <th mat-header-cell *matHeaderCellDef>Ambientes Lab</th>
           <td mat-cell *matCellDef="let c">
             <div class="ambiente-cell">
-              <ng-container *ngIf="c.tiene_laboratorio">
+              <ng-container *ngIf="c.tiene_laboratorio; else noLab">
                 <ng-container *ngIf="ambientesLaboratorio(c) as labs">
                   <ng-container *ngIf="labs.length > 0; else sinLab">
-                    <span
-                      *ngFor="let a of labs"
-                      class="ambiente-chip laboratorio"
-                      >{{ a.codigo }}</span
-                    >
-                    <button
-                      mat-icon-button
-                      class="btn-assign"
-                      (click)="abrirAsignarAmbientes(c, 'LABORATORIO')"
-                      matTooltip="Editar ambientes de laboratorio"
-                    >
+                    <span *ngFor="let a of labs" class="ambiente-chip laboratorio">{{ a.codigo }}</span>
+                    <button mat-icon-button class="btn-assign" (click)="abrirAsignarAmbientes(c, 'LABORATORIO')"
+                      matTooltip="Editar ambientes de laboratorio">
                       <mat-icon>edit_location_alt</mat-icon>
                     </button>
                   </ng-container>
                 </ng-container>
                 <ng-template #sinLab>
-                  <button
-                    mat-icon-button
-                    class="btn-assign"
-                    (click)="abrirAsignarAmbientes(c, 'LABORATORIO')"
-                    matTooltip="Asignar ambiente de laboratorio"
-                  >
+                  <button mat-icon-button class="btn-assign warn-assign"
+                    (click)="abrirAsignarAmbientes(c, 'LABORATORIO')" matTooltip="Asignar ambiente de laboratorio">
                     <mat-icon>add_location_alt</mat-icon>
                   </button>
                 </ng-template>
               </ng-container>
-              <span *ngIf="!c.tiene_laboratorio" class="na-badge"
-                >NO APLICA</span
-              >
+              <ng-template #noLab>
+                <span class="na-badge">—</span>
+              </ng-template>
             </div>
           </td>
         </ng-container>
 
+        <!-- ACCIONES -->
         <ng-container matColumnDef="acciones">
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let c" class="actions-cell">
             <div class="btn-group">
-              <button
-                mat-icon-button
-                class="btn-action groups"
-                (click)="abrirGestionarGrupos(c)"
-                matTooltip="Gestionar grupos/secciones"
-                style="color: #8b5cf6;"
-              >
+              <button mat-icon-button class="btn-action groups" (click)="abrirGestionarGrupos(c)"
+                matTooltip="Gestionar grupos/secciones">
                 <mat-icon>groups</mat-icon>
               </button>
-              <a
-                mat-icon-button
-                class="btn-action edit"
-                [routerLink]="['/app/cursos', c.id, 'editar']"
-                matTooltip="Editar curso"
-              >
-                <mat-icon>edit_calendar</mat-icon>
+              <a mat-icon-button class="btn-action edit" [routerLink]="['/app/cursos', c.id, 'editar']"
+                matTooltip="Editar curso">
+                <mat-icon>edit</mat-icon>
               </a>
-              <button
-                mat-icon-button
-                class="btn-action delete"
-                (click)="eliminar(c)"
-                matTooltip="Eliminar curso"
-              >
-                <mat-icon>delete_sweep</mat-icon>
+              <button *ngIf="c.activo !== false" mat-icon-button class="btn-action delete"
+                (click)="eliminar(c)" matTooltip="Desactivar curso">
+                <mat-icon>toggle_on</mat-icon>
+              </button>
+              <button *ngIf="c.activo === false" mat-icon-button class="btn-action reactivar"
+                (click)="reactivar(c)" matTooltip="Reactivar curso">
+                <mat-icon>toggle_off</mat-icon>
               </button>
             </div>
           </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr
-          mat-row
-          *matRowDef="let row; columns: displayedColumns; let i = index"
-          class="premium-row"
-          [style.animation-delay]="i * 50 + 'ms'"
-        ></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns; let i = index"
+          class="premium-row" [class.row-inactive]="row.activo === false"
+          [style.animation-delay]="i * 40 + 'ms'"></tr>
       </table>
 
       <div *ngIf="dataSource.length === 0" class="empty-state-premium">
-        <div class="empty-illustration">
-          <mat-icon>auto_stories</mat-icon>
-        </div>
+        <div class="empty-illustration"><mat-icon>auto_stories</mat-icon></div>
         <h3>Sin resultados</h3>
         <p>No hay cursos que coincidan con los criterios de búsqueda.</p>
       </div>
     </div>
 
-    <mat-paginator
-      [length]="total"
-      [pageSize]="pageSize"
-      [pageSizeOptions]="[10, 20, 50]"
-      [pageIndex]="currentPage"
-      (page)="onPageChange($event)"
-      showFirstLastButtons
-      class="premium-paginator"
-    ></mat-paginator>
+    <mat-paginator [length]="total" [pageSize]="pageSize" [pageSizeOptions]="[10, 20, 50]"
+      [pageIndex]="currentPage" (page)="onPageChange($event)"
+      showFirstLastButtons class="premium-paginator">
+    </mat-paginator>
   </mat-card>
 </div>

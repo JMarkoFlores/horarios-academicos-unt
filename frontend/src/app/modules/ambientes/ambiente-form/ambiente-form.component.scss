@@ -30,6 +30,7 @@
       font-size: 24px;
       font-weight: 800;
       background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin: 0;
@@ -50,8 +51,6 @@
   border: 1px solid var(--color-border) !important;
   background: var(--color-surface) !important;
   box-shadow: var(--shadow-md) !important;
-  max-width: 900px;
-  margin: 0 auto;
 
   .form-sections-grid {
     display: grid;

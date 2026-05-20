@@ -1,0 +1,6 @@
+export enum EstadoAmbiente {
+  ACTIVO = "ACTIVO",
+  MANTENIMIENTO = "MANTENIMIENTO",
+  RESERVADO = "RESERVADO",
+  INACTIVO = "INACTIVO",
+}

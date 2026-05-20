@@ -40,12 +40,14 @@ export class AmbientesController {
   @Get()
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Listar ambientes paginado con filtros" })
-  @ApiQuery({
-    name: "tipo",
-    required: false,
-    description: "AULA o LABORATORIO",
-  })
-  @ApiQuery({ name: "activo", required: false })
+  @ApiQuery({ name: "tipo", required: false, description: "AULA, LABORATORIO, AUDITORIO, TALLER, SEMINARIO, SALA_COMPUTACION" })
+  @ApiQuery({ name: "estado", required: false, description: "ACTIVO, MANTENIMIENTO, RESERVADO, INACTIVO" })
+  @ApiQuery({ name: "busqueda", required: false, description: "Búsqueda por código, nombre, pabellón o equipamiento" })
+  @ApiQuery({ name: "pabellon", required: false })
+  @ApiQuery({ name: "sede", required: false })
+  @ApiQuery({ name: "capacidadMin", required: false, type: Number })
+  @ApiQuery({ name: "capacidadMax", required: false, type: Number })
+  @ApiQuery({ name: "activo", required: false, description: "Deprecated, usar estado" })
   async findAll(@Query() query: QueryAmbienteDto) {
     const result = await this.ambientesService.findAll(query);
     return { data: result, message: "Ambientes obtenidos correctamente" };
@@ -109,8 +111,12 @@ export class AmbientesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Desactivar un ambiente (soft delete)" })
   @ApiParam({ name: "id", type: Number })
-  async remove(@Param("id", ParseIntPipe) id: number) {
-    await this.ambientesService.remove(id);
+  @ApiQuery({ name: "periodo", required: false, description: "Período activo para verificar dependencias" })
+  async remove(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo?: string,
+  ) {
+    await this.ambientesService.remove(id, periodo);
     return { data: null, message: "Ambiente desactivado correctamente" };
   }
 }

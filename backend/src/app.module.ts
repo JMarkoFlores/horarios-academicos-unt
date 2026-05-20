@@ -25,6 +25,7 @@ import { ConfiguracionModule } from "./configuracion/configuracion.module";
 import { PreasignacionesModule } from "./modules/preasignaciones/preasignaciones.module";
 import { VentanasModule } from "./modules/ventanas/ventanas.module";
 import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
+import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
 
 @Module({
   imports: [
@@ -43,8 +44,8 @@ import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
         username: config.get<string>("DATABASE_USER", "unt_user"),
         password: config.get<string>("DATABASE_PASSWORD", "unt_pass123"),
         autoLoadEntities: true,
-        synchronize: config.get<string>("NODE_ENV") === "development",
-        logging: config.get<string>("NODE_ENV") === "development",
+        synchronize: false,
+        logging: config.get<string>("DATABASE_LOGGING") === "true",
         ssl: false,
       }),
     }),
@@ -103,6 +104,7 @@ import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
     ConfiguracionModule,
     PreasignacionesModule,
     AuditoriaModule,
+    CursosAmbienteModule,
   ],
   providers: [
     {

@@ -15,7 +15,9 @@ import { Docente } from "../entities/docente.entity";
 import { Curso } from "../entities/curso.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
+import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
 import { ValidacionesService } from "../common/services/validaciones.service";
@@ -66,6 +68,9 @@ export class HorariosService {
     page = 1,
     limit = 20,
   ) {
+    // Invalidar caché para asegurar datos frescos
+    await this.cacheManager.del(`horarios_periodo_${periodo}_docente_${docenteId}_${page}_${limit}`);
+
     const [items, total] = await this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.docente", "docente")
@@ -78,10 +83,6 @@ export class HorariosService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
-      .cache(
-        `horarios_periodo_${periodo}_docente_${docenteId}_${page}_${limit}`,
-        60000,
-      )
       .getManyAndCount();
 
     return { items, total, page, limit };
@@ -231,6 +232,7 @@ export class HorariosService {
   async crearAsignacion(dto: CrearAsignacionDto): Promise<HorarioAsignado> {
     const docente = await this.docenteRepo.findOne({
       where: { id: dto.docente_id },
+      relations: ["disponibilidades"],
     });
     if (!docente)
       throw new NotFoundException(`Docente ${dto.docente_id} no encontrado`);
@@ -246,6 +248,27 @@ export class HorariosService {
     });
     if (!ambiente)
       throw new NotFoundException(`Ambiente ${dto.ambiente_id} no encontrado`);
+
+    if (ambiente.estado !== EstadoAmbiente.ACTIVO) {
+      throw new BadRequestException(
+        `El ambiente ${ambiente.codigo} no está activo (estado: ${ambiente.estado})`,
+      );
+    }
+
+    // Verificar disponibilidad del docente para ese slot
+    const disponibles = docente.disponibilidades?.filter(
+      (d) =>
+        d.disponible &&
+        d.dia_semana === dto.dia_semana &&
+        d.periodo_academico === dto.periodo_academico &&
+        d.hora_inicio <= dto.hora_inicio &&
+        d.hora_fin >= dto.hora_fin,
+    );
+    if (docente.disponibilidades && docente.disponibilidades.length > 0 && (!disponibles || disponibles.length === 0)) {
+      throw new BadRequestException(
+        `El docente no tiene disponibilidad registrada para el día ${dto.dia_semana} en el horario ${dto.hora_inicio}–${dto.hora_fin}`,
+      );
+    }
 
     const franja = this.validacionesService.verificarFranjaInstitucional(
       dto.hora_inicio,

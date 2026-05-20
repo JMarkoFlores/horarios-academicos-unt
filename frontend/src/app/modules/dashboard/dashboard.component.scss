@@ -64,11 +64,141 @@
   padding: 100px 0;
 }
 
+// ── 1b. PERIOD STATUS BAR ───────────────────────────────────────────────
+.period-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+
+  .status-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .status-icon {
+      color: var(--color-text-muted);
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+
+      &.activo {
+        color: #10b981;
+      }
+    }
+
+    .status-info {
+      display: flex;
+      flex-direction: column;
+
+      .status-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .status-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--color-text);
+      }
+    }
+  }
+
+  .status-progress {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 320px;
+
+    .progress-track {
+      flex: 1;
+      height: 6px;
+      background: var(--color-background);
+      border-radius: 3px;
+      overflow: hidden;
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--color-primary), #10b981);
+        border-radius: 3px;
+        transition: width 600ms ease;
+      }
+    }
+
+    .progress-text {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+  }
+
+  .status-right {
+    .status-date {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-text-muted);
+    }
+  }
+}
+
+// ── 1c. QUICK ACTIONS ─────────────────────────────────────────────────────
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  .qa-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 10px !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text-muted) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-decoration: none;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+
+    &:hover {
+      border-color: var(--color-primary) !important;
+      color: var(--color-primary) !important;
+      background: var(--color-primary-light) !important;
+    }
+  }
+}
+
 // ── 2. KPI GRID ──────────────────────────────────────────────────────────
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 20px;
+
+  &.alert-grid {
+    .kpi-card-premium {
+      border-top-width: 4px !important;
+      animation: fadeInUp 400ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+
+      .watermark-icon {
+        opacity: 0.25;
+      }
+    }
+  }
 
   @for $i from 1 through 4 {
     .kpi-card-premium:nth-child(#{$i}) {
@@ -488,6 +618,53 @@
     font-size: 10px;
     color: var(--color-text-muted);
     font-weight: 500;
+  }
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+
+      &.teal {
+        background: #3b82f6;
+      }
+      &.green {
+        background: #22c55e;
+      }
+      &.empty {
+        background: rgba(0, 0, 0, 0.04);
+        border: 1px solid var(--color-border);
+      }
+    }
+  }
+}
+
+// ── 10. COMPACT CARDS (menos prominentes) ─────────────────────────────────
+.compact-card {
+  .chart-body {
+    min-height: auto !important;
+    canvas {
+      max-height: 200px !important;
+    }
+  }
+
+  .list-body {
+    max-height: 260px;
+    overflow-y: auto;
   }
 }
 

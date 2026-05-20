@@ -10,6 +10,9 @@ import { Grupo } from "../entities/grupo.entity";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import * as ExcelJS from "exceljs";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { ConfiguracionService } from "../configuracion/configuracion.service";
 
 @Injectable()
 export class ReportesService {
@@ -28,6 +31,7 @@ export class ReportesService {
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(Grupo)
     private readonly grupoRepo: Repository<Grupo>,
+    private readonly configuracionService: ConfiguracionService,
   ) {}
 
   async generarPDF(html: string): Promise<Buffer> {
@@ -90,66 +94,276 @@ export class ReportesService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
 
-    const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-    let totalHoras = 0;
+    const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+    const diasNum = [1, 2, 3, 4, 5];
+    const horas = Array.from({ length: 15 }, (_, i) => i + 7);
 
-    const filas = horarios
-      .map((h) => {
-        const duracion = this.calcularDuracionHoras(h.hora_inicio, h.hora_fin);
-        totalHoras += duracion;
-        return `
-        <tr>
-          <td>${dias[h.dia] || h.dia}</td>
-          <td>${h.hora_inicio.substring(0, 5)}</td>
-          <td>${h.hora_fin.substring(0, 5)}</td>
-          <td>${h.curso?.nombre || "-"}</td>
-          <td>${h.tipo_clase === TipoClase.TEORIA ? "T" : "L"}</td>
-          <td>${h.ambiente?.codigo || "-"}</td>
-        </tr>
-      `;
-      })
-      .join("");
+    // Obtener configuración del bloque de almuerzo desde la base de datos
+    let almuerzoInicio = 12;
+    let almuerzoFin = 14;
+    try {
+      const restricciones = await this.configuracionService.getRestriccionesMap(periodo);
+      const bloqueAlmuerzo = restricciones['BLOQUE_ALMUERZO'] as any;
+      if (bloqueAlmuerzo && bloqueAlmuerzo.hora_inicio && bloqueAlmuerzo.hora_fin) {
+        almuerzoInicio = parseInt(bloqueAlmuerzo.hora_inicio.split(':')[0], 10);
+        almuerzoFin = parseInt(bloqueAlmuerzo.hora_fin.split(':')[0], 10);
+      }
+    } catch (error) {
+      this.logger.warn(`No se pudo obtener configuración de almuerzo, usando valores por defecto: ${error}`);
+    }
 
-    const antiguedad = this.calcularAntiguedad(docente.fecha_ingreso);
+    // Normalizar horarios
+    const asignaciones = horarios.map((a) => {
+      (a as any).dia_semana = (a as any).dia ?? a.dia_semana;
+      a.hora_inicio = a.hora_inicio.substring(0, 5);
+      a.hora_fin = a.hora_fin.substring(0, 5);
+      return a;
+    });
 
-    const html = this.htmlWrapper(`
-      <div class="content-header">
-        <h1>REPORTE DE HORARIO POR DOCENTE</h1>
-        <div class="meta-info">
-          <p><strong>Docente:</strong> ${docente.apellidos}, ${docente.nombres}</p>
-          <p><strong>Categoría:</strong> ${docente.categoria}</p>
-          <p><strong>Modalidad:</strong> ${docente.tipo_contrato}</p>
-          <p><strong>Antigüedad:</strong> ${antiguedad} años</p>
-          <p><strong>Período:</strong> ${periodo}</p>
-        </div>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Día</th>
-            <th>Hora Inicio</th>
-            <th>Hora Fin</th>
-            <th>Curso</th>
-            <th>Tipo</th>
-            <th>Ambiente</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${filas}
-        </tbody>
-      </table>
-      <div class="summary">
-        <p><strong>Total de horas semanales asignadas:</strong> ${totalHoras.toFixed(1)} hrs</p>
-      </div>
-      <div class="signature-section">
-        <div class="signature-box">
-          <div class="line"></div>
-          <p>Firma del Director de Escuela</p>
-        </div>
-      </div>
-    `);
+    // Calcular total horas
+    const totalHoras = asignaciones.reduce((acc, a) => {
+      if (!a.hora_inicio || !a.hora_fin) return acc + 1;
+      const ini = parseInt(a.hora_inicio.split(':')[0], 10);
+      const fin = parseInt(a.hora_fin.split(':')[0], 10);
+      return acc + (fin - ini);
+    }, 0);
 
-    return this.generarPDF(html);
+    // ── jsPDF con diseño igual al frontend ─────────────────────────────────
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const docNombre = `${docente.apellidos}, ${docente.nombres}`;
+    const codigo = docente.codigo ?? '';
+    const categoria = docente.categoria ?? '';
+
+    // Paleta de colores
+    const C = {
+      primary: [79, 70, 229] as [number, number, number],
+      primaryDark: [55, 48, 163] as [number, number, number],
+      primaryLight: [237, 233, 254] as [number, number, number],
+      primaryText: [55, 48, 163] as [number, number, number],
+      labBg: [209, 250, 229] as [number, number, number],
+      labFg: [6, 78, 59] as [number, number, number],
+      labBorder: [16, 185, 129] as [number, number, number],
+      rowAlt: [248, 247, 255] as [number, number, number],
+      horaCol: [241, 245, 249] as [number, number, number],
+      horaTxt: [51, 65, 85] as [number, number, number],
+      border: [203, 213, 225] as [number, number, number],
+      white: [255, 255, 255] as [number, number, number],
+      gray: [100, 116, 139] as [number, number, number],
+      dark: [15, 23, 42] as [number, number, number],
+    };
+
+    const C_ALM_BG = [255, 243, 205] as [number, number, number];
+    const C_ALM_FG = [146, 64, 14] as [number, number, number];
+    const C_ALM_BD = [251, 191, 36] as [number, number, number];
+
+    const PAGE_W = 297;
+
+    // Cabecera principal
+    doc.setFillColor(...C.primaryDark);
+    doc.rect(0, 0, PAGE_W, 22, 'F');
+
+    doc.setFillColor(...C.primary);
+    doc.rect(0, 18, PAGE_W, 4, 'F');
+
+    doc.setTextColor(...C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('HORARIO ACADEMICO', 12, 9);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Universidad Nacional de Trujillo', 12, 15);
+
+    // Info docente (derecha)
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    const infoX = PAGE_W - 12;
+    doc.text(docNombre, infoX, 7, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    const partes: string[] = [];
+    if (codigo) partes.push(`Cod: ${codigo}`);
+    if (categoria) partes.push(categoria);
+    partes.push(`Periodo: ${periodo}`);
+    partes.push(`${totalHoras} hrs/sem`);
+    doc.text(partes.join('  |  '), infoX, 13, { align: 'right' });
+
+    // Construir matriz de datos para el grid
+    type TipoCelda = 'TEORIA' | 'LABORATORIO' | 'ALMUERZO' | 'LIBRE';
+    interface SlotInfo {
+      texto: string;
+      tipo: TipoCelda;
+      raw: HorarioAsignado | null;
+      span: number;
+      absorbida: boolean;
+    }
+
+    const grid: SlotInfo[][] = horas.map((hora) => {
+      const filaHora = `${String(hora).padStart(2, '0')}:00`;
+      const esAlm = hora >= almuerzoInicio && hora < almuerzoFin;
+      const cols: SlotInfo[] = [
+        { texto: filaHora, tipo: 'LIBRE', raw: null, span: 1, absorbida: false },
+      ];
+      for (const dia of diasNum) {
+        const asig = asignaciones.find(
+          (a) => a.dia_semana === dia && a.hora_inicio === filaHora,
+        ) ?? null;
+        if (asig) {
+          const finH = asig.hora_fin ? parseInt(asig.hora_fin.split(':')[0], 10) : hora + 1;
+          const span = Math.max(1, finH - hora);
+          const curso = asig.curso?.nombre ?? '—';
+          const amb = asig.ambiente?.codigo ?? '—';
+          const tipo = asig.tipo_clase === TipoClase.LABORATORIO ? 'LAB' : 'TEO';
+          cols.push({
+            texto: `[${tipo}] ${curso}\n${amb}\n${asig.hora_inicio}–${asig.hora_fin}`,
+            tipo: asig.tipo_clase === TipoClase.LABORATORIO ? 'LABORATORIO' : 'TEORIA',
+            raw: asig, span, absorbida: false,
+          });
+        } else if (esAlm) {
+          cols.push({ texto: 'Almuerzo', tipo: 'ALMUERZO', raw: null, span: 1, absorbida: false });
+        } else {
+          cols.push({ texto: '', tipo: 'LIBRE', raw: null, span: 1, absorbida: false });
+        }
+      }
+      return cols;
+    });
+
+    // Marcar celdas absorbidas por span
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 1; c <= 5; c++) {
+        const slot = grid[r][c];
+        if (slot.span > 1 && !slot.absorbida) {
+          for (let s = 1; s < slot.span && r + s < grid.length; s++) {
+            grid[r + s][c].absorbida = true;
+          }
+        }
+      }
+    }
+
+    const head = [['Hora', ...dias]];
+    const body = grid.map((fila) =>
+      fila.map((s) => (s.absorbida ? '↕' : s.texto)),
+    );
+
+    autoTable(doc, {
+      startY: 27,
+      head,
+      body,
+      styles: {
+        fontSize: 7,
+        cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+        valign: 'middle',
+        halign: 'center',
+        lineColor: C.border,
+        lineWidth: 0.25,
+        textColor: C.dark,
+      },
+      headStyles: {
+        fillColor: C.primary,
+        textColor: C.white,
+        fontStyle: 'bold',
+        fontSize: 8.5,
+        halign: 'center',
+        cellPadding: { top: 4, bottom: 4, left: 2, right: 2 },
+      },
+      columnStyles: {
+        0: {
+          halign: 'center',
+          fontStyle: 'bold',
+          fillColor: C.horaCol,
+          textColor: C.horaTxt,
+          cellWidth: 16,
+          fontSize: 7.5,
+        },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 'auto' },
+        5: { cellWidth: 'auto' },
+      },
+      didParseCell: (data) => {
+        if (data.section !== 'body') return;
+        if (data.column.index === 0) return;
+        const ri = data.row.index;
+        const ci = data.column.index;
+        const fila = grid[ri];
+        if (!fila) return;
+        const slot = fila[ci];
+
+        if (slot.absorbida) {
+          data.cell.styles.fillColor = C.white;
+          data.cell.styles.textColor = C.white;
+          data.cell.styles.fontSize = 1;
+          data.cell.styles.lineColor = C.white;
+          return;
+        }
+
+        if (slot.tipo === 'ALMUERZO') {
+          data.cell.styles.fillColor = C_ALM_BG;
+          data.cell.styles.textColor = C_ALM_FG;
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.lineColor = C_ALM_BD;
+          return;
+        }
+        if (slot.tipo === 'LABORATORIO') {
+          data.cell.styles.fillColor = C.labBg;
+          data.cell.styles.textColor = C.labFg;
+          data.cell.styles.fontStyle = 'bold';
+          return;
+        }
+        if (slot.tipo === 'TEORIA') {
+          const esPar = ri % 2 === 0;
+          data.cell.styles.fillColor = esPar
+            ? C.primaryLight
+            : [228, 224, 252] as [number, number, number];
+          data.cell.styles.textColor = C.primaryText;
+          data.cell.styles.fontStyle = 'bold';
+          return;
+        }
+        data.cell.styles.fillColor = C.white;
+      },
+      alternateRowStyles: { fillColor: C.rowAlt },
+      margin: { left: 8, right: 8 },
+      rowPageBreak: 'avoid',
+      tableLineColor: C.border,
+      tableLineWidth: 0.3,
+    });
+
+    // Pie de página con leyenda
+    const finalY = (doc as any).lastAutoTable?.finalY ?? 185;
+    const pieY = finalY + 7;
+
+    doc.setFillColor(...C.rowAlt);
+    doc.roundedRect(8, pieY - 1, 140, 9, 1.5, 1.5, 'F');
+
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+
+    doc.setFillColor(...C.primary);
+    doc.rect(12, pieY + 1.5, 4, 4, 'F');
+    doc.setTextColor(...C.primaryText);
+    doc.text('Teoria', 18, pieY + 5);
+
+    doc.setFillColor(...C.labBorder);
+    doc.rect(38, pieY + 1.5, 4, 4, 'F');
+    doc.setTextColor(...C.labFg);
+    doc.text('Laboratorio', 44, pieY + 5);
+
+    doc.setFillColor(...C_ALM_BD);
+    doc.rect(70, pieY + 1.5, 4, 4, 'F');
+    doc.setTextColor(...C_ALM_FG);
+    doc.text(`Almuerzo (${almuerzoInicio}:00-${almuerzoFin}:00)`, 76, pieY + 5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...C.gray);
+    doc.setFontSize(6.5);
+    doc.text(`Generado el ${new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}`, PAGE_W - 8, pieY + 5, { align: 'right' });
+
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.3);
+    doc.line(8, pieY + 9, PAGE_W - 8, pieY + 9);
+
+    return Buffer.from(doc.output('arraybuffer'));
   }
 
   async generarReporteAulaPDF(

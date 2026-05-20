@@ -51,6 +51,8 @@ export class HorariosComponent implements OnInit, OnDestroy {
   generando = false;
   limpiando = false;
   resultadoGeneracion: any = null;
+  debugResult: any = null;
+  loadingDebug = false;
   private periodSub?: Subscription;
 
   constructor(
@@ -67,7 +69,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
       },
     });
 
-    this.api.get<any>('/ambientes', { limit: 100, activo: 'true' }).subscribe({
+    this.api.get<any>('/ambientes', { limit: 100, estado: 'ACTIVO' }).subscribe({
       next: (r: any) => {
         this.todosAmbientes = r?.data?.items ?? r?.data ?? [];
       },
@@ -126,31 +128,32 @@ export class HorariosComponent implements OnInit, OnDestroy {
       });
   }
 
-  private normalizeHora(hora: string | undefined): string {
-    if (!hora) return '';
-    return hora.length >= 5 ? hora.substring(0, 5) : hora;
+  private horaToDecimal(hora: string | undefined): number {
+    if (!hora) return 0;
+    const [h, m] = hora.split(':').map(Number);
+    return h + (m || 0) / 60;
   }
 
   getAsigDoc(dia: number, hora: number): HorarioAsignado | null {
-    const h = this.fmtH(hora);
+    const hDecimal = hora;
     return (
       this.asignacionesDocente.find(
         (a) =>
           (a.dia_semana ?? a.dia) === dia &&
-          this.normalizeHora(a.hora_inicio) <= h &&
-          this.normalizeHora(a.hora_fin) > h,
+          this.horaToDecimal(a.hora_inicio) <= hDecimal &&
+          this.horaToDecimal(a.hora_fin) > hDecimal,
       ) ?? null
     );
   }
 
   getAsigAmb(dia: number, hora: number): HorarioAsignado | null {
-    const h = this.fmtH(hora);
+    const hDecimal = hora;
     return (
       this.asignacionesAmbiente.find(
         (a) =>
           (a.dia_semana ?? a.dia) === dia &&
-          this.normalizeHora(a.hora_inicio) <= h &&
-          this.normalizeHora(a.hora_fin) > h,
+          this.horaToDecimal(a.hora_inicio) <= hDecimal &&
+          this.horaToDecimal(a.hora_fin) > hDecimal,
       ) ?? null
     );
   }
@@ -241,8 +244,10 @@ export class HorariosComponent implements OnInit, OnDestroy {
   }
 
   resolverConflicto(c: ConflictoAsignacion): void {
+    const motivo = window.prompt('Ingrese el motivo de la resolución:', 'Resuelto manualmente');
+    if (motivo === null) return;
     this.api
-      .patch<ApiResponse<any>>(`/horarios/conflictos/${c.id}/resolver`, {})
+      .patch<ApiResponse<any>>(`/horarios/conflictos/${c.id}/resolver`, { motivo: motivo.trim() || 'Resuelto manualmente' })
       .subscribe({
         next: () => {
           this.notif.success('Conflicto resuelto');
@@ -259,31 +264,38 @@ export class HorariosComponent implements OnInit, OnDestroy {
       )
     )
       return;
+
     this.generando = true;
-    this.resultadoGeneracion = null;
     this.api
-      .post<
-        ApiResponse<any>
-      >('/horarios/generar', { periodo: this.periodoService.periodo })
+      .post<any>("/horarios/generar", { periodo: this.periodoService.periodo })
       .subscribe({
         next: (r) => {
           this.generando = false;
-          this.resultadoGeneracion = {
-            asignaciones: r.data?.asignaciones_creadas ?? 0,
-            conflictos: r.data?.conflictos ?? 0,
-          };
+          this.resultadoGeneracion = r.data;
+          this.notif.success("Horario generado exitosamente");
           this.loadConflictos();
-          if (this.docenteSeleccionado) {
-            this.selectDocente(this.docenteSeleccionado);
-          }
-          if (this.ambienteSeleccionado) {
-            this.selectAmbiente(this.ambienteSeleccionado);
-          }
-          this.notif.success('Horario generado');
         },
         error: () => {
           this.generando = false;
-          this.notif.error('Error al generar horario');
+          this.notif.error("Error al generar horario");
+        },
+      });
+  }
+
+  depurarHorarios(): void {
+    this.loadingDebug = true;
+    this.api
+      .get<any>(`/horarios/debug/${this.periodoService.periodo}`)
+      .subscribe({
+        next: (r) => {
+          this.loadingDebug = false;
+          this.debugResult = r.data;
+          console.log("Debug result:", r.data);
+          this.notif.success(`Depuración completada: ${r.data.inconsistentes} horarios inconsistentes`);
+        },
+        error: () => {
+          this.loadingDebug = false;
+          this.notif.error("Error al depurar horarios");
         },
       });
   }

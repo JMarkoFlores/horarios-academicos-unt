@@ -41,13 +41,14 @@
               <input matInput type="email" formControlName="email" placeholder="usuario@unitru.edu.pe">
               <mat-icon matPrefix>alternate_email</mat-icon>
               <mat-error *ngIf="form.get('email')?.hasError('required')">Requerido</mat-error>
-              <mat-error *ngIf="form.get('email')?.hasError('email')">Formato de email no válido</mat-error>
+              <mat-error *ngIf="form.get('email')?.hasError('emailInvalido')">Formato de email no v&#225;lido (ej. usuario&#64;unt.edu.pe)</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Teléfono / WhatsApp</mat-label>
               <input matInput formControlName="telefono" placeholder="+51 999 999 999">
               <mat-icon matPrefix>phone_iphone</mat-icon>
+              <mat-error *ngIf="form.get('telefono')?.hasError('pattern')">Formato inválido (ej. +51 999 999 999)</mat-error>
             </mat-form-field>
           </div>
         </div>
@@ -62,18 +63,22 @@
           <div class="fields-grid">
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Código de Docente</mat-label>
-              <input matInput formControlName="codigo" maxlength="10" placeholder="Ej. 123456">
+              <input matInput formControlName="codigo" maxlength="20" placeholder="Ej. DOC001">
               <mat-icon matPrefix>pin</mat-icon>
               <mat-error *ngIf="form.get('codigo')?.hasError('required')">El código es necesario</mat-error>
+              <mat-error *ngIf="form.get('codigo')?.hasError('maxlength')">Máximo 20 caracteres</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Fecha de Ingreso</mat-label>
-              <input matInput [matDatepicker]="dpIngreso" formControlName="fecha_ingreso">
+              <input matInput [matDatepicker]="dpIngreso" formControlName="fecha_ingreso"
+                [max]="hoy">
               <mat-datepicker-toggle matSuffix [for]="dpIngreso"></mat-datepicker-toggle>
               <mat-datepicker #dpIngreso></mat-datepicker>
               <mat-icon matPrefix>calendar_today</mat-icon>
               <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('required')">Selecciona una fecha</mat-error>
+              <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('fechaFutura')">La fecha no puede ser futura</mat-error>
+              <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('fechaAntigua')">La fecha no puede ser anterior a 1970</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">

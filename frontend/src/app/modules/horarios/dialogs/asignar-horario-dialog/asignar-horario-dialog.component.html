@@ -58,22 +58,18 @@
     <mat-form-field appearance="outline">
       <mat-label>Ambiente</mat-label>
       <mat-select formControlName="ambiente_id">
-        <mat-option *ngFor="let a of ambientes" [value]="a.id">
-          {{ a.codigo }} – {{ a.nombre }}
+        <mat-option *ngFor="let a of ambientesCompatibles" [value]="a.id">
+          {{ a.codigo }} – {{ a.nombre }} (Cap: {{ a.capacidad }})
         </mat-option>
       </mat-select>
       <mat-error>Selecciona un ambiente</mat-error>
+      <mat-hint *ngIf="ambienteOcupado" style="color: #ef4444; font-size: 11px;">
+        Este ambiente está ocupado en ese horario.
+      </mat-hint>
+      <mat-hint *ngIf="form.get('ambiente_id')?.value && !ambienteOcupado" style="color: #10b981; font-size: 11px;">
+        Ambiente disponible.
+      </mat-hint>
     </mat-form-field>
-
-    <!-- <mat-form-field appearance="outline">
-      <mat-label>Tipo de clase</mat-label>
-      <mat-select formControlName="tipo_clase">
-        <mat-option *ngFor="let t of tiposClase" [value]="t.value">
-          {{ t.label }}
-        </mat-option>
-      </mat-select>
-      <mat-error>Selecciona el tipo</mat-error>
-    </mat-form-field> -->
   </form>
 </mat-dialog-content>
 
@@ -83,7 +79,7 @@
     mat-flat-button
     color="primary"
     (click)="guardar()"
-    [disabled]="form.invalid || guardando"
+    [disabled]="form.invalid || guardando || ambienteOcupado"
   >
     <mat-spinner
       *ngIf="guardando"

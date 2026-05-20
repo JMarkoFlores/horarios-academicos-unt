@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { VentanaAtencion, ApiResponse, Curso, Ambiente } from '../../core/interfaces/entities';
@@ -18,12 +19,35 @@ function generarUUID(): string {
   templateUrl: './operador.component.html',
   styleUrls: ['./operador.component.scss']
 })
-export class OperadorComponent implements OnInit {
+export class OperadorComponent implements OnInit, OnDestroy {
   ventanaForm: FormGroup;
-  ventanasProgramadas: VentanaAtencion[] = [];
+  ventanas: VentanaAtencion[] = [];
+  ventanasFiltradas: VentanaAtencion[] = [];
   ventanaActiva: VentanaAtencion | null = null;
   loading = false;
   creandoVentana = false;
+  mostrarFormulario = false;
+  private periodSub?: Subscription;
+
+  // Filtros
+  filtroEstado = '';
+  filtroCategoria = '';
+
+  categorias = [
+    { value: '', label: 'Todas' },
+    { value: 'PRINCIPAL', label: 'Principal' },
+    { value: 'ASOCIADO', label: 'Asociado' },
+    { value: 'AUXILIAR', label: 'Auxiliar' },
+    { value: 'JEFE_PRACTICA', label: 'Jefe de Práctica' },
+  ];
+
+  estados = [
+    { value: '', label: 'Todos' },
+    { value: 'PROGRAMADA', label: 'Programada' },
+    { value: 'EN_CURSO', label: 'En curso' },
+    { value: 'COMPLETADA', label: 'Completada' },
+    { value: 'CANCELADA', label: 'Cancelada' },
+  ];
 
   // Estado de atención activa
   sesionId = generarUUID();
@@ -35,6 +59,7 @@ export class OperadorComponent implements OnInit {
   cursoSeleccionado: any = null;
   tipoClase = 'TEORIA';
   ambienteSeleccionado: Ambiente | null = null;
+  filtroAmbiente = '';
 
   constructor(
     private api: ApiService,
@@ -60,13 +85,109 @@ export class OperadorComponent implements OnInit {
   ngOnInit(): void {
     this.cargarVentanas();
     this.checkVentanaActiva();
+    this.periodSub = this.periodoService.periodo$.subscribe(() => {
+      this.cargarVentanas();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.periodSub?.unsubscribe();
   }
 
   cargarVentanas(): void {
-    this.api.get<ApiResponse<VentanaAtencion[]>>('/ventanas', { estado: 'PROGRAMADA' }).subscribe(r => {
-      this.ventanasProgramadas = r.data || [];
-      console.log('[Operador] ventanasProgramadas IDs:', this.ventanasProgramadas.map(v => v.id));
+    const params: any = { periodo: this.periodoService.periodo };
+    if (this.filtroEstado) params.estado = this.filtroEstado;
+    if (this.filtroCategoria) params.categoria = this.filtroCategoria;
+    this.api.get<ApiResponse<VentanaAtencion[]>>('/ventanas', params).subscribe(r => {
+      this.ventanas = r.data || [];
+      this.aplicarFiltros();
     });
+  }
+
+  aplicarFiltros(): void {
+    this.ventanasFiltradas = this.ventanas;
+  }
+
+  onFiltroChange(): void {
+    this.cargarVentanas();
+  }
+
+  get ventanasProgramadas(): VentanaAtencion[] {
+    return this.ventanasFiltradas.filter(v => v.estado === 'PROGRAMADA');
+  }
+
+  get ventanasCompletadas(): VentanaAtencion[] {
+    return this.ventanasFiltradas.filter(v => v.estado === 'COMPLETADA');
+  }
+
+  get ventanasCanceladas(): VentanaAtencion[] {
+    return this.ventanasFiltradas.filter(v => v.estado === 'CANCELADA');
+  }
+
+  puedeEliminar(ventana: VentanaAtencion): boolean {
+    return ventana.estado === 'PROGRAMADA' || ventana.estado === 'CANCELADA';
+  }
+
+  puedeIniciar(ventana: VentanaAtencion): boolean {
+    return ventana.estado === 'PROGRAMADA';
+  }
+
+  eliminarTodasVentanas(): void {
+    if (!confirm('¿Seguro que desea eliminar TODAS las ventanas? Esta acción no se puede deshacer.')) return;
+    this.api.delete<ApiResponse<any>>('/ventanas/all').subscribe({
+      next: () => {
+        this.snack.open('Todas las ventanas eliminadas', 'OK', { duration: 3000 });
+        this.cargarVentanas();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'Error al eliminar ventanas';
+        this.snack.open(Array.isArray(msg) ? msg.join(', ') : msg, 'Error', { duration: 5000 });
+      }
+    });
+  }
+
+  eliminarVentana(ventana: VentanaAtencion): void {
+    if (!confirm(`¿Eliminar ventana del ${new Date(ventana.fecha).toLocaleDateString()} (${ventana.categoria})?`)) return;
+    this.api.delete<ApiResponse<any>>(`/ventanas/${ventana.id}`).subscribe({
+      next: () => {
+        this.snack.open('Ventana eliminada', 'OK', { duration: 3000 });
+        this.cargarVentanas();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'Error al eliminar ventana';
+        this.snack.open(Array.isArray(msg) ? msg.join(', ') : msg, 'Error', { duration: 5000 });
+      }
+    });
+  }
+
+  getEstadoLabel(estado: string): string {
+    const map: Record<string, string> = {
+      PROGRAMADA: 'Programada',
+      EN_CURSO: 'En curso',
+      COMPLETADA: 'Completada',
+      CANCELADA: 'Cancelada',
+    };
+    return map[estado] || estado;
+  }
+
+  getEstadoClass(estado: string): string {
+    const map: Record<string, string> = {
+      PROGRAMADA: 'programada',
+      EN_CURSO: 'en-curso',
+      COMPLETADA: 'completada',
+      CANCELADA: 'cancelada',
+    };
+    return map[estado] || '';
+  }
+
+  getCategoriaLabel(cat: string): string {
+    const map: Record<string, string> = {
+      PRINCIPAL: 'Principal',
+      ASOCIADO: 'Asociado',
+      AUXILIAR: 'Auxiliar',
+      JEFE_PRACTICA: 'Jefe de Práctica',
+    };
+    return map[cat] || cat;
   }
 
   checkVentanaActiva(): void {
@@ -143,6 +264,20 @@ export class OperadorComponent implements OnInit {
     return tipo === 'TEORIA' ? (curso.curso.horas_teoria || 0) : (curso.curso.horas_laboratorio || 0);
   }
 
+  get ambientesFiltrados(): Ambiente[] {
+    const f = this.filtroAmbiente.trim().toLowerCase();
+    if (!f) return this.ambientesDocente;
+    return this.ambientesDocente.filter((a: any) =>
+      a.nombre.toLowerCase().includes(f) ||
+      a.codigo.toLowerCase().includes(f) ||
+      (a.pabellon || '').toLowerCase().includes(f)
+    );
+  }
+
+  seleccionarAmbienteRapido(ambiente: Ambiente): void {
+    this.ambienteSeleccionado = ambiente;
+  }
+
   finalizarSesion(): void {
     if (!this.ventanaActiva) return;
     this.loading = true;
@@ -197,15 +332,19 @@ export class OperadorComponent implements OnInit {
   crearVentana(): void {
     if (this.ventanaForm.invalid) return;
     this.creandoVentana = true;
-    this.api.post<ApiResponse<VentanaAtencion>>('/ventanas', this.ventanaForm.value).subscribe({
+    const body = this.ventanaForm.value;
+    console.log('[Operador] crearVentana body:', body);
+    this.api.post<ApiResponse<VentanaAtencion>>('/ventanas', body).subscribe({
         next: () => {
             this.creandoVentana = false;
-            this.snack.open('Ventana creada', 'OK', { duration: 3000 });
+            this.snack.open('Ventana creada exitosamente', 'OK', { duration: 3000 });
             this.cargarVentanas();
         },
-        error: () => {
+        error: (err) => {
             this.creandoVentana = false;
-            this.snack.open('Error al crear ventana', 'Error', { duration: 3000 });
+            const msg = err?.error?.message || err?.message || 'Error al crear ventana';
+            console.error('[Operador] crearVentana error:', err);
+            this.snack.open(Array.isArray(msg) ? msg.join(', ') : msg, 'Error', { duration: 5000 });
         }
     });
   }

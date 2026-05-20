@@ -88,14 +88,38 @@
 .celda-confirmada {
   background: #1565c0;
   cursor: not-allowed;
+  color: white;
 }
 
 .celda-temporal-otro {
   background: #fbc02d;
   cursor: not-allowed;
+  color: #333;
 }
 
 .celda-temporal-propio {
   background: #2e7d32;
+  color: white;
   &:hover { background: #1b5e20; }
+}
+
+.celda-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.celda-docente {
+  font-size: 9px;
+  font-weight: 600;
+  display: block;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }

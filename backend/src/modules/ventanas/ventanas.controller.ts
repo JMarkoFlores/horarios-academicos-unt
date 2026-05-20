@@ -5,8 +5,10 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -34,12 +36,14 @@ import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
 import { VentanasService } from "./ventanas.service";
 import { HorariosGateway } from "../../horarios/horarios.gateway";
 import { VentanaAtencion, EstadoVentanaAtencion } from "../../entities/ventana-atencion.entity";
+import { UpdateVentanaDto } from "./dto/update-ventana.dto";
 
 @ApiTags("ventanas")
 @ApiBearerAuth("JWT")
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller("ventanas")
+@Controller('ventanas')
 export class VentanasController {
+  private readonly logger = new Logger(VentanasController.name);
   constructor(
     private readonly ventanasService: VentanasService,
     private readonly gestorSeleccionService: GestorSeleccionTemporalService,
@@ -48,23 +52,12 @@ export class VentanasController {
     private readonly ventanaRepo: Repository<VentanaAtencion>,
   ) {}
 
-  @Get()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.OPERADOR_HORARIOS)
-  @ApiOperation({ summary: "Listar ventanas de atención" })
-  @ApiQuery({ name: "estado", required: false, enum: EstadoVentanaAtencion })
-  async listarVentanas(@Query('estado') estado?: EstadoVentanaAtencion) {
-    const data = await this.ventanaRepo.find({ 
-      where: estado ? { estado } : {}, 
-      order: { fecha: 'ASC' } 
-    });
-    return { data, message: 'Ventanas listadas', statusCode: HttpStatus.OK };
-  }
-
   @Post()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.OPERADOR_HORARIOS)
   @ApiOperation({ summary: "Crear ventana de atención" })
   @ApiResponse({ status: 201, description: "Ventana creada" })
   async crear(@Body() dto: CreateVentanaDto) {
+    this.logger.log(`[crear] Body recibido: ${JSON.stringify(dto)}`);
     const data = await this.ventanasService.crearVentana(dto);
     return { data, message: "Ventana creada", statusCode: HttpStatus.CREATED };
   }
@@ -145,6 +138,37 @@ export class VentanasController {
   async completar(@Param("id") id: string) {
     const data = await this.ventanasService.completarVentana(id);
     return { data, message: "Ventana finalizada correctamente", statusCode: HttpStatus.OK };
+  }
+
+  @Delete("all")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.OPERADOR_HORARIOS)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Eliminar TODAS las ventanas (limpieza)" })
+  async eliminarTodas() {
+    await this.ventanaRepo.query('DELETE FROM cola_docentes');
+    await this.ventanaRepo.query('DELETE FROM ventana_atencion');
+    this.logger.warn('[eliminarTodas] Todas las ventanas y colas eliminadas');
+    return { data: null, message: "Todas las ventanas eliminadas", statusCode: HttpStatus.OK };
+  }
+
+  @Get()
+  @ApiOperation({ summary: "Listar ventanas con filtros" })
+  @ApiQuery({ name: 'periodo', required: false, type: String })
+  @ApiQuery({ name: 'estado', required: false, type: String })
+  @ApiQuery({ name: 'categoria', required: false, type: String })
+  @ApiQuery({ name: 'fechaDesde', required: false, type: String })
+  @ApiQuery({ name: 'fechaHasta', required: false, type: String })
+  async listarVentanas(
+    @Query('periodo') periodo?: string,
+    @Query('estado') estado?: string,
+    @Query('categoria') categoria?: string,
+    @Query('fechaDesde') fechaDesde?: string,
+    @Query('fechaHasta') fechaHasta?: string,
+  ) {
+    const data = await this.ventanasService.listarVentanasConFiltros(
+      periodo, estado, categoria, fechaDesde, fechaHasta,
+    );
+    return { data, message: "Ventanas obtenidas", statusCode: HttpStatus.OK };
   }
 
   @Get("activa")
@@ -259,5 +283,38 @@ export class VentanasController {
       message: "Matriz de disponibilidad obtenida",
       statusCode: HttpStatus.OK,
     };
+  }
+
+  @Get(":id")
+  @ApiOperation({ summary: "Obtener ventana por ID" })
+  async obtenerVentana(@Param("id") id: string) {
+    const data = await this.ventanasService.obtenerVentana(id);
+    return { data, message: "Ventana obtenida", statusCode: HttpStatus.OK };
+  }
+
+  @Put(":id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Actualizar ventana de atención" })
+  async actualizar(@Param("id") id: string, @Body() dto: UpdateVentanaDto) {
+    const data = await this.ventanasService.actualizarVentana(id, dto);
+    return { data, message: "Ventana actualizada", statusCode: HttpStatus.OK };
+  }
+
+  @Delete(":id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Eliminar ventana de atención" })
+  async eliminar(@Param("id") id: string) {
+    await this.ventanasService.eliminarVentana(id);
+    return { data: null, message: "Ventana eliminada", statusCode: HttpStatus.OK };
   }
 }

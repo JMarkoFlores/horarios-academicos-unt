@@ -57,10 +57,23 @@ export class NotificacionesService {
   ) {}
 
   private calcularDelayHasta(ventana: VentanaAtencion, minutosAntes: number): number {
-    const fecha = new Date(ventana.fecha);
+    const fechaStr = ventana.fecha instanceof Date ? ventana.fecha.toISOString() : ventana.fecha;
+    
+    // Crear fecha en zona horaria local (Perú UTC-5)
+    const [year, month, day] = fechaStr.substring(0, 10).split("-").map(Number);
     const [h, m] = ventana.hora_inicio.split(":").map(Number);
-    fecha.setHours(h, m, 0, 0);
-    return fecha.getTime() - Date.now() - minutosAntes * 60 * 1000;
+    
+    // Crear fecha con hora específica en zona horaria local
+    const fechaInicio = new Date(year, month - 1, day, h, m, 0);
+    const ahora = Date.now();
+    const delay = fechaInicio.getTime() - ahora - minutosAntes * 60 * 1000;
+    
+    this.logger.log(`[DelayCalc] Ventana: ${year}-${month}-${day} ${h}:${m}`);
+    this.logger.log(`[DelayCalc] Fecha inicio (local): ${fechaInicio.toString()}`);
+    this.logger.log(`[DelayCalc] Ahora: ${new Date(ahora).toString()}`);
+    this.logger.log(`[DelayCalc] Delay: ${delay}ms (${Math.round(delay/1000/60)} min)`);
+    
+    return delay;
   }
 
   async enviarRecordatorio24h(docenteId: number, ventanaId: string): Promise<void> {
@@ -73,7 +86,14 @@ export class NotificacionesService {
     const delay = this.calcularDelayHasta(ventana, 24 * 60);
     this.logger.log(`Calculando delay 24h: ventana ${ventanaId}, docente ${docenteId}, delay=${delay}ms (${delay/1000/60}min)`);
     if (delay > 0) {
-      await this.notificacionesQueue.add("recordatorio-24h", { docenteId, ventanaId }, { delay });
+      // Job ID único para evitar duplicados
+      const jobId = `recordatorio-24h-${ventanaId}-${docenteId}`;
+      const existingJob = await this.notificacionesQueue.getJob(jobId);
+      if (existingJob) {
+        this.logger.log(`Job ${jobId} ya existe, omitiendo duplicado`);
+        return;
+      }
+      await this.notificacionesQueue.add("recordatorio-24h", { docenteId, ventanaId }, { delay, jobId });
       this.logger.log(`Recordatorio 24h programado para docente ${docenteId}, ventana ${ventanaId}, ejecuta en ${delay/1000/60} minutos`);
     } else {
       this.logger.warn(`No se programó recordatorio 24h: delay negativo (${delay}ms). La ventana es muy cercana o ya pasó.`);
@@ -90,7 +110,14 @@ export class NotificacionesService {
     const delay = this.calcularDelayHasta(ventana, 15);
     this.logger.log(`Calculando delay 15min: ventana ${ventanaId}, docente ${docenteId}, delay=${delay}ms (${delay/1000/60}min)`);
     if (delay > 0) {
-      await this.notificacionesQueue.add("alerta-15min", { docenteId, ventanaId }, { delay });
+      // Job ID único para evitar duplicados
+      const jobId = `alerta-15min-${ventanaId}-${docenteId}`;
+      const existingJob = await this.notificacionesQueue.getJob(jobId);
+      if (existingJob) {
+        this.logger.log(`Job ${jobId} ya existe, omitiendo duplicado`);
+        return;
+      }
+      await this.notificacionesQueue.add("alerta-15min", { docenteId, ventanaId }, { delay, jobId });
       this.logger.log(`Alerta 15min programada para docente ${docenteId}, ventana ${ventanaId}, ejecuta en ${delay/1000/60} minutos`);
     } else {
       this.logger.warn(`No se programó alerta 15min: delay negativo (${delay}ms). La ventana es muy cercana o ya pasó.`);
@@ -99,6 +126,17 @@ export class NotificacionesService {
 
   async enviarHorarioConfirmado(docenteId: number, periodo: string): Promise<void> {
     await this.notificacionesQueue.add("horario-confirmado", { docenteId, periodo });
+  }
+
+  async testJobCola(docenteId: number): Promise<void> {
+    this.logger.log(`[TestCola] Agregando job inmediato para docente ${docenteId}`);
+    await this.notificacionesQueue.add("recordatorio-24h", { 
+      docenteId, 
+      ventanaId: "test-ventana",
+      tipo: "test",
+      canal: "ambos"
+    });
+    this.logger.log(`[TestCola] Job agregado a la cola`);
   }
 
   async programarNotificacionesVentana(ventanaId: string): Promise<void> {
@@ -126,17 +164,23 @@ export class NotificacionesService {
 
     const fechaStr = new Date(ventana.fecha).toLocaleDateString("es-PE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
+    const destinatarioEmail = prefs?.correo_alternativo || docente.email;
+
     if (tipo === "24h") {
       const html = this.buildHtmlRecordatorio24h(docente, ventana, fechaStr);
       if (!prefs || prefs.canal_correo) {
-        await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Recordatorio: Turno de selección mañana`, html);
+        await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Recordatorio: Turno de selección mañana`, html, undefined, destinatarioEmail);
       }
       if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
         const text = `Recordatorio: mañana ${fechaStr} a las ${ventana.hora_inicio} es tu turno de selección de horario (${ventana.categoria}).`;
         await this.enviarNotificacion(docente, CanalNotificacion.TELEGRAM, `Recordatorio 24h`, text, prefs.telegram_chat_id);
       }
     } else {
-      // 15min solo por Telegram
+      // 15min - Email + Telegram según preferencias
+      const html15min = this.buildHtmlAlerta15min(docente, ventana, fechaStr);
+      if (!prefs || prefs.canal_correo) {
+        await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `⏰ Alerta: Tu turno comienza en 15 minutos`, html15min, undefined, destinatarioEmail);
+      }
       if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
         const text = `⏰ ¡Atención! En 15 minutos (${ventana.hora_inicio}) es tu turno de selección de horario. ¡No te lo pierdas!`;
         await this.enviarNotificacion(docente, CanalNotificacion.TELEGRAM, `Alerta 15 min`, text, prefs.telegram_chat_id);
@@ -172,6 +216,46 @@ export class NotificacionesService {
             </tbody>
           </table>
           <p style="margin-top: 20px; color: #555;">Por favor, esté atento a la hora indicada para realizar su selección.</p>
+        </div>
+        <div style="background-color: #f5f5f5; padding: 12px; text-align: center; font-size: 12px; color: #888;">
+          Sistema de Horarios Académicos — UNT
+        </div>
+      </div>
+    `;
+  }
+
+  private buildHtmlAlerta15min(docente: Docente, ventana: VentanaAtencion, fechaStr: string): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #ff6b35; color: #fff; padding: 20px; text-align: center;">
+          <h2 style="margin: 0;">⏰ ¡Tu turno comienza en 15 minutos!</h2>
+        </div>
+        <div style="padding: 24px;">
+          <p>Estimado/a <strong>${docente.nombres} ${docente.apellidos}</strong>,</p>
+          <p style="font-size: 18px; color: #ff6b35; font-weight: bold;">¡Es momento de prepararse!</p>
+          <p>Tu turno de selección de horario académico comenzará en <strong>15 minutos</strong>:</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 16px; background-color: #fff8f5;">
+            <thead>
+              <tr style="background-color: #ff6b35; color: white;">
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Fecha</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Hora inicio</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Hora fin</th>
+                <th style="border: 1px solid #ddd; padding: 10px; text-align: left;">Categoría</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 10px;">${fechaStr}</td>
+                <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold; color: #ff6b35;">${ventana.hora_inicio}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.hora_fin}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.categoria}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="background-color: #fff3cd; border-left: 4px solid #ff6b35; padding: 12px; margin-top: 20px;">
+            <p style="margin: 0; font-weight: bold;">⚠️ Acción requerida:</p>
+            <p style="margin: 5px 0 0 0;">Ingresa al sistema de horarios inmediatamente para estar listo cuando sea tu turno.</p>
+          </div>
         </div>
         <div style="background-color: #f5f5f5; padding: 12px; text-align: center; font-size: 12px; color: #888;">
           Sistema de Horarios Académicos — UNT
@@ -239,6 +323,8 @@ export class NotificacionesService {
     target?: string,
     overrideEmail?: string,
   ): Promise<void> {
+    this.logger.log(`[EnviarNotificacion] Docente ${docente.id} - Canal: ${canal} - Asunto: ${subject}`);
+    
     const n = this.notificacionRepo.create({
       tipo: subject,
       mensaje: content,
@@ -247,19 +333,25 @@ export class NotificacionesService {
       docente,
     });
     await this.notificacionRepo.save(n);
+    this.logger.log(`[EnviarNotificacion] Registro creado ID: ${n.id}`);
 
     try {
       if (canal === CanalNotificacion.CORREO) {
         const to = overrideEmail || docente.email;
+        this.logger.log(`[EnviarNotificacion] Enviando EMAIL a: ${to}`);
         await this.mailService.sendMail(to, subject, content);
+        this.logger.log(`[EnviarNotificacion] EMAIL enviado exitosamente a: ${to}`);
       } else if (canal === CanalNotificacion.TELEGRAM && target) {
+        this.logger.log(`[EnviarNotificacion] Enviando TELEGRAM a chat_id: ${target}`);
         await this.enviarTelegramDirecto(target, content);
+        this.logger.log(`[EnviarNotificacion] TELEGRAM enviado exitosamente`);
       }
       n.estado = EstadoNotificacion.ENVIADO;
       n.enviado_at = new Date();
-    } catch (error) {
+    } catch (error: any) {
       n.estado = EstadoNotificacion.FALLIDO;
-      this.logger.error(`Fallo al enviar notificación por ${canal}:`, error);
+      n.codigo_error = error.code || error.message?.substring(0, 100);
+      this.logger.error(`[EnviarNotificacion] ❌ Fallo al enviar ${canal}: ${error.message}`);
     }
     await this.notificacionRepo.save(n);
   }

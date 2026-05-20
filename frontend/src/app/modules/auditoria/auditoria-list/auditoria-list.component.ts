@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -8,7 +9,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
   templateUrl: './auditoria-list.component.html',
   styleUrls: ['./auditoria-list.component.scss']
 })
-export class AuditoriaListComponent implements OnInit {
+export class AuditoriaListComponent implements OnInit, OnDestroy {
   registros: any[] = [];
   loading = false;
   displayedColumns = ['fecha', 'usuario', 'accion', 'docente', 'curso', 'periodo', 'datos_anteriores', 'datos_nuevos', 'motivo'];
@@ -19,6 +20,7 @@ export class AuditoriaListComponent implements OnInit {
     desde: '',
     hasta: ''
   };
+  private periodSub?: Subscription;
 
   constructor(
     private api: ApiService,
@@ -28,6 +30,14 @@ export class AuditoriaListComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarAuditoria();
+    this.periodSub = this.periodoService.periodo$.subscribe((p) => {
+      this.filtros.periodo = p;
+      this.cargarAuditoria();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.periodSub?.unsubscribe();
   }
 
   cargarAuditoria(): void {

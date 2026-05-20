@@ -1,0 +1,148 @@
+<div class="config-container animate-fadein">
+  <header class="page-header">
+    <div class="header-info">
+      <h1><mat-icon>meeting_room</mat-icon> Configuración Curso-Ambiente</h1>
+      <p>Define qué ambientes (aulas y laboratorios) son compatibles para dictar cada curso. Sin esta preconfiguración, los comboboxes de la pantalla de atención no tendrán opciones válidas que mostrar.</p>
+    </div>
+  </header>
+
+  <div class="info-banner">
+    <mat-icon>info</mat-icon>
+    <div>
+      <strong>Reglas de compatibilidad</strong>
+      <ul>
+        <li>Un curso puede tener múltiples aulas compatibles para teoría.</li>
+        <li>Un curso puede tener múltiples laboratorios compatibles para práctica.</li>
+        <li>Durante la atención en ventanas, solo se mostrarán ambientes compatibles con el curso seleccionado.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="split-layout" *ngIf="!loading || cursos.length > 0">
+    <!-- Panel izquierdo: Cursos -->
+    <div class="panel-left">
+      <div class="panel-header">
+        <h2>Cursos</h2>
+        <span class="badge">{{ cursos.length }}</span>
+      </div>
+      <div class="search-box">
+        <mat-icon>search</mat-icon>
+        <input type="text" placeholder="Buscar curso..." [(ngModel)]="filtroCurso">
+      </div>
+      <div class="cursos-list">
+        <div class="curso-item"
+             *ngFor="let c of cursosFiltrados"
+             [class.active]="cursoSeleccionado?.id === c.id"
+             (click)="seleccionarCurso(c)">
+          <span class="curso-code">{{ c.codigo }}</span>
+          <span class="curso-name">{{ c.nombre }}</span>
+          <span class="curso-meta">Ciclo {{ c.ciclo }} · {{ c.creditos }} cred.</span>
+        </div>
+        <div class="empty-state" *ngIf="cursosFiltrados.length === 0">
+          <mat-icon>search_off</mat-icon>
+          <p>No se encontraron cursos</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel derecho: Ambientes del curso -->
+    <div class="panel-right" *ngIf="cursoSeleccionado; else noSelection">
+      <div class="panel-header">
+        <div>
+          <h2>{{ cursoSeleccionado.codigo }} — {{ cursoSeleccionado.nombre }}</h2>
+          <span class="subtitle">Ciclo {{ cursoSeleccionado.ciclo }} · {{ cursoSeleccionado.horas_teoria }}h teoría + {{ cursoSeleccionado.horas_laboratorio }}h lab</span>
+        </div>
+        <span class="badge accent">{{ relaciones.length }} ambiente(s)</span>
+      </div>
+
+      <div class="ambientes-grid">
+        <div class="ambiente-card" *ngFor="let r of relaciones">
+          <div class="ambiente-info">
+            <span class="ambiente-code">{{ r.ambiente?.codigo ?? getAmbienteName(r.ambienteId) }}</span>
+            <span class="ambiente-name">{{ r.ambiente?.nombre ?? '' }}</span>
+            <span class="badge" [class.teoria]="r.tipo_clase === 'TEORIA'" [class.lab]="r.tipo_clase === 'LABORATORIO'">
+              {{ r.tipo_clase === 'TEORIA' ? 'Teoría' : 'Laboratorio' }}
+            </span>
+          </div>
+          <button mat-icon-button color="warn" (click)="quitarRelacion(r.id)" [disabled]="guardando">
+            <mat-icon>remove_circle</mat-icon>
+          </button>
+        </div>
+        <div class="empty-state" *ngIf="relaciones.length === 0">
+          <mat-icon>meeting_room</mat-icon>
+          <p>Este curso no tiene ambientes compatibles todavía.</p>
+          <span class="hint">Usa el selector de abajo para agregar ambientes.</span>
+        </div>
+      </div>
+
+      <!-- Agregar ambiente -->
+      <div class="agregar-section" *ngIf="ambientesDisponibles.length > 0">
+        <h3><mat-icon>add_circle</mat-icon> Agregar ambientes rápidamente</h3>
+        <p class="agregar-hint">Escribe para buscar y haz clic en el botón correspondiente.</p>
+
+        <mat-form-field appearance="outline" class="buscar-ambiente-field">
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput [(ngModel)]="filtroAmbienteAdd" placeholder="Buscar ambiente por código, nombre o pabellón..." autocomplete="off">
+          <button mat-icon-button matSuffix *ngIf="filtroAmbienteAdd" (click)="limpiarFiltroAmbiente()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+
+        <div class="ambientes-rapidos-grid">
+          <div class="ambiente-rapido-item" *ngFor="let a of ambientesFiltradosParaAgregar | slice:0:8">
+            <div class="ambiente-rapido-info">
+              <div class="ambiente-rapido-header">
+                <span class="ambiente-rapido-code">{{ a.codigo }}</span>
+                <span class="badge-ambiente" [class.aula]="a.tipo === 'AULA'" [class.lab]="a.tipo === 'LABORATORIO'" [class.auditorio]="a.tipo === 'AUDITORIO'" [class.taller]="a.tipo === 'TALLER'">
+                  {{ a.tipo }}
+                </span>
+              </div>
+              <span class="ambiente-rapido-name">{{ a.nombre }}</span>
+              <span class="ambiente-rapido-meta">Cap. {{ a.capacidad }} · {{ a.pabellon || 'Sin pabellón' }}</span>
+            </div>
+            <div class="ambiente-rapido-actions">
+              <button
+                mat-stroked-button
+                class="btn-teoria"
+                [disabled]="!puedeAgregarAmbiente(a.id, 'TEORIA') || !esTipoCompatible(a.tipo, 'TEORIA') || (cursoSeleccionado.horas_teoria || 0) <= 0 || guardando"
+                (click)="agregarRelacionDirecta(a.id, 'TEORIA')"
+                [matTooltip]="tooltipAmbiente(a, 'TEORIA')"
+              >
+                <mat-icon>menu_book</mat-icon> Teoría
+              </button>
+              <button
+                mat-stroked-button
+                class="btn-lab"
+                [disabled]="!puedeAgregarAmbiente(a.id, 'LABORATORIO') || !esTipoCompatible(a.tipo, 'LABORATORIO') || (cursoSeleccionado.horas_laboratorio || 0) <= 0 || guardando"
+                (click)="agregarRelacionDirecta(a.id, 'LABORATORIO')"
+                [matTooltip]="tooltipAmbiente(a, 'LABORATORIO')"
+              >
+                <mat-icon>science</mat-icon> Lab
+              </button>
+            </div>
+          </div>
+          <div class="empty-state-mini" *ngIf="ambientesFiltradosParaAgregar.length === 0">
+            <mat-icon>search_off</mat-icon>
+            <p>No se encontraron ambientes con "{{ filtroAmbienteAdd }}"</p>
+          </div>
+          <div class="ver-mas" *ngIf="ambientesFiltradosParaAgregar.length > 8 && !filtroAmbienteAdd">
+            <span>Escribe para filtrar entre {{ ambientesFiltradosParaAgregar.length }} ambientes disponibles</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="agregar-section empty-all" *ngIf="ambientesDisponibles.length === 0 && relaciones.length > 0">
+        <mat-icon>check_circle</mat-icon>
+        <p>Todos los ambientes activos ya están asignados a este curso.</p>
+      </div>
+    </div>
+
+    <ng-template #noSelection>
+      <div class="panel-right no-selection">
+        <mat-icon>meeting_room</mat-icon>
+        <h3>Selecciona un curso</h3>
+        <p>Elige un curso de la lista para ver y gestionar sus ambientes compatibles.</p>
+      </div>
+    </ng-template>
+  </div>
+</div>

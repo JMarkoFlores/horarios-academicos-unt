@@ -29,6 +29,7 @@ import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
 
 const AppDataSource = new DataSource({
   type: "postgres",
@@ -149,8 +150,8 @@ async function seed() {
     "✅ Usuarios del sistema creados (Contraseña por defecto: Admin123!)\n",
   );
 
-  // ── 2. PERÍODOS ACADÉMICOS ──────────────────────────────────────────────────
-  console.log("📅 Creando periodos académicos...");
+  // ── 2. PERÍODOS ACADÉMICOS (CON MODOS DE ASIGNACIÓN PARA PRUEBA) ──────────
+  console.log("📅 Creando periodos académicos con modos de asignación...");
   const periodosData = [
     {
       codigo: "2025-I",
@@ -159,6 +160,7 @@ async function seed() {
       fecha_fin: new Date("2025-07-31"),
       estado: EstadoPeriodo.FINALIZADO,
       activo: false,
+      modo_asignacion: ModoAsignacion.VENTANAS,
     },
     {
       codigo: "2025-II",
@@ -167,6 +169,7 @@ async function seed() {
       fecha_fin: new Date("2025-12-20"),
       estado: EstadoPeriodo.FINALIZADO,
       activo: false,
+      modo_asignacion: ModoAsignacion.AUTOMATICA,
     },
     {
       codigo: "2026-I",
@@ -175,6 +178,7 @@ async function seed() {
       fecha_fin: new Date("2026-07-31"),
       estado: EstadoPeriodo.EN_CURSO,
       activo: true,
+      modo_asignacion: ModoAsignacion.MIXTA, // Período activo en modo MIXTA para probar
     },
   ];
 
@@ -1170,6 +1174,9 @@ async function seed() {
 
   const habilitacionesRegistradas = new Set<string>();
 
+  // Usar el período activo ya definido anteriormente
+  const periodoId = periodoActivo?.id ?? dbPeriodos[0]?.id;
+
   for (const dept of depts) {
     const docentesDelDept = dbDocentes.filter((_, idx) =>
       dept.docenteIds.includes(idx + 1),
@@ -1190,6 +1197,7 @@ async function seed() {
           docenteId: docente.id,
           cursoId: curso.id,
           tipo_clase: TipoClase.TEORIA,
+          periodoId,
         }),
       );
 
@@ -1203,6 +1211,7 @@ async function seed() {
             docenteId: docenteLab.id,
             cursoId: curso.id,
             tipo_clase: TipoClase.LABORATORIO,
+            periodoId,
           }),
         );
       }
@@ -1221,6 +1230,7 @@ async function seed() {
           docenteId: doc.id,
           cursoId: cur.id,
           tipo_clase: TipoClase.TEORIA,
+          periodoId,
         }),
       );
       if (cur.tiene_laboratorio) {
@@ -1229,6 +1239,7 @@ async function seed() {
             docenteId: doc.id,
             cursoId: cur.id,
             tipo_clase: TipoClase.LABORATORIO,
+            periodoId,
           }),
         );
       }

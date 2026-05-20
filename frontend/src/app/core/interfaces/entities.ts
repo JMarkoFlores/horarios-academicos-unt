@@ -63,11 +63,13 @@ export interface Ambiente {
   id: number;
   codigo: string;
   nombre: string;
-  tipo: 'AULA' | 'LABORATORIO';
+  tipo: 'AULA' | 'LABORATORIO' | 'AUDITORIO' | 'TALLER' | 'SEMINARIO' | 'SALA_COMPUTACION';
   capacidad: number;
   piso?: number;
   pabellon?: string;
+  sede?: string;
   equipamiento?: string;
+  estado?: 'ACTIVO' | 'MANTENIMIENTO' | 'RESERVADO' | 'INACTIVO';
   activo: boolean;
 }
 
@@ -133,11 +135,40 @@ export interface PeriodoAcademico {
   activo: boolean;
 }
 
+export interface MisKPIs {
+  docente: {
+    nombre: string;
+    categoria: string;
+    tipo_contrato: string;
+  };
+  total_horas: number;
+  total_cursos: number;
+  total_ambientes: number;
+  dias_con_clase: number;
+  total_asignaciones: number;
+  proximas_clases: {
+    dia: number;
+    diaNombre: string;
+    hora_inicio: string;
+    hora_fin: string;
+    curso: string;
+    ambiente: string;
+    tipo: string;
+    grupo: string;
+  }[];
+  distribucion_dia: {
+    dia: string;
+    horas: number;
+  }[];
+}
+
 export interface KPIs {
   total_docentes: number;
   docentes_con_horario: number;
   docentes_pendientes: number;
   porcentaje_docentes_asignados: number;
+  docentes_sin_disponibilidad: number;
+  porcentaje_docentes_con_disponibilidad: number;
   total_aulas: number;
   aulas_ocupadas: number;
   porcentaje_ocupacion_aulas: number;
@@ -146,7 +177,11 @@ export interface KPIs {
   porcentaje_ocupacion_laboratorios: number;
   total_cursos: number;
   cursos_asignados: number;
+  cursos_sin_asignar: number;
   conflictos_activos: number;
+  conflictos_resueltos: number;
+  total_conflictos: number;
+  tasa_resolucion_conflictos: number;
   horas_promedio_por_docente: number;
   horas_mediana_por_docente: number;
   distribucion_por_categoria: {
@@ -184,4 +219,8 @@ export interface KPIs {
     tipo: string;
   }[];
   progreso_semanal: { semana: string; cursos_asignados: number }[];
+  estado_periodo: string;
+  fecha_inicio_periodo: string | null;
+  fecha_fin_periodo: string | null;
+  ultima_generacion_horario: string | null;
 }

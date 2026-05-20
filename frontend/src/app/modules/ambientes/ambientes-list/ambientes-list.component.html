@@ -14,11 +14,28 @@
     </div>
   </div>
 
+  <!-- Search Bar -->
+  <mat-card class="search-card-premium">
+    <div class="search-row">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-icon matPrefix>search</mat-icon>
+        <input matInput [(ngModel)]="busqueda" (input)="onBusquedaInput()" placeholder="Buscar por código, nombre, pabellón o equipamiento...">
+        <button mat-icon-button matSuffix *ngIf="busqueda" (click)="busqueda=''; onBusquedaInput()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+      <button mat-stroked-button class="btn-limpiar" (click)="limpiarFiltros()">
+        <mat-icon>restart_alt</mat-icon>
+        Limpiar filtros
+      </button>
+    </div>
+  </mat-card>
+
   <mat-card class="filter-card-premium">
     <div class="filter-grid">
       <div class="filter-label-group">
         <mat-icon>filter_list</mat-icon>
-        <span>Filtrar por tipo:</span>
+        <span>Tipo:</span>
       </div>
       <mat-chip-listbox
         [(ngModel)]="tipoFilter"
@@ -28,13 +45,17 @@
         <mat-chip-option [value]="''">Todos</mat-chip-option>
         <mat-chip-option value="AULA">Aulas</mat-chip-option>
         <mat-chip-option value="LABORATORIO">Laboratorios</mat-chip-option>
+        <mat-chip-option value="AUDITORIO">Auditorios</mat-chip-option>
+        <mat-chip-option value="TALLER">Talleres</mat-chip-option>
+        <mat-chip-option value="SEMINARIO">Seminarios</mat-chip-option>
+        <mat-chip-option value="SALA_COMPUTACION">Sala de cómputo</mat-chip-option>
       </mat-chip-listbox>
 
       <div class="filter-divider"></div>
 
       <div class="filter-label-group">
         <mat-icon>toggle_on</mat-icon>
-        <span>Filtrar por estado:</span>
+        <span>Estado:</span>
       </div>
       <mat-chip-listbox
         [(ngModel)]="estadoFilter"
@@ -42,9 +63,39 @@
         class="premium-chips"
       >
         <mat-chip-option [value]="''">Todos</mat-chip-option>
-        <mat-chip-option value="true">Operativo</mat-chip-option>
-        <mat-chip-option value="false">Inactivo</mat-chip-option>
+        <mat-chip-option value="ACTIVO">Operativo</mat-chip-option>
+        <mat-chip-option value="MANTENIMIENTO">Mantenimiento</mat-chip-option>
+        <mat-chip-option value="RESERVADO">Reservado</mat-chip-option>
+        <mat-chip-option value="INACTIVO">Inactivo</mat-chip-option>
       </mat-chip-listbox>
+    </div>
+
+    <div class="filter-grid secondary-filters">
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Pabellón</mat-label>
+        <mat-select [(ngModel)]="pabellonFilter" (ngModelChange)="onFilterChange()">
+          <mat-option [value]="''">Todos</mat-option>
+          <mat-option *ngFor="let p of pabellones" [value]="p">{{ p }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Sede</mat-label>
+        <mat-select [(ngModel)]="sedeFilter" (ngModelChange)="onFilterChange()">
+          <mat-option [value]="''">Todas</mat-option>
+          <mat-option *ngFor="let s of sedes" [value]="s">{{ s }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field small" [class.invalid-range]="capacidadMin !== undefined && capacidadMax !== undefined && capacidadMax < capacidadMin">
+        <mat-label>Cap. mín.</mat-label>
+        <input matInput type="number" [(ngModel)]="capacidadMin" (input)="onFilterChange()" min="1">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field small" [class.invalid-range]="capacidadMin !== undefined && capacidadMax !== undefined && capacidadMax < capacidadMin">
+        <mat-label>Cap. máx.</mat-label>
+        <input matInput type="number" [(ngModel)]="capacidadMax" (input)="onFilterChange()" min="1">
+      </mat-form-field>
     </div>
   </mat-card>
 
@@ -70,9 +121,8 @@
           <td mat-cell *matCellDef="let a">
             <div class="env-name-cell">
               <span class="env-title">{{ a.nombre }}</span>
-              <span class="env-location" *ngIf="a.pabellon || a.piso">
-                {{ a.pabellon }}{{ a.pabellon && a.piso ? " • " : "" }}Piso
-                {{ a.piso }}
+              <span class="env-location" *ngIf="a.pabellon || a.piso || a.sede">
+                {{ a.sede ? a.sede + ' • ' : '' }}{{ a.pabellon }}{{ a.pabellon && a.piso ? ' • Piso ' : '' }}{{ a.piso }}
               </span>
             </div>
           </td>
@@ -83,10 +133,8 @@
           <th mat-header-cell *matHeaderCellDef>Tipo</th>
           <td mat-cell *matCellDef="let a">
             <div [class]="'type-indicator ' + a.tipo">
-              <mat-icon>{{
-                a.tipo === "AULA" ? "meeting_room" : "biotech"
-              }}</mat-icon>
-              <span>{{ a.tipo }}</span>
+              <mat-icon>{{ getTipoIcon(a.tipo) }}</mat-icon>
+              <span>{{ getTipoLabel(a.tipo) }}</span>
             </div>
           </td>
         </ng-container>
@@ -116,9 +164,9 @@
         <ng-container matColumnDef="estado">
           <th mat-header-cell *matHeaderCellDef>Estado</th>
           <td mat-cell *matCellDef="let a">
-            <div [class]="'status-live ' + (a.activo ? 'active' : 'inactive')">
+            <div [class]="'status-live ' + getEstadoClass(a.estado)">
               <span class="dot"></span>
-              <span>{{ a.activo ? "Operativo" : "Inactivo" }}</span>
+              <span>{{ getEstadoLabel(a.estado) }}</span>
             </div>
           </td>
         </ng-container>
@@ -145,7 +193,7 @@
                 <mat-icon>edit_location</mat-icon>
               </a>
               <button
-                *ngIf="a.activo; else btnActivar"
+                *ngIf="a.estado !== 'INACTIVO'; else btnActivar"
                 mat-icon-button
                 class="btn-action delete"
                 (click)="desactivar(a)"
@@ -180,8 +228,8 @@
         <div class="empty-illustration">
           <mat-icon>wrong_location</mat-icon>
         </div>
-        <h3>No hay espacios registrados</h3>
-        <p>Aún no se han definido aulas o laboratorios para este período.</p>
+        <h3>No hay ambientes registrados</h3>
+        <p>No se encontraron espacios académicos con los filtros aplicados.</p>
       </div>
     </div>
 

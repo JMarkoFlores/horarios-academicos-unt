@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
+import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
 
 @Entity("periodo_academico")
 export class PeriodoAcademico {
@@ -27,4 +28,11 @@ export class PeriodoAcademico {
 
   @Column({ default: false })
   activo: boolean;
+
+  @Column({
+    type: "enum",
+    enum: ModoAsignacion,
+    default: ModoAsignacion.VENTANAS,
+  })
+  modo_asignacion: ModoAsignacion;
 }

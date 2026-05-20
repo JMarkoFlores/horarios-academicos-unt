@@ -1,35 +1,23 @@
-<div class="operador-container animate-fadein">
+<div class="operador-container animate-fadein" [class.modo-atencion]="ventanaActiva">
   <header class="page-header">
     <div class="header-info">
-      <h1>Panel del Operador</h1>
+      <h1><mat-icon>dashboard</mat-icon> Panel del Operador</h1>
       <p>Gestión de ventanas de atención en tiempo real</p>
+    </div>
+    <div class="header-actions" *ngIf="!ventanaActiva">
+      <button mat-raised-button color="primary" (click)="mostrarFormulario = !mostrarFormulario">
+        <mat-icon>{{ mostrarFormulario ? 'close' : 'add' }}</mat-icon>
+        {{ mostrarFormulario ? 'Cancelar' : 'Nueva Ventana' }}
+      </button>
     </div>
   </header>
 
   <!-- ESTADO A: SIN VENTANA ACTIVA -->
   <div *ngIf="!ventanaActiva" class="setup-container">
-    <section class="programadas-section">
-      <h2>Ventanas Programadas</h2>
-      <div class="ventanas-grid">
-        <mat-card *ngFor="let v of ventanasProgramadas" class="ventana-card mat-elevation-z2">
-          <mat-card-header>
-            <mat-icon mat-card-avatar>event</mat-icon>
-            <mat-card-title>{{ v.fecha | date:'mediumDate' }}</mat-card-title>
-            <mat-card-subtitle>{{ v.categoria }} | {{ v.hora_inicio }} - {{ v.hora_fin }}</mat-card-subtitle>
-          </mat-card-header>
-          <mat-card-actions align="end">
-            <button mat-button color="primary" (click)="iniciarAtencion(v.id)">
-              <mat-icon>play_circle_outline</mat-icon> INICIAR
-            </button>
-          </mat-card-actions>
-        </mat-card>
-      </div>
-    </section>
 
-    <mat-divider style="margin: 20px 0;"></mat-divider>
-
-    <section class="creacion-section">
-      <h3>Nueva Ventana de Atención</h3>
+    <!-- Formulario colapsable -->
+    <section class="creacion-section" *ngIf="mostrarFormulario">
+      <h3><mat-icon>add_circle</mat-icon> Nueva Ventana de Atención</h3>
       <form [formGroup]="ventanaForm" (ngSubmit)="crearVentana()" class="ventana-form">
         <mat-form-field appearance="outline">
           <mat-label>Período</mat-label>
@@ -51,6 +39,14 @@
           </mat-select>
         </mat-form-field>
 
+        <mat-form-field appearance="outline">
+          <mat-label>Modalidad</mat-label>
+          <mat-select formControlName="modalidad">
+            <mat-option value="NOMBRADO">Nombrado</mat-option>
+            <mat-option value="CONTRATADO">Contratado</mat-option>
+          </mat-select>
+        </mat-form-field>
+
         <div class="row">
           <mat-form-field appearance="outline">
             <mat-label>Hora Inicio</mat-label>
@@ -62,23 +58,143 @@
           </mat-form-field>
         </div>
 
-        <button mat-raised-button color="accent" [disabled]="creandoVentana || ventanaForm.invalid">
-          <mat-icon>add</mat-icon> Crear Ventana
-        </button>
+        <div class="form-actions">
+          <button mat-button type="button" (click)="mostrarFormulario = false">Cancelar</button>
+          <button mat-raised-button color="primary" type="submit" [disabled]="creandoVentana || ventanaForm.invalid">
+            <mat-icon>save</mat-icon> Crear Ventana
+          </button>
+        </div>
       </form>
+    </section>
+
+    <!-- Filtros -->
+    <section class="filtros-section">
+      <div class="filtros-bar">
+        <mat-form-field appearance="outline" class="filtro-field">
+          <mat-label>Estado</mat-label>
+          <mat-select [(ngModel)]="filtroEstado" (selectionChange)="onFiltroChange()">
+            <mat-option *ngFor="let e of estados" [value]="e.value">{{ e.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filtro-field">
+          <mat-label>Categoría</mat-label>
+          <mat-select [(ngModel)]="filtroCategoria" (selectionChange)="onFiltroChange()">
+            <mat-option *ngFor="let c of categorias" [value]="c.value">{{ c.label }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <span class="filtro-count">{{ ventanasFiltradas.length }} ventana(s)</span>
+
+        <button mat-stroked-button color="warn" (click)="eliminarTodasVentanas()" *ngIf="ventanasFiltradas.length > 0">
+          <mat-icon>delete_sweep</mat-icon> Eliminar Todas
+        </button>
+      </div>
+    </section>
+
+    <!-- Lista de ventanas -->
+    <section class="ventanas-section">
+      <div class="ventanas-grid" *ngIf="ventanasFiltradas.length > 0">
+        <mat-card *ngFor="let v of ventanasFiltradas" class="ventana-card mat-elevation-z2"
+                  [ngClass]="getEstadoClass(v.estado)">
+          <mat-card-header>
+            <div class="card-header-content">
+              <mat-card-title>{{ v.fecha | date:'EEEE d MMMM, y' }}</mat-card-title>
+              <mat-card-subtitle>{{ v.hora_inicio }} - {{ v.hora_fin }}</mat-card-subtitle>
+            </div>
+            <span class="estado-badge" [ngClass]="getEstadoClass(v.estado)">
+              {{ getEstadoLabel(v.estado) }}
+            </span>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="ventana-info">
+              <div class="info-row">
+                <mat-icon>category</mat-icon>
+                <span>{{ getCategoriaLabel(v.categoria) }}</span>
+              </div>
+              <div class="info-row" *ngIf="v.modalidad">
+                <mat-icon>badge</mat-icon>
+                <span>{{ v.modalidad }}</span>
+              </div>
+              <div class="info-row">
+                <mat-icon>schedule</mat-icon>
+                <span>Intervalo: {{ v.intervalo_minutos || 30 }} min</span>
+              </div>
+              <div class="info-row">
+                <mat-icon>calendar_today</mat-icon>
+                <span>Período: {{ v.periodo }}</span>
+              </div>
+            </div>
+          </mat-card-content>
+
+          <mat-card-actions align="end">
+            <button mat-button color="primary" *ngIf="puedeIniciar(v)" (click)="iniciarAtencion(v.id)" [disabled]="loading">
+              <mat-icon>play_circle</mat-icon> Iniciar
+            </button>
+            <button mat-button color="warn" *ngIf="puedeEliminar(v)" (click)="eliminarVentana(v)">
+              <mat-icon>delete</mat-icon> Eliminar
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+
+      <!-- Estado vacío -->
+      <div *ngIf="ventanasFiltradas.length === 0" class="estado-vacio">
+        <mat-icon>event_busy</mat-icon>
+        <h3>No hay ventanas</h3>
+        <p *ngIf="filtroEstado || filtroCategoria">No se encontraron ventanas con los filtros seleccionados.</p>
+        <p *ngIf="!filtroEstado && !filtroCategoria">Crea una nueva ventana de atención para comenzar.</p>
+      </div>
     </section>
   </div>
 
   <!-- ESTADO B: VENTANA ACTIVA -->
   <div *ngIf="ventanaActiva" class="panel-atencion animate-fadein">
-    <div class="header-atencion mat-elevation-z2">
-      <h2>Atención: {{ ventanaActiva.categoria }} — {{ ventanaActiva.fecha | date:'shortDate' }} | {{ ventanaActiva.hora_inicio }} - {{ ventanaActiva.hora_fin }}</h2>
-      <button mat-flat-button color="warn" (click)="finalizarSesion()">
-        <mat-icon>exit_to_app</mat-icon> Finalizar Sesión
+
+    <div class="info-flujo" *ngIf="!docenteActual">
+      <mat-icon>info</mat-icon>
+      <div>
+        <strong>Flujo de atención:</strong> Presiona <em>"Llamar siguiente docente"</em> en la cola de la izquierda. Luego selecciona un curso habilitado, elige el ambiente compatible, y finalmente haz clic en las celdas libres de la grilla para asignar horarios. Termina con <em>"Confirmar y guardar horario"</em>.
+      </div>
+    </div>
+
+    <!-- Header mejorado -->
+    <div class="header-atencion mat-elevation-z3">
+      <div class="header-left">
+        <div class="header-badge">
+          <mat-icon>cast_connected</mat-icon>
+          <span>EN VIVO</span>
+        </div>
+        <div class="header-title">
+          <h2>Ventana de Atención</h2>
+          <div class="header-meta">
+            <span class="meta-chip categoria">
+              <mat-icon>category</mat-icon> {{ getCategoriaLabel(ventanaActiva.categoria) }}
+            </span>
+            <span class="meta-chip modalidad" *ngIf="ventanaActiva.modalidad">
+              <mat-icon>badge</mat-icon> {{ ventanaActiva.modalidad }}
+            </span>
+            <span class="meta-chip">
+              <mat-icon>calendar_today</mat-icon> {{ ventanaActiva.fecha | date:'EEEE d MMM, y' }}
+            </span>
+            <span class="meta-chip">
+              <mat-icon>schedule</mat-icon> {{ ventanaActiva.hora_inicio }} — {{ ventanaActiva.hora_fin }}
+            </span>
+            <span class="meta-chip docente-atencion" *ngIf="docenteActual">
+              <mat-icon>person</mat-icon> {{ docenteActual.apellidos }}, {{ docenteActual.nombres }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <button mat-flat-button class="btn-finalizar" (click)="finalizarSesion()" [disabled]="loading">
+        <mat-icon>stop_circle</mat-icon> Finalizar Sesión
       </button>
     </div>
 
+    <!-- Layout principal -->
     <div class="main-layout">
+
       <!-- Panel izquierdo: Cola -->
       <div class="panel-izquierdo">
         <app-cola-atencion [ventanaId]="ventanaActiva.id" (docenteEnAtencion)="onDocenteEnAtencion($event)"></app-cola-atencion>
@@ -86,77 +202,154 @@
 
       <!-- Panel derecho: Selección y Grilla -->
       <div class="panel-derecho">
+
+        <!-- Sin docente seleccionado -->
         <div *ngIf="!docenteActual" class="estado-vacio">
           <mat-icon>person_search</mat-icon>
-          <p>Seleccione un docente de la cola para comenzar la atención.</p>
+          <h3>Esperando selección</h3>
+          <p>Llame al siguiente docente desde la cola para comenzar la atención.</p>
         </div>
 
+        <!-- Docente en atención -->
         <div *ngIf="docenteActual" class="atencion-wrapper">
-          <!-- Cursos del docente -->
-          <div class="cursos-section">
-            <h4>Cursos Habilitados — {{ docenteActual.apellidos }}, {{ docenteActual.nombres }}</h4>
+
+          <!-- Info docente -->
+          <div class="docente-banner">
+            <div class="docente-avatar">
+              <mat-icon>person</mat-icon>
+            </div>
+            <div class="docente-info">
+              <span class="docente-nombre">{{ docenteActual.apellidos }}, {{ docenteActual.nombres }}</span>
+              <div class="docente-meta">
+                <span class="meta-badge categoria">{{ docenteActual.categoria }}</span>
+                <span class="meta-badge modalidad">{{ docenteActual.tipo_contrato }}</span>
+                <span class="meta-badge antiguedad" *ngIf="docenteActual.fecha_ingreso">
+                  <mat-icon>calendar_today</mat-icon> Desde {{ docenteActual.fecha_ingreso | date:'yyyy' }}
+                </span>
+              </div>
+              <span class="docente-detalle" *ngIf="docenteActual.email">{{ docenteActual.email }}</span>
+            </div>
+            <span class="docente-badge">En atención</span>
+          </div>
+
+          <!-- Paso 1: Cursos del docente -->
+          <div class="step-section">
+            <div class="step-header">
+              <span class="step-number" [class.active]="!cursoSeleccionado">1</span>
+              <h4>Seleccionar Curso</h4>
+              <span class="step-count" *ngIf="cursosDocente.length > 0">{{ cursosDocente.length }} disponible(s)</span>
+            </div>
+
             <div class="cursos-list" *ngIf="cursosDocente && cursosDocente.length > 0">
-              <mat-card
+              <div
                 *ngFor="let c of cursosDocente"
                 class="curso-card"
                 [class.seleccionado]="cursoSeleccionado?.cursoId === c.cursoId && cursoSeleccionado?.tipo_clase === c.tipo_clase"
                 [class.completo]="cursoEstaCompleto(c)"
                 (click)="seleccionarCurso(c)"
               >
-                <mat-card-header>
-                  <mat-card-title>{{ c.curso?.codigo }} — {{ c.curso?.nombre }}</mat-card-title>
-                  <mat-card-subtitle>{{ c.tipo_clase }}</mat-card-subtitle>
-                </mat-card-header>
-                <mat-card-content>
-                  <p>Req: {{ getHorasRequeridas(c, c.tipo_clase) }}h | Asig: {{ getHorasAsignadasCurso(c.cursoId, c.tipo_clase) }}h</p>
+                <div class="curso-main">
+                  <span class="curso-codigo">{{ c.curso?.codigo }}</span>
+                  <span class="curso-nombre">{{ c.curso?.nombre }}</span>
+                  <span class="curso-tipo" [ngClass]="c.tipo_clase === 'TEORIA' ? 'tipo-teoria' : 'tipo-lab'">
+                    {{ c.tipo_clase === 'TEORIA' ? 'Teoría' : 'Laboratorio' }}
+                  </span>
+                </div>
+                <div class="curso-progress">
+                  <div class="progress-text">
+                    <span>{{ getHorasAsignadasCurso(c.cursoId, c.tipo_clase) }}h / {{ getHorasRequeridas(c, c.tipo_clase) }}h</span>
+                  </div>
                   <mat-progress-bar
                     mode="determinate"
                     [value]="(getHorasAsignadasCurso(c.cursoId, c.tipo_clase) / getHorasRequeridas(c, c.tipo_clase)) * 100 || 0"
+                    [color]="cursoEstaCompleto(c) ? 'accent' : 'primary'"
                   ></mat-progress-bar>
-                </mat-card-content>
-              </mat-card>
+                </div>
+              </div>
             </div>
+
             <div *ngIf="!cursosDocente || cursosDocente.length === 0" class="estado-vacio-mini">
               <mat-icon>school</mat-icon>
               <p>No hay cursos habilitados para este docente.</p>
+              <a routerLink="/app/docente-cursos" class="link-config">
+                <mat-icon>open_in_new</mat-icon> Configurar docente-curso
+              </a>
             </div>
           </div>
 
-          <!-- Selección de ambiente -->
-          <div class="ambiente-section" *ngIf="cursoSeleccionado">
-            <h4>Ambiente para {{ cursoSeleccionado.curso?.nombre }} ({{ cursoSeleccionado.tipo_clase }})</h4>
-            <mat-form-field appearance="outline" *ngIf="ambientesDocente && ambientesDocente.length > 0">
-              <mat-label>Ambiente</mat-label>
-              <mat-select [(ngModel)]="ambienteSeleccionado">
-                <mat-option *ngFor="let a of ambientesDocente" [value]="a">
-                  {{ a.codigo }} — {{ a.nombre }} (cap. {{ a.capacidad }})
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+          <!-- Paso 2: Ambiente -->
+          <div class="step-section" *ngIf="cursoSeleccionado">
+            <div class="step-header">
+              <span class="step-number" [class.active]="cursoSeleccionado && !ambienteSeleccionado">2</span>
+              <h4>Seleccionar Ambiente</h4>
+              <span class="step-count" *ngIf="ambientesDocente.length > 0">{{ ambientesDocente.length }} disponible(s)</span>
+            </div>
+
+            <div *ngIf="ambientesDocente && ambientesDocente.length > 0">
+              <mat-form-field appearance="outline" class="buscar-ambiente-field">
+                <mat-icon matPrefix>search</mat-icon>
+                <input matInput [(ngModel)]="filtroAmbiente" placeholder="Buscar ambiente..." autocomplete="off">
+                <button mat-icon-button matSuffix *ngIf="filtroAmbiente" (click)="filtroAmbiente = ''">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </mat-form-field>
+
+              <div class="ambientes-rapidos">
+                <div
+                  class="ambiente-rapido-item"
+                  *ngFor="let a of ambientesFiltrados"
+                  [class.seleccionado]="ambienteSeleccionado?.id === a.id"
+                  (click)="seleccionarAmbienteRapido(a)"
+                >
+                  <div class="ambiente-rapido-info">
+                    <span class="ambiente-rapido-code">{{ a.codigo }}</span>
+                    <span class="ambiente-rapido-name">{{ a.nombre }}</span>
+                    <span class="ambiente-rapido-meta">{{ a.tipo }} · Cap. {{ a.capacidad }} · {{ a.pabellon || 'Sin pabellón' }}</span>
+                  </div>
+                  <mat-icon *ngIf="ambienteSeleccionado?.id === a.id" class="check-icon">check_circle</mat-icon>
+                </div>
+                <div class="empty-state-mini" *ngIf="ambientesFiltrados.length === 0">
+                  <mat-icon>search_off</mat-icon>
+                  <p>No se encontraron ambientes con "{{ filtroAmbiente }}"</p>
+                </div>
+              </div>
+            </div>
+
             <div *ngIf="!ambientesDocente || ambientesDocente.length === 0" class="estado-vacio-mini">
               <mat-icon>meeting_room</mat-icon>
-              <p>No hay ambientes asignados a este docente.</p>
+              <p>No hay ambientes compatibles para este curso.</p>
+              <a routerLink="/app/curso-ambientes" class="link-config">
+                <mat-icon>open_in_new</mat-icon> Configurar curso-ambiente
+              </a>
             </div>
           </div>
 
-          <!-- Grilla de horarios -->
-          <div class="grilla-section" *ngIf="cursoSeleccionado && ambienteSeleccionado">
-            <app-grilla-horarios
-              [ventanaId]="ventanaActiva.id"
-              [ambienteId]="ambienteSeleccionado.id"
-              [sesionId]="sesionId"
-              [docenteId]="docenteActual.id"
-              [cursoId]="cursoSeleccionado.cursoId"
-              [tipoClase]="cursoSeleccionado.tipo_clase"
-              [periodo]="periodoService.periodo"
-              (seleccionCambiada)="cargarHorariosDocente(docenteActual.id)"
-            ></app-grilla-horarios>
+          <!-- Paso 3: Grilla de horarios -->
+          <div class="step-section" *ngIf="cursoSeleccionado && ambienteSeleccionado">
+            <div class="step-header">
+              <span class="step-number active">3</span>
+              <h4>Asignar Horario</h4>
+              <span class="step-hint">Haga clic en las celdas disponibles para seleccionar</span>
+            </div>
+
+            <div class="grilla-section">
+              <app-grilla-horarios
+                [ventanaId]="ventanaActiva.id"
+                [ambienteId]="ambienteSeleccionado.id"
+                [sesionId]="sesionId"
+                [docenteId]="docenteActual.id"
+                [cursoId]="cursoSeleccionado.cursoId"
+                [tipoClase]="cursoSeleccionado.tipo_clase"
+                [periodo]="periodoService.periodo"
+                (seleccionCambiada)="cargarHorariosDocente(docenteActual.id)"
+              ></app-grilla-horarios>
+            </div>
           </div>
 
           <!-- Confirmar -->
           <div class="confirmar-section" *ngIf="cursoSeleccionado">
-            <button mat-raised-button color="primary" (click)="confirmarHorario()" [disabled]="loading">
-              <mat-icon>save</mat-icon> Confirmar y guardar horario
+            <button mat-raised-button color="primary" (click)="confirmarHorario()" [disabled]="loading" class="btn-confirmar">
+              <mat-icon>check_circle</mat-icon> Confirmar y guardar horario
             </button>
           </div>
         </div>

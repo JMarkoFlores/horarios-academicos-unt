@@ -40,9 +40,9 @@ $unt-primary: mat.define-palette($unt-primary-map, 600);
 $unt-accent: mat.define-palette($unt-accent-map, 600);
 $unt-warn: mat.define-palette(mat.$red-palette);
 
-// ── 2. TIPOGRAFÍA PREMIUM (INTER) ─────────────────────────────────────────
+// ── 2. TIPOGRAFÍA PREMIUM (INTER + PLUS JAKARTA SANS) ─────────────────────
 $unt-typography: mat.define-typography-config(
-  $font-family: '"Inter", sans-serif',
+  $font-family: '"Inter", "Plus Jakarta Sans", sans-serif',
   $headline-1: mat.define-typography-level(32px, 40px, 700),
   $headline-2: mat.define-typography-level(24px, 32px, 600),
   $headline-3: mat.define-typography-level(20px, 28px, 600),
@@ -80,59 +80,202 @@ $unt-dark-theme: mat.define-dark-theme((
   @include mat.all-component-colors($unt-dark-theme);
 }
 
-// ── 3. VARIABLES CSS GLOBALES (Refinadas para Balance Cromático) ───────────
+// ── 3. VARIABLES CSS GLOBALES (Sistema de Diseño Profesional UNT) ─────────────
 :root {
-  --color-primary: #2563eb; // Azul Real (más neutro y legible que el Indigo)
-  --color-primary-light: rgba(37, 99, 235, 0.08);
-  --color-accent: #10b981; // Esmeralda (para romper el predominio del morado)
-  --color-accent-light: rgba(16, 185, 129, 0.08);
-  --color-surface: #ffffff;
-  --color-background: #f1f5f9; // Slate 100
-  --color-text: #0f172a; // Slate 900
-  --color-text-muted: #475569; // Slate 600
-  --color-border: #e2e8f0; // Slate 200
+  // Colores principales UNT
+  --color-primary-50: #E3F2FD;
+  --color-primary-100: #BBDEFB;
+  --color-primary-200: #90CAF9;
+  --color-primary-300: #64B5F6;
+  --color-primary-400: #42A5F5;
+  --color-primary-500: #1565C0; // Azul institucional UNT
+  --color-primary-600: #0D47A1;
+  --color-primary-700: #0A3D91;
+  --color-primary-800: #07337A;
+  --color-primary-900: #042963;
+
+  // Acento UNT
+  --color-accent-50: #FFF3E0;
+  --color-accent-100: #FFE0B2;
+  --color-accent-200: #FFCC80;
+  --color-accent-300: #FFB74D;
+  --color-accent-400: #FFA726;
+  --color-accent-500: #FF6F00; // Naranja UNT
+  --color-accent-600: #E65100;
+  --color-accent-700: #BF360C;
+  --color-accent-800: #8D2608;
+  --color-accent-900: #5C1B02;
+
+  // Colores de uso común (alias para compatibilidad)
+  --color-primary: var(--color-primary-500);
+  --color-primary-light: rgba(21, 101, 192, 0.08);
+  --color-primary-hover: var(--color-primary-600);
+  --color-accent: var(--color-accent-500);
+  --color-accent-light: rgba(255, 111, 0, 0.08);
+  --color-accent-hover: var(--color-accent-600);
 
   // Semánticos (light)
   --color-success: #059669;
+  --color-success-light: #10B981;
   --color-success-bg: rgba(16, 185, 129, 0.10);
-  --color-warning: #d97706;
+  --color-success-bg-light: rgba(16, 185, 129, 0.05);
+
+  --color-warning: #F59E0B;
+  --color-warning-light: #FBBF24;
   --color-warning-bg: rgba(245, 158, 11, 0.10);
-  --color-danger: #ef4444;
+  --color-warning-bg-light: rgba(245, 158, 11, 0.05);
+
+  --color-danger: #DC2626;
+  --color-danger-light: #EF4444;
   --color-danger-bg: rgba(239, 68, 68, 0.10);
-  --color-info: #3b82f6;
+  --color-danger-bg-light: rgba(239, 68, 68, 0.05);
+
+  --color-info: #0284C7;
+  --color-info-light: #3B82F6;
   --color-info-bg: rgba(59, 130, 246, 0.12);
+  --color-info-bg-light: rgba(59, 130, 246, 0.05);
 
+  // Neutros (light)
+  --color-bg: #F8FAFC; // Slate 50
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F1F5F9; // Slate 100
+  --color-surface-3: #E2E8F0; // Slate 200
+  --color-border: #E2E8F0; // Slate 200
+  --color-border-light: #F1F5F9;
+  --color-border-dark: #CBD5E1; // Slate 300
+
+  --color-text: #0F172A; // Slate 900
+  --color-text-secondary: #334155; // Slate 700
+  --color-text-muted: #64748B; // Slate 500
+  --color-text-disabled: #94A3B8; // Slate 400
+
+  // Colores de grilla de horarios
+  --color-slot-teoria: #BBDEFB; // azul claro
+  --color-slot-laboratorio: #C8E6C9; // verde claro
+  --color-slot-seleccion: #FFF9C4; // amarillo — selección temporal
+  --color-slot-propia: #A5D6A7; // verde — selección propia
+  --color-slot-bloqueado: #ECEFF1; // gris — no disponible
+  --color-slot-ocupado: #CFD8DC; // gris oscuro — ocupado por otro
+
+  // Sistema de espaciado (escala de 4px)
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  // Sistema de radios
+  --radius-xs: 4px;
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+  // Sistema de sombras
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 
+  // Sistema de transiciones
+  --transition-instant: 50ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slower: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  // Sistema tipográfico
+  --font-display: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  --font-body: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  // Z-index layers
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
 }
 
-// ── 4. REFINAMIENTO DARK MODE (Legibilidad Mejorada) ──────────────────────
+// ── 4. DARK MODE (Sistema de Diseño Profesional UNT) ─────────────────────────────
 body.dark-theme {
-  --color-surface: #1e293b;
-  --color-background: #0f172a;
-  --color-text: #f8fafc;
-  --color-text-muted: #94a3b8;
-  --color-border: #334155;
-  --color-primary-light: rgba(59, 130, 246, 0.15);
-  background-color: var(--color-background);
+  // Colores principales UNT (dark)
+  --color-primary-500: #42A5F5; // Más claro para dark mode
+  --color-primary-600: #64B5F6;
+  --color-primary-700: #90CAF9;
+  --color-primary-800: #BBDEFB;
+  --color-primary-900: #E3F2FD;
+
+  --color-accent-500: #FFB74D; // Más claro para dark mode
+  --color-accent-600: #FFCC80;
+  --color-accent-700: #FFE0B2;
+  --color-accent-800: #FFF3E0;
+
+  // Alias
+  --color-primary: var(--color-primary-500);
+  --color-primary-light: rgba(66, 165, 245, 0.15);
+  --color-primary-hover: var(--color-primary-600);
+  --color-accent: var(--color-accent-500);
+  --color-accent-light: rgba(255, 183, 77, 0.15);
+  --color-accent-hover: var(--color-accent-600);
 
   // Semánticos (dark)
-  --color-success: #34d399;
+  --color-success: #34D399;
+  --color-success-light: #6EE7B7;
   --color-success-bg: rgba(52, 211, 153, 0.15);
-  --color-warning: #fbbf24;
+  --color-success-bg-light: rgba(52, 211, 153, 0.08);
+
+  --color-warning: #FBBF24;
+  --color-warning-light: #FCD34D;
   --color-warning-bg: rgba(251, 191, 36, 0.15);
-  --color-danger: #f87171;
+  --color-warning-bg-light: rgba(251, 191, 36, 0.08);
+
+  --color-danger: #F87171;
+  --color-danger-light: #FCA5A5;
   --color-danger-bg: rgba(248, 113, 113, 0.15);
-  --color-info: #60a5fa;
+  --color-danger-bg-light: rgba(248, 113, 113, 0.08);
+
+  --color-info: #60A5FA;
+  --color-info-light: #93C5FD;
   --color-info-bg: rgba(96, 165, 250, 0.15);
+  --color-info-bg-light: rgba(96, 165, 250, 0.08);
+
+  // Neutros (dark)
+  --color-bg: #0F172A; // Slate 900
+  --color-surface: #1E293B; // Slate 800
+  --color-surface-2: #334155; // Slate 700
+  --color-surface-3: #475569; // Slate 600
+  --color-border: #334155; // Slate 700
+  --color-border-light: #475569;
+  --color-border-dark: #64748B;
+
+  --color-text: #F8FAFC; // Slate 50
+  --color-text-secondary: #E2E8F0; // Slate 200
+  --color-text-muted: #94A3B8; // Slate 400
+  --color-text-disabled: #64748B; // Slate 500
+
+  // Colores de grilla de horarios (dark)
+  --color-slot-teoria: #1E3A8A; // azul oscuro
+  --color-slot-laboratorio: #065F46; // verde oscuro
+  --color-slot-seleccion: #713F12; // amarillo oscuro
+  --color-slot-propia: #064E3B; // verde oscuro
+  --color-slot-bloqueado: #374151; // gris oscuro
+  --color-slot-ocupado: #4B5563; // gris más oscuro
+
+  background-color: var(--color-bg);
 }
 
 // ── ESTILOS BASE ───────────────────────────────────────────────────────────

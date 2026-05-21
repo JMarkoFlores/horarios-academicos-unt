@@ -17,6 +17,9 @@ export class InitialMigration1700000000000 implements MigrationInterface {
       `CREATE TYPE "public"."ambiente_tipo_enum" AS ENUM('AULA', 'LABORATORIO')`,
     );
     await queryRunner.query(
+      `CREATE TYPE "public"."ambiente_estado_enum" AS ENUM('ACTIVO', 'MANTENIMIENTO', 'RESERVADO', 'INACTIVO')`,
+    );
+    await queryRunner.query(
       `CREATE TYPE "public"."preasignacion_tipo_clase_enum" AS ENUM('TEORIA', 'LABORATORIO')`,
     );
     await queryRunner.query(
@@ -109,7 +112,9 @@ export class InitialMigration1700000000000 implements MigrationInterface {
         "capacidad" integer NOT NULL,
         "piso" integer,
         "pabellon" character varying(50),
+        "sede" character varying(100),
         "equipamiento" text,
+        "estado" "public"."ambiente_estado_enum" NOT NULL DEFAULT 'ACTIVO',
         "activo" boolean NOT NULL DEFAULT true,
         CONSTRAINT "UQ_ambiente_codigo" UNIQUE ("codigo"),
         CONSTRAINT "PK_ambiente_id" PRIMARY KEY ("id")
@@ -260,6 +265,9 @@ export class InitialMigration1700000000000 implements MigrationInterface {
         "canal" "public"."notificacion_docente_canal_enum" NOT NULL,
         "estado" "public"."notificacion_docente_estado_enum" NOT NULL DEFAULT 'PENDIENTE',
         "enviado_at" TIMESTAMP,
+        "codigo_error" character varying(50),
+        "job_id" character varying(100),
+        "intentos" integer NOT NULL DEFAULT 1,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "docente_id" integer NOT NULL,
         CONSTRAINT "PK_notificacion_docente_id" PRIMARY KEY ("id")
@@ -272,6 +280,7 @@ export class InitialMigration1700000000000 implements MigrationInterface {
         "canal_correo" boolean NOT NULL DEFAULT true,
         "canal_whatsapp" boolean NOT NULL DEFAULT false,
         "telefono" character varying(20),
+        "correo_alternativo" character varying(150),
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP NOT NULL DEFAULT now(),
         "docente_id" integer NOT NULL,
@@ -447,6 +456,7 @@ export class InitialMigration1700000000000 implements MigrationInterface {
     await queryRunner.query(
       `DROP TYPE "public"."preasignacion_tipo_clase_enum"`,
     );
+    await queryRunner.query(`DROP TYPE "public"."ambiente_estado_enum"`);
     await queryRunner.query(`DROP TYPE "public"."ambiente_tipo_enum"`);
     await queryRunner.query(`DROP TYPE "public"."docente_tipo_contrato_enum"`);
     await queryRunner.query(`DROP TYPE "public"."docente_categoria_enum"`);

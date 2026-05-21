@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
@@ -7,7 +12,10 @@ import { Curso } from "../entities/curso.entity";
 import { Docente } from "../entities/docente.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { Grupo } from "../entities/grupo.entity";
-import { VentanaAtencion, EstadoVentanaAtencion } from "../entities/ventana-atencion.entity";
+import {
+  VentanaAtencion,
+  EstadoVentanaAtencion,
+} from "../entities/ventana-atencion.entity";
 import { ColaDocente, EstadoCola } from "../entities/cola-docentes.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { CreatePeriodoDto } from "./dto/create-periodo.dto";
@@ -83,12 +91,18 @@ export class PeriodosService {
 
   async create(dto: CreatePeriodoDto) {
     if (new Date(dto.fecha_inicio) >= new Date(dto.fecha_fin)) {
-      throw new BadRequestException("La fecha de inicio debe ser anterior a la fecha de fin");
+      throw new BadRequestException(
+        "La fecha de inicio debe ser anterior a la fecha de fin",
+      );
     }
 
-    const existe = await this.periodoRepo.findOne({ where: { codigo: dto.codigo } });
+    const existe = await this.periodoRepo.findOne({
+      where: { codigo: dto.codigo },
+    });
     if (existe) {
-      throw new ConflictException(`El periodo académico con código ${dto.codigo} ya existe`);
+      throw new ConflictException(
+        `El periodo académico con código ${dto.codigo} ya existe`,
+      );
     }
 
     if (dto.activo) {
@@ -105,13 +119,19 @@ export class PeriodosService {
     const inicio = dto.fecha_inicio ?? periodo.fecha_inicio;
     const fin = dto.fecha_fin ?? periodo.fecha_fin;
     if (new Date(inicio) >= new Date(fin)) {
-      throw new BadRequestException("La fecha de inicio debe ser anterior a la fecha de fin");
+      throw new BadRequestException(
+        "La fecha de inicio debe ser anterior a la fecha de fin",
+      );
     }
 
     if (dto.codigo && dto.codigo !== periodo.codigo) {
-      const existe = await this.periodoRepo.findOne({ where: { codigo: dto.codigo } });
+      const existe = await this.periodoRepo.findOne({
+        where: { codigo: dto.codigo },
+      });
       if (existe) {
-        throw new ConflictException(`El periodo académico con código ${dto.codigo} ya existe`);
+        throw new ConflictException(
+          `El periodo académico con código ${dto.codigo} ya existe`,
+        );
       }
     }
 
@@ -137,16 +157,8 @@ export class PeriodosService {
       );
     }
 
-    // Verificar si ya hay horarios generados para este período
-    const horariosExistentes = await this.horarioRepo.count({
-      where: { periodo: periodo.codigo },
-    });
-
-    if (horariosExistentes > 0) {
-      throw new BadRequestException(
-        "El período ya tiene horarios generados. Elimínelos primero o use el modo mixto.",
-      );
-    }
+    // Si ya hay horarios generados para este período, eliminarlos antes de regenerar
+    await this.horarioRepo.delete({ periodo: periodo.codigo });
 
     // Obtener cursos activos del período
     const cursos = await this.cursoRepo.find({ where: { activo: true } });
@@ -157,7 +169,9 @@ export class PeriodosService {
     const grupos = await this.grupoRepo.find({ relations: ["curso"] });
 
     if (cursos.length === 0) {
-      throw new BadRequestException("No hay cursos activos para generar horarios");
+      throw new BadRequestException(
+        "No hay cursos activos para generar horarios",
+      );
     }
 
     if (docentes.length === 0) {
@@ -228,7 +242,9 @@ export class PeriodosService {
     const periodo = await this.findOne(id);
 
     // Obtener todos los docentes activos
-    const todosDocentes = await this.docenteRepo.find({ where: { activo: true } });
+    const todosDocentes = await this.docenteRepo.find({
+      where: { activo: true },
+    });
 
     // Obtener horarios del período
     const horarios = await this.horarioRepo.find({
@@ -237,9 +253,7 @@ export class PeriodosService {
     });
 
     // Docentes que ya tienen al menos un horario
-    const docentesConHorario = new Set(
-      horarios.map((h) => h.docente_id),
-    );
+    const docentesConHorario = new Set(horarios.map((h) => h.docente_id));
 
     // Docentes sin horario (pendientes)
     const pendientes = todosDocentes.filter(

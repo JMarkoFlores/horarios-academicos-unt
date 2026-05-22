@@ -530,3 +530,19 @@ body {
     color: var(--color-text-muted);
   }
 }
+
+// Custom Panel Style for the Profile Dialog to completely prevent standard borders/padding and overflows
+.profile-dialog-panel {
+  .mat-mdc-dialog-container {
+    --mdc-dialog-container-shape: 16px;
+    padding: 0 !important;
+  }
+  .mat-mdc-dialog-surface {
+    padding: 0 !important;
+    overflow: hidden !important;
+    border-radius: 16px !important;
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  }
+}

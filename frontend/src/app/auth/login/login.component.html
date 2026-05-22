@@ -46,6 +46,7 @@
               type="email"
               formControlName="email"
               autocomplete="email"
+              (input)="clearError()"
             />
             <mat-icon matPrefix>alternate_email</mat-icon>
             <mat-error *ngIf="form.get('email')?.hasError('required')"
@@ -65,6 +66,7 @@
               [type]="hidePassword ? 'password' : 'text'"
               formControlName="password"
               autocomplete="current-password"
+              (input)="clearError()"
             />
             <mat-icon matPrefix>lock_open</mat-icon>
             <button
@@ -99,7 +101,10 @@
           style="--delay: 0.3s"
           [disabled]="loading"
         >
-          <mat-spinner diameter="24" *ngIf="loading"></mat-spinner>
+          <div class="btn-content" *ngIf="loading">
+            <mat-spinner diameter="20"></mat-spinner>
+            <span>INGRESANDO...</span>
+          </div>
           <div class="btn-content" *ngIf="!loading">
             <span>INGRESAR AL SISTEMA</span>
             <mat-icon>arrow_forward</mat-icon>

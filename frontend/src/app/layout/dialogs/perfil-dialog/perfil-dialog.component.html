@@ -1,212 +1,104 @@
-<h2
-  mat-dialog-title
-  style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px"
->
-  <mat-icon style="color: var(--color-primary)">account_circle</mat-icon>
-  Mi Perfil
-</h2>
-
-<mat-dialog-content>
-  <div
-    style="
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 0 16px;
-    "
-  >
-    <!-- Avatar con iniciales -->
+<div class="perfil-container">
+  <!-- Header: Avatar, Name, Email, Pill -->
+  <div class="perfil-header">
+    <!-- <button
+      mat-icon-button
+      class="close-top-btn"
+      (click)="cerrar()"
+      aria-label="Cerrar"
+    >
+      <mat-icon>close</mat-icon>
+    </button> -->
     <div
-      style="
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--color-primary), #7c3aed);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 32px;
-        font-weight: 700;
-        color: #fff;
-        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
-        flex-shrink: 0;
-      "
+      class="avatar-wrapper"
+      (click)="triggerFileInput()"
+      matTooltip="Haga clic para cambiar foto"
     >
-      {{ iniciales }}
-    </div>
-
-    <!-- Nombre -->
-    <div style="text-align: center">
       <div
-        style="
-          font-size: 20px;
-          font-weight: 700;
-          color: var(--color-text);
-          line-height: 1.2;
-        "
+        class="avatar-circle"
+        [style.background-image]="fotoUrl ? 'url(' + fotoUrl + ')' : ''"
       >
-        {{ usuario.nombre }}
+        <span *ngIf="!fotoUrl">{{ iniciales }}</span>
       </div>
-      <div
-        style="font-size: 12px; color: var(--color-text-muted); margin-top: 2px"
-      >
-        {{ usuario.email }}
+      <div class="avatar-overlay">
+        <mat-icon>photo_camera</mat-icon>
+        <span>Cambiar</span>
       </div>
+      <div class="status-badge"></div>
     </div>
-
-    <!-- Badge de rol -->
-    <span
-      style="
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 14px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        background: rgba(99, 102, 241, 0.12);
-        color: var(--color-primary);
-      "
-    >
-      <mat-icon
-        style="font-size: 14px; width: 14px; height: 14px; line-height: 14px"
-        >verified_user</mat-icon
-      >
-      {{ getRolLabel(usuario.rol) }}
-    </span>
+    <div class="profile-identity">
+      <h2 class="profile-name">{{ usuario.nombre }}</h2>
+      <p class="profile-sub">{{ usuario.email }}</p>
+    </div>
+    <div class="role-pill">
+      <mat-icon>verified_user</mat-icon>
+      <span>{{ getRolLabel(usuario.rol) }}</span>
+    </div>
   </div>
 
-  <mat-divider style="margin: 0 -24px"></mat-divider>
-
-  <!-- Filas de información -->
-  <div style="display: flex; flex-direction: column; gap: 0; margin-top: 4px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 14px 4px;
-        border-bottom: 1px solid var(--color-border);
-      "
-    >
-      <mat-icon style="color: var(--color-primary); flex-shrink: 0"
-        >email</mat-icon
-      >
-      <div style="display: flex; flex-direction: column; gap: 1px">
-        <span
-          style="
-            font-size: 11px;
-            color: var(--color-text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-          "
-          >Correo electrónico</span
-        >
-        <span
-          style="font-size: 14px; color: var(--color-text); font-weight: 500"
-          >{{ usuario.email || "—" }}</span
-        >
-      </div>
+  <!-- Body: Information cards -->
+  <div class="perfil-body">
+    <div class="section-title">
+      <mat-icon>contact_mail</mat-icon>
+      <span class="padding-10px">Información de la Cuenta</span>
     </div>
-
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 14px 4px;
-        border-bottom: 1px solid var(--color-border);
-      "
-    >
-      <mat-icon style="color: var(--color-primary); flex-shrink: 0"
-        >badge</mat-icon
-      >
-      <div style="display: flex; flex-direction: column; gap: 1px">
-        <span
-          style="
-            font-size: 11px;
-            color: var(--color-text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-          "
-          >Rol en el sistema</span
-        >
-        <span
-          style="font-size: 14px; color: var(--color-text); font-weight: 500"
-          >{{ getRolLabel(usuario.rol) }}</span
-        >
+    <div class="info-list">
+      <!-- Correo -->
+      <div class="info-item info-item-email">
+        <div class="info-icon-container info-icon-email">
+          <mat-icon>email</mat-icon>
+        </div>
+        <div class="info-content">
+          <span class="info-label">Correo electrónico</span>
+          <span class="info-value">{{ usuario.email || "—" }}</span>
+        </div>
       </div>
-    </div>
 
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 14px 4px;
-        border-bottom: 1px solid var(--color-border);
-      "
-    >
-      <mat-icon style="color: var(--color-primary); flex-shrink: 0"
-        >fingerprint</mat-icon
-      >
-      <div style="display: flex; flex-direction: column; gap: 1px">
-        <span
-          style="
-            font-size: 11px;
-            color: var(--color-text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-          "
-          >ID de usuario</span
-        >
-        <span
-          style="font-size: 14px; color: var(--color-text); font-weight: 500"
-          >#{{ usuario.id }}</span
-        >
+      <!-- Rol -->
+      <div class="info-item info-item-role">
+        <div class="info-icon-container info-icon-role">
+          <mat-icon>badge</mat-icon>
+        </div>
+        <div class="info-content">
+          <span class="info-label">Rol en el sistema</span>
+          <span class="info-value">{{ getRolLabel(usuario.rol) }}</span>
+        </div>
       </div>
-    </div>
 
-    <div
-      *ngIf="usuario.docenteId"
-      style="
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 14px 4px;
-        border-bottom: 1px solid var(--color-border);
-      "
-    >
-      <mat-icon style="color: var(--color-primary); flex-shrink: 0"
-        >school</mat-icon
-      >
-      <div style="display: flex; flex-direction: column; gap: 1px">
-        <span
-          style="
-            font-size: 11px;
-            color: var(--color-text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-          "
-          >ID Docente</span
-        >
-        <span
-          style="font-size: 14px; color: var(--color-text); font-weight: 500"
-          >#{{ usuario.docenteId }}</span
-        >
+      <!-- ID de usuario -->
+      <div class="info-item info-item-id">
+        <div class="info-icon-container info-icon-id">
+          <mat-icon>fingerprint</mat-icon>
+        </div>
+        <div class="info-content">
+          <span class="info-label">ID de usuario</span>
+          <span class="info-value">#{{ usuario.id }}</span>
+        </div>
+      </div>
+
+      <!-- ID Docente (opcional) -->
+      <div class="info-item info-item-docente" *ngIf="usuario.docenteId">
+        <div class="info-icon-container info-icon-docente">
+          <mat-icon>school</mat-icon>
+        </div>
+        <div class="info-content">
+          <span class="info-label">ID Docente</span>
+          <span class="info-value">#{{ usuario.docenteId }}</span>
+        </div>
       </div>
     </div>
   </div>
-</mat-dialog-content>
 
-<mat-dialog-actions align="end">
-  <button mat-flat-button color="primary" (click)="cerrar()">
-    <mat-icon>close</mat-icon>
-    Cerrar
-  </button>
-</mat-dialog-actions>
+  <!-- Actions -->
+  <div class="perfil-actions">
+    <button
+      mat-flat-button
+      class="btn-logout"
+      (click)="logout()"
+      matTooltip="Cerrar sesión"
+    >
+      <mat-icon>power_settings_new</mat-icon>
+    </button>
+    <button mat-button class="btn-close-flat" (click)="cerrar()">Salir</button>
+  </div>
+</div>

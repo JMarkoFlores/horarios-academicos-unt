@@ -4,6 +4,38 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ConfiguracionGeneralService } from '../../core/services/configuracion-general.service';
 
+const ROL_REDIRECT: Record<string, string> = {
+  administradorsistema: '/app/dashboard',
+  coordinadoracademico: '/app/dashboard',
+  directorescuela: '/app/dashboard',
+  visualizador: '/app/dashboard',
+  operadorhorarios: '/app/operador',
+  docente: '/app/mis-horarios',
+};
+
+function redirectByRol(rol: string): string {
+  return ROL_REDIRECT[rol] ?? '/app/dashboard';
+}
+
+function parseLoginError(err: any): string {
+  if (!err || err.status === 0) {
+    return 'Error de conexión con el servidor. Verifique su red e intente nuevamente.';
+  }
+  if (err.status === 401) {
+    return 'Credenciales incorrectas. Verifique su correo y contraseña.';
+  }
+  if (err.status === 403) {
+    const msg: string = err.error?.message ?? '';
+    return msg.toLowerCase().includes('inactivo')
+      ? 'Usuario inactivo. Contacte al administrador del sistema.'
+      : msg || 'Acceso denegado.';
+  }
+  if (err.status >= 500) {
+    return 'Error interno del servidor. Intente nuevamente más tarde.';
+  }
+  return err.error?.message ?? 'Error al iniciar sesión. Intente nuevamente.';
+}
+
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
@@ -23,7 +55,7 @@ export class LoginComponent implements OnInit {
   ) {
     this.form = this.fb.group({
       email: [
-        'admin@unt.edu.pe',
+        '',
         [
           Validators.required,
           Validators.pattern(
@@ -31,27 +63,38 @@ export class LoginComponent implements OnInit {
           ),
         ],
       ],
-      password: ['Admin123!', [Validators.required, Validators.minLength(6)]],
+      password: ['', [Validators.required, Validators.minLength(6)]],
     });
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.configService.cargar();
     if (this.authService.isLoggedIn()) {
-      this.router.navigate(['/app/dashboard']);
+      const user = this.authService.getUsuarioActual();
+      this.router.navigate([redirectByRol(user?.rol ?? '')]);
     }
   }
 
+  clearError(): void {
+    if (this.error) this.error = '';
+  }
+
   submit(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (this.loading) return;
     this.loading = true;
     this.error = '';
     const { email, password } = this.form.value;
     this.authService.login(email, password).subscribe({
-      next: () => this.router.navigate(['/app/dashboard']),
+      next: (res: any) => {
+        const rol: string = res?.data?.usuario?.rol ?? '';
+        this.router.navigate([redirectByRol(rol)]);
+      },
       error: (err: any) => {
-        this.error =
-          err.error?.message || 'Credenciales incorrectas. Intente nuevamente.';
+        this.error = parseLoginError(err);
         this.loading = false;
       },
     });

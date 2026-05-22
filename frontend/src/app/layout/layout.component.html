@@ -119,8 +119,12 @@
         matTooltipPosition="right"
       >
         <div class="user-avatar-wrapper">
-          <div class="user-avatar">
-            {{ (usuario?.nombre || "A")[0] }}
+          <div
+            class="user-avatar"
+            [style.background-image]="userPhoto ? 'url(' + userPhoto + ')' : ''"
+            [class.has-photo]="!!userPhoto"
+          >
+            <span *ngIf="!userPhoto">{{ (usuario?.nombre || "A")[0] }}</span>
           </div>
           <span class="status-dot"></span>
         </div>

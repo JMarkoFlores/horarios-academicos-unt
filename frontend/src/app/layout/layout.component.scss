@@ -511,6 +511,13 @@
           font-weight: 700;
           font-size: 14px;
           box-shadow: var(--shadow-sm);
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+
+          &.has-photo {
+            border: 2px solid var(--color-border);
+          }
         }
 
         .status-dot {

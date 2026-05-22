@@ -65,8 +65,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   // Cachear usuario y navGroups para evitar recálculos en change detection
   usuario = this.authService.getUsuarioActual();
+  userPhoto: string | null = null;
   private _visibleNavGroups: NavGroup[] = [];
   private _routerSub!: Subscription;
+  private _photoSub!: Subscription;
   private _resizeTimer: any;
 
   // Grupos de navegación para mejor organización visual
@@ -300,6 +302,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
     // Cargar periodos desde la base de datos (no bloqueante)
     this.periodoService.cargarPeriodos();
 
+    this._photoSub = this.authService.profilePhoto$.subscribe((photo) => {
+      this.userPhoto = photo;
+    });
+
     this._routerSub = this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe((e: any) => {
@@ -312,6 +318,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this._routerSub) {
       this._routerSub.unsubscribe();
+    }
+    if (this._photoSub) {
+      this._photoSub.unsubscribe();
     }
     clearTimeout(this._resizeTimer);
   }
@@ -373,7 +382,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   openVerPerfil(): void {
     this.dialog.open(PerfilDialogComponent, {
-      width: '420px',
+      width: '450px',
+      maxWidth: '95vw',
+      panelClass: 'profile-dialog-panel',
       data: this.usuario,
       disableClose: false,
     });

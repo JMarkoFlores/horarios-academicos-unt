@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, BehaviorSubject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Usuario } from '../interfaces/entities';
 
@@ -10,10 +10,39 @@ export class AuthService {
   private readonly TOKEN_KEY = 'unt_token';
   private readonly USER_KEY = 'unt_user';
 
+  private profilePhotoSubject = new BehaviorSubject<string | null>(null);
+  profilePhoto$ = this.profilePhotoSubject.asObservable();
+
   constructor(
     private http: HttpClient,
     private router: Router,
-  ) {}
+  ) {
+    const user = this.getUsuarioActual();
+    if (user) {
+      const stored = localStorage.getItem(`unt_user_photo_${user.id}`);
+      this.profilePhotoSubject.next(stored);
+    }
+  }
+
+  getProfilePhoto(userId: number): string | null {
+    return localStorage.getItem(`unt_user_photo_${userId}`);
+  }
+
+  saveProfilePhoto(userId: number, base64: string): void {
+    localStorage.setItem(`unt_user_photo_${userId}`, base64);
+    const currentUser = this.getUsuarioActual();
+    if (currentUser && currentUser.id === userId) {
+      this.profilePhotoSubject.next(base64);
+    }
+  }
+
+  deleteProfilePhoto(userId: number): void {
+    localStorage.removeItem(`unt_user_photo_${userId}`);
+    const currentUser = this.getUsuarioActual();
+    if (currentUser && currentUser.id === userId) {
+      this.profilePhotoSubject.next(null);
+    }
+  }
 
   login(email: string, password: string): Observable<any> {
     return this.http
@@ -24,6 +53,10 @@ export class AuthService {
         tap((res) => {
           localStorage.setItem(this.TOKEN_KEY, res.data.access_token);
           localStorage.setItem(this.USER_KEY, JSON.stringify(res.data.usuario));
+          const storedPhoto = localStorage.getItem(
+            `unt_user_photo_${res.data.usuario.id}`,
+          );
+          this.profilePhotoSubject.next(storedPhoto);
         }),
       );
   }
@@ -31,6 +64,7 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    this.profilePhotoSubject.next(null);
     this.router.navigate(['/login']);
   }
 

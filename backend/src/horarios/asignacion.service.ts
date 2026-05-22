@@ -21,6 +21,8 @@ import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ValidadorHorarioService } from "./validador-horario.service";
 import { AuditoriaService } from "../modules/auditoria/auditoria.service";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { Docente } from "../entities/docente.entity";
 
 type DocenteJerarquia = {
   id: number;
@@ -67,17 +69,21 @@ export class AsignacionService {
     private readonly docenteCursoRepo: Repository<DocenteCurso>,
     @InjectRepository(Preasignacion)
     private readonly preasignacionRepo: Repository<Preasignacion>,
+    @InjectRepository(ParametrosCarga)
+    private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
+    @InjectRepository(Docente)
+    private readonly docenteRepo: Repository<Docente>,
     private readonly docentesService: DocentesService,
     private readonly validadorHorarioService: ValidadorHorarioService,
   ) {}
 
-  encontrarDocenteElegible(
+  async encontrarDocenteElegible(
     docentes: DocenteJerarquia[],
     curso: Curso,
     asignacionesActuales: HorarioAsignado[],
     periodo: string,
     tipoClase: TipoClase = TipoClase.TEORIA,
-  ): DocenteJerarquia | null {
+  ): Promise<DocenteJerarquia | null> {
     if (this.horasAsignadasMap.size === 0) {
       for (const asignacion of asignacionesActuales) {
         const actual = this.horasAsignadasMap.get(asignacion.docente_id) ?? 0;
@@ -121,7 +127,20 @@ export class AsignacionService {
       }
 
       const horasAsignadas = this.horasAsignadasMap.get(docente.id) ?? 0;
-      if (horasAsignadas >= AsignacionService.MAX_HORAS_DOCENTE) {
+
+      const d = await this.docenteRepo.findOne({ where: { id: docente.id } });
+      const parametro = d
+        ? await this.parametrosCargaRepo.findOne({
+            where: {
+              periodo_academico: periodo,
+              categoria: d.categoria,
+              tipo_contrato: d.tipo_contrato,
+              modalidad: d.modalidad || "",
+            },
+          })
+        : null;
+      const maxHoras = parametro?.horas_max_semanal ?? 999;
+      if (horasAsignadas >= maxHoras) {
         continue;
       }
 
@@ -286,6 +305,19 @@ export class AsignacionService {
       const entidadesConflictos: ConflictoAsignacion[] = [];
       const horasAsignadas = new Map<number, number>();
 
+      // Precargar parámetros de carga docente para el período
+      const parametrosCarga = await this.parametrosCargaRepo.find({
+        where: { periodo_academico: periodo },
+      });
+      const parametrosMap = new Map<string, ParametrosCarga>();
+      for (const p of parametrosCarga) {
+        parametrosMap.set(
+          `${p.categoria}_${p.tipo_contrato}_${p.modalidad}`,
+          p,
+        );
+      }
+      const cursosAsignados = new Map<number, Set<number>>();
+
       // 4. Proceso de asignación
       for (const curso of cursos) {
         const grupo = grupos.find((g) => g.curso.id === curso.id);
@@ -308,13 +340,16 @@ export class AsignacionService {
         let horasPendientesTeoria = curso.horas_teoria;
         while (horasPendientesTeoria > 0) {
           const duracion = Math.min(2, horasPendientesTeoria); // Intentar bloques de 2 horas
-          const docente = this.buscarDocenteElegible(
+          const docente = await this.buscarDocenteElegible(
             docentesOrdenados,
             curso.id,
             TipoClase.TEORIA,
             habilitacionMap,
             horasAsignadas,
             duracion,
+            periodo,
+            parametrosMap,
+            cursosAsignados,
           );
 
           if (!docente) {
@@ -354,6 +389,9 @@ export class AsignacionService {
               estado: EstadoHorario.BORRADOR,
             });
             asignacionesCreadas.push(nuevaAsig);
+            if (!cursosAsignados.has(docente.id))
+              cursosAsignados.set(docente.id, new Set());
+            cursosAsignados.get(docente.id).add(curso.id);
             this.marcarOcupado(
               slot.dia,
               slot.hora,
@@ -362,11 +400,11 @@ export class AsignacionService {
               grupoOcupado.get(grupo.id),
               ambienteOcupado.get(slot.ambienteId),
             );
-            
+
             // Incrementar carga horaria del docente
             const cargaActual = horasAsignadas.get(docente.id) ?? 0;
             horasAsignadas.set(docente.id, cargaActual + duracion);
-            
+
             horasPendientesTeoria -= duracion;
           } else {
             const c = new ConflictoAsignacion();
@@ -390,13 +428,16 @@ export class AsignacionService {
           let horasPendientesLab = curso.horas_laboratorio;
           while (horasPendientesLab > 0) {
             const duracion = Math.min(3, horasPendientesLab); // Labs suelen ser de 2-3h
-            const docente = this.buscarDocenteElegible(
+            const docente = await this.buscarDocenteElegible(
               docentesOrdenados,
               curso.id,
               TipoClase.LABORATORIO,
               habilitacionMap,
               horasAsignadas,
               duracion,
+              periodo,
+              parametrosMap,
+              cursosAsignados,
             );
 
             if (!docente) {
@@ -418,7 +459,9 @@ export class AsignacionService {
               duracion,
               docenteOcupado.get(docente.id),
               grupoOcupado.get(grupo.id),
-              ambientesActivos.filter((a) => a.tipo === TipoAmbiente.LABORATORIO),
+              ambientesActivos.filter(
+                (a) => a.tipo === TipoAmbiente.LABORATORIO,
+              ),
               ambienteOcupado,
             );
 
@@ -436,6 +479,9 @@ export class AsignacionService {
                 estado: EstadoHorario.BORRADOR,
               });
               asignacionesCreadas.push(nuevaAsig);
+              if (!cursosAsignados.has(docente.id))
+                cursosAsignados.set(docente.id, new Set());
+              cursosAsignados.get(docente.id).add(curso.id);
               this.marcarOcupado(
                 slot.dia,
                 slot.hora,
@@ -472,7 +518,10 @@ export class AsignacionService {
       // 5. Guardar todo
       await queryRunner.manager.save(HorarioAsignado, asignacionesCreadas);
       if (entidadesConflictos.length > 0) {
-        await queryRunner.manager.save(ConflictoAsignacion, entidadesConflictos);
+        await queryRunner.manager.save(
+          ConflictoAsignacion,
+          entidadesConflictos,
+        );
       }
       await queryRunner.commitTransaction();
 
@@ -496,16 +545,32 @@ export class AsignacionService {
     habilitacionMap: Map<string, Set<number>>,
     horasAsignadas: Map<number, number>,
     duracion: number,
+    periodo?: string,
+    parametrosMap?: Map<string, ParametrosCarga>,
+    cursosAsignados?: Map<number, Set<number>>,
   ) {
     return docentes.find((d) => {
       const key = `${d.id}_${tipo}`;
       const tieneHabilitacion = habilitacionMap.get(key)?.has(cursoId);
       if (!tieneHabilitacion) return false;
 
-      // Verificar carga horaria
+      // Verificar carga horaria usando ParametrosCarga si está disponible
       const cargaActual = horasAsignadas.get(d.id) ?? 0;
-      if (cargaActual + duracion > AsignacionService.MAX_HORAS_DOCENTE) {
-        return false;
+      if (parametrosMap && periodo) {
+        const pKey = `${d.categoria}_${d.tipo_contrato}_${d.modalidad ?? ""}`;
+        const param = parametrosMap.get(pKey);
+        const maxHoras = param?.horas_max_semanal ?? 999;
+        if (cargaActual + duracion > maxHoras) return false;
+
+        // Verificar máximo de cursos
+        const maxCursos = param?.cursos_max_docente ?? 999;
+        const yaAsignados = cursosAsignados?.get(d.id) ?? new Set();
+        const esCursoNuevo = !yaAsignados.has(cursoId);
+        const totalCursos = yaAsignados.size + (esCursoNuevo ? 1 : 0);
+        if (totalCursos > maxCursos) return false;
+      } else {
+        if (cargaActual + duracion > AsignacionService.MAX_HORAS_DOCENTE)
+          return false;
       }
 
       return true;
@@ -801,10 +866,7 @@ export class AsignacionService {
     const inicioBMinutos = this.aMinutos(inicioB);
     const finBMinutos = this.aMinutos(finB);
 
-    return (
-      inicioAMinutos < finBMinutos &&
-      finAMinutos > inicioBMinutos
-    );
+    return inicioAMinutos < finBMinutos && finAMinutos > inicioBMinutos;
   }
 
   private aMinutos(hora: string): number {

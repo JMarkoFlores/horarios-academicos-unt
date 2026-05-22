@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ApiService } from '../../../../core/services/api.service';
 import { PeriodoService } from '../../../../core/services/periodo.service';
+import { DiasActivosService } from '../../../../core/services/dias-activos.service';
 import {
   Docente,
   HorarioAsignado,
@@ -25,8 +26,8 @@ export interface CeldaHorario {
   styleUrls: ['./ver-horario-docente-dialog.component.scss'],
 })
 export class VerHorarioDocenteDialogComponent implements OnInit, OnDestroy {
-  dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-  diasNum = [1, 2, 3, 4, 5];
+  dias: string[] = [];
+  diasNum: number[] = [];
   horas = Array.from({ length: 15 }, (_, i) => i + 7);
 
   asignaciones: HorarioAsignado[] = [];
@@ -45,9 +46,17 @@ export class VerHorarioDocenteDialogComponent implements OnInit, OnDestroy {
     private api: ApiService,
     public periodoService: PeriodoService,
     private snackBar: MatSnackBar,
+    private diasActivosService: DiasActivosService,
   ) {}
 
   ngOnInit(): void {
+    this.diasActivosService.cargar().subscribe(() => {
+      this.dias = this.diasActivosService.nombres;
+      this.diasNum = this.diasActivosService.numeros;
+      this._buildGrid();
+    });
+    this.dias = this.diasActivosService.nombres;
+    this.diasNum = this.diasActivosService.numeros;
     this.cargarBloqueAlmuerzo();
     this.cargarHorario();
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
@@ -337,7 +346,7 @@ export class VerHorarioDocenteDialogComponent implements OnInit, OnDestroy {
 
       // Segunda pasada: marcar celdas absorbidas por span
       for (let r = 0; r < grid.length; r++) {
-        for (let c = 1; c <= 5; c++) {
+        for (let c = 1; c <= this.diasNum.length; c++) {
           const slot = grid[r][c];
           if (slot.span > 1 && !slot.absorbida) {
             for (let s = 1; s < slot.span && r + s < grid.length; s++) {
@@ -348,9 +357,7 @@ export class VerHorarioDocenteDialogComponent implements OnInit, OnDestroy {
       }
 
       // Construir head y body (sin filas absorbidas, marcamos con texto especial)
-      const head = [
-        ['Hora', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'],
-      ];
+      const head = [['Hora', ...this.dias]];
       const body = grid.map((fila) =>
         fila.map((s) => (s.absorbida ? '↕' : s.texto)),
       );

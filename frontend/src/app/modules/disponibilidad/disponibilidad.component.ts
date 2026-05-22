@@ -3,6 +3,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
+import { DiasActivosService } from '../../core/services/dias-activos.service';
 import {
   ApiResponse,
   Docente,
@@ -22,21 +23,30 @@ export class DisponibilidadComponent implements OnInit, OnDestroy {
   eliminando: number | null = null;
   docentesSinDisponibilidad: Docente[] = [];
 
-  dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+  dias: string[] = [];
+  diasNum: number[] = [];
   horas = Array.from({ length: 15 }, (_, i) => i + 7);
 
   grilla: boolean[][] = [];
   saving = false;
   loading = false;
+  loadingDias = true;
   private periodSub?: Subscription;
 
   constructor(
     private api: ApiService,
     public periodoService: PeriodoService,
     private snackBar: MatSnackBar,
+    public diasService: DiasActivosService,
   ) {}
 
   ngOnInit(): void {
+    this.diasService.cargar().subscribe(() => {
+      this.dias = this.diasService.nombres;
+      this.diasNum = this.diasService.numeros;
+      this.loadingDias = false;
+      this.resetGrilla();
+    });
     this.resetGrilla();
     this.api.get<any>('/docentes', { limit: 100 }).subscribe({
       next: (r: any) => {
@@ -124,7 +134,14 @@ export class DisponibilidadComponent implements OnInit, OnDestroy {
   }
 
   getAvatarColor(name: string): string {
-    const colors = ['#4f46e5', '#7c3aed', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+    const colors = [
+      '#4f46e5',
+      '#7c3aed',
+      '#ec4899',
+      '#f59e0b',
+      '#10b981',
+      '#06b6d4',
+    ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -146,7 +163,8 @@ export class DisponibilidadComponent implements OnInit, OnDestroy {
   // }
 
   resetGrilla(): void {
-    this.grilla = Array.from({ length: 15 }, () => Array(5).fill(false));
+    const cols = this.diasNum.length || 5;
+    this.grilla = Array.from({ length: 15 }, () => Array(cols).fill(false));
   }
 
   formatHora(h: number): string {
@@ -172,8 +190,8 @@ export class DisponibilidadComponent implements OnInit, OnDestroy {
           const slots: DisponibilidadDocente[] = res?.data?.slots ?? [];
           slots.forEach((s) => {
             const hi = parseInt(s.hora_inicio.split(':')[0], 10) - 7;
-            const di = s.dia_semana - 1;
-            if (hi >= 0 && hi < 15 && di >= 0 && di < 5) {
+            const di = this.diasNum.indexOf(s.dia_semana);
+            if (hi >= 0 && hi < 15 && di >= 0) {
               this.grilla[hi][di] = s.disponible;
             }
           });
@@ -190,7 +208,8 @@ export class DisponibilidadComponent implements OnInit, OnDestroy {
   }
 
   marcarTodo(val: boolean): void {
-    this.grilla = Array.from({ length: 15 }, () => Array(5).fill(val));
+    const cols = this.diasNum.length || 5;
+    this.grilla = Array.from({ length: 15 }, () => Array(cols).fill(val));
   }
 
   getHorasDeclaradas(): number {
@@ -213,7 +232,7 @@ export class DisponibilidadComponent implements OnInit, OnDestroy {
       this.snackBar.open(
         '⚠️ Error: Debes marcar al menos 1 hora disponible para el docente.',
         'Cerrar',
-        { duration: 4000 }
+        { duration: 4000 },
       );
       return;
     }
@@ -221,8 +240,8 @@ export class DisponibilidadComponent implements OnInit, OnDestroy {
     if (horasDeclaradas < 20) {
       const confirmacion = confirm(
         `⚠️ ADVERTENCIA:\n\nHas seleccionado solo ${horasDeclaradas} horas disponibles para este docente.\n` +
-        `Una disponibilidad menor a 20 horas podría dificultar o imposibilitar la programación de sus clases.\n\n` +
-        `¿Estás seguro de que deseas guardar esta disponibilidad?`
+          `Una disponibilidad menor a 20 horas podría dificultar o imposibilitar la programación de sus clases.\n\n` +
+          `¿Estás seguro de que deseas guardar esta disponibilidad?`,
       );
       if (!confirmacion) return;
     }
@@ -233,7 +252,7 @@ export class DisponibilidadComponent implements OnInit, OnDestroy {
     this.horas.forEach((hora, hi) => {
       this.dias.forEach((_dia, di) => {
         slots.push({
-          dia_semana: di + 1,
+          dia_semana: this.diasNum[di] ?? di + 1,
           hora_inicio: `${hora.toString().padStart(2, '0')}:00`,
           hora_fin: `${(hora + 1).toString().padStart(2, '0')}:00`,
           disponible: this.grilla[hi][di],

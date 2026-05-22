@@ -9,10 +9,23 @@
     <!-- Header: Logo -->
     <div class="logo-area">
       <div class="logo-icon-wrapper">
-        <mat-icon class="logo-icon">school</mat-icon>
+        <ng-container *ngIf="configService.config$ | async as cfg">
+          <img
+            *ngIf="cfg.logo_url; else iconFallback"
+            [src]="cfg.logo_url"
+            alt="Logo institucional"
+            class="logo-img"
+          />
+          <ng-template #iconFallback>
+            <mat-icon class="logo-icon">school</mat-icon>
+          </ng-template>
+        </ng-container>
       </div>
       <div class="logo-text" *ngIf="!sidebarCollapsed || isMobile">
-        <span class="logo-title">Horarios UNT</span>
+        <span class="logo-title">{{
+          (configService.config$ | async)?.nombre_institucional ||
+            "Horarios UNT"
+        }}</span>
         <span class="logo-sub">Ingeniería de Sistemas</span>
       </div>
       <!-- Botón colapsar (solo desktop) -->
@@ -24,7 +37,9 @@
         [matTooltip]="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
         matTooltipPosition="right"
       >
-        <mat-icon class="collapse-icon">{{ sidebarCollapsed ? 'arrow_forward_ios' : 'arrow_back_ios' }}</mat-icon>
+        <mat-icon class="collapse-icon">{{
+          sidebarCollapsed ? "arrow_forward_ios" : "arrow_back_ios"
+        }}</mat-icon>
       </button>
     </div>
 
@@ -41,7 +56,11 @@
 
     <!-- Navegación por grupos -->
     <div class="nav-scroll">
-      <div class="nav-group" *ngFor="let group of visibleNavGroups" [class.group-collapsed]="!group.expanded && !sidebarCollapsed">
+      <div
+        class="nav-group"
+        *ngFor="let group of visibleNavGroups"
+        [class.group-collapsed]="!group.expanded && !sidebarCollapsed"
+      >
         <!-- Label del grupo -->
         <div
           class="group-header"
@@ -49,13 +68,23 @@
           *ngIf="!sidebarCollapsed || isMobile"
         >
           <span class="group-label">{{ group.label }}</span>
-          <mat-icon class="group-chevron">{{ group.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+          <mat-icon class="group-chevron">{{
+            group.expanded ? "expand_less" : "expand_more"
+          }}</mat-icon>
         </div>
 
-        <div class="group-divider-collapsed" *ngIf="sidebarCollapsed && !isMobile"></div>
+        <div
+          class="group-divider-collapsed"
+          *ngIf="sidebarCollapsed && !isMobile"
+        ></div>
 
         <!-- Items del grupo -->
-        <div class="group-items" [@groupExpand]="sidebarCollapsed || group.expanded ? 'expanded' : 'collapsed'">
+        <div
+          class="group-items"
+          [@groupExpand]="
+            sidebarCollapsed || group.expanded ? 'expanded' : 'collapsed'
+          "
+        >
           <a
             mat-list-item
             *ngFor="let item of group.items"
@@ -67,7 +96,9 @@
             class="nav-item"
           >
             <div class="item-content-wrapper">
-              <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
+              <mat-icon matListItemIcon class="nav-icon">{{
+                item.icon
+              }}</mat-icon>
               <span matListItemTitle class="item-label">{{ item.label }}</span>
             </div>
             <div class="active-indicator" *ngIf="rla.isActive"></div>
@@ -78,7 +109,15 @@
 
     <!-- Footer: Usuario -->
     <div class="sidenav-footer">
-      <button type="button" class="user-row-btn" [matMenuTriggerFor]="userMenu" [matTooltip]="sidebarCollapsed ? (usuario?.nombre || 'Administrador') : ''" matTooltipPosition="right">
+      <button
+        type="button"
+        class="user-row-btn"
+        [matMenuTriggerFor]="userMenu"
+        [matTooltip]="
+          sidebarCollapsed ? usuario?.nombre || 'Administrador' : ''
+        "
+        matTooltipPosition="right"
+      >
         <div class="user-avatar-wrapper">
           <div class="user-avatar">
             {{ (usuario?.nombre || "A")[0] }}
@@ -86,18 +125,30 @@
           <span class="status-dot"></span>
         </div>
         <div class="user-info" *ngIf="!sidebarCollapsed">
-          <span class="user-name">{{ usuario?.nombre || "Administrador" }}</span>
-          <span class="user-role">{{ usuario?.rol || 'Administrador de Sistema' }}</span>
+          <span class="user-name">{{
+            usuario?.nombre || "Administrador"
+          }}</span>
+          <span class="user-role">{{
+            usuario?.rol || "Administrador de Sistema"
+          }}</span>
         </div>
-        <mat-icon class="user-chevron" *ngIf="!sidebarCollapsed">unfold_more</mat-icon>
+        <mat-icon class="user-chevron" *ngIf="!sidebarCollapsed"
+          >unfold_more</mat-icon
+        >
       </button>
 
       <mat-menu #userMenu="matMenu" yPosition="above" class="user-dropdown">
         <div class="dropdown-header">
           <span class="dropdown-user-name">{{ usuario?.nombre }}</span>
-          <span class="dropdown-user-email">{{ usuario?.email || 'admin@unt.edu.pe' }}</span>
+          <span class="dropdown-user-email">{{
+            usuario?.email || "admin@unt.edu.pe"
+          }}</span>
         </div>
         <mat-divider></mat-divider>
+        <button mat-menu-item (click)="openVerPerfil()">
+          <mat-icon>manage_accounts</mat-icon>
+          <span>Ver perfil</span>
+        </button>
         <button mat-menu-item (click)="openCambiarPassword()">
           <mat-icon>lock_reset</mat-icon>
           <span>Cambiar contraseña</span>
@@ -124,13 +175,29 @@
       <span class="spacer"></span>
 
       <div class="topbar-actions">
-        <button mat-icon-button (click)="toggleDarkMode()" class="theme-toggle" matTooltip="Cambiar Tema">
+        <button
+          mat-icon-button
+          (click)="toggleDarkMode()"
+          class="theme-toggle"
+          matTooltip="Cambiar Tema"
+        >
           <mat-icon>{{ isDark ? "light_mode" : "dark_mode" }}</mat-icon>
         </button>
 
-        <mat-form-field appearance="outline" class="periodo-field" *ngIf="showPeriodoSelector">
-          <mat-select [value]="periodoService.periodo" (selectionChange)="onPeriodoChange($event)">
-            <mat-option *ngFor="let p of periodoService.periodos$ | async" [value]="p">{{ p }}</mat-option>
+        <mat-form-field
+          appearance="outline"
+          class="periodo-field"
+          *ngIf="showPeriodoSelector"
+        >
+          <mat-select
+            [value]="periodoService.periodo"
+            (selectionChange)="onPeriodoChange($event)"
+          >
+            <mat-option
+              *ngFor="let p of periodoService.periodos$ | async"
+              [value]="p"
+              >{{ p }}</mat-option
+            >
           </mat-select>
         </mat-form-field>
       </div>

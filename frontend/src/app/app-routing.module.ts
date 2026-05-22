@@ -19,107 +19,223 @@ const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
         path: 'dashboard',
-        loadChildren: () => import('./modules/dashboard/dashboard.module').then(m => m.DashboardModule),
+        loadChildren: () =>
+          import('./modules/dashboard/dashboard.module').then(
+            (m) => m.DashboardModule,
+          ),
       },
       // Admin only
       {
         path: 'usuarios',
-        loadChildren: () => import('./modules/usuarios/usuarios.module').then(m => m.UsuariosModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema'] }
+        loadChildren: () =>
+          import('./modules/usuarios/usuarios.module').then(
+            (m) => m.UsuariosModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema'] },
       },
       {
         path: 'configuracion',
-        loadChildren: () => import('./modules/configuracion/configuracion.module').then(m => m.ConfiguracionModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema'] }
+        loadChildren: () =>
+          import('./modules/configuracion/configuracion.module').then(
+            (m) => m.ConfiguracionModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema'] },
       },
       // Coordinador + Admin
       {
         path: 'docentes',
-        loadChildren: () => import('./modules/docentes/docentes.module').then(m => m.DocentesModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/docentes/docentes.module').then(
+            (m) => m.DocentesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'cursos',
-        loadChildren: () => import('./modules/cursos/cursos.module').then(m => m.CursosModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/cursos/cursos.module').then((m) => m.CursosModule),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'ambientes',
-        loadChildren: () => import('./modules/ambientes/ambientes.module').then(m => m.AmbientesModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/ambientes/ambientes.module').then(
+            (m) => m.AmbientesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'periodos',
-        loadChildren: () => import('./modules/periodos/periodos.module').then(m => m.PeriodosModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/periodos/periodos.module').then(
+            (m) => m.PeriodosModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       // Operador
       {
         path: 'operador',
-        loadChildren: () => import('./modules/operador/operador.module').then(m => m.OperadorModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico', 'operadorhorarios'] }
+        loadChildren: () =>
+          import('./modules/operador/operador.module').then(
+            (m) => m.OperadorModule,
+          ),
+        canActivate: [RolesGuard],
+        data: {
+          roles: [
+            'administradorsistema',
+            'coordinadoracademico',
+            'operadorhorarios',
+          ],
+        },
       },
       {
         path: 'horarios',
-        loadChildren: () => import('./modules/horarios/horarios.module').then(m => m.HorariosModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] }
+        loadChildren: () =>
+          import('./modules/horarios/horarios.module').then(
+            (m) => m.HorariosModule,
+          ),
+        canActivate: [RolesGuard],
+        data: {
+          roles: [
+            'administradorsistema',
+            'coordinadoracademico',
+            'directorescuela',
+          ],
+        },
       },
       {
         path: 'notificaciones',
-        loadChildren: () => import('./modules/notificaciones/notificaciones.module').then(m => m.NotificacionesModule),
-        canActivate: [RolesGuard], data: { roles: ['docente', 'administradorsistema'] }
+        loadChildren: () =>
+          import('./modules/notificaciones/notificaciones.module').then(
+            (m) => m.NotificacionesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['docente', 'administradorsistema'] },
       },
       {
         path: 'asignaciones',
-        loadChildren: () => import('./modules/asignaciones/asignaciones.module').then(m => m.AsignacionesModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/asignaciones/asignaciones.module').then(
+            (m) => m.AsignacionesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'docente-cursos',
-        loadChildren: () => import('./modules/docente-cursos-config/docente-cursos-config.module').then(m => m.DocenteCursosConfigModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/docente-cursos-config/docente-cursos-config.module').then(
+            (m) => m.DocenteCursosConfigModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'curso-ambientes',
-        loadChildren: () => import('./modules/curso-ambientes-config/curso-ambientes-config.module').then(m => m.CursoAmbientesConfigModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/curso-ambientes-config/curso-ambientes-config.module').then(
+            (m) => m.CursoAmbientesConfigModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'disponibilidad',
-        loadChildren: () => import('./modules/disponibilidad/disponibilidad.module').then(m => m.DisponibilidadModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/disponibilidad/disponibilidad.module').then(
+            (m) => m.DisponibilidadModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'preasignaciones',
-        loadChildren: () => import('./modules/preasignaciones/preasignaciones.module').then(m => m.PreasignacionesModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/preasignaciones/preasignaciones.module').then(
+            (m) => m.PreasignacionesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'auditoria',
-        loadChildren: () => import('./modules/auditoria/auditoria.module').then(m => m.AuditoriaModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico'] }
+        loadChildren: () =>
+          import('./modules/auditoria/auditoria.module').then(
+            (m) => m.AuditoriaModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+      },
+      {
+        path: 'facultades',
+        loadChildren: () =>
+          import('./modules/facultades/facultades.module').then(
+            (m) => m.FacultadesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: {
+          roles: [
+            'administradorsistema',
+            'coordinadoracademico',
+            'directorescuela',
+          ],
+        },
       },
       // Reportes (Director, Admin, Coord)
       {
         path: 'reportes',
-        loadChildren: () => import('./modules/reportes/reportes.module').then(m => m.ReportesModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] }
+        loadChildren: () =>
+          import('./modules/reportes/reportes.module').then(
+            (m) => m.ReportesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: {
+          roles: [
+            'administradorsistema',
+            'coordinadoracademico',
+            'directorescuela',
+          ],
+        },
       },
       {
         path: 'analytics',
-        loadChildren: () => import('./modules/analytics/analytics.module').then(m => m.AnalyticsModule),
-        canActivate: [RolesGuard], data: { roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] }
+        loadChildren: () =>
+          import('./modules/analytics/analytics.module').then(
+            (m) => m.AnalyticsModule,
+          ),
+        canActivate: [RolesGuard],
+        data: {
+          roles: [
+            'administradorsistema',
+            'coordinadoracademico',
+            'directorescuela',
+          ],
+        },
       },
       // Docente (acceso propio) — admin puede verlo para soporte
       {
         path: 'mis-horarios',
-        loadChildren: () => import('./modules/docente-horario/docente-horario.module').then(m => m.DocenteHorarioModule),
-        canActivate: [RolesGuard], data: { roles: ['docente', 'administradorsistema'] }
+        loadChildren: () =>
+          import('./modules/docente-horario/docente-horario.module').then(
+            (m) => m.DocenteHorarioModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['docente', 'administradorsistema'] },
       },
       {
         path: 'notificaciones',
-        loadChildren: () => import('./modules/notificaciones/notificaciones.module').then(m => m.NotificacionesModule),
-        canActivate: [RolesGuard], data: { roles: ['docente', 'administradorsistema'] }
+        loadChildren: () =>
+          import('./modules/notificaciones/notificaciones.module').then(
+            (m) => m.NotificacionesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['docente', 'administradorsistema'] },
       },
       { path: '**', component: NotFoundComponent },
     ],

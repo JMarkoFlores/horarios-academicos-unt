@@ -5,8 +5,16 @@
         <mat-icon>arrow_back</mat-icon>
       </button>
       <div>
-        <h1 class="gradient-text">{{ isEdit ? 'Editar Perfil Docente' : 'Registrar Nuevo Docente' }}</h1>
-        <p class="subtitle">{{ isEdit ? 'Actualiza la información profesional del académico' : 'Completa los datos para integrar al docente al sistema' }}</p>
+        <h1 class="gradient-text">
+          {{ isEdit ? "Editar Perfil Docente" : "Registrar Nuevo Docente" }}
+        </h1>
+        <p class="subtitle">
+          {{
+            isEdit
+              ? "Actualiza la información profesional del académico"
+              : "Completa los datos para integrar al docente al sistema"
+          }}
+        </p>
       </div>
     </div>
   </div>
@@ -20,35 +28,63 @@
             <mat-icon>account_circle</mat-icon>
             <h3>Información Personal</h3>
           </div>
-          
+
           <div class="fields-grid">
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Nombres</mat-label>
-              <input matInput formControlName="nombres" placeholder="Ej. Juan Pedro">
+              <input
+                matInput
+                formControlName="nombres"
+                placeholder="Ej. Juan Pedro"
+              />
               <mat-icon matPrefix>person</mat-icon>
-              <mat-error *ngIf="form.get('nombres')?.hasError('required')">Este campo es obligatorio</mat-error>
+              <mat-error *ngIf="form.get('nombres')?.hasError('required')"
+                >Este campo es obligatorio</mat-error
+              >
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Apellidos</mat-label>
-              <input matInput formControlName="apellidos" placeholder="Ej. García Pérez">
+              <input
+                matInput
+                formControlName="apellidos"
+                placeholder="Ej. García Pérez"
+              />
               <mat-icon matPrefix>badge</mat-icon>
-              <mat-error *ngIf="form.get('apellidos')?.hasError('required')">Este campo es obligatorio</mat-error>
+              <mat-error *ngIf="form.get('apellidos')?.hasError('required')"
+                >Este campo es obligatorio</mat-error
+              >
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Email Institucional</mat-label>
-              <input matInput type="email" formControlName="email" placeholder="usuario@unitru.edu.pe">
+              <input
+                matInput
+                type="email"
+                formControlName="email"
+                placeholder="usuario@unitru.edu.pe"
+              />
               <mat-icon matPrefix>alternate_email</mat-icon>
-              <mat-error *ngIf="form.get('email')?.hasError('required')">Requerido</mat-error>
-              <mat-error *ngIf="form.get('email')?.hasError('emailInvalido')">Formato de email no v&#225;lido (ej. usuario&#64;unt.edu.pe)</mat-error>
+              <mat-error *ngIf="form.get('email')?.hasError('required')"
+                >Requerido</mat-error
+              >
+              <mat-error *ngIf="form.get('email')?.hasError('emailInvalido')"
+                >Formato de email no v&#225;lido (ej.
+                usuario&#64;unt.edu.pe)</mat-error
+              >
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Teléfono / WhatsApp</mat-label>
-              <input matInput formControlName="telefono" placeholder="+51 999 999 999">
+              <input
+                matInput
+                formControlName="telefono"
+                placeholder="+51 999 999 999"
+              />
               <mat-icon matPrefix>phone_iphone</mat-icon>
-              <mat-error *ngIf="form.get('telefono')?.hasError('pattern')">Formato inválido (ej. +51 999 999 999)</mat-error>
+              <mat-error *ngIf="form.get('telefono')?.hasError('pattern')"
+                >Formato inválido (ej. +51 999 999 999)</mat-error
+              >
             </mat-form-field>
           </div>
         </div>
@@ -63,22 +99,46 @@
           <div class="fields-grid">
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Código de Docente</mat-label>
-              <input matInput formControlName="codigo" maxlength="20" placeholder="Ej. DOC001">
+              <input
+                matInput
+                formControlName="codigo"
+                maxlength="20"
+                placeholder="Ej. DOC001"
+              />
               <mat-icon matPrefix>pin</mat-icon>
-              <mat-error *ngIf="form.get('codigo')?.hasError('required')">El código es necesario</mat-error>
-              <mat-error *ngIf="form.get('codigo')?.hasError('maxlength')">Máximo 20 caracteres</mat-error>
+              <mat-error *ngIf="form.get('codigo')?.hasError('required')"
+                >El código es necesario</mat-error
+              >
+              <mat-error *ngIf="form.get('codigo')?.hasError('maxlength')"
+                >Máximo 20 caracteres</mat-error
+              >
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Fecha de Ingreso</mat-label>
-              <input matInput [matDatepicker]="dpIngreso" formControlName="fecha_ingreso"
-                [max]="hoy">
-              <mat-datepicker-toggle matSuffix [for]="dpIngreso"></mat-datepicker-toggle>
+              <input
+                matInput
+                [matDatepicker]="dpIngreso"
+                formControlName="fecha_ingreso"
+                [max]="hoy"
+              />
+              <mat-datepicker-toggle
+                matSuffix
+                [for]="dpIngreso"
+              ></mat-datepicker-toggle>
               <mat-datepicker #dpIngreso></mat-datepicker>
               <mat-icon matPrefix>calendar_today</mat-icon>
-              <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('required')">Selecciona una fecha</mat-error>
-              <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('fechaFutura')">La fecha no puede ser futura</mat-error>
-              <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('fechaAntigua')">La fecha no puede ser anterior a 1970</mat-error>
+              <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('required')"
+                >Selecciona una fecha</mat-error
+              >
+              <mat-error
+                *ngIf="form.get('fecha_ingreso')?.hasError('fechaFutura')"
+                >La fecha no puede ser futura</mat-error
+              >
+              <mat-error
+                *ngIf="form.get('fecha_ingreso')?.hasError('fechaAntigua')"
+                >La fecha no puede ser anterior a 1970</mat-error
+              >
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
@@ -100,18 +160,45 @@
               </mat-select>
               <mat-icon matPrefix>history_edu</mat-icon>
             </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Modalidad</mat-label>
+              <mat-select formControlName="modalidad">
+                <mat-option [value]="null">Sin especificar</mat-option>
+                <mat-option *ngFor="let m of modalidades" [value]="m.value">
+                  {{ m.label }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>schedule</mat-icon>
+            </mat-form-field>
           </div>
         </div>
       </div>
 
       <div class="form-footer-premium">
-        <button mat-button type="button" (click)="cancelar()" class="btn-cancel">
+        <button
+          mat-button
+          type="button"
+          (click)="cancelar()"
+          class="btn-cancel"
+        >
           Cancelar
         </button>
-        <button mat-raised-button class="btn-submit" type="submit" [disabled]="saving">
+        <button
+          mat-raised-button
+          class="btn-submit"
+          type="submit"
+          [disabled]="saving"
+        >
           <mat-spinner diameter="20" *ngIf="saving"></mat-spinner>
           <mat-icon *ngIf="!saving">cloud_done</mat-icon>
-          <span>{{ saving ? 'Procesando...' : (isEdit ? 'Actualizar Docente' : 'Finalizar Registro') }}</span>
+          <span>{{
+            saving
+              ? "Procesando..."
+              : isEdit
+                ? "Actualizar Docente"
+                : "Finalizar Registro"
+          }}</span>
         </button>
       </div>
     </form>

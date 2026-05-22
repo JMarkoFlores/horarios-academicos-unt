@@ -10,11 +10,11 @@ import {
 } from "typeorm";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
+import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
 import { DisponibilidadDocente } from "./disponibilidad-docente.entity";
 import { HorarioAsignado } from "./horario-asignado.entity";
 import { ColaDocentes } from "./cola-docentes.entity";
 import { Ambiente } from "./ambiente.entity";
-
 
 @Entity("docente")
 export class Docente {
@@ -41,6 +41,9 @@ export class Docente {
 
   @Column({ type: "enum", enum: TipoContrato })
   tipo_contrato: TipoContrato;
+
+  @Column({ type: "enum", enum: ModalidadDocente, nullable: true })
+  modalidad: ModalidadDocente;
 
   @Column({ type: "date" })
   fecha_ingreso: Date;
@@ -70,7 +73,7 @@ export class Docente {
   @JoinTable({
     name: "docente_ambiente",
     joinColumn: { name: "docente_id", referencedColumnName: "id" },
-    inverseJoinColumn: { name: "ambiente_id", referencedColumnName: "id" }
+    inverseJoinColumn: { name: "ambiente_id", referencedColumnName: "id" },
   })
   ambientes: Ambiente[];
 }

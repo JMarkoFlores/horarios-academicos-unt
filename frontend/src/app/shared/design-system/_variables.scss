@@ -1,0 +1,106 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// DESIGN SYSTEM · _variables.scss
+// SCSS variables (not CSS custom properties).
+// Use these in component SCSS files:  @use 'src/app/shared/design-system/variables' as ds;
+// Then access via:                    ds.$bp-md, ds.$ease-standard, etc.
+// CSS custom properties live in styles.scss :root / body.dark-theme
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── BREAKPOINTS ──────────────────────────────────────────────────────────────
+$bp-xs:  480px;
+$bp-sm:  640px;
+$bp-md:  768px;
+$bp-lg: 1024px;
+$bp-xl: 1280px;
+$bp-2xl: 1536px;
+
+// ── FONT SIZE SCALE (rem) ────────────────────────────────────────────────────
+$font-size-xs:   0.75rem;   // 12px
+$font-size-sm:   0.875rem;  // 14px
+$font-size-base: 1rem;      // 16px
+$font-size-lg:   1.125rem;  // 18px
+$font-size-xl:   1.25rem;   // 20px
+$font-size-2xl:  1.5rem;    // 24px
+$font-size-3xl:  1.875rem;  // 30px
+$font-size-4xl:  2.25rem;   // 36px
+
+// ── FONT WEIGHTS ─────────────────────────────────────────────────────────────
+$font-normal:   400;
+$font-medium:   500;
+$font-semibold: 600;
+$font-bold:     700;
+$font-extrabold: 800;
+
+// ── SPACING SCALE (px) ───────────────────────────────────────────────────────
+$space-1:  4px;
+$space-2:  8px;
+$space-3:  12px;
+$space-4:  16px;
+$space-5:  20px;
+$space-6:  24px;
+$space-8:  32px;
+$space-10: 40px;
+$space-12: 48px;
+$space-16: 64px;
+$space-20: 80px;
+
+// ── BORDER RADIUS ────────────────────────────────────────────────────────────
+$radius-xs:   4px;
+$radius-sm:   6px;
+$radius-md:   8px;
+$radius-lg:   12px;
+$radius-xl:   16px;
+$radius-2xl:  20px;
+$radius-full: 9999px;
+
+// ── Z-INDEX LAYERS ───────────────────────────────────────────────────────────
+$z-dropdown:       1000;
+$z-sticky:         1020;
+$z-fixed:          1030;
+$z-modal-backdrop: 1040;
+$z-modal:          1050;
+$z-popover:        1060;
+$z-tooltip:        1070;
+
+// ── TRANSITION EASINGS ───────────────────────────────────────────────────────
+$ease-standard:   cubic-bezier(0.4, 0, 0.2, 1);
+$ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+$ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+
+$transition-fast:   150ms #{$ease-standard};
+$transition-normal: 250ms #{$ease-standard};
+$transition-slow:   350ms #{$ease-standard};
+
+// ── UNT COLOR PALETTE (SCSS maps — for SCSS functions/loops) ─────────────────
+$unt-blue: (
+  50:  #E3F2FD,
+  100: #BBDEFB,
+  200: #90CAF9,
+  300: #64B5F6,
+  400: #42A5F5,
+  500: #1565C0,
+  600: #0D47A1,
+  700: #0A3D91,
+  800: #07337A,
+  900: #042963,
+);
+
+$unt-orange: (
+  50:  #FFF3E0,
+  100: #FFE0B2,
+  200: #FFCC80,
+  300: #FFB74D,
+  400: #FFA726,
+  500: #FF6F00,
+  600: #E65100,
+  700: #BF360C,
+  800: #8D2608,
+  900: #5C1B02,
+);
+
+$unt-semantic: (
+  success: #059669,
+  warning: #F59E0B,
+  danger:  #DC2626,
+  info:    #0284C7,
+);

@@ -69,7 +69,9 @@ export class HorariosService {
     limit = 20,
   ) {
     // Invalidar caché para asegurar datos frescos
-    await this.cacheManager.del(`horarios_periodo_${periodo}_docente_${docenteId}_${page}_${limit}`);
+    await this.cacheManager.del(
+      `horarios_periodo_${periodo}_docente_${docenteId}_${page}_${limit}`,
+    );
 
     const [items, total] = await this.horarioRepo
       .createQueryBuilder("horario")
@@ -264,7 +266,11 @@ export class HorariosService {
         d.hora_inicio <= dto.hora_inicio &&
         d.hora_fin >= dto.hora_fin,
     );
-    if (docente.disponibilidades && docente.disponibilidades.length > 0 && (!disponibles || disponibles.length === 0)) {
+    if (
+      docente.disponibilidades &&
+      docente.disponibilidades.length > 0 &&
+      (!disponibles || disponibles.length === 0)
+    ) {
       throw new BadRequestException(
         `El docente no tiene disponibilidad registrada para el día ${dto.dia_semana} en el horario ${dto.hora_inicio}–${dto.hora_fin}`,
       );
@@ -341,6 +347,33 @@ export class HorariosService {
     );
     if (cruceGrupo)
       throw new BadRequestException("El grupo tiene un cruce en ese horario");
+
+    const [h, m] = dto.hora_inicio.split(":").map(Number);
+    const [hf, mf] = dto.hora_fin.split(":").map(Number);
+    const duracionHoras = (hf * 60 + mf - (h * 60 + m)) / 60;
+
+    const cargaSemanal =
+      await this.validacionesService.verificarCargaHorariaSemanalDocente(
+        dto.docente_id,
+        duracionHoras,
+        dto.periodo_academico,
+      );
+    if (!cargaSemanal.valido) {
+      throw new BadRequestException(
+        `El docente supera su carga horaria semanal máxima (${cargaSemanal.horasSemana + duracionHoras}h > ${cargaSemanal.maxSemanal}h permitidas)`,
+      );
+    }
+
+    const cursosCheck = await this.validacionesService.verificarCursosDocente(
+      dto.docente_id,
+      dto.periodo_academico,
+      dto.curso_id,
+    );
+    if (!cursosCheck.valido) {
+      throw new BadRequestException(
+        `El docente supera la cantidad máxima de cursos permitidos (máx. ${cursosCheck.maxCursos})`,
+      );
+    }
 
     const nuevaAsignacion = this.horarioRepo.create({
       docente,

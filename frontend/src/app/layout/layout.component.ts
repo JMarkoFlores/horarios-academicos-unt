@@ -19,8 +19,10 @@ import {
 } from '@angular/animations';
 import { AuthService } from '../core/services/auth.service';
 import { PeriodoService } from '../core/services/periodo.service';
+import { ConfiguracionGeneralService } from '../core/services/configuracion-general.service';
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
 import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialog/cambiar-password-dialog.component';
+import { PerfilDialogComponent } from './dialogs/perfil-dialog/perfil-dialog.component';
 import { Subscription } from 'rxjs';
 
 interface NavItem {
@@ -217,6 +219,16 @@ export class LayoutComponent implements OnInit, OnDestroy {
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
+          icon: 'account_balance',
+          label: 'Facultades',
+          route: '/app/facultades',
+          roles: [
+            'administradorsistema',
+            'coordinadoracademico',
+            'directorescuela',
+          ],
+        },
+        {
           icon: 'settings',
           label: 'Configuración',
           route: '/app/configuracion',
@@ -272,9 +284,11 @@ export class LayoutComponent implements OnInit, OnDestroy {
     public periodoService: PeriodoService,
     private router: Router,
     private dialog: MatDialog,
+    public configService: ConfiguracionGeneralService,
   ) {}
 
   ngOnInit(): void {
+    this.configService.cargar();
     // Forzar modo claro al iniciar
     this.isDark = false;
     document.body.classList.remove('dark-theme');
@@ -354,6 +368,14 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.dialog.open(RegistrarUsuarioDialogComponent, {
       width: '480px',
       disableClose: true,
+    });
+  }
+
+  openVerPerfil(): void {
+    this.dialog.open(PerfilDialogComponent, {
+      width: '420px',
+      data: this.usuario,
+      disableClose: false,
     });
   }
 

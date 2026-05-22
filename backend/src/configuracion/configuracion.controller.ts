@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -26,9 +27,14 @@ import { UpsertRestriccionDto } from "./dto/upsert-restriccion.dto";
 import { CreateDiaNoLaborableDto } from "./dto/create-dia-no-laborable.dto";
 import { QueryRestriccionDto } from "./dto/query-restriccion.dto";
 import { QueryDiaNoLaborableDto } from "./dto/query-dia-no-laborable.dto";
+import { CreateTurnoDto } from "./dto/create-turno.dto";
+import { UpsertDiaActivoDto } from "./dto/upsert-dia-activo.dto";
+import { UpsertParametrosCargaDto } from "./dto/upsert-parametros-carga.dto";
+import { UpdateConfiguracionGeneralDto } from "./dto/update-configuracion-general.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
+import { Public } from "../auth/decorators/public.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { AuditLogService } from "../common/services/audit-log.service";
@@ -160,7 +166,10 @@ export class ConfiguracionController {
       "Requiere rol ADMINISTRADOR_SISTEMA o COORDINADOR_ACADEMICO.",
   })
   @ApiCreatedResponse({ description: "Día no laborable registrado" })
-  @ApiResponse({ status: 409, description: "La fecha ya está registrada para ese período" })
+  @ApiResponse({
+    status: 409,
+    description: "La fecha ya está registrada para ese período",
+  })
   async createDiaNoLaborable(
     @Body() dto: CreateDiaNoLaborableDto,
     @CurrentUser() usuario: Usuario,
@@ -208,6 +217,214 @@ export class ConfiguracionController {
     return {
       data: null,
       message: "Día no laborable eliminado correctamente",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  // ─── TURNOS HORARIOS ─────────────────────────────────────────────────────
+
+  @Get("turnos")
+  @ApiOperation({ summary: "Listar todos los turnos horarios" })
+  @ApiResponse({ status: 200, description: "Lista de turnos" })
+  async findTurnos() {
+    const data = await this.configuracionService.findTurnos();
+    return {
+      data,
+      message: "Turnos obtenidos correctamente",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("turnos")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: "Crear un turno horario" })
+  @ApiResponse({ status: 201, description: "Turno creado" })
+  @ApiResponse({
+    status: 409,
+    description: "El turno se superpone con uno existente",
+  })
+  async createTurno(
+    @Body() dto: CreateTurnoDto,
+    @CurrentUser() usuario: Usuario,
+    @Req() req: Request,
+  ) {
+    const data = await this.configuracionService.createTurno(dto);
+    await this.auditLogService.log({
+      usuario: usuario?.email ?? "sistema",
+      accion: "CREAR_TURNO",
+      entidad: "turno_horario",
+      entidadId: data.id,
+      ip: this.getIp(req),
+    });
+    return {
+      data,
+      message: "Turno creado exitosamente",
+      statusCode: HttpStatus.CREATED,
+    };
+  }
+
+  @Delete("turnos/:id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Eliminar un turno horario" })
+  @ApiParam({ name: "id", type: Number })
+  async removeTurno(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+    @Req() req: Request,
+  ) {
+    await this.configuracionService.removeTurno(id);
+    await this.auditLogService.log({
+      usuario: usuario?.email ?? "sistema",
+      accion: "ELIMINAR_TURNO",
+      entidad: "turno_horario",
+      entidadId: id,
+      ip: this.getIp(req),
+    });
+    return {
+      data: null,
+      message: "Turno eliminado correctamente",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  // ─── DÍAS ACTIVOS ─────────────────────────────────────────────────────────
+
+  @Get("dias-activos")
+  @ApiOperation({
+    summary: "Listar configuración de días activos (1=Lunes…7=Domingo)",
+  })
+  async findDiasActivos() {
+    const data = await this.configuracionService.findDiasActivos();
+    return {
+      data,
+      message: "Días activos obtenidos correctamente",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("dias-activos")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Activar o desactivar un día de la semana" })
+  async upsertDiaActivo(
+    @Body() dto: UpsertDiaActivoDto,
+    @CurrentUser() usuario: Usuario,
+    @Req() req: Request,
+  ) {
+    const data = await this.configuracionService.upsertDiaActivo(dto);
+    await this.auditLogService.log({
+      usuario: usuario?.email ?? "sistema",
+      accion: "ACTUALIZAR_DIA_ACTIVO",
+      entidad: "dia_activo",
+      entidadId: data.id,
+      ip: this.getIp(req),
+    });
+    return {
+      data,
+      message: "Día actualizado correctamente",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  // ─── PARÁMETROS DE CARGA ──────────────────────────────────────────────────
+
+  @Get("parametros-carga")
+  @ApiOperation({ summary: "Obtener parámetros de carga docente del período" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async findParametrosCarga(@Query("periodo") periodo: string) {
+    const data = await this.configuracionService.findParametrosCarga(periodo);
+    return {
+      data,
+      message: "Parámetros de carga obtenidos",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("parametros-carga")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Crear o actualizar parámetros de carga docente" })
+  async upsertParametrosCarga(
+    @Body() dto: UpsertParametrosCargaDto,
+    @CurrentUser() usuario: Usuario,
+    @Req() req: Request,
+  ) {
+    const data = await this.configuracionService.upsertParametrosCarga(dto);
+    await this.auditLogService.log({
+      usuario: usuario?.email ?? "sistema",
+      accion: "UPSERT_PARAMETROS_CARGA",
+      entidad: "parametros_carga",
+      entidadId: data.id,
+      ip: this.getIp(req),
+    });
+    return {
+      data,
+      message: "Parámetros de carga guardados correctamente",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Delete("parametros-carga/:id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Eliminar parámetro de carga por ID" })
+  @ApiParam({ name: "id", type: Number })
+  async deleteParametrosCarga(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+    @Req() req: Request,
+  ) {
+    await this.configuracionService.deleteParametrosCarga(id);
+    await this.auditLogService.log({
+      usuario: usuario?.email ?? "sistema",
+      accion: "ELIMINAR_PARAMETROS_CARGA",
+      entidad: "parametros_carga",
+      entidadId: id,
+      ip: this.getIp(req),
+    });
+    return {
+      data: null,
+      message: "Parámetro de carga eliminado correctamente",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  // ─── CONFIGURACIÓN GENERAL ────────────────────────────────────────────────
+
+  @Get("general")
+  @Public()
+  @ApiOperation({ summary: "Obtener configuración general institucional" })
+  async getConfiguracionGeneral() {
+    const data = await this.configuracionService.getConfiguracionGeneral();
+    return {
+      data,
+      message: "Configuración general obtenida",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Put("general")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Actualizar nombre institucional, logo y colores" })
+  async updateConfiguracionGeneral(
+    @Body() dto: UpdateConfiguracionGeneralDto,
+    @CurrentUser() usuario: Usuario,
+    @Req() req: Request,
+  ) {
+    const data =
+      await this.configuracionService.updateConfiguracionGeneral(dto);
+    await this.auditLogService.log({
+      usuario: usuario?.email ?? "sistema",
+      accion: "ACTUALIZAR_CONFIGURACION_GENERAL",
+      entidad: "configuracion_general",
+      entidadId: data.id,
+      ip: this.getIp(req),
+    });
+    return {
+      data,
+      message: "Configuración general actualizada",
       statusCode: HttpStatus.OK,
     };
   }

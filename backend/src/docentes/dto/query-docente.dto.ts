@@ -1,8 +1,17 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsEnum, IsString, IsInt, Min, Max, IsBoolean } from "class-validator";
+import {
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+} from "class-validator";
 import { Transform } from "class-transformer";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../../common/enums/tipo-contrato.enum";
+import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
 
 export class QueryDocenteDto {
   @ApiPropertyOptional({ default: 1 })
@@ -28,6 +37,11 @@ export class QueryDocenteDto {
   @IsEnum(TipoContrato)
   tipo_contrato?: TipoContrato;
 
+  @ApiPropertyOptional({ enum: ModalidadDocente })
+  @IsOptional()
+  @IsEnum(ModalidadDocente)
+  modalidad?: ModalidadDocente;
+
   @ApiPropertyOptional({
     description: "Buscar por nombres, apellidos, código o email",
   })
@@ -35,17 +49,25 @@ export class QueryDocenteDto {
   @IsString()
   busqueda?: string;
 
-  @ApiPropertyOptional({ description: "Campo para ordenar", example: "apellidos" })
+  @ApiPropertyOptional({
+    description: "Campo para ordenar",
+    example: "apellidos",
+  })
   @IsOptional()
   @IsString()
   sortBy?: string;
 
-  @ApiPropertyOptional({ description: "Dirección de orden", enum: ["ASC", "DESC"] })
+  @ApiPropertyOptional({
+    description: "Dirección de orden",
+    enum: ["ASC", "DESC"],
+  })
   @IsOptional()
   @IsString()
   sortDir?: "ASC" | "DESC";
 
-  @ApiPropertyOptional({ description: "Filtrar por estado activo. Omitir para ver solo activos" })
+  @ApiPropertyOptional({
+    description: "Filtrar por estado activo. Omitir para ver solo activos",
+  })
   @IsOptional()
   @Transform(({ value }) => value === "true" || value === true)
   @IsBoolean()

@@ -26,6 +26,7 @@ import { PreasignacionesModule } from "./modules/preasignaciones/preasignaciones
 import { VentanasModule } from "./modules/ventanas/ventanas.module";
 import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
 import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
+import { FacultadesModule } from "./facultades/facultades.module";
 
 @Module({
   imports: [
@@ -105,6 +106,7 @@ import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
     PreasignacionesModule,
     AuditoriaModule,
     CursosAmbienteModule,
+    FacultadesModule,
   ],
   providers: [
     {

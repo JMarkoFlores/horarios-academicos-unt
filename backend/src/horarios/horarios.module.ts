@@ -12,6 +12,7 @@ import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Preasignacion } from "../entities/preasignacion.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { CursoAmbiente } from "../entities/curso-ambiente.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { AsignacionService } from "./asignacion.service";
 import { HorariosService } from "./horarios.service";
 import { HorariosGateway } from "./horarios.gateway";
@@ -37,13 +38,26 @@ import { AuditoriaModule } from "../modules/auditoria/auditoria.module";
       Preasignacion,
       DocenteCurso,
       CursoAmbiente,
+      ParametrosCarga,
     ]),
     DocentesModule,
     CommonModule,
     AuditoriaModule,
   ],
   controllers: [HorariosController],
-  providers: [AsignacionService, HorariosService, HorariosGateway, ValidadorHorarioService, GeneracionAutomaticaService],
-  exports: [AsignacionService, HorariosService, HorariosGateway, ValidadorHorarioService, GeneracionAutomaticaService],
+  providers: [
+    AsignacionService,
+    HorariosService,
+    HorariosGateway,
+    ValidadorHorarioService,
+    GeneracionAutomaticaService,
+  ],
+  exports: [
+    AsignacionService,
+    HorariosService,
+    HorariosGateway,
+    ValidadorHorarioService,
+    GeneracionAutomaticaService,
+  ],
 })
 export class HorariosModule {}

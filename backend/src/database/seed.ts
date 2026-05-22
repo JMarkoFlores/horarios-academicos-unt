@@ -22,10 +22,16 @@ import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.
 import { Preasignacion } from "../entities/preasignacion.entity";
 import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
 import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
+import { TurnoHorario } from "../entities/turno-horario.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { Facultad } from "../entities/facultad.entity";
+import { Escuela } from "../entities/escuela.entity";
+import { Departamento } from "../entities/departamento.entity";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
+import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
@@ -55,7 +61,12 @@ const AppDataSource = new DataSource({
     Preasignacion,
     RestriccionInstitucional,
     DiaNoLaborable,
+    TurnoHorario,
     DocenteCurso,
+    ParametrosCarga,
+    Facultad,
+    Escuela,
+    Departamento,
   ],
   synchronize: false,
   logging: false,
@@ -89,6 +100,11 @@ async function seed() {
     "usuario",
     "restriccion_institucional",
     "dia_no_laborable",
+    "turno_horario",
+    "parametros_carga",
+    "departamento",
+    "escuela",
+    "facultad",
   ];
   for (const table of tables) {
     await AppDataSource.query(
@@ -107,8 +123,28 @@ async function seed() {
   const restriccionRepo = AppDataSource.getRepository(RestriccionInstitucional);
   const diaNoLaborableRepo = AppDataSource.getRepository(DiaNoLaborable);
   const disponibilidadRepo = AppDataSource.getRepository(DisponibilidadDocente);
+  const turnoRepo = AppDataSource.getRepository(TurnoHorario);
+  const parametrosCargaRepo = AppDataSource.getRepository(ParametrosCarga);
 
   const passwordHash = await bcrypt.hash("Admin123!", 10);
+
+  // ── TURNOS HORARIOS ────────────────────────────────────────────────────────
+  console.log("🕐 Creando turnos horarios...");
+  await turnoRepo.save([
+    turnoRepo.create({
+      nombre: "Mañana",
+      hora_inicio: "07:00",
+      hora_fin: "13:00",
+      activo: true,
+    }),
+    turnoRepo.create({
+      nombre: "Tarde",
+      hora_inicio: "14:00",
+      hora_fin: "20:00",
+      activo: true,
+    }),
+  ]);
+  console.log("✅ Turnos horarios creados\n");
 
   // ── 1. USUARIOS POR ROL (ADMINISTRADOR, DIRECTOR, COORDINADOR, OPERADOR) ─
   console.log("👤 Creando usuarios de sistema...");
@@ -250,6 +286,15 @@ async function seed() {
   ];
 
   const dbDocentes: Docente[] = [];
+  const modalidadesPool = [
+    ModalidadDocente.DEDICACION_EXCLUSIVA,
+    ModalidadDocente.TIEMPO_COMPLETO_40,
+    ModalidadDocente.TIEMPO_PARCIAL_20,
+    ModalidadDocente.TIEMPO_PARCIAL_12,
+    ModalidadDocente.TIEMPO_PARCIAL_10,
+    ModalidadDocente.TIEMPO_PARCIAL_8,
+  ];
+
   for (let i = 1; i <= 25; i++) {
     const d = await docenteRepo.save(
       docenteRepo.create({
@@ -265,6 +310,7 @@ async function seed() {
               : CategoriaDocente.AUXILIAR,
         tipo_contrato:
           i <= 20 ? TipoContrato.NOMBRADO : TipoContrato.CONTRATADO,
+        modalidad: modalidadesPool[(i - 1) % modalidadesPool.length],
         fecha_ingreso: new Date(2000 + (i % 20), 0, 1),
         activo: true,
       }),
@@ -1299,14 +1345,15 @@ async function seed() {
   const slotsToSave: DisponibilidadDocente[] = [];
   for (const [idx, doc] of dbDocentes.entries()) {
     for (let dia = 1; dia <= 5; dia++) {
-      for (let h = 7; h < 22; h++) {
-        // Simular turnos: algunos mañana, algunos tarde, algunos partido
+      // Horas válidas: Turno Mañana 07-13 y Turno Tarde 14-20
+      const horasValidas = [7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19];
+      for (const h of horasValidas) {
         let disponible = false;
         if (idx % 3 === 0)
-          disponible = h < 14; // Turno mañana
+          disponible = h < 14; // Solo turno mañana
         else if (idx % 3 === 1)
-          disponible = h >= 14; // Turno tarde/noche
-        else disponible = h < 13 || (h >= 16 && h < 21); // Turno partido
+          disponible = h >= 14; // Solo turno tarde
+        else disponible = true; // Ambos turnos
 
         slotsToSave.push(
           disponibilidadRepo.create({
@@ -1335,8 +1382,1126 @@ async function seed() {
   );
   console.log("✅ Restricción institucional configurada\n");
 
+  // ── 10. PARÁMETROS DE CARGA DOCENTE ────────────────────────────────────
+  console.log("📋 Creando parámetros de carga docente...");
+  const parametrosCargaData = [
+    // PRINCIPAL NOMBRADO
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "NOMBRADO",
+      modalidad: "DEDICACION_EXCLUSIVA",
+      horas_min_semanal: 24,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "NOMBRADO",
+      modalidad: "TIEMPO_COMPLETO_40",
+      horas_min_semanal: 24,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "NOMBRADO",
+      modalidad: "TIEMPO_PARCIAL_20",
+      horas_min_semanal: 16,
+      horas_max_semanal: 20,
+      cursos_min_docente: 1,
+      cursos_max_docente: 4,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "NOMBRADO",
+      modalidad: "TIEMPO_PARCIAL_12",
+      horas_min_semanal: 10,
+      horas_max_semanal: 12,
+      cursos_min_docente: 1,
+      cursos_max_docente: 3,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "NOMBRADO",
+      modalidad: "TIEMPO_PARCIAL_10",
+      horas_min_semanal: 8,
+      horas_max_semanal: 10,
+      cursos_min_docente: 1,
+      cursos_max_docente: 2,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "NOMBRADO",
+      modalidad: "TIEMPO_PARCIAL_8",
+      horas_min_semanal: 6,
+      horas_max_semanal: 8,
+      cursos_min_docente: 1,
+      cursos_max_docente: 2,
+    },
+    // PRINCIPAL CONTRATADO
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "DEDICACION_EXCLUSIVA",
+      horas_min_semanal: 30,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_COMPLETO_40",
+      horas_min_semanal: 30,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_PARCIAL_20",
+      horas_min_semanal: 16,
+      horas_max_semanal: 20,
+      cursos_min_docente: 1,
+      cursos_max_docente: 4,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_PARCIAL_12",
+      horas_min_semanal: 10,
+      horas_max_semanal: 12,
+      cursos_min_docente: 1,
+      cursos_max_docente: 3,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_PARCIAL_10",
+      horas_min_semanal: 8,
+      horas_max_semanal: 10,
+      cursos_min_docente: 1,
+      cursos_max_docente: 2,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "PRINCIPAL",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_PARCIAL_8",
+      horas_min_semanal: 6,
+      horas_max_semanal: 8,
+      cursos_min_docente: 1,
+      cursos_max_docente: 2,
+    },
+    // JEFE_PRACTICA CONTRATADO
+    {
+      periodo_academico: "2026-I",
+      categoria: "JEFE_PRACTICA",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_COMPLETO_40",
+      horas_min_semanal: 36,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "JEFE_PRACTICA",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_PARCIAL_20",
+      horas_min_semanal: 20,
+      horas_max_semanal: 20,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "JEFE_PRACTICA",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_PARCIAL_12",
+      horas_min_semanal: 12,
+      horas_max_semanal: 12,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "JEFE_PRACTICA",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_PARCIAL_10",
+      horas_min_semanal: 10,
+      horas_max_semanal: 10,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      categoria: "JEFE_PRACTICA",
+      tipo_contrato: "CONTRATADO",
+      modalidad: "TIEMPO_PARCIAL_8",
+      horas_min_semanal: 8,
+      horas_max_semanal: 8,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+  ];
+  for (const p of parametrosCargaData) {
+    await parametrosCargaRepo.save(parametrosCargaRepo.create(p));
+  }
+  console.log("✅ Parámetros de carga docente registrados\n");
+
+  // ── FACULTADES, ESCUELAS Y DEPARTAMENTOS ────────────────────────────────────
+  console.log("🏛️  Creando facultades, escuelas y departamentos...");
+  const facultadRepo = AppDataSource.getRepository(Facultad);
+  const escuelaRepo = AppDataSource.getRepository(Escuela);
+  const departamentoRepo = AppDataSource.getRepository(Departamento);
+
+  // Un coordinador por facultad (rol COORDINADOR_ACADEMICO)
+  const coordFacs = await usuarioRepo.save([
+    usuarioRepo.create({
+      nombre: "Dr. Carlos Sánchez Vásquez",
+      email: "coord.fca@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Rosa Mendoza Herrera",
+      email: "coord.fcb@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Luis Torres Paredes",
+      email: "coord.fce@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. José Espinoza Cruz",
+      email: "coord.fcfm@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. María Rodríguez León",
+      email: "coord.fcs@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Roberto Flores García",
+      email: "coord.fdcp@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Ana Gutiérrez Pérez",
+      email: "coord.fecc@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Carmen Vega Ortiz",
+      email: "coord.fenf@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Ricardo Castro Morales",
+      email: "coord.fest@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Patricia Lozano Díaz",
+      email: "coord.ffb@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Miguel Reyes Campos",
+      email: "coord.fing@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Fernando Alvarado Ruiz",
+      email: "coord.fiq@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Elena Vargas Suárez",
+      email: "coord.fm@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    }),
+  ]);
+  const [
+    cFCA,
+    cFCB,
+    cFCE,
+    cFCFM,
+    cFCS,
+    cFDCP,
+    cFECC,
+    cFENF,
+    cFEST,
+    cFFB,
+    cFING,
+    cFIQ,
+    cFM,
+  ] = coordFacs;
+
+  // Facultades
+  const fca = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FCA",
+      nombre: "Facultad de Ciencias Agropecuarias",
+      descripcion: "Formación en ciencias del agro y producción animal",
+      activo: true,
+      coordinador_id: cFCA.id,
+    }),
+  );
+  const fcb = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FCB",
+      nombre: "Facultad de Ciencias Biológicas",
+      descripcion: "Formación en biología, biología pesquera y microbiología",
+      activo: true,
+      coordinador_id: cFCB.id,
+    }),
+  );
+  const fce = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FCE",
+      nombre: "Facultad de Ciencias Económicas",
+      descripcion: "Formación en administración, contabilidad y economía",
+      activo: true,
+      coordinador_id: cFCE.id,
+    }),
+  );
+  const fcfm = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FCFM",
+      nombre: "Facultad de Ciencias Físicas y Matemáticas",
+      descripcion:
+        "Formación en física, matemáticas, estadística e informática",
+      activo: true,
+      coordinador_id: cFCFM.id,
+    }),
+  );
+  const fcs = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FCS",
+      nombre: "Facultad de Ciencias Sociales",
+      descripcion:
+        "Formación en antropología, arqueología, historia, trabajo social y turismo",
+      activo: true,
+      coordinador_id: cFCS.id,
+    }),
+  );
+  const fdcp = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FDCP",
+      nombre: "Facultad de Derecho y Ciencias Políticas",
+      descripcion: "Formación jurídica y en ciencias políticas",
+      activo: true,
+      coordinador_id: cFDCP.id,
+    }),
+  );
+  const fecc = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FECC",
+      nombre: "Facultad de Educación y Ciencias de la Comunicación",
+      descripcion: "Formación docente y en comunicación social",
+      activo: true,
+      coordinador_id: cFECC.id,
+    }),
+  );
+  const fenf = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FENF",
+      nombre: "Facultad de Enfermería",
+      descripcion: "Formación en ciencias de la enfermería y salud pública",
+      activo: true,
+      coordinador_id: cFENF.id,
+    }),
+  );
+  const fest = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FEST",
+      nombre: "Facultad de Estomatología",
+      descripcion: "Formación en salud bucodental y odontología",
+      activo: true,
+      coordinador_id: cFEST.id,
+    }),
+  );
+  const ffb = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FFB",
+      nombre: "Facultad de Farmacia y Bioquímica",
+      descripcion: "Formación en farmacia, bioquímica y ciencias farmacéuticas",
+      activo: true,
+      coordinador_id: cFFB.id,
+    }),
+  );
+  const fing = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FING",
+      nombre: "Facultad de Ingeniería",
+      descripcion:
+        "Formación en ingenierías civil, de sistemas, industrial, mecánica y más",
+      activo: true,
+      coordinador_id: cFING.id,
+    }),
+  );
+  const fiq = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FIQ",
+      nombre: "Facultad de Ingeniería Química",
+      descripcion:
+        "Formación en ingeniería química, ambiental, metalúrgica y de minas",
+      activo: true,
+      coordinador_id: cFIQ.id,
+    }),
+  );
+  const fm = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FM",
+      nombre: "Facultad de Medicina",
+      descripcion: "Formación en medicina humana y ciencias de la salud",
+      activo: true,
+      coordinador_id: cFM.id,
+    }),
+  );
+
+  // Directores de escuela — el mismo usuario coordina la escuela y su departamento (índice 1:1 con escDep)
+  const dirEscuelas = await usuarioRepo.save([
+    // FCA
+    usuarioRepo.create({
+      nombre: "Dr. Alejandro Guerrero Paredes",
+      email: "dir.eagro@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Mónica Cabrera Ríos",
+      email: "dir.eiagri@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Sergio Palomino Vega",
+      email: "dir.eiaind@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Lucía Castillo Fuentes",
+      email: "dir.ezoot@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FCB
+    usuarioRepo.create({
+      nombre: "Dr. Hernán Montoya Salinas",
+      email: "dir.ecbiol@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Valentina Quispe Arroyo",
+      email: "dir.ebpesk@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Óscar Palacios Medina",
+      email: "dir.emipar@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FCE
+    usuarioRepo.create({
+      nombre: "Dra. Claudia Benites Aguilar",
+      email: "dir.eadmin@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Raúl Jiménez Contreras",
+      email: "dir.ecyfin@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Norma Alcántara Paz",
+      email: "dir.eecono@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FCFM
+    usuarioRepo.create({
+      nombre: "Dr. Arturo Delgado Núñez",
+      email: "dir.efisic@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Pilar Cornejo Salazar",
+      email: "dir.emates@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Iván Solís Bazán",
+      email: "dir.estad@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Fabiola Vilela Tello",
+      email: "dir.einfor@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FCS
+    usuarioRepo.create({
+      nombre: "Dr. Gonzalo Leyva Adrianzén",
+      email: "dir.eantro@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Susana Portal Huanca",
+      email: "dir.earque@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Hugo Saavedra Orbegoso",
+      email: "dir.ehisto@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Natalia Trujillo Burgos",
+      email: "dir.etraso@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. César Moncada Valverde",
+      email: "dir.eturis@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FDCP
+    usuarioRepo.create({
+      nombre: "Dr. Enrique Minaya Rodas",
+      email: "dir.ederec@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Roxana Bacilio Villena",
+      email: "dir.ecpoli@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FECC
+    usuarioRepo.create({
+      nombre: "Dr. Ernesto Guevara Cisneros",
+      email: "dir.ecomun@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Graciela Ocampo Huertas",
+      email: "dir.eedini@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Alfredo Zevallos Urteaga",
+      email: "dir.eedpri@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Miriam Abanto Quiroz",
+      email: "dir.esidio@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Néstor Quispe Vera",
+      email: "dir.esicm@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Silvia Anticona Valverde",
+      email: "dir.esill@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Jaime Noriega Chomba",
+      email: "dir.esicn@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Blanca Vidal Polo",
+      email: "dir.esifp@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Rolando Arteaga Briceño",
+      email: "dir.esihg@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FENF
+    usuarioRepo.create({
+      nombre: "Dra. Hilda Morillo Salcedo",
+      email: "dir.eenfer@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FEST
+    usuarioRepo.create({
+      nombre: "Dr. Augusto Pretell Gamboa",
+      email: "dir.eestom@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FFB
+    usuarioRepo.create({
+      nombre: "Dra. Consuelo Alayo Rebaza",
+      email: "dir.efybio@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FING
+    usuarioRepo.create({
+      nombre: "Dr. Damián Florián Julca",
+      email: "dir.earqur@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Inés Otiniano Pereda",
+      email: "dir.ecivil@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Bruno Domínguez Aguilar",
+      email: "dir.eisist@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Lorena Morán Rodríguez",
+      email: "dir.einind@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Gilberto Robles Chávez",
+      email: "dir.einmec@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Marisol Bueno Terrones",
+      email: "dir.einmct@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Dante Polo Chacón",
+      email: "dir.einmat@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FIQ
+    usuarioRepo.create({
+      nombre: "Dra. Yolanda Mostacero Zavaleta",
+      email: "dir.eiquim@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Humberto Marín Aguilar",
+      email: "dir.eambnt@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dra. Estela Castañeda Azabache",
+      email: "dir.emetlu@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    usuarioRepo.create({
+      nombre: "Dr. Wilfredo Asmat Abanto",
+      email: "dir.eminas@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+    // FM
+    usuarioRepo.create({
+      nombre: "Dra. Isabel Rebaza Linares",
+      email: "dir.emedc@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true,
+    }),
+  ]);
+
+  // Escuelas + Departamentos — un par por fila
+  // { esc: datos de escuela (sin escuela_id), dep: datos del departamento (sin escuela_id) }
+  const escDep: Array<{
+    esc: Partial<Escuela>;
+    dep: { codigo: string; nombre: string };
+  }> = [
+    // FCA
+    {
+      esc: { codigo: "EAGRO", nombre: "Agronomía", facultad_id: fca.id },
+      dep: { codigo: "DAGRO", nombre: "Departamento de Agronomía" },
+    },
+    {
+      esc: {
+        codigo: "EIAGRI",
+        nombre: "Ingeniería Agrícola",
+        facultad_id: fca.id,
+      },
+      dep: { codigo: "DIAGRI", nombre: "Departamento de Ingeniería Agrícola" },
+    },
+    {
+      esc: {
+        codigo: "EIAIND",
+        nombre: "Ingeniería Agroindustrial",
+        facultad_id: fca.id,
+      },
+      dep: {
+        codigo: "DIAIND",
+        nombre: "Departamento de Ingeniería Agroindustrial",
+      },
+    },
+    {
+      esc: { codigo: "EZOOT", nombre: "Zootecnia", facultad_id: fca.id },
+      dep: { codigo: "DZOOT", nombre: "Departamento de Zootecnia" },
+    },
+    // FCB
+    {
+      esc: {
+        codigo: "ECBIOL",
+        nombre: "Ciencias Biológicas",
+        facultad_id: fcb.id,
+      },
+      dep: { codigo: "DCBIOL", nombre: "Departamento de Biología" },
+    },
+    {
+      esc: {
+        codigo: "EBPESK",
+        nombre: "Biología Pesquera",
+        facultad_id: fcb.id,
+      },
+      dep: { codigo: "DBPESK", nombre: "Departamento de Biología Pesquera" },
+    },
+    {
+      esc: {
+        codigo: "EMIPAR",
+        nombre: "Microbiología y Parasitología",
+        facultad_id: fcb.id,
+      },
+      dep: {
+        codigo: "DMIPAR",
+        nombre: "Departamento de Microbiología y Parasitología",
+      },
+    },
+    // FCE
+    {
+      esc: { codigo: "EADMIN", nombre: "Administración", facultad_id: fce.id },
+      dep: { codigo: "DADMIN", nombre: "Departamento de Administración" },
+    },
+    {
+      esc: {
+        codigo: "ECYFIN",
+        nombre: "Contabilidad y Finanzas",
+        facultad_id: fce.id,
+      },
+      dep: {
+        codigo: "DCYFIN",
+        nombre: "Departamento de Contabilidad y Finanzas",
+      },
+    },
+    {
+      esc: { codigo: "EECONO", nombre: "Economía", facultad_id: fce.id },
+      dep: { codigo: "DECONO", nombre: "Departamento de Economía" },
+    },
+    // FCFM
+    {
+      esc: { codigo: "EFISIC", nombre: "Física", facultad_id: fcfm.id },
+      dep: { codigo: "DFISIC", nombre: "Departamento de Física" },
+    },
+    {
+      esc: { codigo: "EMATES", nombre: "Matemáticas", facultad_id: fcfm.id },
+      dep: { codigo: "DMATES", nombre: "Departamento de Matemáticas" },
+    },
+    {
+      esc: { codigo: "ESTAD", nombre: "Estadística", facultad_id: fcfm.id },
+      dep: { codigo: "DSTAD", nombre: "Departamento de Estadística" },
+    },
+    {
+      esc: { codigo: "EINFOR", nombre: "Informática", facultad_id: fcfm.id },
+      dep: { codigo: "DINFOR", nombre: "Departamento de Informática" },
+    },
+    // FCS
+    {
+      esc: { codigo: "EANTRO", nombre: "Antropología", facultad_id: fcs.id },
+      dep: { codigo: "DANTRO", nombre: "Departamento de Antropología" },
+    },
+    {
+      esc: { codigo: "EARQUE", nombre: "Arqueología", facultad_id: fcs.id },
+      dep: { codigo: "DARQUE", nombre: "Departamento de Arqueología" },
+    },
+    {
+      esc: { codigo: "EHISTO", nombre: "Historia", facultad_id: fcs.id },
+      dep: { codigo: "DHISTO", nombre: "Departamento de Historia" },
+    },
+    {
+      esc: { codigo: "ETRASO", nombre: "Trabajo Social", facultad_id: fcs.id },
+      dep: { codigo: "DTRASO", nombre: "Departamento de Trabajo Social" },
+    },
+    {
+      esc: { codigo: "ETURIS", nombre: "Turismo", facultad_id: fcs.id },
+      dep: { codigo: "DTURIS", nombre: "Departamento de Turismo" },
+    },
+    // FDCP
+    {
+      esc: { codigo: "EDEREC", nombre: "Derecho", facultad_id: fdcp.id },
+      dep: { codigo: "DDEREC", nombre: "Departamento de Derecho" },
+    },
+    {
+      esc: {
+        codigo: "ECPOLI",
+        nombre: "Ciencias Políticas y Gobernabilidad",
+        facultad_id: fdcp.id,
+      },
+      dep: { codigo: "DCPOLI", nombre: "Departamento de Ciencias Políticas" },
+    },
+    // FECC
+    {
+      esc: {
+        codigo: "ECOMUN",
+        nombre: "Ciencias de la Comunicación",
+        facultad_id: fecc.id,
+      },
+      dep: {
+        codigo: "DCOMUN",
+        nombre: "Departamento de Ciencias de la Comunicación",
+      },
+    },
+    {
+      esc: {
+        codigo: "EEDINI",
+        nombre: "Educación Inicial",
+        facultad_id: fecc.id,
+      },
+      dep: { codigo: "DEDINI", nombre: "Departamento de Educación" },
+    },
+    {
+      esc: {
+        codigo: "EEDPRI",
+        nombre: "Educación Primaria",
+        facultad_id: fecc.id,
+      },
+      dep: { codigo: "DEDPRI", nombre: "Departamento de Educación" },
+    },
+    {
+      esc: {
+        codigo: "ESIDIO",
+        nombre: "Educación Secundaria - Idiomas",
+        facultad_id: fecc.id,
+      },
+      dep: { codigo: "DEDSID", nombre: "Departamento de Educación" },
+    },
+    {
+      esc: {
+        codigo: "ESICM",
+        nombre: "Educación Secundaria - Ciencias Matemáticas",
+        facultad_id: fecc.id,
+      },
+      dep: { codigo: "DEDSCM", nombre: "Departamento de Educación" },
+    },
+    {
+      esc: {
+        codigo: "ESILL",
+        nombre: "Educación Secundaria - Lengua y Literatura",
+        facultad_id: fecc.id,
+      },
+      dep: { codigo: "DEDSLL", nombre: "Departamento de Educación" },
+    },
+    {
+      esc: {
+        codigo: "ESICN",
+        nombre: "Educación Secundaria - Ciencias Naturales",
+        facultad_id: fecc.id,
+      },
+      dep: { codigo: "DEDSCN", nombre: "Departamento de Educación" },
+    },
+    {
+      esc: {
+        codigo: "ESIFP",
+        nombre:
+          "Educación Secundaria - Filosofía, Psicología y Ciencias Sociales",
+        facultad_id: fecc.id,
+      },
+      dep: { codigo: "DEDSFP", nombre: "Departamento de Educación" },
+    },
+    {
+      esc: {
+        codigo: "ESIHG",
+        nombre: "Educación Secundaria - Historia y Geografía",
+        facultad_id: fecc.id,
+      },
+      dep: { codigo: "DEDSHG", nombre: "Departamento de Educación" },
+    },
+    // FENF
+    {
+      esc: { codigo: "EENFER", nombre: "Enfermería", facultad_id: fenf.id },
+      dep: { codigo: "DENFER", nombre: "Departamento de Enfermería" },
+    },
+    // FEST
+    {
+      esc: { codigo: "EESTOM", nombre: "Estomatología", facultad_id: fest.id },
+      dep: { codigo: "DESTOM", nombre: "Departamento de Estomatología" },
+    },
+    // FFB
+    {
+      esc: {
+        codigo: "EFYBIO",
+        nombre: "Farmacia y Bioquímica",
+        facultad_id: ffb.id,
+      },
+      dep: {
+        codigo: "DFYBIO",
+        nombre: "Departamento de Farmacia y Bioquímica",
+      },
+    },
+    // FING
+    {
+      esc: {
+        codigo: "EARQUR",
+        nombre: "Arquitectura y Urbanismo",
+        facultad_id: fing.id,
+      },
+      dep: { codigo: "DARQUR", nombre: "Departamento de Arquitectura" },
+    },
+    {
+      esc: {
+        codigo: "ECIVIL",
+        nombre: "Ingeniería Civil",
+        facultad_id: fing.id,
+      },
+      dep: { codigo: "DCIVIL", nombre: "Departamento de Ingeniería Civil" },
+    },
+    {
+      esc: {
+        codigo: "EISIST",
+        nombre: "Ingeniería de Sistemas",
+        facultad_id: fing.id,
+      },
+      dep: {
+        codigo: "DISIST",
+        nombre: "Departamento de Ingeniería de Sistemas",
+      },
+    },
+    {
+      esc: {
+        codigo: "EININD",
+        nombre: "Ingeniería Industrial",
+        facultad_id: fing.id,
+      },
+      dep: {
+        codigo: "DININD",
+        nombre: "Departamento de Ingeniería Industrial",
+      },
+    },
+    {
+      esc: {
+        codigo: "EINMEC",
+        nombre: "Ingeniería Mecánica",
+        facultad_id: fing.id,
+      },
+      dep: { codigo: "DINMEC", nombre: "Departamento de Ingeniería Mecánica" },
+    },
+    {
+      esc: {
+        codigo: "EINMCT",
+        nombre: "Ingeniería Mecatrónica",
+        facultad_id: fing.id,
+      },
+      dep: {
+        codigo: "DINMCT",
+        nombre: "Departamento de Ingeniería Mecatrónica",
+      },
+    },
+    {
+      esc: {
+        codigo: "EINMAT",
+        nombre: "Ingeniería de Materiales",
+        facultad_id: fing.id,
+      },
+      dep: {
+        codigo: "DINMAT",
+        nombre: "Departamento de Ingeniería de Materiales",
+      },
+    },
+    // FIQ
+    {
+      esc: {
+        codigo: "EIQUIM",
+        nombre: "Ingeniería Química",
+        facultad_id: fiq.id,
+      },
+      dep: { codigo: "DIQUIM", nombre: "Departamento de Ingeniería Química" },
+    },
+    {
+      esc: {
+        codigo: "EAMBNT",
+        nombre: "Ingeniería Ambiental",
+        facultad_id: fiq.id,
+      },
+      dep: { codigo: "DAMBNT", nombre: "Departamento de Ingeniería Ambiental" },
+    },
+    {
+      esc: {
+        codigo: "EMETLU",
+        nombre: "Ingeniería Metalúrgica",
+        facultad_id: fiq.id,
+      },
+      dep: {
+        codigo: "DMETLU",
+        nombre: "Departamento de Ingeniería Metalúrgica",
+      },
+    },
+    {
+      esc: {
+        codigo: "EMINAS",
+        nombre: "Ingeniería de Minas",
+        facultad_id: fiq.id,
+      },
+      dep: { codigo: "DMINAS", nombre: "Departamento de Ingeniería de Minas" },
+    },
+    // FM
+    {
+      esc: { codigo: "EMEDC", nombre: "Medicina", facultad_id: fm.id },
+      dep: { codigo: "DMEDC", nombre: "Departamento de Medicina" },
+    },
+  ];
+
+  for (let i = 0; i < escDep.length; i++) {
+    const { esc, dep } = escDep[i];
+    const coordId = dirEscuelas[i].id;
+    const escuela = await escuelaRepo.save(
+      escuelaRepo.create({ ...esc, activo: true, coordinador_id: coordId }),
+    );
+    await departamentoRepo.save(
+      departamentoRepo.create({
+        ...dep,
+        escuela_id: escuela.id,
+        activo: true,
+        coordinador_id: coordId,
+      }),
+    );
+  }
+  console.log(
+    `✅ 13 facultades, ${escDep.length} escuelas y ${escDep.length} departamentos creados (con coordinadores)\n`,
+  );
+
   await AppDataSource.destroy();
-  console.log("🎉 ¡Seed completado con 25 docentes y 82 cursos!");
+  console.log(
+    "🎉 ¡Seed completado con 25 docentes, 82 cursos, 13 facultades, 45 escuelas y 45 departamentos!",
+  );
 }
 
 seed().catch((error) => {

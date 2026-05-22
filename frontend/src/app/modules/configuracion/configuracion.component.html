@@ -1,10 +1,11 @@
 <div class="config-page animate-fadein">
-
   <!-- ─── Cabecera Premium ─────────────────────────────────────────── -->
   <div class="page-header-premium">
     <div class="title-section">
       <h1 class="gradient-text">Configuración del Sistema</h1>
-      <p class="subtitle">Administración de reglas institucionales y días inhábiles</p>
+      <p class="subtitle">
+        Administración de reglas institucionales y días inhábiles
+      </p>
     </div>
     <div class="period-selector">
       <mat-icon class="period-icon">event_note</mat-icon>
@@ -13,7 +14,9 @@
         (ngModelChange)="onPeriodoChange()"
         class="period-select"
       >
-        <mat-option *ngFor="let p of periodoService.periodos" [value]="p">{{ p }}</mat-option>
+        <mat-option *ngFor="let p of periodoService.periodos" [value]="p">{{
+          p
+        }}</mat-option>
       </mat-select>
     </div>
   </div>
@@ -38,27 +41,73 @@
       <mat-icon>event_busy</mat-icon>
       Días No Laborables
     </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'turnos'"
+      (click)="activeTab = 'turnos'"
+      id="tab-turnos"
+    >
+      <mat-icon>schedule</mat-icon>
+      Turnos Horarios
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'diasActivos'"
+      (click)="activeTab = 'diasActivos'"
+      id="tab-dias-activos"
+    >
+      <mat-icon>calendar_today</mat-icon>
+      Días Activos
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'parametrosCarga'"
+      (click)="activeTab = 'parametrosCarga'"
+      id="tab-parametros-carga"
+    >
+      <mat-icon>tune</mat-icon>
+      Parámetros de Carga
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'general'"
+      (click)="activeTab = 'general'"
+      id="tab-general"
+    >
+      <mat-icon>business</mat-icon>
+      Configuración General
+    </button>
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════════
        TAB 1 — RESTRICCIONES INSTITUCIONALES
   ══════════════════════════════════════════════════════════════════ -->
   <div *ngIf="activeTab === 'restricciones'" class="tab-content animate-fadein">
-
     <!-- Formulario Premium Amigable -->
     <mat-card class="premium-form-card">
       <mat-card-header>
-        <mat-icon mat-card-avatar class="form-icon">add_circle_outline</mat-icon>
+        <mat-icon mat-card-avatar class="form-icon"
+          >add_circle_outline</mat-icon
+        >
         <mat-card-title>Establecer / Actualizar Restricción</mat-card-title>
-        <mat-card-subtitle>Si ya existe el tipo de regla para el período seleccionado, se actualizará su valor actual.</mat-card-subtitle>
+        <mat-card-subtitle
+          >Si ya existe el tipo de regla para el período seleccionado, se
+          actualizará su valor actual.</mat-card-subtitle
+        >
       </mat-card-header>
       <mat-card-content>
         <form [formGroup]="restriccionForm" class="restriccion-form">
           <div class="form-row-two">
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Tipo de Restricción</mat-label>
-              <mat-select formControlName="tipo_restriccion" id="select-tipo-restriccion">
-                <mat-option *ngFor="let t of tiposRestriccion" [value]="t.value">
+              <mat-select
+                formControlName="tipo_restriccion"
+                id="select-tipo-restriccion"
+              >
+                <mat-option
+                  *ngFor="let t of tiposRestriccion"
+                  [value]="t.value"
+                >
                   {{ t.label }}
                 </mat-option>
               </mat-select>
@@ -67,31 +116,74 @@
             <!-- Inputs dinámicos según el tipo de restricción -->
             <div class="dinamicos-container">
               <!-- Horas (Franja Horaria o Almuerzo) -->
-              <div *ngIf="tipoActual === 'FRANJA_HORARIA' || tipoActual === 'BLOQUE_ALMUERZO'" class="inputs-rango-hora">
+              <div
+                *ngIf="
+                  tipoActual === 'FRANJA_HORARIA' ||
+                  tipoActual === 'BLOQUE_ALMUERZO'
+                "
+                class="inputs-rango-hora"
+              >
                 <mat-form-field appearance="outline">
                   <mat-label>Hora de Inicio</mat-label>
-                  <input matInput type="time" formControlName="hora_inicio" id="input-hora-inicio" />
+                  <input
+                    matInput
+                    type="time"
+                    formControlName="hora_inicio"
+                    id="input-hora-inicio"
+                  />
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>Hora de Fin</mat-label>
-                  <input matInput type="time" formControlName="hora_fin" id="input-hora-fin" />
+                  <input
+                    matInput
+                    type="time"
+                    formControlName="hora_fin"
+                    id="input-hora-fin"
+                  />
                 </mat-form-field>
               </div>
 
               <!-- Límite de Horas Diarias/Semanales -->
-              <div *ngIf="tipoActual === 'MAX_HORAS_DIARIAS' || tipoActual === 'MAX_HORAS_SEMANALES'" class="input-numerico">
+              <div
+                *ngIf="
+                  tipoActual === 'MAX_HORAS_DIARIAS' ||
+                  tipoActual === 'MAX_HORAS_SEMANALES'
+                "
+                class="input-numerico"
+              >
                 <mat-form-field appearance="outline" class="full-width">
                   <mat-label>Horas Límite</mat-label>
-                  <input matInput type="number" formControlName="max_horas" id="input-max-horas" min="1" [max]="tipoActual === 'MAX_HORAS_DIARIAS' ? 24 : 168" />
-                  <mat-error>Valor entre 1 y {{ tipoActual === 'MAX_HORAS_DIARIAS' ? 24 : 168 }} requerido</mat-error>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="max_horas"
+                    id="input-max-horas"
+                    min="1"
+                    [max]="tipoActual === 'MAX_HORAS_DIARIAS' ? 24 : 168"
+                  />
+                  <mat-error
+                    >Valor entre 1 y
+                    {{ tipoActual === "MAX_HORAS_DIARIAS" ? 24 : 168 }}
+                    requerido</mat-error
+                  >
                 </mat-form-field>
               </div>
 
               <!-- Duración del Bloque -->
-              <div *ngIf="tipoActual === 'DURACION_BLOQUE'" class="input-numerico">
+              <div
+                *ngIf="tipoActual === 'DURACION_BLOQUE'"
+                class="input-numerico"
+              >
                 <mat-form-field appearance="outline" class="full-width">
                   <mat-label>Duración del Bloque (minutos)</mat-label>
-                  <input matInput type="number" formControlName="duracion_minutos" id="input-duracion-minutos" min="15" max="600" />
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="duracion_minutos"
+                    id="input-duracion-minutos"
+                    min="15"
+                    max="600"
+                  />
                   <mat-error>Valor entre 15 y 600 requerido</mat-error>
                 </mat-form-field>
               </div>
@@ -107,9 +199,15 @@
           (click)="guardarRestriccion()"
           [disabled]="restriccionForm.invalid || guardandoRestriccion"
         >
-          <mat-spinner *ngIf="guardandoRestriccion" diameter="16" class="inline-spinner"></mat-spinner>
+          <mat-spinner
+            *ngIf="guardandoRestriccion"
+            diameter="16"
+            class="inline-spinner"
+          ></mat-spinner>
           <mat-icon *ngIf="!guardandoRestriccion">save</mat-icon>
-          <span>{{ guardandoRestriccion ? 'Guardando...' : 'Guardar Regla' }}</span>
+          <span>{{
+            guardandoRestriccion ? "Guardando..." : "Guardar Regla"
+          }}</span>
         </button>
       </mat-card-actions>
     </mat-card>
@@ -127,35 +225,57 @@
             <mat-icon>rule_folder</mat-icon>
           </div>
           <h3>Sin reglas registradas</h3>
-          <p>No se han definido restricciones para el período <strong>{{ periodoService.periodo }}</strong>.</p>
+          <p>
+            No se han definido restricciones para el período
+            <strong>{{ periodoService.periodo }}</strong
+            >.
+          </p>
         </div>
 
-        <div *ngIf="restricciones.length > 0" class="table-scroll animate-fadein">
+        <div
+          *ngIf="restricciones.length > 0"
+          class="table-scroll animate-fadein"
+        >
           <table mat-table [dataSource]="restricciones" class="premium-table">
             <ng-container matColumnDef="icono">
-              <th mat-header-cell *matHeaderCellDef style="width: 60px;"></th>
-              <td mat-cell *matCellDef="let r" style="width: 60px;">
+              <th mat-header-cell *matHeaderCellDef style="width: 60px"></th>
+              <td mat-cell *matCellDef="let r" style="width: 60px">
                 <span class="icon-avatar">
-                  <mat-icon>{{ getRestriccionIcon(r.tipo_restriccion) }}</mat-icon>
+                  <mat-icon>{{
+                    getRestriccionIcon(r.tipo_restriccion)
+                  }}</mat-icon>
                 </span>
               </td>
             </ng-container>
 
             <ng-container matColumnDef="tipo">
-              <th mat-header-cell *matHeaderCellDef style="width: 250px;">Tipo de Regla</th>
-              <td mat-cell *matCellDef="let r" style="width: 250px;">
-                <span class="code-badge">{{ restriccionLabels[r.tipo_restriccion] || r.tipo_restriccion }}</span>
+              <th mat-header-cell *matHeaderCellDef style="width: 250px">
+                Tipo de Regla
+              </th>
+              <td mat-cell *matCellDef="let r" style="width: 250px">
+                <span class="code-badge">{{
+                  restriccionLabels[r.tipo_restriccion] || r.tipo_restriccion
+                }}</span>
               </td>
             </ng-container>
 
             <ng-container matColumnDef="descripcion">
-              <th mat-header-cell *matHeaderCellDef>Descripción de la Restricción</th>
-              <td mat-cell *matCellDef="let r">{{ getRestriccionDescripcion(r) }}</td>
+              <th mat-header-cell *matHeaderCellDef>
+                Descripción de la Restricción
+              </th>
+              <td mat-cell *matCellDef="let r">
+                {{ getRestriccionDescripcion(r) }}
+              </td>
             </ng-container>
 
             <ng-container matColumnDef="acciones">
-              <th mat-header-cell *matHeaderCellDef style="width: 80px;"></th>
-              <td mat-cell *matCellDef="let r" class="actions-cell" style="width: 80px;">
+              <th mat-header-cell *matHeaderCellDef style="width: 80px"></th>
+              <td
+                mat-cell
+                *matCellDef="let r"
+                class="actions-cell"
+                style="width: 80px"
+              >
                 <button
                   mat-icon-button
                   class="btn-action delete"
@@ -167,8 +287,18 @@
               </td>
             </ng-container>
 
-            <tr mat-header-row *matHeaderRowDef="['icono', 'tipo', 'descripcion', 'acciones']"></tr>
-            <tr mat-row *matRowDef="let row; columns: ['icono', 'tipo', 'descripcion', 'acciones']" class="premium-row"></tr>
+            <tr
+              mat-header-row
+              *matHeaderRowDef="['icono', 'tipo', 'descripcion', 'acciones']"
+            ></tr>
+            <tr
+              mat-row
+              *matRowDef="
+                let row;
+                columns: ['icono', 'tipo', 'descripcion', 'acciones']
+              "
+              class="premium-row"
+            ></tr>
           </table>
         </div>
       </div>
@@ -178,35 +308,52 @@
   <!-- ══════════════════════════════════════════════════════════════════
        TAB 2 — DÍAS NO LABORABLES
   ══════════════════════════════════════════════════════════════════ -->
-  <div *ngIf="activeTab === 'diasNoLaborables'" class="tab-content animate-fadein">
-
+  <div
+    *ngIf="activeTab === 'diasNoLaborables'"
+    class="tab-content animate-fadein"
+  >
     <!-- Formulario Crear Día -->
     <mat-card class="premium-form-card">
       <mat-card-header>
         <mat-icon mat-card-avatar class="form-icon">event_busy</mat-icon>
         <mat-card-title>Registrar Día No Laborable</mat-card-title>
-        <mat-card-subtitle>Feriados, periodos de mantenimiento, suspensiones de actividades y otros eventos inhábiles.</mat-card-subtitle>
+        <mat-card-subtitle
+          >Feriados, periodos de mantenimiento, suspensiones de actividades y
+          otros eventos inhábiles.</mat-card-subtitle
+        >
       </mat-card-header>
       <mat-card-content>
         <form [formGroup]="diaForm" class="dia-form">
           <div class="form-row-two">
             <mat-form-field appearance="outline">
               <mat-label>Fecha del Suceso</mat-label>
-              <input matInput type="date" formControlName="fecha" id="input-fecha-dia" />
+              <input
+                matInput
+                type="date"
+                formControlName="fecha"
+                id="input-fecha-dia"
+              />
               <mat-error>Fecha requerida</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>Tipo de Suspensión</mat-label>
               <mat-select formControlName="tipo" id="select-tipo-dia">
-                <mat-option *ngFor="let t of tiposDia" [value]="t.value">{{ t.label }}</mat-option>
+                <mat-option *ngFor="let t of tiposDia" [value]="t.value">{{
+                  t.label
+                }}</mat-option>
               </mat-select>
             </mat-form-field>
           </div>
 
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Descripción / Motivo</mat-label>
-            <input matInput formControlName="descripcion" id="input-descripcion-dia" placeholder="Ej: Semana Santa, Festividad Nacional, Aniversario..." />
+            <input
+              matInput
+              formControlName="descripcion"
+              id="input-descripcion-dia"
+              placeholder="Ej: Semana Santa, Festividad Nacional, Aniversario..."
+            />
             <mat-error>Descripción requerida</mat-error>
           </mat-form-field>
 
@@ -214,7 +361,10 @@
             <mat-slide-toggle formControlName="afecta_aulas" color="primary">
               Afecta Aulas de Teoría
             </mat-slide-toggle>
-            <mat-slide-toggle formControlName="afecta_laboratorios" color="primary">
+            <mat-slide-toggle
+              formControlName="afecta_laboratorios"
+              color="primary"
+            >
               Afecta Laboratorios
             </mat-slide-toggle>
           </div>
@@ -228,9 +378,13 @@
           (click)="guardarDia()"
           [disabled]="diaForm.invalid || guardandoDia"
         >
-          <mat-spinner *ngIf="guardandoDia" diameter="16" class="inline-spinner"></mat-spinner>
+          <mat-spinner
+            *ngIf="guardandoDia"
+            diameter="16"
+            class="inline-spinner"
+          ></mat-spinner>
           <mat-icon *ngIf="!guardandoDia">add_task</mat-icon>
-          <span>{{ guardandoDia ? 'Registrando...' : 'Registrar Día' }}</span>
+          <span>{{ guardandoDia ? "Registrando..." : "Registrar Día" }}</span>
         </button>
       </mat-card-actions>
     </mat-card>
@@ -248,47 +402,84 @@
             <mat-icon>calendar_today</mat-icon>
           </div>
           <h3>Sin días no laborables</h3>
-          <p>No se registran feriados o suspensiones para el período <strong>{{ periodoService.periodo }}</strong>.</p>
+          <p>
+            No se registran feriados o suspensiones para el período
+            <strong>{{ periodoService.periodo }}</strong
+            >.
+          </p>
         </div>
 
-        <div *ngIf="diasNoLaborables.length > 0" class="table-scroll animate-fadein">
-          <table mat-table [dataSource]="diasNoLaborables" class="premium-table">
+        <div
+          *ngIf="diasNoLaborables.length > 0"
+          class="table-scroll animate-fadein"
+        >
+          <table
+            mat-table
+            [dataSource]="diasNoLaborables"
+            class="premium-table"
+          >
             <ng-container matColumnDef="fecha">
-              <th mat-header-cell *matHeaderCellDef style="width: 140px;">Fecha</th>
-              <td mat-cell *matCellDef="let d" style="width: 140px;">
-                <span class="date-badge">{{ d.fecha | date:'dd/MM/yyyy':'UTC' }}</span>
+              <th mat-header-cell *matHeaderCellDef style="width: 140px">
+                Fecha
+              </th>
+              <td mat-cell *matCellDef="let d" style="width: 140px">
+                <span class="date-badge">{{
+                  d.fecha | date: "dd/MM/yyyy" : "UTC"
+                }}</span>
               </td>
             </ng-container>
 
             <ng-container matColumnDef="descripcion">
               <th mat-header-cell *matHeaderCellDef>Descripción / Motivo</th>
-              <td mat-cell *matCellDef="let d" style="font-weight: 500;">{{ d.descripcion }}</td>
+              <td mat-cell *matCellDef="let d" style="font-weight: 500">
+                {{ d.descripcion }}
+              </td>
             </ng-container>
 
             <ng-container matColumnDef="tipo">
-              <th mat-header-cell *matHeaderCellDef style="width: 200px;">Categoría</th>
-              <td mat-cell *matCellDef="let d" style="width: 200px;">
-                <span class="tipo-dia-badge" [class]="'tipo-' + d.tipo.toLowerCase()">
+              <th mat-header-cell *matHeaderCellDef style="width: 200px">
+                Categoría
+              </th>
+              <td mat-cell *matCellDef="let d" style="width: 200px">
+                <span
+                  class="tipo-dia-badge"
+                  [class]="'tipo-' + d.tipo.toLowerCase()"
+                >
                   {{ tipoDiaLabel(d.tipo) }}
                 </span>
               </td>
             </ng-container>
 
             <ng-container matColumnDef="afecta">
-              <th mat-header-cell *matHeaderCellDef style="width: 150px;">Afecta a</th>
-              <td mat-cell *matCellDef="let d" style="width: 150px;">
-                <span *ngIf="d.afecta_aulas" class="afecta-chip aula" matTooltip="Aulas de Teoría">
+              <th mat-header-cell *matHeaderCellDef style="width: 150px">
+                Afecta a
+              </th>
+              <td mat-cell *matCellDef="let d" style="width: 150px">
+                <span
+                  *ngIf="d.afecta_aulas"
+                  class="afecta-chip aula"
+                  matTooltip="Aulas de Teoría"
+                >
                   <mat-icon>meeting_room</mat-icon>
                 </span>
-                <span *ngIf="d.afecta_laboratorios" class="afecta-chip lab" matTooltip="Laboratorios">
+                <span
+                  *ngIf="d.afecta_laboratorios"
+                  class="afecta-chip lab"
+                  matTooltip="Laboratorios"
+                >
                   <mat-icon>biotech</mat-icon>
                 </span>
               </td>
             </ng-container>
 
             <ng-container matColumnDef="acciones">
-              <th mat-header-cell *matHeaderCellDef style="width: 80px;"></th>
-              <td mat-cell *matCellDef="let d" class="actions-cell" style="width: 80px;">
+              <th mat-header-cell *matHeaderCellDef style="width: 80px"></th>
+              <td
+                mat-cell
+                *matCellDef="let d"
+                class="actions-cell"
+                style="width: 80px"
+              >
                 <button
                   mat-icon-button
                   class="btn-action delete"
@@ -300,11 +491,444 @@
               </td>
             </ng-container>
 
-            <tr mat-header-row *matHeaderRowDef="['fecha','descripcion','tipo','afecta','acciones']"></tr>
-            <tr mat-row *matRowDef="let row; columns: ['fecha','descripcion','tipo','afecta','acciones']" class="premium-row"></tr>
+            <tr
+              mat-header-row
+              *matHeaderRowDef="[
+                'fecha',
+                'descripcion',
+                'tipo',
+                'afecta',
+                'acciones',
+              ]"
+            ></tr>
+            <tr
+              mat-row
+              *matRowDef="
+                let row;
+                columns: ['fecha', 'descripcion', 'tipo', 'afecta', 'acciones']
+              "
+              class="premium-row"
+            ></tr>
           </table>
         </div>
       </div>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 3 — TURNOS HORARIOS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'turnos'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">schedule</mat-icon>
+        <mat-card-title>Registrar Turno Horario</mat-card-title>
+        <mat-card-subtitle
+          >Los turnos no pueden superponerse entre sí.</mat-card-subtitle
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="turnoForm" class="restriccion-form">
+          <div class="form-row-two">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Nombre del Turno</mat-label>
+              <input
+                matInput
+                formControlName="nombre"
+                placeholder="Ej: Mañana"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Hora Inicio</mat-label>
+              <input matInput type="time" formControlName="hora_inicio" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Hora Fin</mat-label>
+              <input matInput type="time" formControlName="hora_fin" />
+            </mat-form-field>
+          </div>
+          <div class="form-actions">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="guardarTurno()"
+              [disabled]="turnoForm.invalid || guardandoTurno"
+            >
+              <mat-icon>add</mat-icon>
+              {{ guardandoTurno ? "Guardando..." : "Registrar Turno" }}
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="premium-form-card" style="margin-top: 16px">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">list</mat-icon>
+        <mat-card-title>Turnos Registrados</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingTurnos" class="loading-state">
+          <mat-spinner diameter="36"></mat-spinner>
+        </div>
+        <div *ngIf="!loadingTurnos && turnos.length === 0" class="empty-state">
+          <mat-icon>schedule</mat-icon>
+          <p>No hay turnos registrados.</p>
+        </div>
+        <div
+          *ngIf="!loadingTurnos && turnos.length > 0"
+          class="turnos-cards-grid"
+        >
+          <div class="turno-card" *ngFor="let t of turnos">
+            <div class="turno-card-icon">
+              <mat-icon>schedule</mat-icon>
+            </div>
+            <div class="turno-card-body">
+              <span class="turno-card-nombre">{{ t.nombre }}</span>
+              <span class="turno-card-horario">
+                <mat-icon class="turno-clock-icon">access_time</mat-icon>
+                {{ t.hora_inicio }} — {{ t.hora_fin }}
+              </span>
+            </div>
+            <button
+              mat-icon-button
+              color="warn"
+              class="turno-card-delete"
+              (click)="eliminarTurno(t.id, t.nombre)"
+              matTooltip="Eliminar turno"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 4 — DÍAS ACTIVOS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'diasActivos'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">calendar_today</mat-icon>
+        <mat-card-title>Días Activos de la Semana</mat-card-title>
+        <mat-card-subtitle
+          >Activa o desactiva los días en que se puede dictar
+          clases.</mat-card-subtitle
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingDiasActivos" class="loading-state">
+          <mat-spinner diameter="36"></mat-spinner>
+        </div>
+        <div class="dias-activos-grid" *ngIf="!loadingDiasActivos">
+          <div
+            class="dia-toggle-card"
+            *ngFor="let d of diasActivos"
+            [class.activo]="d.activo"
+          >
+            <span class="dia-nombre">{{ d.nombre }}</span>
+            <mat-slide-toggle
+              [checked]="d.activo"
+              [disabled]="guardandoDiaActivo"
+              (change)="toggleDiaActivo(d)"
+              color="primary"
+            ></mat-slide-toggle>
+            <span class="dia-estado">{{
+              d.activo ? "Activo" : "Inactivo"
+            }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 5 — PARÁMETROS DE CARGA
+  ══════════════════════════════════════════════════════════════════ -->
+  <div
+    *ngIf="activeTab === 'parametrosCarga'"
+    class="tab-content animate-fadein"
+  >
+    <!-- Formulario -->
+    <mat-card class="premium-form-card parametros-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">tune</mat-icon>
+        <mat-card-title>
+          {{
+            editingParametroId ? "Editar Parámetro" : "Nuevo Parámetro de Carga"
+          }}
+        </mat-card-title>
+        <mat-card-subtitle>
+          Período: <strong>{{ periodoService.periodo }}</strong>
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="parametrosForm" class="restriccion-form">
+          <div class="form-row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Categoría del Docente</mat-label>
+              <mat-select formControlName="categoria">
+                <mat-option *ngFor="let c of categorias" [value]="c">{{
+                  c
+                }}</mat-option>
+              </mat-select>
+              <mat-icon matSuffix>workspace_premium</mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Tipo de Contrato</mat-label>
+              <mat-select formControlName="tipo_contrato">
+                <mat-option *ngFor="let t of tiposContrato" [value]="t">{{
+                  t
+                }}</mat-option>
+              </mat-select>
+              <mat-icon matSuffix>history_edu</mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Modalidad</mat-label>
+              <mat-select formControlName="modalidad">
+                <mat-option *ngFor="let m of modalidades" [value]="m">{{
+                  m.replace("_", " ")
+                }}</mat-option>
+              </mat-select>
+              <mat-icon matSuffix>schedule</mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Horas Mín. Semanal</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="horas_min_semanal"
+                min="1"
+                max="40"
+              />
+              <mat-hint>Por docente</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Horas Máx. Semanal</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="horas_max_semanal"
+                min="1"
+                max="80"
+              />
+              <mat-hint>Por docente</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Cursos Mín. por Docente</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="cursos_min_docente"
+                min="0"
+                max="20"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Cursos Máx. por Docente</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="cursos_max_docente"
+                min="1"
+                max="20"
+              />
+            </mat-form-field>
+          </div>
+          <div class="form-actions">
+            <button
+              mat-stroked-button
+              *ngIf="editingParametroId"
+              (click)="cancelarEdicionParametro()"
+              type="button"
+            >
+              <mat-icon>cancel</mat-icon> Cancelar
+            </button>
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="guardarParametrosCarga()"
+              [disabled]="parametrosForm.invalid || guardandoParametros"
+            >
+              <mat-icon>{{ editingParametroId ? "save" : "add" }}</mat-icon>
+              {{
+                guardandoParametros
+                  ? "Guardando..."
+                  : editingParametroId
+                    ? "Actualizar"
+                    : "Agregar Parámetro"
+              }}
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Lista de parámetros registrados -->
+    <div
+      class="section-title-row"
+      style="margin-top: 24px; margin-bottom: 12px"
+    >
+      <mat-icon>list_alt</mat-icon>
+      <h3 style="margin: 0 0 0 8px">Parámetros Registrados</h3>
+    </div>
+
+    <div *ngIf="loadingParametros" class="loading-state">
+      <mat-spinner diameter="36"></mat-spinner>
+    </div>
+
+    <div
+      *ngIf="!loadingParametros && parametrosList.length === 0"
+      class="empty-state-inline"
+    >
+      <mat-icon>info_outline</mat-icon>
+      <span>No hay parámetros registrados para este período.</span>
+    </div>
+
+    <div
+      class="parametros-cards-grid"
+      *ngIf="!loadingParametros && parametrosList.length > 0"
+    >
+      <mat-card class="parametro-card" *ngFor="let p of parametrosList">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="param-icon">person</mat-icon>
+          <mat-card-title>
+            <span [class]="'badge-pill badge-' + p.categoria">{{
+              p.categoria
+            }}</span>
+            <span
+              class="tc-badge"
+              [class.nombrado]="p.tipo_contrato === 'NOMBRADO'"
+              >{{ p.tipo_contrato }}</span
+            >
+            <span class="mod-badge">{{ formatModalidad(p.modalidad) }}</span>
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="param-content">
+          <div class="param-stat">
+            <span class="param-label">Horas Semanal</span>
+            <span class="param-value"
+              >{{ p.horas_min_semanal }} – {{ p.horas_max_semanal }} h</span
+            >
+          </div>
+          <div class="param-stat">
+            <span class="param-label">Cursos</span>
+            <span class="param-value"
+              >{{ p.cursos_min_docente }} – {{ p.cursos_max_docente }}</span
+            >
+          </div>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button
+            mat-icon-button
+            color="primary"
+            matTooltip="Editar"
+            (click)="editarParametro(p)"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            color="warn"
+            matTooltip="Eliminar"
+            (click)="eliminarParametro(p.id)"
+            [disabled]="eliminandoParametroId === p.id"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 6 — CONFIGURACIÓN GENERAL
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'general'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">business</mat-icon>
+        <mat-card-title>Configuración General Institucional</mat-card-title>
+        <mat-card-subtitle
+          >Nombre, logo y paleta de colores del sistema.</mat-card-subtitle
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingGeneral" class="loading-state">
+          <mat-spinner diameter="36"></mat-spinner>
+        </div>
+        <form
+          [formGroup]="generalForm"
+          class="restriccion-form"
+          *ngIf="!loadingGeneral"
+        >
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Nombre Institucional</mat-label>
+            <input
+              matInput
+              formControlName="nombre_institucional"
+              placeholder="Universidad Nacional de Trujillo"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>URL del Logo</mat-label>
+            <input
+              matInput
+              formControlName="logo_url"
+              placeholder="https://ejemplo.com/logo.png"
+            />
+            <mat-hint
+              >Enlace directo a la imagen del logo (PNG/SVG
+              recomendado)</mat-hint
+            >
+          </mat-form-field>
+          <div class="form-row-two" style="margin-top: 8px">
+            <mat-form-field appearance="outline">
+              <mat-label>Color Primario</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="color_primario"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.color_primario }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Color Secundario</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="color_secundario"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.color_secundario }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Color Acento</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="color_acento"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.color_acento }}</mat-hint>
+            </mat-form-field>
+          </div>
+          <div class="form-actions" style="margin-top: 16px">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="guardarConfiguracionGeneral()"
+              [disabled]="generalForm.invalid || guardandoGeneral"
+            >
+              <mat-icon>save</mat-icon>
+              {{ guardandoGeneral ? "Guardando..." : "Guardar Configuración" }}
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
     </mat-card>
   </div>
 </div>

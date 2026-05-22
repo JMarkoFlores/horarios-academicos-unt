@@ -79,7 +79,9 @@
         <mat-spinner diameter="50"></mat-spinner>
       </div>
 
-      <ng-container *ngIf="docenteSeleccionado && !loadingDocente">
+      <ng-container
+        *ngIf="docenteSeleccionado && !loadingDocente && !loadingDias"
+      >
         <div class="grid-card animate-fade-in">
           <div class="grid-header-info">
             <h3>
@@ -209,7 +211,9 @@
         <mat-spinner diameter="50"></mat-spinner>
       </div>
 
-      <ng-container *ngIf="ambienteSeleccionado && !loadingAmbiente">
+      <ng-container
+        *ngIf="ambienteSeleccionado && !loadingAmbiente && !loadingDias"
+      >
         <div class="grid-card animate-fade-in">
           <div class="grid-header-info">
             <h3>

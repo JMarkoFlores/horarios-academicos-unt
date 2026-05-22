@@ -1,0 +1,46 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Editar Escuela' : 'Nueva Escuela' }}</h2>
+<mat-dialog-content>
+  <form [formGroup]="form" class="dialog-form">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Facultad</mat-label>
+      <mat-select formControlName="facultad_id">
+        <mat-option *ngFor="let f of facultades" [value]="f.id">{{ f.nombre }}</mat-option>
+      </mat-select>
+      <mat-error *ngIf="form.get('facultad_id')?.hasError('required')">Requerido</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Código</mat-label>
+      <input matInput formControlName="codigo" maxlength="20" />
+      <mat-error *ngIf="form.get('codigo')?.hasError('required')">Requerido</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Nombre</mat-label>
+      <input matInput formControlName="nombre" maxlength="200" />
+      <mat-error *ngIf="form.get('nombre')?.hasError('required')">Requerido</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Descripción (opcional)</mat-label>
+      <textarea matInput formControlName="descripcion" rows="2" maxlength="500"></textarea>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Coordinador (opcional)</mat-label>
+      <mat-select formControlName="coordinador_id">
+        <mat-option [value]="null">— Sin asignar —</mat-option>
+        <mat-option *ngFor="let u of usuarios" [value]="u.id">{{ u.nombre }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-slide-toggle *ngIf="isEdit" formControlName="activo" color="primary">Activo</mat-slide-toggle>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button mat-dialog-close>Cancelar</button>
+  <button mat-raised-button color="primary" (click)="submit()" [disabled]="form.invalid || loading">
+    <mat-spinner *ngIf="loading" diameter="18" style="display:inline-block;margin-right:6px"></mat-spinner>
+    {{ isEdit ? 'Guardar' : 'Crear' }}
+  </button>
+</mat-dialog-actions>

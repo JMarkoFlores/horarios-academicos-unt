@@ -23,7 +23,10 @@ export class ValidadorHorarioService {
   ) {}
 
   async validarSlot(params: ValidarSlotDto): Promise<ResultadoValidacion> {
-    const duracion = this.calcularDuracionHoras(params.hora_inicio, params.hora_fin);
+    const duracion = this.calcularDuracionHoras(
+      params.hora_inicio,
+      params.hora_fin,
+    );
     const validaciones = await Promise.all([
       this.ejecutarValidacion(
         async () =>
@@ -75,28 +78,24 @@ export class ValidadorHorarioService {
       ),
       this.ejecutarValidacion(
         async () =>
-          !(
-            await this.validacionesService.verificarCruceDocente(
-              params.docente_id,
-              params.dia,
-              params.hora_inicio,
-              params.hora_fin,
-              params.periodo,
-            )
-          ),
+          !(await this.validacionesService.verificarCruceDocente(
+            params.docente_id,
+            params.dia,
+            params.hora_inicio,
+            params.hora_fin,
+            params.periodo,
+          )),
         "El docente tiene un cruce de horario.",
       ),
       this.ejecutarValidacion(
         async () =>
-          !(
-            await this.validacionesService.verificarCruceGrupo(
-              params.grupo_id,
-              params.dia,
-              params.hora_inicio,
-              params.hora_fin,
-              params.periodo,
-            )
-          ),
+          !(await this.validacionesService.verificarCruceGrupo(
+            params.grupo_id,
+            params.dia,
+            params.hora_inicio,
+            params.hora_fin,
+            params.periodo,
+          )),
         "El grupo tiene un cruce de horario.",
       ),
       this.ejecutarValidacion(
@@ -104,64 +103,71 @@ export class ValidadorHorarioService {
         "El laboratorio seleccionado ya está ocupado en ese horario.",
       ),
       params.curso_id
-        ? this.ejecutarValidacion(
-            async () => {
-              const res = await this.validacionesService.verificarHorasCurso(
-                params.curso_id!,
-                params.tipo_clase,
-                duracion,
-                params.periodo,
-              );
-              return res.valido;
-            },
-            "El curso ya tiene asignadas todas las horas requeridas para este tipo de clase.",
-          )
+        ? this.ejecutarValidacion(async () => {
+            const res = await this.validacionesService.verificarHorasCurso(
+              params.curso_id!,
+              params.tipo_clase,
+              duracion,
+              params.periodo,
+            );
+            return res.valido;
+          }, "El curso ya tiene asignadas todas las horas requeridas para este tipo de clase.")
         : Promise.resolve(null),
-      this.ejecutarValidacion(
-        async () => {
-          const res = await this.validacionesService.verificarCapacidadAmbiente(
-            params.ambiente_id,
-            params.grupo_id,
-          );
-          return res.valido;
-        },
-        "La capacidad del ambiente es menor al cupo del grupo.",
-      ),
-      this.ejecutarValidacion(
-        async () => {
-          const res = await this.validacionesService.verificarDescansoMinimoDocente(
+      this.ejecutarValidacion(async () => {
+        const res = await this.validacionesService.verificarCapacidadAmbiente(
+          params.ambiente_id,
+          params.grupo_id,
+        );
+        return res.valido;
+      }, "La capacidad del ambiente es menor al cupo del grupo."),
+      this.ejecutarValidacion(async () => {
+        const res =
+          await this.validacionesService.verificarDescansoMinimoDocente(
             params.docente_id,
             params.dia,
             params.hora_inicio,
             params.hora_fin,
             params.periodo,
           );
-          return res.valido;
-        },
-        "El docente no cumple el descanso mínimo de 1 hora entre clases.",
-      ),
-      this.ejecutarValidacion(
-        async () => {
-          const res = await this.validacionesService.verificarCargaHorariaSemanalDocente(
+        return res.valido;
+      }, "El docente no cumple el descanso mínimo de 1 hora entre clases."),
+      this.ejecutarValidacion(async () => {
+        const res =
+          await this.validacionesService.verificarCargaHorariaSemanalDocente(
             params.docente_id,
             duracion,
             params.periodo,
           );
-          return res.valido;
-        },
-        "El docente supera su carga horaria semanal máxima permitida.",
-      ),
+        return res.valido;
+      }, "El docente supera su carga horaria semanal máxima permitida."),
+      this.ejecutarValidacion(async () => {
+        const res = await this.validacionesService.verificarCursosDocente(
+          params.docente_id,
+          params.periodo,
+          params.curso_id,
+        );
+        return res.valido;
+      }, "El docente supera la cantidad máxima de cursos permitidos."),
     ]);
 
-    const errores = validaciones.filter((error): error is string => error !== null);
+    const errores = validaciones.filter(
+      (error): error is string => error !== null,
+    );
     return { valido: errores.length === 0, errores };
   }
 
-  async invalidarCacheAmbiente(ambienteId: number, periodo: string): Promise<void> {
-    await this.cacheManager.del(this.crearClaveSlotsAmbiente(ambienteId, periodo));
+  async invalidarCacheAmbiente(
+    ambienteId: number,
+    periodo: string,
+  ): Promise<void> {
+    await this.cacheManager.del(
+      this.crearClaveSlotsAmbiente(ambienteId, periodo),
+    );
   }
 
-  private async validarCruceLaboratorio(params: ValidarSlotDto): Promise<boolean> {
+  private async validarCruceLaboratorio(
+    params: ValidarSlotDto,
+  ): Promise<boolean> {
     if (params.tipo_clase !== TipoClase.LABORATORIO) {
       return true;
     }
@@ -193,7 +199,14 @@ export class ValidadorHorarioService {
 
     if (Array.isArray(slotsCacheados)) {
       return slotsCacheados.some((slot) =>
-        this.solapan(slot.dia, slot.hora_inicio, slot.hora_fin, dia, horaInicio, horaFin),
+        this.solapan(
+          slot.dia,
+          slot.hora_inicio,
+          slot.hora_fin,
+          dia,
+          horaInicio,
+          horaFin,
+        ),
       );
     }
 
@@ -209,10 +222,18 @@ export class ValidadorHorarioService {
       .createQueryBuilder("h")
       .where("h.ambiente_id = :ambienteId", { ambienteId })
       .andWhere("h.periodo = :periodo", { periodo })
-      .select(["h.dia AS dia", "h.hora_inicio AS hora_inicio", "h.hora_fin AS hora_fin"])
+      .select([
+        "h.dia AS dia",
+        "h.hora_inicio AS hora_inicio",
+        "h.hora_fin AS hora_fin",
+      ])
       .getRawMany<SlotOcupado>();
 
-    await this.cacheManager.set(cacheKey, slots, ValidadorHorarioService.TTL_SLOTS_AMBIENTE);
+    await this.cacheManager.set(
+      cacheKey,
+      slots,
+      ValidadorHorarioService.TTL_SLOTS_AMBIENTE,
+    );
     return hayCruce;
   }
 

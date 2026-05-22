@@ -9,6 +9,7 @@ import { Ambiente } from "../../entities/ambiente.entity";
 import { Curso } from "../../entities/curso.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { Docente } from "../../entities/docente.entity";
+import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 
 @Injectable()
 export class ValidacionesService {
@@ -29,6 +30,8 @@ export class ValidacionesService {
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(Docente)
     private readonly docenteRepo: Repository<Docente>,
+    @InjectRepository(ParametrosCarga)
+    private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
   ) {}
 
   async verificarCruceDocente(
@@ -211,7 +214,11 @@ export class ValidacionesService {
     });
 
     let maxHoras = 8; // Fallback por defecto si no existe una restricción específica
-    if (restriccion && restriccion.valor && typeof restriccion.valor === "object") {
+    if (
+      restriccion &&
+      restriccion.valor &&
+      typeof restriccion.valor === "object"
+    ) {
       const valor = restriccion.valor as Record<string, any>;
       if (typeof valor.max_horas === "number") {
         maxHoras = valor.max_horas;
@@ -248,7 +255,11 @@ export class ValidacionesService {
     tipoClase: string,
     duracionHoras: number,
     periodo: string,
-  ): Promise<{ valido: boolean; horasAsignadas: number; horasRequeridas: number }> {
+  ): Promise<{
+    valido: boolean;
+    horasAsignadas: number;
+    horasRequeridas: number;
+  }> {
     const curso = await this.cursoRepo.findOne({ where: { id: cursoId } });
     if (!curso) return { valido: false, horasAsignadas: 0, horasRequeridas: 0 };
 
@@ -288,7 +299,9 @@ export class ValidacionesService {
     ambienteId: number,
     grupoId: number,
   ): Promise<{ valido: boolean; capacidad: number; cupo: number }> {
-    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: ambienteId },
+    });
     const grupo = await this.grupoRepo.findOne({ where: { id: grupoId } });
 
     if (!ambiente || !grupo) return { valido: false, capacidad: 0, cupo: 0 };
@@ -354,11 +367,23 @@ export class ValidacionesService {
     duracionHoras: number,
     periodo: string,
   ): Promise<{ valido: boolean; horasSemana: number; maxSemanal: number }> {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
     if (!docente) return { valido: false, horasSemana: 0, maxSemanal: 0 };
 
-    // Límite semanal según tipo de contrato
-    const maxSemanal = docente.tipo_contrato === "NOMBRADO" ? 20 : 24;
+    const parametro = await this.parametrosCargaRepo.findOne({
+      where: {
+        periodo_academico: periodo,
+        categoria: docente.categoria,
+        tipo_contrato: docente.tipo_contrato,
+        modalidad: docente.modalidad || "",
+      },
+    });
+
+    // Si no hay parámetro definido, permitir sin restricción
+    const maxSemanal = parametro?.horas_max_semanal ?? 999;
+    const minSemanal = parametro?.horas_min_semanal ?? 0;
 
     const horarios = await this.horarioRepo.find({
       where: { docente_id: docenteId, periodo },
@@ -373,6 +398,45 @@ export class ValidacionesService {
       horasSemana += (toMin(h.hora_fin) - toMin(h.hora_inicio)) / 60;
     }
 
-    return { valido: horasSemana + duracionHoras <= maxSemanal, horasSemana, maxSemanal };
+    // Solo validamos máximo en asignación individual; el mínimo se verifica al completar
+    const valido = horasSemana + duracionHoras <= maxSemanal;
+    return { valido, horasSemana, maxSemanal };
+  }
+
+  async verificarCursosDocente(
+    docenteId: number,
+    periodo: string,
+    cursoId?: number,
+  ): Promise<{ valido: boolean; cursosAsignados: number; maxCursos: number }> {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
+    if (!docente) return { valido: false, cursosAsignados: 0, maxCursos: 0 };
+
+    const parametro = await this.parametrosCargaRepo.findOne({
+      where: {
+        periodo_academico: periodo,
+        categoria: docente.categoria,
+        tipo_contrato: docente.tipo_contrato,
+        modalidad: docente.modalidad || "",
+      },
+    });
+
+    // Si no hay parámetro definido, permitir sin restricción
+    const maxCursos = parametro?.cursos_max_docente ?? 999;
+
+    const horarios = await this.horarioRepo
+      .createQueryBuilder("h")
+      .select("DISTINCT h.curso_id", "curso_id")
+      .where("h.docente_id = :docenteId", { docenteId })
+      .andWhere("h.periodo = :periodo", { periodo })
+      .getRawMany();
+
+    const cursosUnicos = new Set(horarios.map((h) => h.curso_id));
+    const yaTieneCurso = cursoId ? cursosUnicos.has(cursoId) : false;
+    const cursosAsignados =
+      cursosUnicos.size + (cursoId && !yaTieneCurso ? 1 : 0);
+    const valido = cursosAsignados <= maxCursos;
+    return { valido, cursosAsignados, maxCursos };
   }
 }

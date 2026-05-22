@@ -26,6 +26,7 @@ export interface Docente {
   telefono?: string;
   categoria: string;
   tipo_contrato: string;
+  modalidad?: string;
   fecha_ingreso: string;
   activo: boolean;
   puntaje_jerarquia?: number;
@@ -63,7 +64,13 @@ export interface Ambiente {
   id: number;
   codigo: string;
   nombre: string;
-  tipo: 'AULA' | 'LABORATORIO' | 'AUDITORIO' | 'TALLER' | 'SEMINARIO' | 'SALA_COMPUTACION';
+  tipo:
+    | 'AULA'
+    | 'LABORATORIO'
+    | 'AUDITORIO'
+    | 'TALLER'
+    | 'SEMINARIO'
+    | 'SALA_COMPUTACION';
   capacidad: number;
   piso?: number;
   pabellon?: string;

@@ -36,9 +36,18 @@ export class DocentesService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-
   async findAll(query: QueryDocenteDto) {
-    const { page = 1, limit = 20, categoria, tipo_contrato, busqueda, sortBy, sortDir, activo } = query;
+    const {
+      page = 1,
+      limit = 20,
+      categoria,
+      tipo_contrato,
+      modalidad,
+      busqueda,
+      sortBy,
+      sortDir,
+      activo,
+    } = query;
     const activoFiltro = activo !== undefined ? activo : true;
 
     const qb = this.docenteRepo
@@ -51,6 +60,10 @@ export class DocentesService {
 
     if (tipo_contrato) {
       qb.andWhere("docente.tipo_contrato = :tipo_contrato", { tipo_contrato });
+    }
+
+    if (modalidad) {
+      qb.andWhere("docente.modalidad = :modalidad", { modalidad });
     }
 
     if (busqueda) {
@@ -91,6 +104,7 @@ export class DocentesService {
   async findAllParaExportar(filters: {
     categoria?: string;
     tipo_contrato?: string;
+    modalidad?: string;
     busqueda?: string;
   }) {
     const qb = this.docenteRepo
@@ -105,6 +119,11 @@ export class DocentesService {
     if (filters.tipo_contrato) {
       qb.andWhere("docente.tipo_contrato = :tipo_contrato", {
         tipo_contrato: filters.tipo_contrato,
+      });
+    }
+    if (filters.modalidad) {
+      qb.andWhere("docente.modalidad = :modalidad", {
+        modalidad: filters.modalidad,
       });
     }
     if (filters.busqueda) {
@@ -269,7 +288,9 @@ export class DocentesService {
 
     let periodoId: number | null = null;
     if (dto.periodo) {
-      const periodo = await this.periodoRepo.findOne({ where: { codigo: dto.periodo } });
+      const periodo = await this.periodoRepo.findOne({
+        where: { codigo: dto.periodo },
+      });
       if (!periodo) {
         throw new NotFoundException(`Período ${dto.periodo} no encontrado`);
       }
@@ -279,22 +300,38 @@ export class DocentesService {
     const asignaciones: DocenteCurso[] = [];
 
     for (const item of dto.cursos) {
-      const curso = await this.cursoRepo.findOne({ where: { id: item.cursoId, activo: true } });
+      const curso = await this.cursoRepo.findOne({
+        where: { id: item.cursoId, activo: true },
+      });
       if (!curso) {
-        throw new NotFoundException(`Curso con ID ${item.cursoId} no encontrado o inactivo`);
+        throw new NotFoundException(
+          `Curso con ID ${item.cursoId} no encontrado o inactivo`,
+        );
       }
 
       // Validar que el curso tenga horas para la modalidad seleccionada
       if (item.tipo_clase === TipoClase.TEORIA && curso.horas_teoria <= 0) {
-        throw new BadRequestException(`El curso ${curso.codigo} no tiene horas de teoría`);
+        throw new BadRequestException(
+          `El curso ${curso.codigo} no tiene horas de teoría`,
+        );
       }
-      if (item.tipo_clase === TipoClase.LABORATORIO && curso.horas_laboratorio <= 0) {
-        throw new BadRequestException(`El curso ${curso.codigo} no tiene horas de laboratorio`);
+      if (
+        item.tipo_clase === TipoClase.LABORATORIO &&
+        curso.horas_laboratorio <= 0
+      ) {
+        throw new BadRequestException(
+          `El curso ${curso.codigo} no tiene horas de laboratorio`,
+        );
       }
 
       // Verificar duplicado exacto
       const yaExiste = await this.docenteCursoRepo.findOne({
-        where: { docenteId, cursoId: item.cursoId, tipo_clase: item.tipo_clase, periodoId },
+        where: {
+          docenteId,
+          cursoId: item.cursoId,
+          tipo_clase: item.tipo_clase,
+          periodoId,
+        },
       });
       if (yaExiste) {
         throw new ConflictException(
@@ -315,12 +352,18 @@ export class DocentesService {
     return asignaciones;
   }
 
-  async findCursosHabilitados(docenteId: number, tipoClase?: TipoClase, periodoCodigo?: string) {
+  async findCursosHabilitados(
+    docenteId: number,
+    tipoClase?: TipoClase,
+    periodoCodigo?: string,
+  ) {
     await this.findOne(docenteId);
 
     let periodoId: number | null = null;
     if (periodoCodigo) {
-      const periodo = await this.periodoRepo.findOne({ where: { codigo: periodoCodigo } });
+      const periodo = await this.periodoRepo.findOne({
+        where: { codigo: periodoCodigo },
+      });
       if (periodo) periodoId = periodo.id;
     }
 
@@ -348,7 +391,12 @@ export class DocentesService {
     }));
   }
 
-  async removeAsignacion(docenteId: number, cursoId: number, tipoClase: TipoClase, periodoCodigo?: string): Promise<void> {
+  async removeAsignacion(
+    docenteId: number,
+    cursoId: number,
+    tipoClase: TipoClase,
+    periodoCodigo?: string,
+  ): Promise<void> {
     await this.findOne(docenteId);
 
     const where: any = {
@@ -358,7 +406,9 @@ export class DocentesService {
     };
 
     if (periodoCodigo) {
-      const periodo = await this.periodoRepo.findOne({ where: { codigo: periodoCodigo } });
+      const periodo = await this.periodoRepo.findOne({
+        where: { codigo: periodoCodigo },
+      });
       if (periodo) where.periodoId = periodo.id;
     }
 
@@ -385,7 +435,10 @@ export class DocentesService {
     return docente?.ambientes ?? [];
   }
 
-  async asignarAmbientes(docenteId: number, ambienteIds: number[]): Promise<Ambiente[]> {
+  async asignarAmbientes(
+    docenteId: number,
+    ambienteIds: number[],
+  ): Promise<Ambiente[]> {
     const docente = await this.docenteRepo
       .createQueryBuilder("docente")
       .leftJoinAndSelect("docente.ambientes", "ambientes")

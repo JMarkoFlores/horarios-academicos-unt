@@ -4,6 +4,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ApiService } from '../../../../core/services/api.service';
 import { NotifToastService } from '../../../../core/services/notif-toast.service';
 import { PeriodoService } from '../../../../core/services/periodo.service';
+import { DiasActivosService } from '../../../../core/services/dias-activos.service';
 import { Ambiente, ApiResponse } from '../../../../core/interfaces/entities';
 
 interface SlotOcupado {
@@ -25,8 +26,8 @@ interface SlotOcupado {
   styleUrls: ['./ver-disponibilidad-dialog.component.scss'],
 })
 export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
-  dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-  diasNum = [1, 2, 3, 4, 5];
+  dias: string[] = [];
+  diasNum: number[] = [];
   horas = Array.from({ length: 15 }, (_, i) => i + 7);
 
   ocupados: SlotOcupado[] = [];
@@ -40,9 +41,16 @@ export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
     private api: ApiService,
     private notif: NotifToastService,
     public periodoService: PeriodoService,
+    private diasActivosService: DiasActivosService,
   ) {}
 
   ngOnInit(): void {
+    this.diasActivosService.cargar().subscribe(() => {
+      this.dias = this.diasActivosService.nombres;
+      this.diasNum = this.diasActivosService.numeros;
+    });
+    this.dias = this.diasActivosService.nombres;
+    this.diasNum = this.diasActivosService.numeros;
     this.cargarDisponibilidad();
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
       this.cargarDisponibilidad();
@@ -108,7 +116,7 @@ export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
       if (s.hora_inicio && s.hora_fin) {
         const [hi, mi] = s.hora_inicio.split(':').map(Number);
         const [hf, mf] = s.hora_fin.split(':').map(Number);
-        total += (hf + mf / 60) - (hi + mi / 60);
+        total += hf + mf / 60 - (hi + mi / 60);
       }
     }
     return Math.round(total * 10) / 10;

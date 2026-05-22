@@ -1,5 +1,14 @@
 @use "@angular/material" as mat;
 
+// ── DESIGN SYSTEM (centralizado) ──────────────────────────────────────────────
+// Variables SCSS (breakpoints, z-index, easing) — sin CSS output
+@use "app/shared/design-system/variables" as ds;
+// Typography utility classes (.text-xs … .font-bold … .text-primary)
+@use "app/shared/design-system/typography";
+// Component utility classes (.card-unt, .btn-unt-*, .badge-*, .stat-card)
+@use "app/shared/design-system/utilities";
+// ─────────────────────────────────────────────────────────────────────────────
+
 @include mat.core();
 
 // ── 1. PALETA DE COLORES PREMIUM (SaaS Moderno) ───────────────────────────
@@ -12,7 +21,8 @@ $unt-primary-map: (
   500: #6366f1,
   600: #4f46e5,
   700: #4338ca,
-  800: #3730a3, // Indigo Principal
+  800: #3730a3,
+  // Indigo Principal
   900: #312e81,
   contrast: (
     600: #ffffff,
@@ -27,7 +37,8 @@ $unt-accent-map: (
   300: #c4b5fd,
   400: #a78bfa,
   500: #8b5cf6,
-  600: #7c3aed, // Violeta Principal
+  600: #7c3aed,
+  // Violeta Principal
   700: #6d28d9,
   800: #5b21b6,
   900: #4c1d95,
@@ -53,25 +64,29 @@ $unt-typography: mat.define-typography-config(
 );
 
 // Temas de Material
-$unt-light-theme: mat.define-light-theme((
-  color: (
-    primary: $unt-primary,
-    accent: $unt-accent,
-    warn: $unt-warn,
-  ),
-  typography: $unt-typography,
-  density: -1,
-));
+$unt-light-theme: mat.define-light-theme(
+  (
+    color: (
+      primary: $unt-primary,
+      accent: $unt-accent,
+      warn: $unt-warn,
+    ),
+    typography: $unt-typography,
+    density: -1,
+  )
+);
 
-$unt-dark-theme: mat.define-dark-theme((
-  color: (
-    primary: $unt-primary,
-    accent: $unt-accent,
-    warn: $unt-warn,
-  ),
-  typography: $unt-typography,
-  density: -1,
-));
+$unt-dark-theme: mat.define-dark-theme(
+  (
+    color: (
+      primary: $unt-primary,
+      accent: $unt-accent,
+      warn: $unt-warn,
+    ),
+    typography: $unt-typography,
+    density: -1,
+  )
+);
 
 // Aplicación de Temas
 @include mat.all-component-themes($unt-light-theme);
@@ -83,28 +98,28 @@ $unt-dark-theme: mat.define-dark-theme((
 // ── 3. VARIABLES CSS GLOBALES (Sistema de Diseño Profesional UNT) ─────────────
 :root {
   // Colores principales UNT
-  --color-primary-50: #E3F2FD;
-  --color-primary-100: #BBDEFB;
-  --color-primary-200: #90CAF9;
-  --color-primary-300: #64B5F6;
-  --color-primary-400: #42A5F5;
-  --color-primary-500: #1565C0; // Azul institucional UNT
-  --color-primary-600: #0D47A1;
-  --color-primary-700: #0A3D91;
-  --color-primary-800: #07337A;
+  --color-primary-50: #e3f2fd;
+  --color-primary-100: #bbdefb;
+  --color-primary-200: #90caf9;
+  --color-primary-300: #64b5f6;
+  --color-primary-400: #42a5f5;
+  --color-primary-500: #1565c0; // Azul institucional UNT
+  --color-primary-600: #0d47a1;
+  --color-primary-700: #0a3d91;
+  --color-primary-800: #07337a;
   --color-primary-900: #042963;
 
   // Acento UNT
-  --color-accent-50: #FFF3E0;
-  --color-accent-100: #FFE0B2;
-  --color-accent-200: #FFCC80;
-  --color-accent-300: #FFB74D;
-  --color-accent-400: #FFA726;
-  --color-accent-500: #FF6F00; // Naranja UNT
-  --color-accent-600: #E65100;
-  --color-accent-700: #BF360C;
-  --color-accent-800: #8D2608;
-  --color-accent-900: #5C1B02;
+  --color-accent-50: #fff3e0;
+  --color-accent-100: #ffe0b2;
+  --color-accent-200: #ffcc80;
+  --color-accent-300: #ffb74d;
+  --color-accent-400: #ffa726;
+  --color-accent-500: #ff6f00; // Naranja UNT
+  --color-accent-600: #e65100;
+  --color-accent-700: #bf360c;
+  --color-accent-800: #8d2608;
+  --color-accent-900: #5c1b02;
 
   // Colores de uso común (alias para compatibilidad)
   --color-primary: var(--color-primary-500);
@@ -116,46 +131,46 @@ $unt-dark-theme: mat.define-dark-theme((
 
   // Semánticos (light)
   --color-success: #059669;
-  --color-success-light: #10B981;
-  --color-success-bg: rgba(16, 185, 129, 0.10);
+  --color-success-light: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.1);
   --color-success-bg-light: rgba(16, 185, 129, 0.05);
 
-  --color-warning: #F59E0B;
-  --color-warning-light: #FBBF24;
-  --color-warning-bg: rgba(245, 158, 11, 0.10);
+  --color-warning: #f59e0b;
+  --color-warning-light: #fbbf24;
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
   --color-warning-bg-light: rgba(245, 158, 11, 0.05);
 
-  --color-danger: #DC2626;
-  --color-danger-light: #EF4444;
-  --color-danger-bg: rgba(239, 68, 68, 0.10);
+  --color-danger: #dc2626;
+  --color-danger-light: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.1);
   --color-danger-bg-light: rgba(239, 68, 68, 0.05);
 
-  --color-info: #0284C7;
-  --color-info-light: #3B82F6;
+  --color-info: #0284c7;
+  --color-info-light: #3b82f6;
   --color-info-bg: rgba(59, 130, 246, 0.12);
   --color-info-bg-light: rgba(59, 130, 246, 0.05);
 
   // Neutros (light)
-  --color-bg: #F8FAFC; // Slate 50
-  --color-surface: #FFFFFF;
-  --color-surface-2: #F1F5F9; // Slate 100
-  --color-surface-3: #E2E8F0; // Slate 200
-  --color-border: #E2E8F0; // Slate 200
-  --color-border-light: #F1F5F9;
-  --color-border-dark: #CBD5E1; // Slate 300
+  --color-bg: #f8fafc; // Slate 50
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f5f9; // Slate 100
+  --color-surface-3: #e2e8f0; // Slate 200
+  --color-border: #e2e8f0; // Slate 200
+  --color-border-light: #f1f5f9;
+  --color-border-dark: #cbd5e1; // Slate 300
 
-  --color-text: #0F172A; // Slate 900
+  --color-text: #0f172a; // Slate 900
   --color-text-secondary: #334155; // Slate 700
-  --color-text-muted: #64748B; // Slate 500
-  --color-text-disabled: #94A3B8; // Slate 400
+  --color-text-muted: #64748b; // Slate 500
+  --color-text-disabled: #94a3b8; // Slate 400
 
   // Colores de grilla de horarios
-  --color-slot-teoria: #BBDEFB; // azul claro
-  --color-slot-laboratorio: #C8E6C9; // verde claro
-  --color-slot-seleccion: #FFF9C4; // amarillo — selección temporal
-  --color-slot-propia: #A5D6A7; // verde — selección propia
-  --color-slot-bloqueado: #ECEFF1; // gris — no disponible
-  --color-slot-ocupado: #CFD8DC; // gris oscuro — ocupado por otro
+  --color-slot-teoria: #bbdefb; // azul claro
+  --color-slot-laboratorio: #c8e6c9; // verde claro
+  --color-slot-seleccion: #fff9c4; // amarillo — selección temporal
+  --color-slot-propia: #a5d6a7; // verde — selección propia
+  --color-slot-bloqueado: #eceff1; // gris — no disponible
+  --color-slot-ocupado: #cfd8dc; // gris oscuro — ocupado por otro
 
   // Sistema de espaciado (escala de 4px)
   --space-1: 4px;
@@ -184,8 +199,10 @@ $unt-dark-theme: mat.define-dark-theme((
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-lg:
+    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl:
+    0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 
   // Sistema de transiciones
@@ -196,9 +213,9 @@ $unt-dark-theme: mat.define-dark-theme((
   --transition-slower: 500ms cubic-bezier(0.4, 0, 0.2, 1);
 
   // Sistema tipográfico
-  --font-display: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
-  --font-body: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --font-display: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  --font-body: "Inter", "Roboto", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
 
   // Z-index layers
   --z-dropdown: 1000;
@@ -213,16 +230,16 @@ $unt-dark-theme: mat.define-dark-theme((
 // ── 4. DARK MODE (Sistema de Diseño Profesional UNT) ─────────────────────────────
 body.dark-theme {
   // Colores principales UNT (dark)
-  --color-primary-500: #42A5F5; // Más claro para dark mode
-  --color-primary-600: #64B5F6;
-  --color-primary-700: #90CAF9;
-  --color-primary-800: #BBDEFB;
-  --color-primary-900: #E3F2FD;
+  --color-primary-500: #42a5f5; // Más claro para dark mode
+  --color-primary-600: #64b5f6;
+  --color-primary-700: #90caf9;
+  --color-primary-800: #bbdefb;
+  --color-primary-900: #e3f2fd;
 
-  --color-accent-500: #FFB74D; // Más claro para dark mode
-  --color-accent-600: #FFCC80;
-  --color-accent-700: #FFE0B2;
-  --color-accent-800: #FFF3E0;
+  --color-accent-500: #ffb74d; // Más claro para dark mode
+  --color-accent-600: #ffcc80;
+  --color-accent-700: #ffe0b2;
+  --color-accent-800: #fff3e0;
 
   // Alias
   --color-primary: var(--color-primary-500);
@@ -233,47 +250,47 @@ body.dark-theme {
   --color-accent-hover: var(--color-accent-600);
 
   // Semánticos (dark)
-  --color-success: #34D399;
-  --color-success-light: #6EE7B7;
+  --color-success: #34d399;
+  --color-success-light: #6ee7b7;
   --color-success-bg: rgba(52, 211, 153, 0.15);
   --color-success-bg-light: rgba(52, 211, 153, 0.08);
 
-  --color-warning: #FBBF24;
-  --color-warning-light: #FCD34D;
+  --color-warning: #fbbf24;
+  --color-warning-light: #fcd34d;
   --color-warning-bg: rgba(251, 191, 36, 0.15);
   --color-warning-bg-light: rgba(251, 191, 36, 0.08);
 
-  --color-danger: #F87171;
-  --color-danger-light: #FCA5A5;
+  --color-danger: #f87171;
+  --color-danger-light: #fca5a5;
   --color-danger-bg: rgba(248, 113, 113, 0.15);
   --color-danger-bg-light: rgba(248, 113, 113, 0.08);
 
-  --color-info: #60A5FA;
-  --color-info-light: #93C5FD;
+  --color-info: #60a5fa;
+  --color-info-light: #93c5fd;
   --color-info-bg: rgba(96, 165, 250, 0.15);
   --color-info-bg-light: rgba(96, 165, 250, 0.08);
 
   // Neutros (dark)
-  --color-bg: #0F172A; // Slate 900
-  --color-surface: #1E293B; // Slate 800
+  --color-bg: #0f172a; // Slate 900
+  --color-surface: #1e293b; // Slate 800
   --color-surface-2: #334155; // Slate 700
   --color-surface-3: #475569; // Slate 600
   --color-border: #334155; // Slate 700
   --color-border-light: #475569;
-  --color-border-dark: #64748B;
+  --color-border-dark: #64748b;
 
-  --color-text: #F8FAFC; // Slate 50
-  --color-text-secondary: #E2E8F0; // Slate 200
-  --color-text-muted: #94A3B8; // Slate 400
-  --color-text-disabled: #64748B; // Slate 500
+  --color-text: #f8fafc; // Slate 50
+  --color-text-secondary: #e2e8f0; // Slate 200
+  --color-text-muted: #94a3b8; // Slate 400
+  --color-text-disabled: #64748b; // Slate 500
 
   // Colores de grilla de horarios (dark)
-  --color-slot-teoria: #1E3A8A; // azul oscuro
-  --color-slot-laboratorio: #065F46; // verde oscuro
-  --color-slot-seleccion: #713F12; // amarillo oscuro
-  --color-slot-propia: #064E3B; // verde oscuro
+  --color-slot-teoria: #1e3a8a; // azul oscuro
+  --color-slot-laboratorio: #065f46; // verde oscuro
+  --color-slot-seleccion: #713f12; // amarillo oscuro
+  --color-slot-propia: #064e3b; // verde oscuro
   --color-slot-bloqueado: #374151; // gris oscuro
-  --color-slot-ocupado: #4B5563; // gris más oscuro
+  --color-slot-ocupado: #4b5563; // gris más oscuro
 
   background-color: var(--color-bg);
 }
@@ -283,7 +300,8 @@ body.dark-theme {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
   overflow: hidden; // Prevenir doble barra global
@@ -294,12 +312,17 @@ body {
   font-size: 14px;
   background-color: var(--color-background);
   color: var(--color-text);
-  transition: background-color var(--transition-normal), color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
 }
 
 // Forzar colores de texto en componentes Material para modo oscuro
 .dark-theme {
-  .mat-mdc-card, .mat-mdc-table, .mat-mdc-dialog-container, .mat-mdc-menu-panel {
+  .mat-mdc-card,
+  .mat-mdc-table,
+  .mat-mdc-dialog-container,
+  .mat-mdc-menu-panel {
     color: var(--color-text) !important;
   }
   .mat-mdc-header-cell {
@@ -352,8 +375,12 @@ body {
 }
 
 @keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
 }
 
 .animate-fadein {
@@ -374,8 +401,16 @@ body {
   display: inline-block;
 }
 
-.skeleton-text { height: 12px; width: 100%; margin-bottom: 8px; }
-.skeleton-card { height: 180px; width: 100%; border-radius: var(--radius-md); }
+.skeleton-text {
+  height: 12px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.skeleton-card {
+  height: 180px;
+  width: 100%;
+  border-radius: var(--radius-md);
+}
 
 // ── 8. MEJORA COMPONENTES MATERIAL ─────────────────────────────────────────
 .mat-mdc-card {
@@ -417,7 +452,8 @@ body {
     }
   }
 
-  .mat-mdc-cell, .mat-mdc-header-cell {
+  .mat-mdc-cell,
+  .mat-mdc-header-cell {
     border-bottom: 1px solid var(--color-border) !important;
     padding: 16px !important;
   }
@@ -434,15 +470,36 @@ body {
   letter-spacing: 0.01em;
 }
 
-.badge-PRINCIPAL { background: var(--color-primary-light); color: var(--color-primary); }
-.badge-ASOCIADO { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-.badge-AUXILIAR { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.badge-JEFE_PRACTICA { background: var(--color-accent-light); color: var(--color-accent); }
-.badge-ACTIVO { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
-.badge-INACTIVO { background: rgba(100, 116, 139, 0.1); color: #64748b; }
+.badge-PRINCIPAL {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+.badge-ASOCIADO {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+.badge-AUXILIAR {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+.badge-JEFE_PRACTICA {
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}
+.badge-ACTIVO {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+.badge-INACTIVO {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
 
 // ── 10. SCROLLBAR ──────────────────────────────────────────────────────────
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 10px;
@@ -452,12 +509,24 @@ body {
 }
 
 // Snackbars
-.snack-success .mdc-snackbar__surface { background: #10b981 !important; }
-.snack-error .mdc-snackbar__surface { background: #ef4444 !important; }
+.snack-success .mdc-snackbar__surface {
+  background: #10b981 !important;
+}
+.snack-error .mdc-snackbar__surface {
+  background: #ef4444 !important;
+}
 
 // 404
 .not-found-page {
-  h1 { font-size: 100px; color: var(--color-primary); letter-spacing: -0.05em; }
-  h2 { color: var(--color-text); }
-  p { color: var(--color-text-muted); }
+  h1 {
+    font-size: 100px;
+    color: var(--color-primary);
+    letter-spacing: -0.05em;
+  }
+  h2 {
+    color: var(--color-text);
+  }
+  p {
+    color: var(--color-text-muted);
+  }
 }

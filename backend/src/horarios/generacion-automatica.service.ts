@@ -10,6 +10,7 @@ import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { CursoAmbiente } from "../entities/curso-ambiente.entity";
 import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
@@ -43,7 +44,22 @@ export interface DetalleDocente {
 export class GeneracionAutomaticaService {
   private readonly logger = new Logger(GeneracionAutomaticaService.name);
   private readonly DIAS_SEMANA = [1, 2, 3, 4, 5, 6]; // Lun-Sáb
-  private readonly HORAS_INICIO = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
+  private readonly HORAS_INICIO = [
+    "07:00",
+    "08:00",
+    "09:00",
+    "10:00",
+    "11:00",
+    "12:00",
+    "13:00",
+    "14:00",
+    "15:00",
+    "16:00",
+    "17:00",
+    "18:00",
+    "19:00",
+    "20:00",
+  ];
   private readonly DURACION_BLOQUE = 2; // horas por bloque
 
   constructor(
@@ -65,25 +81,37 @@ export class GeneracionAutomaticaService {
     private readonly cursoAmbienteRepo: Repository<CursoAmbiente>,
     @InjectRepository(DisponibilidadDocente)
     private readonly disponibilidadRepo: Repository<DisponibilidadDocente>,
+    @InjectRepository(ParametrosCarga)
+    private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
   ) {}
 
   async generarHorarios(periodoCodigo: string): Promise<ResultadoGeneracion> {
     this.logger.log(`[Generación] Iniciando para período ${periodoCodigo}`);
 
-    const periodo = await this.periodoRepo.findOne({ where: { codigo: periodoCodigo } });
-    if (!periodo) throw new BadRequestException(`Período ${periodoCodigo} no encontrado`);
+    const periodo = await this.periodoRepo.findOne({
+      where: { codigo: periodoCodigo },
+    });
+    if (!periodo)
+      throw new BadRequestException(`Período ${periodoCodigo} no encontrado`);
 
     // Solo permitir generación en modo AUTOMATICA o MIXTA
     if (periodo.modo_asignacion === ModoAsignacion.VENTANAS) {
-      throw new BadRequestException("Este período está configurado solo para ventanas de atención");
+      throw new BadRequestException(
+        "Este período está configurado solo para ventanas de atención",
+      );
     }
 
     // Limpiar horarios auto-generados previos del período
     const previos = await this.horarioRepo.find({
-      where: { periodo: periodoCodigo, origen: OrigenHorario.GENERACION_AUTOMATICA },
+      where: {
+        periodo: periodoCodigo,
+        origen: OrigenHorario.GENERACION_AUTOMATICA,
+      },
     });
     if (previos.length > 0) {
-      this.logger.log(`[Generación] Eliminando ${previos.length} horarios auto-generados previos`);
+      this.logger.log(
+        `[Generación] Eliminando ${previos.length} horarios auto-generados previos`,
+      );
       await this.horarioRepo.remove(previos);
     }
 
@@ -124,6 +152,22 @@ export class GeneracionAutomaticaService {
       relations: ["docente", "ambiente", "grupo"],
     });
 
+    // Cargar parámetros de carga para el período
+    const parametrosCarga = await this.parametrosCargaRepo.find({
+      where: { periodo_academico: periodoCodigo },
+    });
+    const parametrosMap = new Map<string, ParametrosCarga>();
+    for (const p of parametrosCarga) {
+      parametrosMap.set(
+        `${p.categoria}_${p.tipo_contrato}_${p.modalidad ?? ""}`,
+        p,
+      );
+    }
+
+    // Rastreo de horas semanales y cursos por docente en este período
+    const horasSemanalesDocente = new Map<number, number>();
+    const cursosDocenteSet = new Map<number, Set<number>>();
+
     // Para cada docente, generar horarios
     for (const docente of docentes) {
       const detalle: DetalleDocente = {
@@ -133,6 +177,17 @@ export class GeneracionAutomaticaService {
         horariosPendientes: 0,
         errores: [],
       };
+
+      // Obtener parámetros para este docente
+      const pKey = `${docente.categoria}_${docente.tipo_contrato}_${docente.modalidad ?? ""}`;
+      const parametro = parametrosMap.get(pKey);
+      const maxHorasSemanal = parametro?.horas_max_semanal ?? 999;
+      const maxCursos = parametro?.cursos_max_docente ?? 999;
+
+      if (!horasSemanalesDocente.has(docente.id))
+        horasSemanalesDocente.set(docente.id, 0);
+      if (!cursosDocenteSet.has(docente.id))
+        cursosDocenteSet.set(docente.id, new Set());
 
       // Obtener cursos asignados al docente en este período
       const docenteCursos = await this.docenteCursoRepo.find({
@@ -157,27 +212,34 @@ export class GeneracionAutomaticaService {
         });
 
         if (cursoAmbientes.length === 0) {
-          detalle.errores.push(`Curso ${curso.nombre}: no tiene ambientes para ${tipoClase}`);
+          detalle.errores.push(
+            `Curso ${curso.nombre}: no tiene ambientes para ${tipoClase}`,
+          );
           continue;
         }
 
         // Buscar grupo del curso en este período
-        const gruposCurso = grupos.filter(g => g.curso.id === curso.id);
+        const gruposCurso = grupos.filter((g) => g.curso.id === curso.id);
         if (gruposCurso.length === 0) {
-          detalle.errores.push(`Curso ${curso.nombre}: no hay grupos en este período`);
+          detalle.errores.push(
+            `Curso ${curso.nombre}: no hay grupos en este período`,
+          );
           continue;
         }
 
         // Para cada grupo, asignar slots
         for (const grupo of gruposCurso) {
           // Determinar cuántas horas necesita
-          const horasRequeridas = tipoClase === TipoClase.TEORIA
-            ? (curso.horas_teoria || 0)
-            : (curso.horas_laboratorio || 0);
+          const horasRequeridas =
+            tipoClase === TipoClase.TEORIA
+              ? curso.horas_teoria || 0
+              : curso.horas_laboratorio || 0;
 
           if (horasRequeridas === 0) continue;
 
-          const bloquesNecesarios = Math.ceil(horasRequeridas / this.DURACION_BLOQUE);
+          const bloquesNecesarios = Math.ceil(
+            horasRequeridas / this.DURACION_BLOQUE,
+          );
           let bloquesAsignados = 0;
 
           for (const dia of this.DIAS_SEMANA) {
@@ -189,23 +251,36 @@ export class GeneracionAutomaticaService {
               const horaFin = this.sumarHoras(hora, this.DURACION_BLOQUE);
 
               // Validar disponibilidad del docente
-              const dispDocente = disponibilidades.filter(d =>
-                d.docente.id === docente.id &&
-                d.dia_semana === dia &&
-                d.hora_inicio <= hora &&
-                d.hora_fin >= horaFin &&
-                d.disponible
+              const dispDocente = disponibilidades.filter(
+                (d) =>
+                  d.docente.id === docente.id &&
+                  d.dia_semana === dia &&
+                  d.hora_inicio <= hora &&
+                  d.hora_fin >= horaFin &&
+                  d.disponible,
               );
               // Si tiene disponibilidades registradas pero ninguna cubre este slot, saltar
-              const tieneDisponibilidades = disponibilidades.some(d => d.docente.id === docente.id);
+              const tieneDisponibilidades = disponibilidades.some(
+                (d) => d.docente.id === docente.id,
+              );
               if (tieneDisponibilidades && dispDocente.length === 0) continue;
 
+              // Validar límite de horas semanales según ParametrosCarga
+              const horasActuales = horasSemanalesDocente.get(docente.id) ?? 0;
+              if (horasActuales + this.DURACION_BLOQUE > maxHorasSemanal) break;
+
+              // Validar límite de cursos según ParametrosCarga
+              const cursosSet = cursosDocenteSet.get(docente.id) ?? new Set();
+              const esCursoNuevo = !cursosSet.has(curso.id);
+              if (esCursoNuevo && cursosSet.size >= maxCursos) break;
+
               // Validar cruce de docente
-              const cruceDocente = horariosExistentes.some(h =>
-                h.docente.id === docente.id &&
-                h.dia === dia &&
-                h.hora_inicio < horaFin &&
-                h.hora_fin > hora
+              const cruceDocente = horariosExistentes.some(
+                (h) =>
+                  h.docente.id === docente.id &&
+                  h.dia === dia &&
+                  h.hora_inicio < horaFin &&
+                  h.hora_fin > hora,
               );
               if (cruceDocente) continue;
 
@@ -213,11 +288,12 @@ export class GeneracionAutomaticaService {
               let ambienteAsignado: Ambiente | null = null;
               for (const ca of cursoAmbientes) {
                 const amb = ca.ambiente;
-                const cruceAmbiente = horariosExistentes.some(h =>
-                  h.ambiente.id === amb.id &&
-                  h.dia === dia &&
-                  h.hora_inicio < horaFin &&
-                  h.hora_fin > hora
+                const cruceAmbiente = horariosExistentes.some(
+                  (h) =>
+                    h.ambiente.id === amb.id &&
+                    h.dia === dia &&
+                    h.hora_inicio < horaFin &&
+                    h.hora_fin > hora,
                 );
                 if (!cruceAmbiente) {
                   ambienteAsignado = amb;
@@ -230,11 +306,12 @@ export class GeneracionAutomaticaService {
               }
 
               // Validar cruce de grupo
-              const cruceGrupo = horariosExistentes.some(h =>
-                h.grupo.id === grupo.id &&
-                h.dia === dia &&
-                h.hora_inicio < horaFin &&
-                h.hora_fin > hora
+              const cruceGrupo = horariosExistentes.some(
+                (h) =>
+                  h.grupo.id === grupo.id &&
+                  h.dia === dia &&
+                  h.hora_inicio < horaFin &&
+                  h.hora_fin > hora,
               );
               if (cruceGrupo) continue;
 
@@ -255,6 +332,12 @@ export class GeneracionAutomaticaService {
 
               const guardado = await this.horarioRepo.save(nuevoHorario);
               horariosExistentes.push(guardado as any);
+              horasSemanalesDocente.set(
+                docente.id,
+                (horasSemanalesDocente.get(docente.id) ?? 0) +
+                  this.DURACION_BLOQUE,
+              );
+              cursosDocenteSet.get(docente.id).add(curso.id);
               detalle.horariosGenerados++;
               resultado.horariosGenerados++;
               bloquesAsignados++;
@@ -262,9 +345,9 @@ export class GeneracionAutomaticaService {
           }
 
           if (bloquesAsignados < bloquesNecesarios) {
-            detalle.horariosPendientes += (bloquesNecesarios - bloquesAsignados);
+            detalle.horariosPendientes += bloquesNecesarios - bloquesAsignados;
             detalle.errores.push(
-              `Curso ${curso.nombre} (${tipoClase}): solo se asignaron ${bloquesAsignados * this.DURACION_BLOQUE}h de ${horasRequeridas}h`
+              `Curso ${curso.nombre} (${tipoClase}): solo se asignaron ${bloquesAsignados * this.DURACION_BLOQUE}h de ${horasRequeridas}h`,
             );
           }
         }
@@ -277,16 +360,22 @@ export class GeneracionAutomaticaService {
     }
 
     this.logger.log(
-      `[Generación] Finalizado: ${resultado.horariosGenerados} horarios para ${resultado.docentesAtendidos} docentes`
+      `[Generación] Finalizado: ${resultado.horariosGenerados} horarios para ${resultado.docentesAtendidos} docentes`,
     );
 
     return resultado;
   }
 
-  async publicarHorariosAutoGenerados(periodoCodigo: string): Promise<{ publicados: number }> {
+  async publicarHorariosAutoGenerados(
+    periodoCodigo: string,
+  ): Promise<{ publicados: number }> {
     const result = await this.horarioRepo.update(
-      { periodo: periodoCodigo, origen: OrigenHorario.GENERACION_AUTOMATICA, estado: EstadoHorario.BORRADOR },
-      { estado: EstadoHorario.PUBLICADO }
+      {
+        periodo: periodoCodigo,
+        origen: OrigenHorario.GENERACION_AUTOMATICA,
+        estado: EstadoHorario.BORRADOR,
+      },
+      { estado: EstadoHorario.PUBLICADO },
     );
     return { publicados: result.affected || 0 };
   }

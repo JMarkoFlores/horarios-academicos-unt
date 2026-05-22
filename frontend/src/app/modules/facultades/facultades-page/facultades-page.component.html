@@ -1,0 +1,221 @@
+<div class="facultades-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Gestión de Facultades</h1>
+      <p class="subtitle">Administración jerárquica: Facultad → Escuela → Departamento</p>
+    </div>
+  </div>
+
+  <mat-tab-group animationDuration="200ms">
+
+    <!-- ── TAB: FACULTADES ────────────────────────────────────────────────── -->
+    <mat-tab label="Facultades">
+      <div class="tab-content">
+        <div class="tab-toolbar">
+          <button mat-raised-button color="primary" (click)="openFacultadDialog()">
+            <mat-icon>add</mat-icon> Nueva Facultad
+          </button>
+        </div>
+
+        <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+        <mat-table [dataSource]="facultades" class="premium-table">
+          <ng-container matColumnDef="codigo">
+            <mat-header-cell *matHeaderCellDef>Código</mat-header-cell>
+            <mat-cell *matCellDef="let f"><strong>{{ f.codigo }}</strong></mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="nombre">
+            <mat-header-cell *matHeaderCellDef>Nombre</mat-header-cell>
+            <mat-cell *matCellDef="let f">{{ f.nombre }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="coordinador">
+            <mat-header-cell *matHeaderCellDef>Coordinador</mat-header-cell>
+            <mat-cell *matCellDef="let f">{{ f.coordinador?.nombre || '—' }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="escuelas">
+            <mat-header-cell *matHeaderCellDef>Escuelas</mat-header-cell>
+            <mat-cell *matCellDef="let f">
+              <span class="badge">{{ f.escuelas?.length || 0 }}</span>
+            </mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="estado">
+            <mat-header-cell *matHeaderCellDef>Estado</mat-header-cell>
+            <mat-cell *matCellDef="let f">
+              <span [class]="f.activo ? 'chip-activo' : 'chip-inactivo'">
+                {{ f.activo ? 'Activo' : 'Inactivo' }}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="acciones">
+            <mat-header-cell *matHeaderCellDef></mat-header-cell>
+            <mat-cell *matCellDef="let f">
+              <button mat-icon-button matTooltip="Editar" (click)="openFacultadDialog(f)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="deleteFacultad(f)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-cell>
+          </ng-container>
+
+          <mat-header-row *matHeaderRowDef="colsFacultades"></mat-header-row>
+          <mat-row *matRowDef="let row; columns: colsFacultades"></mat-row>
+          <tr class="mat-row no-data-row" *matNoDataRow>
+            <td class="mat-cell" colspan="6">No hay facultades registradas.</td>
+          </tr>
+        </mat-table>
+      </div>
+    </mat-tab>
+
+    <!-- ── TAB: ESCUELAS ──────────────────────────────────────────────────── -->
+    <mat-tab label="Escuelas">
+      <div class="tab-content">
+        <div class="tab-toolbar">
+          <mat-form-field appearance="outline" class="filter-field">
+            <mat-label>Filtrar por Facultad</mat-label>
+            <mat-select [(ngModel)]="facultadFiltro">
+              <mat-option [value]="null">Todas</mat-option>
+              <mat-option *ngFor="let f of facultades" [value]="f.id">{{ f.nombre }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="openEscuelaDialog()">
+            <mat-icon>add</mat-icon> Nueva Escuela
+          </button>
+        </div>
+
+        <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+        <mat-table [dataSource]="escuelasFiltradas" class="premium-table">
+          <ng-container matColumnDef="codigo">
+            <mat-header-cell *matHeaderCellDef>Código</mat-header-cell>
+            <mat-cell *matCellDef="let e"><strong>{{ e.codigo }}</strong></mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="nombre">
+            <mat-header-cell *matHeaderCellDef>Nombre</mat-header-cell>
+            <mat-cell *matCellDef="let e">{{ e.nombre }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="facultad">
+            <mat-header-cell *matHeaderCellDef>Facultad</mat-header-cell>
+            <mat-cell *matCellDef="let e">{{ getNombreFacultad(e.facultad_id) }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="coordinador">
+            <mat-header-cell *matHeaderCellDef>Coordinador</mat-header-cell>
+            <mat-cell *matCellDef="let e">{{ e.coordinador?.nombre || '—' }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="departamentos">
+            <mat-header-cell *matHeaderCellDef>Departamentos</mat-header-cell>
+            <mat-cell *matCellDef="let e">
+              <span class="badge">{{ e.departamentos?.length || 0 }}</span>
+            </mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="estado">
+            <mat-header-cell *matHeaderCellDef>Estado</mat-header-cell>
+            <mat-cell *matCellDef="let e">
+              <span [class]="e.activo ? 'chip-activo' : 'chip-inactivo'">
+                {{ e.activo ? 'Activo' : 'Inactivo' }}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="acciones">
+            <mat-header-cell *matHeaderCellDef></mat-header-cell>
+            <mat-cell *matCellDef="let e">
+              <button mat-icon-button matTooltip="Editar" (click)="openEscuelaDialog(e)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="deleteEscuela(e)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-cell>
+          </ng-container>
+
+          <mat-header-row *matHeaderRowDef="colsEscuelas"></mat-header-row>
+          <mat-row *matRowDef="let row; columns: colsEscuelas"></mat-row>
+          <tr class="mat-row no-data-row" *matNoDataRow>
+            <td class="mat-cell" colspan="7">No hay escuelas registradas.</td>
+          </tr>
+        </mat-table>
+      </div>
+    </mat-tab>
+
+    <!-- ── TAB: DEPARTAMENTOS ─────────────────────────────────────────────── -->
+    <mat-tab label="Departamentos">
+      <div class="tab-content">
+        <div class="tab-toolbar">
+          <mat-form-field appearance="outline" class="filter-field">
+            <mat-label>Filtrar por Escuela</mat-label>
+            <mat-select [(ngModel)]="escuelaFiltro">
+              <mat-option [value]="null">Todas</mat-option>
+              <mat-option *ngFor="let e of escuelas" [value]="e.id">{{ e.nombre }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="openDepartamentoDialog()">
+            <mat-icon>add</mat-icon> Nuevo Departamento
+          </button>
+        </div>
+
+        <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+
+        <mat-table [dataSource]="departamentosFiltrados" class="premium-table">
+          <ng-container matColumnDef="codigo">
+            <mat-header-cell *matHeaderCellDef>Código</mat-header-cell>
+            <mat-cell *matCellDef="let d"><strong>{{ d.codigo }}</strong></mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="nombre">
+            <mat-header-cell *matHeaderCellDef>Nombre</mat-header-cell>
+            <mat-cell *matCellDef="let d">{{ d.nombre }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="escuela">
+            <mat-header-cell *matHeaderCellDef>Escuela</mat-header-cell>
+            <mat-cell *matCellDef="let d">{{ getNombreEscuela(d.escuela_id) }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="coordinador">
+            <mat-header-cell *matHeaderCellDef>Coordinador</mat-header-cell>
+            <mat-cell *matCellDef="let d">{{ d.coordinador?.nombre || '—' }}</mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="estado">
+            <mat-header-cell *matHeaderCellDef>Estado</mat-header-cell>
+            <mat-cell *matCellDef="let d">
+              <span [class]="d.activo ? 'chip-activo' : 'chip-inactivo'">
+                {{ d.activo ? 'Activo' : 'Inactivo' }}
+              </span>
+            </mat-cell>
+          </ng-container>
+
+          <ng-container matColumnDef="acciones">
+            <mat-header-cell *matHeaderCellDef></mat-header-cell>
+            <mat-cell *matCellDef="let d">
+              <button mat-icon-button matTooltip="Editar" (click)="openDepartamentoDialog(d)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Eliminar" color="warn" (click)="deleteDepartamento(d)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-cell>
+          </ng-container>
+
+          <mat-header-row *matHeaderRowDef="colsDepartamentos"></mat-header-row>
+          <mat-row *matRowDef="let row; columns: colsDepartamentos"></mat-row>
+          <tr class="mat-row no-data-row" *matNoDataRow>
+            <td class="mat-cell" colspan="6">No hay departamentos registrados.</td>
+          </tr>
+        </mat-table>
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
+</div>

@@ -14,6 +14,7 @@ import { Ambiente } from "../entities/ambiente.entity";
 import { Curso } from "../entities/curso.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { Docente } from "../entities/docente.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { AuditLogService } from "./services/audit-log.service";
 import { ValidacionesService } from "./services/validaciones.service";
 import { ValidacionesController } from "./controllers/validaciones.controller";
@@ -35,6 +36,7 @@ import { ValidacionesController } from "./controllers/validaciones.controller";
       Curso,
       Grupo,
       Docente,
+      ParametrosCarga,
     ]),
   ],
   controllers: [ValidacionesController],

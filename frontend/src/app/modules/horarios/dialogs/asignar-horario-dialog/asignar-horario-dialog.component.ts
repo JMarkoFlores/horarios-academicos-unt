@@ -42,7 +42,16 @@ export class AsignarHorarioDialogComponent implements OnInit, OnDestroy {
     { value: 'LABORATORIO', label: 'Laboratorio' },
   ];
 
-  dias = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+  dias = [
+    '',
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo',
+  ];
 
   constructor(
     private dialogRef: MatDialogRef<AsignarHorarioDialogComponent>,
@@ -71,18 +80,22 @@ export class AsignarHorarioDialogComponent implements OnInit, OnDestroy {
     });
 
     this.form.get('grupo_id')?.valueChanges.subscribe((grupoId) => {
-      this.grupoSeleccionado = this.grupos.find(g => g.id === grupoId) ?? null;
+      this.grupoSeleccionado =
+        this.grupos.find((g) => g.id === grupoId) ?? null;
       this.form.get('ambiente_id')?.reset();
       this.ambienteOcupado = false;
     });
 
-    this.form.get('ambiente_id')?.valueChanges.pipe(debounceTime(200)).subscribe((ambienteId) => {
-      if (ambienteId) {
-        this.verificarOcupacion(ambienteId);
-      } else {
-        this.ambienteOcupado = false;
-      }
-    });
+    this.form
+      .get('ambiente_id')
+      ?.valueChanges.pipe(debounceTime(200))
+      .subscribe((ambienteId) => {
+        if (ambienteId) {
+          this.verificarOcupacion(ambienteId);
+        } else {
+          this.ambienteOcupado = false;
+        }
+      });
 
     this.loading = true;
     this.api.get<ApiResponse<any>>('/cursos', { limit: 100 }).subscribe({
@@ -131,33 +144,40 @@ export class AsignarHorarioDialogComponent implements OnInit, OnDestroy {
     const tipoClase = this.form?.get('tipo_clase')?.value as string;
     const cupo = this.grupoSeleccionado?.cupo_maximo ?? 0;
     if (!tipoClase) return this.ambientes;
-    return this.ambientes.filter(a => {
+    return this.ambientes.filter((a) => {
       if (a.capacidad < cupo) return false;
       if (tipoClase === 'LABORATORIO') {
         return a.tipo === 'LABORATORIO';
       }
-      return a.tipo === 'AULA' || a.tipo === 'AUDITORIO' || a.tipo === 'SEMINARIO';
+      return (
+        a.tipo === 'AULA' || a.tipo === 'AUDITORIO' || a.tipo === 'SEMINARIO'
+      );
     });
   }
 
   private verificarOcupacion(ambienteId: number): void {
     this.ambienteOcupado = false;
-    this.ambSub = this.api.get<ApiResponse<any>>(`/horarios/ambiente/${ambienteId}`, {
-      periodo: this.data.periodo,
-      limit: 200,
-    }).subscribe({
-      next: (r: any) => {
-        const items = r?.data?.items ?? r?.data ?? [];
-        const hInicio = this.horaToDecimal(this.data.horaInicio);
-        const hFin = this.horaToDecimal(this.data.horaFin);
-        this.ambienteOcupado = items.some((h: any) =>
-          (h.dia_semana ?? h.dia) === this.data.dia &&
-          this.horaToDecimal(h.hora_inicio) < hFin &&
-          this.horaToDecimal(h.hora_fin) > hInicio
-        );
-      },
-      error: () => { this.ambienteOcupado = false; }
-    });
+    this.ambSub = this.api
+      .get<ApiResponse<any>>(`/horarios/ambiente/${ambienteId}`, {
+        periodo: this.data.periodo,
+        limit: 200,
+      })
+      .subscribe({
+        next: (r: any) => {
+          const items = r?.data?.items ?? r?.data ?? [];
+          const hInicio = this.horaToDecimal(this.data.horaInicio);
+          const hFin = this.horaToDecimal(this.data.horaFin);
+          this.ambienteOcupado = items.some(
+            (h: any) =>
+              (h.dia_semana ?? h.dia) === this.data.dia &&
+              this.horaToDecimal(h.hora_inicio) < hFin &&
+              this.horaToDecimal(h.hora_fin) > hInicio,
+          );
+        },
+        error: () => {
+          this.ambienteOcupado = false;
+        },
+      });
   }
 
   private horaToDecimal(hora: string): number {

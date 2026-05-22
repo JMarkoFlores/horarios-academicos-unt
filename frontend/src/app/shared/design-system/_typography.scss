@@ -1,0 +1,93 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// DESIGN SYSTEM · _typography.scss
+// Utility classes for text sizing, weight, and color.
+// All use CSS custom properties from :root in styles.scss.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── TEXT SIZE ────────────────────────────────────────────────────────────────
+.text-xs   { font-size: 0.75rem;  line-height: 1rem;    }
+.text-sm   { font-size: 0.875rem; line-height: 1.25rem; }
+.text-base { font-size: 1rem;     line-height: 1.5rem;  }
+.text-lg   { font-size: 1.125rem; line-height: 1.75rem; }
+.text-xl   { font-size: 1.25rem;  line-height: 1.75rem; }
+.text-2xl  { font-size: 1.5rem;   line-height: 2rem;    }
+.text-3xl  { font-size: 1.875rem; line-height: 2.25rem; }
+
+// ── FONT WEIGHT ──────────────────────────────────────────────────────────────
+.font-normal   { font-weight: 400; }
+.font-medium   { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold     { font-weight: 700; }
+.font-extrabold { font-weight: 800; }
+
+// ── TEXT COLOR ───────────────────────────────────────────────────────────────
+.text-primary   { color: var(--color-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-muted     { color: var(--color-text-muted); }
+.text-disabled  { color: var(--color-text-disabled); }
+.text-success   { color: var(--color-success); }
+.text-warning   { color: var(--color-warning); }
+.text-danger    { color: var(--color-danger); }
+.text-info      { color: var(--color-info); }
+
+// ── TEXT ALIGNMENT ───────────────────────────────────────────────────────────
+.text-left   { text-align: left; }
+.text-center { text-align: center; }
+.text-right  { text-align: right; }
+
+// ── TEXT TRANSFORM ───────────────────────────────────────────────────────────
+.text-uppercase { text-transform: uppercase; letter-spacing: 0.05em; }
+.text-capitalize { text-transform: capitalize; }
+
+// ── TRUNCATE / CLAMP ─────────────────────────────────────────────────────────
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// ── COMPOSITE TYPOGRAPHY PATTERNS ────────────────────────────────────────────
+.heading-page {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  line-height: 2rem;
+  margin: 0;
+}
+
+.heading-section {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  margin: 0 0 16px;
+}
+
+.label-field {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.value-field {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}

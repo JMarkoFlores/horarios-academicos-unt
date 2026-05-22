@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
@@ -6,6 +10,7 @@ import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity
 import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Docente } from "../entities/docente.entity";
+import { TurnoHorario } from "../entities/turno-horario.entity";
 import { GuardarDisponibilidadDto } from "./dto/guardar-disponibilidad.dto";
 import { CreateRestriccionDto } from "./dto/create-restriccion.dto";
 
@@ -20,9 +25,25 @@ export class DisponibilidadService {
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     @InjectRepository(Docente)
     private readonly docenteRepo: Repository<Docente>,
+    @InjectRepository(TurnoHorario)
+    private readonly turnoRepo: Repository<TurnoHorario>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
+
+  private async getHorasPermitidas(): Promise<number[]> {
+    const turnos = await this.turnoRepo.find({
+      where: { activo: true },
+      order: { hora_inicio: "ASC" },
+    });
+    const horas: number[] = [];
+    for (const t of turnos) {
+      const inicio = parseInt(t.hora_inicio.split(":")[0], 10);
+      const fin = parseInt(t.hora_fin.split(":")[0], 10);
+      for (let h = inicio; h < fin; h++) horas.push(h);
+    }
+    return horas;
+  }
 
   async getByDocente(docenteId: number, periodo: string) {
     const periodoAcademico = await this.periodoRepo.findOne({
@@ -70,9 +91,9 @@ export class DisponibilidadService {
       return coveringSlots.some((s) => s.disponible);
     };
 
+    const horasPermitidas = await this.getHorasPermitidas();
     const slots: any[] = [];
-    // 15 horas desde las 07:00 hasta las 21:00 (bloques de 1 hora hasta las 22:00)
-    for (let h = 7; h <= 21; h++) {
+    for (const h of horasPermitidas) {
       for (let d = 1; d <= 5; d++) {
         const hInicioStr = `${h.toString().padStart(2, "0")}:00:00`;
         const hFinStr = `${(h + 1).toString().padStart(2, "0")}:00:00`;
@@ -106,7 +127,9 @@ export class DisponibilidadService {
       where: { codigo: dto.periodo },
     });
     if (!periodoAcademico) {
-      throw new NotFoundException(`Periodo académico ${dto.periodo} no encontrado`);
+      throw new NotFoundException(
+        `Periodo académico ${dto.periodo} no encontrado`,
+      );
     }
 
     const docente = await this.docenteRepo.findOne({
@@ -114,6 +137,16 @@ export class DisponibilidadService {
     });
     if (!docente) {
       throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
+    }
+
+    const horasPermitidas = await this.getHorasPermitidas();
+    for (const slot of dto.slots) {
+      const h = parseInt(slot.hora_inicio.split(":")[0], 10);
+      if (!horasPermitidas.includes(h)) {
+        throw new BadRequestException(
+          `La hora ${slot.hora_inicio} está fuera de los turnos horarios activos`,
+        );
+      }
     }
 
     await this.dataSource.transaction(async (manager) => {
@@ -128,8 +161,12 @@ export class DisponibilidadService {
 
       // Mapear y normalizar los nuevos slots a HH:mm:00
       const nuevosSlots = dto.slots.map((slot) => {
-        const hInicio = slot.hora_inicio.length === 5 ? `${slot.hora_inicio}:00` : slot.hora_inicio;
-        const hFin = slot.hora_fin.length === 5 ? `${slot.hora_fin}:00` : slot.hora_fin;
+        const hInicio =
+          slot.hora_inicio.length === 5
+            ? `${slot.hora_inicio}:00`
+            : slot.hora_inicio;
+        const hFin =
+          slot.hora_fin.length === 5 ? `${slot.hora_fin}:00` : slot.hora_fin;
 
         const [hiH, hiM] = hInicio.split(":").map(Number);
         const [hfH, hfM] = hFin.split(":").map(Number);
@@ -213,7 +250,9 @@ export class DisponibilidadService {
     const declaredTeacherIds = new Set(docenteMap.keys());
 
     const declararon = declaredTeacherIds.size;
-    const faltan = allTeachers.filter((t) => !declaredTeacherIds.has(t.id)).length;
+    const faltan = allTeachers.filter(
+      (t) => !declaredTeacherIds.has(t.id),
+    ).length;
 
     return {
       declararon,

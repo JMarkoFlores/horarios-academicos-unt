@@ -4,6 +4,43 @@ import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { NotifToastService } from '../../core/services/notif-toast.service';
 import { ApiResponse } from '../../core/interfaces/entities';
+import { ConfiguracionGeneralService } from '../../core/services/configuracion-general.service';
+
+interface TurnoHorario {
+  id: number;
+  nombre: string;
+  hora_inicio: string;
+  hora_fin: string;
+  activo: boolean;
+}
+
+interface DiaActivo {
+  id: number;
+  dia_semana: number;
+  nombre: string;
+  activo: boolean;
+}
+
+interface ParametrosCarga {
+  id: number;
+  periodo_academico: string;
+  categoria: string;
+  tipo_contrato: string;
+  modalidad: string;
+  horas_min_semanal: number;
+  horas_max_semanal: number;
+  cursos_min_docente: number;
+  cursos_max_docente: number;
+}
+
+interface ConfiguracionGeneral {
+  id: number;
+  nombre_institucional: string;
+  logo_url: string;
+  color_primario: string;
+  color_secundario: string;
+  color_acento: string;
+}
 
 interface RestriccionInstitucional {
   id: number;
@@ -30,7 +67,49 @@ interface DiaNoLaborable {
 })
 export class ConfiguracionComponent implements OnInit {
   // ─── Estado General ─────────────────────────────────────────────────────
-  activeTab: 'restricciones' | 'diasNoLaborables' = 'restricciones';
+  activeTab:
+    | 'restricciones'
+    | 'diasNoLaborables'
+    | 'turnos'
+    | 'diasActivos'
+    | 'parametrosCarga'
+    | 'general' = 'restricciones';
+
+  // ─── Turnos Horarios ─────────────────────────────────────────────────────
+  turnos: TurnoHorario[] = [];
+  loadingTurnos = false;
+  guardandoTurno = false;
+  turnoForm!: FormGroup;
+
+  // ─── Días Activos ─────────────────────────────────────────────────────────
+  diasActivos: DiaActivo[] = [];
+  loadingDiasActivos = false;
+  guardandoDiaActivo = false;
+
+  // ─── Parámetros de Carga ──────────────────────────────────────────────────
+  parametrosList: ParametrosCarga[] = [];
+  loadingParametros = false;
+  guardandoParametros = false;
+  eliminandoParametroId: number | null = null;
+  editingParametroId: number | null = null;
+  parametrosForm!: FormGroup;
+
+  categorias = ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR', 'JEFE_PRACTICA'];
+  tiposContrato = ['NOMBRADO', 'CONTRATADO'];
+  modalidades = [
+    'DEDICACION_EXCLUSIVA',
+    'TIEMPO_COMPLETO_40',
+    'TIEMPO_PARCIAL_20',
+    'TIEMPO_PARCIAL_12',
+    'TIEMPO_PARCIAL_10',
+    'TIEMPO_PARCIAL_8',
+  ];
+
+  // ─── Configuración General ────────────────────────────────────────────────
+  configuracionGeneral: ConfiguracionGeneral | null = null;
+  loadingGeneral = false;
+  guardandoGeneral = false;
+  generalForm!: FormGroup;
 
   // ─── Restricciones ───────────────────────────────────────────────────────
   restricciones: RestriccionInstitucional[] = [];
@@ -72,12 +151,17 @@ export class ConfiguracionComponent implements OnInit {
     public periodoService: PeriodoService,
     private notif: NotifToastService,
     private fb: FormBuilder,
+    private cfgService: ConfiguracionGeneralService,
   ) {}
 
   ngOnInit(): void {
     this.initForms();
     this.cargarRestricciones();
     this.cargarDiasNoLaborables();
+    this.cargarTurnos();
+    this.cargarDiasActivos();
+    this.cargarParametrosCarga();
+    this.cargarConfiguracionGeneral();
   }
 
   initForms(): void {
@@ -85,8 +169,14 @@ export class ConfiguracionComponent implements OnInit {
       tipo_restriccion: ['FRANJA_HORARIA', Validators.required],
       hora_inicio: ['07:00', Validators.required],
       hora_fin: ['22:00', Validators.required],
-      max_horas: [8, [Validators.required, Validators.min(1), Validators.max(24)]],
-      duracion_minutos: [120, [Validators.required, Validators.min(15), Validators.max(600)]],
+      max_horas: [
+        8,
+        [Validators.required, Validators.min(1), Validators.max(24)],
+      ],
+      duracion_minutos: [
+        120,
+        [Validators.required, Validators.min(15), Validators.max(600)],
+      ],
     });
 
     this.diaForm = this.fb.group({
@@ -98,12 +188,53 @@ export class ConfiguracionComponent implements OnInit {
     });
 
     // Cambiar dinámicamente validaciones y valores por defecto al cambiar tipo
-    this.restriccionForm.get('tipo_restriccion')?.valueChanges.subscribe((tipo) => {
-      this.actualizarFormSegunTipo(tipo);
-    });
+    this.restriccionForm
+      .get('tipo_restriccion')
+      ?.valueChanges.subscribe((tipo) => {
+        this.actualizarFormSegunTipo(tipo);
+      });
 
     // Inicializar configuración
     this.actualizarFormSegunTipo('FRANJA_HORARIA');
+
+    this.turnoForm = this.fb.group({
+      nombre: ['', [Validators.required, Validators.maxLength(50)]],
+      hora_inicio: ['07:00', Validators.required],
+      hora_fin: ['13:00', Validators.required],
+    });
+
+    this.parametrosForm = this.fb.group({
+      categoria: ['PRINCIPAL', Validators.required],
+      tipo_contrato: ['NOMBRADO', Validators.required],
+      modalidad: ['DEDICACION_EXCLUSIVA', Validators.required],
+      horas_min_semanal: [
+        4,
+        [Validators.required, Validators.min(1), Validators.max(40)],
+      ],
+      horas_max_semanal: [
+        20,
+        [Validators.required, Validators.min(1), Validators.max(80)],
+      ],
+      cursos_min_docente: [
+        1,
+        [Validators.required, Validators.min(0), Validators.max(20)],
+      ],
+      cursos_max_docente: [
+        5,
+        [Validators.required, Validators.min(1), Validators.max(20)],
+      ],
+    });
+
+    this.generalForm = this.fb.group({
+      nombre_institucional: [
+        '',
+        [Validators.required, Validators.maxLength(200)],
+      ],
+      logo_url: ['', Validators.maxLength(500)],
+      color_primario: ['#1a237e', Validators.required],
+      color_secundario: ['#283593', Validators.required],
+      color_acento: ['#e91e63', Validators.required],
+    });
   }
 
   actualizarFormSegunTipo(tipo: string): void {
@@ -128,10 +259,18 @@ export class ConfiguracionComponent implements OnInit {
         horaFinCtrl?.setValue('22:00');
       }
     } else if (tipo === 'MAX_HORAS_DIARIAS' || tipo === 'MAX_HORAS_SEMANALES') {
-      maxHorasCtrl?.setValidators([Validators.required, Validators.min(1), Validators.max(tipo === 'MAX_HORAS_DIARIAS' ? 24 : 168)]);
+      maxHorasCtrl?.setValidators([
+        Validators.required,
+        Validators.min(1),
+        Validators.max(tipo === 'MAX_HORAS_DIARIAS' ? 24 : 168),
+      ]);
       maxHorasCtrl?.setValue(tipo === 'MAX_HORAS_DIARIAS' ? 8 : 40);
     } else if (tipo === 'DURACION_BLOQUE') {
-      duracionCtrl?.setValidators([Validators.required, Validators.min(15), Validators.max(600)]);
+      duracionCtrl?.setValidators([
+        Validators.required,
+        Validators.min(15),
+        Validators.max(600),
+      ]);
       duracionCtrl?.setValue(120);
     }
 
@@ -150,9 +289,12 @@ export class ConfiguracionComponent implements OnInit {
   cargarRestricciones(): void {
     this.loadingRestricciones = true;
     this.api
-      .get<ApiResponse<RestriccionInstitucional[]>>('/configuracion/restricciones', {
-        periodo: this.periodoService.periodo,
-      })
+      .get<ApiResponse<RestriccionInstitucional[]>>(
+        '/configuracion/restricciones',
+        {
+          periodo: this.periodoService.periodo,
+        },
+      )
       .subscribe({
         next: (r) => {
           this.restricciones = r.data ?? [];
@@ -193,30 +335,38 @@ export class ConfiguracionComponent implements OnInit {
       activo: true,
     };
 
-    this.api.post<ApiResponse<any>>('/configuracion/restricciones', payload).subscribe({
-      next: (r) => {
-        this.guardandoRestriccion = false;
-        this.notif.success(r.message ?? 'Restricción guardada correctamente');
-        this.cargarRestricciones();
-      },
-      error: (err) => {
-        this.guardandoRestriccion = false;
-        this.notif.error(err?.error?.message ?? 'Error al guardar restricción');
-      },
-    });
+    this.api
+      .post<ApiResponse<any>>('/configuracion/restricciones', payload)
+      .subscribe({
+        next: (r) => {
+          this.guardandoRestriccion = false;
+          this.notif.success(r.message ?? 'Restricción guardada correctamente');
+          this.cargarRestricciones();
+        },
+        error: (err) => {
+          this.guardandoRestriccion = false;
+          this.notif.error(
+            err?.error?.message ?? 'Error al guardar restricción',
+          );
+        },
+      });
   }
 
   eliminarRestriccion(id: number): void {
     if (!confirm('¿Eliminar esta restricción institucional?')) return;
-    this.api.delete<ApiResponse<any>>(`/configuracion/restricciones/${id}`).subscribe({
-      next: () => {
-        this.notif.success('Restricción eliminada exitosamente');
-        this.cargarRestricciones();
-      },
-      error: (err) => {
-        this.notif.error(err?.error?.message ?? 'Error al eliminar la restricción');
-      },
-    });
+    this.api
+      .delete<ApiResponse<any>>(`/configuracion/restricciones/${id}`)
+      .subscribe({
+        next: () => {
+          this.notif.success('Restricción eliminada exitosamente');
+          this.cargarRestricciones();
+        },
+        error: (err) => {
+          this.notif.error(
+            err?.error?.message ?? 'Error al eliminar la restricción',
+          );
+        },
+      });
   }
 
   getRestriccionDescripcion(r: RestriccionInstitucional): string {
@@ -240,12 +390,18 @@ export class ConfiguracionComponent implements OnInit {
 
   getRestriccionIcon(tipo: string): string {
     switch (tipo) {
-      case 'FRANJA_HORARIA': return 'access_time';
-      case 'BLOQUE_ALMUERZO': return 'restaurant';
-      case 'MAX_HORAS_DIARIAS': return 'today';
-      case 'MAX_HORAS_SEMANALES': return 'date_range';
-      case 'DURACION_BLOQUE': return 'timer';
-      default: return 'rule';
+      case 'FRANJA_HORARIA':
+        return 'access_time';
+      case 'BLOQUE_ALMUERZO':
+        return 'restaurant';
+      case 'MAX_HORAS_DIARIAS':
+        return 'today';
+      case 'MAX_HORAS_SEMANALES':
+        return 'date_range';
+      case 'DURACION_BLOQUE':
+        return 'timer';
+      default:
+        return 'rule';
     }
   }
 
@@ -277,36 +433,277 @@ export class ConfiguracionComponent implements OnInit {
       periodo_academico: this.periodoService.periodo,
     };
 
-    this.api.post<ApiResponse<any>>('/configuracion/dias-no-laborables', payload).subscribe({
-      next: () => {
-        this.guardandoDia = false;
-        this.notif.success('Día no laborable registrado con éxito');
-        this.diaForm.reset({ tipo: 'FERIADO', afecta_aulas: true, afecta_laboratorios: true });
-        this.cargarDiasNoLaborables();
-      },
-      error: (err) => {
-        this.guardandoDia = false;
-        this.notif.error(err?.error?.message ?? 'Error al registrar día no laborable');
-      },
-    });
+    this.api
+      .post<ApiResponse<any>>('/configuracion/dias-no-laborables', payload)
+      .subscribe({
+        next: () => {
+          this.guardandoDia = false;
+          this.notif.success('Día no laborable registrado con éxito');
+          this.diaForm.reset({
+            tipo: 'FERIADO',
+            afecta_aulas: true,
+            afecta_laboratorios: true,
+          });
+          this.cargarDiasNoLaborables();
+        },
+        error: (err) => {
+          this.guardandoDia = false;
+          this.notif.error(
+            err?.error?.message ?? 'Error al registrar día no laborable',
+          );
+        },
+      });
   }
 
   eliminarDia(id: number, descripcion: string): void {
     if (!confirm(`¿Eliminar "${descripcion}" del calendario?`)) return;
-    this.api.delete<ApiResponse<any>>(`/configuracion/dias-no-laborables/${id}`).subscribe({
-      next: () => {
-        this.notif.success('Día no laborable eliminado correctamente');
-        this.cargarDiasNoLaborables();
-      },
-      error: (err) => {
-        this.notif.error(err?.error?.message ?? 'Error al eliminar el día no laborable');
-      },
-    });
+    this.api
+      .delete<ApiResponse<any>>(`/configuracion/dias-no-laborables/${id}`)
+      .subscribe({
+        next: () => {
+          this.notif.success('Día no laborable eliminado correctamente');
+          this.cargarDiasNoLaborables();
+        },
+        error: (err) => {
+          this.notif.error(
+            err?.error?.message ?? 'Error al eliminar el día no laborable',
+          );
+        },
+      });
   }
 
   onPeriodoChange(): void {
     this.cargarRestricciones();
     this.cargarDiasNoLaborables();
+    this.cargarParametrosCarga();
+  }
+
+  // ─── TURNOS ───────────────────────────────────────────────────────────────────────
+
+  cargarTurnos(): void {
+    this.loadingTurnos = true;
+    this.api
+      .get<ApiResponse<TurnoHorario[]>>('/configuracion/turnos')
+      .subscribe({
+        next: (r) => {
+          this.turnos = r.data ?? [];
+          this.loadingTurnos = false;
+        },
+        error: () => {
+          this.loadingTurnos = false;
+        },
+      });
+  }
+
+  guardarTurno(): void {
+    if (this.turnoForm.invalid) return;
+    this.guardandoTurno = true;
+    this.api
+      .post<ApiResponse<any>>('/configuracion/turnos', this.turnoForm.value)
+      .subscribe({
+        next: (r) => {
+          this.guardandoTurno = false;
+          this.notif.success(r.message ?? 'Turno creado exitosamente');
+          this.turnoForm.reset({ hora_inicio: '07:00', hora_fin: '13:00' });
+          this.cargarTurnos();
+        },
+        error: (err) => {
+          this.guardandoTurno = false;
+          this.notif.error(err?.error?.message ?? 'Error al crear el turno');
+        },
+      });
+  }
+
+  eliminarTurno(id: number, nombre: string): void {
+    if (!confirm(`¿Eliminar el turno "${nombre}"?`)) return;
+    this.api.delete<ApiResponse<any>>(`/configuracion/turnos/${id}`).subscribe({
+      next: () => {
+        this.notif.success('Turno eliminado correctamente');
+        this.cargarTurnos();
+      },
+      error: (err) => {
+        this.notif.error(err?.error?.message ?? 'Error al eliminar el turno');
+      },
+    });
+  }
+
+  // ─── DÍAS ACTIVOS ───────────────────────────────────────────────────────────────
+
+  cargarDiasActivos(): void {
+    this.loadingDiasActivos = true;
+    this.api
+      .get<ApiResponse<DiaActivo[]>>('/configuracion/dias-activos')
+      .subscribe({
+        next: (r) => {
+          this.diasActivos = r.data ?? [];
+          this.loadingDiasActivos = false;
+        },
+        error: () => {
+          this.loadingDiasActivos = false;
+        },
+      });
+  }
+
+  toggleDiaActivo(dia: DiaActivo): void {
+    this.guardandoDiaActivo = true;
+    const payload = {
+      dia_semana: dia.dia_semana,
+      nombre: dia.nombre,
+      activo: !dia.activo,
+    };
+    this.api
+      .post<ApiResponse<any>>('/configuracion/dias-activos', payload)
+      .subscribe({
+        next: () => {
+          this.guardandoDiaActivo = false;
+          this.notif.success(
+            `Día ${dia.nombre} ${!dia.activo ? 'activado' : 'desactivado'} correctamente`,
+          );
+          this.cargarDiasActivos();
+        },
+        error: (err) => {
+          this.guardandoDiaActivo = false;
+          this.notif.error(err?.error?.message ?? 'Error al actualizar día');
+        },
+      });
+  }
+
+  // ─── PARÁMETROS DE CARGA ────────────────────────────────────────────────────
+
+  cargarParametrosCarga(): void {
+    this.loadingParametros = true;
+    this.api
+      .get<ApiResponse<ParametrosCarga[]>>('/configuracion/parametros-carga', {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (r) => {
+          this.parametrosList = r.data ?? [];
+          this.loadingParametros = false;
+        },
+        error: () => {
+          this.loadingParametros = false;
+        },
+      });
+  }
+
+  guardarParametrosCarga(): void {
+    if (this.parametrosForm.invalid) return;
+    this.guardandoParametros = true;
+    const payload = {
+      ...this.parametrosForm.value,
+      periodo_academico: this.periodoService.periodo,
+    };
+    this.api
+      .post<
+        ApiResponse<ParametrosCarga>
+      >('/configuracion/parametros-carga', payload)
+      .subscribe({
+        next: (r) => {
+          this.guardandoParametros = false;
+          this.editingParametroId = null;
+          this.notif.success(r.message ?? 'Parámetros guardados correctamente');
+          this.resetParametrosForm();
+          this.cargarParametrosCarga();
+        },
+        error: (err) => {
+          this.guardandoParametros = false;
+          this.notif.error(
+            err?.error?.message ?? 'Error al guardar parámetros',
+          );
+        },
+      });
+  }
+
+  editarParametro(p: ParametrosCarga): void {
+    this.editingParametroId = p.id;
+    this.parametrosForm.patchValue(p);
+    document
+      .querySelector('.parametros-form-card')
+      ?.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  cancelarEdicionParametro(): void {
+    this.editingParametroId = null;
+    this.resetParametrosForm();
+  }
+
+  eliminarParametro(id: number): void {
+    this.eliminandoParametroId = id;
+    this.api
+      .delete<ApiResponse<null>>(`/configuracion/parametros-carga/${id}`)
+      .subscribe({
+        next: (r) => {
+          this.eliminandoParametroId = null;
+          this.notif.success(r.message ?? 'Parámetro eliminado');
+          this.cargarParametrosCarga();
+        },
+        error: (err) => {
+          this.eliminandoParametroId = null;
+          this.notif.error(err?.error?.message ?? 'Error al eliminar');
+        },
+      });
+  }
+
+  formatModalidad(m: string): string {
+    return m.replace(/_/g, ' ');
+  }
+
+  private resetParametrosForm(): void {
+    this.parametrosForm.reset({
+      categoria: 'PRINCIPAL',
+      tipo_contrato: 'NOMBRADO',
+      modalidad: 'DEDICACION_EXCLUSIVA',
+      horas_min_semanal: 4,
+      horas_max_semanal: 20,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    });
+  }
+
+  // ─── CONFIGURACIÓN GENERAL ────────────────────────────────────────────────
+
+  cargarConfiguracionGeneral(): void {
+    this.loadingGeneral = true;
+    this.api
+      .get<ApiResponse<ConfiguracionGeneral>>('/configuracion/general')
+      .subscribe({
+        next: (r) => {
+          this.configuracionGeneral = r.data ?? null;
+          if (this.configuracionGeneral) {
+            this.generalForm.patchValue(this.configuracionGeneral);
+          }
+          this.loadingGeneral = false;
+        },
+        error: () => {
+          this.loadingGeneral = false;
+        },
+      });
+  }
+
+  guardarConfiguracionGeneral(): void {
+    if (this.generalForm.invalid) return;
+    this.guardandoGeneral = true;
+    this.api
+      .put<ApiResponse<any>>('/configuracion/general', this.generalForm.value)
+      .subscribe({
+        next: (r) => {
+          this.guardandoGeneral = false;
+          this.notif.success(
+            r.message ?? 'Configuración guardada correctamente',
+          );
+          if (r.data) {
+            this.cfgService.aplicar(r.data);
+          }
+          this.cargarConfiguracionGeneral();
+        },
+        error: (err) => {
+          this.guardandoGeneral = false;
+          this.notif.error(
+            err?.error?.message ?? 'Error al guardar configuración',
+          );
+        },
+      });
   }
 
   tipoDiaLabel(tipo: string): string {

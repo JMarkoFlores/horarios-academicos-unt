@@ -10,7 +10,7 @@ import {
   Matches,
 } from "class-validator";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
-import { TipoContrato } from "../../common/enums/tipo-contrato.enum";
+import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
 
 export class CreateDocenteDto {
@@ -44,21 +44,20 @@ export class CreateDocenteDto {
   @Matches(/^\+?[\d\s\-]{7,20}$/, { message: "Formato de teléfono inválido" })
   telefono?: string;
 
+  @ApiProperty({ enum: TipoDocente, example: TipoDocente.ORDINARIO })
+  @IsEnum(TipoDocente, { message: "Tipo de docente inválido" })
+  tipo_docente: TipoDocente;
+
   @ApiProperty({ enum: CategoriaDocente, example: CategoriaDocente.PRINCIPAL })
   @IsEnum(CategoriaDocente, { message: "Categoría inválida" })
   categoria: CategoriaDocente;
 
-  @ApiProperty({ enum: TipoContrato, example: TipoContrato.NOMBRADO })
-  @IsEnum(TipoContrato, { message: "Tipo de contrato inválido" })
-  tipo_contrato: TipoContrato;
-
-  @ApiPropertyOptional({
+  @ApiProperty({
     enum: ModalidadDocente,
     example: ModalidadDocente.TIEMPO_COMPLETO_40,
   })
-  @IsOptional()
   @IsEnum(ModalidadDocente, { message: "Modalidad inválida" })
-  modalidad?: ModalidadDocente;
+  modalidad: ModalidadDocente;
 
   @ApiProperty({ example: "2000-03-01" })
   @IsDateString({}, { message: "Fecha de ingreso inválida (YYYY-MM-DD)" })

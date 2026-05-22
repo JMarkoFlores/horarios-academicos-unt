@@ -24,9 +24,10 @@ export interface Docente {
   apellidos: string;
   email: string;
   telefono?: string;
+  tipo_docente: string;
   categoria: string;
   tipo_contrato: string;
-  modalidad?: string;
+  modalidad: string;
   fecha_ingreso: string;
   activo: boolean;
   puntaje_jerarquia?: number;

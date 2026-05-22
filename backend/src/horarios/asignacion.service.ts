@@ -133,8 +133,8 @@ export class AsignacionService {
         ? await this.parametrosCargaRepo.findOne({
             where: {
               periodo_academico: periodo,
+              tipo_docente: d.tipo_docente,
               categoria: d.categoria,
-              tipo_contrato: d.tipo_contrato,
               modalidad: d.modalidad || "",
             },
           })
@@ -311,10 +311,7 @@ export class AsignacionService {
       });
       const parametrosMap = new Map<string, ParametrosCarga>();
       for (const p of parametrosCarga) {
-        parametrosMap.set(
-          `${p.categoria}_${p.tipo_contrato}_${p.modalidad}`,
-          p,
-        );
+        parametrosMap.set(`${p.tipo_docente}_${p.categoria}_${p.modalidad}`, p);
       }
       const cursosAsignados = new Map<number, Set<number>>();
 
@@ -557,7 +554,7 @@ export class AsignacionService {
       // Verificar carga horaria usando ParametrosCarga si está disponible
       const cargaActual = horasAsignadas.get(d.id) ?? 0;
       if (parametrosMap && periodo) {
-        const pKey = `${d.categoria}_${d.tipo_contrato}_${d.modalidad ?? ""}`;
+        const pKey = `${d.tipo_docente}_${d.categoria}_${d.modalidad ?? ""}`;
         const param = parametrosMap.get(pKey);
         const maxHoras = param?.horas_max_semanal ?? 999;
         if (cargaActual + duracion > maxHoras) return false;

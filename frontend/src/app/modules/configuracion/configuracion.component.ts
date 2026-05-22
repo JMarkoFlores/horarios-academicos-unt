@@ -24,8 +24,8 @@ interface DiaActivo {
 interface ParametrosCarga {
   id: number;
   periodo_academico: string;
+  tipo_docente: string;
   categoria: string;
-  tipo_contrato: string;
   modalidad: string;
   horas_min_semanal: number;
   horas_max_semanal: number;
@@ -94,16 +94,36 @@ export class ConfiguracionComponent implements OnInit {
   editingParametroId: number | null = null;
   parametrosForm!: FormGroup;
 
-  categorias = ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR', 'JEFE_PRACTICA'];
-  tiposContrato = ['NOMBRADO', 'CONTRATADO'];
-  modalidades = [
-    'DEDICACION_EXCLUSIVA',
-    'TIEMPO_COMPLETO_40',
-    'TIEMPO_PARCIAL_20',
-    'TIEMPO_PARCIAL_12',
-    'TIEMPO_PARCIAL_10',
-    'TIEMPO_PARCIAL_8',
+  tiposDocente = [
+    { value: 'ORDINARIO', label: 'Ordinario' },
+    { value: 'CONTRATADO', label: 'Contratado' },
+    { value: 'JEFE_PRACTICA_CONTRATADO', label: 'Jefe de práctica' },
   ];
+
+  categoriasPorTipo: Record<string, { value: string; label: string }[]> = {
+    ORDINARIO: [
+      { value: 'PRINCIPAL', label: 'Principal' },
+      { value: 'ASOCIADO', label: 'Asociado' },
+      { value: 'AUXILIAR', label: 'Auxiliar' },
+    ],
+    CONTRATADO: [{ value: 'SIN_CATEGORIA', label: 'Sin categoría' }],
+    JEFE_PRACTICA_CONTRATADO: [
+      { value: 'SIN_CATEGORIA', label: 'Sin categoría' },
+    ],
+  };
+
+  categoriasDisponibles: { value: string; label: string }[] = [];
+
+  modalidades = [
+    { value: 'DEDICACION_EXCLUSIVA', label: 'Dedicación exclusiva' },
+    { value: 'TIEMPO_COMPLETO_40', label: 'Tiempo completo 40h' },
+    { value: 'TIEMPO_PARCIAL_20', label: 'Tiempo parcial 20h' },
+    { value: 'TIEMPO_PARCIAL_12', label: 'Tiempo parcial 12h' },
+    { value: 'TIEMPO_PARCIAL_10', label: 'Tiempo parcial 10h' },
+    { value: 'TIEMPO_PARCIAL_8', label: 'Tiempo parcial 8h' },
+  ];
+
+  modalidadesDisponibles: { value: string; label: string }[] = [];
 
   // ─── Configuración General ────────────────────────────────────────────────
   configuracionGeneral: ConfiguracionGeneral | null = null;
@@ -204,9 +224,9 @@ export class ConfiguracionComponent implements OnInit {
     });
 
     this.parametrosForm = this.fb.group({
-      categoria: ['PRINCIPAL', Validators.required],
-      tipo_contrato: ['NOMBRADO', Validators.required],
-      modalidad: ['DEDICACION_EXCLUSIVA', Validators.required],
+      tipo_docente: ['', Validators.required],
+      categoria: [{ value: '', disabled: true }, Validators.required],
+      modalidad: [{ value: '', disabled: true }, Validators.required],
       horas_min_semanal: [
         4,
         [Validators.required, Validators.min(1), Validators.max(40)],
@@ -591,7 +611,7 @@ export class ConfiguracionComponent implements OnInit {
     if (this.parametrosForm.invalid) return;
     this.guardandoParametros = true;
     const payload = {
-      ...this.parametrosForm.value,
+      ...this.parametrosForm.getRawValue(),
       periodo_academico: this.periodoService.periodo,
     };
     this.api
@@ -617,7 +637,23 @@ export class ConfiguracionComponent implements OnInit {
 
   editarParametro(p: ParametrosCarga): void {
     this.editingParametroId = p.id;
-    this.parametrosForm.patchValue(p);
+    const tipo = p.tipo_docente;
+    this.categoriasDisponibles = this.categoriasPorTipo[tipo] ?? [];
+    this.modalidadesDisponibles =
+      tipo === 'JEFE_PRACTICA_CONTRATADO'
+        ? this.modalidades.filter((m) => m.value !== 'DEDICACION_EXCLUSIVA')
+        : [...this.modalidades];
+    this.parametrosForm.get('categoria')!.enable();
+    this.parametrosForm.get('modalidad')!.enable();
+    this.parametrosForm.patchValue({
+      tipo_docente: p.tipo_docente,
+      categoria: p.categoria,
+      modalidad: p.modalidad,
+      horas_min_semanal: p.horas_min_semanal,
+      horas_max_semanal: p.horas_max_semanal,
+      cursos_min_docente: p.cursos_min_docente,
+      cursos_max_docente: p.cursos_max_docente,
+    });
     document
       .querySelector('.parametros-form-card')
       ?.scrollIntoView({ behavior: 'smooth' });
@@ -645,20 +681,69 @@ export class ConfiguracionComponent implements OnInit {
       });
   }
 
+  onTipoDocenteChange(tipo: string): void {
+    this.parametrosForm.get('categoria')!.reset('');
+    this.parametrosForm.get('modalidad')!.reset('');
+    this.parametrosForm.get('modalidad')!.disable();
+    if (tipo) {
+      this.categoriasDisponibles = this.categoriasPorTipo[tipo] ?? [];
+      this.parametrosForm.get('categoria')!.enable();
+      this.modalidadesDisponibles =
+        tipo === 'JEFE_PRACTICA_CONTRATADO'
+          ? this.modalidades.filter((m) => m.value !== 'DEDICACION_EXCLUSIVA')
+          : [...this.modalidades];
+      if (this.categoriasDisponibles.length === 1) {
+        this.parametrosForm
+          .get('categoria')!
+          .setValue(this.categoriasDisponibles[0].value);
+        this.parametrosForm.get('modalidad')!.enable();
+      }
+    } else {
+      this.categoriasDisponibles = [];
+      this.modalidadesDisponibles = [];
+      this.parametrosForm.get('categoria')!.disable();
+    }
+  }
+
+  onCategoriaChange(categoria: string): void {
+    this.parametrosForm.get('modalidad')!.reset('');
+    if (categoria) {
+      this.parametrosForm.get('modalidad')!.enable();
+    } else {
+      this.parametrosForm.get('modalidad')!.disable();
+    }
+  }
+
+  getTipoDocenteLabel(value: string): string {
+    return this.tiposDocente.find((t) => t.value === value)?.label ?? value;
+  }
+
+  getCategoriaLabel(value: string): string {
+    if (value === 'SIN_CATEGORIA') return 'Sin categoría';
+    if (!value) return '—';
+    return value.charAt(0) + value.slice(1).toLowerCase();
+  }
+
+  getModalidadLabel(value: string): string {
+    return this.modalidades.find((m) => m.value === value)?.label ?? value;
+  }
+
   formatModalidad(m: string): string {
-    return m.replace(/_/g, ' ');
+    return this.getModalidadLabel(m);
   }
 
   private resetParametrosForm(): void {
     this.parametrosForm.reset({
-      categoria: 'PRINCIPAL',
-      tipo_contrato: 'NOMBRADO',
-      modalidad: 'DEDICACION_EXCLUSIVA',
+      tipo_docente: '',
       horas_min_semanal: 4,
       horas_max_semanal: 20,
       cursos_min_docente: 1,
       cursos_max_docente: 5,
     });
+    this.parametrosForm.get('categoria')!.disable();
+    this.parametrosForm.get('modalidad')!.disable();
+    this.categoriasDisponibles = [];
+    this.modalidadesDisponibles = [];
   }
 
   // ─── CONFIGURACIÓN GENERAL ────────────────────────────────────────────────

@@ -375,8 +375,8 @@ export class ValidacionesService {
     const parametro = await this.parametrosCargaRepo.findOne({
       where: {
         periodo_academico: periodo,
+        tipo_docente: docente.tipo_docente,
         categoria: docente.categoria,
-        tipo_contrato: docente.tipo_contrato,
         modalidad: docente.modalidad || "",
       },
     });
@@ -416,8 +416,8 @@ export class ValidacionesService {
     const parametro = await this.parametrosCargaRepo.findOne({
       where: {
         periodo_academico: periodo,
+        tipo_docente: docente.tipo_docente,
         categoria: docente.categoria,
-        tipo_contrato: docente.tipo_contrato,
         modalidad: docente.modalidad || "",
       },
     });

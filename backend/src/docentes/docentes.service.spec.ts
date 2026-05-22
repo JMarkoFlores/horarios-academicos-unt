@@ -10,6 +10,7 @@ import { Ambiente } from "../entities/ambiente.entity";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
+import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 
 describe("DocentesService", () => {
@@ -18,7 +19,6 @@ describe("DocentesService", () => {
   let docenteCursoRepo: Repository<DocenteCurso>;
   let cursoRepo: Repository<Curso>;
   let ambienteRepo: Repository<Ambiente>;
-
 
   const mockQueryBuilder = {
     where: jest.fn().mockReturnThis(),
@@ -68,6 +68,7 @@ describe("DocentesService", () => {
     apellidos: "Pérez",
     email: "juan.perez@unitru.edu.pe",
     categoria: CategoriaDocente.PRINCIPAL,
+    tipo_docente: TipoDocente.ORDINARIO,
     tipo_contrato: TipoContrato.NOMBRADO,
     fecha_ingreso: new Date("2020-01-01"),
     activo: true,
@@ -121,9 +122,13 @@ describe("DocentesService", () => {
 
     service = module.get<DocentesService>(DocentesService);
     docenteRepo = module.get<Repository<Docente>>(getRepositoryToken(Docente));
-    docenteCursoRepo = module.get<Repository<DocenteCurso>>(getRepositoryToken(DocenteCurso));
+    docenteCursoRepo = module.get<Repository<DocenteCurso>>(
+      getRepositoryToken(DocenteCurso),
+    );
     cursoRepo = module.get<Repository<Curso>>(getRepositoryToken(Curso));
-    ambienteRepo = module.get<Repository<Ambiente>>(getRepositoryToken(Ambiente));
+    ambienteRepo = module.get<Repository<Ambiente>>(
+      getRepositoryToken(Ambiente),
+    );
 
     jest.clearAllMocks();
   });
@@ -163,11 +168,17 @@ describe("DocentesService", () => {
   describe("update", () => {
     it("debe actualizar un docente exitosamente", async () => {
       mockQueryBuilder.getOne.mockResolvedValue(mockDocente);
-      mockDocenteRepo.merge.mockReturnValue({ ...mockDocente, nombres: 'Updated' });
-      mockDocenteRepo.save.mockResolvedValue({ ...mockDocente, nombres: 'Updated' });
+      mockDocenteRepo.merge.mockReturnValue({
+        ...mockDocente,
+        nombres: "Updated",
+      });
+      mockDocenteRepo.save.mockResolvedValue({
+        ...mockDocente,
+        nombres: "Updated",
+      });
 
-      const result = await service.update(1, { nombres: 'Updated' });
-      expect(result.nombres).toBe('Updated');
+      const result = await service.update(1, { nombres: "Updated" });
+      expect(result.nombres).toBe("Updated");
     });
   });
 
@@ -197,7 +208,9 @@ describe("DocentesService", () => {
       const result = await service.asignarCursos(1, payload);
 
       expect(result).toEqual([mockDocenteCurso]);
-      expect(mockCursoRepo.findOne).toHaveBeenCalledWith({ where: { id: 10, activo: true } });
+      expect(mockCursoRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 10, activo: true },
+      });
       expect(mockDocenteCursoRepo.save).toHaveBeenCalled();
     });
 
@@ -210,7 +223,9 @@ describe("DocentesService", () => {
         cursos: [{ cursoId: 999, tipo_clase: TipoClase.TEORIA }],
       };
 
-      await expect(service.asignarCursos(1, payload)).rejects.toThrow(NotFoundException);
+      await expect(service.asignarCursos(1, payload)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -240,7 +255,9 @@ describe("DocentesService", () => {
 
       await service.removeAsignacion(1, 10, TipoClase.TEORIA);
 
-      expect(mockDocenteCursoRepo.remove).toHaveBeenCalledWith(mockDocenteCurso);
+      expect(mockDocenteCursoRepo.remove).toHaveBeenCalledWith(
+        mockDocenteCurso,
+      );
     });
 
     it("debe lanzar NotFoundException si la asignación no existe", async () => {

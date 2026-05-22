@@ -39,6 +39,19 @@ export function fechaNoFuturaValidator(): ValidatorFn {
   };
 }
 
+const CATEGORIAS_POR_TIPO: Record<string, { value: string; label: string }[]> =
+  {
+    ORDINARIO: [
+      { value: 'PRINCIPAL', label: 'Principal' },
+      { value: 'ASOCIADO', label: 'Asociado' },
+      { value: 'AUXILIAR', label: 'Auxiliar' },
+    ],
+    CONTRATADO: [{ value: 'SIN_CATEGORIA', label: 'Sin categoría' }],
+    JEFE_PRACTICA_CONTRATADO: [
+      { value: 'SIN_CATEGORIA', label: 'Sin categoría' },
+    ],
+  };
+
 @Component({
   selector: 'app-docente-form',
   templateUrl: './docente-form.component.html',
@@ -52,15 +65,21 @@ export class DocenteFormComponent implements OnInit {
   saving = false;
   hoy = new Date();
 
-  categorias = ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR', 'JEFE_PRACTICA'];
-  tiposContrato = ['NOMBRADO', 'CONTRATADO'];
+  tiposDocente = [
+    { value: 'ORDINARIO', label: 'Ordinario' },
+    { value: 'CONTRATADO', label: 'Contratado' },
+    { value: 'JEFE_PRACTICA_CONTRATADO', label: 'Jefe de práctica contratado' },
+  ];
+
+  categoriasDisponibles: { value: string; label: string }[] = [];
+
   modalidades = [
-    { value: 'DEDICACION_EXCLUSIVA', label: 'Dedicación Exclusiva' },
-    { value: 'TIEMPO_COMPLETO_40', label: 'Tiempo Completo (40 h)' },
-    { value: 'TIEMPO_PARCIAL_20', label: 'Tiempo Parcial 20 h' },
-    { value: 'TIEMPO_PARCIAL_12', label: 'Tiempo Parcial 12 h' },
-    { value: 'TIEMPO_PARCIAL_10', label: 'Tiempo Parcial 10 h' },
-    { value: 'TIEMPO_PARCIAL_8', label: 'Tiempo Parcial 8 h' },
+    { value: 'DEDICACION_EXCLUSIVA', label: 'Dedicación exclusiva' },
+    { value: 'TIEMPO_COMPLETO_40', label: 'Tiempo completo 40h' },
+    { value: 'TIEMPO_PARCIAL_20', label: 'Tiempo parcial 20h' },
+    { value: 'TIEMPO_PARCIAL_12', label: 'Tiempo parcial 12h' },
+    { value: 'TIEMPO_PARCIAL_10', label: 'Tiempo parcial 10h' },
+    { value: 'TIEMPO_PARCIAL_8', label: 'Tiempo parcial 8h' },
   ];
 
   constructor(
@@ -78,9 +97,9 @@ export class DocenteFormComponent implements OnInit {
       apellidos: ['', [Validators.required, Validators.maxLength(150)]],
       email: ['', [Validators.required, emailInstitucionalValidator()]],
       telefono: ['', [Validators.pattern(/^\+?[\d\s\-]{7,20}$/)]],
-      categoria: ['AUXILIAR', Validators.required],
-      tipo_contrato: ['NOMBRADO', Validators.required],
-      modalidad: [null],
+      tipo_docente: [{ value: '', disabled: false }, Validators.required],
+      categoria: [{ value: '', disabled: true }, Validators.required],
+      modalidad: [{ value: '', disabled: true }, Validators.required],
       fecha_ingreso: [null, [Validators.required, fechaNoFuturaValidator()]],
     });
 
@@ -92,6 +111,36 @@ export class DocenteFormComponent implements OnInit {
     }
   }
 
+  onTipoDocenteChange(tipo: string): void {
+    this.form.get('categoria')!.reset('');
+    this.form.get('modalidad')!.reset('');
+    this.form.get('modalidad')!.disable();
+
+    if (tipo) {
+      this.categoriasDisponibles = CATEGORIAS_POR_TIPO[tipo] ?? [];
+      this.form.get('categoria')!.enable();
+
+      if (this.categoriasDisponibles.length === 1) {
+        this.form
+          .get('categoria')!
+          .setValue(this.categoriasDisponibles[0].value);
+        this.form.get('modalidad')!.enable();
+      }
+    } else {
+      this.categoriasDisponibles = [];
+      this.form.get('categoria')!.disable();
+    }
+  }
+
+  onCategoriaChange(categoria: string): void {
+    this.form.get('modalidad')!.reset('');
+    if (categoria) {
+      this.form.get('modalidad')!.enable();
+    } else {
+      this.form.get('modalidad')!.disable();
+    }
+  }
+
   loadDocente(): void {
     this.loading = true;
     this.api
@@ -99,8 +148,21 @@ export class DocenteFormComponent implements OnInit {
       .subscribe({
         next: (res) => {
           const d = res.data;
+          const tipo = d.tipo_docente ?? '';
+          this.categoriasDisponibles = CATEGORIAS_POR_TIPO[tipo] ?? [];
+
+          this.form.get('categoria')!.enable();
+          this.form.get('modalidad')!.enable();
+
           this.form.patchValue({
-            ...d,
+            codigo: d.codigo,
+            nombres: d.nombres,
+            apellidos: d.apellidos,
+            email: d.email,
+            telefono: d.telefono ?? '',
+            tipo_docente: tipo,
+            categoria: d.categoria,
+            modalidad: d.modalidad,
             fecha_ingreso: d.fecha_ingreso ? new Date(d.fecha_ingreso) : null,
           });
           this.loading = false;
@@ -122,11 +184,12 @@ export class DocenteFormComponent implements OnInit {
     }
     this.saving = true;
 
-    const v = this.form.value as Record<string, unknown>;
+    const v = this.form.getRawValue() as Record<string, unknown>;
     const fi = v['fecha_ingreso'];
     const payload = {
       ...v,
-      fecha_ingreso: fi instanceof Date ? fi.toISOString().split('T')[0] : fi,
+      fecha_ingreso:
+        fi instanceof Date ? (fi as Date).toISOString().split('T')[0] : fi,
     };
 
     const request = this.isEdit

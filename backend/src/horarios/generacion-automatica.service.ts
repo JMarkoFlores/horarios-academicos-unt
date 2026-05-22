@@ -159,7 +159,7 @@ export class GeneracionAutomaticaService {
     const parametrosMap = new Map<string, ParametrosCarga>();
     for (const p of parametrosCarga) {
       parametrosMap.set(
-        `${p.categoria}_${p.tipo_contrato}_${p.modalidad ?? ""}`,
+        `${p.tipo_docente}_${p.categoria}_${p.modalidad ?? ""}`,
         p,
       );
     }
@@ -179,7 +179,7 @@ export class GeneracionAutomaticaService {
       };
 
       // Obtener parámetros para este docente
-      const pKey = `${docente.categoria}_${docente.tipo_contrato}_${docente.modalidad ?? ""}`;
+      const pKey = `${docente.tipo_docente}_${docente.categoria}_${docente.modalidad ?? ""}`;
       const parametro = parametrosMap.get(pKey);
       const maxHorasSemanal = parametro?.horas_max_semanal ?? 999;
       const maxCursos = parametro?.cursos_max_docente ?? 999;

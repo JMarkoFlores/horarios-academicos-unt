@@ -66,21 +66,22 @@
             (ngModelChange)="onFilterChange()"
           >
             <mat-option value="">Todas</mat-option>
-            <mat-option *ngFor="let c of categorias" [value]="c">{{
-              c
-            }}</mat-option>
+            <mat-option value="PRINCIPAL">Principal</mat-option>
+            <mat-option value="ASOCIADO">Asociado</mat-option>
+            <mat-option value="AUXILIAR">Auxiliar</mat-option>
+            <mat-option value="SIN_CATEGORIA">Sin categoría</mat-option>
           </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="premium-select">
-          <mat-label>Contrato</mat-label>
+          <mat-label>Tipo de docente</mat-label>
           <mat-select
-            [(ngModel)]="tipoContratoFilter"
+            [(ngModel)]="tipoDocenteFilter"
             (ngModelChange)="onFilterChange()"
           >
             <mat-option value="">Todos</mat-option>
-            <mat-option *ngFor="let t of tiposContrato" [value]="t">{{
-              t
+            <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{
+              t.label
             }}</mat-option>
           </mat-select>
         </mat-form-field>
@@ -148,6 +149,30 @@
           </td>
         </ng-container>
 
+        <!-- Tipo Docente Column -->
+        <ng-container matColumnDef="tipo_docente">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="tipo_docente">
+            Tipo de docente
+          </th>
+          <td mat-cell *matCellDef="let d">
+            <div class="contract-cell">
+              <mat-icon
+                class="contract-icon"
+                [color]="d.tipo_docente === 'ORDINARIO' ? 'primary' : ''"
+              >
+                {{
+                  d.tipo_docente === "ORDINARIO"
+                    ? "verified_user"
+                    : d.tipo_docente === "JEFE_PRACTICA_CONTRATADO"
+                      ? "engineering"
+                      : "assignment"
+                }}
+              </mat-icon>
+              <span>{{ getTipoDocenteLabel(d.tipo_docente) }}</span>
+            </div>
+          </td>
+        </ng-container>
+
         <!-- Category Column -->
         <ng-container matColumnDef="categoria">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="categoria">
@@ -155,30 +180,8 @@
           </th>
           <td mat-cell *matCellDef="let d">
             <span [class]="'badge-pill badge-' + d.categoria">{{
-              d.categoria
+              getCategoriaLabel(d.categoria)
             }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Contract Column -->
-        <ng-container matColumnDef="tipo_contrato">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="tipo_contrato">
-            Contrato
-          </th>
-          <td mat-cell *matCellDef="let d">
-            <div class="contract-cell">
-              <mat-icon
-                class="contract-icon"
-                [color]="d.tipo_contrato === 'NOMBRADO' ? 'primary' : ''"
-              >
-                {{
-                  d.tipo_contrato === "NOMBRADO"
-                    ? "verified_user"
-                    : "assignment"
-                }}
-              </mat-icon>
-              <span>{{ d.tipo_contrato }}</span>
-            </div>
           </td>
         </ng-container>
 

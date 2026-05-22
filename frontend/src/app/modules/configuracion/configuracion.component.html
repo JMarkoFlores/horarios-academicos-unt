@@ -668,29 +668,39 @@
         <form [formGroup]="parametrosForm" class="restriccion-form">
           <div class="form-row-two">
             <mat-form-field appearance="outline">
-              <mat-label>Categoría del Docente</mat-label>
-              <mat-select formControlName="categoria">
-                <mat-option *ngFor="let c of categorias" [value]="c">{{
-                  c
+              <mat-label>Tipo de docente</mat-label>
+              <mat-select
+                formControlName="tipo_docente"
+                (selectionChange)="onTipoDocenteChange($event.value)"
+              >
+                <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{
+                  t.label
                 }}</mat-option>
+              </mat-select>
+              <mat-icon matSuffix>badge</mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Categoría</mat-label>
+              <mat-select
+                formControlName="categoria"
+                (selectionChange)="onCategoriaChange($event.value)"
+              >
+                <mat-option
+                  *ngFor="let c of categoriasDisponibles"
+                  [value]="c.value"
+                  >{{ c.label }}</mat-option
+                >
               </mat-select>
               <mat-icon matSuffix>workspace_premium</mat-icon>
             </mat-form-field>
             <mat-form-field appearance="outline">
-              <mat-label>Tipo de Contrato</mat-label>
-              <mat-select formControlName="tipo_contrato">
-                <mat-option *ngFor="let t of tiposContrato" [value]="t">{{
-                  t
-                }}</mat-option>
-              </mat-select>
-              <mat-icon matSuffix>history_edu</mat-icon>
-            </mat-form-field>
-            <mat-form-field appearance="outline">
               <mat-label>Modalidad</mat-label>
               <mat-select formControlName="modalidad">
-                <mat-option *ngFor="let m of modalidades" [value]="m">{{
-                  m.replace("_", " ")
-                }}</mat-option>
+                <mat-option
+                  *ngFor="let m of modalidadesDisponibles"
+                  [value]="m.value"
+                  >{{ m.label }}</mat-option
+                >
               </mat-select>
               <mat-icon matSuffix>schedule</mat-icon>
             </mat-form-field>
@@ -795,15 +805,11 @@
         <mat-card-header>
           <mat-icon mat-card-avatar class="param-icon">person</mat-icon>
           <mat-card-title>
-            <span [class]="'badge-pill badge-' + p.categoria">{{
-              p.categoria
+            <span class="badge-pill badge-tipo">{{
+              getTipoDocenteLabel(p.tipo_docente)
             }}</span>
-            <span
-              class="tc-badge"
-              [class.nombrado]="p.tipo_contrato === 'NOMBRADO'"
-              >{{ p.tipo_contrato }}</span
-            >
-            <span class="mod-badge">{{ formatModalidad(p.modalidad) }}</span>
+            <span class="tc-badge">{{ getCategoriaLabel(p.categoria) }}</span>
+            <span class="mod-badge">{{ getModalidadLabel(p.modalidad) }}</span>
           </mat-card-title>
         </mat-card-header>
         <mat-card-content class="param-content">

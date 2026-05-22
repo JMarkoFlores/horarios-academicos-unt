@@ -8,7 +8,12 @@ import {
 } from "typeorm";
 
 @Entity("parametros_carga")
-@Unique(["periodo_academico", "categoria", "tipo_contrato", "modalidad"])
+@Unique("UQ_parametros_carga_td_cat_mod", [
+  "periodo_academico",
+  "tipo_docente",
+  "categoria",
+  "modalidad",
+])
 export class ParametrosCarga {
   @PrimaryGeneratedColumn()
   id: number;
@@ -20,7 +25,7 @@ export class ParametrosCarga {
   categoria: string;
 
   @Column({ length: 30, default: "" })
-  tipo_contrato: string;
+  tipo_docente: string;
 
   @Column({ length: 30, default: "" })
   modalidad: string;

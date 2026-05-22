@@ -10,7 +10,7 @@ import {
 } from "class-validator";
 import { Transform } from "class-transformer";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
-import { TipoContrato } from "../../common/enums/tipo-contrato.enum";
+import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
 
 export class QueryDocenteDto {
@@ -32,10 +32,10 @@ export class QueryDocenteDto {
   @IsEnum(CategoriaDocente)
   categoria?: CategoriaDocente;
 
-  @ApiPropertyOptional({ enum: TipoContrato })
+  @ApiPropertyOptional({ enum: TipoDocente })
   @IsOptional()
-  @IsEnum(TipoContrato)
-  tipo_contrato?: TipoContrato;
+  @IsEnum(TipoDocente)
+  tipo_docente?: TipoDocente;
 
   @ApiPropertyOptional({ enum: ModalidadDocente })
   @IsOptional()

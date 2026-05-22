@@ -26,14 +26,14 @@ export class UpsertParametrosCargaDto {
   categoria: string;
 
   @ApiProperty({
-    example: "NOMBRADO",
-    description: "Tipo de contrato",
-    enum: ["NOMBRADO", "CONTRATADO"],
+    example: "ORDINARIO",
+    description: "Tipo de docente",
+    enum: ["ORDINARIO", "CONTRATADO", "JEFE_PRACTICA_CONTRATADO"],
   })
   @IsString()
   @IsNotEmpty()
   @MaxLength(30)
-  tipo_contrato: string;
+  tipo_docente: string;
 
   @ApiProperty({
     example: "DEDICACION_EXCLUSIVA",

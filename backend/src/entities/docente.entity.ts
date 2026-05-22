@@ -10,6 +10,7 @@ import {
 } from "typeorm";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
+import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
 import { DisponibilidadDocente } from "./disponibilidad-docente.entity";
 import { HorarioAsignado } from "./horario-asignado.entity";
@@ -41,6 +42,9 @@ export class Docente {
 
   @Column({ type: "enum", enum: TipoContrato })
   tipo_contrato: TipoContrato;
+
+  @Column({ type: "enum", enum: TipoDocente, nullable: true })
+  tipo_docente: TipoDocente;
 
   @Column({ type: "enum", enum: ModalidadDocente, nullable: true })
   modalidad: ModalidadDocente;

@@ -19,6 +19,9 @@ import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
 import { AsignarCursosDto } from "./dto/asignar-cursos.dto";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { TipoDocente } from "../common/enums/tipo-docente.enum";
+import { TipoContrato } from "../common/enums/tipo-contrato.enum";
+import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 
 @Injectable()
 export class DocentesService {
@@ -41,7 +44,7 @@ export class DocentesService {
       page = 1,
       limit = 20,
       categoria,
-      tipo_contrato,
+      tipo_docente,
       modalidad,
       busqueda,
       sortBy,
@@ -58,8 +61,8 @@ export class DocentesService {
       qb.andWhere("docente.categoria = :categoria", { categoria });
     }
 
-    if (tipo_contrato) {
-      qb.andWhere("docente.tipo_contrato = :tipo_contrato", { tipo_contrato });
+    if (tipo_docente) {
+      qb.andWhere("docente.tipo_docente = :tipo_docente", { tipo_docente });
     }
 
     if (modalidad) {
@@ -77,6 +80,7 @@ export class DocentesService {
       apellidos: "docente.apellidos",
       nombres: "docente.nombres",
       categoria: "docente.categoria",
+      tipo_docente: "docente.tipo_docente",
       tipo_contrato: "docente.tipo_contrato",
       fecha_ingreso: "docente.fecha_ingreso",
     };
@@ -103,7 +107,7 @@ export class DocentesService {
 
   async findAllParaExportar(filters: {
     categoria?: string;
-    tipo_contrato?: string;
+    tipo_docente?: string;
     modalidad?: string;
     busqueda?: string;
   }) {
@@ -116,9 +120,9 @@ export class DocentesService {
         categoria: filters.categoria,
       });
     }
-    if (filters.tipo_contrato) {
-      qb.andWhere("docente.tipo_contrato = :tipo_contrato", {
-        tipo_contrato: filters.tipo_contrato,
+    if (filters.tipo_docente) {
+      qb.andWhere("docente.tipo_docente = :tipo_docente", {
+        tipo_docente: filters.tipo_docente,
       });
     }
     if (filters.modalidad) {
@@ -167,15 +171,12 @@ export class DocentesService {
       .where("docente.activo = :activo", { activo: true })
       .addSelect(
         `CASE
-          WHEN docente.tipo_contrato = 'NOMBRADO' AND docente.categoria = 'PRINCIPAL'     THEN 1
-          WHEN docente.tipo_contrato = 'NOMBRADO' AND docente.categoria = 'ASOCIADO'      THEN 2
-          WHEN docente.tipo_contrato = 'NOMBRADO' AND docente.categoria = 'AUXILIAR'      THEN 3
-          WHEN docente.tipo_contrato = 'NOMBRADO' AND docente.categoria = 'JEFE_PRACTICA' THEN 4
-          WHEN docente.tipo_contrato = 'CONTRATADO' AND docente.categoria = 'PRINCIPAL'     THEN 5
-          WHEN docente.tipo_contrato = 'CONTRATADO' AND docente.categoria = 'ASOCIADO'      THEN 6
-          WHEN docente.tipo_contrato = 'CONTRATADO' AND docente.categoria = 'AUXILIAR'      THEN 7
-          WHEN docente.tipo_contrato = 'CONTRATADO' AND docente.categoria = 'JEFE_PRACTICA' THEN 8
-          ELSE 9
+          WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'PRINCIPAL'  THEN 1
+          WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'ASOCIADO'   THEN 2
+          WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'AUXILIAR'   THEN 3
+          WHEN docente.tipo_docente = 'CONTRATADO'                                     THEN 4
+          WHEN docente.tipo_docente = 'JEFE_PRACTICA_CONTRATADO'                       THEN 5
+          ELSE 6
         END`,
         "orden_jerarquia",
       )
@@ -190,6 +191,21 @@ export class DocentesService {
       antiguedad: this.calcularAntiguedad(d.fecha_ingreso),
       periodo,
     }));
+  }
+
+  private derivarTipoContrato(tipoDocente: TipoDocente): TipoContrato {
+    return tipoDocente === TipoDocente.ORDINARIO
+      ? TipoContrato.NOMBRADO
+      : TipoContrato.CONTRATADO;
+  }
+
+  private normalizarCategoria(
+    tipoDocente: TipoDocente,
+    categoria: CategoriaDocente,
+  ): CategoriaDocente {
+    return tipoDocente !== TipoDocente.ORDINARIO
+      ? CategoriaDocente.SIN_CATEGORIA
+      : categoria;
   }
 
   async create(dto: CreateDocenteDto): Promise<Docente> {
@@ -211,6 +227,8 @@ export class DocentesService {
 
     const docente = this.docenteRepo.create({
       ...dto,
+      tipo_contrato: this.derivarTipoContrato(dto.tipo_docente),
+      categoria: this.normalizarCategoria(dto.tipo_docente, dto.categoria),
       fecha_ingreso: new Date(dto.fecha_ingreso),
       activo: true,
     });
@@ -241,8 +259,17 @@ export class DocentesService {
       }
     }
 
+    const tipoDocente = dto.tipo_docente ?? docente.tipo_docente;
     const actualizado = this.docenteRepo.merge(docente, {
       ...dto,
+      tipo_contrato: this.derivarTipoContrato(tipoDocente),
+      categoria:
+        dto.tipo_docente !== undefined || dto.categoria !== undefined
+          ? this.normalizarCategoria(
+              tipoDocente,
+              dto.categoria ?? docente.categoria,
+            )
+          : docente.categoria,
       ...(dto.fecha_ingreso && { fecha_ingreso: new Date(dto.fecha_ingreso) }),
     });
 

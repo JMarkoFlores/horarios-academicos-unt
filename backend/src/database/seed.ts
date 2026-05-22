@@ -31,6 +31,7 @@ import { Departamento } from "../entities/departamento.entity";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
+import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
@@ -296,20 +297,44 @@ async function seed() {
   ];
 
   for (let i = 1; i <= 25; i++) {
+    // Reglas académicas:
+    //   1-5   → Ordinario / Principal
+    //   6-10  → Ordinario / Asociado
+    //   11-18 → Ordinario / Auxiliar
+    //   19-22 → Contratado / Sin categoría
+    //   23-25 → Jefe de práctica contratado / Sin categoría
+    let tipoDocente: TipoDocente;
+    let categoria: CategoriaDocente;
+    if (i <= 5) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.PRINCIPAL;
+    } else if (i <= 10) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.ASOCIADO;
+    } else if (i <= 18) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.AUXILIAR;
+    } else if (i <= 22) {
+      tipoDocente = TipoDocente.CONTRATADO;
+      categoria = CategoriaDocente.SIN_CATEGORIA;
+    } else {
+      tipoDocente = TipoDocente.JEFE_PRACTICA_CONTRATADO;
+      categoria = CategoriaDocente.SIN_CATEGORIA;
+    }
+    const tipoContrato =
+      tipoDocente === TipoDocente.ORDINARIO
+        ? TipoContrato.NOMBRADO
+        : TipoContrato.CONTRATADO;
+
     const d = await docenteRepo.save(
       docenteRepo.create({
         codigo: `DOC${i.toString().padStart(3, "0")}`,
         nombres: nombresPool[i - 1],
         apellidos: apellidosPool[i - 1],
         email: `${nombresPool[i - 1].toLowerCase()}.${apellidosPool[i - 1].toLowerCase()}@unt.edu.pe`,
-        categoria:
-          i <= 5
-            ? CategoriaDocente.PRINCIPAL
-            : i <= 15
-              ? CategoriaDocente.ASOCIADO
-              : CategoriaDocente.AUXILIAR,
-        tipo_contrato:
-          i <= 20 ? TipoContrato.NOMBRADO : TipoContrato.CONTRATADO,
+        categoria,
+        tipo_docente: tipoDocente,
+        tipo_contrato: tipoContrato,
         modalidad: modalidadesPool[(i - 1) % modalidadesPool.length],
         fecha_ingreso: new Date(2000 + (i % 20), 0, 1),
         activo: true,
@@ -1385,11 +1410,11 @@ async function seed() {
   // ── 10. PARÁMETROS DE CARGA DOCENTE ────────────────────────────────────
   console.log("📋 Creando parámetros de carga docente...");
   const parametrosCargaData = [
-    // PRINCIPAL NOMBRADO
+    // ── ORDINARIO | PRINCIPAL ──────────────────────────────────────────────
     {
       periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
       categoria: "PRINCIPAL",
-      tipo_contrato: "NOMBRADO",
       modalidad: "DEDICACION_EXCLUSIVA",
       horas_min_semanal: 24,
       horas_max_semanal: 40,
@@ -1398,8 +1423,8 @@ async function seed() {
     },
     {
       periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
       categoria: "PRINCIPAL",
-      tipo_contrato: "NOMBRADO",
       modalidad: "TIEMPO_COMPLETO_40",
       horas_min_semanal: 24,
       horas_max_semanal: 40,
@@ -1408,130 +1433,18 @@ async function seed() {
     },
     {
       periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
       categoria: "PRINCIPAL",
-      tipo_contrato: "NOMBRADO",
       modalidad: "TIEMPO_PARCIAL_20",
       horas_min_semanal: 16,
       horas_max_semanal: 20,
       cursos_min_docente: 1,
-      cursos_max_docente: 4,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "PRINCIPAL",
-      tipo_contrato: "NOMBRADO",
-      modalidad: "TIEMPO_PARCIAL_12",
-      horas_min_semanal: 10,
-      horas_max_semanal: 12,
-      cursos_min_docente: 1,
-      cursos_max_docente: 3,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "PRINCIPAL",
-      tipo_contrato: "NOMBRADO",
-      modalidad: "TIEMPO_PARCIAL_10",
-      horas_min_semanal: 8,
-      horas_max_semanal: 10,
-      cursos_min_docente: 1,
-      cursos_max_docente: 2,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "PRINCIPAL",
-      tipo_contrato: "NOMBRADO",
-      modalidad: "TIEMPO_PARCIAL_8",
-      horas_min_semanal: 6,
-      horas_max_semanal: 8,
-      cursos_min_docente: 1,
-      cursos_max_docente: 2,
-    },
-    // PRINCIPAL CONTRATADO
-    {
-      periodo_academico: "2026-I",
-      categoria: "PRINCIPAL",
-      tipo_contrato: "CONTRATADO",
-      modalidad: "DEDICACION_EXCLUSIVA",
-      horas_min_semanal: 30,
-      horas_max_semanal: 40,
-      cursos_min_docente: 1,
       cursos_max_docente: 5,
     },
     {
       periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
       categoria: "PRINCIPAL",
-      tipo_contrato: "CONTRATADO",
-      modalidad: "TIEMPO_COMPLETO_40",
-      horas_min_semanal: 30,
-      horas_max_semanal: 40,
-      cursos_min_docente: 1,
-      cursos_max_docente: 5,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "PRINCIPAL",
-      tipo_contrato: "CONTRATADO",
-      modalidad: "TIEMPO_PARCIAL_20",
-      horas_min_semanal: 16,
-      horas_max_semanal: 20,
-      cursos_min_docente: 1,
-      cursos_max_docente: 4,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "PRINCIPAL",
-      tipo_contrato: "CONTRATADO",
-      modalidad: "TIEMPO_PARCIAL_12",
-      horas_min_semanal: 10,
-      horas_max_semanal: 12,
-      cursos_min_docente: 1,
-      cursos_max_docente: 3,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "PRINCIPAL",
-      tipo_contrato: "CONTRATADO",
-      modalidad: "TIEMPO_PARCIAL_10",
-      horas_min_semanal: 8,
-      horas_max_semanal: 10,
-      cursos_min_docente: 1,
-      cursos_max_docente: 2,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "PRINCIPAL",
-      tipo_contrato: "CONTRATADO",
-      modalidad: "TIEMPO_PARCIAL_8",
-      horas_min_semanal: 6,
-      horas_max_semanal: 8,
-      cursos_min_docente: 1,
-      cursos_max_docente: 2,
-    },
-    // JEFE_PRACTICA CONTRATADO
-    {
-      periodo_academico: "2026-I",
-      categoria: "JEFE_PRACTICA",
-      tipo_contrato: "CONTRATADO",
-      modalidad: "TIEMPO_COMPLETO_40",
-      horas_min_semanal: 36,
-      horas_max_semanal: 40,
-      cursos_min_docente: 1,
-      cursos_max_docente: 5,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "JEFE_PRACTICA",
-      tipo_contrato: "CONTRATADO",
-      modalidad: "TIEMPO_PARCIAL_20",
-      horas_min_semanal: 20,
-      horas_max_semanal: 20,
-      cursos_min_docente: 1,
-      cursos_max_docente: 5,
-    },
-    {
-      periodo_academico: "2026-I",
-      categoria: "JEFE_PRACTICA",
-      tipo_contrato: "CONTRATADO",
       modalidad: "TIEMPO_PARCIAL_12",
       horas_min_semanal: 12,
       horas_max_semanal: 12,
@@ -1540,8 +1453,8 @@ async function seed() {
     },
     {
       periodo_academico: "2026-I",
-      categoria: "JEFE_PRACTICA",
-      tipo_contrato: "CONTRATADO",
+      tipo_docente: "ORDINARIO",
+      categoria: "PRINCIPAL",
       modalidad: "TIEMPO_PARCIAL_10",
       horas_min_semanal: 10,
       horas_max_semanal: 10,
@@ -1550,8 +1463,242 @@ async function seed() {
     },
     {
       periodo_academico: "2026-I",
-      categoria: "JEFE_PRACTICA",
-      tipo_contrato: "CONTRATADO",
+      tipo_docente: "ORDINARIO",
+      categoria: "PRINCIPAL",
+      modalidad: "TIEMPO_PARCIAL_8",
+      horas_min_semanal: 8,
+      horas_max_semanal: 8,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    // ── ORDINARIO | ASOCIADO ───────────────────────────────────────────────
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "ASOCIADO",
+      modalidad: "DEDICACION_EXCLUSIVA",
+      horas_min_semanal: 24,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "ASOCIADO",
+      modalidad: "TIEMPO_COMPLETO_40",
+      horas_min_semanal: 24,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "ASOCIADO",
+      modalidad: "TIEMPO_PARCIAL_20",
+      horas_min_semanal: 16,
+      horas_max_semanal: 20,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "ASOCIADO",
+      modalidad: "TIEMPO_PARCIAL_12",
+      horas_min_semanal: 12,
+      horas_max_semanal: 12,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "ASOCIADO",
+      modalidad: "TIEMPO_PARCIAL_10",
+      horas_min_semanal: 10,
+      horas_max_semanal: 10,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "ASOCIADO",
+      modalidad: "TIEMPO_PARCIAL_8",
+      horas_min_semanal: 8,
+      horas_max_semanal: 8,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    // ── ORDINARIO | AUXILIAR ───────────────────────────────────────────────
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "AUXILIAR",
+      modalidad: "DEDICACION_EXCLUSIVA",
+      horas_min_semanal: 24,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "AUXILIAR",
+      modalidad: "TIEMPO_COMPLETO_40",
+      horas_min_semanal: 24,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "AUXILIAR",
+      modalidad: "TIEMPO_PARCIAL_20",
+      horas_min_semanal: 16,
+      horas_max_semanal: 20,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "AUXILIAR",
+      modalidad: "TIEMPO_PARCIAL_12",
+      horas_min_semanal: 12,
+      horas_max_semanal: 12,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "AUXILIAR",
+      modalidad: "TIEMPO_PARCIAL_10",
+      horas_min_semanal: 10,
+      horas_max_semanal: 10,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "ORDINARIO",
+      categoria: "AUXILIAR",
+      modalidad: "TIEMPO_PARCIAL_8",
+      horas_min_semanal: 8,
+      horas_max_semanal: 8,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    // ── CONTRATADO | SIN_CATEGORIA ─────────────────────────────────────────
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "DEDICACION_EXCLUSIVA",
+      horas_min_semanal: 30,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_COMPLETO_40",
+      horas_min_semanal: 30,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_PARCIAL_20",
+      horas_min_semanal: 18,
+      horas_max_semanal: 20,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_PARCIAL_12",
+      horas_min_semanal: 12,
+      horas_max_semanal: 12,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_PARCIAL_10",
+      horas_min_semanal: 10,
+      horas_max_semanal: 10,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_PARCIAL_8",
+      horas_min_semanal: 8,
+      horas_max_semanal: 8,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    // ── JEFE_PRACTICA_CONTRATADO | SIN_CATEGORIA (sin Dedicación exclusiva) ─
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "JEFE_PRACTICA_CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_COMPLETO_40",
+      horas_min_semanal: 36,
+      horas_max_semanal: 40,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "JEFE_PRACTICA_CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_PARCIAL_20",
+      horas_min_semanal: 20,
+      horas_max_semanal: 20,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "JEFE_PRACTICA_CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_PARCIAL_12",
+      horas_min_semanal: 12,
+      horas_max_semanal: 12,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "JEFE_PRACTICA_CONTRATADO",
+      categoria: "SIN_CATEGORIA",
+      modalidad: "TIEMPO_PARCIAL_10",
+      horas_min_semanal: 10,
+      horas_max_semanal: 10,
+      cursos_min_docente: 1,
+      cursos_max_docente: 5,
+    },
+    {
+      periodo_academico: "2026-I",
+      tipo_docente: "JEFE_PRACTICA_CONTRATADO",
+      categoria: "SIN_CATEGORIA",
       modalidad: "TIEMPO_PARCIAL_8",
       horas_min_semanal: 8,
       horas_max_semanal: 8,

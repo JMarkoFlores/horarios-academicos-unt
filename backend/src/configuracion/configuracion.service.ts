@@ -212,7 +212,7 @@ export class ConfiguracionService {
   async findParametrosCarga(periodo: string): Promise<ParametrosCarga[]> {
     return this.parametrosCargaRepo.find({
       where: { periodo_academico: periodo },
-      order: { categoria: "ASC", tipo_contrato: "ASC", modalidad: "ASC" },
+      order: { tipo_docente: "ASC", categoria: "ASC", modalidad: "ASC" },
     });
   }
 
@@ -233,8 +233,8 @@ export class ConfiguracionService {
     const existente = await this.parametrosCargaRepo.findOne({
       where: {
         periodo_academico: dto.periodo_academico,
+        tipo_docente: dto.tipo_docente,
         categoria: dto.categoria,
-        tipo_contrato: dto.tipo_contrato,
         modalidad: dto.modalidad,
       },
     });

@@ -381,12 +381,18 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   openVerPerfil(): void {
-    this.dialog.open(PerfilDialogComponent, {
+    const dialogRef = this.dialog.open(PerfilDialogComponent, {
       width: '450px',
       maxWidth: '95vw',
       panelClass: 'profile-dialog-panel',
       data: this.usuario,
       disableClose: false,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result !== 'logout') {
+        this.router.navigate(['/app/dashboard']);
+      }
     });
   }
 

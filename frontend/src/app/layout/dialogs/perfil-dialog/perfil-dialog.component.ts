@@ -1,6 +1,11 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import {
+  Component,
+  Inject,
+  OnInit,
+  NgZone,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { Router } from '@angular/router';
 import { Usuario } from '../../../core/interfaces/entities';
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -25,7 +30,8 @@ export class PerfilDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public usuario: Usuario,
     private dialogRef: MatDialogRef<PerfilDialogComponent>,
     private authService: AuthService,
-    private router: Router,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -43,9 +49,12 @@ export class PerfilDialogComponent implements OnInit {
       if (file) {
         const reader = new FileReader();
         reader.onload = () => {
-          const base64 = reader.result as string;
-          this.fotoUrl = base64;
-          this.authService.saveProfilePhoto(this.usuario.id, base64);
+          this.ngZone.run(() => {
+            const base64 = reader.result as string;
+            this.fotoUrl = base64;
+            this.authService.saveProfilePhoto(this.usuario.id, base64);
+            this.cdr.detectChanges();
+          });
         };
         reader.readAsDataURL(file);
       }
@@ -69,11 +78,10 @@ export class PerfilDialogComponent implements OnInit {
 
   cerrar(): void {
     this.dialogRef.close();
-    this.router.navigate(['/app/dashboard']);
   }
 
   logout(): void {
+    this.dialogRef.close('logout');
     this.authService.logout();
-    this.cerrar();
   }
 }

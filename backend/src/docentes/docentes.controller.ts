@@ -39,7 +39,11 @@ export class DocentesController {
   constructor(private readonly docentesService: DocentesService) {}
 
   @Get()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Listar docentes paginado con filtros" })
   @ApiResponse({ status: 200, description: "Lista paginada de docentes" })
   async findAll(@Query() query: QueryDocenteDto) {
@@ -48,7 +52,11 @@ export class DocentesController {
   }
 
   @Get("jerarquia")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Docentes ordenados por jerarquía institucional" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({
@@ -63,26 +71,35 @@ export class DocentesController {
   }
 
   @Get("exportar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Exportar todos los docentes sin paginación" })
   @ApiQuery({ name: "categoria", required: false })
-  @ApiQuery({ name: "tipo_contrato", required: false })
+  @ApiQuery({ name: "tipo_docente", required: false })
   @ApiQuery({ name: "busqueda", required: false })
   async exportar(
     @Query("categoria") categoria?: string,
-    @Query("tipo_contrato") tipo_contrato?: string,
+    @Query("tipo_docente") tipo_docente?: string,
     @Query("busqueda") busqueda?: string,
   ) {
     const result = await this.docentesService.findAllParaExportar({
       categoria,
-      tipo_contrato,
+      tipo_docente,
       busqueda,
     });
     return { data: result, message: "Docentes para exportar" };
   }
 
   @Get(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DOCENTE,
+  )
   @ApiOperation({ summary: "Obtener un docente por ID" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente encontrado" })
@@ -174,7 +191,11 @@ export class DocentesController {
     @Query("tipo_clase") tipoClase?: TipoClase,
     @Query("periodo") periodo?: string,
   ) {
-    const result = await this.docentesService.findCursosHabilitados(id, tipoClase, periodo);
+    const result = await this.docentesService.findCursosHabilitados(
+      id,
+      tipoClase,
+      periodo,
+    );
     return {
       data: result,
       message: "Cursos habilitados obtenidos correctamente",
@@ -187,13 +208,20 @@ export class DocentesController {
   @ApiOperation({ summary: "Quitar la asignación de un curso a un docente" })
   @ApiParam({ name: "id", type: Number, description: "ID del docente" })
   @ApiParam({ name: "cursoId", type: Number, description: "ID del curso" })
-  @ApiParam({ name: "tipoclase", enum: TipoClase, description: "Tipo de clase" })
+  @ApiParam({
+    name: "tipoclase",
+    enum: TipoClase,
+    description: "Tipo de clase",
+  })
   @ApiQuery({
     name: "periodo",
     required: false,
     description: "Código del período académico",
   })
-  @ApiResponse({ status: 200, description: "Asignación eliminada correctamente" })
+  @ApiResponse({
+    status: 200,
+    description: "Asignación eliminada correctamente",
+  })
   @ApiResponse({ status: 404, description: "Asignación no encontrada" })
   async removeAsignacion(
     @Param("id", ParseIntPipe) id: number,
@@ -201,14 +229,22 @@ export class DocentesController {
     @Param("tipoclase") tipoClase: TipoClase,
     @Query("periodo") periodo?: string,
   ) {
-    await this.docentesService.removeAsignacion(id, cursoId, tipoClase, periodo);
+    await this.docentesService.removeAsignacion(
+      id,
+      cursoId,
+      tipoClase,
+      periodo,
+    );
     return { data: null, message: "Asignación eliminada correctamente" };
   }
 
   @Get(":id/ambientes")
   @ApiOperation({ summary: "Listar ambientes asignados a un docente" })
   @ApiParam({ name: "id", type: Number, description: "ID del docente" })
-  @ApiResponse({ status: 200, description: "Ambientes asignados obtenidos correctamente" })
+  @ApiResponse({
+    status: 200,
+    description: "Ambientes asignados obtenidos correctamente",
+  })
   async findAmbientesAsignados(@Param("id", ParseIntPipe) id: number) {
     const result = await this.docentesService.findAmbientesAsignados(id);
     return {
@@ -221,12 +257,18 @@ export class DocentesController {
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Asignar ambientes a un docente" })
   @ApiParam({ name: "id", type: Number, description: "ID del docente" })
-  @ApiResponse({ status: 201, description: "Ambientes asignados correctamente" })
+  @ApiResponse({
+    status: 201,
+    description: "Ambientes asignados correctamente",
+  })
   async asignarAmbientes(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: { ambienteIds: number[] },
   ) {
-    const result = await this.docentesService.asignarAmbientes(id, body.ambienteIds);
+    const result = await this.docentesService.asignarAmbientes(
+      id,
+      body.ambienteIds,
+    );
     return {
       data: result,
       message: "Ambientes asignados correctamente",

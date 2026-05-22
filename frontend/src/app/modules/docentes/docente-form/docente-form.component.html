@@ -142,34 +142,51 @@
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Categoría</mat-label>
-              <mat-select formControlName="categoria">
-                <mat-option *ngFor="let c of categorias" [value]="c">
-                  {{ c }}
-                </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>workspace_premium</mat-icon>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Tipo de Contrato</mat-label>
-              <mat-select formControlName="tipo_contrato">
-                <mat-option *ngFor="let t of tiposContrato" [value]="t">
-                  {{ t }}
+              <mat-label>Tipo de docente</mat-label>
+              <mat-select
+                formControlName="tipo_docente"
+                (selectionChange)="onTipoDocenteChange($event.value)"
+              >
+                <mat-option *ngFor="let t of tiposDocente" [value]="t.value">
+                  {{ t.label }}
                 </mat-option>
               </mat-select>
               <mat-icon matPrefix>history_edu</mat-icon>
+              <mat-error *ngIf="form.get('tipo_docente')?.hasError('required')"
+                >Selecciona el tipo de docente</mat-error
+              >
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Categoría</mat-label>
+              <mat-select
+                formControlName="categoria"
+                (selectionChange)="onCategoriaChange($event.value)"
+              >
+                <mat-option
+                  *ngFor="let c of categoriasDisponibles"
+                  [value]="c.value"
+                >
+                  {{ c.label }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>workspace_premium</mat-icon>
+              <mat-error *ngIf="form.get('categoria')?.hasError('required')"
+                >Selecciona la categoría</mat-error
+              >
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Modalidad</mat-label>
               <mat-select formControlName="modalidad">
-                <mat-option [value]="null">Sin especificar</mat-option>
                 <mat-option *ngFor="let m of modalidades" [value]="m.value">
                   {{ m.label }}
                 </mat-option>
               </mat-select>
               <mat-icon matPrefix>schedule</mat-icon>
+              <mat-error *ngIf="form.get('modalidad')?.hasError('required')"
+                >Selecciona la modalidad</mat-error
+              >
             </mat-form-field>
           </div>
         </div>

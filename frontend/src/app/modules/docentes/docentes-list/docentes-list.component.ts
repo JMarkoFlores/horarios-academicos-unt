@@ -21,8 +21,8 @@ export class DocentesListComponent implements OnInit {
   displayedColumns = [
     'nombre',
     'email',
+    'tipo_docente',
     'categoria',
-    'tipo_contrato',
     'modalidad',
     'antiguedad',
     'estado',
@@ -37,14 +37,18 @@ export class DocentesListComponent implements OnInit {
 
   searchControl = new FormControl('');
   categoriaFilter = '';
-  tipoContratoFilter = '';
+  tipoDocenteFilter = '';
   modalidadFilter = '';
   activoFilter: boolean | null = true;
   sortBy = 'apellidos';
   sortDir: 'ASC' | 'DESC' = 'ASC';
 
-  categorias = ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR', 'JEFE_PRACTICA'];
-  tiposContrato = ['NOMBRADO', 'CONTRATADO'];
+  categorias = ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR', 'SIN_CATEGORIA'];
+  tiposDocente = [
+    { value: 'ORDINARIO', label: 'Ordinario' },
+    { value: 'CONTRATADO', label: 'Contratado' },
+    { value: 'JEFE_PRACTICA_CONTRATADO', label: 'Jefe de práctica contratado' },
+  ];
   modalidades = [
     { value: 'DEDICACION_EXCLUSIVA', label: 'Dedicación Exclusiva' },
     { value: 'TIEMPO_COMPLETO_40', label: 'Tiempo Completo (40 h)' },
@@ -83,8 +87,7 @@ export class DocentesListComponent implements OnInit {
       params['activo'] = String(this.activoFilter);
     if (this.searchControl.value) params['busqueda'] = this.searchControl.value;
     if (this.categoriaFilter) params['categoria'] = this.categoriaFilter;
-    if (this.tipoContratoFilter)
-      params['tipo_contrato'] = this.tipoContratoFilter;
+    if (this.tipoDocenteFilter) params['tipo_docente'] = this.tipoDocenteFilter;
     if (this.modalidadFilter) params['modalidad'] = this.modalidadFilter;
 
     this.api
@@ -158,13 +161,28 @@ export class DocentesListComponent implements OnInit {
     return colors[Math.abs(hash) % colors.length];
   }
 
+  getTipoDocenteLabel(value: string | undefined): string {
+    if (!value) return '—';
+    return this.tiposDocente.find((t) => t.value === value)?.label ?? value;
+  }
+
+  getCategoriaLabel(value: string | undefined): string {
+    if (!value) return '—';
+    if (value === 'SIN_CATEGORIA') return 'Sin categoría';
+    const map: Record<string, string> = {
+      PRINCIPAL: 'Principal',
+      ASOCIADO: 'Asociado',
+      AUXILIAR: 'Auxiliar',
+    };
+    return map[value] ?? value;
+  }
+
   exportarExcel(): void {
     this.exportando = true;
     const params: Record<string, string> = {};
     if (this.searchControl.value) params['busqueda'] = this.searchControl.value;
     if (this.categoriaFilter) params['categoria'] = this.categoriaFilter;
-    if (this.tipoContratoFilter)
-      params['tipo_contrato'] = this.tipoContratoFilter;
+    if (this.tipoDocenteFilter) params['tipo_docente'] = this.tipoDocenteFilter;
     if (this.modalidadFilter) params['modalidad'] = this.modalidadFilter;
 
     this.api
@@ -189,12 +207,12 @@ export class DocentesListComponent implements OnInit {
             'Nombres',
             'Email',
             'Teléfono',
+            'Tipo de docente',
             'Categoría',
-            'Tipo Contrato',
+            'Modalidad',
             'Estado',
             'Fecha Ingreso',
             'Años serv.',
-            'Meses',
           ];
           XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A5' });
 
@@ -204,14 +222,14 @@ export class DocentesListComponent implements OnInit {
             d.nombres,
             d.email,
             d.telefono ?? '',
-            d.categoria,
-            d.tipo_contrato,
+            this.getTipoDocenteLabel(d.tipo_docente),
+            this.getCategoriaLabel(d.categoria),
+            this.getModalidadLabel(d.modalidad),
             d.activo ? 'Activo' : 'Inactivo',
             d.fecha_ingreso
               ? new Date(d.fecha_ingreso).toLocaleDateString('es-PE')
               : '',
             d.antiguedad?.anios ?? 0,
-            d.antiguedad?.meses ?? 0,
           ]);
           XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: 'A6' });
 

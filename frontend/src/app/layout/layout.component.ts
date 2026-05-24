@@ -190,6 +190,16 @@ export class LayoutComponent implements OnInit, OnDestroy {
             'directorescuela',
           ],
         },
+        {
+          icon: 'insights',
+          label: 'Análisis de Carga',
+          route: '/app/analisis-carga',
+          roles: [
+            'administradorsistema',
+            'coordinadoracademico',
+            'directorescuela',
+          ],
+        },
       ],
     },
     {
@@ -261,6 +271,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
     horarios: 'Horarios — Vista de Asignaciones',
     asignaciones: 'Gestión de Asignaciones',
     analytics: 'Análisis Inteligente',
+    'analisis-carga': 'Análisis de Carga Docente',
     operador: 'Operador — Sistema de Turnos',
     preasignaciones: 'Preasignaciones de Cursos',
     auditoria: 'Auditoría de Horarios',
@@ -278,6 +289,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
     'periodos',
     'usuarios',
     'notificaciones',
+    'analisis-carga',
   ]);
   showPeriodoSelector = true;
 

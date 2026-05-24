@@ -1,0 +1,171 @@
+<div class="analisis-carga-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Análisis de Carga Docente</h1>
+      <p class="subtitle">Balancea la distribución semanal y detecta sobrecargas</p>
+    </div>
+    <div class="header-actions">
+      <mat-form-field appearance="outline" class="periodo-field">
+        <mat-label>Período</mat-label>
+        <mat-select
+          [value]="periodoService.periodo"
+          (selectionChange)="onPeriodoChange($event.value)"
+        >
+          <mat-option *ngFor="let p of periodoService.periodos$ | async" [value]="p">
+            {{ p }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <mat-card class="section-card">
+    <div class="section-header">
+      <div>
+        <h2>Carga por día</h2>
+        <p>Visualiza la distribución semanal del docente seleccionado.</p>
+      </div>
+      <div class="selector-group">
+        <mat-form-field appearance="outline" class="docente-field">
+          <mat-label>Selecciona docente</mat-label>
+          <input
+            type="text"
+            matInput
+            [formControl]="docenteControl"
+            [matAutocomplete]="docenteAuto"
+            [disabled]="loadingDocentes"
+          />
+          <mat-autocomplete
+            #docenteAuto="matAutocomplete"
+            [displayWith]="displayDocente.bind(this)"
+            (optionSelected)="onDocenteSelected($event.option.value)"
+          >
+            <mat-option *ngFor="let d of filteredDocentes$ | async" [value]="d">
+              {{ d.nombres }} {{ d.apellidos }}
+            </mat-option>
+          </mat-autocomplete>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <div class="chart-wrapper">
+      <div class="loading-overlay" *ngIf="loadingCarga">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Cargando distribución...</span>
+      </div>
+      <div class="chart-container" *ngIf="!loadingCarga">
+        <canvas baseChart [data]="barChartData" [options]="barChartOptions" [type]="barChartType">
+        </canvas>
+      </div>
+    </div>
+  </mat-card>
+
+  <mat-card class="section-card">
+    <div class="section-header">
+      <div>
+        <h2>Docentes con carga desequilibrada</h2>
+        <p>Selecciona un docente para revisar su distribución semanal.</p>
+      </div>
+    </div>
+
+    <div class="loading-overlay" *ngIf="loadingDesequilibrio">
+      <mat-spinner diameter="40"></mat-spinner>
+      <span>Consultando carga desequilibrada...</span>
+    </div>
+
+    <div class="table-wrapper" *ngIf="!loadingDesequilibrio">
+      <table
+        mat-table
+        [dataSource]="desequilibrados"
+        class="premium-table"
+        *ngIf="desequilibrados.length > 0"
+      >
+        <ng-container matColumnDef="nombre">
+          <th mat-header-cell *matHeaderCellDef>Docente</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="docente-name">{{ row.nombre }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="distribucion">
+          <th mat-header-cell *matHeaderCellDef>Distribución</th>
+          <td mat-cell *matCellDef="let row">
+            <svg class="sparkline" viewBox="0 0 120 32">
+              <polyline
+                [attr.points]="getSparklinePoints(row.distribucion)"
+              ></polyline>
+            </svg>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="desequilibrio">
+          <th mat-header-cell *matHeaderCellDef>Desequilibrio</th>
+          <td mat-cell *matCellDef="let row">
+            <span [class]="'badge ' + getDesequilibrioClass(row.desequilibrio)">
+              {{ row.desequilibrio }}
+            </span>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          (click)="selectDocenteFromRow(row)"
+          class="table-row"
+        ></tr>
+      </table>
+
+      <div class="empty-state" *ngIf="desequilibrados.length === 0">
+        No se encontraron docentes con carga desequilibrada.
+      </div>
+    </div>
+  </mat-card>
+
+  <mat-card class="section-card">
+    <div class="section-header">
+      <div>
+        <h2>Heatmap de ocupación</h2>
+        <p>Distribución de horarios por día y hora.</p>
+      </div>
+      <div class="heatmap-legend">
+        <span class="legend-item">
+          <span class="legend-box heat-zero"></span> 0
+        </span>
+        <span class="legend-item">
+          <span class="legend-box heat-light"></span> 1-3
+        </span>
+        <span class="legend-item">
+          <span class="legend-box heat-strong"></span> 4+
+        </span>
+      </div>
+    </div>
+
+    <div class="loading-overlay" *ngIf="loadingHeatmap">
+      <mat-spinner diameter="40"></mat-spinner>
+      <span>Consultando ocupación...</span>
+    </div>
+
+    <div
+      class="heatmap-grid"
+      *ngIf="!loadingHeatmap"
+      [style.gridTemplateColumns]="getHeatmapColumns()"
+    >
+      <div class="heatmap-head"></div>
+      <div class="heatmap-head" *ngFor="let dia of diasActivos">
+        {{ dia.nombre }}
+      </div>
+
+      <ng-container *ngFor="let turno of turnos">
+        <div class="heatmap-hour">{{ formatTurno(turno) }}</div>
+        <div
+          class="heatmap-cell"
+          *ngFor="let dia of diasActivos"
+          [ngClass]="getHeatmapClass(getHeatmapValue(dia.dia_semana, turno))"
+        >
+          {{ getHeatmapValue(dia.dia_semana, turno) }}
+        </div>
+      </ng-container>
+    </div>
+  </mat-card>
+</div>

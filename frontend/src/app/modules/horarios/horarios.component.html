@@ -111,6 +111,7 @@
                     *ngFor="let dNum of diasNum"
                     class="celda"
                     [ngClass]="clsDoc(dNum, hora)"
+                    (click)="abrirAsignar(dNum, hora)"
                   >
                     <ng-container *ngIf="getAsigDoc(dNum, hora) as a">
                       <div

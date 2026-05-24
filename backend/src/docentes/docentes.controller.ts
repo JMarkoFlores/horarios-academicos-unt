@@ -93,6 +93,57 @@ export class DocentesController {
     return { data: result, message: "Docentes para exportar" };
   }
 
+  @Get("carga-desequilibrada")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
+  @ApiOperation({
+    summary: "Listar docentes con carga horaria desequilibrada en un período",
+  })
+  @ApiQuery({
+    name: "periodo",
+    required: true,
+    description: "ID o código del período académico",
+  })
+  async getCargaDesequilibrada(@Query("periodo") periodo: string) {
+    const result = await this.docentesService.getCargaDesequilibrada(
+      periodo ?? "",
+    );
+    return {
+      data: result,
+      message: "Carga desequilibrada obtenida correctamente",
+    };
+  }
+
+  @Get(":id/carga-por-dia")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({
+    summary: "Obtener la carga horaria de un docente agrupada por día",
+  })
+  @ApiParam({ name: "id", type: Number })
+  @ApiQuery({
+    name: "periodo",
+    required: true,
+    description: "ID o código del período académico",
+  })
+  async getCargaPorDia(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo: string,
+  ) {
+    const result = await this.docentesService.getCargaPorDia(id, periodo ?? "");
+    return {
+      data: result,
+      message: "Carga por día obtenida correctamente",
+    };
+  }
+
   @Get(":id")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,

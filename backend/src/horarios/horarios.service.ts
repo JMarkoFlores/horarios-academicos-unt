@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   Inject,
 } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
@@ -20,8 +21,9 @@ import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
-import { ValidacionesService } from "../common/services/validaciones.service";
+import { ValidacionesService as CommonValidacionesService } from "../common/services/validaciones.service";
 import { CacheKeyRegistry } from "../common/cache/cache-key-registry";
+import { ValidacionesService as GlobalValidacionesService } from "../validaciones/validaciones.service";
 
 @Injectable()
 export class HorariosService {
@@ -41,7 +43,8 @@ export class HorariosService {
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
-    private readonly validacionesService: ValidacionesService,
+    private readonly commonValidacionesService: CommonValidacionesService,
+    private readonly validacionesService: GlobalValidacionesService,
   ) {}
 
   async findAllByPeriodo(periodo: string, page = 1, limit = 20) {
@@ -149,6 +152,21 @@ export class HorariosService {
       .getMany();
   }
 
+  async getOcupacionHeatmap(periodo: string) {
+    const data = await this.horarioRepo
+      .createQueryBuilder("h")
+      .select("h.dia", "dia")
+      .addSelect("h.hora_inicio", "hora_inicio")
+      .addSelect("h.hora_fin", "hora_fin")
+      .addSelect("COUNT(h.id)", "count")
+      .where("h.periodo = :periodo", { periodo })
+      .groupBy("h.dia")
+      .addGroupBy("h.hora_inicio")
+      .addGroupBy("h.hora_fin")
+      .getRawMany();
+    return data;
+  }
+
   async reasignarManual(
     id: number,
     dto: ReasignarHorarioDto,
@@ -163,56 +181,72 @@ export class HorariosService {
 
     if (!horario) throw new NotFoundException(`Horario ${id} no encontrado`);
 
-    const franja = this.validacionesService.verificarFranjaInstitucional(
-      dto.hora_inicio,
-      dto.hora_fin,
+    const dia = dto.dia_semana ?? horario.dia;
+    const horaInicio = dto.hora_inicio ?? horario.hora_inicio;
+    const horaFin = dto.hora_fin ?? horario.hora_fin;
+
+    const franja = await this.validacionesService.verificarFranjaInstitucional(
+      dia,
+      horaInicio,
+      horaFin,
     );
-    if (!franja)
-      throw new BadRequestException(
-        "El slot está fuera de la franja institucional (07:00-22:00)",
-      );
+    if (!franja.valido) {
+      throw new ConflictException(franja.motivo);
+    }
+
+    const disponibilidad = await this.validacionesService.verificarDisponibilidadDocente(
+      horario.docente.id,
+      dia,
+      horaInicio,
+      horaFin,
+      horario.periodo,
+    );
+    if (!disponibilidad.valido) {
+      throw new ConflictException(disponibilidad.motivo);
+    }
 
     const cruceDoc = await this.validacionesService.verificarCruceDocente(
       horario.docente.id,
-      dto.dia_semana,
-      dto.hora_inicio,
-      dto.hora_fin,
-      horario.periodo_academico,
+      dia,
+      horaInicio,
+      horaFin,
+      horario.periodo,
       id,
     );
-    if (cruceDoc)
-      throw new BadRequestException("El docente tiene un cruce en ese horario");
+    if (!cruceDoc.valido) {
+      throw new ConflictException(cruceDoc.motivo);
+    }
 
     const ambienteId = dto.ambiente_id ?? horario.ambiente.id;
     const cruceAmb = await this.validacionesService.verificarCruceAmbiente(
       ambienteId,
-      dto.dia_semana,
-      dto.hora_inicio,
-      dto.hora_fin,
-      horario.periodo_academico,
+      dia,
+      horaInicio,
+      horaFin,
+      horario.periodo,
       id,
     );
-    if (cruceAmb)
-      throw new BadRequestException(
-        "El ambiente tiene un cruce en ese horario",
-      );
+    if (!cruceAmb.valido) {
+      throw new ConflictException(cruceAmb.motivo);
+    }
 
     if (horario.grupo) {
       const cruceGrupo = await this.validacionesService.verificarCruceGrupo(
         horario.grupo.id,
-        dto.dia_semana,
-        dto.hora_inicio,
-        dto.hora_fin,
-        horario.periodo_academico,
+        dia,
+        horaInicio,
+        horaFin,
+        horario.periodo,
         id,
       );
-      if (cruceGrupo)
-        throw new BadRequestException("El grupo tiene un cruce en ese horario");
+      if (!cruceGrupo.valido) {
+        throw new ConflictException(cruceGrupo.motivo);
+      }
     }
 
-    horario.dia_semana = dto.dia_semana;
-    horario.hora_inicio = dto.hora_inicio;
-    horario.hora_fin = dto.hora_fin;
+    horario.dia_semana = dia;
+    horario.hora_inicio = horaInicio;
+    horario.hora_fin = horaFin;
     horario.estado = EstadoHorario.BORRADOR;
 
     if (dto.ambiente_id) {
@@ -257,33 +291,25 @@ export class HorariosService {
       );
     }
 
-    // Verificar disponibilidad del docente para ese slot
-    const disponibles = docente.disponibilidades?.filter(
-      (d) =>
-        d.disponible &&
-        d.dia_semana === dto.dia_semana &&
-        d.periodo_academico === dto.periodo_academico &&
-        d.hora_inicio <= dto.hora_inicio &&
-        d.hora_fin >= dto.hora_fin,
-    );
-    if (
-      docente.disponibilidades &&
-      docente.disponibilidades.length > 0 &&
-      (!disponibles || disponibles.length === 0)
-    ) {
-      throw new BadRequestException(
-        `El docente no tiene disponibilidad registrada para el día ${dto.dia_semana} en el horario ${dto.hora_inicio}–${dto.hora_fin}`,
-      );
-    }
-
-    const franja = this.validacionesService.verificarFranjaInstitucional(
+    const franja = await this.validacionesService.verificarFranjaInstitucional(
+      dto.dia_semana,
       dto.hora_inicio,
       dto.hora_fin,
     );
-    if (!franja)
-      throw new BadRequestException(
-        "El slot está fuera de la franja institucional (07:00-22:00)",
-      );
+    if (!franja.valido) {
+      throw new ConflictException(franja.motivo);
+    }
+
+    const disponibilidad = await this.validacionesService.verificarDisponibilidadDocente(
+      dto.docente_id,
+      dto.dia_semana,
+      dto.hora_inicio,
+      dto.hora_fin,
+      dto.periodo_academico,
+    );
+    if (!disponibilidad.valido) {
+      throw new ConflictException(disponibilidad.motivo);
+    }
 
     const cruceDoc = await this.validacionesService.verificarCruceDocente(
       dto.docente_id,
@@ -292,17 +318,8 @@ export class HorariosService {
       dto.hora_fin,
       dto.periodo_academico,
     );
-    if (cruceDoc) {
-      const conflictos = await this.obtenerConflictosDocente(
-        dto.docente_id,
-        dto.dia_semana,
-        dto.hora_inicio,
-        dto.hora_fin,
-        dto.periodo_academico,
-      );
-      throw new BadRequestException(
-        `El docente tiene un cruce en ese horario: ${conflictos}`,
-      );
+    if (!cruceDoc.valido) {
+      throw new ConflictException(cruceDoc.motivo);
     }
 
     const cruceAmb = await this.validacionesService.verificarCruceAmbiente(
@@ -312,17 +329,8 @@ export class HorariosService {
       dto.hora_fin,
       dto.periodo_academico,
     );
-    if (cruceAmb) {
-      const conflictos = await this.obtenerConflictosAmbiente(
-        dto.ambiente_id,
-        dto.dia_semana,
-        dto.hora_inicio,
-        dto.hora_fin,
-        dto.periodo_academico,
-      );
-      throw new BadRequestException(
-        `El ambiente tiene un cruce en ese horario: ${conflictos}`,
-      );
+    if (!cruceAmb.valido) {
+      throw new ConflictException(cruceAmb.motivo);
     }
 
     const grupo = await this.grupoRepo.findOne({
@@ -345,15 +353,16 @@ export class HorariosService {
       dto.hora_fin,
       dto.periodo_academico,
     );
-    if (cruceGrupo)
-      throw new BadRequestException("El grupo tiene un cruce en ese horario");
+    if (!cruceGrupo.valido) {
+      throw new ConflictException(cruceGrupo.motivo);
+    }
 
     const [h, m] = dto.hora_inicio.split(":").map(Number);
     const [hf, mf] = dto.hora_fin.split(":").map(Number);
     const duracionHoras = (hf * 60 + mf - (h * 60 + m)) / 60;
 
     const cargaSemanal =
-      await this.validacionesService.verificarCargaHorariaSemanalDocente(
+      await this.commonValidacionesService.verificarCargaHorariaSemanalDocente(
         dto.docente_id,
         duracionHoras,
         dto.periodo_academico,
@@ -364,7 +373,7 @@ export class HorariosService {
       );
     }
 
-    const cursosCheck = await this.validacionesService.verificarCursosDocente(
+    const cursosCheck = await this.commonValidacionesService.verificarCursosDocente(
       dto.docente_id,
       dto.periodo_academico,
       dto.curso_id,

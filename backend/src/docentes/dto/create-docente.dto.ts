@@ -5,6 +5,8 @@ import {
   IsEnum,
   IsDateString,
   IsOptional,
+  IsInt,
+  Min,
   MaxLength,
   IsNotEmpty,
   Matches,
@@ -62,4 +64,10 @@ export class CreateDocenteDto {
   @ApiProperty({ example: "2000-03-01" })
   @IsDateString({}, { message: "Fecha de ingreso inválida (YYYY-MM-DD)" })
   fecha_ingreso: string;
+
+  @ApiPropertyOptional({ example: 0 })
+  @IsOptional()
+  @IsInt({ message: "Las horas asignadas deben ser un número entero" })
+  @Min(0, { message: "Las horas asignadas no pueden ser negativas" })
+  horas_asignadas?: number;
 }

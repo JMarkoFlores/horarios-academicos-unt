@@ -162,6 +162,16 @@ export class HorariosController {
     };
   }
 
+  @Get("ocupacion-heatmap")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Listar heatmap de ocupación por período" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiResponse({ status: 200, description: "Heatmap obtenido" })
+  async getOcupacionHeatmap(@Query("periodo") periodo: string) {
+    const data = await this.horariosService.getOcupacionHeatmap(periodo);
+    return { data, message: "Heatmap obtenido", statusCode: HttpStatus.OK };
+  }
+
   @Get("ambiente/:id")
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar ocupación de un ambiente por período" })

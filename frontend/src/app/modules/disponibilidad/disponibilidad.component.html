@@ -12,8 +12,11 @@
       <div class="search-wrapper">
         <mat-form-field appearance="outline" class="premium-select">
           <mat-label>Seleccionar Docente</mat-label>
-          <mat-select (selectionChange)="seleccionarDocente($event.value)">
-            <mat-option *ngFor="let d of todosDocentes" [value]="d">
+          <mat-select
+            [value]="docenteSeleccionado()"
+            (selectionChange)="seleccionarDocente($event.value)"
+          >
+            <mat-option *ngFor="let d of todosDocentes()" [value]="d">
               <div class="option-content">
                 <span class="name">{{ d.apellidos }}, {{ d.nombres }}</span>
                 <span class="code">{{ d.codigo }}</span>
@@ -24,43 +27,58 @@
         </mat-form-field>
       </div>
 
-      <div class="actions-group" *ngIf="docenteSeleccionado">
-        <button mat-stroked-button class="btn-secondary" (click)="marcarTodo(true)" matTooltip="Marcar todas las horas">
-          <mat-icon>select_all</mat-icon> <span>Marcar todo</span>
+      <div class="actions-group" *ngIf="docenteSeleccionado()">
+        <button
+          mat-stroked-button
+          class="btn-secondary"
+          (click)="marcarTurnoManana()"
+          [disabled]="!hayTurnoManana()"
+          matTooltip="Marca todas las celdas del turno mañana"
+        >
+          <mat-icon>wb_sunny</mat-icon> <span>Marcar todo el turno mañana</span>
         </button>
-        <button mat-stroked-button class="btn-secondary" (click)="marcarTodo(false)" matTooltip="Limpiar todas las horas">
-          <mat-icon>deselect</mat-icon> <span>Limpiar todo</span>
+        <button
+          mat-stroked-button
+          class="btn-secondary"
+          (click)="limpiarSeleccion()"
+          matTooltip="Desmarcar todas las celdas"
+        >
+          <mat-icon>deselect</mat-icon> <span>Limpiar selección</span>
         </button>
         <div class="divider"></div>
         <button
           mat-raised-button
           class="btn-save"
           (click)="guardar()"
-          [disabled]="saving"
+          [disabled]="saving()"
         >
-          <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
-          <mat-icon *ngIf="!saving">save_as</mat-icon>
-          <span>{{ saving ? "Guardando..." : "Guardar Cambios" }}</span>
+          <mat-spinner diameter="18" *ngIf="saving()"></mat-spinner>
+          <mat-icon *ngIf="!saving()">save_as</mat-icon>
+          <span>{{ saving() ? "Guardando..." : "Guardar Cambios" }}</span>
         </button>
       </div>
     </div>
   </mat-card>
 
   <!-- Main Grid Section -->
-  <mat-card class="grid-card-premium" *ngIf="docenteSeleccionado">
-    <div *ngIf="loading" class="loading-overlay">
+  <mat-card class="grid-card-premium" *ngIf="docenteSeleccionado() as docente">
+    <div *ngIf="loading() || loadingCatalogos()" class="loading-overlay">
       <mat-spinner diameter="50" strokeWidth="3"></mat-spinner>
       <span>Cargando disponibilidad...</span>
     </div>
 
-    <div class="grid-content-wrapper" *ngIf="!loading" [class.animate-grid]="!loading">
+    <div
+      class="grid-content-wrapper"
+      *ngIf="!loading() && !loadingCatalogos()"
+      [class.animate-grid]="!loading()"
+    >
       <div class="docente-header-premium">
         <div class="docente-main">
-          <div class="avatar-circle" [style.background-color]="getAvatarColor(docenteSeleccionado.nombres)">
-            {{ docenteSeleccionado.nombres[0] }}{{ docenteSeleccionado.apellidos[0] }}
+          <div class="avatar-circle" [style.background-color]="getAvatarColor(docente.nombres)">
+            {{ docente.nombres[0] }}{{ docente.apellidos[0] }}
           </div>
           <div class="text-info">
-            <h2>{{ docenteSeleccionado.apellidos }}, {{ docenteSeleccionado.nombres }}</h2>
+            <h2>{{ docente.apellidos }}, {{ docente.nombres }}</h2>
             <div class="sub-info">
               <span class="periodo-badge">
                 <mat-icon>calendar_today</mat-icon>
@@ -74,45 +92,59 @@
             <div class="teacher-metrics">
               <span class="metric-badge category">
                 <mat-icon>assignment_ind</mat-icon>
-                {{ docenteSeleccionado.categoria }} | {{ docenteSeleccionado.tipo_contrato }}
+                {{ docente.categoria }} | {{ docente.tipo_contrato }}
               </span>
-              <span class="metric-badge hours" [class.hours-good]="getHorasDeclaradas() >= 20">
+              <span
+                class="metric-badge hours"
+                [class.hours-good]="horasDisponibles() >= minimoNormativo()"
+              >
                 <mat-icon>history_toggle_off</mat-icon>
-                Horas Declaradas: <strong>{{ getHorasDeclaradas() }} / 75 hrs</strong>
+                Horas disponibles:
+                <strong>{{ horasDisponibles() }} / Mínimo normativo: {{ minimoNormativo() }}</strong>
+              </span>
+              <span class="metric-badge modality" *ngIf="docente.modalidad">
+                <mat-icon>badge</mat-icon>
+                {{ docente.modalidad }}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="grilla-scroll">
+      <div class="empty-grid-state" *ngIf="turnos().length === 0 || diasActivos().length === 0">
+        <mat-icon>calendar_view_week</mat-icon>
+        <p>No hay turnos activos o días habilitados para construir la grilla.</p>
+      </div>
+
+      <div class="grilla-scroll" *ngIf="turnos().length > 0 && diasActivos().length > 0">
         <table class="premium-grilla">
           <thead>
             <tr>
-              <th class="hora-col">Hora</th>
-              <th *ngFor="let dia of dias" class="dia-col">{{ dia }}</th>
+              <th class="hora-col">Turno</th>
+              <th *ngFor="let dia of diasActivos()" class="dia-col">{{ dia.nombre }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let hora of horas; let hi = index">
+            <tr *ngFor="let turno of turnos(); let ti = index">
               <td class="hora-cell">
                 <div class="time-box">
-                  <span class="start">{{ formatHora(hora) }}</span>
-                  <span class="end">{{ formatHora(hora + 1) }}</span>
+                  <span class="start">{{ turno.nombre }}</span>
+                  <span class="end">{{ getRangoTurno(turno) }}</span>
                 </div>
               </td>
               <td
-                *ngFor="let dia of dias; let di = index"
+                *ngFor="let dia of diasActivos(); let di = index"
                 class="slot-cell"
-                [class.disponible]="grilla[hi][di]"
-                (click)="toggleCelda(hi, di)"
+                [class.disponible]="grilla()[di][ti]"
               >
-                <div class="cell-inner">
-                  <mat-icon class="status-icon">
-                    {{ grilla[hi][di] ? "verified" : "block" }}
-                  </mat-icon>
-                  <span class="status-text">{{ grilla[hi][di] ? 'Disponible' : '' }}</span>
-                </div>
+                <mat-checkbox
+                  class="slot-toggle"
+                  color="primary"
+                  [checked]="grilla()[di][ti]"
+                  (change)="toggleCelda(di, ti, $event.checked)"
+                >
+                  {{ grilla()[di][ti] ? 'Disponible' : 'No disponible' }}
+                </mat-checkbox>
               </td>
             </tr>
           </tbody>
@@ -137,7 +169,7 @@
   </mat-card>
 
   <!-- Empty State -->
-  <mat-card *ngIf="!docenteSeleccionado" class="empty-state-premium">
+  <mat-card *ngIf="!docenteSeleccionado()" class="empty-state-premium">
     <div class="empty-illustration">
       <mat-icon class="pulse-icon">event_available</mat-icon>
     </div>

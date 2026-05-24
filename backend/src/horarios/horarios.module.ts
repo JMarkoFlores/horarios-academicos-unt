@@ -22,6 +22,7 @@ import { GeneracionAutomaticaService } from "./generacion-automatica.service";
 import { DocentesModule } from "../docentes/docentes.module";
 import { CommonModule } from "../common/common.module";
 import { AuditoriaModule } from "../modules/auditoria/auditoria.module";
+import { ValidacionesModule } from "../validaciones/validaciones.module";
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AuditoriaModule } from "../modules/auditoria/auditoria.module";
     DocentesModule,
     CommonModule,
     AuditoriaModule,
+    ValidacionesModule,
   ],
   controllers: [HorariosController],
   providers: [

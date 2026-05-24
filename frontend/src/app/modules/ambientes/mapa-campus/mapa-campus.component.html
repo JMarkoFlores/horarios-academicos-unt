@@ -1,0 +1,169 @@
+<div class="mapa-campus-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Mapa del Campus</h1>
+      <p class="subtitle">Ubica aulas y laboratorios por edificio y piso</p>
+    </div>
+    <div class="header-actions">
+      <a mat-stroked-button class="btn-back" routerLink="/app/ambientes">
+        <mat-icon>arrow_back</mat-icon>
+        <span>Volver</span>
+      </a>
+    </div>
+  </div>
+
+  <mat-card class="filter-card-premium">
+    <div class="filter-grid secondary-filters">
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Pabellón</mat-label>
+        <mat-select
+          [(ngModel)]="selectedPabellon"
+          (selectionChange)="onFilterChange()"
+        >
+          <mat-option value="todos">Todos</mat-option>
+          <mat-option *ngFor="let p of pabellonOptions" [value]="p.value">
+            {{ p.label }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Piso</mat-label>
+        <mat-select
+          [(ngModel)]="selectedPiso"
+          (selectionChange)="onFilterChange()"
+        >
+          <mat-option value="todos">Todos</mat-option>
+          <mat-option *ngFor="let p of pisoOptions" [value]="p.value">
+            {{ p.label }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </mat-card>
+
+  <div class="mapa-layout">
+    <mat-card class="map-card">
+      <div class="map-header">
+        <div class="map-title">
+          <mat-icon>map</mat-icon>
+          <span>Mapa interactivo</span>
+        </div>
+        <span class="map-count">
+          {{ filteredConUbicacion.length }} ubicaciones visibles
+        </span>
+      </div>
+
+      <div class="map-wrapper">
+        <svg
+          *ngIf="!loading"
+          class="map-svg"
+          [attr.viewBox]="mapViewBox"
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+        >
+          <g>
+            <circle
+              *ngFor="let ambiente of filteredConUbicacion"
+              class="map-point"
+              [attr.cx]="ambiente.coordX"
+              [attr.cy]="ambiente.coordY"
+              [attr.r]="pointRadius"
+              [attr.fill]="getEdificioColor(ambiente)"
+              [matTooltip]="getTooltip(ambiente)"
+              matTooltipClass="mapa-tooltip"
+              matTooltipPosition="above"
+              [attr.aria-label]="ambiente.nombre"
+              (click)="selectAmbiente(ambiente)"
+            ></circle>
+          </g>
+        </svg>
+
+        <div class="map-overlay" *ngIf="loading">
+          <mat-spinner diameter="44" strokeWidth="3"></mat-spinner>
+          <span>Cargando ubicaciones...</span>
+        </div>
+
+        <div
+          class="map-empty"
+          *ngIf="!loading && filteredConUbicacion.length === 0"
+        >
+          No hay ambientes con coordenadas para los filtros actuales.
+        </div>
+
+        <div class="legend" *ngIf="!loading && legendItems.length > 0">
+          <div class="legend-title">Edificios</div>
+          <div class="legend-item" *ngFor="let item of legendItems">
+            <span class="legend-color" [style.background]="item.color"></span>
+            <span class="legend-label">{{ item.label }}</span>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+
+    <mat-card class="detail-card" *ngIf="selectedAmbiente as selected">
+      <div class="detail-header">
+        <div>
+          <div class="detail-title">Detalle del ambiente</div>
+          <div class="detail-subtitle">{{ selected.nombre }}</div>
+        </div>
+        <button
+          mat-icon-button
+          (click)="clearSelection()"
+          aria-label="Cerrar detalle"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <mat-divider></mat-divider>
+      <div class="detail-body">
+        <div class="detail-row">
+          <span class="label">Edificio</span>
+          <span class="value">{{ getEdificioLabel(selected) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Pabellón</span>
+          <span class="value">{{ getPabellonLabel(selected) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Piso</span>
+          <span class="value">{{ getPisoLabel(selected) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Capacidad</span>
+          <span class="value">{{ selected.capacidad }}</span>
+        </div>
+        <div
+          class="detail-row"
+          *ngIf="selected.coordX !== null && selected.coordY !== null"
+        >
+          <span class="label">Coordenadas</span>
+          <span class="value"
+            >{{ selected.coordX }}, {{ selected.coordY }}</span
+          >
+        </div>
+      </div>
+    </mat-card>
+  </div>
+
+  <mat-card
+    class="sin-ubicacion-card"
+    *ngIf="!loading && filteredSinUbicacion.length > 0"
+  >
+    <div class="sin-header">
+      <div class="sin-title">
+        <mat-icon>location_off</mat-icon>
+        <span>Sin ubicación asignada</span>
+      </div>
+      <span class="sin-count">{{ filteredSinUbicacion.length }}</span>
+    </div>
+    <div class="sin-list">
+      <div class="sin-item" *ngFor="let ambiente of filteredSinUbicacion">
+        <div class="sin-name">{{ ambiente.nombre }}</div>
+        <div class="sin-meta">
+          {{ getEdificioLabel(ambiente) }} • Cap. {{ ambiente.capacidad }}
+        </div>
+      </div>
+    </div>
+  </mat-card>
+</div>

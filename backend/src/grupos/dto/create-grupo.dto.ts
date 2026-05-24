@@ -24,9 +24,11 @@ export class CreateGrupoDto {
 
   @ApiProperty({ example: 1, description: "ID del período académico" })
   @IsInt()
+  @Min(1)
   periodo_academico_id: number;
 
   @ApiProperty({ example: 1, description: "ID del curso" })
   @IsInt()
+  @Min(1)
   curso_id: number;
 }

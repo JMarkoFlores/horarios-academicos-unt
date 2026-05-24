@@ -1,5 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { NotFoundException } from "@nestjs/common";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { ConfigService } from "@nestjs/config";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { DocentesService } from "./docentes.service";
@@ -7,6 +9,9 @@ import { Docente } from "../entities/docente.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
@@ -19,6 +24,8 @@ describe("DocentesService", () => {
   let docenteCursoRepo: Repository<DocenteCurso>;
   let cursoRepo: Repository<Curso>;
   let ambienteRepo: Repository<Ambiente>;
+  let horarioRepo: Repository<HorarioAsignado>;
+  let periodoRepo: Repository<PeriodoAcademico>;
 
   const mockQueryBuilder = {
     where: jest.fn().mockReturnThis(),
@@ -38,6 +45,7 @@ describe("DocentesService", () => {
   const mockDocenteRepo = {
     createQueryBuilder: jest.fn(() => mockQueryBuilder),
     findOne: jest.fn(),
+    find: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
     merge: jest.fn(),
@@ -59,6 +67,26 @@ describe("DocentesService", () => {
   const mockAmbienteRepo = {
     createQueryBuilder: jest.fn(() => mockQueryBuilder),
     findOne: jest.fn(),
+  };
+
+  const mockHorarioRepo = {
+    find: jest.fn(),
+  };
+
+  const mockPeriodoRepo = {
+    findOne: jest.fn(),
+  };
+
+  const mockParametrosCargaRepo = {
+    createQueryBuilder: jest.fn(() => mockQueryBuilder),
+  };
+
+  const mockConfigService = {
+    get: jest.fn(),
+  };
+
+  const mockCacheManager = {
+    del: jest.fn(),
   };
 
   const mockDocente: Docente = {
@@ -117,6 +145,26 @@ describe("DocentesService", () => {
           provide: getRepositoryToken(Ambiente),
           useValue: mockAmbienteRepo,
         },
+        {
+          provide: getRepositoryToken(HorarioAsignado),
+          useValue: mockHorarioRepo,
+        },
+        {
+          provide: getRepositoryToken(PeriodoAcademico),
+          useValue: mockPeriodoRepo,
+        },
+        {
+          provide: getRepositoryToken(ParametrosCarga),
+          useValue: mockParametrosCargaRepo,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: mockCacheManager,
+        },
       ],
     }).compile();
 
@@ -129,8 +177,17 @@ describe("DocentesService", () => {
     ambienteRepo = module.get<Repository<Ambiente>>(
       getRepositoryToken(Ambiente),
     );
+    horarioRepo = module.get<Repository<HorarioAsignado>>(
+      getRepositoryToken(HorarioAsignado),
+    );
+    periodoRepo = module.get<Repository<PeriodoAcademico>>(
+      getRepositoryToken(PeriodoAcademico),
+    );
 
     jest.clearAllMocks();
+    mockConfigService.get.mockImplementation((key: string) =>
+      key === "UMBRAL_DESEQUILIBRIO" ? "4" : undefined,
+    );
   });
 
   describe("findAll", () => {
@@ -267,6 +324,115 @@ describe("DocentesService", () => {
       await expect(
         service.removeAsignacion(1, 999, TipoClase.TEORIA),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("analisis de carga horaria", () => {
+    const horariosCarga = [
+      { dia: 1, hora_inicio: "08:00:00", hora_fin: "10:00:00" },
+      { dia: 1, hora_inicio: "10:00:00", hora_fin: "12:00:00" },
+      { dia: 2, hora_inicio: "08:00:00", hora_fin: "10:00:00" },
+      { dia: 2, hora_inicio: "10:00:00", hora_fin: "12:00:00" },
+      { dia: 2, hora_inicio: "14:00:00", hora_fin: "16:00:00" },
+      { dia: 3, hora_inicio: "09:00:00", hora_fin: "10:00:00" },
+    ] as HorarioAsignado[];
+
+    it("Caso 1: retorna la carga por día agrupada correctamente", async () => {
+      mockDocenteRepo.findOne.mockResolvedValue(mockDocente);
+      mockPeriodoRepo.findOne.mockResolvedValue({
+        id: 1,
+        codigo: "PERIODO-TEST",
+      } as PeriodoAcademico);
+      mockHorarioRepo.find.mockResolvedValue(horariosCarga);
+
+      const result = await service.getCargaPorDia(1, "PERIODO-TEST");
+
+      expect(result).toMatchObject({
+        lunes: 4,
+        martes: 6,
+        miercoles: 1,
+        jueves: 0,
+        viernes: 0,
+        sabado: 0,
+        totalHoras: 11,
+      });
+    });
+
+    it("Caso 2: detecta docente con carga desequilibrada", async () => {
+      mockPeriodoRepo.findOne.mockResolvedValue({
+        id: 1,
+        codigo: "PERIODO-TEST",
+      } as PeriodoAcademico);
+      mockDocenteRepo.find.mockResolvedValue([mockDocente]);
+      mockHorarioRepo.find.mockResolvedValue(
+        horariosCarga.map((horario) => ({
+          ...horario,
+          docente_id: 1,
+        })) as HorarioAsignado[],
+      );
+
+      const result = await service.getCargaDesequilibrada("PERIODO-TEST");
+
+      expect(result).toEqual([
+        {
+          docenteId: 1,
+          nombre: "Juan Pérez",
+          distribucion: expect.objectContaining({
+            lunes: 4,
+            martes: 6,
+            miercoles: 1,
+            jueves: 0,
+            viernes: 0,
+            sabado: 0,
+            totalHoras: 11,
+          }),
+          desequilibrio: 6,
+        },
+      ]);
+    });
+
+    it("Caso 3: no incluye docente equilibrado en la lista de desequilibrio", async () => {
+      mockPeriodoRepo.findOne.mockResolvedValue({
+        id: 1,
+        codigo: "PERIODO-TEST",
+      } as PeriodoAcademico);
+      mockDocenteRepo.find.mockResolvedValue([mockDocente]);
+      mockHorarioRepo.find.mockResolvedValue(
+        [
+          { docente_id: 1, dia: 1, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
+          { docente_id: 1, dia: 2, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
+          { docente_id: 1, dia: 3, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
+          { docente_id: 1, dia: 4, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
+          { docente_id: 1, dia: 5, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
+          { docente_id: 1, dia: 6, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
+        ] as HorarioAsignado[],
+      );
+
+      const result = await service.getCargaDesequilibrada("PERIODO-TEST");
+
+      expect(result).toEqual([]);
+    });
+
+    it("Caso 4: retorna todos los días en 0 cuando el período no tiene horarios", async () => {
+      mockDocenteRepo.findOne.mockResolvedValue(mockDocente);
+      mockPeriodoRepo.findOne.mockResolvedValue({
+        id: 1,
+        codigo: "PERIODO-TEST",
+      } as PeriodoAcademico);
+      mockHorarioRepo.find.mockResolvedValue([]);
+
+      const result = await service.getCargaPorDia(1, "PERIODO-TEST");
+
+      expect(result).toEqual({
+        lunes: 0,
+        martes: 0,
+        miercoles: 0,
+        jueves: 0,
+        viernes: 0,
+        sabado: 0,
+        totalHoras: 0,
+        promedioHorasPorDia: 0,
+      });
     });
   });
 });

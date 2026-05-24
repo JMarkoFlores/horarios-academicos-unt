@@ -53,6 +53,18 @@
       margin-right: 8px;
     }
   }
+
+  .btn-map {
+    border-radius: 12px !important;
+    padding: 8px 16px !important;
+    height: 44px;
+    font-weight: 600 !important;
+    margin-right: 10px;
+
+    mat-icon {
+      margin-right: 6px;
+    }
+  }
 }
 
 // ── SEARCH BAR ────────────────────────────────────────────────────────────

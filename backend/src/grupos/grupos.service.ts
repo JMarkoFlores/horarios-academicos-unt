@@ -85,18 +85,19 @@ export class GruposService {
 
     const existe = await this.grupoRepo
       .createQueryBuilder("grupo")
-      .leftJoin("grupo.periodo_academico", "periodo")
-      .leftJoin("grupo.curso", "curso")
-      .where("grupo.codigo = :codigo", { codigo: dto.codigo })
-      .andWhere("periodo.id = :periodoId", {
+      .where("(grupo.nombre = :nombre OR grupo.codigo = :codigo)", { 
+        nombre: dto.nombre,
+        codigo: dto.codigo 
+      })
+      .andWhere("grupo.periodo_academico_id = :periodoId", {
         periodoId: dto.periodo_academico_id,
       })
-      .andWhere("curso.id = :cursoId", { cursoId: dto.curso_id })
+      .andWhere("grupo.curso_id = :cursoId", { cursoId: dto.curso_id })
       .getOne();
 
     if (existe) {
       throw new ConflictException(
-        `Ya existe un grupo con código '${dto.codigo}' para este curso y período`,
+        `Ya existe un grupo con el código '${dto.codigo}' o nombre '${dto.nombre}' para este curso y período`,
       );
     }
 
@@ -105,6 +106,8 @@ export class GruposService {
       nombre: dto.nombre,
       ciclo: dto.ciclo,
       cupo_maximo: dto.cupo_maximo,
+      periodo_academico_id: periodo.id,
+      curso_id: curso.id,
       periodo_academico: periodo,
       curso: curso,
     });
@@ -124,6 +127,7 @@ export class GruposService {
           `Período académico con ID ${dto.periodo_academico_id} no encontrado`,
         );
       }
+      grupo.periodo_academico_id = periodo.id;
       grupo.periodo_academico = periodo;
     }
 
@@ -136,29 +140,32 @@ export class GruposService {
           `Curso con ID ${dto.curso_id} no encontrado`,
         );
       }
+      grupo.curso_id = curso.id;
       grupo.curso = curso;
     }
 
-    // Check uniqueness of group code per course and period
+    // Check uniqueness of group name and code per course and period
+    const nombreToCheck = dto.nombre !== undefined ? dto.nombre : grupo.nombre;
     const codigoToCheck = dto.codigo !== undefined ? dto.codigo : grupo.codigo;
     const periodoIdToCheck = dto.periodo_academico_id !== undefined ? dto.periodo_academico_id : grupo.periodo_academico.id;
     const cursoIdToCheck = dto.curso_id !== undefined ? dto.curso_id : grupo.curso.id;
 
     const existe = await this.grupoRepo
       .createQueryBuilder("grupo")
-      .leftJoin("grupo.periodo_academico", "periodo")
-      .leftJoin("grupo.curso", "curso")
-      .where("grupo.codigo = :codigo", { codigo: codigoToCheck })
-      .andWhere("periodo.id = :periodoId", {
+      .where("(grupo.nombre = :nombre OR grupo.codigo = :codigo)", { 
+        nombre: nombreToCheck,
+        codigo: codigoToCheck 
+      })
+      .andWhere("grupo.periodo_academico_id = :periodoId", {
         periodoId: periodoIdToCheck,
       })
-      .andWhere("curso.id = :cursoId", { cursoId: cursoIdToCheck })
+      .andWhere("grupo.curso_id = :cursoId", { cursoId: cursoIdToCheck })
       .andWhere("grupo.id != :id", { id })
       .getOne();
 
     if (existe) {
       throw new ConflictException(
-        `Ya existe otro grupo con código '${codigoToCheck}' para este curso y período`,
+        `Ya existe otro grupo con el código '${codigoToCheck}' o nombre '${nombreToCheck}' para este curso y período`,
       );
     }
 

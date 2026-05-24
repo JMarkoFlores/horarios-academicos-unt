@@ -53,6 +53,53 @@ export class AmbientesController {
     return { data: result, message: "Ambientes obtenidos correctamente" };
   }
 
+  @Get("mapa")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @ApiOperation({ summary: "Listar ambientes activos con coordenadas para mapa" })
+  @ApiResponse({ status: 200, description: "Lista de ambientes con id, nombre, coordX, coordY, edificio, capacidad" })
+  async findMapa() {
+    const result = await this.ambientesService.findMapa();
+    return { data: result, message: "Ambientes para mapa obtenidos correctamente" };
+  }
+
+  @Get("distancia")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @ApiOperation({ summary: "Calcular distancia entre dos ambientes" })
+  @ApiQuery({ name: "origenId", required: true, type: Number })
+  @ApiQuery({ name: "destinoId", required: true, type: Number })
+  async getDistancia(
+    @Query("origenId", ParseIntPipe) origenId: number,
+    @Query("destinoId", ParseIntPipe) destinoId: number,
+  ) {
+    const result = await this.ambientesService.getDistanciaEntreAmbientes(
+      origenId,
+      destinoId,
+    );
+    return {
+      data: result,
+      message: "Distancia entre ambientes calculada correctamente",
+    };
+  }
+
+  @Get("alertas-traslado")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @ApiOperation({ summary: "Obtener alertas de traslado entre horarios consecutivos de un docente" })
+  @ApiQuery({ name: "docenteId", required: true, type: Number })
+  @ApiQuery({ name: "periodoId", required: true, type: Number })
+  async getAlertasTraslado(
+    @Query("docenteId", ParseIntPipe) docenteId: number,
+    @Query("periodoId", ParseIntPipe) periodoId: number,
+  ) {
+    const result = await this.ambientesService.getAlertasTrasladoDocente(
+      docenteId,
+      periodoId,
+    );
+    return {
+      data: result,
+      message: "Alertas de traslado obtenidas correctamente",
+    };
+  }
+
   @Get(":id")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Obtener un ambiente por ID" })

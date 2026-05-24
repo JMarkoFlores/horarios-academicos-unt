@@ -6,9 +6,7 @@ import {
   IsInt,
   Min,
   Max,
-  IsBoolean,
 } from "class-validator";
-import { Transform } from "class-transformer";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
 import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
@@ -66,10 +64,9 @@ export class QueryDocenteDto {
   sortDir?: "ASC" | "DESC";
 
   @ApiPropertyOptional({
-    description: "Filtrar por estado activo. Omitir para ver solo activos",
+    description: "Filtrar por estado activo. Omitir para ver todos. Use 'true' o 'false'",
   })
   @IsOptional()
-  @Transform(({ value }) => value === "true" || value === true)
-  @IsBoolean()
-  activo?: boolean;
+  @IsString()
+  activo?: string;
 }

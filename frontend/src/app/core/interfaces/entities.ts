@@ -81,6 +81,18 @@ export interface Ambiente {
   activo: boolean;
 }
 
+export interface AmbienteMapa {
+  id: number;
+  nombre: string;
+  coordX: number | null;
+  coordY: number | null;
+  edificio: string | null;
+  capacidad: number;
+  piso?: number | null;
+  pabellon?: string | null;
+  sede?: string | null;
+}
+
 export interface DisponibilidadDocente {
   id?: number;
   dia_semana: number;

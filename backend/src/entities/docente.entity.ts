@@ -55,6 +55,9 @@ export class Docente {
   @Column({ default: true })
   activo: boolean;
 
+  @Column({ type: "smallint", default: 0, name: "horas_asignadas" })
+  horas_asignadas: number;
+
   @CreateDateColumn()
   created_at: Date;
 

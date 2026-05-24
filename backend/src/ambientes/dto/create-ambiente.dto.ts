@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsBoolean,
   IsInt,
+  IsNumber,
   IsOptional,
   Min,
   Max,
@@ -69,4 +70,20 @@ export class CreateAmbienteDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @ApiPropertyOptional({ example: "Edificio de Ingeniería" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  edificio?: string;
+
+  @ApiPropertyOptional({ example: -8.1116 })
+  @IsOptional()
+  @IsNumber()
+  coordX?: number;
+
+  @ApiPropertyOptional({ example: -79.0287 })
+  @IsOptional()
+  @IsNumber()
+  coordY?: number;
 }

@@ -56,7 +56,7 @@ export class GruposController {
   @ApiOperation({ summary: "Crear nuevo grupo/sección" })
   @ApiResponse({
     status: 409,
-    description: "Código duplicado para el mismo curso y período",
+    description: "Nombre duplicado para el mismo curso y período",
   })
   async create(@Body() dto: CreateGrupoDto) {
     const result = await this.gruposService.create(dto);

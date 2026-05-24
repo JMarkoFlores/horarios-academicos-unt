@@ -27,6 +27,15 @@ export class Ambiente {
   pabellon: string;
 
   @Column({ nullable: true, length: 100 })
+  edificio: string;
+
+  @Column({ type: "float", nullable: true, name: "coord_x" })
+  coordX: number;
+
+  @Column({ type: "float", nullable: true, name: "coord_y" })
+  coordY: number;
+
+  @Column({ nullable: true, length: 100 })
   sede: string;
 
   @Column({ type: "text", nullable: true })

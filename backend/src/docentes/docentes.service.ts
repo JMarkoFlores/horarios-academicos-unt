@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Inject,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Cache } from "cache-manager";
@@ -13,7 +14,9 @@ import { Docente } from "../entities/docente.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
@@ -23,9 +26,37 @@ import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 
+type CargaPorDia = {
+  lunes: number;
+  martes: number;
+  miercoles: number;
+  jueves: number;
+  viernes: number;
+  sabado: number;
+  totalHoras: number;
+  promedioHorasPorDia: number;
+};
+
+type DocenteCargaDesequilibrada = {
+  docenteId: number;
+  nombre: string;
+  distribucion: CargaPorDia;
+  desequilibrio: number;
+};
+
+const DIA_KEYS = [
+  "lunes",
+  "martes",
+  "miercoles",
+  "jueves",
+  "viernes",
+  "sabado",
+] as const;
+
 @Injectable()
 export class DocentesService {
   constructor(
+    private readonly configService: ConfigService,
     @InjectRepository(Docente)
     private readonly docenteRepo: Repository<Docente>,
     @InjectRepository(DocenteCurso)
@@ -34,8 +65,12 @@ export class DocentesService {
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
+    @InjectRepository(HorarioAsignado)
+    private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
+    @InjectRepository(ParametrosCarga)
+    private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -51,11 +86,16 @@ export class DocentesService {
       sortDir,
       activo,
     } = query;
-    const activoFiltro = activo !== undefined ? activo : true;
+    const qb = this.docenteRepo.createQueryBuilder("docente");
+    
+    qb.where("1 = 1");
 
-    const qb = this.docenteRepo
-      .createQueryBuilder("docente")
-      .where("docente.activo = :activo", { activo: activoFiltro });
+    if (activo === "true") {
+      qb.andWhere("docente.activo = true");
+    } else if (activo === "false") {
+      qb.andWhere("docente.activo = false");
+    }
+
 
     if (categoria) {
       qb.andWhere("docente.categoria = :categoria", { categoria });
@@ -193,6 +233,89 @@ export class DocentesService {
     }));
   }
 
+  async getCargaPorDia(
+    docenteId: number,
+    periodo: string,
+  ): Promise<CargaPorDia> {
+    await this.ensureDocenteExists(docenteId);
+
+    const periodoCodigo = await this.resolverPeriodoCodigo(periodo);
+    if (!periodoCodigo) {
+      throw new NotFoundException(`Periodo ${periodo} no encontrado`);
+    }
+
+    const horarios = await this.horarioRepo.find({
+      where: {
+        docente_id: docenteId,
+        periodo: periodoCodigo,
+      },
+      order: {
+        dia: "ASC",
+        hora_inicio: "ASC",
+      },
+    });
+
+    return this.construirCargaPorDia(horarios);
+  }
+
+  async getCargaDesequilibrada(
+    periodo: string,
+  ): Promise<DocenteCargaDesequilibrada[]> {
+    const periodoCodigo = await this.resolverPeriodoCodigo(periodo);
+    if (!periodoCodigo) {
+      throw new NotFoundException(`Periodo ${periodo} no encontrado`);
+    }
+
+    const [docentes, horarios] = await Promise.all([
+      this.docenteRepo.find({
+        where: { activo: true },
+        order: {
+          apellidos: "ASC",
+          nombres: "ASC",
+        },
+      }),
+      this.horarioRepo.find({
+        where: { periodo: periodoCodigo },
+        order: {
+          docente_id: "ASC",
+          dia: "ASC",
+          hora_inicio: "ASC",
+        },
+      }),
+    ]);
+
+    const horariosPorDocente = new Map<number, HorarioAsignado[]>();
+    for (const horario of horarios) {
+      const bucket = horariosPorDocente.get(horario.docente_id) ?? [];
+      bucket.push(horario);
+      horariosPorDocente.set(horario.docente_id, bucket);
+    }
+
+    const umbral = this.getUmbralDesequilibrio();
+
+    return docentes
+      .map((docente) => {
+        const distribucion = this.construirCargaPorDia(
+          horariosPorDocente.get(docente.id) ?? [],
+        );
+        const desequilibrio = this.calcularDesequilibrio(distribucion);
+
+        return {
+          docenteId: docente.id,
+          nombre: `${docente.nombres} ${docente.apellidos}`,
+          distribucion,
+          desequilibrio,
+        };
+      })
+      .filter((item) => item.desequilibrio > umbral)
+      .sort((a, b) => {
+        if (b.desequilibrio !== a.desequilibrio) {
+          return b.desequilibrio - a.desequilibrio;
+        }
+        return a.nombre.localeCompare(b.nombre, "es");
+      });
+  }
+
   private derivarTipoContrato(tipoDocente: TipoDocente): TipoContrato {
     return tipoDocente === TipoDocente.ORDINARIO
       ? TipoContrato.NOMBRADO
@@ -206,6 +329,44 @@ export class DocentesService {
     return tipoDocente !== TipoDocente.ORDINARIO
       ? CategoriaDocente.SIN_CATEGORIA
       : categoria;
+  }
+
+  async validarCargaModalidad(
+    docenteId: number,
+    horasSolicitadas: number,
+    modalidad: string,
+  ): Promise<void> {
+    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    if (!docente) {
+      throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
+    }
+
+    const parametros = await this.parametrosCargaRepo
+      .createQueryBuilder("p")
+      .where("p.modalidad = :modalidad", { modalidad })
+      .andWhere("(p.tipo_docente = :tipo OR p.tipo_docente = '')", {
+        tipo: docente.tipo_docente ?? "",
+      })
+      .andWhere("(p.categoria = :cat OR p.categoria = '')", {
+        cat: docente.categoria ?? "",
+      })
+      .orderBy("p.tipo_docente", "DESC")
+      .addOrderBy("p.categoria", "DESC")
+      .getOne();
+
+    if (!parametros) {
+      return;
+    }
+
+    if (
+      horasSolicitadas < parametros.horas_min_semanal ||
+      horasSolicitadas > parametros.horas_max_semanal
+    ) {
+      throw new BadRequestException(
+        `Las horas solicitadas (${horasSolicitadas}) están fuera del rango permitido ` +
+          `para la modalidad '${modalidad}': [${parametros.horas_min_semanal} - ${parametros.horas_max_semanal}]`,
+      );
+    }
   }
 
   async create(dto: CreateDocenteDto): Promise<Docente> {
@@ -225,6 +386,32 @@ export class DocentesService {
       );
     }
 
+    if (dto.modalidad && dto.horas_asignadas !== undefined) {
+      const parametros = await this.parametrosCargaRepo
+        .createQueryBuilder("p")
+        .where("p.modalidad = :modalidad", { modalidad: dto.modalidad })
+        .andWhere("(p.tipo_docente = :tipo OR p.tipo_docente = '')", {
+          tipo: dto.tipo_docente ?? "",
+        })
+        .andWhere("(p.categoria = :cat OR p.categoria = '')", {
+          cat: this.normalizarCategoria(dto.tipo_docente, dto.categoria) ?? "",
+        })
+        .orderBy("p.tipo_docente", "DESC")
+        .addOrderBy("p.categoria", "DESC")
+        .getOne();
+
+      if (
+        parametros &&
+        (dto.horas_asignadas < parametros.horas_min_semanal ||
+          dto.horas_asignadas > parametros.horas_max_semanal)
+      ) {
+        throw new BadRequestException(
+          `Las horas solicitadas (${dto.horas_asignadas}) están fuera del rango permitido ` +
+            `para la modalidad '${dto.modalidad}': [${parametros.horas_min_semanal} - ${parametros.horas_max_semanal}]`,
+        );
+      }
+    }
+
     const docente = this.docenteRepo.create({
       ...dto,
       tipo_contrato: this.derivarTipoContrato(dto.tipo_docente),
@@ -240,6 +427,14 @@ export class DocentesService {
 
   async update(id: number, dto: UpdateDocenteDto): Promise<Docente> {
     const docente = await this.findOne(id);
+
+    if (dto.modalidad && dto.horas_asignadas !== undefined) {
+      await this.validarCargaModalidad(
+        id,
+        dto.horas_asignadas,
+        dto.modalidad,
+      );
+    }
 
     if (dto.email && dto.email !== docente.email) {
       const emailExistente = await this.docenteRepo.findOne({
@@ -489,5 +684,92 @@ export class DocentesService {
 
     await this.docenteRepo.save(docente);
     return docente.ambientes;
+  }
+
+  private async ensureDocenteExists(docenteId: number): Promise<void> {
+    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    if (!docente) {
+      throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
+    }
+  }
+
+  private async resolverPeriodoCodigo(
+    periodo: number | string,
+  ): Promise<string | null> {
+    const where =
+      typeof periodo === "number" || /^\d+$/.test(String(periodo))
+        ? { id: Number(periodo) }
+        : { codigo: String(periodo) };
+
+    const periodoEntity = await this.periodoRepo.findOne({ where });
+    return periodoEntity?.codigo ?? null;
+  }
+
+  private construirCargaPorDia(horarios: HorarioAsignado[]): CargaPorDia {
+    const base: CargaPorDia = {
+      lunes: 0,
+      martes: 0,
+      miercoles: 0,
+      jueves: 0,
+      viernes: 0,
+      sabado: 0,
+      totalHoras: 0,
+      promedioHorasPorDia: 0,
+    };
+
+    for (const horario of horarios) {
+      if (horario.dia < 1 || horario.dia > 6) {
+        continue;
+      }
+
+      const diaKey = DIA_KEYS[horario.dia - 1];
+      const horas = this.calcularHorasHorario(
+        horario.hora_inicio,
+        horario.hora_fin,
+      );
+      base[diaKey] = this.redondearHoras(base[diaKey] + horas);
+    }
+
+    const horasPorDia = DIA_KEYS.map((dia) => base[dia]);
+    const totalHoras = this.redondearHoras(
+      horasPorDia.reduce((acc, horas) => acc + horas, 0),
+    );
+    const diasConCarga = horasPorDia.filter((horas) => horas > 0).length;
+
+    base.totalHoras = totalHoras;
+    base.promedioHorasPorDia =
+      diasConCarga > 0
+        ? this.redondearHoras(totalHoras / diasConCarga)
+        : 0;
+
+    return base;
+  }
+
+  private calcularDesequilibrio(distribucion: CargaPorDia): number {
+    const horasPorDia = DIA_KEYS.map((dia) => distribucion[dia]);
+    return this.redondearHoras(
+      Math.max(...horasPorDia) - Math.min(...horasPorDia),
+    );
+  }
+
+  private calcularHorasHorario(horaInicio: string, horaFin: string): number {
+    const minutosInicio = this.aMinutos(horaInicio);
+    const minutosFin = this.aMinutos(horaFin);
+    return this.redondearHoras(Math.max(0, minutosFin - minutosInicio) / 60);
+  }
+
+  private aMinutos(hora: string): number {
+    const [horas, minutos] = hora.split(":").map(Number);
+    return (horas || 0) * 60 + (minutos || 0);
+  }
+
+  private redondearHoras(valor: number): number {
+    return Number(valor.toFixed(2));
+  }
+
+  private getUmbralDesequilibrio(): number {
+    const rawValue = this.configService.get<string>("UMBRAL_DESEQUILIBRIO");
+    const parsedValue = Number(rawValue ?? 4);
+    return Number.isFinite(parsedValue) ? parsedValue : 4;
   }
 }

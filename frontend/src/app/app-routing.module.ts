@@ -218,6 +218,21 @@ const routes: Routes = [
           ],
         },
       },
+      {
+        path: 'analisis-carga',
+        loadComponent: () =>
+          import('./modules/analisis-carga/analisis-carga.component').then(
+            (m) => m.AnalisisCargaComponent,
+          ),
+        canActivate: [RolesGuard],
+        data: {
+          roles: [
+            'administradorsistema',
+            'coordinadoracademico',
+            'directorescuela',
+          ],
+        },
+      },
       // Docente (acceso propio) — admin puede verlo para soporte
       {
         path: 'mis-horarios',

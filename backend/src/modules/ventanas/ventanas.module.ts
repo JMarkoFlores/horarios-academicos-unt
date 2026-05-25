@@ -2,19 +2,27 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Ambiente } from "../../entities/ambiente.entity";
+import { CampañaVentanas } from "../../entities/campaña-ventanas.entity";
 import { ColaDocente } from "../../entities/cola-docentes.entity";
+import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
 import { Docente } from "../../entities/docente.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
+import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
+import { ReglasPrioridadGlobales } from "../../entities/reglas-prioridad.entity";
 import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
 import { HorariosModule } from "../../horarios/horarios.module";
 import { VentanasController } from "./ventanas.controller";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
 import { VentanasService } from "./ventanas.service";
+import { CampañasVentanasController } from "./campañas-ventanas.controller";
+import { CampañasVentanasService } from "./campañas-ventanas.service";
 import { CommonModule } from "../../common/common.module";
 import { NotificacionesModule } from "../../notificaciones/notificaciones.module";
 import { AuditoriaModule } from "../../modules/auditoria/auditoria.module";
+import { ReglasPrioridadController } from "./reglas-prioridad.controller";
+import { ReglasPrioridadGlobalesService } from "./reglas-prioridad.service";
 
 @Module({
   imports: [
@@ -27,14 +35,18 @@ import { AuditoriaModule } from "../../modules/auditoria/auditoria.module";
       Grupo,
       HorarioAsignado,
       Ambiente,
+      ParametrosCarga,
+      CampañaVentanas,
+      DiaNoLaborable,
+      ReglasPrioridadGlobales,
     ]),
     HorariosModule,
     CommonModule,
     NotificacionesModule,
     AuditoriaModule,
   ],
-  controllers: [VentanasController],
-  providers: [VentanasService, GestorSeleccionTemporalService],
-  exports: [VentanasService, GestorSeleccionTemporalService],
+  controllers: [VentanasController, CampañasVentanasController, ReglasPrioridadController],
+  providers: [VentanasService, GestorSeleccionTemporalService, CampañasVentanasService, ReglasPrioridadGlobalesService],
+  exports: [VentanasService, GestorSeleccionTemporalService, CampañasVentanasService, ReglasPrioridadGlobalesService],
 })
 export class VentanasModule {}

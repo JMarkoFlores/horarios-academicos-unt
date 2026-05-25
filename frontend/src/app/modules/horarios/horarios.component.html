@@ -63,7 +63,7 @@
           <button
             mat-flat-button
             class="action-btn download-btn"
-            (click)="descargarPdfDocente()"
+            (click)="horasAsignadas > 0 ? descargarPdfDocente() : mostrarMensajeSinHorario()"
             [disabled]="descargandoDoc"
           >
             <mat-spinner diameter="18" *ngIf="descargandoDoc"></mat-spinner>
@@ -71,6 +71,17 @@
             <mat-icon *ngIf="!descargandoDoc">picture_as_pdf</mat-icon>
 
             <span>PDF</span>
+          </button>
+
+          <button
+            mat-flat-button
+            class="action-btn download-btn"
+            (click)="horasAsignadas > 0 ? descargarICalendar() : mostrarMensajeSinHorario()"
+            [disabled]="descargandoDoc"
+          >
+            <mat-icon>event</mat-icon>
+
+            <span>iCalendar</span>
           </button>
         </div>
       </div>
@@ -111,7 +122,6 @@
                     *ngFor="let dNum of diasNum"
                     class="celda"
                     [ngClass]="clsDoc(dNum, hora)"
-                    (click)="abrirAsignar(dNum, hora)"
                   >
                     <ng-container *ngIf="getAsigDoc(dNum, hora) as a">
                       <div

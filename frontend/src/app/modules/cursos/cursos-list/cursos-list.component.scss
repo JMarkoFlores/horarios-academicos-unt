@@ -529,6 +529,25 @@
   &:hover { background: var(--color-danger-bg); }
 }
 
+// ── PREREQUISITOS ───────────────────────────────────────────────────────────
+.prerequisitos-cell {
+  min-width: 150px;
+
+  .prerequisitos-text {
+    font-size: 12px;
+    color: var(--color-text);
+    font-weight: 500;
+    cursor: help;
+    border-bottom: 1px dashed var(--color-border);
+    padding-bottom: 1px;
+  }
+
+  .prerequisitos-empty {
+    color: var(--color-text-muted);
+    font-size: 12px;
+  }
+}
+
 .btn-action.groups {
   color: var(--color-accent);
   &:hover { background: var(--color-accent-light); }

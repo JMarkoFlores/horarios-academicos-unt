@@ -20,7 +20,7 @@ import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/c
 export class CursosListComponent implements OnInit {
   displayedColumns = [
     'codigo', 'nombre', 'creditos', 'horas_teoria',
-    'completitud', 'ambiente_teoria', 'ambiente_laboratorio', 'acciones',
+    'prerequisitos', 'completitud', 'ambiente_teoria', 'ambiente_laboratorio', 'acciones',
   ];
 
   dataSource: Curso[] = [];
@@ -119,6 +119,13 @@ export class CursosListComponent implements OnInit {
     const palette = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981',
                      '#3b82f6','#ef4444','#14b8a6','#f97316','#84cc16'];
     return palette[(ciclo - 1) % palette.length];
+  }
+
+  getPrerequisitosResumen(prerequisitos: string): string {
+    if (!prerequisitos) return '';
+    const codigos = prerequisitos.split(',').map((c) => c.trim());
+    if (codigos.length <= 2) return prerequisitos;
+    return `${codigos.slice(0, 2).join(', ')}... (+${codigos.length - 2})`;
   }
 
   // ── Dialogs ────────────────────────────────────────────────────────────

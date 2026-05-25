@@ -23,6 +23,8 @@ import { AuditoriaService } from "../modules/auditoria/auditoria.service";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Docente } from "../entities/docente.entity";
+import { DeteccionConflictosService } from "./deteccion-conflictos.service";
+import { TipoConflicto } from "../common/enums/tipo-conflicto.enum";
 
 type DocenteJerarquia = {
   id: number;
@@ -75,6 +77,7 @@ export class AsignacionService {
     private readonly docenteRepo: Repository<Docente>,
     private readonly docentesService: DocentesService,
     private readonly validadorHorarioService: ValidadorHorarioService,
+    private readonly deteccionConflictosService: DeteccionConflictosService,
   ) {}
 
   async encontrarDocenteElegible(
@@ -321,7 +324,7 @@ export class AsignacionService {
         if (!grupo) {
           const c = new ConflictoAsignacion();
           c.descripcion = `No existe grupo para el curso ${curso.codigo} (${curso.nombre}).`;
-          c.tipo_conflicto = "GRUPO_NO_ENCONTRADO";
+          c.tipo_conflicto = TipoConflicto.SIN_DOCENTE;
           c.periodo_academico = periodo;
           entidadesConflictos.push(c);
 
@@ -352,7 +355,7 @@ export class AsignacionService {
           if (!docente) {
             const c = new ConflictoAsignacion();
             c.descripcion = `No hay docente habilitado con carga disponible para Teoría de ${curso.codigo}.`;
-            c.tipo_conflicto = "DOCENTE_NO_HABILITADO_O_CARGA_EXCEDIDA";
+            c.tipo_conflicto = TipoConflicto.SIN_DOCENTE;
             c.periodo_academico = periodo;
             entidadesConflictos.push(c);
 
@@ -406,7 +409,7 @@ export class AsignacionService {
           } else {
             const c = new ConflictoAsignacion();
             c.descripcion = `No se encontró slot de ${duracion}h para Teoría de ${curso.codigo}.`;
-            c.tipo_conflicto = "SIN_HORARIO_DISPONIBLE";
+            c.tipo_conflicto = TipoConflicto.SIN_AMBIENTE;
             c.periodo_academico = periodo;
             c.docente = docente;
             entidadesConflictos.push(c);
@@ -440,7 +443,7 @@ export class AsignacionService {
             if (!docente) {
               const c = new ConflictoAsignacion();
               c.descripcion = `No hay docente habilitado con carga disponible para Lab de ${curso.codigo}.`;
-              c.tipo_conflicto = "DOCENTE_NO_HABILITADO_O_CARGA_EXCEDIDA";
+              c.tipo_conflicto = TipoConflicto.SIN_DOCENTE;
               c.periodo_academico = periodo;
               entidadesConflictos.push(c);
 
@@ -496,7 +499,7 @@ export class AsignacionService {
             } else {
               const c = new ConflictoAsignacion();
               c.descripcion = `No se encontró slot de lab de ${duracion}h para ${curso.codigo}.`;
-              c.tipo_conflicto = "SIN_HORARIO_DISPONIBLE";
+              c.tipo_conflicto = TipoConflicto.SIN_AMBIENTE;
               c.periodo_academico = periodo;
               c.docente = docente;
               entidadesConflictos.push(c);

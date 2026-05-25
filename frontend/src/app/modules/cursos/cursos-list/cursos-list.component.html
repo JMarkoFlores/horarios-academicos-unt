@@ -125,6 +125,19 @@
           </td>
         </ng-container>
 
+        <!-- PREREQUISITOS -->
+        <ng-container matColumnDef="prerequisitos">
+          <th mat-header-cell *matHeaderCellDef>Prerequisitos</th>
+          <td mat-cell *matCellDef="let c">
+            <div class="prerequisitos-cell">
+              <span *ngIf="c.prerequisitos" class="prerequisitos-text" [matTooltip]="c.prerequisitos">
+                {{ getPrerequisitosResumen(c.prerequisitos) }}
+              </span>
+              <span *ngIf="!c.prerequisitos" class="prerequisitos-empty">—</span>
+            </div>
+          </td>
+        </ng-container>
+
         <!-- COMPLETITUD -->
         <ng-container matColumnDef="completitud">
           <th mat-header-cell *matHeaderCellDef>Estado Config.</th>

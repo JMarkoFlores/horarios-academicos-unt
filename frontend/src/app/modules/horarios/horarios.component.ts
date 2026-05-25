@@ -248,6 +248,37 @@ export class HorariosComponent implements OnInit, OnDestroy {
       });
   }
 
+  mostrarMensajeSinHorario(): void {
+    this.notif.info('Este docente aún no tiene horarios asignados. Primero genere o asigne horarios.');
+  }
+
+  descargarICalendar(): void {
+    if (!this.docenteSeleccionado) return;
+    this.descargandoDoc = true;
+    const timestamp = String(Date.now());
+    this.api
+      .getBlob(`/horarios/docente/${this.docenteSeleccionado.id}/ics`, {
+        periodo: this.periodoService.periodo,
+        _t: timestamp,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoDoc = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `horario_${this.docenteSeleccionado!.apellidos}_${this.periodoService.periodo}.ics`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.notif.success('Archivo iCalendar descargado');
+        },
+        error: () => {
+          this.descargandoDoc = false;
+          this.notif.error('Error al descargar iCalendar');
+        },
+      });
+  }
+
   loadConflictos(): void {
     this.loadingConflictos = true;
     this.api

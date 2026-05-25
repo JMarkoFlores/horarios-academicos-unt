@@ -67,13 +67,7 @@ interface DiaNoLaborable {
 })
 export class ConfiguracionComponent implements OnInit {
   // ─── Estado General ─────────────────────────────────────────────────────
-  activeTab:
-    | 'restricciones'
-    | 'diasNoLaborables'
-    | 'turnos'
-    | 'diasActivos'
-    | 'parametrosCarga'
-    | 'general' = 'restricciones';
+  activeTab: string = 'restricciones';
 
   // ─── Turnos Horarios ─────────────────────────────────────────────────────
   turnos: TurnoHorario[] = [];
@@ -137,6 +131,9 @@ export class ConfiguracionComponent implements OnInit {
   guardandoRestriccion = false;
   restriccionForm!: FormGroup;
 
+  // ─── Reglas de Prioridad ───────────────────────────────────────────────────
+  guardandoReglasPrioridad = false;
+
   tiposRestriccion = [
     { value: 'FRANJA_HORARIA', label: 'Franja Horaria' },
     { value: 'BLOQUE_ALMUERZO', label: 'Bloque de Almuerzo' },
@@ -159,6 +156,29 @@ export class ConfiguracionComponent implements OnInit {
   guardandoDia = false;
   diaForm!: FormGroup;
 
+  // ─── Ventanas Automáticas ────────────────────────────────────────────────
+  configurandoVentanas = false;
+  creandoVentanasPendientes = false;
+  ventanasForm!: FormGroup;
+  ventanaConfig: any[] = [];
+  modoAsignacionPeriodo: string = '';
+
+  // ─── Modo de Período ─────────────────────────────────────────────────────
+  nuevoModo: 'VENTANAS' | 'AUTOMATICA' | 'MIXTA' = 'VENTANAS';
+  cambiandoModo = false;
+  puedeCambiarModo: boolean | null = null;
+
+  // ─── Campañas de Ventanas ─────────────────────────────────────────────────
+  campanas: any[] = [];
+  campanaForm!: FormGroup;
+  bloquesHorarios: any[] = [];
+  reglasPrioridad: any[] = [];
+  creandoCampana = false;
+  generandoVentanas = false;
+  publicandoCampana = false;
+  campanaSeleccionada: any = null;
+  ventanasGeneradas: any[] = [];
+
   tiposDia = [
     { value: 'FERIADO', label: 'Feriado Nacional' },
     { value: 'MANTENIMIENTO', label: 'Mantenimiento' },
@@ -177,11 +197,18 @@ export class ConfiguracionComponent implements OnInit {
   ngOnInit(): void {
     this.initForms();
     this.cargarRestricciones();
+    this.cargarReglasPrioridad();
     this.cargarDiasNoLaborables();
     this.cargarTurnos();
     this.cargarDiasActivos();
     this.cargarParametrosCarga();
     this.cargarConfiguracionGeneral();
+    this.cargarCampanas();
+
+    // Suscribirse al período para cargar campañas cuando cambie
+    this.periodoService.periodoActivo$.subscribe(() => {
+      this.cargarCampanas();
+    });
   }
 
   initForms(): void {
@@ -255,6 +282,39 @@ export class ConfiguracionComponent implements OnInit {
       color_secundario: ['#283593', Validators.required],
       color_acento: ['#e91e63', Validators.required],
     });
+
+    this.ventanasForm = this.fb.group({
+      fechaInicio: ['', Validators.required],
+    });
+
+    this.campanaForm = this.fb.group({
+      nombre: ['', Validators.required],
+      descripcion: ['', Validators.required],
+      fechaInicio: ['', Validators.required],
+      fechaFin: ['', Validators.required],
+      diasHabilitados: [['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']],
+      duracionTurnoMinutos: [15, [Validators.min(5)]],
+      bufferMinutos: [5, [Validators.min(0)]],
+      cuposMaximosVentana: [20, [Validators.min(1)]],
+      porcentajeReserva: [15, [Validators.min(0), Validators.max(50)]],
+      excluirFeriados: [true],
+      excluirEventos: [true],
+      distribucionEquitativa: [true],
+    });
+
+    // Bloque horario por defecto
+    this.bloquesHorarios = [
+      { nombre: 'Mañana', hora_inicio: '08:00', hora_fin: '12:00' },
+      { nombre: 'Tarde', hora_inicio: '14:00', hora_fin: '18:00' },
+    ];
+
+    // Reglas de prioridad por defecto (normativa UNT)
+    this.reglasPrioridad = [
+      { campo: 'tipo_contrato', orden: 'DESC' }, // Ordinario > Contratado
+      { campo: 'categoria', orden: 'DESC' }, // Principal > Asociado > Auxiliar
+      { campo: 'fecha_ingreso', orden: 'ASC' }, // Fecha más antigua
+      { campo: 'horas_asignadas', orden: 'ASC' }, // Menos horas asignadas primero
+    ];
   }
 
   actualizarFormSegunTipo(tipo: string): void {
@@ -496,6 +556,8 @@ export class ConfiguracionComponent implements OnInit {
     this.cargarRestricciones();
     this.cargarDiasNoLaborables();
     this.cargarParametrosCarga();
+    this.cargarPeriodoActual();
+    this.cargarCampanas();
   }
 
   // ─── TURNOS ───────────────────────────────────────────────────────────────────────
@@ -793,5 +855,306 @@ export class ConfiguracionComponent implements OnInit {
 
   tipoDiaLabel(tipo: string): string {
     return this.tiposDia.find((t) => t.value === tipo)?.label ?? tipo;
+  }
+
+  isArray(value: any): boolean {
+    return Array.isArray(value);
+  }
+
+  // ─── VENTANAS AUTOMÁTICAS ────────────────────────────────────────────────
+
+  cargarPeriodoActual(): void {
+    if (this.periodoService.periodoActivo?.id) {
+      this.api.get<ApiResponse<any>>(`/periodos/${this.periodoService.periodoActivo.id}`).subscribe({
+        next: (r) => {
+          this.modoAsignacionPeriodo = r.data?.modo_asignacion ?? 'VENTANAS';
+          // Inicializar nuevoModo con el valor actual (default: VENTANAS)
+          const modo = r.data?.modo_asignacion?.toUpperCase() as 'VENTANAS' | 'AUTOMATICA' | 'MIXTA';
+          this.nuevoModo = modo || 'VENTANAS';
+          this.verificarSiPuedeCambiarModo();
+        },
+        error: () => {
+          this.modoAsignacionPeriodo = 'VENTANAS';
+          this.nuevoModo = 'VENTANAS';
+        },
+      });
+    }
+  }
+
+  verificarSiPuedeCambiarModo(): void {
+    // Verificar si hay horarios asignados en el período
+    this.api.get<ApiResponse<any>>(`/horarios`, {
+      periodo: this.periodoService.periodo,
+      limit: 1
+    }).subscribe({
+      next: (r) => {
+        const horarios = r.data?.items ?? r.data ?? [];
+        this.puedeCambiarModo = horarios.length === 0;
+      },
+      error: () => {
+        this.puedeCambiarModo = true;
+      }
+    });
+  }
+
+  getModoLabel(): string {
+    const labels: Record<string, string> = {
+      'VENTANAS': 'Ventanas de Atención',
+      'AUTOMATICA': 'Generación Automática',
+      'MIXTA': 'Modo Mixto'
+    };
+    return labels[this.modoAsignacionPeriodo?.toUpperCase()] || 'Ventanas de Atención';
+  }
+
+  cambiarModoAsignacion(): void {
+    if (!this.nuevoModo || !this.periodoService.periodoActivo?.id) return;
+    if (this.nuevoModo === this.modoAsignacionPeriodo) return;
+
+    this.cambiandoModo = true;
+    this.api.patch<ApiResponse<any>>(`/periodos/${this.periodoService.periodoActivo.id}/modo-asignacion`, {
+      modo_asignacion: this.nuevoModo.toLowerCase()
+    }).subscribe({
+      next: (r) => {
+        this.cambiandoModo = false;
+        this.modoAsignacionPeriodo = this.nuevoModo;
+        this.notif.success(r.message || 'Modo de asignación actualizado correctamente');
+      },
+      error: (err) => {
+        this.cambiandoModo = false;
+        const msg = err?.error?.message || 'Error al cambiar modo de asignación';
+        this.notif.error(msg);
+      }
+    });
+  }
+
+  agregarConfiguracionVentana(): void {
+    this.ventanaConfig.push({
+      categoria: 'PRINCIPAL',
+      modalidad: 'NOMBRADO',
+      hora_inicio: '08:00',
+      intervalo_minutos: 30,
+    });
+  }
+
+  eliminarConfiguracionVentana(index: number): void {
+    this.ventanaConfig.splice(index, 1);
+  }
+
+  configurarVentanasPeriodo(): void {
+    if (this.ventanasForm.invalid || this.ventanaConfig.length === 0) {
+      this.notif.info('Complete el formulario y agregue al menos una configuración de ventana');
+      return;
+    }
+
+    if (!this.periodoService.periodoActivo?.id) {
+      this.notif.info('Seleccione un período académico');
+      return;
+    }
+
+    this.configurandoVentanas = true;
+    const payload = {
+      idPeriodo: this.periodoService.periodoActivo.id,
+      fechaInicio: this.ventanasForm.value.fechaInicio,
+      config: this.ventanaConfig,
+    };
+
+    this.api.post<ApiResponse<any>>('/ventanas/configurar-periodo', payload).subscribe({
+      next: (r) => {
+        this.configurandoVentanas = false;
+        this.notif.success(r.message ?? 'Ventanas configuradas correctamente');
+        this.ventanaConfig = [];
+        this.ventanasForm.reset();
+      },
+      error: (err) => {
+        this.configurandoVentanas = false;
+        this.notif.error(err?.error?.message ?? 'Error al configurar ventanas');
+      },
+    });
+  }
+
+  crearVentanasPendientes(): void {
+    if (!this.periodoService.periodoActivo?.id) {
+      this.notif.info('Seleccione un período académico');
+      return;
+    }
+
+    if (this.modoAsignacionPeriodo !== 'MIXTA') {
+      this.notif.info('Solo se pueden crear ventanas pendientes en modo MIXTA');
+      return;
+    }
+
+    this.creandoVentanasPendientes = true;
+    this.api.post<ApiResponse<any>>(`/periodos/${this.periodoService.periodoActivo.id}/crear-ventanas-pendientes`, {}).subscribe({
+      next: (r) => {
+        this.creandoVentanasPendientes = false;
+        this.notif.success(r.message ?? 'Ventanas para docentes pendientes creadas correctamente');
+      },
+      error: (err) => {
+        this.creandoVentanasPendientes = false;
+        this.notif.error(err?.error?.message ?? 'Error al crear ventanas pendientes');
+      },
+    });
+  }
+
+  // ─── CAMPÑAS DE VENTANAS ─────────────────────────────────────────────────────
+
+  cargarCampanas(): void {
+    if (this.periodoService.periodoActivo?.id) {
+      this.api.get<ApiResponse<any[]>>(`/campanas-ventanas?periodoId=${this.periodoService.periodoActivo.id}`).subscribe({
+        next: (r) => {
+          this.campanas = r.data ?? [];
+        },
+        error: () => {
+          this.campanas = [];
+        },
+      });
+    }
+  }
+
+  crearCampana(): void {
+    if (this.campanaForm.invalid) {
+      this.notif.info('Complete el formulario de campaña');
+      return;
+    }
+
+    if (!this.periodoService.periodoActivo?.id) {
+      this.notif.info('Seleccione un período académico');
+      return;
+    }
+
+    this.creandoCampana = true;
+    const formValue = this.campanaForm.value;
+    const payload = {
+      nombre: formValue.nombre,
+      descripcion: formValue.descripcion,
+      idPeriodo: this.periodoService.periodoActivo.id,
+      fecha_inicio: formValue.fechaInicio,
+      fecha_fin: formValue.fechaFin,
+      dias_habilitados: Array.isArray(formValue.diasHabilitados) ? formValue.diasHabilitados : [formValue.diasHabilitados],
+      duracion_turno_minutos: formValue.duracionTurnoMinutos,
+      buffer_minutos: formValue.bufferMinutos,
+      cupos_maximos_ventana: formValue.cuposMaximosVentana,
+      porcentaje_reserva: formValue.porcentajeReserva,
+      excluir_feriados: formValue.excluirFeriados,
+      excluir_eventos: formValue.excluirEventos,
+      distribucion_equitativa: formValue.distribucionEquitativa,
+      bloques_horarios: this.bloquesHorarios,
+      reglas_prioridad: this.reglasPrioridad,
+    };
+
+    this.api.post<ApiResponse<any>>('/campanas-ventanas', payload).subscribe({
+      next: (r) => {
+        this.creandoCampana = false;
+        this.notif.success(r.message ?? 'Campaña creada correctamente');
+        this.campanaSeleccionada = r.data;
+        this.campanaForm.reset();
+        this.cargarCampanas();
+      },
+      error: (err) => {
+        this.creandoCampana = false;
+        this.notif.error(err?.error?.message ?? 'Error al crear campaña');
+      },
+    });
+  }
+
+  generarVentanasCampana(): void {
+    if (!this.campanaSeleccionada) {
+      this.notif.info('Seleccione una campaña');
+      return;
+    }
+
+    this.generandoVentanas = true;
+    this.api.post<ApiResponse<any[]>>(`/campanas-ventanas/${this.campanaSeleccionada.id}/generar`, {}).subscribe({
+      next: (r) => {
+        this.generandoVentanas = false;
+        this.ventanasGeneradas = r.data ?? [];
+        this.notif.success(`Se generaron ${this.ventanasGeneradas.length} ventanas`);
+        this.cargarCampanas();
+      },
+      error: (err) => {
+        this.generandoVentanas = false;
+        this.notif.error(err?.error?.message ?? 'Error al generar ventanas');
+      },
+    });
+  }
+
+  publicarCampana(): void {
+    if (!this.campanaSeleccionada) {
+      this.notif.info('Seleccione una campaña');
+      return;
+    }
+
+    this.publicandoCampana = true;
+    this.api.post<ApiResponse<any>>(`/campanas-ventanas/${this.campanaSeleccionada.id}/publicar`, {}).subscribe({
+      next: (r) => {
+        this.publicandoCampana = false;
+        this.notif.success(r.message ?? 'Campaña publicada correctamente');
+        this.cargarCampanas();
+      },
+      error: (err) => {
+        this.publicandoCampana = false;
+        this.notif.error(err?.error?.message ?? 'Error al publicar campaña');
+      },
+    });
+  }
+
+  seleccionarCampana(campana: any): void {
+    this.campanaSeleccionada = campana;
+    this.ventanasGeneradas = [];
+  }
+
+  agregarBloqueHorario(): void {
+    this.bloquesHorarios.push({
+      nombre: `Bloque ${this.bloquesHorarios.length + 1}`,
+      hora_inicio: '08:00',
+      hora_fin: '12:00',
+    });
+  }
+
+  eliminarBloqueHorario(index: number): void {
+    this.bloquesHorarios.splice(index, 1);
+  }
+
+  agregarReglaPrioridad(): void {
+    this.reglasPrioridad.push({
+      campo: 'categoria',
+      orden: 'DESC',
+    });
+  }
+
+  eliminarReglaPrioridad(index: number): void {
+    this.reglasPrioridad.splice(index, 1);
+  }
+
+  cargarReglasPrioridad(): void {
+    this.api.get<ApiResponse<any>>('/reglas-prioridad').subscribe({
+      next: (r) => {
+        if (r && r.data && r.data.reglas) {
+          this.reglasPrioridad = r.data.reglas;
+        }
+      },
+      error: (error) => {
+        console.error('Error al cargar reglas de prioridad:', error);
+        // Mantener reglas por defecto si falla la carga
+      },
+    });
+  }
+
+  guardarReglasPrioridad(): void {
+    this.guardandoReglasPrioridad = true;
+    this.api.put<ApiResponse<any>>('/reglas-prioridad', {
+      reglas: this.reglasPrioridad,
+      descripcion: 'Reglas de prioridad actualizadas desde Configuración General',
+    }).subscribe({
+      next: () => {
+        this.guardandoReglasPrioridad = false;
+        this.notif.success('Reglas de prioridad guardadas correctamente');
+      },
+      error: (error) => {
+        this.guardandoReglasPrioridad = false;
+        console.error('Error al guardar reglas de prioridad:', error);
+        this.notif.error('Error al guardar las reglas de prioridad');
+      },
+    });
   }
 }

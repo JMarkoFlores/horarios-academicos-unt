@@ -14,6 +14,7 @@ import { NotificacionesController } from "./notificaciones.controller";
 import { NotificacionesProcessor } from "./notificaciones.processor";
 import { NotificacionesGateway } from "./notificaciones.gateway";
 import { TelegramBotService } from "./telegram-bot.service";
+import { FirebasePushService } from "./firebase-push.service";
 
 @Module({
   imports: [
@@ -39,7 +40,7 @@ import { TelegramBotService } from "./telegram-bot.service";
     }),
   ],
   controllers: [NotificacionesController],
-  providers: [NotificacionesService, NotificacionesProcessor, NotificacionesGateway, TelegramBotService, MailService],
-  exports: [NotificacionesService, NotificacionesGateway],
+  providers: [NotificacionesService, NotificacionesProcessor, NotificacionesGateway, TelegramBotService, MailService, FirebasePushService],
+  exports: [NotificacionesService, NotificacionesGateway, FirebasePushService],
 })
 export class NotificacionesModule {}

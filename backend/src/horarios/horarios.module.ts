@@ -19,6 +19,8 @@ import { HorariosGateway } from "./horarios.gateway";
 import { HorariosController } from "./horarios.controller";
 import { ValidadorHorarioService } from "./validador-horario.service";
 import { GeneracionAutomaticaService } from "./generacion-automatica.service";
+import { DeteccionConflictosService } from "./deteccion-conflictos.service";
+import { ICalendarService } from "./icalendar.service";
 import { DocentesModule } from "../docentes/docentes.module";
 import { CommonModule } from "../common/common.module";
 import { AuditoriaModule } from "../modules/auditoria/auditoria.module";
@@ -53,6 +55,8 @@ import { ValidacionesModule } from "../validaciones/validaciones.module";
     HorariosGateway,
     ValidadorHorarioService,
     GeneracionAutomaticaService,
+    DeteccionConflictosService,
+    ICalendarService,
   ],
   exports: [
     AsignacionService,
@@ -60,6 +64,8 @@ import { ValidacionesModule } from "../validaciones/validaciones.module";
     HorariosGateway,
     ValidadorHorarioService,
     GeneracionAutomaticaService,
+    DeteccionConflictosService,
+    ICalendarService,
   ],
 })
 export class HorariosModule {}

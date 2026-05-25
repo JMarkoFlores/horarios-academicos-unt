@@ -24,6 +24,7 @@ export class DocentesListComponent implements OnInit {
     'tipo_docente',
     'categoria',
     'modalidad',
+    'carga',
     'antiguedad',
     'estado',
     'acciones',
@@ -34,6 +35,8 @@ export class DocentesListComponent implements OnInit {
   currentPage = 0;
   loading = false;
   exportando = false;
+  cargaDocentes: Record<number, { actual: number; minimo: number; cumplimiento: number }> = {};
+  loadingCarga = false;
 
   searchControl = new FormControl('');
   categoriaFilter = '';
@@ -67,6 +70,7 @@ export class DocentesListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadDocentes();
+    this.loadCargaDocentes();
     this.searchControl.valueChanges
       .pipe(debounceTime(400), distinctUntilChanged())
       .subscribe(() => {
@@ -175,6 +179,61 @@ export class DocentesListComponent implements OnInit {
       AUXILIAR: 'Auxiliar',
     };
     return map[value] ?? value;
+  }
+
+  loadCargaDocentes(): void {
+    const periodo = this.periodoService.periodo;
+    if (!periodo) return;
+
+    this.loadingCarga = true;
+    this.api
+      .get<ApiResponse<any>>('/docentes/carga-desequilibrada', { periodo })
+      .subscribe({
+        next: (res) => {
+          this.cargaDocentes = {};
+          (res.data || []).forEach((d: any) => {
+            const totalHoras = d.distribucion?.totalHoras || 0;
+            const promedio = d.distribucion?.promedioHorasPorDia || 0;
+            const minimo = this.getMinimoNormativo(d);
+            const cumplimiento = minimo > 0 ? (totalHoras / minimo) * 100 : 0;
+            this.cargaDocentes[d.docenteId] = {
+              actual: totalHoras,
+              minimo,
+              cumplimiento: Math.min(100, cumplimiento),
+            };
+          });
+          this.loadingCarga = false;
+        },
+        error: () => {
+          this.loadingCarga = false;
+        },
+      });
+  }
+
+  getMinimoNormativo(docente: any): number {
+    const minimos: Record<string, number> = {
+      DEDICACION_EXCLUSIVA: 40,
+      TIEMPO_COMPLETO_40: 40,
+      TIEMPO_PARCIAL_20: 20,
+      TIEMPO_PARCIAL_12: 12,
+      TIEMPO_PARCIAL_10: 10,
+      TIEMPO_PARCIAL_8: 8,
+    };
+    return minimos[docente.modalidad] || 0;
+  }
+
+  getCargaIndicator(docenteId: number): { color: string; icon: string } {
+    const carga = this.cargaDocentes[docenteId];
+    if (!carga) return { color: 'gray', icon: 'help_outline' };
+
+    if (carga.cumplimiento >= 100) return { color: 'green', icon: 'check_circle' };
+    if (carga.cumplimiento >= 80) return { color: 'blue', icon: 'trending_up' };
+    if (carga.cumplimiento >= 50) return { color: 'orange', icon: 'warning' };
+    return { color: 'red', icon: 'error' };
+  }
+
+  round(value: number): number {
+    return Math.round(value);
   }
 
   exportarExcel(): void {

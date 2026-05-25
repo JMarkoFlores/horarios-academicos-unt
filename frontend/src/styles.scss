@@ -546,3 +546,100 @@ body {
       0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
   }
 }
+
+// ── SIDEBAR ISOLATION ──────────────────────────────────────────────────────
+// Estilos globales para garantizar que el sidebar mantenga su apariencia
+// consistente independientemente de otros componentes que usen mat-list
+
+.sidenav {
+  // Forzar modo one-line en todos los mat-list-item del sidebar (altura 48px)
+  .mat-mdc-list-item {
+    height: 48px !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+    border-radius: 12px !important;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  // Aislar de estilos two-line que vienen de otros componentes
+  .mat-mdc-list-item.mdc-list-item--with-two-lines {
+    height: 48px !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+
+    .mdc-list-item__secondary-text {
+      display: none !important;
+    }
+  }
+
+  // Control del ícono
+  .mat-mdc-list-item .mat-mdc-list-item-icon,
+  .mat-mdc-list-item .mdc-list-item__start {
+    margin-inline-start: 0 !important;
+    margin-inline-end: 14px !important;
+    margin-left: 0 !important;
+    margin-right: 14px !important;
+    width: 20px !important;
+    height: 20px !important;
+    align-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  // Control del texto
+  .mat-mdc-list-item .mat-mdc-list-item-title,
+  .mat-mdc-list-item .mdc-list-item__primary-text,
+  .mat-mdc-list-item .mdc-list-item__content {
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    letter-spacing: 0.01em !important;
+    align-self: center !important;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  // Ocultar línea secundaria (two-line) en el sidebar
+  .mat-mdc-list-item .mat-mdc-list-item-line,
+  .mat-mdc-list-item .mdc-list-item__secondary-text {
+    display: none !important;
+  }
+
+  // Estado colapsado
+  &.collapsed {
+    .mat-mdc-list-item {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      justify-content: center !important;
+      align-items: center !important;
+      width: 42px !important;
+      height: 42px !important;
+      min-height: 42px !important;
+      margin: 4px 18px !important;
+      display: flex !important;
+    }
+
+    .mat-mdc-list-item .mat-mdc-list-item-icon,
+    .mat-mdc-list-item .mdc-list-item__start {
+      margin-inline-start: 0 !important;
+      margin-inline-end: 0 !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    .mat-mdc-list-item .mat-mdc-list-item-title,
+    .mat-mdc-list-item .mdc-list-item__primary-text,
+    .mat-mdc-list-item .mdc-list-item__content {
+      display: none !important;
+    }
+  }
+}

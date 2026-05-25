@@ -58,6 +58,9 @@ export class Docente {
   @Column({ type: "smallint", default: 0, name: "horas_asignadas" })
   horas_asignadas: number;
 
+  @Column({ nullable: true, type: "text" })
+  firebase_token: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

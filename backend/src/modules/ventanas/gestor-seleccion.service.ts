@@ -20,6 +20,8 @@ import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
 import { ValidacionesService } from "../../common/services/validaciones.service";
 import { AuditoriaService } from "../../modules/auditoria/auditoria.service";
 import { Ambiente } from "../../entities/ambiente.entity";
+import { ParametrosCarga } from "../../entities/parametros-carga.entity";
+import { Docente } from "../../entities/docente.entity";
 
 type SeleccionTemporalRedis = {
   ventanaId: string;
@@ -47,6 +49,10 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
+    @InjectRepository(ParametrosCarga)
+    private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
+    @InjectRepository(Docente)
+    private readonly docenteRepo: Repository<Docente>,
     private readonly validadorHorarioService: ValidadorHorarioService,
     private readonly validacionesService: ValidacionesService,
     private readonly auditoriaService: AuditoriaService,
@@ -339,6 +345,35 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         selecciones,
       );
 
+      // Cargar parámetros de carga para el período
+      const parametrosCarga = await this.parametrosCargaRepo.find({
+        where: { periodo_academico: periodo.codigo },
+      });
+      const parametrosMap = new Map<string, ParametrosCarga>();
+      for (const p of parametrosCarga) {
+        parametrosMap.set(`${p.tipo_docente}_${p.categoria}_${p.modalidad ?? ""}`, p);
+      }
+
+      // Calcular carga actual de cada docente
+      const docenteIds = [...new Set(selecciones.map(s => s.docenteId))];
+      const docentes = await this.docenteRepo.findByIds(docenteIds);
+      const docenteMap = new Map(docentes.map(d => [d.id, d]));
+
+      const cargaActualMap = new Map<number, number>();
+      for (const docenteId of docenteIds) {
+        const horarios = await this.dataSource
+          .getRepository(HorarioAsignado)
+          .find({
+            where: { docente_id: docenteId, periodo: periodo.codigo },
+          });
+        const totalHoras = horarios.reduce((sum, h) => {
+          const [h1, m1] = h.hora_inicio.split(':').map(Number);
+          const [h2, m2] = h.hora_fin.split(':').map(Number);
+          return sum + ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+        }, 0);
+        cargaActualMap.set(docenteId, totalHoras);
+      }
+
       for (const seleccion of selecciones) {
         const grupoId = gruposMap.get(seleccion.cursoId);
         if (!grupoId) {
@@ -347,6 +382,26 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
             motivo: "No existe grupo asociado al curso en el período indicado.",
           });
           continue;
+        }
+
+        // Verificar carga máxima del docente
+        const docente = docenteMap.get(seleccion.docenteId);
+        if (docente) {
+          const pKey = `${docente.tipo_docente}_${docente.categoria}_${docente.modalidad ?? ""}`;
+          const parametro = parametrosMap.get(pKey);
+          const maxHoras = parametro?.horas_max_semanal ?? 999;
+          
+          const duracion = this.calcularDuracionHoras(seleccion.horaInicio, seleccion.horaFin);
+          const cargaActual = cargaActualMap.get(seleccion.docenteId) ?? 0;
+          
+          if (cargaActual + duracion > maxHoras) {
+            errores.push({
+              cursoId: seleccion.cursoId,
+              docenteId: seleccion.docenteId,
+              motivo: `Carga excedida: ${cargaActual}h + ${duracion}h excede máximo de ${maxHoras}h`,
+            });
+            continue;
+          }
         }
 
         const validacion = await this.validadorHorarioService.validarSlot({
@@ -634,5 +689,13 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
   private parseSeleccion(valor: string): SeleccionTemporalRedis {
     return JSON.parse(valor) as SeleccionTemporalRedis;
+  }
+
+  private calcularDuracionHoras(horaInicio: string, horaFin: string): number {
+    const [h1, m1] = horaInicio.split(':').map(Number);
+    const [h2, m2] = horaFin.split(':').map(Number);
+    const inicio = (h1 || 0) * 60 + (m1 || 0);
+    const fin = (h2 || 0) * 60 + (m2 || 0);
+    return Math.max((fin - inicio) / 60, 0);
   }
 }

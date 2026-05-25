@@ -95,12 +95,8 @@
             matTooltipPosition="right"
             class="nav-item"
           >
-            <div class="item-content-wrapper">
-              <mat-icon matListItemIcon class="nav-icon">{{
-                item.icon
-              }}</mat-icon>
-              <span matListItemTitle class="item-label">{{ item.label }}</span>
-            </div>
+            <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
+            <span matListItemTitle class="item-label">{{ item.label }}</span>
             <div class="active-indicator" *ngIf="rla.isActive"></div>
           </a>
         </div>

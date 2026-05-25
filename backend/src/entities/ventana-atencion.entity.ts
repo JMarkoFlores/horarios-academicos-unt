@@ -3,10 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  JoinColumn,
 } from "typeorm";
 import { ColaDocente } from "./cola-docentes.entity";
+import { CampañaVentanas } from "./campaña-ventanas.entity";
 
 export enum EstadoVentanaAtencion {
   PROGRAMADA = "PROGRAMADA",
@@ -50,6 +53,13 @@ export class VentanaAtencion {
     default: EstadoVentanaAtencion.PROGRAMADA,
   })
   estado: EstadoVentanaAtencion;
+
+  @Column({ nullable: true })
+  campaña_id: string;
+
+  @ManyToOne(() => CampañaVentanas, campaña => campaña.ventanas)
+  @JoinColumn({ name: 'campaña_id' })
+  campaña: CampañaVentanas;
 
   @CreateDateColumn({ name: "creado_en" })
   creado_en: Date;

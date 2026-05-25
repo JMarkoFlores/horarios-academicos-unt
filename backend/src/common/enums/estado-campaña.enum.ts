@@ -1,0 +1,8 @@
+export enum EstadoCampaña {
+  BORRADOR = 'BORRADOR',
+  GENERADO = 'GENERADO',
+  PUBLICADO = 'PUBLICADO',
+  EN_CURSO = 'EN_CURSO',
+  CERRADO = 'CERRADO',
+  CANCELADO = 'CANCELADO',
+}

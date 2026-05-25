@@ -33,11 +33,17 @@ export class HorariosGateway
   constructor(private readonly configService: ConfigService) {
     const host = this.configService.get<string>("REDIS_HOST", "localhost");
     const port = this.configService.get<number>("REDIS_PORT", 6379);
-    this.pubClient = new Redis({ host, port });
-    this.subClient = new Redis({ host, port });
+    // Cliente para publicar (sin restricciones)
+    this.pubClient = new Redis({ host, port, lazyConnect: true });
+    // Cliente para suscribirse (modo suscriptor)
+    this.subClient = new Redis({ host, port, lazyConnect: true });
   }
 
   async onModuleInit() {
+    // Conectar clientes Redis
+    await this.pubClient.connect();
+    await this.subClient.connect();
+    // Suscribirse al canal
     await this.subClient.subscribe(this.redisChannel);
     this.subClient.on("message", (channel, message) => {
       if (channel === this.redisChannel) {
@@ -116,6 +122,10 @@ export class HorariosGateway
 
   emitirVentanaCompletada(ventanaId: string | number, pendientes: any) {
     this.publishEvent(ventanaId, "ventana_completada", pendientes);
+  }
+
+  emitirAlertaCarga(ventanaId: string | number, datos: any) {
+    this.publishEvent(ventanaId, "alerta_carga", datos);
   }
 
   // Compatibilidad con código existente

@@ -29,9 +29,15 @@ export class OperadorComponent implements OnInit, OnDestroy {
   mostrarFormulario = false;
   private periodSub?: Subscription;
 
+  // Paginación
+  paginaActual = 1;
+  elementosPorPagina = 6;
+
   // Filtros
   filtroEstado = '';
   filtroCategoria = '';
+  filtroFechaInicio = '';
+  filtroFechaFin = '';
 
   categorias = [
     { value: '', label: 'Todas' },
@@ -105,11 +111,73 @@ export class OperadorComponent implements OnInit, OnDestroy {
   }
 
   aplicarFiltros(): void {
-    this.ventanasFiltradas = this.ventanas;
+    let filtradas = [...this.ventanas];
+
+    // Filtrar por estado
+    if (this.filtroEstado) {
+      filtradas = filtradas.filter(v => v.estado === this.filtroEstado);
+    }
+
+    // Filtrar por categoría
+    if (this.filtroCategoria) {
+      filtradas = filtradas.filter(v => v.categoria === this.filtroCategoria);
+    }
+
+    // Filtrar por rango de fechas
+    if (this.filtroFechaInicio) {
+      const fechaInicio = new Date(this.filtroFechaInicio);
+      filtradas = filtradas.filter(v => new Date(v.fecha) >= fechaInicio);
+    }
+
+    if (this.filtroFechaFin) {
+      const fechaFin = new Date(this.filtroFechaFin);
+      filtradas = filtradas.filter(v => new Date(v.fecha) <= fechaFin);
+    }
+
+    // Ordenar por fecha ascendente (menor a mayor)
+    filtradas.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+
+    this.ventanasFiltradas = filtradas;
+    this.paginaActual = 1; // Resetear a primera página
   }
 
   onFiltroChange(): void {
     this.cargarVentanas();
+  }
+
+  limpiarFiltros(): void {
+    this.filtroEstado = '';
+    this.filtroCategoria = '';
+    this.filtroFechaInicio = '';
+    this.filtroFechaFin = '';
+    this.aplicarFiltros();
+  }
+
+  // Paginación
+  get totalPaginas(): number {
+    return Math.ceil(this.ventanasFiltradas.length / this.elementosPorPagina);
+  }
+
+  get ventanasPaginadas(): VentanaAtencion[] {
+    const inicio = (this.paginaActual - 1) * this.elementosPorPagina;
+    const fin = inicio + this.elementosPorPagina;
+    return this.ventanasFiltradas.slice(inicio, fin);
+  }
+
+  cambiarPagina(pagina: number): void {
+    this.paginaActual = pagina;
+  }
+
+  paginaAnterior(): void {
+    if (this.paginaActual > 1) {
+      this.paginaActual--;
+    }
+  }
+
+  paginaSiguiente(): void {
+    if (this.paginaActual < this.totalPaginas) {
+      this.paginaActual++;
+    }
   }
 
   get ventanasProgramadas(): VentanaAtencion[] {

@@ -77,6 +77,33 @@
       <mat-icon>business</mat-icon>
       Configuración General
     </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'prioridad'"
+      (click)="activeTab = 'prioridad'"
+      id="tab-prioridad"
+    >
+      <mat-icon>sort</mat-icon>
+      Reglas de Prioridad
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'campañas'"
+      (click)="activeTab = 'campañas'"
+      id="tab-campañas"
+    >
+      <mat-icon>campaign</mat-icon>
+      Campañas de Ventanas
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'modoPeriodo'"
+      (click)="activeTab = 'modoPeriodo'"
+      id="tab-modo-periodo"
+    >
+      <mat-icon>settings</mat-icon>
+      Modo de Período
+    </button>
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════════
@@ -935,6 +962,384 @@
           </div>
         </form>
       </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 2 — REGLAS DE PRIORIDAD
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'prioridad'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">sort</mat-icon>
+        <mat-card-title>Reglas de Prioridad Institucionales</mat-card-title>
+        <mat-card-subtitle>Configure el orden en que se asignan las ventanas a los docentes (política global)</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="info-box">
+          <mat-icon>info</mat-icon>
+          <span>Estas reglas se aplican a todas las campañas de ventanas. Las reglas se aplican en orden: la primera regla tiene mayor prioridad.</span>
+        </div>
+        <div class="config-list-header">
+          <h3>Reglas Configuradas</h3>
+          <button mat-stroked-button color="primary" (click)="agregarReglaPrioridad()">
+            <mat-icon>add</mat-icon>
+            Agregar Regla
+          </button>
+        </div>
+        <ng-container *ngIf="reglasPrioridad && reglasPrioridad.length > 0">
+          <div *ngFor="let regla of reglasPrioridad; let i = index" class="config-item">
+            <div class="config-item-header">
+              <span>Regla {{ i + 1 }}</span>
+              <button mat-icon-button color="warn" (click)="eliminarReglaPrioridad(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Campo</mat-label>
+                <mat-select [(ngModel)]="regla.campo" [ngModelOptions]="{standalone: true}">
+                  <mat-option value="tipo_contrato">Condición Laboral (Ordinario > Contratado)</mat-option>
+                  <mat-option value="categoria">Categoría (Principal > Asociado > Auxiliar)</mat-option>
+                  <mat-option value="fecha_ingreso">Antigüedad (fecha más antigua)</mat-option>
+                  <mat-option value="horas_asignadas">Horas Asignadas (menos horas primero)</mat-option>
+                  <mat-option value="apellidos">Apellido</mat-option>
+                  <mat-option value="nombres">Nombre</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Orden</mat-label>
+                <mat-select [(ngModel)]="regla.orden" [ngModelOptions]="{standalone: true}">
+                  <mat-option value="DESC">Descendente (mayor a menor)</mat-option>
+                  <mat-option value="ASC">Ascendente (menor a mayor)</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+        </ng-container>
+        <div *ngIf="!reglasPrioridad || reglasPrioridad.length === 0" class="empty-state">
+          <mat-icon>playlist_add</mat-icon>
+          <p>No hay reglas configuradas. Configure las reglas de prioridad para definir el orden de asignación de ventanas.</p>
+        </div>
+        <div class="form-actions" style="margin-top: 16px">
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="guardarReglasPrioridad()"
+            [disabled]="guardandoReglasPrioridad"
+          >
+            <mat-icon>save</mat-icon>
+            {{ guardandoReglasPrioridad ? "Guardando..." : "Guardar Reglas" }}
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 3 — CAMPAÑAS DE VENTANAS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'campañas'" class="tab-content animate-fadein">
+    <div class="cards-container">
+      <!-- Card: Lista de Campañas -->
+      <mat-card class="premium-form-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="form-icon">list</mat-icon>
+          <mat-card-title>Campañas del Período</mat-card-title>
+          <mat-card-subtitle>Gestione las campañas de ventanas del período actual</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content class="campañas-list-container">
+          <div *ngIf="campanas.length === 0" class="empty-state">
+            <mat-icon>folder_open</mat-icon>
+            <p>No hay campañas creadas para este período</p>
+          </div>
+          <div *ngFor="let campana of campanas" class="campaña-item" [class.selected]="campanaSeleccionada?.id === campana.id" (click)="seleccionarCampana(campana)">
+            <div class="campaña-item-header">
+              <mat-icon>campaign</mat-icon>
+              <div class="campaña-info">
+                <h3>{{ campana.nombre }}</h3>
+                <p>{{ campana.descripcion }}</p>
+              </div>
+              <span class="badge" [class]="campana.estado.toLowerCase()">{{ campana.estado }}</span>
+            </div>
+            <div class="campaña-metrics">
+              <span><mat-icon>event</mat-icon> {{ campana.total_ventanas_generadas }} ventanas</span>
+              <span><mat-icon>people</mat-icon> {{ campana.total_docentes_asignados }} docentes</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Card: Crear Nueva Campaña -->
+      <mat-card class="premium-form-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="form-icon">add_circle</mat-icon>
+          <mat-card-title>Crear Nueva Campaña</mat-card-title>
+          <mat-card-subtitle>Configure una nueva campaña de ventanas automáticas</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <form [formGroup]="campanaForm">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Nombre de la Campaña</mat-label>
+              <input matInput formControlName="nombre" placeholder="Ej: Campaña 2026-I - Principal" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Descripción</mat-label>
+              <textarea matInput formControlName="descripcion" rows="2" placeholder="Describa el objetivo de la campaña"></textarea>
+            </mat-form-field>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Fecha Inicio</mat-label>
+                <input matInput [matDatepicker]="pickerInicio" formControlName="fechaInicio" />
+                <mat-datepicker-toggle matSuffix [for]="pickerInicio">
+                  <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+                </mat-datepicker-toggle>
+                <mat-datepicker #pickerInicio />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Fecha Fin</mat-label>
+                <input matInput [matDatepicker]="pickerFin" formControlName="fechaFin" />
+                <mat-datepicker-toggle matSuffix [for]="pickerFin">
+                  <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+                </mat-datepicker-toggle>
+                <mat-datepicker #pickerFin />
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Días Habilitados</mat-label>
+              <mat-select formControlName="diasHabilitados" multiple>
+                <mat-option value="LUNES">Lunes</mat-option>
+                <mat-option value="MARTES">Martes</mat-option>
+                <mat-option value="MIERCOLES">Miércoles</mat-option>
+                <mat-option value="JUEVES">Jueves</mat-option>
+                <mat-option value="VIERNES">Viernes</mat-option>
+                <mat-option value="SABADO">Sábado</mat-option>
+                <mat-option value="DOMINGO">Domingo</mat-option>
+              </mat-select>
+              <mat-hint>Seleccione los días de la semana en los que se generarán ventanas</mat-hint>
+            </mat-form-field>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Duración Turno (min)</mat-label>
+                <input matInput type="number" formControlName="duracionTurnoMinutos" min="5" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Buffer (min)</mat-label>
+                <input matInput type="number" formControlName="bufferMinutos" min="0" />
+              </mat-form-field>
+            </div>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Cupos Máximos por Ventana</mat-label>
+                <input matInput type="number" formControlName="cuposMaximosVentana" min="1" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Reserva para Contingencia (%)</mat-label>
+                <input matInput type="number" formControlName="porcentajeReserva" min="0" max="50" />
+                <mat-hint>Porcentaje de ventanas adicionales para reprogramaciones (10-20%)</mat-hint>
+              </mat-form-field>
+            </div>
+            <div class="checkbox-group">
+              <mat-checkbox formControlName="excluirFeriados">Excluir Feriados</mat-checkbox>
+              <mat-checkbox formControlName="excluirEventos">Excluir Eventos</mat-checkbox>
+              <mat-checkbox formControlName="distribucionEquitativa">Distribución Equitativa</mat-checkbox>
+            </div>
+            <div class="form-actions">
+              <button
+                mat-raised-button
+                color="primary"
+                type="button"
+                (click)="crearCampana()"
+                [disabled]="creandoCampana"
+              >
+                <mat-icon>add</mat-icon>
+                {{ creandoCampana ? "Creando..." : "Crear Campaña" }}
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Card: Bloques Horarios -->
+      <mat-card class="premium-form-card" *ngIf="campanaSeleccionada">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="form-icon">schedule</mat-icon>
+          <mat-card-title>Bloques Horarios</mat-card-title>
+          <mat-card-subtitle>Configure los bloques de atención</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngFor="let bloque of bloquesHorarios; let i = index" class="bloque-item">
+            <div class="bloque-item-header">
+              <span>{{ bloque.nombre }}</span>
+              <button mat-icon-button color="warn" (click)="eliminarBloqueHorario(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Hora Inicio</mat-label>
+                <input matInput type="time" [(ngModel)]="bloque.hora_inicio" [ngModelOptions]="{standalone: true}" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Hora Fin</mat-label>
+                <input matInput type="time" [(ngModel)]="bloque.hora_fin" [ngModelOptions]="{standalone: true}" />
+              </mat-form-field>
+            </div>
+          </div>
+          <button mat-stroked-button color="primary" (click)="agregarBloqueHorario()">
+            <mat-icon>add</mat-icon>
+            Agregar Bloque
+          </button>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Card: Acciones de Campaña -->
+      <mat-card class="premium-form-card" *ngIf="campanaSeleccionada">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="form-icon">play_circle</mat-icon>
+          <mat-card-title>Acciones de Campaña</mat-card-title>
+          <mat-card-subtitle>Gestione el ciclo de vida de la campaña</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="info-box" *ngIf="campanaSeleccionada.estado === 'BORRADOR'">
+            <mat-icon>info</mat-icon>
+            <span>Campaña en borrador. Genere las ventanas para revisarlas antes de publicar.</span>
+          </div>
+          <div class="info-box success" *ngIf="campanaSeleccionada.estado === 'GENERADO'">
+            <mat-icon>check_circle</mat-icon>
+            <span>Ventanas generadas. Revise y publique la campaña cuando esté lista.</span>
+          </div>
+          <div class="info-box success" *ngIf="campanaSeleccionada.estado === 'PUBLICADO'">
+            <mat-icon>check_circle</mat-icon>
+            <span>Campaña publicada. Las ventanas están activas para el período.</span>
+          </div>
+          <div class="form-actions">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="generarVentanasCampana()"
+              [disabled]="generandoVentanas || campanaSeleccionada.estado !== 'BORRADOR'"
+            >
+              <mat-icon>auto_awesome</mat-icon>
+              {{ generandoVentanas ? "Generando..." : "Generar Ventanas" }}
+            </button>
+            <button
+              mat-raised-button
+              color="accent"
+              (click)="publicarCampana()"
+              [disabled]="publicandoCampana || campanaSeleccionada.estado !== 'GENERADO'"
+            >
+              <mat-icon>publish</mat-icon>
+              {{ publicandoCampana ? "Publicando..." : "Publicar Campaña" }}
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 4 — MODO DE PERÍODO
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'modoPeriodo'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">settings</mat-icon>
+        <mat-card-title>Modo de Asignación del Período</mat-card-title>
+        <mat-card-subtitle>Configure cómo se asignarán los horarios en el período académico actual</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="modo-periodo-container">
+          <!-- Info del período actual -->
+          <div class="periodo-info-card" *ngIf="periodoService.periodoActivo">
+            <div class="info-row">
+              <mat-icon>calendar_today</mat-icon>
+              <div class="info-content">
+                <span class="label">Período Activo:</span>
+                <span class="value">{{ periodoService.periodoActivo.nombre }}</span>
+              </div>
+            </div>
+            <div class="info-row">
+              <mat-icon>schedule</mat-icon>
+              <div class="info-content">
+                <span class="label">Modo Actual:</span>
+                <span class="value modo-badge" [class]="(modoAsignacionPeriodo ? modoAsignacionPeriodo.toLowerCase() : 'ventanas')">
+                  {{ getModoLabel() }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selector de modo -->
+          <div class="modo-selector">
+            <h3>Seleccionar Modo de Asignación</h3>
+            <p class="modo-description">Por defecto: <strong>Ventanas de Atención</strong></p>
+
+            <div class="modo-options">
+              <div
+                class="modo-option"
+                [class.selected]="nuevoModo === 'VENTANAS'"
+                (click)="nuevoModo = 'VENTANAS'"
+              >
+                <div class="modo-icon ventanas">
+                  <mat-icon>event_seat</mat-icon>
+                </div>
+                <div class="modo-content">
+                  <h4>Ventanas de Atención</h4>
+                  <p>Los docentes son atendidos uno por uno en ventanas programadas. Ideal para periodos con reclamos o casos especiales.</p>
+                  <span class="modo-recomendado">Recomendado por defecto</span>
+                </div>
+              </div>
+
+              <div
+                class="modo-option"
+                [class.selected]="nuevoModo === 'AUTOMATICA'"
+                (click)="nuevoModo = 'AUTOMATICA'"
+              >
+                <div class="modo-icon automatica">
+                  <mat-icon>auto_fix_high</mat-icon>
+                </div>
+                <div class="modo-content">
+                  <h4>Generación Automática</h4>
+                  <p>El sistema genera automáticamente todos los horarios basándose en algoritmos de optimización. Rápido y eficiente.</p>
+                </div>
+              </div>
+
+              <div
+                class="modo-option"
+                [class.selected]="nuevoModo === 'MIXTA'"
+                (click)="nuevoModo = 'MIXTA'"
+              >
+                <div class="modo-icon mixta">
+                  <mat-icon>call_split</mat-icon>
+                </div>
+                <div class="modo-content">
+                  <h4>Modo Mixto</h4>
+                  <p>Generación automática inicial + ventanas para docentes pendientes. Balance entre velocidad y personalización.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advertencias -->
+            <div class="warning-box" *ngIf="puedeCambiarModo === false">
+              <mat-icon>warning</mat-icon>
+              <span>No se puede cambiar el modo: el período ya tiene horarios asignados o está en curso.</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+      <mat-card-actions class="form-actions">
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="cambiarModoAsignacion()"
+          [disabled]="!nuevoModo || nuevoModo === modoAsignacionPeriodo || cambiandoModo || puedeCambiarModo === false"
+        >
+          <mat-spinner diameter="20" *ngIf="cambiandoModo"></mat-spinner>
+          <mat-icon *ngIf="!cambiandoModo">save</mat-icon>
+          {{ cambiandoModo ? 'Cambiando...' : 'Cambiar Modo' }}
+        </button>
+      </mat-card-actions>
     </mat-card>
   </div>
 </div>

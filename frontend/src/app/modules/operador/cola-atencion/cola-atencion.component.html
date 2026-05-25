@@ -36,13 +36,15 @@
   <!-- Esperando -->
   <div class="seccion-cola" *ngIf="estadoCola?.esperando?.length > 0">
     <h4>En Espera ({{ estadoCola.esperando.length }})</h4>
-    <mat-list>
-      <mat-list-item *ngFor="let d of estadoCola.esperando; let i = index">
-        <mat-icon matListItemIcon>schedule</mat-icon>
-        <div matListItemTitle>{{ i + 1 }}. {{ d.docente.apellidos }}, {{ d.docente.nombres }}</div>
-        <div matListItemLine>{{ d.docente.categoria }} — {{ d.docente.codigo }}</div>
-      </mat-list-item>
-    </mat-list>
+    <div class="cola-lista">
+      <div class="cola-item" *ngFor="let d of estadoCola.esperando; let i = index">
+        <mat-icon class="cola-item-icon">schedule</mat-icon>
+        <div class="cola-item-content">
+          <div class="cola-item-nombre">{{ i + 1 }}. {{ d.docente.apellidos }}, {{ d.docente.nombres }}</div>
+          <div class="cola-item-meta">{{ d.docente.categoria }} — {{ d.docente.codigo }}</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Resumen -->

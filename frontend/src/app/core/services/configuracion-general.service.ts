@@ -15,7 +15,7 @@ export interface ConfiguracionGeneral {
 const DEFAULTS: ConfiguracionGeneral = {
   id: 0,
   nombre_institucional: 'Horarios UNT',
-  logo_url: '',
+  logo_url: 'https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png',
   color_primario: '#6366f1',
   color_secundario: '#4338ca',
   color_acento: '#8b5cf6',

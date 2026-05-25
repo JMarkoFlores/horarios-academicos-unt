@@ -13,6 +13,9 @@ import {
   HttpStatus,
   UseGuards,
   Req,
+  Res,
+  Headers,
+  NotFoundException,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -40,6 +43,7 @@ import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { Usuario } from "../entities/usuario.entity";
 import { AsignacionService } from "./asignacion.service";
 import { GeneracionAutomaticaService } from "./generacion-automatica.service";
+import { ICalendarService } from "./icalendar.service";
 import { GenerarHorarioDto } from "./dto/generar-horario.dto";
 import { GenerarAutomaticoDto } from "./dto/generar-automatico.dto";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
@@ -55,6 +59,7 @@ export class HorariosController {
     private readonly asignacionService: AsignacionService,
     private readonly horariosService: HorariosService,
     private readonly generacionService: GeneracionAutomaticaService,
+    private readonly icalendarService: ICalendarService,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(AuditoriaHorario)
@@ -222,9 +227,31 @@ export class HorariosController {
     return { data, message: "Horario obtenido", statusCode: HttpStatus.OK };
   }
 
-  @Patch(":id")
+  @Post("reasignar-manual")
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Reasignar manualmente un horario" })
+  @ApiResponse({ status: 200, description: "Horario reasignado correctamente" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async reasignarManual(
+    @Body() dto: ReasignarHorarioDto & { id: number },
+    @CurrentUser() usuario: Usuario,
+    @Req() request: Request,
+  ) {
+    const data = await this.asignacionService.reasignarManual(dto.id, {
+      ...dto,
+      usuario_id: usuario?.id,
+      ip: request.ip,
+    });
+    return { data, message: "Horario reasignado", statusCode: HttpStatus.OK };
+  }
+
+  @Patch(":id")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Reasignar manualmente un horario (legacy)" })
   @ApiResponse({ status: 200, description: "Horario reasignado correctamente" })
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
@@ -410,5 +437,42 @@ export class HorariosController {
       },
       message: "Depuración completada",
     };
+  }
+
+  @Get("docente/:id/ics")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Exportar horario de docente a formato iCalendar (.ics)" })
+  @ApiParam({ name: "id", description: "ID del docente" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiResponse({ status: 200, description: "Archivo iCalendar generado" })
+  async exportarICalendar(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo: string,
+    @Res() res: any,
+    @Headers() headers: any,
+  ) {
+    try {
+      const icsContent = await this.icalendarService.generarICalendarDocente(
+        id,
+        periodo,
+      );
+
+      res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=horario_docente_${id}_${periodo}.ics`,
+      );
+      res.setHeader("Content-Length", Buffer.byteLength(icsContent));
+
+      // Cache control para evitar descargas repetidas
+      res.setHeader("Cache-Control", "public, max-age=3600");
+
+      return res.send(icsContent);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException("Error al generar archivo iCalendar");
+    }
   }
 }

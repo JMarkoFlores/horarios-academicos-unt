@@ -1,4 +1,4 @@
-<div class="operador-container animate-fadein" [class.modo-atencion]="ventanaActiva">
+<div class="operador-container">
   <header class="page-header">
     <div class="header-info">
       <h1><mat-icon>dashboard</mat-icon> Panel del Operador</h1>
@@ -26,7 +26,11 @@
 
         <mat-form-field appearance="outline">
           <mat-label>Fecha</mat-label>
-          <input matInput type="date" formControlName="fecha">
+          <input matInput [matDatepicker]="pickerFecha" formControlName="fecha">
+          <mat-datepicker-toggle matSuffix [for]="pickerFecha">
+            <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+          </mat-datepicker-toggle>
+          <mat-datepicker #pickerFecha />
         </mat-form-field>
 
         <mat-form-field appearance="outline">
@@ -72,19 +76,41 @@
       <div class="filtros-bar">
         <mat-form-field appearance="outline" class="filtro-field">
           <mat-label>Estado</mat-label>
-          <mat-select [(ngModel)]="filtroEstado" (selectionChange)="onFiltroChange()">
+          <mat-select [(ngModel)]="filtroEstado" (selectionChange)="aplicarFiltros()">
             <mat-option *ngFor="let e of estados" [value]="e.value">{{ e.label }}</mat-option>
           </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="filtro-field">
           <mat-label>Categoría</mat-label>
-          <mat-select [(ngModel)]="filtroCategoria" (selectionChange)="onFiltroChange()">
+          <mat-select [(ngModel)]="filtroCategoria" (selectionChange)="aplicarFiltros()">
             <mat-option *ngFor="let c of categorias" [value]="c.value">{{ c.label }}</mat-option>
           </mat-select>
         </mat-form-field>
 
+        <mat-form-field appearance="outline" class="filtro-field">
+          <mat-label>Fecha Desde</mat-label>
+          <input matInput [matDatepicker]="pickerDesde" [(ngModel)]="filtroFechaInicio" (ngModelChange)="aplicarFiltros()">
+          <mat-datepicker-toggle matSuffix [for]="pickerDesde">
+            <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+          </mat-datepicker-toggle>
+          <mat-datepicker #pickerDesde />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filtro-field">
+          <mat-label>Fecha Hasta</mat-label>
+          <input matInput [matDatepicker]="pickerHasta" [(ngModel)]="filtroFechaFin" (ngModelChange)="aplicarFiltros()">
+          <mat-datepicker-toggle matSuffix [for]="pickerHasta">
+            <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+          </mat-datepicker-toggle>
+          <mat-datepicker #pickerHasta />
+        </mat-form-field>
+
         <span class="filtro-count">{{ ventanasFiltradas.length }} ventana(s)</span>
+
+        <button mat-stroked-button (click)="limpiarFiltros()">
+          <mat-icon>filter_list_off</mat-icon> Limpiar Filtros
+        </button>
 
         <button mat-stroked-button color="warn" (click)="eliminarTodasVentanas()" *ngIf="ventanasFiltradas.length > 0">
           <mat-icon>delete_sweep</mat-icon> Eliminar Todas
@@ -94,8 +120,8 @@
 
     <!-- Lista de ventanas -->
     <section class="ventanas-section">
-      <div class="ventanas-grid" *ngIf="ventanasFiltradas.length > 0">
-        <mat-card *ngFor="let v of ventanasFiltradas" class="ventana-card mat-elevation-z2"
+      <div class="ventanas-grid" *ngIf="ventanasPaginadas.length > 0">
+        <mat-card *ngFor="let v of ventanasPaginadas" class="ventana-card mat-elevation-z2"
                   [ngClass]="getEstadoClass(v.estado)">
           <mat-card-header>
             <div class="card-header-content">
@@ -139,6 +165,17 @@
         </mat-card>
       </div>
 
+      <!-- Paginación -->
+      <div class="pagination-container" *ngIf="totalPaginas > 1">
+        <button mat-button (click)="paginaAnterior()" [disabled]="paginaActual === 1">
+          <mat-icon>chevron_left</mat-icon> Anterior
+        </button>
+        <span class="pagination-info">Página {{ paginaActual }} de {{ totalPaginas }}</span>
+        <button mat-button (click)="paginaSiguiente()" [disabled]="paginaActual === totalPaginas">
+          Siguiente <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
+
       <!-- Estado vacío -->
       <div *ngIf="ventanasFiltradas.length === 0" class="estado-vacio">
         <mat-icon>event_busy</mat-icon>
@@ -150,17 +187,10 @@
   </div>
 
   <!-- ESTADO B: VENTANA ACTIVA -->
-  <div *ngIf="ventanaActiva" class="panel-atencion animate-fadein">
-
-    <div class="info-flujo" *ngIf="!docenteActual">
-      <mat-icon>info</mat-icon>
-      <div>
-        <strong>Flujo de atención:</strong> Presiona <em>"Llamar siguiente docente"</em> en la cola de la izquierda. Luego selecciona un curso habilitado, elige el ambiente compatible, y finalmente haz clic en las celdas libres de la grilla para asignar horarios. Termina con <em>"Confirmar y guardar horario"</em>.
-      </div>
-    </div>
+  <div *ngIf="ventanaActiva" class="panel-atencion">
 
     <!-- Header mejorado -->
-    <div class="header-atencion mat-elevation-z3">
+    <div class="header-atencion">
       <div class="header-left">
         <div class="header-badge">
           <mat-icon>cast_connected</mat-icon>
@@ -190,6 +220,14 @@
       <button mat-flat-button class="btn-finalizar" (click)="finalizarSesion()" [disabled]="loading">
         <mat-icon>stop_circle</mat-icon> Finalizar Sesión
       </button>
+    </div>
+
+    <!-- Info flujo -->
+    <div class="info-flujo" *ngIf="!docenteActual">
+      <mat-icon>info</mat-icon>
+      <div>
+        <strong>Flujo de atención:</strong> Presiona <em>"Llamar siguiente docente"</em> en la cola de la izquierda. Luego selecciona un curso habilitado, elige el ambiente compatible, y finalmente haz clic en las celdas libres de la grilla para asignar horarios. Termina con <em>"Confirmar y guardar horario"</em>.
+      </div>
     </div>
 
     <!-- Layout principal -->

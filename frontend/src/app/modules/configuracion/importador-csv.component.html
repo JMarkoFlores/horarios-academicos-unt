@@ -1,0 +1,213 @@
+<div class="importador-container">
+  <!-- STEP 1: UPLOAD -->
+  <ng-container *ngIf="step === 'upload'">
+    <div class="upload-section">
+      <h3>Cargar Datos Maestros</h3>
+
+      <form [formGroup]="uploadForm" class="upload-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Tipo de Datos</mat-label>
+          <mat-select formControlName="entityType">
+            <mat-option *ngFor="let type of entityTypes" [value]="type.value">
+              {{ type.label }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </form>
+
+      <div
+        class="drag-drop-area"
+        (dragover)="onDragOver($event)"
+        (drop)="onDropFile($event)"
+      >
+        <div class="drag-drop-content">
+          <mat-icon class="upload-icon">cloud_upload</mat-icon>
+          <p class="drag-text">Arrastra un archivo CSV aquí</p>
+          <p class="or-text">o</p>
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="fileInput.click()"
+            type="button"
+          >
+            Seleccionar Archivo
+          </button>
+          <input
+            #fileInput
+            type="file"
+            accept=".csv"
+            style="display: none"
+            (change)="onFileSelected($event)"
+          />
+        </div>
+      </div>
+
+      <div *ngIf="selectedFile" class="selected-file">
+        <mat-icon>check_circle</mat-icon>
+        <span>{{ selectedFile.name }}</span>
+        <span class="file-size">({{ (selectedFile.size / 1024).toFixed(2) }} KB)</span>
+      </div>
+
+      <button
+        mat-raised-button
+        color="accent"
+        (click)="uploadCSV()"
+        [disabled]="!selectedFile || loadingPreview"
+        class="upload-button"
+      >
+        <mat-icon *ngIf="!loadingPreview">upload</mat-icon>
+        <mat-spinner *ngIf="loadingPreview" diameter="20"></mat-spinner>
+        {{ loadingPreview ? 'Procesando...' : 'Procesar CSV' }}
+      </button>
+    </div>
+  </ng-container>
+
+  <!-- STEP 2: PREVIEW -->
+  <ng-container *ngIf="step === 'preview' && preview">
+    <div class="preview-section">
+      <h3>Vista Previa de Importación</h3>
+
+      <div class="stats-grid">
+        <div class="stat-card total">
+          <span class="stat-value">{{ preview.stats.total }}</span>
+          <span class="stat-label">Total de Registros</span>
+        </div>
+        <div class="stat-card valid">
+          <span class="stat-value">{{ preview.stats.valid }}</span>
+          <span class="stat-label">Válidos</span>
+        </div>
+        <div class="stat-card invalid" *ngIf="preview.stats.invalid > 0">
+          <span class="stat-value">{{ preview.stats.invalid }}</span>
+          <span class="stat-label">Con Errores</span>
+        </div>
+        <div class="stat-card duplicates" *ngIf="preview.stats.duplicates > 0">
+          <span class="stat-value">{{ preview.stats.duplicates }}</span>
+          <span class="stat-label">Duplicados</span>
+        </div>
+      </div>
+
+      <!-- Registros Válidos -->
+      <div class="valid-records" *ngIf="preview.valid.length > 0">
+        <h4>Registros Válidos (Primeros {{ getValidRowsForDisplay().length }})</h4>
+        <table mat-table [dataSource]="getValidRowsForDisplay()" class="records-table">
+          <ng-container matColumnDef="preview">
+            <th mat-header-cell>Datos</th>
+            <td mat-cell *matCellDef="let element">
+              <code>{{ element | json }}</code>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="['preview']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['preview']"></tr>
+        </table>
+      </div>
+
+      <!-- Registros con Errores -->
+      <div class="invalid-records" *ngIf="preview.invalid.length > 0">
+        <h4>Registros con Errores (Primeros {{ getInvalidRowsForDisplay().length }})</h4>
+        <table mat-table [dataSource]="getInvalidRowsForDisplay()" class="records-table error-table">
+          <ng-container matColumnDef="row">
+            <th mat-header-cell>Fila</th>
+            <td mat-cell *matCellDef="let element">{{ element.errors?.[0]?.row }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="field">
+            <th mat-header-cell>Campo</th>
+            <td mat-cell *matCellDef="let element">{{ element.errors?.[0]?.field }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="error">
+            <th mat-header-cell>Error</th>
+            <td mat-cell *matCellDef="let element" class="error-message">
+              {{ element.errors?.[0]?.error }}
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="['row', 'field', 'error']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['row', 'field', 'error']"></tr>
+        </table>
+      </div>
+
+      <!-- Duplicados -->
+      <div class="duplicates-records" *ngIf="preview.duplicates && preview.duplicates.length > 0">
+        <h4>Registros Duplicados</h4>
+        <mat-list>
+          <mat-list-item *ngFor="let dup of preview.duplicates">
+            <mat-icon matListItemIcon>info</mat-icon>
+            <div matListItemTitle>{{ dup.codigo }}</div>
+            <div matListItemLine>Filas: {{ dup.rows.join(', ') }}</div>
+          </mat-list-item>
+        </mat-list>
+      </div>
+
+      <!-- Botones de Acción -->
+      <div class="preview-actions">
+        <button
+          mat-raised-button
+          (click)="cancelAndReset()"
+          class="cancel-button"
+        >
+          Cancelar
+        </button>
+        <button
+          mat-raised-button
+          color="accent"
+          (click)="confirmImport()"
+          [disabled]="preview.valid.length === 0 || loadingConfirm"
+          class="confirm-button"
+        >
+          <mat-icon *ngIf="!loadingConfirm">download</mat-icon>
+          <mat-spinner *ngIf="loadingConfirm" diameter="20"></mat-spinner>
+          {{ loadingConfirm ? 'Importando...' : 'Confirmar Importación' }}
+        </button>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- STEP 3: CONFIRMING -->
+  <ng-container *ngIf="step === 'confirming'">
+    <div class="confirming-section">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Importando datos... Por favor espera</p>
+    </div>
+  </ng-container>
+
+  <!-- STEP 4: RESULT -->
+  <ng-container *ngIf="step === 'result' && result">
+    <div class="result-section" [ngClass]="{ success: result.failed === 0 }">
+      <h3>Resultado de Importación</h3>
+
+      <div class="result-stats">
+        <div class="stat-result success">
+          <mat-icon>check_circle</mat-icon>
+          <span>{{ result.success }} importados correctamente</span>
+        </div>
+        <div class="stat-result error" *ngIf="result.failed > 0">
+          <mat-icon>error</mat-icon>
+          <span>{{ result.failed }} registros fallaron</span>
+        </div>
+      </div>
+
+      <p class="result-message">{{ result.message }}</p>
+
+      <div class="result-actions">
+        <button
+          mat-raised-button
+          color="accent"
+          *ngIf="result.errors && result.errors.length > 0"
+          (click)="downloadErrorReport()"
+          class="download-button"
+        >
+          <mat-icon>download</mat-icon>
+          Descargar Reporte de Errores
+        </button>
+        <button
+          mat-raised-button
+          (click)="cancelAndReset()"
+          class="finish-button"
+        >
+          Finalizar
+        </button>
+      </div>
+    </div>
+  </ng-container>
+</div>

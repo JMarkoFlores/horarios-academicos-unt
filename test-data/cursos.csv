@@ -1,0 +1,16 @@
+codigo,nombre,creditos,horas_teoria,horas_laboratorio,ciclo,tiene_laboratorio
+CC001,Introducción a la Programación,4,3,2,1,true
+CC002,Estructura de Datos,5,4,1,2,true
+CC003,Base de Datos,4,2,3,3,true
+CC004,Desarrollo Web,4,2,2,4,true
+CC005,Análisis de Algoritmos,5,5,0,3,false
+CC006,Ingeniería de Software,4,3,1,4,true
+CC007,Compiladores,5,4,2,5,true
+CC008,Sistemas Operativos,4,3,2,3,true
+CC009,Redes de Computadoras,4,3,1,4,true
+CC010,Inteligencia Artificial,4,3,2,5,true
+CC011,Matemáticas Discretas,4,4,0,1,false
+CC012,Cálculo I,4,4,0,1,false
+CC013,Física I,4,3,2,1,true
+CC014,Laboratorio de Física,2,0,4,1,true
+CC015,Comunicación Oral,3,3,0,1,false

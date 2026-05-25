@@ -1,0 +1,11 @@
+codigo,nombres,apellidos,email,tipo_docente,categoria,modalidad,fecha_ingreso,telefono
+DOC001,Juan Carlos,Pérez Rodríguez,jperez@unitru.edu.pe,ORDINARIO,PRINCIPAL,DEDICACION_EXCLUSIVA,2015-03-01,944123456
+DOC002,María Elena,González López,mgonzalez@unitru.edu.pe,ORDINARIO,ASOCIADO,TIEMPO_COMPLETO_40,2018-08-15,945234567
+DOC003,Carlos Alberto,Martínez Silva,cmartinez@unitru.edu.pe,ORDINARIO,PRINCIPAL,DEDICACION_EXCLUSIVA,2012-01-10,946345678
+DOC004,Rosa María,López García,rlopez@unitru.edu.pe,ORDINARIO,AUXILIAR,TIEMPO_COMPLETO_40,2019-05-20,947456789
+DOC005,Roberto,Sánchez Flores,rsanchez@unitru.edu.pe,ORDINARIO,ASOCIADO,TIEMPO_COMPLETO_40,2016-09-12,948567890
+DOC006,Alejandra,Rodríguez Campos,arodriguez@unitru.edu.pe,ORDINARIO,AUXILIAR,TIEMPO_PARCIAL_20,2020-02-01,949678901
+DOC007,Francisco,Díaz Morales,fdiaz@unitru.edu.pe,CONTRATADO,SIN_CATEGORIA,TIEMPO_PARCIAL_12,2021-06-15,940123456
+DOC008,Luz Patricia,Velásquez Romero,lvelasquez@unitru.edu.pe,ORDINARIO,PRINCIPAL,DEDICACION_EXCLUSIVA,2013-04-05,941234567
+DOC009,Luis,Herrera Jiménez,lherrera@unitru.edu.pe,ORDINARIO,ASOCIADO,TIEMPO_COMPLETO_40,2017-11-20,942345678
+DOC010,Isabel,Moreno Torres,imoreno@unitru.edu.pe,ORDINARIO,AUXILIAR,TIEMPO_PARCIAL_20,2019-07-01,943456789

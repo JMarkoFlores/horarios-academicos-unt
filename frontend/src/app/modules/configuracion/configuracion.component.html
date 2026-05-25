@@ -104,6 +104,15 @@
       <mat-icon>settings</mat-icon>
       Modo de Período
     </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'importacion'"
+      (click)="activeTab = 'importacion'"
+      id="tab-importacion"
+    >
+      <mat-icon>cloud_upload</mat-icon>
+      Importación de Datos
+    </button>
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════════
@@ -812,23 +821,51 @@
       <h3 style="margin: 0 0 0 8px">Parámetros Registrados</h3>
     </div>
 
+    <!-- Filters -->
+    <div class="filtros-container" style="margin-bottom: 16px;">
+      <mat-form-field appearance="outline" style="min-width: 200px;">
+        <mat-label>Filtrar por Tipo de Docente</mat-label>
+        <mat-select [(ngModel)]="filtrosParametros.tipo_docente" (selectionChange)="onFiltroChange()">
+          <mat-option value="">Todos</mat-option>
+          <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{ t.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" style="min-width: 200px;">
+        <mat-label>Filtrar por Categoría</mat-label>
+        <mat-select [(ngModel)]="filtrosParametros.categoria" (selectionChange)="onFiltroChange()">
+          <mat-option value="">Todas</mat-option>
+          <mat-option *ngFor="let c of categoriasPorTipo['ORDINARIO']" [value]="c.value">{{ c.label }}</mat-option>
+          <mat-option value="SIN_CATEGORIA">Sin categoría</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" style="min-width: 200px;">
+        <mat-label>Filtrar por Modalidad</mat-label>
+        <mat-select [(ngModel)]="filtrosParametros.modalidad" (selectionChange)="onFiltroChange()">
+          <mat-option value="">Todas</mat-option>
+          <mat-option *ngFor="let m of modalidades" [value]="m.value">{{ m.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
     <div *ngIf="loadingParametros" class="loading-state">
       <mat-spinner diameter="36"></mat-spinner>
     </div>
 
     <div
-      *ngIf="!loadingParametros && parametrosList.length === 0"
+      *ngIf="!loadingParametros && parametrosFiltrados.length === 0"
       class="empty-state-inline"
     >
       <mat-icon>info_outline</mat-icon>
-      <span>No hay parámetros registrados para este período.</span>
+      <span>No hay parámetros que coincidan con los filtros.</span>
     </div>
 
     <div
       class="parametros-cards-grid"
-      *ngIf="!loadingParametros && parametrosList.length > 0"
+      *ngIf="!loadingParametros && parametrosFiltrados.length > 0"
     >
-      <mat-card class="parametro-card" *ngFor="let p of parametrosList">
+      <mat-card class="parametro-card" *ngFor="let p of parametrosFiltrados">
         <mat-card-header>
           <mat-icon mat-card-avatar class="param-icon">person</mat-icon>
           <mat-card-title>
@@ -1341,5 +1378,12 @@
         </button>
       </mat-card-actions>
     </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 9 — IMPORTACIÓN DE DATOS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'importacion'" class="tab-content animate-fadein">
+    <app-importador-csv></app-importador-csv>
   </div>
 </div>

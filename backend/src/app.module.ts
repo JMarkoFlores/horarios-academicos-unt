@@ -27,6 +27,7 @@ import { VentanasModule } from "./modules/ventanas/ventanas.module";
 import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
 import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
 import { FacultadesModule } from "./facultades/facultades.module";
+import { DataImportModule } from "./modules/data-import/data-import.module";
 
 @Module({
   imports: [
@@ -107,6 +108,7 @@ import { FacultadesModule } from "./facultades/facultades.module";
     AuditoriaModule,
     CursosAmbienteModule,
     FacultadesModule,
+    DataImportModule,
   ],
   providers: [
     {

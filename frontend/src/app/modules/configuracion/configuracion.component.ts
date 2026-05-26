@@ -310,7 +310,7 @@ export class ConfiguracionComponent implements OnInit {
 
     // Bloque horario por defecto
     this.bloquesHorarios = [
-      { nombre: 'Mañana', hora_inicio: '08:00', hora_fin: '12:00' },
+      { nombre: 'Mañana', hora_inicio: '07:00', hora_fin: '14:00' },
       { nombre: 'Tarde', hora_inicio: '14:00', hora_fin: '23:00' },
     ];
 

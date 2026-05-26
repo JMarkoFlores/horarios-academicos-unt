@@ -78,7 +78,11 @@ services:
     networks:
       - horarios_network
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "require(''net'').createConnection({port:3000},function(){process.exit(0)}).on(''error'',function(){process.exit(1)})"',
+        ]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -97,7 +101,11 @@ services:
     networks:
       - horarios_network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost/health || exit 1",
+        ]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -108,8 +116,8 @@ services:
     image: mailhog/mailhog:latest
     container_name: horarios_mailhog
     ports:
-      - "1025:1025"  # SMTP
-      - "8025:8025"  # Web UI
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
     networks:
       - horarios_network
 

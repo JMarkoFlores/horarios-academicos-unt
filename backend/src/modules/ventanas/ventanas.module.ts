@@ -5,6 +5,7 @@ import { Ambiente } from "../../entities/ambiente.entity";
 import { CampañaVentanas } from "../../entities/campaña-ventanas.entity";
 import { ColaDocente } from "../../entities/cola-docentes.entity";
 import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
+import { Curso } from "../../entities/curso.entity";
 import { Docente } from "../../entities/docente.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
@@ -23,6 +24,7 @@ import { NotificacionesModule } from "../../notificaciones/notificaciones.module
 import { AuditoriaModule } from "../../modules/auditoria/auditoria.module";
 import { ReglasPrioridadController } from "./reglas-prioridad.controller";
 import { ReglasPrioridadGlobalesService } from "./reglas-prioridad.service";
+import { SincronizacionRedisService } from "./sincronizacion-redis.service";
 
 @Module({
   imports: [
@@ -35,6 +37,7 @@ import { ReglasPrioridadGlobalesService } from "./reglas-prioridad.service";
       Grupo,
       HorarioAsignado,
       Ambiente,
+      Curso,
       ParametrosCarga,
       CampañaVentanas,
       DiaNoLaborable,
@@ -45,8 +48,24 @@ import { ReglasPrioridadGlobalesService } from "./reglas-prioridad.service";
     NotificacionesModule,
     AuditoriaModule,
   ],
-  controllers: [VentanasController, CampañasVentanasController, ReglasPrioridadController],
-  providers: [VentanasService, GestorSeleccionTemporalService, CampañasVentanasService, ReglasPrioridadGlobalesService],
-  exports: [VentanasService, GestorSeleccionTemporalService, CampañasVentanasService, ReglasPrioridadGlobalesService],
+  controllers: [
+    VentanasController,
+    CampañasVentanasController,
+    ReglasPrioridadController,
+  ],
+  providers: [
+    VentanasService,
+    GestorSeleccionTemporalService,
+    CampañasVentanasService,
+    ReglasPrioridadGlobalesService,
+    SincronizacionRedisService,
+  ],
+  exports: [
+    VentanasService,
+    GestorSeleccionTemporalService,
+    CampañasVentanasService,
+    ReglasPrioridadGlobalesService,
+    SincronizacionRedisService,
+  ],
 })
 export class VentanasModule {}

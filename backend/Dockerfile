@@ -15,6 +15,9 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Remove dev dependencies before copying to production
+RUN npm prune --omit=dev
+
 # Production stage
 FROM node:20-alpine AS production
 
@@ -27,13 +30,10 @@ RUN apk add --no-cache dumb-init
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nestjs -u 1001
 
-# Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev && npm cache clean --force
-
-# Copy built application from builder stage
+# Copy pruned node_modules and built app from builder (no network needed)
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 
 # Switch to non-root user
@@ -48,4 +48,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # Start the application
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]

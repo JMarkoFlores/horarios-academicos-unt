@@ -263,19 +263,19 @@ export class ValidacionesService {
     horasAsignadas: number;
     horasRequeridas: number;
   }> {
-    this.logger.debug(`[verificarHorasCurso] cursoId=${cursoId}, tipoClase=${tipoClase}, grupoId=${grupoId}`);
-    
+    this.logger.debug(
+      `[verificarHorasCurso] cursoId=${cursoId}, tipoClase=${tipoClase}, grupoId=${grupoId}`,
+    );
+
     const curso = await this.cursoRepo.findOne({ where: { id: cursoId } });
     if (!curso) return { valido: false, horasAsignadas: 0, horasRequeridas: 0 };
 
     const horasRequeridas =
-      tipoClase === "TEORIA"
-        ? curso.horas_teoria
-        : tipoClase === "PRACTICA"
-        ? curso.horas_practica
-        : curso.horas_laboratorio;
+      tipoClase === "TEORIA" ? curso.horas_teoria : curso.horas_laboratorio;
 
-    this.logger.debug(`[verificarHorasCurso] horasRequeridas=${horasRequeridas}`);
+    this.logger.debug(
+      `[verificarHorasCurso] horasRequeridas=${horasRequeridas}`,
+    );
 
     if (horasRequeridas === 0) {
       return { valido: true, horasAsignadas: 0, horasRequeridas: 0 }; // Permitir si no hay restricción de horas
@@ -290,11 +290,13 @@ export class ValidacionesService {
     if (docenteId) {
       query.andWhere("h.docente_id = :docenteId", { docenteId });
     }
-    
+
     // Filtrar por grupo_id si se proporciona (para laboratorio o práctica)
-    if (grupoId && (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA')) {
+    if (grupoId && (tipoClase === "LABORATORIO" || tipoClase === "PRACTICA")) {
       query.andWhere("h.grupo_id = :grupoId", { grupoId });
-      this.logger.debug(`[verificarHorasCurso] Filtrando por grupo_id=${grupoId}`);
+      this.logger.debug(
+        `[verificarHorasCurso] Filtrando por grupo_id=${grupoId}`,
+      );
     }
 
     const horarios = await query.getMany();

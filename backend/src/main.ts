@@ -72,7 +72,10 @@ async function bootstrap() {
       )
       .addTag("auth", "Autenticación y autorización")
       .addTag("docentes", "Gestión de docentes (CRUD + jerarquía + antigüedad)")
-      .addTag("cursos", "Gestión de cursos y asignación de ambientes compatibles")
+      .addTag(
+        "cursos",
+        "Gestión de cursos y asignación de ambientes compatibles",
+      )
       .addTag("ambientes", "Gestión de ambientes y grilla de disponibilidad")
       .addTag(
         "disponibilidad",
@@ -93,6 +96,13 @@ async function bootstrap() {
     });
     logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
   }
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .get("/health", (_req: any, res: any) => {
+      res.status(200).json({ status: "ok" });
+    });
+
   await app.listen(port);
 
   logger.log(`Servidor corriendo en: http://localhost:${port}`);

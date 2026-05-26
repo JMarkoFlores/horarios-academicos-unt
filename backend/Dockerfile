@@ -13,8 +13,8 @@ COPY backend/tsconfig.build.json ./
 # Install all dependencies (including dev for build)
 RUN npm ci
 
-# Install TypeScript globally for build
-RUN npm install -g typescript
+# Install @nestjs/cli and TypeScript globally for build
+RUN npm install -g @nestjs/cli typescript
 
 # Copy source code (from backend directory)
 COPY backend/ ./

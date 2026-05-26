@@ -59,8 +59,8 @@ services:
     name: horarios-frontend
     env: docker
     plan: free
-    dockerfilePath: ./Dockerfile.frontend
-    dockerContext: .
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
     healthCheckPath: /health
 
 # PostgreSQL Database

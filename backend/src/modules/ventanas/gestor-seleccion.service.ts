@@ -331,26 +331,55 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     this.logger.debug(`[seleccionarCelda] Guardado en Redis clave=${clave}, selecciones=${todasLasSelecciones.length}`);
 
     // Persistir cada selección individualmente en BD
+    // Nota: No llamamos a guardarSeleccionConPersistencia porque sobrescribe el array en Redis
+    // En su lugar, persistimos directamente en BD sin tocar Redis
     for (const sel of todasLasSelecciones) {
-      const persistResult = await this.sincronizacionRedisService.guardarSeleccionConPersistencia(
-        sel,
-        lockResult.lock_token,
-      );
-      if (!persistResult.exito) {
-        // Si falla la persistencia de alguna selección, revertir el cambio en Redis
-        await this.redis.setex(
-          clave,
-          10,
-          JSON.stringify(seleccionesActuales),
-        );
-        await this.sincronizacionRedisService.liberarLock(
-          datos.ambienteId,
-          datos.dia,
-          datos.horaInicio,
-          datos.periodo,
-          lockResult.lock_token,
-        );
-        return { exito: false, motivo: "Error al persistir selección en base de datos" };
+      try {
+        // Obtener el grupo del curso
+        const grupo = await this.dataSource.getRepository(Grupo).findOne({
+          where: { curso_id: sel.cursoId },
+        });
+
+        if (!grupo) {
+          this.logger.error(`No se encontró grupo para el curso ${sel.cursoId}`);
+          throw new Error(`No se encontró grupo para el curso ${sel.cursoId}`);
+        }
+
+        // Limpiar registros antiguos de la sesión para evitar duplicate key
+        await this.dataSource.getRepository(SeleccionTemporal).delete({
+          sesion_id: sel.sesionId,
+          ambiente_id: sel.ambienteId,
+          dia: sel.dia,
+          hora_inicio: sel.horaInicio,
+          periodo: sel.periodo,
+        });
+
+        // Persistir en BD
+        const entity = this.dataSource.getRepository(SeleccionTemporal).create({
+          sesion_id: sel.sesionId,
+          ventana_atencion_id: sel.ventanaId,
+          docente_id: sel.docenteId,
+          curso_id: sel.cursoId,
+          grupo_id: grupo.id,
+          ambiente_id: sel.ambienteId,
+          dia: sel.dia,
+          hora_inicio: sel.horaInicio,
+          hora_fin: sel.horaFin,
+          tipo_clase: sel.tipoClase as any,
+          periodo: sel.periodo,
+          estado: 'PENDIENTE',
+          contexto_validacion: sel as unknown as Record<string, unknown>,
+        } as any);
+
+        await this.dataSource.getRepository(SeleccionTemporal).save(entity);
+
+        // Registrar en sesión (set de claves)
+        const claveSesion = this.crearClaveSesion(sel.sesionId);
+        await this.redis.sadd(claveSesion, clave);
+        await this.redis.expire(claveSesion, 1800);
+      } catch (error) {
+        this.logger.error(`Error persistiendo selección: ${error.message}`, error);
+        throw error;
       }
     }
 

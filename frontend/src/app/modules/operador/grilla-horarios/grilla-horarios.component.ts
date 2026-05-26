@@ -122,8 +122,66 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
 
     const horaFin = `${(parseInt(hora.split(':')[0], 10) + 1).toString().padStart(2, '0')}:00`;
 
-    if (celda.estado === 'TEMPORAL_PROPIO') {
-      // Deseleccionar
+    // Clic izquierdo: agregar bloque
+    if (celda.estado === 'LIBRE' || celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE') {
+      // Verificar si ya hay 3 bloques
+      let bloquesActuales = 0;
+      if (celda.metadata?.ocupaciones) {
+        bloquesActuales = celda.metadata.ocupaciones.length;
+      } else if (celda.estado === 'TEMPORAL_PROPIO') {
+        bloquesActuales = 1;
+      }
+
+      if (bloquesActuales >= 3) {
+        this.snack.open('Máximo 3 bloques permitidos por celda', 'Cerrar', { duration: 3000 });
+        return;
+      }
+
+      // Agregar bloque
+      console.log('[GrillaHorarios] Enviando selección con grupoSeleccionado:', this._grupoSeleccionado);
+      this.api.post<any>(`/ventanas/${this.ventanaId}/celda`, {
+        ventanaId: this.ventanaId,
+        sesionId: this.sesionId,
+        docenteId: this.docenteId,
+        cursoId: this.cursoId,
+        grupoId: this.grupoSeleccionado,
+        tipoClase: this.tipoClase,
+        ambienteId: this.ambienteId,
+        dia,
+        horaInicio: hora,
+        horaFin: horaFin,
+        periodo: this.periodo
+      }).subscribe({
+        next: (r) => {
+          if (r.data?.exito) {
+            this.snack.open('Bloque agregado', 'OK', { duration: 2000 });
+            this.seleccionCambiada.emit();
+            this.cargarMatriz();
+          } else {
+            const msg = r.data?.motivo || 'No se pudo agregar el bloque';
+            if (r.data?.alternativas?.length) {
+              const nombres = r.data.alternativas.map((a: any) => a.codigo).join(', ');
+              this.snack.open(`${msg}. Alternativas: ${nombres}`, 'Cerrar', { duration: 6000 });
+            } else {
+              this.snack.open(msg, 'Cerrar', { duration: 4000 });
+            }
+          }
+        },
+        error: (err) => {
+          this.snack.open(err.error?.message || 'Error al agregar bloque', 'Error', { duration: 3000 });
+        }
+      });
+    }
+  }
+
+  onCeldaRightClick(dia: number, hora: string, event: MouseEvent): void {
+    event.preventDefault();
+    const celda = this.getCelda(dia, hora);
+    if (!celda) return;
+
+    // Clic derecho: eliminar bloque propio o ver detalles si es de otros
+    if (celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE') {
+      // Eliminar bloque propio
       this.api.post<any>(`/ventanas/${this.ventanaId}/celda/deseleccionar`, {
         sesionId: this.sesionId,
         ambienteId: this.ambienteId,
@@ -132,54 +190,39 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
         periodo: this.periodo
       }).subscribe({
         next: () => {
+          this.snack.open('Bloque eliminado', 'OK', { duration: 2000 });
           this.seleccionCambiada.emit();
           this.cargarMatriz();
         },
         error: (err) => {
-          this.snack.open(err.error?.message || 'Error al liberar celda', 'Error', { duration: 3000 });
+          this.snack.open(err.error?.message || 'Error al eliminar bloque', 'Error', { duration: 3000 });
         }
       });
-      return;
+    } else if (celda.estado === 'TEMPORAL_OTRO' || celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' || 
+               celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') {
+      // Mostrar detalles de otros
+      const tooltip = this.getTooltipCelda(celda);
+      this.snack.open(tooltip, 'Cerrar', { duration: 5000 });
     }
+  }
 
-    if (celda.estado !== 'LIBRE') {
-      return;
+  onCeldaDoubleClick(dia: number, hora: string): void {
+    const celda = this.getCelda(dia, hora);
+    if (!celda) return;
+
+    // Doble clic: mostrar modal con todos los detalles
+    const tooltip = this.getTooltipCelda(celda);
+    // TODO: Implementar modal con detalles completos
+    this.snack.open(tooltip, 'Cerrar', { duration: 8000 });
+  }
+
+  getBloqueCount(celda: CeldaMatriz): number {
+    if (celda.estado === 'LIBRE') return 0;
+    if (celda.estado === 'TEMPORAL_PROPIO') return 1;
+    if (celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' && celda.metadata?.ocupaciones) {
+      return celda.metadata.ocupaciones.length;
     }
-
-    // Seleccionar
-    console.log('[GrillaHorarios] Enviando selección con grupoSeleccionado:', this._grupoSeleccionado);
-    this.api.post<any>(`/ventanas/${this.ventanaId}/celda`, {
-      ventanaId: this.ventanaId,
-      sesionId: this.sesionId,
-      docenteId: this.docenteId,
-      cursoId: this.cursoId,
-      grupoId: this.grupoSeleccionado,
-      tipoClase: this.tipoClase,
-      ambienteId: this.ambienteId,
-      dia,
-      horaInicio: hora,
-      horaFin: horaFin,
-      periodo: this.periodo
-    }).subscribe({
-      next: (r) => {
-        if (r.data?.exito) {
-          this.snack.open('Celda seleccionada', 'OK', { duration: 2000 });
-          this.seleccionCambiada.emit();
-          this.cargarMatriz();
-        } else {
-          const msg = r.data?.motivo || 'No se pudo seleccionar la celda';
-          if (r.data?.alternativas?.length) {
-            const nombres = r.data.alternativas.map((a: any) => a.codigo).join(', ');
-            this.snack.open(`${msg}. Alternativas: ${nombres}`, 'Cerrar', { duration: 6000 });
-          } else {
-            this.snack.open(msg, 'Cerrar', { duration: 4000 });
-          }
-        }
-      },
-      error: (err) => {
-        this.snack.open(err.error?.message || 'Error al seleccionar celda', 'Error', { duration: 3000 });
-      }
-    });
+    return 0;
   }
 
   getClaseCelda(celda: CeldaMatriz | undefined): string {

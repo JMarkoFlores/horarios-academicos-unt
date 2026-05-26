@@ -210,12 +210,16 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     // Total de ocupaciones en la celda = confirmadas + temporales
     const totalOcupaciones = ocupacionesConfirmadasCelda.length + seleccionesActuales.length;
 
+    this.logger.debug(`[seleccionarCelda] Ocupaciones confirmadas=${ocupacionesConfirmadasCelda.length}, temporales=${seleccionesActuales.length}, total=${totalOcupaciones}`);
+
     if (totalOcupaciones >= 3) {
+      this.logger.debug(`[seleccionarCelda] Rechazado: máximo 3 bloques alcanzado`);
       return { exito: false, motivo: "Máximo 3 bloques permitidos por celda (actual: " + totalOcupaciones + ")" };
     }
 
     // 3. Ejecutar las validaciones, pero permitir superposiciones si hay espacio
     const permitirSuperposiciones = datos.permitirSuperposiciones || true; // Permitir por defecto para soportar múltiples bloques
+    this.logger.debug(`[seleccionarCelda] Ejecutando validaciones, permitirSuperposiciones=${permitirSuperposiciones}`);
     const validacion = await this.validadorHorarioService.validarSlot({
       docente_id: datos.docenteId,
       curso_id: datos.cursoId,
@@ -230,6 +234,8 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       tipo_clase: datos.tipoClase as any,
       fecha: fechaSlot,
     }, permitirSuperposiciones);
+
+    this.logger.debug(`[seleccionarCelda] Validación resultado: valido=${validacion.valido}, errores=${validacion.errores}`);
 
     if (!validacion.valido) {
       const ocupado = validacion.errores.some((e) =>

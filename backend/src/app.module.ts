@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { CacheModule } from "@nestjs/cache-manager";
 import { TypeOrmModule } from "@nestjs/typeorm";
@@ -9,6 +9,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { redisStore } from "cache-manager-redis-store";
 import { AuthModule } from "./auth/auth.module";
 import { CommonModule } from "./common/common.module";
+import { LanguageInterceptor } from "./common/interceptors/language.interceptor";
 import { DocentesModule } from "./docentes/docentes.module";
 import { CursosModule } from "./cursos/cursos.module";
 import { AmbientesModule } from "./ambientes/ambientes.module";
@@ -114,6 +115,10 @@ import { DataImportModule } from "./modules/data-import/data-import.module";
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LanguageInterceptor,
     },
   ],
 })

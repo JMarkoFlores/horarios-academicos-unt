@@ -31,6 +31,9 @@ export class Usuario {
   @Column({ default: true })
   activo: boolean;
 
+  @Column({ type: "varchar", length: 5, default: "es" })
+  idioma: string;
+
   @Column({ type: "varchar", length: 255, nullable: true, default: null })
   reset_token: string | null;
 

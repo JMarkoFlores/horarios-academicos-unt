@@ -73,4 +73,19 @@ export class UsuariosService {
     });
     return usuarios;
   }
+
+  async actualizarMiIdioma(usuarioId: number, idioma: string): Promise<Partial<Usuario>> {
+    const usuario = await this.usuarioRepository.findOne({ where: { id: usuarioId } });
+    if (!usuario) throw new NotFoundException("Usuario no encontrado");
+    
+    const supportedLanguages = ['es', 'en', 'pt'];
+    if (!supportedLanguages.includes(idioma)) {
+      throw new NotFoundException("Idioma no soportado");
+    }
+    
+    usuario.idioma = idioma;
+    const saved = await this.usuarioRepository.save(usuario);
+    const { password_hash: _, ...resultado } = saved;
+    return resultado;
+  }
 }

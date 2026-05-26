@@ -22,4 +22,9 @@ export class ActualizarUsuarioDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @ApiPropertyOptional({ example: 'es', enum: ['es', 'en', 'pt'] })
+  @IsOptional()
+  @IsString()
+  idioma?: string;
 }

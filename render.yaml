@@ -62,6 +62,7 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /health
+    startCommand: nginx -g 'daemon off;'
 
 # PostgreSQL Database
 databases:

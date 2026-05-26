@@ -37,7 +37,8 @@ RUN apk add --no-cache dumb-init
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nestjs -u 1001
 
-COPY package*.json ./
+# Copy package files (from backend directory)
+COPY backend/package*.json ./
 
 # Copy pruned node_modules and built app from builder (no network needed)
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules

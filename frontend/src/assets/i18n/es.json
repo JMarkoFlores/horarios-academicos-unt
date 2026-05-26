@@ -54,5 +54,16 @@
     "spanish": "Español",
     "english": "Inglés",
     "portuguese": "Portugués"
+  },
+  "layout": {
+    "expandMenu": "Expandir menú",
+    "collapseMenu": "Colapsar menú",
+    "administrator": "Administrador",
+    "systemAdministrator": "Administrador de Sistema",
+    "viewProfile": "Ver Perfil",
+    "logout": "Cerrar Sesión",
+    "changePassword": "Cambiar Contraseña",
+    "registerUser": "Registrar Usuario",
+    "changeTheme": "Cambiar Tema"
   }
 }

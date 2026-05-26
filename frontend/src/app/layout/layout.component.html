@@ -34,7 +34,7 @@
         class="collapse-btn"
         *ngIf="!isMobile"
         (click)="toggleSidebarCollapsed()"
-        [matTooltip]="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
+        [matTooltip]="sidebarCollapsed ? ('layout.expandMenu' | translate) : ('layout.collapseMenu' | translate)"
         matTooltipPosition="right"
       >
         <mat-icon class="collapse-icon">{{
@@ -126,10 +126,10 @@
         </div>
         <div class="user-info" *ngIf="!sidebarCollapsed">
           <span class="user-name">{{
-            usuario?.nombre || "Administrador"
+            usuario?.nombre || ('layout.administrator' | translate)
           }}</span>
           <span class="user-role">{{
-            usuario?.rol || "Administrador de Sistema"
+            usuario?.rol || ('layout.systemAdministrator' | translate)
           }}</span>
         </div>
         <mat-icon class="user-chevron" *ngIf="!sidebarCollapsed"

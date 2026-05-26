@@ -54,5 +54,16 @@
     "spanish": "Spanish",
     "english": "English",
     "portuguese": "Portuguese"
+  },
+  "layout": {
+    "expandMenu": "Expand menu",
+    "collapseMenu": "Collapse menu",
+    "administrator": "Administrator",
+    "systemAdministrator": "System Administrator",
+    "viewProfile": "View Profile",
+    "logout": "Logout",
+    "changePassword": "Change Password",
+    "registerUser": "Register User",
+    "changeTheme": "Change Theme"
   }
 }

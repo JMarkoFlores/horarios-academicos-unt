@@ -59,7 +59,7 @@ services:
     name: horarios-frontend
     env: docker
     plan: free
-    dockerfilePath: ./frontend/Dockerfile
+    dockerfilePath: ./Dockerfile.frontend
     dockerContext: .
     healthCheckPath: /health
 

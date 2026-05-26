@@ -49,7 +49,10 @@ import { DataImportModule } from "./modules/data-import/data-import.module";
         autoLoadEntities: true,
         synchronize: false,
         logging: config.get<string>("DATABASE_LOGGING") === "true",
-        ssl: false,
+        ssl:
+          config.get<string>("DATABASE_SSL") === "true"
+            ? { rejectUnauthorized: false }
+            : false,
       }),
     }),
     CacheModule.registerAsync({

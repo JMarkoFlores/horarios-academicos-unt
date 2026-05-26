@@ -68,7 +68,7 @@ export class AddDocenteCursoTable1779075469472 implements MigrationInterface {
       `ALTER TABLE "disponibilidad_docente" DROP CONSTRAINT "UQ_disponibilidad_docente"`,
     );
     await queryRunner.query(
-      `CREATE TYPE "public"."docente_curso_tipo_clase_enum" AS ENUM('TEORIA', 'LABORATORIO')`,
+      `CREATE TYPE "public"."docente_curso_tipo_clase_enum" AS ENUM('TEORIA', 'PRACTICA', 'LABORATORIO')`,
     );
     await queryRunner.query(
       `CREATE TABLE "docente_curso" ("id" SERIAL NOT NULL, "docente_id" integer NOT NULL, "curso_id" integer NOT NULL, "tipo_clase" "public"."docente_curso_tipo_clase_enum" NOT NULL, "periodo_id" integer, CONSTRAINT "UQ_09891ebd7e370f9d779e33e615b" UNIQUE ("docente_id", "curso_id", "tipo_clase", "periodo_id"), CONSTRAINT "PK_1dc0a92052862ac0d9cf3c84a7b" PRIMARY KEY ("id"))`,

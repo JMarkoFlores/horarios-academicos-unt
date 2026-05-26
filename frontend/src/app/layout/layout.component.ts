@@ -126,12 +126,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
           route: '/app/disponibilidad',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
-        {
-          icon: 'assignment_turned_in',
-          label: 'Preasignaciones',
-          route: '/app/preasignaciones',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
       ],
     },
     {
@@ -223,12 +217,6 @@ export class LayoutComponent implements OnInit, OnDestroy {
           label: 'Notificaciones',
           route: '/app/notificaciones',
           roles: ['docente', 'administradorsistema'],
-        },
-        {
-          icon: 'history',
-          label: 'Auditoría',
-          route: '/app/auditoria',
-          roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'account_balance',

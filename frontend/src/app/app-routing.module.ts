@@ -155,24 +155,6 @@ const routes: Routes = [
         data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
-        path: 'preasignaciones',
-        loadChildren: () =>
-          import('./modules/preasignaciones/preasignaciones.module').then(
-            (m) => m.PreasignacionesModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
-      },
-      {
-        path: 'auditoria',
-        loadChildren: () =>
-          import('./modules/auditoria/auditoria.module').then(
-            (m) => m.AuditoriaModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
-      },
-      {
         path: 'facultades',
         loadChildren: () =>
           import('./modules/facultades/facultades.module').then(

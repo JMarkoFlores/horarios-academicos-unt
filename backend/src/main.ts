@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
+import { DataSource } from "typeorm";
 
 async function bootstrap() {
   const start = Date.now();
@@ -102,6 +103,22 @@ async function bootstrap() {
     .get("/health", (_req: any, res: any) => {
       res.status(200).json({ status: "ok" });
     });
+
+  // Auto-seed if DB is empty
+  if (process.env.AUTO_SEED === "true") {
+    try {
+      const dataSource = app.get(DataSource);
+      const count = await dataSource.query(`SELECT COUNT(*) FROM usuario`);
+      if (parseInt(count[0].count, 10) === 0) {
+        logger.log("BD vacía — ejecutando seed inicial...");
+        const { seed } = await import("./database/seed-auto");
+        await seed(dataSource);
+        logger.log("✅ Seed inicial completado");
+      }
+    } catch (e) {
+      logger.error("Error en auto-seed:", (e as any).message);
+    }
+  }
 
   await app.listen(port);
 

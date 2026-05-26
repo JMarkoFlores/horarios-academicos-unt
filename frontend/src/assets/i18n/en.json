@@ -65,5 +65,16 @@
     "changePassword": "Change Password",
     "registerUser": "Register User",
     "changeTheme": "Change Theme"
+  },
+  "login": {
+    "email": "Email",
+    "password": "Password",
+    "emailRequired": "Email is required",
+    "invalidEmailFormat": "Invalid email format",
+    "passwordRequired": "Password is required",
+    "loggingIn": "LOGGING IN...",
+    "loginToSystem": "LOGIN TO SYSTEM",
+    "academicManagementSystem": "ACADEMIC MANAGEMENT SYSTEM &bull; EIS",
+    "unt": "National University of Trujillo"
   }
 }

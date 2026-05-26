@@ -40,7 +40,7 @@
       <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
         <div class="form-field-wrapper animate-slide-up" style="--delay: 0.1s">
           <mat-form-field appearance="fill" class="full-width premium-field">
-            <mat-label>Correo electrónico</mat-label>
+            <mat-label>{{ 'login.email' | translate }}</mat-label>
             <input
               matInput
               type="email"
@@ -50,17 +50,17 @@
             />
             <mat-icon matPrefix>alternate_email</mat-icon>
             <mat-error *ngIf="form.get('email')?.hasError('required')"
-              >El correo es obligatorio</mat-error
+              >{{ 'login.emailRequired' | translate }}</mat-error
             >
             <mat-error *ngIf="form.get('email')?.hasError('pattern')"
-              >Formato de correo inválido</mat-error
+              >{{ 'login.invalidEmailFormat' | translate }}</mat-error
             >
           </mat-form-field>
         </div>
 
         <div class="form-field-wrapper animate-slide-up" style="--delay: 0.2s">
           <mat-form-field appearance="fill" class="full-width premium-field">
-            <mat-label>Contraseña</mat-label>
+            <mat-label>{{ 'login.password' | translate }}</mat-label>
             <input
               matInput
               [type]="hidePassword ? 'password' : 'text'"
@@ -81,7 +81,7 @@
               }}</mat-icon>
             </button>
             <mat-error *ngIf="form.get('password')?.hasError('required')"
-              >La contraseña es obligatoria</mat-error
+              >{{ 'login.passwordRequired' | translate }}</mat-error
             >
           </mat-form-field>
         </div>
@@ -103,10 +103,10 @@
         >
           <div class="btn-content" *ngIf="loading">
             <mat-spinner diameter="20"></mat-spinner>
-            <span>INGRESANDO...</span>
+            <span>{{ 'login.loggingIn' | translate }}</span>
           </div>
           <div class="btn-content" *ngIf="!loading">
-            <span>INGRESAR AL SISTEMA</span>
+            <span>{{ 'login.loginToSystem' | translate }}</span>
             <mat-icon>arrow_forward</mat-icon>
           </div>
           <div class="btn-shimmer"></div>

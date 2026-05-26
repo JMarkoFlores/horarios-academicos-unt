@@ -65,5 +65,16 @@
     "changePassword": "Alterar Senha",
     "registerUser": "Registrar Usuário",
     "changeTheme": "Alterar Tema"
+  },
+  "login": {
+    "email": "E-mail",
+    "password": "Senha",
+    "emailRequired": "O e-mail é obrigatório",
+    "invalidEmailFormat": "Formato de e-mail inválido",
+    "passwordRequired": "A senha é obrigatória",
+    "loggingIn": "ENTRANDO...",
+    "loginToSystem": "ENTRAR NO SISTEMA",
+    "academicManagementSystem": "SISTEMA DE GESTÃO ACADÊMICA &bull; EIS",
+    "unt": "Universidade Nacional de Trujillo"
   }
 }

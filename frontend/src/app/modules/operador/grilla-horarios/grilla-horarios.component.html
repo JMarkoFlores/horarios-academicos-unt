@@ -40,7 +40,7 @@
                 <div *ngFor="let ocupacion of getOcupacionesArray(celda); let i = index"
                      class="bloque-item"
                      [ngClass]="{'bloque-propio': true}"
-                     [style.flex-grow.%]="100 / getBloqueCount(celda)"
+                     [style.width.%]="100 / getBloqueCount(celda)"
                      (contextmenu)="onBloqueRightClick($event, d.valor, hora, ocupacion)">
                 </div>
               </div>
@@ -50,7 +50,7 @@
                 <div *ngFor="let ocupacion of getOcupacionesArray(celda); let i = index"
                      class="bloque-item"
                      [ngClass]="{'bloque-propio': ocupacion.docenteId === docenteId}"
-                     [style.flex-grow.%]="100 / getBloqueCount(celda)">
+                     [style.width.%]="100 / getBloqueCount(celda)">
                 </div>
               </div>
               <!-- Celda libre o bloqueada - sin bloques visibles -->

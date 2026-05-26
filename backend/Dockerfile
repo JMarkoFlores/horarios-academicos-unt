@@ -18,8 +18,8 @@ RUN npm install -g @nestjs/cli
 # Copy source code
 COPY . .
 
-# Build the application
-RUN nest build
+# Build the application using tsc directly
+RUN npx tsc -p tsconfig.json
 
 # Production stage
 FROM node:20-alpine AS production

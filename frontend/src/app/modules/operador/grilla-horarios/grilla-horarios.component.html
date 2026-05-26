@@ -33,6 +33,13 @@
             (click)="onCeldaClick(d.valor, hora)"
           >
             <ng-container *ngIf="getCelda(d.valor, hora) as celda">
+              <!-- Multiple temporary selections display -->
+              <div *ngIf="celda.estado === 'TEMPORAL_PROPIO_MULTIPLE'" class="ocupaciones-multiples">
+                <div *ngFor="let ocupacion of (celda.metadata?.ocupaciones || []).slice(0, 3); let i = index" 
+                     class="ocupacion-block ocupacion-propia">
+                  <span class="ocupacion-indice">{{ i + 1 }}</span>
+                </div>
+              </div>
               <!-- Multiple occupations display -->
               <div *ngIf="celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE'" class="ocupaciones-multiples">
                 <div *ngFor="let ocupacion of (celda.metadata?.ocupaciones || []).slice(0, 3); let i = index" 
@@ -42,7 +49,7 @@
                 </div>
               </div>
               <!-- Single occupation display -->
-              <ng-container *ngIf="celda.estado !== 'CONFIRMADO_MULTIPLE' && celda.estado !== 'CONFIRMADO_DOCENTE_MULTIPLE'">
+              <ng-container *ngIf="celda.estado !== 'CONFIRMADO_MULTIPLE' && celda.estado !== 'CONFIRMADO_DOCENTE_MULTIPLE' && celda.estado !== 'TEMPORAL_PROPIO_MULTIPLE'">
                 <mat-icon *ngIf="celda.estado === 'TEMPORAL_PROPIO'" class="celda-icon">check</mat-icon>
                 <mat-icon *ngIf="celda.estado === 'TEMPORAL_OTRO'" class="celda-icon">lock</mat-icon>
                 <mat-icon *ngIf="celda.estado === 'CONFIRMADO'" class="celda-icon">event_busy</mat-icon>

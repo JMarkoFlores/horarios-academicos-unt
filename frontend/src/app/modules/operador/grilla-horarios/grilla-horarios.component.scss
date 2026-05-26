@@ -246,6 +246,20 @@
   }
 }
 
+.celda-temporal-propio-multiple {
+  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+  border: 2px solid #1b5e20;
+  position: relative;
+
+  &:hover {
+    background: linear-gradient(135deg, #43a047 0%, #388e3c 100%);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+  }
+}
+
 .celda-icon {
   font-size: 18px;
   width: 18px;

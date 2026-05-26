@@ -104,12 +104,37 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     );
     const actual = await this.redis.get(clave);
 
+    // Obtener todas las selecciones actuales en esta celda
+    let seleccionesActuales: SeleccionTemporalRedis[] = [];
     if (actual) {
-      const seleccionActual = this.parseSeleccion(actual);
-      if (seleccionActual.sesionId !== datos.sesionId) {
-        return { exito: false, motivo: "Celda reservada por otro operador" };
+      try {
+        const parsed = JSON.parse(actual);
+        if (Array.isArray(parsed)) {
+          seleccionesActuales = parsed;
+        } else {
+          seleccionesActuales = [parsed];
+        }
+      } catch {
+        seleccionesActuales = [];
       }
-      // Si es la misma sesión, permitir re-selección (actualizar datos)
+    }
+
+    // Verificar si ya hay 3 selecciones (límite)
+    if (seleccionesActuales.length >= 3) {
+      return { exito: false, motivo: "Máximo 3 bloques permitidos por celda" };
+    }
+
+    // Verificar si esta sesión ya tiene una selección en esta celda
+    const seleccionExistente = seleccionesActuales.find(s => s.sesionId === datos.sesionId);
+    if (seleccionExistente) {
+      // Si es la misma sesión, permitir actualizar la selección
+      seleccionesActuales = seleccionesActuales.filter(s => s.sesionId !== datos.sesionId);
+    } else {
+      // Verificar si hay selecciones de otras sesiones
+      const otrasSesiones = seleccionesActuales.filter(s => s.sesionId !== datos.sesionId);
+      if (otrasSesiones.length > 0) {
+        return { exito: false, motivo: "Celda ya tiene selecciones de otros operadores" };
+      }
     }
 
     // 1. Resolver período y grupo para las validaciones
@@ -258,7 +283,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     }
 
     // 5. Guardar selección con persistencia (Redis + BD)
-    const payload: SeleccionTemporalRedis = {
+    const nuevaSeleccion: SeleccionTemporalRedis = {
       ventanaId: datos.ventanaId,
       sesionId: datos.sesionId,
       docenteId: datos.docenteId,
@@ -272,21 +297,38 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       periodo: datos.periodo,
     };
 
-    const persistResult = await this.sincronizacionRedisService.guardarSeleccionConPersistencia(
-      payload,
-      lockResult.lock_token,
+    // Agregar la nueva selección al array
+    const todasLasSelecciones = [...seleccionesActuales, nuevaSeleccion];
+
+    // Guardar el array en Redis directamente
+    await this.redis.setex(
+      clave,
+      10, // TTL de 10 segundos
+      JSON.stringify(todasLasSelecciones),
     );
 
-    if (!persistResult.exito) {
-      // Liberar lock si la persistencia falla
-      await this.sincronizacionRedisService.liberarLock(
-        datos.ambienteId,
-        datos.dia,
-        datos.horaInicio,
-        datos.periodo,
+    // Persistir cada selección individualmente en BD
+    for (const sel of todasLasSelecciones) {
+      const persistResult = await this.sincronizacionRedisService.guardarSeleccionConPersistencia(
+        sel,
         lockResult.lock_token,
       );
-      return { exito: false, motivo: "Error al guardar la selección. Intente de nuevo." };
+      if (!persistResult.exito) {
+        // Si falla la persistencia de alguna selección, revertir el cambio en Redis
+        await this.redis.setex(
+          clave,
+          10,
+          JSON.stringify(seleccionesActuales),
+        );
+        await this.sincronizacionRedisService.liberarLock(
+          datos.ambienteId,
+          datos.dia,
+          datos.horaInicio,
+          datos.periodo,
+          lockResult.lock_token,
+        );
+        return { exito: false, motivo: "Error al persistir selección en base de datos" };
+      }
     }
 
     // 6. Mantener compatibilidad con sesión activas tracking
@@ -455,18 +497,41 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       return;
     }
 
-    const seleccion = this.parseSeleccion(valor);
-    if (seleccion.sesionId !== sesionId) {
+    // Obtener todas las selecciones actuales
+    let seleccionesActuales: SeleccionTemporalRedis[] = [];
+    try {
+      const parsed = JSON.parse(valor);
+      if (Array.isArray(parsed)) {
+        seleccionesActuales = parsed;
+      } else {
+        seleccionesActuales = [parsed];
+      }
+    } catch {
+      return;
+    }
+
+    // Verificar si la selección pertenece a esta sesión
+    const seleccionDeSesion = seleccionesActuales.find(s => s.sesionId === sesionId);
+    if (!seleccionDeSesion) {
       throw new BadRequestException("La selección no pertenece a esta sesión.");
     }
 
-    await this.redis.del(clave);
-    await this.redis.srem(this.crearClaveSesion(sesionId), clave);
-    
-    // Liberar el lock de la celda
-    const claveLock = `lock_celda_${ambienteId}_${dia}_${horaInicio}_${periodo}`;
-    await this.redis.del(claveLock);
-    
+    // Remover solo la selección de esta sesión
+    const seleccionesRestantes = seleccionesActuales.filter(s => s.sesionId !== sesionId);
+
+    if (seleccionesRestantes.length === 0) {
+      // Si no quedan selecciones, borrar la clave completa
+      await this.redis.del(clave);
+      await this.redis.srem(this.crearClaveSesion(sesionId), clave);
+      
+      // Liberar el lock de la celda
+      const claveLock = `lock_celda_${ambienteId}_${dia}_${horaInicio}_${periodo}`;
+      await this.redis.del(claveLock);
+    } else {
+      // Si quedan selecciones, actualizar el array en Redis
+      await this.redis.setex(clave, 10, JSON.stringify(seleccionesRestantes));
+    }
+
     // Eliminar de la base de datos
     await this.dataSource.getRepository(SeleccionTemporal).delete({
       sesion_id: sesionId,
@@ -900,7 +965,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           );
           
           // Verificar si el docente tiene horario confirmado en este slot en otro ambiente
-          const horariosDocenteEnOtrosAmbientes = horariosDocenteEnOtrosAmbientes.filter(
+          const horariosDocenteEnOtrosAmbientesSlot = horariosDocenteEnOtrosAmbientes.filter(
             hc => hc.dia === dia && hc.hora_inicio.startsWith(horaInicio) && hc.ambiente_id !== ambienteId
           );
           
@@ -914,7 +979,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
               ambienteId: hc.ambiente_id,
               grupoId: hc.grupo_id
             })),
-            ...horariosDocenteEnOtrosAmbientes.map(hc => ({
+            ...horariosDocenteEnOtrosAmbientesSlot.map(hc => ({
               docenteId: hc.docente_id,
               cursoId: hc.curso_id,
               cursoNombre: hc.curso?.nombre,
@@ -937,14 +1002,41 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
             const claveRedis = this.crearClaveSeleccion(ambienteId, dia, horaInicio, periodo);
             const enRedis = await this.redis.get(claveRedis);
             if (enRedis) {
-              const seleccion = this.parseSeleccion(enRedis);
-              this.logger.debug(`Celda encontrada en Redis: dia=${dia}, hora=${horaInicio}, sesionIdRedis=${seleccion.sesionId}, sesionIdQuery=${sesionIdQuery}`);
-              if (sesionIdQuery && seleccion.sesionId === sesionIdQuery) {
-                estado = 'TEMPORAL_PROPIO';
-              } else {
-                estado = 'TEMPORAL_OTRO';
+              // Manejar arrays de selecciones temporales
+              let seleccionesTemporales: SeleccionTemporalRedis[] = [];
+              try {
+                const parsed = JSON.parse(enRedis);
+                if (Array.isArray(parsed)) {
+                  seleccionesTemporales = parsed;
+                } else {
+                  seleccionesTemporales = [parsed];
+                }
+              } catch {
+                seleccionesTemporales = [];
               }
-              metadata = { docenteId: seleccion.docenteId, cursoId: seleccion.cursoId, sesionId: seleccion.sesionId };
+
+              // Buscar si hay selección de esta sesión
+              const seleccionPropia = seleccionesTemporales.find(s => s.sesionId === sesionIdQuery);
+              const seleccionOtro = seleccionesTemporales.find(s => s.sesionId !== sesionIdQuery);
+
+              if (seleccionPropia) {
+                if (seleccionesTemporales.length > 1) {
+                  estado = 'TEMPORAL_PROPIO_MULTIPLE';
+                  metadata = { 
+                    sesionId: seleccionPropia.sesionId,
+                    ocupaciones: seleccionesTemporales.map(s => ({
+                      docenteId: s.docenteId,
+                      cursoId: s.cursoId
+                    }))
+                  };
+                } else {
+                  estado = 'TEMPORAL_PROPIO';
+                  metadata = { docenteId: seleccionPropia.docenteId, cursoId: seleccionPropia.cursoId, sesionId: seleccionPropia.sesionId };
+                }
+              } else if (seleccionOtro) {
+                estado = 'TEMPORAL_OTRO';
+                metadata = { docenteId: seleccionOtro.docenteId, cursoId: seleccionOtro.cursoId, sesionId: seleccionOtro.sesionId };
+              }
             }
           }
         }

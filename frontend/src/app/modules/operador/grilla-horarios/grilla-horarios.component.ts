@@ -193,6 +193,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       case 'CONFIRMADO_DOCENTE_MULTIPLE': return 'celda-confirmada-docente-multiple';
       case 'TEMPORAL_OTRO': return 'celda-temporal-otro';
       case 'TEMPORAL_PROPIO': return 'celda-temporal-propio';
+      case 'TEMPORAL_PROPIO_MULTIPLE': return 'celda-temporal-propio-multiple';
       default: return '';
     }
   }
@@ -253,6 +254,12 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
           : 'Tu horario + más ocupaciones';
       case 'TEMPORAL_OTRO': return 'Reservado temporalmente por otro operador';
       case 'TEMPORAL_PROPIO': return 'Tu selección temporal — Haz clic para quitar';
+      case 'TEMPORAL_PROPIO_MULTIPLE':
+        return celda.metadata?.ocupaciones?.length > 0 
+          ? `Tu selección + ${celda.metadata.ocupaciones.length - 1} más:\n${celda.metadata.ocupaciones.map((o: any) => 
+              `Docente ${o.docenteId}${o.cursoId ? ' — Curso ' + o.cursoId : ''}`
+            ).join('\n')}`
+          : 'Tu selección + más bloques';
       default: return '';
     }
   }

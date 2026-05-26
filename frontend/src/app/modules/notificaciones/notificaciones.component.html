@@ -4,16 +4,27 @@
   <mat-card class="card-seleccion-docente" *ngIf="!docenteId && isAdmin">
     <mat-card-header>
       <mat-card-title>Seleccionar Docente</mat-card-title>
-      <mat-card-subtitle>Ingresa el ID del docente para gestionar sus notificaciones</mat-card-subtitle>
+      <mat-card-subtitle>Busca al docente por nombre para gestionar sus notificaciones</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>ID del Docente</mat-label>
-        <input matInput type="number" #docenteIdInput placeholder="1" />
+        <mat-label>Nombre del Docente</mat-label>
+        <input matInput 
+               [matAutocomplete]="auto" 
+               (input)="buscarDocentes($event.target.value)"
+               placeholder="Escribe el nombre..." />
+        <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayDocente">
+          <mat-option *ngFor="let docente of docentes" [value]="docente" (onSelectionChange)="seleccionarDocente(docente)">
+            {{ docente.nombre }} ({{ docente.codigo }})
+          </mat-option>
+          <mat-option *ngIf="buscandoDocentes" disabled>
+            Buscando...
+          </mat-option>
+          <mat-option *ngIf="!buscandoDocentes && docentes.length === 0" disabled>
+            No se encontraron resultados
+          </mat-option>
+        </mat-autocomplete>
       </mat-form-field>
-      <button mat-raised-button color="primary" (click)="setDocenteIdManual(+docenteIdInput.value)">
-        Cargar docente
-      </button>
     </mat-card-content>
   </mat-card>
 
@@ -32,7 +43,10 @@
   <mat-card class="card-preferencias" *ngIf="docenteId">
     <mat-card-header>
       <mat-card-title>Preferencias de Notificación</mat-card-title>
-      <mat-card-subtitle>Configura cómo quieres recibir alertas y recordatorios</mat-card-subtitle>
+      <mat-card-subtitle>Configura cómo quiere recibir alertas y recordatorios</mat-card-subtitle>
+      <div *ngIf="docenteNombre" class="docente-info">
+        <strong>Docente:</strong> {{ docenteNombre }} <span *ngIf="docenteCodigo">({{ docenteCodigo }})</span>
+      </div>
     </mat-card-header>
     <mat-card-content>
       <form [formGroup]="preferenciasForm" (ngSubmit)="guardarPreferencias()">
@@ -45,8 +59,13 @@
         <div class="form-row" *ngIf="preferenciasForm.get('canal_correo')?.value">
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Correo alternativo (opcional)</mat-label>
-            <input matInput formControlName="correo_alternativo" placeholder="docente@gmail.com" />
+            <input matInput 
+                   formControlName="correo_alternativo" 
+                   type="email"
+                   placeholder="ejemplo@gmail.com" 
+                   email />
             <mat-hint>Si lo dejas vacío se usará tu correo institucional</mat-hint>
+            <mat-error>Ingresa un correo válido</mat-error>
           </mat-form-field>
         </div>
 
@@ -97,9 +116,13 @@
           </div>
 
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Chat ID de Telegram (se llena automáticamente)</mat-label>
-            <input matInput formControlName="telegram_chat_id" placeholder="123456789" />
-            <mat-hint>Este campo se completa automáticamente al registrar con el bot</mat-hint>
+            <mat-label>Chat ID de Telegram</mat-label>
+            <input matInput 
+                   formControlName="telegram_chat_id" 
+                   type="number"
+                   placeholder="123456789" />
+            <mat-hint>Se completa automáticamente al registrar con el bot, o ingrésalo manualmente</mat-hint>
+            <mat-error>Ingresa un número válido</mat-error>
           </mat-form-field>
         </div>
 

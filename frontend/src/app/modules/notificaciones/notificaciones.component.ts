@@ -21,9 +21,12 @@ export class NotificacionesComponent implements OnInit {
   enviandoPrueba = false;
   docenteId: number | null = null;
   docenteCodigo: string | null = null;
+  docenteNombre: string | null = null;
   isAdmin = false;
   estadisticas: any = null;
   telegramBotUsername = 'BhorariosUNT_bot'; // Username del bot oficial de UNT
+  docentes: any[] = []; // Lista de docentes para autocomplete
+  buscandoDocentes = false;
 
   displayedColumns = ['tipo', 'canal', 'estado', 'fecha_envio', 'mensaje'];
 
@@ -68,11 +71,43 @@ export class NotificacionesComponent implements OnInit {
     this.api.get<any>(`/docentes/${this.docenteId}`).subscribe({
       next: (res: any) => {
         this.docenteCodigo = res.data?.codigo ?? null;
+        this.docenteNombre = res.data?.nombre ?? null;
       },
       error: () => {
-        // Si no puede cargar, el código queda null
+        // Si no puede cargar, el código y nombre quedan null
       }
     });
+  }
+
+  buscarDocentes(query: string): void {
+    if (!query || query.length < 2) {
+      this.docentes = [];
+      return;
+    }
+    this.buscandoDocentes = true;
+    this.api.get<any>(`/docentes?search=${query}`).subscribe({
+      next: (res: any) => {
+        this.docentes = res.data?.data || res.data || [];
+        this.buscandoDocentes = false;
+      },
+      error: () => {
+        this.docentes = [];
+        this.buscandoDocentes = false;
+      }
+    });
+  }
+
+  seleccionarDocente(docente: any): void {
+    this.docenteId = docente.id;
+    this.docenteNombre = docente.nombre;
+    this.docenteCodigo = docente.codigo;
+    this.docentes = [];
+    this.cargarPreferencias();
+    this.cargarHistorial();
+  }
+
+  displayDocente(docente: any): string {
+    return docente ? `${docente.nombre} (${docente.codigo})` : '';
   }
 
   abrirTelegramBot(): void {

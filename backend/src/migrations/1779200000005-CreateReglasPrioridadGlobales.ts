@@ -20,12 +20,12 @@ export class CreateReglasPrioridadGlobales1779200000005 implements MigrationInte
       INSERT INTO "reglas_prioridad_globales" ("reglas", "descripcion", "activo")
       VALUES (
         '[
-          {"campo": "tipo_contrato", "orden": "DESC"},
+          {"campo": "tipo_docente", "orden": "DESC"},
           {"campo": "categoria", "orden": "DESC"},
           {"campo": "fecha_ingreso", "orden": "ASC"},
           {"campo": "horas_asignadas", "orden": "ASC"}
         ]'::json,
-        'Reglas de prioridad por defecto según normativa UNT',
+        'Reglas de prioridad por defecto según normativa UNT: Condición Laboral (Ordinario > Contratado), Categoría (Principal > Asociado > Auxiliar), Antigüedad (más antigua primero), Horas Asignadas (menos horas primero)',
         true
       )
     `);

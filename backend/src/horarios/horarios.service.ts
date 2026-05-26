@@ -463,4 +463,72 @@ export class HorariosService {
       }
     }
   }
+
+  async getMatrizDisponibilidad(periodo: string, ambienteIds?: number[]) {
+    const horas: string[] = [];
+    for (let h = 7; h <= 21; h++) {
+      horas.push(`${h.toString().padStart(2, '0')}:00`);
+    }
+    const diasSemana = [1, 2, 3, 4, 5, 6]; // Mon-Sat
+
+    const matriz: any[] = [];
+
+    // Get all assigned schedules for the period
+    const query = this.horarioRepo
+      .createQueryBuilder('h')
+      .leftJoinAndSelect('h.docente', 'docente')
+      .leftJoinAndSelect('h.curso', 'curso')
+      .leftJoinAndSelect('h.grupo', 'grupo')
+      .leftJoinAndSelect('h.ambiente', 'ambiente')
+      .where('h.periodo = :periodo', { periodo })
+      .andWhere('h.estado = :estado', { estado: EstadoHorario.PUBLICADO });
+
+    if (ambienteIds && ambienteIds.length > 0) {
+      query.andWhere('h.ambiente_id IN (:...ambienteIds)', { ambienteIds });
+    }
+
+    const horarios = await query.getMany();
+
+    for (const dia of diasSemana) {
+      for (const hora of horas) {
+        const horaFin = this.calcularHoraFin(hora);
+
+        // Check if this cell is occupied
+        const ocupado = horarios.find(h =>
+          h.dia === dia &&
+          h.hora_inicio === hora
+        );
+
+        if (ocupado) {
+          matriz.push({
+            dia,
+            horaInicio: hora,
+            horaFin,
+            estado: 'OCUPADO',
+            metadata: {
+              docenteNombre: ocupado.docente?.apellidos,
+              cursoNombre: ocupado.curso?.nombre,
+              grupo: ocupado.grupo?.codigo,
+              ambienteCodigo: ocupado.ambiente?.codigo,
+            },
+          });
+        } else {
+          matriz.push({
+            dia,
+            horaInicio: hora,
+            horaFin,
+            estado: 'LIBRE',
+          });
+        }
+      }
+    }
+
+    return matriz;
+  }
+
+  private calcularHoraFin(horaInicio: string): string {
+    const [h, m] = horaInicio.split(':').map(Number);
+    const proximaHora = h + 1;
+    return `${proximaHora.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  }
 }

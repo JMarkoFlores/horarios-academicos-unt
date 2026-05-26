@@ -20,6 +20,15 @@
     <mat-card-content>
       <p><strong>Código:</strong> {{ estadoCola.en_atencion.docente.codigo }}</p>
       <p><strong>Categoría:</strong> {{ estadoCola.en_atencion.docente.categoria }}</p>
+      
+      <!-- Temporizador -->
+      <div class="temporizador-container">
+        <mat-icon class="temporizador-icon">timer</mat-icon>
+        <div class="temporizador-content">
+          <span class="temporizador-label">Tiempo restante:</span>
+          <span class="temporizador-valor">{{ formatearTiempo }}</span>
+        </div>
+      </div>
     </mat-card-content>
     <mat-card-actions align="end">
       <button mat-button color="warn" (click)="marcarAusente(estadoCola.en_atencion.docente.id)">

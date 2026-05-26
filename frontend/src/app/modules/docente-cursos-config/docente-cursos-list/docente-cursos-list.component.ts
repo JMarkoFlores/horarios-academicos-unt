@@ -25,6 +25,7 @@ export class DocenteCursosListComponent implements OnInit, OnDestroy {
 
   tiposClase = [
     { value: 'TEORIA', label: 'Teoría' },
+    { value: 'PRACTICA', label: 'Práctica' },
     { value: 'LABORATORIO', label: 'Laboratorio' },
   ];
 

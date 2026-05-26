@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { Ambiente } from "../../entities/ambiente.entity";
 import { CampañaVentanas } from "../../entities/campaña-ventanas.entity";
 import { ColaDocente } from "../../entities/cola-docentes.entity";
+import { Curso } from "../../entities/curso.entity";
 import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
 import { Docente } from "../../entities/docente.entity";
 import { Grupo } from "../../entities/grupo.entity";
@@ -12,6 +13,7 @@ import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
 import { ReglasPrioridadGlobales } from "../../entities/reglas-prioridad.entity";
 import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
+import { SeleccionTemporal } from "../../entities/seleccion-temporal.entity";
 import { HorariosModule } from "../../horarios/horarios.module";
 import { VentanasController } from "./ventanas.controller";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
@@ -23,6 +25,12 @@ import { NotificacionesModule } from "../../notificaciones/notificaciones.module
 import { AuditoriaModule } from "../../modules/auditoria/auditoria.module";
 import { ReglasPrioridadController } from "./reglas-prioridad.controller";
 import { ReglasPrioridadGlobalesService } from "./reglas-prioridad.service";
+import { RestriccionesValidacionService } from "./restricciones-validacion.service";
+import { RegistroValidacionService } from "./registro-validacion.service";
+import { SugestionesContextualesService } from "./sugerencias-contextuales.service";
+import { ValidadorIntegradoService } from "./validador-integrado.service";
+import { SincronizacionRedisService } from "./sincronizacion-redis.service";
+import { AuditoriaHorario } from "../../entities/auditoria-horario.entity";
 
 @Module({
   imports: [
@@ -39,6 +47,9 @@ import { ReglasPrioridadGlobalesService } from "./reglas-prioridad.service";
       CampañaVentanas,
       DiaNoLaborable,
       ReglasPrioridadGlobales,
+      Curso,
+      AuditoriaHorario,
+      SeleccionTemporal,
     ]),
     HorariosModule,
     CommonModule,
@@ -46,7 +57,27 @@ import { ReglasPrioridadGlobalesService } from "./reglas-prioridad.service";
     AuditoriaModule,
   ],
   controllers: [VentanasController, CampañasVentanasController, ReglasPrioridadController],
-  providers: [VentanasService, GestorSeleccionTemporalService, CampañasVentanasService, ReglasPrioridadGlobalesService],
-  exports: [VentanasService, GestorSeleccionTemporalService, CampañasVentanasService, ReglasPrioridadGlobalesService],
+  providers: [
+    VentanasService,
+    GestorSeleccionTemporalService,
+    CampañasVentanasService,
+    ReglasPrioridadGlobalesService,
+    RestriccionesValidacionService,
+    RegistroValidacionService,
+    SugestionesContextualesService,
+    ValidadorIntegradoService,
+    SincronizacionRedisService,
+  ],
+  exports: [
+    VentanasService,
+    GestorSeleccionTemporalService,
+    CampañasVentanasService,
+    ReglasPrioridadGlobalesService,
+    RestriccionesValidacionService,
+    RegistroValidacionService,
+    SugestionesContextualesService,
+    ValidadorIntegradoService,
+    SincronizacionRedisService,
+  ],
 })
 export class VentanasModule {}

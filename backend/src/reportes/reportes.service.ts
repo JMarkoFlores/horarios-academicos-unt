@@ -961,6 +961,386 @@ export class ReportesService {
       .sort((a, b) => b.horas - a.horas);
   }
 
+  async generarReporteCicloPDF(
+    ciclo: number,
+    periodo: string,
+  ): Promise<Buffer> {
+    const horarios = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("curso.ciclo = :ciclo", { ciclo })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
+
+    // Obtener configuración del bloque de almuerzo desde la base de datos
+    let almuerzoInicio = 12;
+    let almuerzoFin = 14;
+    try {
+      const restricciones = await this.configuracionService.getRestriccionesMap(periodo);
+      const bloqueAlmuerzo = restricciones['BLOQUE_ALMUERZO'] as any;
+      if (bloqueAlmuerzo && bloqueAlmuerzo.hora_inicio && bloqueAlmuerzo.hora_fin) {
+        almuerzoInicio = parseInt(bloqueAlmuerzo.hora_inicio.split(':')[0], 10);
+        almuerzoFin = parseInt(bloqueAlmuerzo.hora_fin.split(':')[0], 10);
+      }
+    } catch (error) {
+      this.logger.warn(`No se pudo obtener configuración de almuerzo, usando valores por defecto: ${error}`);
+    }
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+    });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    const contentWidth = pageWidth - margin * 2;
+
+    // Colores
+    const colors = {
+      primary: '#1a237e',
+      primaryLight: '#3f51b5',
+      secondary: '#0d47a1',
+      accent: '#ffc107',
+      success: '#2e7d32',
+      danger: '#c62828',
+      info: '#0277bd',
+      light: '#f5f5f5',
+      dark: '#263238',
+      blanco: '#ffffff',
+      grisClaro: '#e0e0e0',
+      grisMedio: '#bdbdbd',
+      grisOscuro: '#757575',
+      theory: '#e3f2fd',
+      theoryBorder: '#90caf9',
+      lab: '#e8f5e9',
+      labBorder: '#81c784',
+      almuerzo: '#fff3e0',
+      almuerzoBorder: '#ffb74d',
+    };
+
+    // Paleta de colores para profesores
+    const profesorColores = [
+      '#e3f2fd', // Azul
+      '#fff3e0', // Naranja
+      '#f3e5f5', // Morado
+      '#e8f5e9', // Verde
+      '#fffde7', // Amarillo
+      '#fce4ec', // Rosado
+      '#efebe9', // Café
+      '#eceff1', // Gris
+      '#f1f8e9', // Verde lima
+      '#e0f7fa', // Cian
+    ];
+    const profesorColorMap = new Map<number, string>();
+    const profesoresUnicos = Array.from(new Set(horarios.map(h => h.docente?.id).filter(Boolean)));
+    profesoresUnicos.forEach((id, idx) => {
+      profesorColorMap.set(id, profesorColores[idx % profesorColores.length]);
+    });
+
+    // Normalizar horarios
+    const asignaciones = horarios.map((a) => {
+      (a as any).dia_semana = (a as any).dia ?? a.dia_semana;
+      a.hora_inicio = a.hora_inicio.substring(0, 5);
+      a.hora_fin = a.hora_fin.substring(0, 5);
+      return a;
+    });
+
+    // Paleta de colores
+    const C = {
+      primary: [79, 70, 229] as [number, number, number],
+      primaryDark: [55, 48, 163] as [number, number, number],
+      primaryLight: [237, 233, 254] as [number, number, number],
+      primaryText: [55, 48, 163] as [number, number, number],
+      labBg: [209, 250, 229] as [number, number, number],
+      labFg: [6, 78, 59] as [number, number, number],
+      labBorder: [16, 185, 129] as [number, number, number],
+      rowAlt: [248, 247, 255] as [number, number, number],
+      horaCol: [241, 245, 249] as [number, number, number],
+      horaTxt: [51, 65, 85] as [number, number, number],
+      border: [203, 213, 225] as [number, number, number],
+      white: [255, 255, 255] as [number, number, number],
+      gray: [100, 116, 139] as [number, number, number],
+      dark: [15, 23, 42] as [number, number, number],
+    };
+
+    const C_ALM_BG = [255, 243, 205] as [number, number, number];
+    const C_ALM_FG = [146, 64, 14] as [number, number, number];
+    const C_ALM_BD = [251, 191, 36] as [number, number, number];
+
+    const PAGE_W = 297;
+
+    // Cabecera principal
+    doc.setFillColor(...C.primaryDark);
+    doc.rect(0, 0, PAGE_W, 22, 'F');
+
+    doc.setFillColor(...C.primary);
+    doc.rect(0, 18, PAGE_W, 4, 'F');
+
+    doc.setTextColor(...C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('HORARIO ACADEMICO - CICLO ' + ciclo, 12, 9);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Universidad Nacional de Trujillo', 12, 15);
+
+    // Info ciclo (derecha)
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    const infoX = PAGE_W - 12;
+    doc.text(`Periodo: ${periodo}`, infoX, 7, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(`Almuerzo: ${almuerzoInicio}:00 - ${almuerzoFin}:00`, infoX, 13, { align: 'right' });
+
+    let yPos = 27;
+
+    // Obtener profesores y cursos únicos
+    const profesoresCursosMap = new Map<string, any>();
+    horarios.forEach(a => {
+      if (!a.docente || !a.curso) return;
+      const key = `${a.docente.id}-${a.curso.id}`;
+      if (!profesoresCursosMap.has(key)) {
+        profesoresCursosMap.set(key, {
+          docente: a.docente,
+          curso: a.curso,
+          horas: 0
+        });
+      }
+      const entry = profesoresCursosMap.get(key);
+      const hInicio = parseInt(a.hora_inicio.split(':')[0], 10);
+      const hFin = parseInt(a.hora_fin.split(':')[0], 10);
+      entry.horas += (hFin - hInicio);
+    });
+    const profesoresCursos = Array.from(profesoresCursosMap.values()).sort((a, b) => 
+      a.docente.apellidos.localeCompare(b.docente.apellidos)
+    );
+
+    // --- Lista de Profesores ---
+    doc.setFontSize(12);
+    doc.setTextColor(...C.primaryText);
+    doc.text('Lista de Profesores y Asignaturas', 8, yPos);
+    yPos += 7;
+
+    // Construir tabla de profesores
+    const profesoresTableData = profesoresCursos.map((item, idx) => ({
+      n: idx + 1,
+      profesor: `${item.docente.apellidos}, ${item.docente.nombres}`,
+      asignatura: item.curso.nombre,
+      t: item.curso.horas_teoria || '-',
+      p: '-',
+      l: item.curso.horas_laboratorio || '-',
+      th: item.horas
+    }));
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['N°', 'Profesor', 'Asignatura', 'T', 'P', 'L', 'T. Horas']],
+      body: profesoresTableData.map(d => [d.n, d.profesor, d.asignatura, d.t, d.p, d.l, d.th]),
+      theme: 'grid',
+      styles: {
+        fontSize: 7,
+        cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+        valign: 'middle',
+        halign: 'left',
+        lineColor: C.border,
+        lineWidth: 0.25,
+        textColor: C.dark,
+      },
+      headStyles: {
+        fillColor: C.primary,
+        textColor: C.white,
+        fontStyle: 'bold',
+        fontSize: 8.5,
+        halign: 'center',
+        cellPadding: { top: 4, bottom: 4, left: 2, right: 2 },
+      },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 15 },
+        3: { halign: 'center', cellWidth: 15 },
+        4: { halign: 'center', cellWidth: 15 },
+        5: { halign: 'center', cellWidth: 15 },
+        6: { halign: 'center', cellWidth: 20, fontStyle: 'bold' }
+      },
+      alternateRowStyles: {
+        fillColor: C.rowAlt
+      },
+      margin: { left: 8, right: 8 }
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+
+    // --- Horario Semanal ---
+    doc.setFontSize(12);
+    doc.setTextColor(...C.primaryText);
+    doc.text('Horario Semanal', 8, yPos);
+    yPos += 7;
+
+    const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const diasNum = [1, 2, 3, 4, 5, 6];
+    const horas = Array.from({ length: 15 }, (_, i) => i + 7);
+
+    // Construir matriz de datos para el grid
+    type TipoCelda = 'TEORIA' | 'LABORATORIO' | 'ALMUERZO' | 'LIBRE';
+    interface SlotInfo {
+      texto: string;
+      tipo: TipoCelda;
+      raw: HorarioAsignado | null;
+      span: number;
+      absorbida: boolean;
+    }
+
+    const grid: SlotInfo[][] = horas.map((hora) => {
+      const filaHora = `${String(hora).padStart(2, '0')}:00`;
+      const esAlm = hora >= almuerzoInicio && hora < almuerzoFin;
+      const cols: SlotInfo[] = [
+        { texto: filaHora, tipo: 'LIBRE', raw: null, span: 1, absorbida: false },
+      ];
+      for (const dia of diasNum) {
+        const asig = asignaciones.find(
+          (a) => a.dia_semana === dia && a.hora_inicio === filaHora,
+        ) ?? null;
+        if (asig) {
+          const finH = asig.hora_fin ? parseInt(asig.hora_fin.split(':')[0], 10) : hora + 1;
+          const span = Math.max(1, finH - hora);
+          const curso = asig.curso?.nombre ?? '—';
+          const amb = asig.ambiente?.codigo ?? '—';
+          const profesor = asig.docente?.apellidos ?? '—';
+          const tipo = asig.tipo_clase === TipoClase.LABORATORIO ? 'LAB' : 'TEO';
+          cols.push({
+            texto: `${profesor}\n${curso}\n${amb}`,
+            tipo: asig.tipo_clase === TipoClase.LABORATORIO ? 'LABORATORIO' : 'TEORIA',
+            raw: asig, span, absorbida: false,
+          });
+        } else if (esAlm) {
+          cols.push({ texto: 'Almuerzo', tipo: 'ALMUERZO', raw: null, span: 1, absorbida: false });
+        } else {
+          cols.push({ texto: '', tipo: 'LIBRE', raw: null, span: 1, absorbida: false });
+        }
+      }
+      cols.push({ texto: filaHora, tipo: 'LIBRE', raw: null, span: 1, absorbida: false });
+      return cols;
+    });
+
+    // Marcar celdas absorbidas por span
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 1; c <= 6; c++) { // Columnas 1 a 6 (Lunes a Sábado)
+        const slot = grid[r][c];
+        if (slot.span > 1 && !slot.absorbida) {
+          for (let s = 1; s < slot.span && r + s < grid.length; s++) {
+            grid[r + s][c].absorbida = true;
+          }
+        }
+      }
+    }
+
+    const horarioHead = [['HORA', ...dias, 'HORA']];
+    const horarioBody = grid.map((fila) =>
+      fila.map((s) => (s.absorbida ? '↕' : s.texto)),
+    );
+
+    autoTable(doc, {
+      startY: yPos,
+      head: horarioHead,
+      body: horarioBody,
+      styles: {
+        fontSize: 7,
+        cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+        valign: 'middle',
+        halign: 'center',
+        lineColor: C.border,
+        lineWidth: 0.25,
+        textColor: C.dark,
+      },
+      headStyles: {
+        fillColor: C.primary,
+        textColor: C.white,
+        fontStyle: 'bold',
+        fontSize: 8.5,
+        halign: 'center',
+        cellPadding: { top: 4, bottom: 4, left: 2, right: 2 },
+      },
+      columnStyles: {
+        0: {
+          halign: 'center',
+          fontStyle: 'bold',
+          fillColor: C.horaCol,
+          textColor: C.horaTxt,
+          cellWidth: 16,
+          fontSize: 7.5,
+        },
+        7: {
+          halign: 'center',
+          fontStyle: 'bold',
+          fillColor: C.horaCol,
+          textColor: C.horaTxt,
+          cellWidth: 16,
+          fontSize: 7.5,
+        },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 'auto' },
+        5: { cellWidth: 'auto' },
+        6: { cellWidth: 'auto' },
+      },
+      didParseCell: (data) => {
+        if (data.section !== 'body') return;
+        if (data.column.index === 0 || data.column.index === 7) return;
+        const ri = data.row.index;
+        const ci = data.column.index;
+        const fila = grid[ri];
+        if (!fila) return;
+        const slot = fila[ci];
+
+        if (slot.absorbida) {
+          data.cell.styles.fillColor = C.white;
+          data.cell.styles.textColor = C.white;
+          data.cell.styles.fontSize = 1;
+          data.cell.styles.lineColor = C.white;
+          return;
+        }
+
+        if (slot.tipo === 'ALMUERZO') {
+          data.cell.styles.fillColor = C_ALM_BG;
+          data.cell.styles.textColor = C_ALM_FG;
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.lineColor = C_ALM_BD;
+          return;
+        }
+        if (slot.tipo === 'LABORATORIO') {
+          data.cell.styles.fillColor = C.labBg;
+          data.cell.styles.textColor = C.labFg;
+          data.cell.styles.fontStyle = 'bold';
+          return;
+        }
+        if (slot.tipo === 'TEORIA') {
+          const esPar = ri % 2 === 0;
+          data.cell.styles.fillColor = esPar
+            ? C.primaryLight
+            : [228, 224, 252] as [number, number, number];
+          data.cell.styles.textColor = C.primaryText;
+          data.cell.styles.fontStyle = 'bold';
+          return;
+        }
+        data.cell.styles.fillColor = C.white;
+      },
+      alternateRowStyles: { fillColor: C.rowAlt },
+      margin: { left: 8, right: 8 },
+      rowPageBreak: 'avoid',
+      tableLineColor: C.border,
+      tableLineWidth: 0.3,
+    });
+
+    return Buffer.from(doc.output('arraybuffer'));
+  }
+
   private calcularCursosIncompletos(
     cursos: Curso[],
     horarios: HorarioAsignado[],

@@ -325,4 +325,28 @@ export class DocentesController {
       message: "Ambientes asignados correctamente",
     };
   }
+
+  @Get(":id/ambientes-compatibles")
+  @ApiOperation({ summary: "Obtener ambientes compatibles para un curso" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiQuery({ name: "cursoId", type: Number, description: "ID del curso" })
+  @ApiQuery({ name: "tipoClase", type: String, description: "Tipo de clase (TEORIA/LABORATORIO)" })
+  @ApiResponse({
+    status: 200,
+    description: "Ambientes compatibles obtenidos correctamente",
+  })
+  async findAmbientesCompatibles(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("cursoId", ParseIntPipe) cursoId: number,
+    @Query("tipoClase") tipoClase: string,
+  ) {
+    const result = await this.docentesService.findAmbientesCompatibles(
+      cursoId,
+      tipoClase,
+    );
+    return {
+      data: result,
+      message: "Ambientes compatibles obtenidos correctamente",
+    };
+  }
 }

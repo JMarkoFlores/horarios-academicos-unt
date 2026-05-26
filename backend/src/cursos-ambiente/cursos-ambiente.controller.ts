@@ -45,30 +45,37 @@ export class CursosAmbienteController {
     return { data, message: "Relaciones obtenidas", statusCode: HttpStatus.OK };
   }
 
-  @Get(":id")
-  @ApiOperation({ summary: "Obtener relación por ID" })
-  async findOne(@Param("id", ParseIntPipe) id: number) {
-    const data = await this.service.findOne(id);
+  @Get(":cursoId/:ambienteId")
+  @ApiOperation({ summary: "Obtener relación por curso y ambiente" })
+  async findOne(
+    @Param("cursoId", ParseIntPipe) cursoId: number,
+    @Param("ambienteId", ParseIntPipe) ambienteId: number,
+  ) {
+    const data = await this.service.findOne(cursoId, ambienteId);
     return { data, message: "Relación obtenida", statusCode: HttpStatus.OK };
   }
 
-  @Patch(":id")
+  @Patch(":cursoId/:ambienteId")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Actualizar relación curso-ambiente" })
   async update(
-    @Param("id", ParseIntPipe) id: number,
+    @Param("cursoId", ParseIntPipe) cursoId: number,
+    @Param("ambienteId", ParseIntPipe) ambienteId: number,
     @Body() dto: UpdateCursoAmbienteDto,
   ) {
-    const data = await this.service.update(id, dto);
+    const data = await this.service.update(cursoId, ambienteId, dto);
     return { data, message: "Relación actualizada", statusCode: HttpStatus.OK };
   }
 
-  @Delete(":id")
+  @Delete(":cursoId/:ambienteId")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Eliminar relación curso-ambiente" })
-  async remove(@Param("id", ParseIntPipe) id: number) {
-    await this.service.remove(id);
+  async remove(
+    @Param("cursoId", ParseIntPipe) cursoId: number,
+    @Param("ambienteId", ParseIntPipe) ambienteId: number,
+  ) {
+    await this.service.remove(cursoId, ambienteId);
     return { data: null, message: "Relación eliminada", statusCode: HttpStatus.OK };
   }
 }

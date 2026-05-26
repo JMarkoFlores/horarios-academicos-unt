@@ -305,13 +305,21 @@
             </ng-container>
 
             <ng-container matColumnDef="acciones">
-              <th mat-header-cell *matHeaderCellDef style="width: 80px"></th>
+              <th mat-header-cell *matHeaderCellDef style="width: 120px"></th>
               <td
                 mat-cell
                 *matCellDef="let r"
                 class="actions-cell"
-                style="width: 80px"
+                style="width: 120px"
               >
+                <button
+                  mat-icon-button
+                  class="btn-action edit"
+                  (click)="editarRestriccion(r)"
+                  matTooltip="Editar"
+                >
+                  <mat-icon>edit</mat-icon>
+                </button>
                 <button
                   mat-icon-button
                   class="btn-action delete"
@@ -326,6 +334,7 @@
             <tr
               mat-header-row
               *matHeaderRowDef="['icono', 'tipo', 'descripcion', 'acciones']"
+              style="width: 120px"
             ></tr>
             <tr
               mat-row
@@ -1036,12 +1045,15 @@
               <mat-form-field appearance="outline">
                 <mat-label>Campo</mat-label>
                 <mat-select [(ngModel)]="regla.campo" [ngModelOptions]="{standalone: true}">
-                  <mat-option value="tipo_contrato">Condición Laboral (Ordinario > Contratado)</mat-option>
-                  <mat-option value="categoria">Categoría (Principal > Asociado > Auxiliar)</mat-option>
+                  <mat-option value="tipo_contrato">Condición Laboral (Nombrado > Contratado)</mat-option>
+                  <mat-option value="tipo_docente">Tipo Docente (Ordinario > Contratado > Jefe Práctica)</mat-option>
+                  <mat-option value="categoria">Categoría (Principal > Asociado > Auxiliar > Sin Categoría)</mat-option>
+                  <mat-option value="modalidad">Modalidad (Dedicación Exclusiva > Tiempo Completo > Tiempo Parcial)</mat-option>
                   <mat-option value="fecha_ingreso">Antigüedad (fecha más antigua)</mat-option>
                   <mat-option value="horas_asignadas">Horas Asignadas (menos horas primero)</mat-option>
-                  <mat-option value="apellidos">Apellido</mat-option>
-                  <mat-option value="nombres">Nombre</mat-option>
+                  <mat-option value="codigo">Código del Docente</mat-option>
+                  <mat-option value="apellidos">Apellidos</mat-option>
+                  <mat-option value="nombres">Nombres</mat-option>
                 </mat-select>
               </mat-form-field>
               <mat-form-field appearance="outline">
@@ -1268,6 +1280,15 @@
             >
               <mat-icon>publish</mat-icon>
               {{ publicandoCampana ? "Publicando..." : "Publicar Campaña" }}
+            </button>
+            <button
+              mat-raised-button
+              color="warn"
+              (click)="eliminarVentanasCampana()"
+              [disabled]="campanaSeleccionada.estado === 'BORRADOR'"
+            >
+              <mat-icon>delete</mat-icon>
+              Eliminar Ventanas
             </button>
           </div>
         </mat-card-content>

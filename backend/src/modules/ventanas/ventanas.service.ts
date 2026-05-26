@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
   OnModuleDestroy,
+  OnApplicationBootstrap,
 } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
@@ -28,6 +29,7 @@ import { HorariosGateway } from "../../horarios/horarios.gateway";
 import { CreateVentanaDto } from "./dto/create-ventana.dto";
 import { UpdateVentanaDto } from "./dto/update-ventana.dto";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
+import { SincronizacionRedisService } from "./sincronizacion-redis.service";
 import { ConfiguracionVentanaCategoriaDto } from "./dto/configurar-ventanas-periodo.dto";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../../common/enums/tipo-contrato.enum";
@@ -35,7 +37,7 @@ import { NotificacionesService } from "../../notificaciones/notificaciones.servi
 import { Cache } from "cache-manager";
 
 @Injectable()
-export class VentanasService implements OnModuleDestroy {
+export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap {
   private readonly logger = new Logger(VentanasService.name);
   private readonly redis: Redis;
   private static readonly TTL_COLA_SEGUNDOS = 12 * 60 * 60;
@@ -54,6 +56,7 @@ export class VentanasService implements OnModuleDestroy {
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     private readonly gateway: HorariosGateway,
     private readonly gestorSeleccionService: GestorSeleccionTemporalService,
+    private readonly sincronizacionRedisService: SincronizacionRedisService,
     private readonly notificacionesService: NotificacionesService,
   ) {
     this.redis = new Redis({
@@ -66,8 +69,96 @@ export class VentanasService implements OnModuleDestroy {
     await this.redis.quit();
   }
 
+  async onApplicationBootstrap(): Promise<void> {
+    this.logger.log('Iniciando bootstrap de módulo de ventanas...');
+
+    try {
+      // Crear tabla selecciones_temporales si no existe
+      const tableExists = await this.dataSource.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name = 'selecciones_temporales'
+        );
+      `);
+
+      if (!tableExists[0].exists) {
+        this.logger.log('Creando tabla selecciones_temporales...');
+        await this.dataSource.query(`
+          CREATE TABLE IF NOT EXISTS "selecciones_temporales" (
+            "id" SERIAL PRIMARY KEY,
+            "sesion_id" uuid NOT NULL,
+            "ventana_atencion_id" integer,
+            "docente_id" integer NOT NULL,
+            "curso_id" integer NOT NULL,
+            "grupo_id" integer NOT NULL,
+            "ambiente_id" integer NOT NULL,
+            "dia" integer NOT NULL,
+            "hora_inicio" TIME NOT NULL,
+            "hora_fin" TIME NOT NULL,
+            "tipo_clase" varchar NOT NULL,
+            "periodo" varchar(20) NOT NULL,
+            "estado" varchar NOT NULL DEFAULT 'PENDIENTE',
+            "contexto_validacion" jsonb,
+            "creada_en" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "actualizada_en" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "expira_en" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP + INTERVAL '30 minutes',
+            "razon_rechazo" text,
+            "sincronizada_desde_redis" boolean NOT NULL DEFAULT false,
+            CONSTRAINT "idx_selecciones_unique_celda" UNIQUE (sesion_id, ambiente_id, dia, hora_inicio, periodo)
+          );
+          CREATE INDEX IF NOT EXISTS "idx_selecciones_sesion_estado" ON "selecciones_temporales" (sesion_id, estado);
+          CREATE INDEX IF NOT EXISTS "idx_selecciones_expira_en" ON "selecciones_temporales" (expira_en);
+        `);
+        this.logger.log('✓ Tabla selecciones_temporales creada');
+      }
+
+      // Recuperar selecciones desde BD
+      this.logger.log('Recuperando selecciones temporales desde BD...');
+      const resultado = await this.sincronizacionRedisService.recuperarSeleccionesDelBD();
+      if (resultado.recuperadas > 0) {
+        this.logger.log(`✓ Recuperadas ${resultado.recuperadas} selecciones temporales desde BD`);
+      }
+    } catch (error) {
+      this.logger.error(`Error en bootstrap: ${error.message}`, error);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async revisarTemporizadores() {
+    this.logger.log('[revisarTemporizadores] Revisando temporizadores expirados...');
+    
+    // Obtener todas las claves de temporizadores
+    const keys = await this.redis.keys('temporizador:ventana:*');
+    
+    for (const key of keys) {
+      const dataStr = await this.redis.get(key);
+      if (!dataStr) continue;
+      
+      try {
+        const data = JSON.parse(dataStr);
+        const ahora = Date.now();
+        
+        // Verificar si el temporizador ha expirado
+        if (ahora >= data.timestamp) {
+          this.logger.log(`[revisarTemporizadores] Temporizador expirado para ventana ${data.ventanaId}. Llamando siguiente docente...`);
+          
+          // Llamar al siguiente docente automáticamente
+          await this.llamarSiguiente(data.ventanaId);
+        }
+      } catch (error) {
+        this.logger.error(`[revisarTemporizadores] Error procesando temporizador ${key}: ${error.message}`);
+        // Eliminar temporizador corrupto
+        await this.redis.del(key);
+      }
+    }
+  }
+
   async obtenerVentana(ventanaId: string): Promise<VentanaAtencion> {
-    const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
+    const ventana = await this.ventanaRepo.findOne({
+      where: { id: ventanaId },
+      relations: ['colas', 'colas.docente']
+    });
     if (!ventana) throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
     return ventana;
   }
@@ -359,67 +450,112 @@ export class VentanasService implements OnModuleDestroy {
     await this.ventanaRepo.save(ventana);
     this.logger.log(`✅ Estado actualizado a EN_CURSO`);
     
-    // Limpiar cola anterior si existe
-    this.logger.log(`🧹 Limpiando cola anterior...`);
-    await this.colaRepo.delete({ ventana_id: ventana.id });
+    // Verificar si ya hay docentes asignados a la ventana
+    this.logger.log(`👥 Verificando docentes asignados a la ventana...`);
+    const colaExistente = await this.colaRepo.find({
+      where: { ventana_id: ventana.id },
+      relations: ["docente"],
+      order: { orden: "ASC" },
+    });
     
-    // Obtener docentes elegibles
-    this.logger.log(`👥 Buscando docentes para categoría ${ventana.categoria}...`);
-    const docentes = await this.buscarDocentesPorCategoria(
-      ventana.categoria,
-      ventana.modalidad ?? undefined,
-      ventana.periodo,
-    );
-    
-    if (docentes.length === 0) {
-      this.logger.warn(`⚠️ No se encontraron docentes para la categoría ${ventana.categoria}`);
-    } else {
-      this.logger.log(`✅ ${docentes.length} docente(s) encontrados`);
-    }
-    
-    // Crear cola de docentes
-    const colas = docentes.map((docente, index) =>
-      this.colaRepo.create({
-        ventana_id: ventana.id,
-        docente_id: docente.id,
-        orden: index + 1,
-        estado: EstadoCola.ESPERANDO,
-        hora_llamada: null,
-        hora_fin_atencion: null,
-        ventana,
-        docente,
-      }),
-    );
-
-    await this.colaRepo.save(colas);
-    this.logger.log(`✅ Cola creada con ${colas.length} docente(s)`);
-    
-    // Programar notificaciones para docentes recién asignados
-    this.logger.log(`📨 Programando notificaciones...`);
-    let notificacionesExitosas = 0;
-    let notificacionesFallidas = 0;
-    
-    for (const cola of colas) {
-      if (cola.docente) {
-        try {
-          this.logger.log(`  → Programando para docente ${cola.docente.id} (${cola.docente.nombres} ${cola.docente.apellidos})...`);
-          
-          // Recordatorio 24h (solo si la ventana es mañana o posterior)
-          await this.notificacionesService.enviarRecordatorio24h(cola.docente.id, ventana.id);
-          
-          // Alerta 15min (siempre programar)
-          await this.notificacionesService.enviarAlerta15min(cola.docente.id, ventana.id);
-          
-          notificacionesExitosas++;
-          this.logger.log(`    ✅ Notificaciones programadas`);
-        } catch (err: any) {
-          notificacionesFallidas++;
-          this.logger.error(`    ❌ Error programando notificaciones: ${err.message}`);
+    if (colaExistente.length > 0) {
+      this.logger.log(`✅ ${colaExistente.length} docente(s) ya asignados a la ventana. Usando cola existente.`);
+      
+      // Resetear estados de la cola existente
+      for (const cola of colaExistente) {
+        cola.estado = EstadoCola.ESPERANDO;
+        cola.hora_llamada = null;
+        cola.hora_fin_atencion = null;
+      }
+      await this.colaRepo.save(colaExistente);
+      
+      const colas = colaExistente;
+      
+      // Programar notificaciones para docentes
+      this.logger.log(`📨 Programando notificaciones...`);
+      let notificacionesExitosas = 0;
+      let notificacionesFallidas = 0;
+      
+      for (const cola of colas) {
+        if (cola.docente) {
+          try {
+            this.logger.log(`  → Programando para docente ${cola.docente.id} (${cola.docente.nombres} ${cola.docente.apellidos})...`);
+            
+            // Recordatorio 24h (solo si la ventana es mañana o posterior)
+            await this.notificacionesService.enviarRecordatorio24h(cola.docente.id, ventana.id);
+            
+            // Alerta 15min (siempre programar)
+            await this.notificacionesService.enviarAlerta15min(cola.docente.id, ventana.id);
+            
+            notificacionesExitosas++;
+            this.logger.log(`    ✅ Notificaciones programadas`);
+          } catch (err: any) {
+            notificacionesFallidas++;
+            this.logger.error(`    ❌ Error programando notificaciones: ${err.message}`);
+          }
         }
       }
+      
+      this.logger.log(`� Resumen notificaciones: ${notificacionesExitosas} exitosas, ${notificacionesFallidas} fallidas`);
+    } else {
+      // Si no hay docentes asignados, buscar por categoría (comportamiento original)
+      this.logger.log(`⚠️ No hay docentes asignados. Buscando por categoría ${ventana.categoria}...`);
+      const docentes = await this.buscarDocentesPorCategoria(
+        ventana.categoria,
+        ventana.modalidad ?? undefined,
+        ventana.periodo,
+      );
+      
+      if (docentes.length === 0) {
+        this.logger.warn(`⚠️ No se encontraron docentes para la categoría ${ventana.categoria}`);
+      } else {
+        this.logger.log(`✅ ${docentes.length} docente(s) encontrados`);
+      }
+      
+      // Crear cola de docentes
+      const colas = docentes.map((docente, index) =>
+        this.colaRepo.create({
+          ventana_id: ventana.id,
+          docente_id: docente.id,
+          orden: index + 1,
+          estado: EstadoCola.ESPERANDO,
+          hora_llamada: null,
+          hora_fin_atencion: null,
+          ventana,
+          docente,
+        }),
+      );
+
+      await this.colaRepo.save(colas);
+      this.logger.log(`✅ Cola creada con ${colas.length} docente(s)`);
+      
+      // Programar notificaciones para docentes recién asignados
+      this.logger.log(`📨 Programando notificaciones...`);
+      let notificacionesExitosas = 0;
+      let notificacionesFallidas = 0;
+      
+      for (const cola of colas) {
+        if (cola.docente) {
+          try {
+            this.logger.log(`  → Programando para docente ${cola.docente.id} (${cola.docente.nombres} ${cola.docente.apellidos})...`);
+            
+            // Recordatorio 24h (solo si la ventana es mañana o posterior)
+            await this.notificacionesService.enviarRecordatorio24h(cola.docente.id, ventana.id);
+            
+            // Alerta 15min (siempre programar)
+            await this.notificacionesService.enviarAlerta15min(cola.docente.id, ventana.id);
+            
+            notificacionesExitosas++;
+            this.logger.log(`    ✅ Notificaciones programadas`);
+          } catch (err: any) {
+            notificacionesFallidas++;
+            this.logger.error(`    ❌ Error programando notificaciones: ${err.message}`);
+          }
+        }
+      }
+      
+      this.logger.log(`📊 Resumen notificaciones: ${notificacionesExitosas} exitosas, ${notificacionesFallidas} fallidas`);
     }
-    
-    this.logger.log(`📊 Resumen notificaciones: ${notificacionesExitosas} exitosas, ${notificacionesFallidas} fallidas`);
     
     // Emitir estado actualizado
     const estado = await this.reconstruirEstadoCola(ventana.id);
@@ -465,6 +601,11 @@ export class VentanasService implements OnModuleDestroy {
 
   async llamarSiguiente(ventanaId: string) {
     const ventana = await this.obtenerVentana(ventanaId);
+    
+    // Cancelar cualquier temporizador existente para esta ventana
+    const tempKey = `temporizador:ventana:${ventanaId}`;
+    await this.redis.del(tempKey);
+    
     const actual = await this.colaRepo.findOne({
       where: { ventana_id: ventanaId, estado: EstadoCola.EN_ATENCION },
       relations: ["docente"],
@@ -487,6 +628,17 @@ export class VentanasService implements OnModuleDestroy {
       siguiente.estado = EstadoCola.EN_ATENCION;
       siguiente.hora_llamada = new Date();
       await this.colaRepo.save(siguiente);
+      
+      // Programar temporizador para pasar automáticamente al siguiente docente
+      const intervaloMinutos = ventana.intervalo_minutos ?? 15;
+      this.logger.log(`[llamarSiguiente] Programando temporizador de ${intervaloMinutos} minutos para ventana ${ventanaId}`);
+      
+      // Guardar información del temporizador en Redis
+      const tempData = JSON.stringify({
+        ventanaId,
+        timestamp: Date.now() + intervaloMinutos * 60 * 1000,
+      });
+      await this.redis.setex(tempKey, intervaloMinutos * 60 + 60, tempData); // TTL un poco mayor que el intervalo
     }
 
     const estado = await this.reconstruirEstadoCola(ventanaId);
@@ -541,11 +693,8 @@ export class VentanasService implements OnModuleDestroy {
     await this.guardarEstadoColaCache(ventanaId, estado);
     this.gateway.emitirPeriodo(ventana.periodo, "cola_actualizada", estado);
 
-    // Reprogramar pendientes automáticamente
-    let nuevaVentana = null;
-    if (pendientes.length > 0) {
-      nuevaVentana = await this.reprogramarPendientes(ventanaId);
-    }
+    // No se crea nueva ventana automáticamente
+    // El usuario deberá crearla manualmente si es necesario
 
     return {
       ventana_id: ventanaId,
@@ -563,9 +712,7 @@ export class VentanasService implements OnModuleDestroy {
         nombre: `${c.docente.apellidos}, ${c.docente.nombres}`,
       })),
       horarios_confirmados: atendidos.length,
-      nueva_ventana: nuevaVentana
-        ? { id: nuevaVentana.id, fecha: nuevaVentana.fecha, categoria: nuevaVentana.categoria }
-        : null,
+      nueva_ventana: null,
     };
   }
 
@@ -659,33 +806,12 @@ export class VentanasService implements OnModuleDestroy {
       qb.andWhere("docente.tipo_contrato = :modalidad", { modalidad });
     }
 
-    if (periodo) {
-      // Detectar modo del período para decidir qué docentes excluir
-      const periodoEntity = await this.periodoRepo.findOne({ where: { codigo: periodo } });
-      const modo = periodoEntity?.modo_asignacion ?? ModoAsignacion.VENTANAS;
-
-      // En modo AUTOMATICA: no se usan ventanas, excluir a todos con horario
-      // En modo VENTANAS: excluir docentes con horario CONFIRMADO o PUBLICADO
-      // En modo MIXTA: excluir docentes con horario CONFIRMADO o PUBLICADO
-      //                 (los AUTO_GENERADO pueden pasar por ventanas para confirmar)
-      const estadosExcluir = modo === ModoAsignacion.AUTOMATICA
-        ? [EstadoHorario.BORRADOR, EstadoHorario.CONFIRMADO, EstadoHorario.PUBLICADO, EstadoHorario.CERRADO]
-        : [EstadoHorario.CONFIRMADO, EstadoHorario.PUBLICADO];
-
-      const subQuery = qb
-        .subQuery()
-        .select("h.docente_id")
-        .from("horario_asignado", "h")
-        .where("h.periodo = :periodo")
-        .andWhere("h.estado IN (:...estados)")
-        .getQuery();
-      qb.andWhere(`docente.id NOT IN ${subQuery}`, {
-        periodo,
-        estados: estadosExcluir,
-      });
-    }
-
-    return qb.orderBy("docente.fecha_ingreso", "ASC").getMany();
+    // Ordenar por prioridad: categoría DESC (mayor prioridad primero), tipo_contrato DESC, fecha_ingreso ASC
+    return qb
+      .addOrderBy("docente.categoria", "DESC")
+      .addOrderBy("docente.tipo_contrato", "DESC")
+      .addOrderBy("docente.fecha_ingreso", "ASC")
+      .getMany();
   }
 
   private normalizarFecha(fecha: Date): Date {

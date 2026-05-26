@@ -7,6 +7,7 @@ import {
   Logger,
   Param,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -25,6 +26,7 @@ import { RolUsuario } from '../../common/enums/rol-usuario.enum';
 import { Usuario } from '../../entities/usuario.entity';
 import { CampañasVentanasService } from './campañas-ventanas.service';
 import { CrearCampañaDto } from './dto/crear-campaña.dto';
+import { ActualizarCampañaDto } from './dto/actualizar-campaña.dto';
 
 @ApiTags('campanas-ventanas')
 @ApiBearerAuth('JWT')
@@ -73,10 +75,30 @@ export class CampañasVentanasController {
     return { data, message: 'Campañas obtenidas', statusCode: HttpStatus.OK };
   }
 
+  @Put(':id')
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: 'Actualizar una campaña' })
+  @ApiResponse({ status: 200, description: 'Campaña actualizada' })
+  async actualizar(@Param('id') id: string, @Body() dto: ActualizarCampañaDto) {
+    this.logger.log(`[actualizar] Actualizando campaña: ${id}`);
+    const data = await this.campañasService.actualizarCampaña(id, dto);
+    return { data, message: 'Campaña actualizada', statusCode: HttpStatus.OK };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una campaña por ID' })
   async obtener(@Param('id') id: string) {
     const data = await this.campañasService.obtenerCampaña(id);
     return { data, message: 'Campaña obtenida', statusCode: HttpStatus.OK };
+  }
+
+  @Post(':id/eliminar-ventanas')
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: 'Eliminar todas las ventanas de una campaña y cambiar estado a BORRADOR' })
+  @ApiResponse({ status: 200, description: 'Ventanas eliminadas' })
+  async eliminarVentanas(@Param('id') id: string) {
+    this.logger.log(`[eliminarVentanas] Eliminando ventanas de campaña: ${id}`);
+    const data = await this.campañasService.eliminarVentanas(id);
+    return { data, message: 'Ventanas eliminadas', statusCode: HttpStatus.OK };
   }
 }

@@ -475,4 +475,24 @@ export class HorariosController {
       throw new BadRequestException("Error al generar archivo iCalendar");
     }
   }
+
+  @Get("matriz-disponibilidad")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Obtener matriz de disponibilidad para selección de horarios" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "ambientes", required: false, description: "IDs de ambientes separados por comas" })
+  @ApiResponse({ status: 200, description: "Matriz de disponibilidad" })
+  @Roles(RolUsuario.DOCENTE, RolUsuario.OPERADOR_HORARIOS, RolUsuario.COORDINADOR_ACADEMICO)
+  async getMatrizDisponibilidad(
+    @Query("periodo") periodo: string,
+    @Query("ambientes") ambientes?: string,
+  ) {
+    const ambienteIds = ambientes ? ambientes.split(',').map(id => parseInt(id, 10)) : undefined;
+    const data = await this.horariosService.getMatrizDisponibilidad(periodo, ambienteIds);
+    return {
+      data,
+      message: "Matriz de disponibilidad obtenida",
+      statusCode: HttpStatus.OK,
+    };
+  }
 }

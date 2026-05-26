@@ -1,0 +1,115 @@
+<div class="matriz-container">
+  <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
+
+  <div class="matriz-wrapper">
+    <table class="matriz-horarios">
+      <thead>
+        <tr>
+          <th class="header-hora"></th>
+          <th *ngFor="let dia of diasSemana" class="header-dia">
+            {{ dia.label }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let hora of horas">
+          <td class="header-hora">{{ hora }}</td>
+          <td *ngFor="let dia of diasSemana" [ngClass]="'celda ' + getCeldaClase(dia.valor, hora)"
+            [matTooltip]="getTooltip(dia.valor, hora)" [matTooltipPosition]="'above'"
+            (click)="onCeldaClick(dia.valor, hora)" role="button" [attr.tabindex]="viewMode === 'editable' ? 0 : -1">
+            <mat-icon *ngIf="hasIcon(dia.valor, hora)" class="celda-icon">
+              {{ getIcon(dia.valor, hora) }}
+            </mat-icon>
+            <span *ngIf="shouldShowLabel(dia.valor, hora)" class="celda-label">
+              {{ getLabel(dia.valor, hora) }}
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Validation Feedback Panel -->
+  <mat-expansion-panel *ngIf="showValidationStatus && lastValidation" class="validation-panel">
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        <mat-icon [color]="lastValidation.valido ? 'accent' : 'warn'" class="validation-icon">
+          {{ lastValidation.valido ? 'check_circle' : 'error' }}
+        </mat-icon>
+        <span class="validation-title">
+          {{
+            lastValidation.valido
+              ? '✓ Validación: Válida'
+              : '✗ Validación: Contiene restricciones'
+          }}
+        </span>
+      </mat-panel-title>
+    </mat-expansion-panel-header>
+
+    <div class="validation-details">
+      <!-- Hard rule failures -->
+      <div *ngIf="lastValidation.reglasFallidas.length" class="failures">
+        <h4>
+          <mat-icon class="inline-icon">error</mat-icon>
+          Restricciones Críticas
+        </h4>
+        <mat-list>
+          <mat-list-item *ngFor="let r of lastValidation.reglasFallidas">
+            <strong class="regla-codigo">{{ r.codigo }}:</strong>
+            <span class="regla-motivo">{{ r.motivo }}</span>
+          </mat-list-item>
+        </mat-list>
+      </div>
+
+      <!-- Soft warnings -->
+      <div *ngIf="lastValidation.advertencias.length" class="warnings">
+        <h4>
+          <mat-icon class="inline-icon">warning</mat-icon>
+          Advertencias
+        </h4>
+        <mat-list>
+          <mat-list-item *ngFor="let a of lastValidation.advertencias">
+            {{ a.mensaje }}
+          </mat-list-item>
+        </mat-list>
+      </div>
+
+      <!-- Suggestions -->
+      <div *ngIf="lastValidation.sugerencias.length" class="suggestions">
+        <h4>
+          <mat-icon class="inline-icon">lightbulb</mat-icon>
+          Alternativas Sugeridas
+        </h4>
+        <mat-chip-set>
+          <mat-chip *ngFor="let s of lastValidation.sugerencias" disabled>
+            {{ s.sugerencia }}
+          </mat-chip>
+        </mat-chip-set>
+      </div>
+    </div>
+  </mat-expansion-panel>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-cell libre"></div>
+      <span>Disponible</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-cell ocupado"></div>
+      <span>Ocupado</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-cell temporal-propio"></div>
+      <span>Mi Selección</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-cell temporal-otro"></div>
+      <span>Reservado por otro</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-cell bloqueado"></div>
+      <span>Bloqueado</span>
+    </div>
+  </div>
+</div>

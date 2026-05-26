@@ -205,9 +205,9 @@ export class GeneracionAutomaticaService {
         const curso = dc.curso;
         const tipoClase = dc.tipo_clase;
 
-        // Obtener ambientes compatibles para este curso y tipo de clase
+        // Obtener ambientes compatibles para este curso
         const cursoAmbientes = await this.cursoAmbienteRepo.find({
-          where: { cursoId: curso.id, tipo_clase: tipoClase },
+          where: { cursoId: curso.id },
           relations: ["ambiente"],
         });
 

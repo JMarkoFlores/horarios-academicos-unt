@@ -12,14 +12,11 @@ COPY tsconfig*.json ./
 # Install all dependencies (including dev for build)
 RUN npm ci
 
-# Install @nestjs/cli globally for build
-RUN npm install -g @nestjs/cli
-
 # Copy source code
 COPY . .
 
-# Build the application using tsc directly
-RUN npx tsc -p tsconfig.json
+# Build the application using tsc from node_modules
+RUN ./node_modules/.bin/tsc -p tsconfig.json
 
 # Production stage
 FROM node:20-alpine AS production

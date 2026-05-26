@@ -6,8 +6,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Copy TypeScript config before copying source
-COPY tsconfig*.json ./
+# Copy TypeScript config explicitly
+COPY tsconfig.json ./
+COPY tsconfig.build.json ./
 
 # Install all dependencies (including dev for build)
 RUN npm ci

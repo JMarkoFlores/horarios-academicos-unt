@@ -12,6 +12,9 @@ RUN npm ci
 # Copy source code
 COPY frontend/ ./
 
+# Copy node_modules to ensure all dependencies are available
+RUN cp -r node_modules /tmp/node_modules || true
+
 # Build the application
 RUN npm run build
 

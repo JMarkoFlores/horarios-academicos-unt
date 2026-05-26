@@ -1,0 +1,22 @@
+# Exclude backend node_modules
+backend/node_modules
+backend/logs
+backend/dist
+backend/.env
+backend/.env.local
+
+# Exclude frontend dist and build artifacts
+frontend/dist
+frontend/.angular
+frontend/.vscode
+
+# Exclude root level files
+.git
+.github
+.vscode
+*.md
+docker-compose*.yml
+Dockerfile*
+*.log
+ENTREGA/
+test-data/

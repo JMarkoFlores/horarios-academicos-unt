@@ -15,6 +15,9 @@ RUN npm install -g @nestjs/cli
 # Copy source code
 COPY . .
 
+# Copy TypeScript config explicitly
+COPY tsconfig*.json ./
+
 # Build the application
 RUN nest build
 

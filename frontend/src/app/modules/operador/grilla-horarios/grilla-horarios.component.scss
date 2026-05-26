@@ -2,11 +2,11 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--color-border);
 }
 
 .grilla-header {
@@ -14,7 +14,7 @@
     margin: 0;
     font-size: 20px;
     font-weight: 700;
-    color: #333;
+    color: var(--color-text);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -28,19 +28,19 @@
   gap: 12px;
   font-size: 13px;
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--color-surface-2);
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--color-border);
 }
 
 .leyenda-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #495057;
+  color: var(--color-text);
   font-weight: 600;
   padding: 6px 12px;
-  background: white;
+  background: var(--color-surface);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
@@ -100,31 +100,31 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  background: white;
+  background: var(--color-surface);
 
   th, td {
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--color-border);
     text-align: center;
   }
 
   th {
-    background: #667eea;
+    background: var(--color-primary);
     color: white;
     padding: 14px 10px;
     font-weight: 700;
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: 1px;
-    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+    border-bottom: 2px solid var(--color-border);
   }
 
   .hora-header, .hora-cell {
-    background: #f8f9fa;
+    background: var(--color-surface-2);
     font-weight: 700;
     padding: 12px 10px;
     width: 80px;
-    color: #495057;
-    border-right: 2px solid rgba(0, 0, 0, 0.1);
+    color: var(--color-text);
+    border-right: 2px solid var(--color-border);
     font-size: 12px;
   }
 
@@ -144,53 +144,53 @@
 }
 
 .celda-libre {
-  background: white;
-  border: 2px solid #e8f5e9;
+  background: var(--color-surface);
+  border: 2px solid var(--color-success-bg);
   &:hover {
-    background: #c8e6c9;
-    border-color: #4caf50 !important;
+    background: var(--color-success-light);
+    border-color: var(--color-success) !important;
     transform: scale(1.1);
   }
 }
 
 .celda-bloqueada {
-  background: #e0e0e0;
+  background: var(--color-text-disabled);
   cursor: not-allowed;
   opacity: 0.5;
-  border: 2px solid #bdbdbd;
+  border: 2px solid var(--color-border);
 }
 
 .celda-confirmada {
-  background: #1976d2;
+  background: var(--color-primary);
   cursor: not-allowed;
   color: white;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-  border: 2px solid #0d47a1;
+  border: 2px solid var(--color-primary-700);
 }
 
 .celda-confirmada-docente {
-  background: #2e7d32;
+  background: var(--color-success);
   cursor: not-allowed;
   color: white;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-  border: 2px solid #1b5e20;
+  border: 2px solid var(--color-success-700);
 }
 
 .celda-confirmada-multiple {
-  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-700) 100%);
   cursor: not-allowed;
   color: white;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-  border: 2px solid #0d47a1;
+  border: 2px solid var(--color-primary-700);
   position: relative;
 }
 
 .celda-confirmada-docente-multiple {
-  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-700) 100%);
   cursor: not-allowed;
   color: white;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-  border: 2px solid #1b5e20;
+  border: 2px solid var(--color-success-700);
   position: relative;
 }
 
@@ -238,8 +238,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  background: rgba(76, 175, 80, 0.5);
-  border: 2px solid rgba(76, 175, 80, 0.7);
+  background: var(--color-success);
+  border: 2px solid var(--color-success-600);
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 24px;

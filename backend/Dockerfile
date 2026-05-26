@@ -19,8 +19,8 @@ RUN npm install -g @nestjs/cli typescript
 # Copy source code (from backend directory)
 COPY backend/ ./
 
-# Build the application using nest build
-RUN nest build --skip-error-check
+# Build the application using tsc directly
+RUN tsc --noEmitOnError false -p tsconfig.build.json
 
 # Remove dev dependencies before copying to production
 RUN npm prune --omit=dev

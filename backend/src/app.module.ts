@@ -47,9 +47,9 @@ import { DataImportModule } from "./modules/data-import/data-import.module";
         username: config.get<string>("DATABASE_USER", "unt_user"),
         password: config.get<string>("DATABASE_PASSWORD", "unt_pass123"),
         autoLoadEntities: true,
-        synchronize: false,
+        synchronize: config.get<string>("NODE_ENV") !== "production" || config.get<string>("DB_SYNC") === "true",
         logging: config.get<string>("DATABASE_LOGGING") === "true",
-        ssl: false,
+        ssl: config.get<string>("NODE_ENV") === "production" ? { rejectUnauthorized: false } : false,
       }),
     }),
     CacheModule.registerAsync({

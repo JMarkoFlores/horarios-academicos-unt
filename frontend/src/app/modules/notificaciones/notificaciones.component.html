@@ -10,8 +10,9 @@
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Nombre del Docente</mat-label>
         <input matInput 
+               #searchInput
                [matAutocomplete]="auto" 
-               (input)="buscarDocentes($event.target.value)"
+               (input)="buscarDocentes(searchInput.value)"
                placeholder="Escribe el nombre..." />
         <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayDocente">
           <mat-option *ngFor="let docente of docentes" [value]="docente" (onSelectionChange)="seleccionarDocente(docente)">

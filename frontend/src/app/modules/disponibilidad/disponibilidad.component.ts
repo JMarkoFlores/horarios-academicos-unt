@@ -31,7 +31,7 @@ export class DisponibilidadComponent implements OnInit {
   readonly turnos = signal<TurnoHorario[]>([]);
   readonly diasActivos = signal<DiaActivo[]>([]);
   readonly parametrosCarga = signal<ParametroCarga[]>([]);
-  readonly grilla = signal<boolean[][]>([]);
+  readonly grilla = signal<number[][]>([]);
   readonly saving = signal(false);
   readonly loading = signal(false);
   readonly loadingCatalogos = signal(true);
@@ -119,7 +119,7 @@ export class DisponibilidadComponent implements OnInit {
   resetGrilla(): void {
     this.grilla.set(
       Array.from({ length: this.diasActivos().length }, () =>
-        Array(this.turnos().length).fill(false),
+        Array(this.turnos().length).fill(0),
       ),
     );
   }
@@ -134,7 +134,7 @@ export class DisponibilidadComponent implements OnInit {
       actual.map((fila, filaIndex) =>
         filaIndex === diaIndex
           ? fila.map((valor, columnaIndex) =>
-              columnaIndex === turnoIndex ? checked : valor,
+              columnaIndex === turnoIndex ? (checked ? Math.min(valor + 1, 3) : Math.max(valor - 1, 0)) : valor,
             )
           : [...fila],
       ),
@@ -158,7 +158,7 @@ export class DisponibilidadComponent implements OnInit {
     this.grilla.update((actual) =>
       actual.map((fila) =>
         fila.map((valor, turnoIndex) =>
-          indices.includes(turnoIndex) ? true : valor,
+          indices.includes(turnoIndex) ? Math.min(valor + 1, 3) : valor,
         ),
       ),
     );
@@ -185,7 +185,7 @@ export class DisponibilidadComponent implements OnInit {
         dia_semana: dia.dia_semana,
         hora_inicio: turno.hora_inicio,
         hora_fin: turno.hora_fin,
-        disponible: this.grilla()[diaIndex]?.[turnoIndex] ?? false,
+        disponible: (this.grilla()[diaIndex]?.[turnoIndex] ?? 0) > 0,
       })),
     );
 
@@ -308,7 +308,7 @@ export class DisponibilidadComponent implements OnInit {
           bloquesTurno.every((minuto) =>
             bloquesDisponibles.has(`${dia.dia_semana}-${minuto}`),
           )
-        );
+        ) ? 1 : 0;
       }),
     );
 

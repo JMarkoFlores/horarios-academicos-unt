@@ -301,22 +301,53 @@
       }
     }
 
-    .slot-toggle {
+    .bloque-counter {
       width: 100%;
+      height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 78px;
-      font-size: 12px;
-      font-weight: 600;
+      gap: 8px;
 
-      ::ng-deep .mdc-form-field {
-        width: 100%;
+      .counter-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: 50%;
+        border: none;
+        background: var(--color-surface);
+        color: var(--color-text);
+        display: flex;
+        align-items: center;
         justify-content: center;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        box-shadow: var(--shadow-sm);
+
+        &:hover:not(:disabled) {
+          background: var(--color-primary);
+          color: white;
+          transform: scale(1.1);
+        }
+
+        &:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+
+        mat-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+        }
       }
 
-      ::ng-deep .mdc-label {
+      .counter-value {
+        font-size: 20px;
+        font-weight: 700;
         color: var(--color-text);
+        min-width: 24px;
+        text-align: center;
       }
     }
   }

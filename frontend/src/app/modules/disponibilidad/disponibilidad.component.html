@@ -135,16 +135,25 @@
               <td
                 *ngFor="let dia of diasActivos(); let di = index"
                 class="slot-cell"
-                [class.disponible]="grilla()[di][ti]"
+                [class.disponible]="grilla()[di][ti] > 0"
               >
-                <mat-checkbox
-                  class="slot-toggle"
-                  color="primary"
-                  [checked]="grilla()[di][ti]"
-                  (change)="toggleCelda(di, ti, $event.checked)"
-                >
-                  {{ grilla()[di][ti] ? 'Disponible' : 'No disponible' }}
-                </mat-checkbox>
+                <div class="bloque-counter">
+                  <button 
+                    class="counter-btn minus" 
+                    (click)="toggleCelda(di, ti, false)"
+                    [disabled]="grilla()[di][ti] === 0"
+                  >
+                    <mat-icon>remove</mat-icon>
+                  </button>
+                  <span class="counter-value">{{ grilla()[di][ti] }}</span>
+                  <button 
+                    class="counter-btn plus" 
+                    (click)="toggleCelda(di, ti, true)"
+                    [disabled]="grilla()[di][ti] >= 3"
+                  >
+                    <mat-icon>add</mat-icon>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>

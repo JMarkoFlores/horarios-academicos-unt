@@ -1,0 +1,58 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Agregar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "loading": "Cargando...",
+    "noResults": "No se encontraron resultados",
+    "yes": "Sí",
+    "no": "No",
+    "actions": "Acciones",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "close": "Cerrar",
+    "open": "Abrir",
+    "submit": "Enviar",
+    "reset": "Restablecer",
+    "confirm": "Confirmar",
+    "success": "Éxito",
+    "error": "Error",
+    "warning": "Advertencia",
+    "info": "Información"
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "logout": "Cerrar Sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "resetPassword": "Restablecer Contraseña",
+    "loginError": "Error al iniciar sesión",
+    "loginSuccess": "Sesión iniciada correctamente"
+  },
+  "sidebar": {
+    "dashboard": "Panel de Control",
+    "horarios": "Horarios",
+    "docentes": "Docentes",
+    "cursos": "Cursos",
+    "ambientes": "Ambientes",
+    "disponibilidad": "Disponibilidad",
+    "reportes": "Reportes",
+    "configuracion": "Configuración",
+    "usuarios": "Usuarios",
+    "notificaciones": "Notificaciones",
+    "facultades": "Facultades",
+    "operador": "Operador"
+  },
+  "language": {
+    "title": "Idioma",
+    "spanish": "Español",
+    "english": "Inglés",
+    "portuguese": "Portugués"
+  }
+}

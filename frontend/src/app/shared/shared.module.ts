@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ConfirmDialogComponent } from './dialogs/confirm-dialog/confirm-dialog.component';
+import { LanguageSelectorComponent } from './language-selector/language-selector.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -30,6 +31,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatExpansionModule } from '@angular/material/expansion';
 
 const MATERIAL = [
   MatButtonModule,
@@ -59,11 +61,13 @@ const MATERIAL = [
   MatBadgeModule,
   MatTabsModule,
   MatSlideToggleModule,
+  MatExpansionModule,
 ];
 
 @NgModule({
   declarations: [
     ConfirmDialogComponent,
+    LanguageSelectorComponent,
   ],
   imports: [
     CommonModule,
@@ -79,6 +83,7 @@ const MATERIAL = [
     RouterModule,
     ...MATERIAL,
     ConfirmDialogComponent,
+    LanguageSelectorComponent,
   ],
 })
 export class SharedModule {}

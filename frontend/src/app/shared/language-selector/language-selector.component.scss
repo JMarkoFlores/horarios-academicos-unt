@@ -1,0 +1,35 @@
+.language-selector {
+  display: inline-block;
+
+  .language-select {
+    min-width: 140px;
+    
+    ::ng-deep .mat-mdc-select-trigger {
+      padding: 8px 12px;
+      background: var(--color-surface-2);
+      border-radius: 8px;
+      border: 1px solid var(--color-border);
+    }
+
+    ::ng-deep .mat-mdc-select-arrow {
+      color: var(--color-text);
+    }
+  }
+
+  .selected-language,
+  .language-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .flag {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .name {
+      font-size: 14px;
+      color: var(--color-text);
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "loading": "Loading...",
+    "noResults": "No results found",
+    "yes": "Yes",
+    "no": "No",
+    "actions": "Actions",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "open": "Open",
+    "submit": "Submit",
+    "reset": "Reset",
+    "confirm": "Confirm",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot your password?",
+    "resetPassword": "Reset Password",
+    "loginError": "Login error",
+    "loginSuccess": "Login successful"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "horarios": "Schedules",
+    "docentes": "Teachers",
+    "cursos": "Courses",
+    "ambientes": "Environments",
+    "disponibilidad": "Availability",
+    "reportes": "Reports",
+    "configuracion": "Configuration",
+    "usuarios": "Users",
+    "notificaciones": "Notifications",
+    "facultades": "Faculties",
+    "operador": "Operator"
+  },
+  "language": {
+    "title": "Language",
+    "spanish": "Spanish",
+    "english": "English",
+    "portuguese": "Portuguese"
+  }
+}

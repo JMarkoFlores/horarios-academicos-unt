@@ -60,7 +60,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
+    dockerContext: .
     healthCheckPath: /health
 
 # PostgreSQL Database

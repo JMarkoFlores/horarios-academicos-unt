@@ -10,6 +10,7 @@ import {
   Ambiente,
   HorarioAsignado,
   ConflictoAsignacion,
+  Curso,
 } from '../../core/interfaces/entities';
 import { AsignarHorarioDialogComponent } from './dialogs/asignar-horario-dialog/asignar-horario-dialog.component';
 
@@ -56,6 +57,32 @@ export class HorariosComponent implements OnInit, OnDestroy {
   loadingDebug = false;
   private periodSub?: Subscription;
 
+  // Tab 3 — Vista por Ciclo
+  ciclosDisponibles: number[] = Array.from({ length: 10 }, (_, i) => i + 1);
+  cicloSeleccionado: number | null = null;
+  asignacionesCiclo: HorarioAsignado[] = [];
+  loadingCiclo = false;
+  descargandoCiclo = false;
+
+  // Hora de almuerzo (se cargará desde restricciones)
+  horaInicioAlmuerzo = 12;
+  horaFinAlmuerzo = 13;
+  restriccionesCargadas = false;
+
+  // Colores por categoría/docente
+  private colorMap = new Map<string, string>();
+  private colors = [
+    '#3b82f6', // primary
+    '#10b981', // accent
+    '#f59e0b', // amber
+    '#8b5cf6', // purple
+    '#ec4899', // pink
+    '#06b6d4', // cyan
+    '#84cc16', // lime
+    '#f97316', // orange
+  ];
+  private colorIndex = 0;
+
   constructor(
     private api: ApiService,
     public periodoService: PeriodoService,
@@ -64,6 +91,8 @@ export class HorariosComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.cargarRestriccionesAlmuerzo();
+    
     this.api.get<any>('/configuracion/dias-activos').subscribe({
       next: (r: any) => {
         const activos: {
@@ -98,6 +127,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
       });
 
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
+      this.cargarRestriccionesAlmuerzo();
       this.loadConflictos();
       if (this.docenteSeleccionado) {
         this.selectDocente(this.docenteSeleccionado);
@@ -114,40 +144,33 @@ export class HorariosComponent implements OnInit, OnDestroy {
     }
   }
 
-  selectDocente(d: Docente): void {
-    this.docenteSeleccionado = d;
-    this.loadingDocente = true;
-    this.api
-      .get<
-        ApiResponse<any>
-      >(`/horarios/docente/${d.id}`, { periodo: this.periodoService.periodo })
-      .subscribe({
-        next: (r) => {
-          this.asignacionesDocente = r.data?.items ?? r.data ?? [];
-          this.loadingDocente = false;
-        },
-        error: () => {
-          this.loadingDocente = false;
-        },
-      });
-  }
-
-  selectAmbiente(a: Ambiente): void {
-    this.ambienteSeleccionado = a;
-    this.loadingAmbiente = true;
-    this.api
-      .get<
-        ApiResponse<any>
-      >(`/horarios/ambiente/${a.id}`, { periodo: this.periodoService.periodo })
-      .subscribe({
-        next: (r) => {
-          this.asignacionesAmbiente = r.data?.items ?? r.data ?? [];
-          this.loadingAmbiente = false;
-        },
-        error: () => {
-          this.loadingAmbiente = false;
-        },
-      });
+  cargarRestriccionesAlmuerzo(): void {
+    this.api.get<any>('/configuracion/restricciones', {
+      periodo: this.periodoService.periodo,
+    }).subscribe({
+      next: (r: any) => {
+        const restricciones = r?.data ?? [];
+        const bloqueAlmuerzo = restricciones.find(
+          (r: any) => r.tipo_restriccion === 'BLOQUE_ALMUERZO'
+        );
+        
+        if (bloqueAlmuerzo && bloqueAlmuerzo.valor) {
+          const val = bloqueAlmuerzo.valor;
+          if (val.hora_inicio && val.hora_fin) {
+            const [hInicio] = val.hora_inicio.split(':').map(Number);
+            const [hFin] = val.hora_fin.split(':').map(Number);
+            this.horaInicioAlmuerzo = hInicio;
+            this.horaFinAlmuerzo = hFin;
+            this.restriccionesCargadas = true;
+          }
+        }
+      },
+      error: () => {
+        // Mantener valores por defecto si hay error
+        this.horaInicioAlmuerzo = 12;
+        this.horaFinAlmuerzo = 13;
+      },
+    });
   }
 
   private horaToDecimal(hora: string | undefined): number {
@@ -279,6 +302,192 @@ export class HorariosComponent implements OnInit, OnDestroy {
       });
   }
 
+  getColorDocente(docenteId: number): string {
+    const key = `docente_${docenteId}`;
+    if (!this.colorMap.has(key)) {
+      this.colorMap.set(key, this.colors[this.colorIndex % this.colors.length]);
+      this.colorIndex++;
+    }
+    return this.colorMap.get(key)!;
+  }
+
+  getColorCurso(cursoId: number): string {
+    const key = `curso_${cursoId}`;
+    if (!this.colorMap.has(key)) {
+      this.colorMap.set(key, this.colors[this.colorIndex % this.colors.length]);
+      this.colorIndex++;
+    }
+    return this.colorMap.get(key)!;
+  }
+
+  getColorAmbiente(ambienteId: number): string {
+    const key = `ambiente_${ambienteId}`;
+    if (!this.colorMap.has(key)) {
+      this.colorMap.set(key, this.colors[this.colorIndex % this.colors.length]);
+      this.colorIndex++;
+    }
+    return this.colorMap.get(key)!;
+  }
+
+  esHoraAlmuerzo(hora: number): boolean {
+    return hora >= this.horaInicioAlmuerzo && hora < this.horaFinAlmuerzo;
+  }
+
+  getEstiloCelda(asignacion: HorarioAsignado, tipo: 'docente' | 'ambiente' | 'ciclo'): any {
+    let color: string;
+    if (tipo === 'docente') {
+      color = this.getColorCurso(asignacion.curso?.id || 0);
+    } else if (tipo === 'ambiente') {
+      color = this.getColorDocente(asignacion.docente?.id || 0);
+    } else {
+      color = this.getColorCurso(asignacion.curso?.id || 0);
+    }
+    return {
+      'background-color': color,
+    };
+  }
+
+  private generarBloques(asignaciones: HorarioAsignado[]): any[] {
+    const bloques: any[] = [];
+    
+    const sortedAsignaciones = [...asignaciones].sort((a, b) => {
+      const diaDiff = (a.dia_semana ?? a.dia) - (b.dia_semana ?? b.dia);
+      if (diaDiff !== 0) return diaDiff;
+      return this.horaToDecimal(a.hora_inicio) - this.horaToDecimal(b.hora_inicio);
+    });
+
+    sortedAsignaciones.forEach(asignacion => {
+      const dia = asignacion.dia_semana ?? asignacion.dia;
+      const horaInicio = this.horaToDecimal(asignacion.hora_inicio);
+      const horaFin = this.horaToDecimal(asignacion.hora_fin);
+      const keyBase = `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${dia}`;
+      
+      let bloqueEncontrado = false;
+      
+      for (let i = 0; i < bloques.length; i++) {
+        const bloque = bloques[i];
+        if (bloque.key.startsWith(keyBase)) {
+          if (Math.abs(bloque.horaFin - horaInicio) < 0.1) {
+            bloque.horaFin = horaFin;
+            bloque.asignaciones.push(asignacion);
+            bloqueEncontrado = true;
+            break;
+          } else if (Math.abs(bloque.horaInicio - horaFin) < 0.1) {
+            bloque.horaInicio = horaInicio;
+            bloque.asignaciones.unshift(asignacion);
+            bloqueEncontrado = true;
+            break;
+          }
+        }
+      }
+      
+      if (!bloqueEncontrado) {
+        bloques.push({
+          key: `${keyBase}-${Date.now()}-${Math.random()}`,
+          dia,
+          horaInicio,
+          horaFin,
+          asignacion,
+          asignaciones: [asignacion],
+        });
+      }
+    });
+
+    return bloques;
+  }
+
+  private bloquesDocente: any[] = [];
+  private bloquesAmbiente: any[] = [];
+  private bloquesCiclo: any[] = [];
+
+  selectDocente(d: Docente): void {
+    this.docenteSeleccionado = d;
+    this.loadingDocente = true;
+    this.api
+      .get<
+        ApiResponse<any>
+      >(`/horarios/docente/${d.id}`, { periodo: this.periodoService.periodo })
+      .subscribe({
+        next: (r) => {
+          this.asignacionesDocente = r.data?.items ?? r.data ?? [];
+          this.bloquesDocente = this.generarBloques(this.asignacionesDocente);
+          this.loadingDocente = false;
+        },
+        error: () => {
+          this.loadingDocente = false;
+        },
+      });
+  }
+
+  selectAmbiente(a: Ambiente): void {
+    this.ambienteSeleccionado = a;
+    this.loadingAmbiente = true;
+    this.api
+      .get<
+        ApiResponse<any>
+      >(`/horarios/ambiente/${a.id}`, { periodo: this.periodoService.periodo })
+      .subscribe({
+        next: (r) => {
+          this.asignacionesAmbiente = r.data?.items ?? r.data ?? [];
+          this.bloquesAmbiente = this.generarBloques(this.asignacionesAmbiente);
+          this.loadingAmbiente = false;
+        },
+        error: () => {
+          this.loadingAmbiente = false;
+        },
+      });
+  }
+
+  selectCiclo(ciclo: number): void {
+    this.cicloSeleccionado = ciclo;
+    this.loadingCiclo = true;
+    this.api
+      .get<ApiResponse<any>>(`/horarios/periodo/${this.periodoService.periodo}`, {
+        limit: 500,
+      })
+      .subscribe({
+        next: (r) => {
+          const allAsignaciones: HorarioAsignado[] = r.data?.items ?? r.data ?? [];
+          this.asignacionesCiclo = allAsignaciones.filter(a => 
+            a.curso && a.curso.ciclo === ciclo
+          );
+          this.bloquesCiclo = this.generarBloques(this.asignacionesCiclo);
+          this.loadingCiclo = false;
+        },
+        error: () => {
+          this.loadingCiclo = false;
+        },
+      });
+  }
+
+  getBloque(dia: number, hora: number, tipo: 'docente' | 'ambiente' | 'ciclo'): any | null {
+    let bloques: any[];
+    if (tipo === 'docente') {
+      bloques = this.bloquesDocente;
+    } else if (tipo === 'ambiente') {
+      bloques = this.bloquesAmbiente;
+    } else {
+      bloques = this.bloquesCiclo;
+    }
+
+    const bloque = bloques.find(b => 
+      b.dia === dia && 
+      hora >= b.horaInicio && 
+      hora < b.horaFin
+    );
+
+    if (!bloque) return null;
+
+    if (hora !== bloque.horaInicio) return null;
+
+    return bloque;
+  }
+
+  getAlturaBloque(bloque: any): string {
+    const horas = bloque.horaFin - bloque.horaInicio;
+    return `${horas * 120}px`;
+  }
+
   loadConflictos(): void {
     this.loadingConflictos = true;
     this.api
@@ -384,6 +593,76 @@ export class HorariosComponent implements OnInit, OnDestroy {
         error: () => {
           this.limpiando = false;
           this.notif.error('Error al limpiar horarios');
+        },
+      });
+  }
+
+  // ─── VISTA POR CICLO ────────────────────────────────────────────────────────
+
+  getAsigCiclo(dia: number, hora: number): HorarioAsignado | null {
+    const hDecimal = hora;
+    return (
+      this.asignacionesCiclo.find(
+        (a) =>
+          (a.dia_semana ?? a.dia) === dia &&
+          this.horaToDecimal(a.hora_inicio) <= hDecimal &&
+          this.horaToDecimal(a.hora_fin) > hDecimal,
+      ) ?? null
+    );
+  }
+
+  clsCiclo(dia: number, hora: number): string {
+    const a = this.getAsigCiclo(dia, hora);
+    if (!a) return 'celda-vacia';
+    return a.tipo_clase === 'LABORATORIO' ? 'celda-lab' : 'celda-teoria';
+  }
+
+  getProfesoresYCursos(): any[] {
+    const map = new Map<string, any>();
+    
+    this.asignacionesCiclo.forEach(a => {
+      const key = a.docente?.id + '-' + a.curso?.id;
+      if (!map.has(key)) {
+        map.set(key, {
+          docente: a.docente,
+          curso: a.curso,
+          horas: 0,
+          ambiente: a.ambiente,
+        });
+      }
+      const entry = map.get(key);
+      const hInicio = this.horaToDecimal(a.hora_inicio);
+      const hFin = this.horaToDecimal(a.hora_fin);
+      entry.horas += (hFin - hInicio);
+    });
+
+    return Array.from(map.values()).sort((a, b) => {
+      const nameA = a.docente?.apellidos || '';
+      const nameB = b.docente?.apellidos || '';
+      return nameA.localeCompare(nameB);
+    });
+  }
+
+  descargarPdfCiclo(): void {
+    if (!this.cicloSeleccionado) return;
+    this.descargandoCiclo = true;
+    this.api
+      .getBlob(`/reportes/ciclo/${this.cicloSeleccionado}/pdf`, {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoCiclo = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `horario_ciclo_${this.cicloSeleccionado}_${this.periodoService.periodo}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: () => {
+          this.descargandoCiclo = false;
+          this.notif.error('Error al descargar PDF');
         },
       });
   }

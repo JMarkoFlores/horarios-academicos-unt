@@ -49,4 +49,8 @@ export class SeleccionarCeldaDto {
   @ApiProperty({ example: "2026-I" })
   @IsString()
   periodo: string;
+
+  @ApiPropertyOptional({ default: false, description: "Permitir superposiciones de horario" })
+  @IsOptional()
+  permitirSuperposiciones?: boolean;
 }

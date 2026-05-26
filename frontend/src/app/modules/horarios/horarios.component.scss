@@ -214,13 +214,19 @@
   padding: 8px;
 }
 
-.horario-grid {
-  border-collapse: separate;
-  border-spacing: 4px;
-  width: 100%;
-  min-width: 800px;
+.horario-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 1000px;
+}
 
-  th {
+.horario-header {
+  display: flex;
+  gap: 4px;
+  
+  .header-cell {
+    flex: 1;
     color: white;
     font-weight: 700;
     text-transform: uppercase;
@@ -230,103 +236,147 @@
     border-radius: var(--radius-sm);
     text-align: center;
     background: var(--color-primary);
+    min-width: 150px;
   }
-
+  
   .hora-col {
-    width: 80px;
+    flex: 0 0 80px;
     background: transparent;
     color: var(--color-text-muted);
   }
+}
 
-  .hora-cell {
-    font-weight: 700;
-    font-size: 12px;
-    color: var(--color-text);
-    background: #f1f5f9;
-    border-radius: var(--radius-sm);
-    text-align: center;
-    height: 60px;
-  }
+.horario-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
-  .celda {
-    height: 60px;
-    border-radius: var(--radius-sm);
-    transition: all var(--transition-normal);
-    position: relative;
-    border: 1px solid transparent;
+.hora-row {
+  display: flex;
+  gap: 4px;
+  position: relative;
+}
 
-    &.celda-vacia {
-      background: #f8fafc;
-      cursor: pointer;
-      &:hover {
-        background: #e0f2fe;
-        border-color: #3b82f6;
-      }
-    }
-
-    &.celda-teoria {
-      background: var(--color-primary);
-      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
-      .curso-txt {
-        color: white;
-      }
-      .amb-txt {
-        color: rgba(255, 255, 255, 0.8);
-      }
-      &:hover {
-        transform: scale(1.02);
-        z-index: 10;
-        box-shadow: var(--shadow-lg);
-      }
-    }
-
-    &.celda-lab {
-      background: var(--color-accent);
-      box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
-      .curso-txt {
-        color: white;
-      }
-      .amb-txt {
-        color: rgba(255, 255, 255, 0.8);
-      }
-      &:hover {
-        transform: scale(1.02);
-        z-index: 10;
-        box-shadow: var(--shadow-lg);
-      }
-    }
-  }
-
-  .celda-content {
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    height: 100%;
-    cursor: pointer;
-
-    .curso-txt {
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 1.2;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      margin-bottom: 4px;
-    }
-
-    .amb-txt {
+.hora-cell {
+  flex: 0 0 80px;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--color-text);
+  background: #f1f5f9;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  position: relative;
+  z-index: 1;
+  
+  &.almuerzo-cell {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    font-weight: 800;
+    border: 2px dashed #f59e0b;
+    
+    // Ocultar el texto de la hora para evitar superposición
+    color: transparent;
+    
+    &::before {
+      content: '🍽️ Almuerzo';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       font-size: 10px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      mat-icon {
-        font-size: 12px;
-        width: 12px;
-        height: 12px;
-      }
+      font-weight: 700;
+      white-space: nowrap;
+      color: #92400e;
+    }
+  }
+}
+
+.celda {
+  flex: 1;
+  height: 120px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+  position: relative;
+  border: 1px solid transparent;
+  min-width: 150px;
+
+  &.celda-vacia {
+    background: #f8fafc;
+    cursor: pointer;
+    &:hover {
+      background: #e0f2fe;
+      border-color: #3b82f6;
+    }
+  }
+  
+  &.almuerzo-cell {
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.3) 0%, rgba(253, 230, 138, 0.3) 100%);
+    border: 1px dashed rgba(245, 158, 11, 0.3);
+  }
+}
+
+.celda-content {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: 100%;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.15);
+  transition: all var(--transition-normal);
+  
+  &.bloque {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+  }
+  
+  &:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.25);
+  }
+  
+  .curso-txt {
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    color: white;
+  }
+
+  .amb-txt,
+  .tipo-clase,
+  .horario-txt {
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.9);
+    
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+    
+    .tipo-icon {
+      color: white;
     }
   }
 }
@@ -370,6 +420,10 @@
     }
     &.lab .legend-swatch {
       background: var(--color-accent);
+    }
+    &.almuerzo .legend-swatch {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px dashed #f59e0b;
     }
   }
 }
@@ -698,4 +752,40 @@
 
 .full-width {
   width: 100%;
+}
+
+// ── PROFESORES TABLE ──
+.profesores-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+
+  thead {
+    th {
+      background: var(--color-primary);
+      color: white;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 10px;
+      text-align: left;
+    }
+  }
+
+  tbody {
+    tr {
+      transition: background 0.2s;
+
+      &:hover {
+        filter: brightness(0.95);
+      }
+
+      td {
+        padding: 8px 10px;
+        border: 1px solid var(--color-border);
+        color: var(--color-text);
+      }
+    }
+  }
 }

@@ -2,6 +2,7 @@ import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleDestroy,
 } from "@nestjs/common";
@@ -13,6 +14,7 @@ import { ConfigService } from "@nestjs/config";
 import { EstadoHorario } from "../../common/enums/estado-horario.enum";
 import { Grupo } from "../../entities/grupo.entity";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
+import { SeleccionTemporal } from "../../entities/seleccion-temporal.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
 import { ValidadorHorarioService } from "../../horarios/validador-horario.service";
 import { SeleccionarCeldaDto } from "./dto/seleccionar-celda.dto";
@@ -22,12 +24,15 @@ import { AuditoriaService } from "../../modules/auditoria/auditoria.service";
 import { Ambiente } from "../../entities/ambiente.entity";
 import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Docente } from "../../entities/docente.entity";
+import { Curso } from "../../entities/curso.entity";
+import { SincronizacionRedisService } from "./sincronizacion-redis.service";
 
 type SeleccionTemporalRedis = {
   ventanaId: string;
   sesionId: string;
   docenteId: number;
   cursoId: number;
+  grupoId?: number;
   tipoClase: string;
   ambienteId: number;
   dia: number;
@@ -39,6 +44,7 @@ type SeleccionTemporalRedis = {
 @Injectable()
 export class GestorSeleccionTemporalService implements OnModuleDestroy {
   private readonly redis: Redis;
+  private readonly logger = new Logger(GestorSeleccionTemporalService.name);
 
   constructor(
     private readonly configService: ConfigService,
@@ -53,9 +59,14 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
     @InjectRepository(Docente)
     private readonly docenteRepo: Repository<Docente>,
+    @InjectRepository(Curso)
+    private readonly cursoRepo: Repository<Curso>,
+    @InjectRepository(HorarioAsignado)
+    private readonly horarioAsignadoRepo: Repository<HorarioAsignado>,
     private readonly validadorHorarioService: ValidadorHorarioService,
     private readonly validacionesService: ValidacionesService,
     private readonly auditoriaService: AuditoriaService,
+    private readonly sincronizacionRedisService: SincronizacionRedisService,
   ) {
     this.redis = new Redis({
       host: this.configService.get<string>("REDIS_HOST", "localhost"),
@@ -69,12 +80,22 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     await this.redis.quit();
   }
 
+  private esPeriodoImpar(periodoCodigo: string): boolean {
+    const parts = periodoCodigo.split('-');
+    if (parts.length === 2 && parts[1] === 'I') {
+      return true;
+    }
+    return false;
+  }
+
   async seleccionarCelda(datos: SeleccionarCeldaDto): Promise<{
     exito: boolean;
     motivo?: string;
     expira_en?: string;
     alternativas?: Array<{ id: number; codigo: string; nombre: string }>;
   }> {
+    this.logger.debug(`[seleccionarCelda] Recibido: grupoId=${datos.grupoId}, cursoId=${datos.cursoId}, tipoClase=${datos.tipoClase}`);
+    
     const clave = this.crearClaveSeleccion(
       datos.ambienteId,
       datos.dia,
@@ -88,6 +109,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       if (seleccionActual.sesionId !== datos.sesionId) {
         return { exito: false, motivo: "Celda reservada por otro operador" };
       }
+      // Si es la misma sesión, permitir re-selección (actualizar datos)
     }
 
     // 1. Resolver período y grupo para las validaciones
@@ -98,17 +120,53 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       return { exito: false, motivo: "Período académico no encontrado." };
     }
 
-    const grupo = await this.grupoRepo
-      .createQueryBuilder("grupo")
-      .innerJoin("grupo.curso", "curso")
-      .innerJoin("grupo.periodo_academico", "periodo")
-      .where("curso.id = :cursoId", { cursoId: datos.cursoId })
-      .andWhere("periodo.id = :periodoId", { periodoId: periodo.id })
-      .select(["grupo.id AS grupo_id"])
-      .getRawOne<{ grupo_id: number }>();
+    // 1.5. Validar que el curso tenga el ciclo correcto para el período
+    const curso = await this.cursoRepo.findOne({
+      where: { id: datos.cursoId },
+    });
+    if (!curso) {
+      return { exito: false, motivo: "Curso no encontrado." };
+    }
+    const isPeriodoImpar = this.esPeriodoImpar(datos.periodo);
+    const cursoCicloImpar = curso.ciclo % 2 !== 0;
+    if (isPeriodoImpar !== cursoCicloImpar) {
+      const cicloRequerido = isPeriodoImpar ? "impar" : "par";
+      return {
+        exito: false,
+        motivo: `Para el período ${datos.periodo} solo se pueden seleccionar cursos de ciclo ${cicloRequerido}. El curso ${curso.nombre} es de ciclo ${curso.ciclo}.`,
+      };
+    }
 
-    if (!grupo) {
-      return { exito: false, motivo: "No existe grupo asociado al curso en el período indicado." };
+    // Buscar el grupo correcto para las validaciones
+    let grupoIdParaValidacion: number;
+    
+    if (datos.tipoClase === 'LABORATORIO' && datos.grupoId) {
+      // Para laboratorio, buscar el grupo específico por número de grupo
+      const grupoEspecifico = await this.grupoRepo.findOne({
+        where: { 
+          curso_id: datos.cursoId,
+          codigo: `${curso?.codigo}-G${datos.grupoId}`
+        }
+      });
+      if (!grupoEspecifico) {
+        return { exito: false, motivo: `No existe el grupo G${datos.grupoId} para este curso.` };
+      }
+      grupoIdParaValidacion = grupoEspecifico.id;
+    } else {
+      // Para teoría o si no hay grupoId, usar cualquier grupo del curso
+      const grupo = await this.grupoRepo
+        .createQueryBuilder("grupo")
+        .innerJoin("grupo.curso", "curso")
+        .innerJoin("grupo.periodo_academico", "periodo")
+        .where("curso.id = :cursoId", { cursoId: datos.cursoId })
+        .andWhere("periodo.id = :periodoId", { periodoId: periodo.id })
+        .select(["grupo.id AS grupo_id"])
+        .getRawOne<{ grupo_id: number }>();
+
+      if (!grupo) {
+        return { exito: false, motivo: "No existe grupo asociado al curso en el período indicado." };
+      }
+      grupoIdParaValidacion = grupo.grupo_id;
     }
 
     const fechaSlot = this.construirFechaDesdeDia(
@@ -120,7 +178,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     const validacion = await this.validadorHorarioService.validarSlot({
       docente_id: datos.docenteId,
       curso_id: datos.cursoId,
-      grupo_id: grupo.grupo_id,
+      grupo_id: grupoIdParaValidacion,
       ambiente_id: datos.ambienteId,
       laboratorio_ambiente_id:
         datos.tipoClase === "LABORATORIO" ? datos.ambienteId : undefined,
@@ -130,7 +188,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       hora_fin: datos.horaFin,
       tipo_clase: datos.tipoClase as any,
       fecha: fechaSlot,
-    });
+    }, datos.permitirSuperposiciones || false);
 
     if (!validacion.valido) {
       const ocupado = validacion.errores.some((e) =>
@@ -146,27 +204,66 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         );
         return {
           exito: false,
-          motivo: validacion.errores.join("; "),
+          motivo: validacion.errores[0],
           alternativas,
         };
       }
-      return { exito: false, motivo: validacion.errores.join("; ") };
+      return { exito: false, motivo: validacion.errores[0] };
     }
 
     // 3. Validar horas consecutivas del mismo curso+tipo en la sesión
-    const consecutivas = await this.verificarHorasConsecutivas(datos);
-    if (!consecutivas.valido) {
+    // Solo para TEORÍA y LABORATORIO. PRÁCTICA permite distribución equitativa.
+    if (datos.tipoClase !== 'PRACTICA') {
+      const consecutivas = await this.verificarHorasConsecutivas(datos);
+      if (!consecutivas.valido) {
+        return {
+          exito: false,
+          motivo: consecutivas.motivo,
+        };
+      }
+    } else {
+      // Para PRÁCTICA, validar distribución equitativa de horas
+      const distribucionEquitativa = await this.verificarDistribucionEquitativa(datos, curso);
+      if (!distribucionEquitativa.valido) {
+        return {
+          exito: false,
+          motivo: distribucionEquitativa.motivo,
+        };
+      }
+    }
+
+    // 3.5. Validar que no se excedan las horas requeridas del curso
+    const horasValidas = await this.validarHorasRequeridas(datos, curso);
+    if (!horasValidas.valido) {
       return {
         exito: false,
-        motivo: consecutivas.motivo,
+        motivo: horasValidas.motivo,
       };
     }
 
+    // 4. Adquirir lock distribuido para prevenir race conditions
+    const lockResult = await this.sincronizacionRedisService.adquirirLockCelda(
+      datos.ambienteId,
+      datos.dia,
+      datos.horaInicio,
+      datos.periodo,
+      datos.sesionId,
+    );
+
+    if (!lockResult.acquired) {
+      return {
+        exito: false,
+        motivo: "Celda siendo seleccionada por otro operador. Intente otra opción.",
+      };
+    }
+
+    // 5. Guardar selección con persistencia (Redis + BD)
     const payload: SeleccionTemporalRedis = {
       ventanaId: datos.ventanaId,
       sesionId: datos.sesionId,
       docenteId: datos.docenteId,
       cursoId: datos.cursoId,
+      grupoId: datos.grupoId,
       tipoClase: datos.tipoClase,
       ambienteId: datos.ambienteId,
       dia: datos.dia,
@@ -175,14 +272,29 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       periodo: datos.periodo,
     };
 
-    await this.redis.set(clave, JSON.stringify(payload), "EX", 1800);
-    await this.redis.sadd(this.crearClaveSesion(datos.sesionId), clave);
+    const persistResult = await this.sincronizacionRedisService.guardarSeleccionConPersistencia(
+      payload,
+      lockResult.lock_token,
+    );
+
+    if (!persistResult.exito) {
+      // Liberar lock si la persistencia falla
+      await this.sincronizacionRedisService.liberarLock(
+        datos.ambienteId,
+        datos.dia,
+        datos.horaInicio,
+        datos.periodo,
+        lockResult.lock_token,
+      );
+      return { exito: false, motivo: "Error al guardar la selección. Intente de nuevo." };
+    }
+
+    // 6. Mantener compatibilidad con sesión activas tracking
     await this.redis.sadd("selecciones_sesiones_activas", datos.sesionId);
-    await this.redis.expire(this.crearClaveSesion(datos.sesionId), 1800);
 
     return {
       exito: true,
-      expira_en: new Date(Date.now() + 1800 * 1000).toISOString(),
+      expira_en: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     };
   }
 
@@ -230,6 +342,54 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       return {
         valido: false,
         motivo: `Las horas del curso deben ser consecutivas. Ya tiene selecciones en ${existentes.map(s => `${s.horaInicio}-${s.horaFin}`).join(', ')}. Seleccione un slot adyacente.`,
+      };
+    }
+
+    return { valido: true };
+  }
+
+  private async verificarDistribucionEquitativa(
+    datos: SeleccionarCeldaDto,
+    curso: Curso,
+  ): Promise<{ valido: boolean; motivo?: string }> {
+    const claves = await this.redis.smembers(this.crearClaveSesion(datos.sesionId));
+    if (!claves || claves.length === 0) return { valido: true };
+
+    const existentesRaw = await this.redis.mget(...claves);
+    const existentes = (existentesRaw || [])
+      .filter((v): v is string => v !== null)
+      .map((v) => this.parseSeleccion(v))
+      .filter(
+        (s) => s.cursoId === datos.cursoId && s.tipoClase === datos.tipoClase,
+      );
+
+    if (existentes.length === 0) return { valido: true };
+
+    // Calcular duración de cada bloque (en horas)
+    const aMinutos = (hora: string) => {
+      const [h, m] = hora.split(':').map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+
+    const calcularDuracionHoras = (inicio: string, fin: string) => {
+      return (aMinutos(fin) - aMinutos(inicio)) / 60;
+    };
+
+    // Obtener duraciones de bloques existentes
+    const duraciones = existentes.map(s => calcularDuracionHoras(s.horaInicio, s.horaFin));
+    const duracionNueva = calcularDuracionHoras(datos.horaInicio, datos.horaFin);
+    duraciones.push(duracionNueva);
+
+    // Ordenar duraciones
+    duraciones.sort((a, b) => a - b);
+
+    // Verificar que la distribución sea equitativa
+    // La diferencia máxima entre bloques no debe ser mayor a 1 hora
+    const diferenciaMaxima = duraciones[duraciones.length - 1] - duraciones[0];
+    if (diferenciaMaxima > 1) {
+      return {
+        valido: false,
+        motivo: `La distribución de horas de práctica debe ser equitativa. Los bloques actuales tienen duraciones: ${duraciones.map(d => `${d}h`).join(', ')}. La diferencia máxima permitida es de 1 hora.`,
       };
     }
 
@@ -302,6 +462,48 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
     await this.redis.del(clave);
     await this.redis.srem(this.crearClaveSesion(sesionId), clave);
+    
+    // Liberar el lock de la celda
+    const claveLock = `lock_celda_${ambienteId}_${dia}_${horaInicio}_${periodo}`;
+    await this.redis.del(claveLock);
+    
+    // Eliminar de la base de datos
+    await this.dataSource.getRepository(SeleccionTemporal).delete({
+      sesion_id: sesionId,
+      ambiente_id: ambienteId,
+      dia,
+      hora_inicio: horaInicio,
+      periodo
+    });
+  }
+
+  async limpiarSesion(sesionId: string): Promise<void> {
+    const claveSesion = this.crearClaveSesion(sesionId);
+    const clavesSeleccion = await this.redis.smembers(claveSesion);
+
+    for (const clave of clavesSeleccion) {
+      await this.redis.del(clave);
+    }
+
+    await this.redis.del(claveSesion);
+    
+    // Limpiar todas las selecciones de Redis (enfoque más agresivo pero más efectivo)
+    const claves = await this.redis.keys('seleccion_*');
+    for (const clave of claves) {
+      const valor = await this.redis.get(clave);
+      if (valor) {
+        try {
+          const seleccion = this.parseSeleccion(valor);
+          if (seleccion.sesionId === sesionId) {
+            await this.redis.del(clave);
+          }
+        } catch (e) {
+          // Ignorar errores de parseo
+        }
+      }
+    }
+    
+    this.logger.debug(`Sesión limpiada: ${sesionId}, ${clavesSeleccion.length} selecciones eliminadas del set`);
   }
 
   async confirmarSelecciones(
@@ -340,10 +542,11 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     const horariosCreados: HorarioAsignado[] = [];
 
     try {
-      const gruposMap = await this.resolverGruposPorCurso(
-        periodoId,
-        selecciones,
-      );
+      // Ya no necesitamos resolverGruposPorCurso, usaremos el grupoId de Redis
+      // const gruposMap = await this.resolverGruposPorCurso(
+      //   periodoId,
+      //   selecciones,
+      // );
 
       // Cargar parámetros de carga para el período
       const parametrosCarga = await this.parametrosCargaRepo.find({
@@ -375,14 +578,18 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       }
 
       for (const seleccion of selecciones) {
-        const grupoId = gruposMap.get(seleccion.cursoId);
-        if (!grupoId) {
+        // Solo requerir grupoId para laboratorio
+        const grupoId = seleccion.grupoId;
+        if (seleccion.tipoClase === 'LABORATORIO' && !grupoId) {
           errores.push({
             cursoId: seleccion.cursoId,
-            motivo: "No existe grupo asociado al curso en el período indicado.",
+            motivo: "No se especificó grupo para la selección de laboratorio.",
           });
           continue;
         }
+
+        // Para TEORIA y PRACTICA, usar grupoId de la selección o un grupo por defecto
+        const grupoFinal = grupoId || 1;
 
         // Verificar carga máxima del docente
         const docente = docenteMap.get(seleccion.docenteId);
@@ -441,11 +648,72 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       }
 
       for (const seleccion of selecciones) {
-        const grupoId = gruposMap.get(seleccion.cursoId)!;
+        // Solo requerir grupoId para laboratorio
+        const grupoId = seleccion.grupoId;
+        if (seleccion.tipoClase === 'LABORATORIO' && !grupoId) {
+          errores.push({
+            cursoId: seleccion.cursoId,
+            motivo: "No se especificó grupo para la selección de laboratorio.",
+          });
+          continue;
+        }
+
+        let grupoFinal: number | undefined;
+        
+        if (seleccion.tipoClase === 'LABORATORIO' && grupoId) {
+          // Para LABORATORIO con grupoId especificado, buscar el grupo con ese número
+          // Los grupos tienen formato ${curso.codigo}-G1, ${curso.codigo}-G2, etc.
+          const curso = await queryRunner.manager.findOne(Curso, {
+            where: { id: seleccion.cursoId }
+          });
+          const codigoGrupoEsperado = `${curso?.codigo}-G${grupoId}`;
+          this.logger.debug(`Buscando grupo para LABORATORIO: cursoId=${seleccion.cursoId}, grupoId=${grupoId}, codigoEsperado=${codigoGrupoEsperado}`);
+          const grupoConNumero = await queryRunner.manager.findOne(Grupo, {
+            where: { 
+              curso_id: seleccion.cursoId,
+              codigo: codigoGrupoEsperado
+            }
+          });
+          if (!grupoConNumero) {
+            // Si no existe el grupo específico, buscar cualquier grupo del curso
+            this.logger.debug(`Grupo ${codigoGrupoEsperado} no encontrado, buscando cualquier grupo del curso`);
+            const grupoExistente = await queryRunner.manager.findOne(Grupo, {
+              where: { curso_id: seleccion.cursoId },
+              order: { id: 'ASC' }
+            });
+            if (!grupoExistente) {
+              errores.push({
+                cursoId: seleccion.cursoId,
+                motivo: `No existe grupo ${grupoId} para el curso.`,
+              });
+              continue;
+            }
+            grupoFinal = grupoExistente.id;
+            this.logger.debug(`Usando grupo existente: id=${grupoExistente.id}, codigo=${grupoExistente.codigo}`);
+          } else {
+            grupoFinal = grupoConNumero.id;
+            this.logger.debug(`Grupo encontrado: id=${grupoConNumero.id}, codigo=${grupoConNumero.codigo}`);
+          }
+        } else {
+          // Para TEORIA y PRACTICA, obtener un grupo válido existente
+          const grupoExistente = await queryRunner.manager.findOne(Grupo, {
+            where: { curso_id: seleccion.cursoId },
+            order: { id: 'ASC' }
+          });
+          if (!grupoExistente) {
+            errores.push({
+              cursoId: seleccion.cursoId,
+              motivo: "No existe grupo asociado al curso.",
+            });
+            continue;
+          }
+          grupoFinal = grupoExistente.id;
+        }
+        
         const horario = queryRunner.manager.create(HorarioAsignado, {
           docente_id: seleccion.docenteId,
           curso_id: seleccion.cursoId,
-          grupo_id: grupoId,
+          grupo_id: grupoFinal,
           ambiente_id: seleccion.ambienteId,
           periodo: periodo.codigo,
           dia: seleccion.dia,
@@ -461,7 +729,19 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
       await queryRunner.commitTransaction();
 
+      // Marcar selecciones como confirmadas en BD
+      await this.sincronizacionRedisService.marcarSeleccionesComoConfirmadas(sesionId);
+
+      // Liberar locks y limpiar Redis
       for (const seleccion of selecciones) {
+        // Liberar lock de la celda
+        await this.sincronizacionRedisService.liberarLock(
+          seleccion.ambienteId,
+          seleccion.dia,
+          seleccion.horaInicio,
+          seleccion.periodo,
+        );
+
         await this.redis.del(
           this.crearClaveSeleccion(
             seleccion.ambienteId,
@@ -565,7 +845,10 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     ventanaId: string,
     ambienteId: number,
     sesionIdQuery?: string,
+    docenteId?: number,
   ): Promise<any[]> {
+    this.logger.debug(`obtenerDisponibilidadMatriz: ventanaId=${ventanaId}, ambienteId=${ambienteId}, docenteId=${docenteId}`);
+    
     const ventana = await this.dataSource.getRepository(VentanaAtencion).findOne({
       where: { id: ventanaId },
     });
@@ -574,7 +857,20 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
     const horariosConfirmados = await this.dataSource.getRepository(HorarioAsignado).find({
       where: { ambiente_id: ambienteId, periodo },
+      relations: ['curso'],
     });
+    
+    // Si se proporciona docenteId, también obtener sus horarios confirmados en otros ambientes
+    let horariosDocenteEnOtrosAmbientes: HorarioAsignado[] = [];
+    if (docenteId) {
+      horariosDocenteEnOtrosAmbientes = await this.dataSource.getRepository(HorarioAsignado).find({
+        where: { docente_id: docenteId, periodo },
+        relations: ['curso'],
+      });
+    }
+    
+    this.logger.debug(`Horarios confirmados encontrados: ${horariosConfirmados.length} para ambiente=${ambienteId}, periodo=${periodo}`);
+    this.logger.debug(`Datos de horarios confirmados: ${JSON.stringify(horariosConfirmados.map(h => ({ id: h.id, dia: h.dia, hora_inicio: h.hora_inicio, docente_id: h.docente_id, grupo_id: h.grupo_id })))}`);
 
     const matriz = [];
     const periodoEntity = await this.periodoRepo.findOne({ where: { codigo: periodo } });
@@ -599,16 +895,33 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           estado = 'BLOQUEADO';
         } else {
           const confirmado = horariosConfirmados.find(
-            hc => hc.dia === dia && hc.hora_inicio === horaInicio
+            hc => hc.dia === dia && hc.hora_inicio.startsWith(horaInicio)
           );
+          
+          // Verificar si el docente tiene horario confirmado en este slot en otro ambiente
+          const horarioDocenteEnOtroAmbiente = horariosDocenteEnOtrosAmbientes.find(
+            hc => hc.dia === dia && hc.hora_inicio.startsWith(horaInicio) && hc.ambiente_id !== ambienteId
+          );
+          
           if (confirmado) {
-            estado = 'CONFIRMADO';
-            metadata = { docenteId: confirmado.docente_id, cursoId: confirmado.curso_id };
+            this.logger.debug(`Horario confirmado encontrado: dia=${dia}, hora=${horaInicio}, docente_id=${confirmado.docente_id}, docenteIdParam=${docenteId}`);
+            if (docenteId && confirmado.docente_id === docenteId) {
+              estado = 'CONFIRMADO_DOCENTE';
+            } else {
+              estado = 'CONFIRMADO';
+            }
+            metadata = { docenteId: confirmado.docente_id, cursoId: confirmado.curso_id, cursoNombre: confirmado.curso?.nombre, tipoClase: confirmado.tipo_clase };
+          } else if (horarioDocenteEnOtroAmbiente) {
+            // Mostrar como CONFIRMADO_DOCENTE aunque sea en otro ambiente
+            this.logger.debug(`Horario de docente en otro ambiente encontrado: dia=${dia}, hora=${horaInicio}, docente_id=${horarioDocenteEnOtroAmbiente.docente_id}`);
+            estado = 'CONFIRMADO_DOCENTE';
+            metadata = { docenteId: horarioDocenteEnOtroAmbiente.docente_id, cursoId: horarioDocenteEnOtroAmbiente.curso_id, cursoNombre: horarioDocenteEnOtroAmbiente.curso?.nombre, tipoClase: horarioDocenteEnOtroAmbiente.tipo_clase, otroAmbiente: true };
           } else {
             const claveRedis = this.crearClaveSeleccion(ambienteId, dia, horaInicio, periodo);
             const enRedis = await this.redis.get(claveRedis);
             if (enRedis) {
               const seleccion = this.parseSeleccion(enRedis);
+              this.logger.debug(`Celda encontrada en Redis: dia=${dia}, hora=${horaInicio}, sesionIdRedis=${seleccion.sesionId}, sesionIdQuery=${sesionIdQuery}`);
               if (sesionIdQuery && seleccion.sesionId === sesionIdQuery) {
                 estado = 'TEMPORAL_PROPIO';
               } else {
@@ -697,5 +1010,111 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     const inicio = (h1 || 0) * 60 + (m1 || 0);
     const fin = (h2 || 0) * 60 + (m2 || 0);
     return Math.max((fin - inicio) / 60, 0);
+  }
+
+  private async validarHorasRequeridas(
+    datos: SeleccionarCeldaDto,
+    curso: Curso,
+  ): Promise<{ valido: boolean; motivo?: string }> {
+    // Obtener horas requeridas según tipo de clase
+    let horasRequeridas = datos.tipoClase === 'TEORIA'
+      ? (curso.horas_teoria || 0)
+      : (datos.tipoClase === 'PRACTICA' ? (curso.horas_practica || 0) : (curso.horas_laboratorio || 0));
+
+    this.logger.debug(`Validando horas: cursoId=${datos.cursoId}, tipoClase=${datos.tipoClase}, horasRequeridas=${horasRequeridas}, grupoId=${datos.grupoId}`);
+
+    if (horasRequeridas === 0) {
+      return { valido: true }; // No hay restricción si no hay horas requeridas
+    }
+
+    // Si es laboratorio o práctica con grupoId, validar por grupo específico
+    // Cada grupo debe tener las horas completas requeridas (no divididas)
+    if ((datos.tipoClase === 'LABORATORIO' || datos.tipoClase === 'PRACTICA') && datos.grupoId) {
+      // Obtener el número total de grupos para este curso (solo para logging)
+      const gruposCurso = await this.grupoRepo.find({
+        where: { curso_id: datos.cursoId }
+      });
+      const numGrupos = gruposCurso.length || 1;
+      this.logger.debug(`Horas requeridas para ${datos.tipoClase} grupo ${datos.grupoId}: ${horasRequeridas} (total grupos: ${numGrupos})`);
+    }
+
+    // Contar horas ya asignadas en la base de datos (horarios confirmados)
+    // Filtrar por grupo si es laboratorio
+    let whereClause: any = {
+      curso_id: datos.cursoId,
+      tipo_clase: datos.tipoClase as any,
+      docente_id: datos.docenteId,
+      estado: EstadoHorario.CONFIRMADO,
+    };
+
+    let grupoIdParaFiltro: number | undefined;
+    if ((datos.tipoClase === 'LABORATORIO' || datos.tipoClase === 'PRACTICA') && datos.grupoId) {
+      // Buscar el grupo_id correspondiente al número de grupo
+      const curso = await this.cursoRepo.findOne({ where: { id: datos.cursoId } });
+      const grupoConNumero = await this.grupoRepo.findOne({
+        where: { 
+          curso_id: datos.cursoId,
+          codigo: `${curso?.codigo}-G${datos.grupoId}`
+        }
+      });
+      if (grupoConNumero) {
+        whereClause.grupo_id = grupoConNumero.id;
+        grupoIdParaFiltro = grupoConNumero.id;
+      }
+    }
+
+    const horariosConfirmados = await this.horarioAsignadoRepo.find({
+      where: whereClause,
+    });
+
+    let horasConfirmadas = 0;
+    for (const horario of horariosConfirmados) {
+      horasConfirmadas += this.calcularDuracionHoras(horario.hora_inicio, horario.hora_fin);
+    }
+
+    this.logger.debug(`Horas confirmadas para ${datos.tipoClase}${grupoIdParaFiltro ? ` grupo ${datos.grupoId}` : ''}: ${horasConfirmadas}h`);
+
+    // Obtener selecciones actuales de la sesión
+    const claveSesion = this.crearClaveSesion(datos.sesionId);
+    const clavesSeleccion = await this.redis.smembers(claveSesion);
+    
+    this.logger.debug(`Selecciones temporales en sesión: ${clavesSeleccion.length} claves`);
+
+    let horasAsignadas = 0;
+    for (const clave of clavesSeleccion) {
+      const valor = await this.redis.get(clave);
+      if (valor) {
+        const seleccion = this.parseSeleccion(valor);
+        this.logger.debug(`Selección temporal: cursoId=${seleccion.cursoId}, tipoClase=${seleccion.tipoClase}, grupoId=${seleccion.grupoId}`);
+        if (seleccion.cursoId === datos.cursoId && seleccion.tipoClase === datos.tipoClase) {
+          // Para laboratorio o práctica, filtrar por grupo
+          if ((datos.tipoClase === 'LABORATORIO' || datos.tipoClase === 'PRACTICA') && datos.grupoId) {
+            this.logger.debug(`Filtrando temporal: seleccion.grupoId=${seleccion.grupoId} vs datos.grupoId=${datos.grupoId}`);
+            if (seleccion.grupoId === datos.grupoId) {
+              horasAsignadas += this.calcularDuracionHoras(seleccion.horaInicio, seleccion.horaFin);
+            }
+          } else {
+            horasAsignadas += this.calcularDuracionHoras(seleccion.horaInicio, seleccion.horaFin);
+          }
+        }
+      }
+    }
+
+    this.logger.debug(`Horas temporales para ${datos.tipoClase}${grupoIdParaFiltro ? ` grupo ${datos.grupoId}` : ''}: ${horasAsignadas}h`);
+
+    this.logger.debug(`Horas temporales para ${datos.tipoClase}${datos.grupoId ? ` grupo ${datos.grupoId}` : ''}: ${horasAsignadas}h`);
+
+    // Calcular horas de la nueva selección
+    const horasNuevaSeleccion = this.calcularDuracionHoras(datos.horaInicio, datos.horaFin);
+    const totalHoras = horasConfirmadas + horasAsignadas + horasNuevaSeleccion;
+
+    if (totalHoras > horasRequeridas) {
+      return {
+        valido: false,
+        motivo: `Excede las horas requeridas. Confirmadas: ${horasConfirmadas}h, Temporales: ${horasAsignadas}h, Nueva: ${horasNuevaSeleccion}h, Requeridas: ${horasRequeridas}h`,
+      };
+    }
+
+    return { valido: true };
   }
 }

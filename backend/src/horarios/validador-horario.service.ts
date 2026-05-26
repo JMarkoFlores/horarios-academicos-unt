@@ -22,12 +22,14 @@ export class ValidadorHorarioService {
     private readonly horarioRepo: Repository<HorarioAsignado>,
   ) {}
 
-  async validarSlot(params: ValidarSlotDto): Promise<ResultadoValidacion> {
+  async validarSlot(params: ValidarSlotDto, permitirSuperposiciones: boolean = false): Promise<ResultadoValidacion> {
     const duracion = this.calcularDuracionHoras(
       params.hora_inicio,
       params.hora_fin,
     );
-    const validaciones = await Promise.all([
+    
+    // Validaciones básicas que siempre se aplican
+    const validacionesBasicas = [
       this.ejecutarValidacion(
         async () =>
           this.validacionesService.verificarFranjaInstitucional(
@@ -65,39 +67,10 @@ export class ValidadorHorarioService {
           )),
         "La fecha seleccionada corresponde a un día no laborable.",
       ),
-      this.ejecutarValidacion(
-        () =>
-          this.verificarCruceAmbienteConCache(
-            params.ambiente_id,
-            params.dia,
-            params.hora_inicio,
-            params.hora_fin,
-            params.periodo,
-          ).then((hayCruce) => !hayCruce),
-        "El ambiente seleccionado ya está ocupado en ese horario.",
-      ),
-      this.ejecutarValidacion(
-        async () =>
-          !(await this.validacionesService.verificarCruceDocente(
-            params.docente_id,
-            params.dia,
-            params.hora_inicio,
-            params.hora_fin,
-            params.periodo,
-          )),
-        "El docente tiene un cruce de horario.",
-      ),
-      this.ejecutarValidacion(
-        async () =>
-          !(await this.validacionesService.verificarCruceGrupo(
-            params.grupo_id,
-            params.dia,
-            params.hora_inicio,
-            params.hora_fin,
-            params.periodo,
-          )),
-        "El grupo tiene un cruce de horario.",
-      ),
+    ];
+
+    // Validaciones adicionales
+    const validacionesAdicionales = [
       this.ejecutarValidacion(
         () => this.validarCruceLaboratorio(params),
         "El laboratorio seleccionado ya está ocupado en ese horario.",
@@ -109,17 +82,12 @@ export class ValidadorHorarioService {
               params.tipo_clase,
               duracion,
               params.periodo,
+              params.docente_id,
+              (params.tipo_clase === 'LABORATORIO' || params.tipo_clase === 'PRACTICA') ? params.grupo_id : undefined,
             );
             return res.valido;
           }, "El curso ya tiene asignadas todas las horas requeridas para este tipo de clase.")
         : Promise.resolve(null),
-      this.ejecutarValidacion(async () => {
-        const res = await this.validacionesService.verificarCapacidadAmbiente(
-          params.ambiente_id,
-          params.grupo_id,
-        );
-        return res.valido;
-      }, "La capacidad del ambiente es menor al cupo del grupo."),
       this.ejecutarValidacion(async () => {
         const res =
           await this.validacionesService.verificarDescansoMinimoDocente(
@@ -148,6 +116,52 @@ export class ValidadorHorarioService {
         );
         return res.valido;
       }, "El docente supera la cantidad máxima de cursos permitidos."),
+    ];
+
+    // Si no se permiten superposiciones, agregar validaciones de cruce
+    let validacionesCruce: Array<Promise<string | null>> = [];
+    if (!permitirSuperposiciones) {
+      validacionesCruce = [
+        this.ejecutarValidacion(
+          () =>
+            this.verificarCruceAmbienteConCache(
+              params.ambiente_id,
+              params.dia,
+              params.hora_inicio,
+              params.hora_fin,
+              params.periodo,
+            ).then((hayCruce) => !hayCruce),
+          "El ambiente seleccionado ya está ocupado en ese horario.",
+        ),
+        this.ejecutarValidacion(
+          async () =>
+            !(await this.validacionesService.verificarCruceDocente(
+              params.docente_id,
+              params.dia,
+              params.hora_inicio,
+              params.hora_fin,
+              params.periodo,
+            )),
+          "El docente tiene un cruce de horario.",
+        ),
+        this.ejecutarValidacion(
+          async () =>
+            !(await this.validacionesService.verificarCruceGrupo(
+              params.grupo_id,
+              params.dia,
+              params.hora_inicio,
+              params.hora_fin,
+              params.periodo,
+            )),
+          "El grupo tiene un cruce de horario.",
+        ),
+      ];
+    }
+
+    const validaciones = await Promise.all([
+      ...validacionesBasicas,
+      ...validacionesAdicionales,
+      ...validacionesCruce,
     ]);
 
     const errores = validaciones.filter(

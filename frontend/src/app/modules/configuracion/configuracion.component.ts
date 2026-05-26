@@ -82,11 +82,17 @@ export class ConfiguracionComponent implements OnInit {
 
   // ─── Parámetros de Carga ──────────────────────────────────────────────────
   parametrosList: ParametrosCarga[] = [];
+  parametrosFiltrados: ParametrosCarga[] = [];
   loadingParametros = false;
   guardandoParametros = false;
   eliminandoParametroId: number | null = null;
   editingParametroId: number | null = null;
   parametrosForm!: FormGroup;
+  filtrosParametros = {
+    tipo_docente: '',
+    categoria: '',
+    modalidad: ''
+  };
 
   tiposDocente = [
     { value: 'ORDINARIO', label: 'Ordinario' },
@@ -305,15 +311,18 @@ export class ConfiguracionComponent implements OnInit {
     // Bloque horario por defecto
     this.bloquesHorarios = [
       { nombre: 'Mañana', hora_inicio: '08:00', hora_fin: '12:00' },
-      { nombre: 'Tarde', hora_inicio: '14:00', hora_fin: '18:00' },
+      { nombre: 'Tarde', hora_inicio: '14:00', hora_fin: '23:00' },
     ];
 
     // Reglas de prioridad por defecto (normativa UNT)
     this.reglasPrioridad = [
-      { campo: 'tipo_contrato', orden: 'DESC' }, // Ordinario > Contratado
+      { campo: 'tipo_contrato', orden: 'DESC' }, // Nombrado > Contratado
       { campo: 'categoria', orden: 'DESC' }, // Principal > Asociado > Auxiliar
+      { campo: 'modalidad', orden: 'DESC' }, // Dedicación Exclusiva > Tiempo Completo > Tiempo Parcial
       { campo: 'fecha_ingreso', orden: 'ASC' }, // Fecha más antigua
       { campo: 'horas_asignadas', orden: 'ASC' }, // Menos horas asignadas primero
+      { campo: 'codigo', orden: 'ASC' }, // Código del docente
+      { campo: 'apellidos', orden: 'ASC' }, // Apellidos
     ];
   }
 
@@ -328,10 +337,20 @@ export class ConfiguracionComponent implements OnInit {
     maxHorasCtrl?.clearValidators();
     duracionCtrl?.clearValidators();
 
+    // Buscar si existe una restricción de este tipo para el período actual
+    const restriccionExistente = this.restricciones.find(
+      r => r.tipo_restriccion === tipo && r.periodo_academico === this.periodoService.periodo
+    );
+
     if (tipo === 'FRANJA_HORARIA' || tipo === 'BLOQUE_ALMUERZO') {
       horaInicioCtrl?.setValidators([Validators.required]);
       horaFinCtrl?.setValidators([Validators.required]);
-      if (tipo === 'BLOQUE_ALMUERZO') {
+      
+      if (restriccionExistente && restriccionExistente.valor) {
+        const val = restriccionExistente.valor as any;
+        horaInicioCtrl?.setValue(val.hora_inicio || (tipo === 'BLOQUE_ALMUERZO' ? '12:00' : '07:00'));
+        horaFinCtrl?.setValue(val.hora_fin || (tipo === 'BLOQUE_ALMUERZO' ? '14:00' : '22:00'));
+      } else if (tipo === 'BLOQUE_ALMUERZO') {
         horaInicioCtrl?.setValue('12:00');
         horaFinCtrl?.setValue('14:00');
       } else {
@@ -344,14 +363,26 @@ export class ConfiguracionComponent implements OnInit {
         Validators.min(1),
         Validators.max(tipo === 'MAX_HORAS_DIARIAS' ? 24 : 168),
       ]);
-      maxHorasCtrl?.setValue(tipo === 'MAX_HORAS_DIARIAS' ? 8 : 40);
+      
+      if (restriccionExistente && restriccionExistente.valor) {
+        const val = restriccionExistente.valor as any;
+        maxHorasCtrl?.setValue(val.max_horas || (tipo === 'MAX_HORAS_DIARIAS' ? 8 : 40));
+      } else {
+        maxHorasCtrl?.setValue(tipo === 'MAX_HORAS_DIARIAS' ? 8 : 40);
+      }
     } else if (tipo === 'DURACION_BLOQUE') {
       duracionCtrl?.setValidators([
         Validators.required,
         Validators.min(15),
         Validators.max(600),
       ]);
-      duracionCtrl?.setValue(120);
+      
+      if (restriccionExistente && restriccionExistente.valor) {
+        const val = restriccionExistente.valor as any;
+        duracionCtrl?.setValue(val.duracion_minutos || 120);
+      } else {
+        duracionCtrl?.setValue(120);
+      }
     }
 
     horaInicioCtrl?.updateValueAndValidity();
@@ -379,6 +410,11 @@ export class ConfiguracionComponent implements OnInit {
         next: (r) => {
           this.restricciones = r.data ?? [];
           this.loadingRestricciones = false;
+          // Cargar los valores de la restricción actual después de cargar las restricciones
+          const tipoActual = this.restriccionForm.get('tipo_restriccion')?.value;
+          if (tipoActual) {
+            this.actualizarFormSegunTipo(tipoActual);
+          }
         },
         error: () => {
           this.loadingRestricciones = false;
@@ -447,6 +483,33 @@ export class ConfiguracionComponent implements OnInit {
           );
         },
       });
+  }
+
+  editarRestriccion(r: RestriccionInstitucional): void {
+    this.restriccionForm.patchValue({
+      tipo_restriccion: r.tipo_restriccion,
+    });
+    this.actualizarFormSegunTipo(r.tipo_restriccion);
+    
+    // Después de actualizar el tipo, cargar los valores específicos
+    const val = r.valor as any;
+    if (r.tipo_restriccion === 'FRANJA_HORARIA' || r.tipo_restriccion === 'BLOQUE_ALMUERZO') {
+      this.restriccionForm.patchValue({
+        hora_inicio: val.hora_inicio,
+        hora_fin: val.hora_fin,
+      });
+    } else if (r.tipo_restriccion === 'MAX_HORAS_DIARIAS' || r.tipo_restriccion === 'MAX_HORAS_SEMANALES') {
+      this.restriccionForm.patchValue({
+        max_horas: val.max_horas,
+      });
+    } else if (r.tipo_restriccion === 'DURACION_BLOQUE') {
+      this.restriccionForm.patchValue({
+        duracion_minutos: val.duracion_minutos,
+      });
+    }
+    
+    // Scroll al formulario
+    document.querySelector('.premium-form-card')?.scrollIntoView({ behavior: 'smooth' });
   }
 
   getRestriccionDescripcion(r: RestriccionInstitucional): string {
@@ -558,6 +621,13 @@ export class ConfiguracionComponent implements OnInit {
     this.cargarParametrosCarga();
     this.cargarPeriodoActual();
     this.cargarCampanas();
+    // Recargar valores del formulario después de cambiar de período
+    setTimeout(() => {
+      const tipoActual = this.restriccionForm.get('tipo_restriccion')?.value;
+      if (tipoActual) {
+        this.actualizarFormSegunTipo(tipoActual);
+      }
+    }, 500);
   }
 
   // ─── TURNOS ───────────────────────────────────────────────────────────────────────
@@ -661,12 +731,26 @@ export class ConfiguracionComponent implements OnInit {
       .subscribe({
         next: (r) => {
           this.parametrosList = r.data ?? [];
+          this.aplicarFiltrosParametros();
           this.loadingParametros = false;
         },
         error: () => {
           this.loadingParametros = false;
         },
       });
+  }
+
+  aplicarFiltrosParametros(): void {
+    this.parametrosFiltrados = this.parametrosList.filter(p => {
+      const tipoDocenteOk = !this.filtrosParametros.tipo_docente || p.tipo_docente === this.filtrosParametros.tipo_docente;
+      const categoriaOk = !this.filtrosParametros.categoria || p.categoria === this.filtrosParametros.categoria;
+      const modalidadOk = !this.filtrosParametros.modalidad || p.modalidad === this.filtrosParametros.modalidad;
+      return tipoDocenteOk && categoriaOk && modalidadOk;
+    });
+  }
+
+  onFiltroChange(): void {
+    this.aplicarFiltrosParametros();
   }
 
   guardarParametrosCarga(): void {
@@ -1039,7 +1123,6 @@ export class ConfiguracionComponent implements OnInit {
       excluir_eventos: formValue.excluirEventos,
       distribucion_equitativa: formValue.distribucionEquitativa,
       bloques_horarios: this.bloquesHorarios,
-      reglas_prioridad: this.reglasPrioridad,
     };
 
     this.api.post<ApiResponse<any>>('/campanas-ventanas', payload).subscribe({
@@ -1099,8 +1182,63 @@ export class ConfiguracionComponent implements OnInit {
   }
 
   seleccionarCampana(campana: any): void {
+    console.log('[Configuración] seleccionarCampana llamada con:', campana);
     this.campanaSeleccionada = campana;
     this.ventanasGeneradas = [];
+    console.log('[Configuración] campanaSeleccionada asignada:', this.campanaSeleccionada);
+    
+    // Cargar detalles completos de la campaña incluyendo bloques horarios
+    this.api.get<ApiResponse<any>>(`/campanas-ventanas/${campana.id}`).subscribe({
+      next: (r) => {
+        console.log('[Configuración] Respuesta de API:', r);
+        const campanaCompleta = r.data;
+        this.campanaSeleccionada = campanaCompleta;
+        
+        // Cargar bloques horarios de la campaña
+        if (campanaCompleta.bloques_horarios && Array.isArray(campanaCompleta.bloques_horarios)) {
+          this.bloquesHorarios = [...campanaCompleta.bloques_horarios];
+        } else {
+          this.bloquesHorarios = [];
+        }
+        
+        // Cargar reglas de prioridad de la campaña
+        if (campanaCompleta.reglas_prioridad && Array.isArray(campanaCompleta.reglas_prioridad)) {
+          this.reglasPrioridad = [...campanaCompleta.reglas_prioridad];
+        } else {
+          this.reglasPrioridad = [];
+        }
+        
+        console.log('[Configuración] Campaña seleccionada:', campanaCompleta);
+        console.log('[Configuración] Bloques horarios:', this.bloquesHorarios);
+      },
+      error: (err) => {
+        console.error('[Configuración] Error al cargar detalles de campaña:', err);
+        this.notif.error('Error al cargar detalles de la campaña');
+      }
+    });
+  }
+
+  eliminarVentanasCampana(): void {
+    if (!this.campanaSeleccionada) {
+      this.notif.info('Seleccione una campaña');
+      return;
+    }
+
+    if (!confirm(`¿Está seguro de eliminar todas las ventanas de la campaña "${this.campanaSeleccionada.nombre}"?`)) {
+      return;
+    }
+
+    this.api.post<ApiResponse<any>>(`/campanas-ventanas/${this.campanaSeleccionada.id}/eliminar-ventanas`, {}).subscribe({
+      next: (r) => {
+        this.notif.success(`Se eliminaron ${r.data.ventanasEliminadas} ventanas`);
+        this.campanaSeleccionada = r.data.campañaActualizada;
+        this.ventanasGeneradas = [];
+        this.cargarCampanas();
+      },
+      error: (err) => {
+        this.notif.error(err?.error?.message ?? 'Error al eliminar ventanas');
+      }
+    });
   }
 
   agregarBloqueHorario(): void {

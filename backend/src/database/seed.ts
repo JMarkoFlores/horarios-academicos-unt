@@ -74,6 +74,8 @@ const AppDataSource = new DataSource({
   ],
   synchronize: false,
   logging: false,
+  ssl:
+    process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
 });
 
 async function seed() {
@@ -91,7 +93,10 @@ async function seed() {
     `);
     console.log("✅ Columna grupos verificada/creada");
   } catch (error) {
-    console.log("⚠️  Error al verificar columna grupos (puede que ya exista):", error);
+    console.log(
+      "⚠️  Error al verificar columna grupos (puede que ya exista):",
+      error,
+    );
   }
 
   // ── 0. LIMPIEZA DE BASE DE DATOS (TRUNCATE CASCADE) ──────────────────────
@@ -1539,7 +1544,9 @@ async function seed() {
   for (const doc of dbDocentes) {
     for (let dia = 1; dia <= 5; dia++) {
       // Horas completas: Turno Mañana 07-14 y Turno Tarde 14-23
-      const horasValidas = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+      const horasValidas = [
+        7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+      ];
       for (const h of horasValidas) {
         // Todos los docentes tienen disponibilidad completa
         slotsToSave.push(

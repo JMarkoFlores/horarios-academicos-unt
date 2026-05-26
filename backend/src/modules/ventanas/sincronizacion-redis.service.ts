@@ -62,6 +62,10 @@ export class SincronizacionRedisService implements OnModuleDestroy {
     return this.liberarLockCelda(ambienteId, dia, horaInicio, periodo);
   }
 
+  async recuperarSeleccionesDelBD(): Promise<{ recuperadas: number }> {
+    return { recuperadas: 0 };
+  }
+
   async marcarSeleccionesComoConfirmadas(sesionId: string): Promise<void> {
     const claveSesion = `sesion_${sesionId}`;
     const claves = await this.redis.smembers(claveSesion);

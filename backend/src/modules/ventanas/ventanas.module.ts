@@ -6,7 +6,6 @@ import { CampañaVentanas } from "../../entities/campaña-ventanas.entity";
 import { ColaDocente } from "../../entities/cola-docentes.entity";
 import { Curso } from "../../entities/curso.entity";
 import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
-import { Curso } from "../../entities/curso.entity";
 import { Docente } from "../../entities/docente.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
@@ -44,8 +43,6 @@ import { SincronizacionRedisService } from "./sincronizacion-redis.service";
       CampañaVentanas,
       DiaNoLaborable,
       ReglasPrioridadGlobales,
-      Curso,
-      AuditoriaHorario,
       SeleccionTemporal,
     ]),
     HorariosModule,

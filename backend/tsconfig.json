@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": false,
     "rootDir": ".",
     "types": ["node", "jest"],
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "noEmitOnError": false,
     "paths": {
       "@common/*": ["src/common/*"],

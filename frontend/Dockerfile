@@ -16,10 +16,15 @@ COPY . .
 RUN npm run build
 
 # Production stage - Use nginx to serve the built files
+FROM node:20-alpine AS config
+
+WORKDIR /app
+COPY nginx.conf .
+
 FROM nginx:alpine AS production
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration from config stage
+COPY --from=config /app/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html

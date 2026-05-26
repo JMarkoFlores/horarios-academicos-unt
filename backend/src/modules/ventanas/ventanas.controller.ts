@@ -238,6 +238,22 @@ export class VentanasController {
     return { data: null, message: "Celda liberada", statusCode: HttpStatus.OK };
   }
 
+  @Post(":id/limpiar-sesion")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Limpiar todas las selecciones temporales de una sesión" })
+  async limpiarSesion(
+    @Param("id") id: string,
+    @Body() dto: { sesionId: string },
+  ) {
+    await this.gestorSeleccionService.limpiarSesion(dto.sesionId);
+    return { data: null, message: "Sesión limpiada", statusCode: HttpStatus.OK };
+  }
+
   @Post(":id/confirmar")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
@@ -268,15 +284,18 @@ export class VentanasController {
   @ApiOperation({ summary: "Obtener grilla completa del ambiente para la semana" })
   @ApiQuery({ name: 'ambiente_id', required: true, type: Number })
   @ApiQuery({ name: 'sesionId', required: false, type: String })
+  @ApiQuery({ name: 'docenteId', required: false, type: Number })
   async getDisponibilidadMatriz(
     @Param("id") id: string,
     @Query("ambiente_id") ambienteId: string,
     @Query("sesionId") sesionId?: string,
+    @Query("docenteId") docenteId?: string,
   ) {
     const data = await this.gestorSeleccionService.obtenerDisponibilidadMatriz(
       id,
       Number(ambienteId),
       sesionId,
+      docenteId ? Number(docenteId) : undefined,
     );
     return {
       data,

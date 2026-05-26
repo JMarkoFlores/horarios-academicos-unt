@@ -1,0 +1,526 @@
+// Design system breakpoints
+$breakpoint-tablet: 600px;
+$breakpoint-mobile: 360px;
+
+.matriz-container {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  mat-progress-bar {
+    margin: -16px -16px 0 -16px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+}
+
+.matriz-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+
+  @media (max-width: $breakpoint-tablet) {
+    overflow-x: auto;
+  }
+}
+
+.matriz-horarios {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: inherit;
+
+  th,
+  td {
+    border: 1px solid var(--color-border);
+    padding: 0;
+    text-align: center;
+    vertical-align: middle;
+    height: 48px;
+  }
+
+  th {
+    background: var(--color-surface-2);
+    font-weight: 600;
+    color: var(--color-text);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 8px 4px;
+  }
+
+  .header-dia {
+    width: 64px;
+    min-width: 64px;
+  }
+
+  .header-hora {
+    background: var(--color-surface-2);
+    font-weight: 600;
+    width: 48px;
+    min-width: 48px;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+  }
+
+  .celda {
+    width: 64px;
+    min-width: 64px;
+    height: 48px;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 2px;
+    user-select: none;
+
+    &:focus {
+      outline: 2px solid var(--color-primary);
+      outline-offset: -2px;
+    }
+
+    .celda-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+      line-height: 18px;
+    }
+
+    .celda-label {
+      font-size: 8px;
+      font-weight: 600;
+      line-height: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 90%;
+    }
+
+    // LIBRE state
+    &.libre {
+      background: #ffffff;
+      border-color: var(--color-border);
+
+      &:hover {
+        background: #e8f5e9;
+        box-shadow: inset 0 0 0 1px var(--color-primary);
+        cursor: pointer;
+      }
+
+      &:active {
+        background: #c8e6c9;
+      }
+    }
+
+    // OCUPADO state
+    &.ocupado {
+      background: var(--color-primary);
+      color: white;
+      cursor: not-allowed;
+      border-color: var(--color-primary);
+
+      .celda-icon {
+        color: white;
+      }
+
+      .celda-label {
+        color: white;
+      }
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+
+    // TEMPORAL_PROPIO state
+    &.temporal-propio {
+      background: #2e7d32;
+      color: white;
+      border-color: #1b5e20;
+
+      .celda-icon {
+        color: white;
+      }
+
+      .celda-label {
+        color: white;
+      }
+
+      &:hover {
+        background: #1b5e20;
+        box-shadow: var(--shadow-md);
+      }
+
+      &:active {
+        background: #1565c0;
+      }
+    }
+
+    // TEMPORAL_OTRO state
+    &.temporal-otro {
+      background: #fbc02d;
+      color: #333;
+      cursor: not-allowed;
+      border-color: #f39c12;
+
+      .celda-icon {
+        color: #333;
+      }
+
+      .celda-label {
+        color: #333;
+      }
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
+
+    // BLOQUEADO state
+    &.bloqueado {
+      background: repeating-linear-gradient(
+        45deg,
+        #e0e0e0,
+        #e0e0e0 10px,
+        #f5f5f5 10px,
+        #f5f5f5 20px
+      );
+      color: #757575;
+      cursor: not-allowed;
+      border-color: #bdbdbd;
+
+      .celda-icon {
+        color: #757575;
+      }
+
+      .celda-label {
+        color: #757575;
+      }
+    }
+  }
+}
+
+.validation-panel {
+  margin-top: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+
+  mat-expansion-panel-header {
+    background: var(--color-surface-2);
+    border-bottom: 1px solid var(--color-border);
+  }
+}
+
+.validation-icon {
+  margin-right: 8px;
+  font-size: 20px;
+  height: 20px;
+  width: 20px;
+}
+
+.validation-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.validation-details {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .inline-icon {
+      font-size: 16px;
+      height: 16px;
+      width: 16px;
+    }
+  }
+
+  mat-list {
+    padding: 0;
+
+    mat-list-item {
+      height: auto;
+      min-height: 32px;
+      padding: 6px 0;
+
+      .regla-codigo {
+        font-weight: 600;
+        min-width: 120px;
+      }
+
+      .regla-motivo {
+        color: var(--color-text-muted);
+        font-size: 13px;
+      }
+    }
+  }
+
+  mat-chip-set {
+    margin-top: 4px;
+
+    mat-chip {
+      font-size: 12px;
+      padding: 6px 12px;
+      background: rgba(52, 152, 219, 0.15);
+      color: #3498db;
+      border: 1px solid rgba(52, 152, 219, 0.3);
+    }
+  }
+
+  .failures {
+    padding: 12px;
+    background: rgba(231, 76, 60, 0.08);
+    border-left: 3px solid #e74c3c;
+    border-radius: var(--radius-md);
+
+    h4 {
+      color: #e74c3c;
+    }
+  }
+
+  .warnings {
+    padding: 12px;
+    background: rgba(241, 196, 15, 0.08);
+    border-left: 3px solid #f39c12;
+    border-radius: var(--radius-md);
+
+    h4 {
+      color: #f39c12;
+    }
+  }
+
+  .suggestions {
+    padding: 12px;
+    background: rgba(52, 152, 219, 0.08);
+    border-left: 3px solid #3498db;
+    border-radius: var(--radius-md);
+
+    h4 {
+      color: #3498db;
+    }
+  }
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .legend-cell {
+      width: 24px;
+      height: 24px;
+      border-radius: 2px;
+      border: 1px solid var(--color-border);
+
+      &.libre {
+        background: #ffffff;
+      }
+
+      &.ocupado {
+        background: var(--color-primary);
+      }
+
+      &.temporal-propio {
+        background: #2e7d32;
+      }
+
+      &.temporal-otro {
+        background: #fbc02d;
+      }
+
+      &.bloqueado {
+        background: repeating-linear-gradient(
+          45deg,
+          #e0e0e0,
+          #e0e0e0 5px,
+          #f5f5f5 5px,
+          #f5f5f5 10px
+        );
+      }
+    }
+
+    span {
+      color: var(--color-text);
+      font-weight: 500;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: $breakpoint-tablet) {
+  .matriz-horarios {
+    th,
+    td {
+      height: 40px;
+      padding: 0;
+      font-size: 11px;
+    }
+
+    .header-dia {
+      width: 56px;
+      min-width: 56px;
+    }
+
+    .header-hora {
+      width: 40px;
+      min-width: 40px;
+    }
+
+    .celda {
+      width: 56px;
+      min-width: 56px;
+      height: 40px;
+      gap: 0;
+
+      .celda-icon {
+        font-size: 14px;
+        height: 14px;
+        width: 14px;
+      }
+
+      .celda-label {
+        font-size: 7px;
+      }
+    }
+  }
+
+  .validation-details {
+    h4 {
+      font-size: 12px;
+    }
+
+    .inline-icon {
+      font-size: 14px;
+      height: 14px;
+      width: 14px;
+    }
+  }
+
+  .legend {
+    gap: 12px;
+    font-size: 11px;
+
+    .legend-cell {
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
+
+@media (max-width: $breakpoint-mobile) {
+  .matriz-container {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .matriz-horarios {
+    th,
+    td {
+      height: 36px;
+      font-size: 10px;
+    }
+
+    .header-dia {
+      width: 48px;
+      min-width: 48px;
+    }
+
+    .header-hora {
+      width: 36px;
+      min-width: 36px;
+      font-size: 9px;
+    }
+
+    .celda {
+      width: 48px;
+      min-width: 48px;
+      height: 36px;
+
+      .celda-icon {
+        font-size: 12px;
+        height: 12px;
+        width: 12px;
+      }
+
+      .celda-label {
+        font-size: 6px;
+      }
+    }
+  }
+
+  .validation-details {
+    padding: 12px;
+
+    h4 {
+      font-size: 11px;
+    }
+
+    .inline-icon {
+      font-size: 12px;
+      height: 12px;
+      width: 12px;
+    }
+
+    mat-list-item {
+      min-height: 28px !important;
+      padding: 4px 0 !important;
+
+      .regla-codigo {
+        min-width: 100px;
+        font-size: 11px;
+      }
+
+      .regla-motivo {
+        font-size: 11px;
+      }
+    }
+
+    mat-chip-set {
+      mat-chip {
+        font-size: 10px;
+        padding: 4px 8px;
+      }
+    }
+  }
+
+  .legend {
+    gap: 8px;
+    padding: 8px;
+    font-size: 10px;
+
+    .legend-cell {
+      width: 18px;
+      height: 18px;
+    }
+
+    span {
+      font-size: 10px;
+    }
+  }
+}

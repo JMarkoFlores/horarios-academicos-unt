@@ -33,6 +33,9 @@ export class DocenteCurso {
   @Column({ name: "periodo_id", nullable: true })
   periodoId: number | null;
 
+  @Column({ name: "grupos", default: 1, nullable: true })
+  grupos: number;
+
   @ManyToOne(() => Docente, { onDelete: "CASCADE" })
   @JoinColumn({ name: "docente_id" })
   docente: Docente;

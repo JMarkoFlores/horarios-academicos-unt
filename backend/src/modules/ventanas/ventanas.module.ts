@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { Ambiente } from "../../entities/ambiente.entity";
 import { CampañaVentanas } from "../../entities/campaña-ventanas.entity";
 import { ColaDocente } from "../../entities/cola-docentes.entity";
+import { Curso } from "../../entities/curso.entity";
 import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
 import { Curso } from "../../entities/curso.entity";
 import { Docente } from "../../entities/docente.entity";
@@ -13,6 +14,7 @@ import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
 import { ReglasPrioridadGlobales } from "../../entities/reglas-prioridad.entity";
 import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
+import { SeleccionTemporal } from "../../entities/seleccion-temporal.entity";
 import { HorariosModule } from "../../horarios/horarios.module";
 import { VentanasController } from "./ventanas.controller";
 import { GestorSeleccionTemporalService } from "./gestor-seleccion.service";
@@ -42,6 +44,9 @@ import { SincronizacionRedisService } from "./sincronizacion-redis.service";
       CampañaVentanas,
       DiaNoLaborable,
       ReglasPrioridadGlobales,
+      Curso,
+      AuditoriaHorario,
+      SeleccionTemporal,
     ]),
     HorariosModule,
     CommonModule,

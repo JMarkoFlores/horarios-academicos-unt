@@ -129,6 +129,55 @@ export interface VentanaAtencion {
   estado: string;
 }
 
+export interface CeldaSeleccionada {
+  dia: number;
+  horaInicio: string;
+  horaFin: string;
+  docenteId?: number;
+  cursoId?: number;
+  grupoId?: number;
+  ambienteId?: number;
+  tipoClase?: string;
+  periodo?: string;
+}
+
+export interface ValidationFeedback {
+  valido: boolean;
+  reglasFallidas: { codigo: string; motivo: string }[];
+  advertencias: { codigo: string; mensaje: string }[];
+  sugerencias: { codigo: string; sugerencia: string }[];
+  alternativas?: Array<{
+    tipo: 'ambiente' | 'bloque';
+    id: number;
+    descripcion: string;
+    preferencia: string;
+  }>;
+}
+
+export interface LockStatus {
+  ambienteId: number;
+  dia: number;
+  horaInicio: string;
+  periodo: string;
+  sesionId?: string;
+  operadorNombre?: string;
+}
+
+export interface CeldaMatriz {
+  dia: number;
+  horaInicio: string;
+  horaFin: string;
+  estado: 'LIBRE' | 'OCUPADO' | 'TEMPORAL_PROPIO' | 'TEMPORAL_OTRO' | 'BLOQUEADO';
+  lockStatus?: 'LOCKED' | 'AVAILABLE' | 'LOCKED_BY_OTHER';
+  validationResult?: ValidationFeedback;
+  metadata?: {
+    docenteNombre?: string;
+    cursoNombre?: string;
+    grupo?: string;
+    ambienteCodigo?: string;
+  };
+}
+
 export interface ConflictoAsignacion {
   id: number;
   tipo_conflicto: string;

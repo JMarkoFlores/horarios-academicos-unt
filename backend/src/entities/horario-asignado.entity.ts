@@ -66,6 +66,21 @@ export class HorarioAsignado {
   })
   origen: OrigenHorario;
 
+  @Column({ nullable: true, length: 36 })
+  ventana_atencion_id?: string;
+
+  @Column({ nullable: true, length: 36 })
+  sesion_operador_id?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  validaciones_ejecutadas?: any;
+
+  @Column({ nullable: true, type: 'text' })
+  razon_rechazo?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  contexto_validacion?: any;
+
   @CreateDateColumn({ name: "creado_en" })
   creado_en: Date;
 

@@ -18,6 +18,9 @@ RUN npm run build
 # Production stage - Use nginx to serve the built files
 FROM nginx:alpine AS production
 
+# Remove default nginx configuration
+RUN rm /etc/nginx/conf.d/default.conf
+
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 

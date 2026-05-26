@@ -63,8 +63,8 @@
           <div class="curso-info">
             <span class="curso-code">{{ c.curso?.codigo || '—' }}</span>
             <span class="curso-name">{{ c.curso?.nombre || 'Curso no disponible' }}</span>
-            <span class="badge" [class.teoria]="c.tipo_clase === 'TEORIA'" [class.lab]="c.tipo_clase === 'LABORATORIO'">
-              {{ c.tipo_clase === 'TEORIA' ? 'Teoría' : 'Laboratorio' }}
+            <span class="badge" [class.teoria]="c.tipo_clase === 'TEORIA'" [class.practica]="c.tipo_clase === 'PRACTICA'" [class.lab]="c.tipo_clase === 'LABORATORIO'">
+              {{ c.tipo_clase === 'TEORIA' ? 'Teoría' : (c.tipo_clase === 'PRACTICA' ? 'Práctica' : 'Laboratorio') }}
             </span>
           </div>
           <button mat-icon-button color="warn" (click)="quitarCurso(c.cursoId, c.tipo_clase)" [disabled]="guardando">

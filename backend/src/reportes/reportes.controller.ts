@@ -179,4 +179,25 @@ export class ReportesController {
     });
     res.end(buffer);
   }
+
+  @Get("ciclo/:ciclo/pdf")
+  @ApiOperation({ summary: "PDF del horario de un ciclo" })
+  @ApiParam({ name: "ciclo", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async cicloPDF(
+    @Param("ciclo", ParseIntPipe) ciclo: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteCicloPDF(
+      ciclo,
+      periodo,
+    );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=horario-ciclo-${ciclo}-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
 }

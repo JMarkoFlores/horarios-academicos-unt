@@ -275,43 +275,69 @@
             <div class="step-header">
               <span class="step-number" [class.active]="!cursoSeleccionado">1</span>
               <h4>Seleccionar Curso</h4>
-              <span class="step-count" *ngIf="cursosDocente.length > 0">{{ cursosDocente.length }} disponible(s)</span>
+              <span class="step-count" *ngIf="cursosDocente.length > 0">{{ cursosDocente.length }} curso(s)</span>
             </div>
 
-            <div class="cursos-list" *ngIf="cursosDocente && cursosDocente.length > 0">
-              <div
-                *ngFor="let c of cursosDocente"
-                class="curso-card"
-                [class.seleccionado]="cursoSeleccionado?.cursoId === c.cursoId && cursoSeleccionado?.tipo_clase === c.tipo_clase"
-                [class.completo]="cursoEstaCompleto(c)"
-                (click)="seleccionarCurso(c)"
-              >
-                <div class="curso-main">
-                  <span class="curso-codigo">{{ c.curso?.codigo }}</span>
-                  <span class="curso-nombre">{{ c.curso?.nombre }}</span>
-                  <span class="curso-tipo" [ngClass]="c.tipo_clase === 'TEORIA' ? 'tipo-teoria' : 'tipo-lab'">
-                    {{ c.tipo_clase === 'TEORIA' ? 'Teoría' : 'Laboratorio' }}
-                  </span>
-                </div>
-                <div class="curso-progress">
-                  <div class="progress-text">
-                    <span>{{ getHorasAsignadasCurso(c.cursoId, c.tipo_clase) }}h / {{ getHorasRequeridas(c, c.tipo_clase) }}h</span>
+            <div class="cursos-container">
+              <mat-form-field appearance="outline" class="buscar-curso-field" *ngIf="cursosDocente.length > 3">
+                <mat-icon matPrefix>search</mat-icon>
+                <input matInput [(ngModel)]="filtroCurso" placeholder="Buscar curso..." autocomplete="off">
+                <button mat-icon-button matSuffix *ngIf="filtroCurso" (click)="filtroCurso = ''">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </mat-form-field>
+
+              <div class="cursos-list" *ngIf="cursosFiltrados && cursosFiltrados.length > 0">
+                <div
+                  *ngFor="let c of cursosFiltrados"
+                  class="curso-card"
+                  [class.seleccionado]="cursoSeleccionado?.cursoId === c.cursoId"
+                  [class.expandido]="cursoSeleccionado?.cursoId === c.cursoId"
+                  (click)="seleccionarCurso(c)"
+                >
+                  <div class="curso-main">
+                    <span class="curso-codigo">{{ c.curso?.codigo }}</span>
+                    <span class="curso-nombre">{{ c.curso?.nombre }}</span>
                   </div>
-                  <mat-progress-bar
-                    mode="determinate"
-                    [value]="(getHorasAsignadasCurso(c.cursoId, c.tipo_clase) / getHorasRequeridas(c, c.tipo_clase)) * 100 || 0"
-                    [color]="cursoEstaCompleto(c) ? 'accent' : 'primary'"
-                  ></mat-progress-bar>
+                  <div class="tipos-clase" *ngIf="cursoSeleccionado?.cursoId === c.cursoId" (click)="$event.stopPropagation()">
+                    <mat-form-field appearance="outline" class="tipo-clase-select">
+                      <mat-label>Tipo de Clase</mat-label>
+                      <mat-select [(ngModel)]="tipoClase" (ngModelChange)="seleccionarTipoClase(c, $event)">
+                        <mat-option *ngFor="let tipo of c.tiposClase" [value]="tipo.tipo">
+                          {{ tipo.tipo === 'TEORIA' ? 'Teoría' : (tipo.tipo === 'PRACTICA' ? 'Práctica' : 'Laboratorio') }}
+                        </mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                    <div class="grupos-lab" *ngIf="tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA'">
+                      <mat-form-field appearance="outline" class="grupo-select">
+                        <mat-label>Grupo</mat-label>
+                        <mat-select [(ngModel)]="grupoSeleccionado" (ngModelChange)="onGrupoChange($event)">
+                          <mat-option *ngFor="let g of [].constructor(gruposDisponibles); let i = index" [value]="i + 1">Grupo {{ i + 1 }}</mat-option>
+                        </mat-select>
+                      </mat-form-field>
+                    </div>
+                  </div>
+                  <div class="curso-progress" *ngIf="cursoSeleccionado?.cursoId === c.cursoId && tipoClase">
+                    <div class="progress-text">
+                      <span>{{ getHorasAsignadasCurso(c.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined) }}h / {{ getHorasRequeridas(c, tipoClase) }}h</span>
+                    </div>
+                    <mat-progress-bar
+                      mode="determinate"
+                      [value]="(getHorasAsignadasCurso(c.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined) / getHorasRequeridas(c, tipoClase)) * 100 || 0"
+                      [color]="(getHorasAsignadasCurso(c.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined) >= getHorasRequeridas(c, tipoClase)) ? 'accent' : 'primary'"
+                    ></mat-progress-bar>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div *ngIf="!cursosDocente || cursosDocente.length === 0" class="estado-vacio-mini">
-              <mat-icon>school</mat-icon>
-              <p>No hay cursos habilitados para este docente.</p>
-              <a routerLink="/app/docente-cursos" class="link-config">
-                <mat-icon>open_in_new</mat-icon> Configurar docente-curso
-              </a>
+              <div *ngIf="!cursosFiltrados || cursosFiltrados.length === 0" class="estado-vacio-mini">
+                <mat-icon>school</mat-icon>
+                <p *ngIf="filtroCurso">No se encontraron cursos con "{{ filtroCurso }}"</p>
+                <p *ngIf="!filtroCurso">No hay cursos habilitados para este docente.</p>
+                <a routerLink="/app/docente-cursos" class="link-config">
+                  <mat-icon>open_in_new</mat-icon> Configurar docente-curso
+                </a>
+              </div>
             </div>
           </div>
 
@@ -377,9 +403,11 @@
                 [sesionId]="sesionId"
                 [docenteId]="docenteActual.id"
                 [cursoId]="cursoSeleccionado.cursoId"
-                [tipoClase]="cursoSeleccionado.tipo_clase"
+                [tipoClase]="tipoClase"
                 [periodo]="periodoService.periodo"
+                [grupoSeleccionado]="(tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined"
                 (seleccionCambiada)="cargarHorariosDocente(docenteActual.id)"
+                #grillaRef
               ></app-grilla-horarios>
             </div>
           </div>

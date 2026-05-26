@@ -1,10 +1,11 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { VentanaAtencion, ApiResponse, Curso, Ambiente } from '../../core/interfaces/entities';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { GrillaHorariosComponent } from './grilla-horarios/grilla-horarios.component';
 
 function generarUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -20,6 +21,8 @@ function generarUUID(): string {
   styleUrls: ['./operador.component.scss']
 })
 export class OperadorComponent implements OnInit, OnDestroy {
+  @ViewChild('grillaRef') grillaRef!: GrillaHorariosComponent;
+
   ventanaForm: FormGroup;
   ventanas: VentanaAtencion[] = [];
   ventanasFiltradas: VentanaAtencion[] = [];
@@ -42,9 +45,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
   categorias = [
     { value: '', label: 'Todas' },
     { value: 'PRINCIPAL', label: 'Principal' },
-    { value: 'ASOCIADO', label: 'Asociado' },
-    { value: 'AUXILIAR', label: 'Auxiliar' },
-    { value: 'JEFE_PRACTICA', label: 'Jefe de Práctica' },
+    { value: 'CONTINGENCIA', label: 'Contingencia' },
   ];
 
   estados = [
@@ -56,7 +57,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
   ];
 
   // Estado de atención activa
-  sesionId = generarUUID();
+  sesionId!: string;
   docenteActual: any = null;
   cursosDocente: any[] = [];
   ambientesDocente: Ambiente[] = [];
@@ -64,8 +65,11 @@ export class OperadorComponent implements OnInit, OnDestroy {
 
   cursoSeleccionado: any = null;
   tipoClase = 'TEORIA';
+  grupoSeleccionado = 1;
+  gruposDisponibles = 1;
   ambienteSeleccionado: Ambiente | null = null;
   filtroAmbiente = '';
+  filtroCurso = '';
 
   constructor(
     private api: ApiService,
@@ -73,6 +77,22 @@ export class OperadorComponent implements OnInit, OnDestroy {
     public periodoService: PeriodoService,
     private snack: MatSnackBar
   ) {
+    // Limpiar sesión anterior antes de generar nuevo sessionId
+    const sesionAnterior = localStorage.getItem('sesionId');
+    const ventanaId = localStorage.getItem('ventanaActivaId');
+    
+    if (sesionAnterior && ventanaId) {
+      this.api.post(`/ventanas/${ventanaId}/limpiar-sesion`, { sesionId: sesionAnterior }).subscribe({
+        next: () => {
+          console.log('Sesión anterior limpiada:', sesionAnterior);
+        },
+        error: (err) => console.error('Error limpiando sesión anterior:', err)
+      });
+    }
+    
+    // Generar nuevo sessionId después de limpiar la anterior
+    this.sesionId = generarUUID();
+    
     const today = new Date();
     const localDate = today.getFullYear() + '-' +
       ('0' + (today.getMonth() + 1)).slice(-2) + '-' +
@@ -86,6 +106,9 @@ export class OperadorComponent implements OnInit, OnDestroy {
       categoria: ['PRINCIPAL', Validators.required],
       modalidad: ['NOMBRADO', Validators.required]
     });
+    
+    // Guardar sessionId actual para limpieza futura
+    localStorage.setItem('sesionId', this.sesionId);
   }
 
   ngOnInit(): void {
@@ -251,9 +274,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
   getCategoriaLabel(cat: string): string {
     const map: Record<string, string> = {
       PRINCIPAL: 'Principal',
-      ASOCIADO: 'Asociado',
-      AUXILIAR: 'Auxiliar',
-      JEFE_PRACTICA: 'Jefe de Práctica',
+      CONTINGENCIA: 'Contingencia',
     };
     return map[cat] || cat;
   }
@@ -263,6 +284,9 @@ export class OperadorComponent implements OnInit, OnDestroy {
       next: (r) => {
         this.ventanaActiva = r.data || null;
         console.log('[Operador] ventanaActiva =', this.ventanaActiva);
+        if (this.ventanaActiva) {
+          localStorage.setItem('ventanaActivaId', this.ventanaActiva.id);
+        }
       },
       error: (err) => {
         console.error('[Operador] checkVentanaActiva error:', err);
@@ -284,7 +308,23 @@ export class OperadorComponent implements OnInit, OnDestroy {
 
   cargarCursosDocente(docenteId: number): void {
     this.api.get<ApiResponse<any[]>>(`/docentes/${docenteId}/cursos`).subscribe(r => {
-      this.cursosDocente = r.data || [];
+      const cursos = r.data || [];
+      // Agrupar cursos por cursoId para no repetir por tipo de clase
+      const cursosUnicos = new Map<number, any>();
+      cursos.forEach(c => {
+        if (!cursosUnicos.has(c.cursoId)) {
+          cursosUnicos.set(c.cursoId, {
+            cursoId: c.cursoId,
+            curso: c.curso,
+            tiposClase: []
+          });
+        }
+        cursosUnicos.get(c.cursoId).tiposClase.push({
+          tipo: c.tipo_clase,
+          grupos: c.grupos || 1
+        });
+      });
+      this.cursosDocente = Array.from(cursosUnicos.values());
     });
   }
 
@@ -297,18 +337,83 @@ export class OperadorComponent implements OnInit, OnDestroy {
   cargarHorariosDocente(docenteId: number): void {
     this.api.get<ApiResponse<any>>(`/horarios/docente/${docenteId}`, { periodo: this.periodoService.periodo }).subscribe(r => {
       this.horariosDocente = r.data?.items || [];
+      
+      // Si es laboratorio o práctica y hay horarios confirmados para el grupo seleccionado, seleccionar automáticamente el ambiente
+      if ((this.tipoClase === 'LABORATORIO' || this.tipoClase === 'PRACTICA') && this.grupoSeleccionado && this.cursoSeleccionado) {
+        const horariosGrupo = this.horariosDocente.filter(h => 
+          h.curso_id === this.cursoSeleccionado.cursoId && 
+          (h.tipo_clase === 'LABORATORIO' || h.tipo_clase === 'PRACTICA')
+        );
+        // Filtrar por grupo específico
+        const horariosGrupoEspecifico = horariosGrupo.filter(h => {
+          if (!h.grupo) return false;
+          const grupoMatch = h.grupo.codigo?.match(/-G(\d+)$/);
+          return grupoMatch && parseInt(grupoMatch[1], 10) === this.grupoSeleccionado;
+        });
+        if (horariosGrupoEspecifico.length > 0) {
+          const ambienteId = horariosGrupoEspecifico[0].ambiente_id;
+          const ambiente = this.ambientesDocente.find(a => a.id === ambienteId);
+          if (ambiente && !this.ambienteSeleccionado) {
+            this.ambienteSeleccionado = ambiente;
+            console.log('[Operador] Ambiente seleccionado automáticamente para grupo:', this.grupoSeleccionado, ambiente.codigo);
+          }
+        }
+      }
     });
   }
 
   seleccionarCurso(curso: any): void {
-    const req = this.getHorasRequeridas(curso, curso.tipo_clase);
-    const asig = this.getHorasAsignadasCurso(curso.cursoId, curso.tipo_clase);
-    if (asig >= req) {
-      this.snack.open(`El curso ${curso.curso?.nombre} (${curso.tipo_clase}) ya tiene completas las ${req}h requeridas.`, 'OK', { duration: 4000 });
-      return;
-    }
     this.cursoSeleccionado = curso;
     this.ambienteSeleccionado = null;
+    // Seleccionar el primer tipo de clase disponible por defecto
+    if (curso.tiposClase && curso.tiposClase.length > 0) {
+      this.tipoClase = curso.tiposClase[0].tipo;
+      const tipoInfo = curso.tiposClase[0];
+      this.gruposDisponibles = tipoInfo ? tipoInfo.grupos : 1;
+      this.grupoSeleccionado = 1;
+      this.cargarAmbientesCompatibles(curso.cursoId, this.tipoClase);
+    }
+  }
+
+  seleccionarTipoClase(curso: any, tipo: string): void {
+    this.tipoClase = tipo;
+    this.ambienteSeleccionado = null;
+    // Obtener el número de grupos para este tipo de clase
+    const tipoInfo = curso.tiposClase.find((t: any) => t.tipo === tipo);
+    this.gruposDisponibles = tipoInfo ? tipoInfo.grupos : 1;
+    this.grupoSeleccionado = 1;
+    this.cargarAmbientesCompatibles(curso.cursoId, tipo);
+  }
+
+  onGrupoChange(value: number): void {
+    console.log('[Operador] onGrupoChange llamado con valor:', value, 'grupoSeleccionado actual:', this.grupoSeleccionado);
+    // Deseleccionar el ambiente cuando cambia el grupo
+    this.ambienteSeleccionado = null;
+    // Limpiar selecciones temporales para evitar conflictos con el grupo anterior
+    if (this.sesionId && this.ventanaActiva) {
+      this.api.post(`/ventanas/${this.ventanaActiva.id}/limpiar-sesion`, { sesionId: this.sesionId }).subscribe({
+        next: () => {
+          console.log('[Operador] Sesión limpiada al cambiar grupo');
+        },
+        error: (err) => {
+          console.error('[Operador] Error limpiando sesión:', err);
+        }
+      });
+    }
+    // Recargar horarios del docente para ver si el grupo tiene horarios confirmados
+    if (this.docenteActual) {
+      this.cargarHorariosDocente(this.docenteActual.id);
+    }
+  }
+
+  cargarAmbientesCompatibles(cursoId: number, tipoClase: string): void {
+    if (!this.docenteActual) return;
+    this.api.get<ApiResponse<Ambiente[]>>(`/docentes/${this.docenteActual.id}/ambientes-compatibles`, {
+      cursoId,
+      tipoClase
+    }).subscribe(r => {
+      this.ambientesDocente = r.data || [];
+    });
   }
 
   cursoEstaCompleto(curso: any): boolean {
@@ -317,19 +422,45 @@ export class OperadorComponent implements OnInit, OnDestroy {
     return asig >= req;
   }
 
-  getHorasAsignadasCurso(cursoId: number, tipoClase: string): number {
-    return this.horariosDocente
-      .filter(h => h.curso_id === cursoId && h.tipo_clase === tipoClase)
-      .reduce((sum, h) => {
+  getHorasAsignadasCurso(cursoId: number, tipoClase: string, grupo?: number): number {
+    const horariosFiltrados = this.horariosDocente.filter(h => 
+      h.curso_id === cursoId && 
+      h.tipo_clase === tipoClase
+    );
+    
+    // Si es laboratorio o práctica y se especifica grupo, filtrar por número de grupo del código
+    if ((tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') && grupo) {
+      const horariosGrupo = horariosFiltrados.filter(h => {
+        if (!h.grupo) return false;
+        // Extraer el número de grupo del código (ej: "INT101-G1" -> 1)
+        const grupoMatch = h.grupo.codigo?.match(/-G(\d+)$/);
+        if (!grupoMatch) return false;
+        const grupoNumero = parseInt(grupoMatch[1], 10);
+        return grupoNumero === grupo;
+      });
+      return horariosGrupo.reduce((sum, h) => {
         const ini = parseInt(h.hora_inicio.split(':')[0], 10);
         const fin = parseInt(h.hora_fin.split(':')[0], 10);
         return sum + (fin - ini);
       }, 0);
+    }
+    
+    return horariosFiltrados.reduce((sum, h) => {
+      const ini = parseInt(h.hora_inicio.split(':')[0], 10);
+      const fin = parseInt(h.hora_fin.split(':')[0], 10);
+      return sum + (fin - ini);
+    }, 0);
   }
 
   getHorasRequeridas(curso: any, tipo: string): number {
     if (!curso?.curso) return 0;
-    return tipo === 'TEORIA' ? (curso.curso.horas_teoria || 0) : (curso.curso.horas_laboratorio || 0);
+    if (tipo === 'TEORIA') return curso.curso.horas_teoria || 0;
+    if (tipo === 'PRACTICA') return curso.curso.horas_practica || 0;
+    if (tipo === 'LABORATORIO') {
+      // Cada grupo debe tener las horas completas requeridas, no divididas
+      return curso.curso.horas_laboratorio || 0;
+    }
+    return curso.curso.horas_laboratorio || 0;
   }
 
   get ambientesFiltrados(): Ambiente[] {
@@ -339,6 +470,17 @@ export class OperadorComponent implements OnInit, OnDestroy {
       a.nombre.toLowerCase().includes(f) ||
       a.codigo.toLowerCase().includes(f) ||
       (a.pabellon || '').toLowerCase().includes(f)
+    );
+  }
+
+  get cursosFiltrados(): any[] {
+    const f = this.filtroCurso.trim().toLowerCase();
+    if (!f) {
+      return this.cursosDocente;
+    }
+    return this.cursosDocente.filter((c: any) =>
+      c.curso?.nombre.toLowerCase().includes(f) ||
+      c.curso?.codigo.toLowerCase().includes(f)
     );
   }
 
@@ -434,6 +576,14 @@ export class OperadorComponent implements OnInit, OnDestroy {
         if (r.data?.confirmados > 0) {
           this.snack.open(`${r.data.confirmados} horario(s) confirmado(s)`, 'OK', { duration: 3000 });
           this.cargarHorariosDocente(this.docenteActual.id);
+          // Deseleccionar ambiente solo para laboratorio o práctica, no para teoría
+          if (this.tipoClase === 'LABORATORIO' || this.tipoClase === 'PRACTICA') {
+            this.ambienteSeleccionado = null;
+          }
+          // Recargar la grilla de horarios
+          if (this.grillaRef) {
+            this.grillaRef.cargarMatriz();
+          }
         } else if (r.data?.errores?.length) {
           this.snack.open(`Errores: ${r.data.errores.map((e: any) => e.motivo || JSON.stringify(e)).join(', ')}`, 'Cerrar', { duration: 6000 });
         } else {

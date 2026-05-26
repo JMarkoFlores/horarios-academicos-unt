@@ -27,11 +27,10 @@ export class CursosAmbienteService {
       where: {
         cursoId: dto.cursoId,
         ambienteId: dto.ambienteId,
-        tipo_clase: dto.tipo_clase,
       },
     });
     if (exists) {
-      throw new BadRequestException("Ya existe esta relación curso-ambiente-tipo_clase");
+      throw new BadRequestException("Ya existe esta relación curso-ambiente");
     }
 
     await this.validarCompatibilidad(dto.cursoId, dto.ambienteId);
@@ -51,34 +50,30 @@ export class CursosAmbienteService {
     if (query.ambienteId) {
       qb.andWhere("ca.ambienteId = :ambienteId", { ambienteId: query.ambienteId });
     }
-    if (query.tipo_clase) {
-      qb.andWhere("ca.tipo_clase = :tipoClase", { tipoClase: query.tipo_clase });
-    }
 
     return qb.orderBy("curso.nombre", "ASC").addOrderBy("ambiente.codigo", "ASC").getMany();
   }
 
-  async findOne(id: number): Promise<CursoAmbiente> {
+  async findOne(cursoId: number, ambienteId: number): Promise<CursoAmbiente> {
     const item = await this.repo.findOne({
-      where: { id },
+      where: { cursoId, ambienteId },
       relations: ["curso", "ambiente"],
     });
-    if (!item) throw new NotFoundException(`CursoAmbiente ${id} no encontrado`);
+    if (!item) throw new NotFoundException(`CursoAmbiente (${cursoId}, ${ambienteId}) no encontrado`);
     return item;
   }
 
-  async update(id: number, dto: UpdateCursoAmbienteDto): Promise<CursoAmbiente> {
-    const item = await this.findOne(id);
-    if (dto.cursoId && dto.ambienteId && dto.tipo_clase) {
+  async update(cursoId: number, ambienteId: number, dto: UpdateCursoAmbienteDto): Promise<CursoAmbiente> {
+    const item = await this.findOne(cursoId, ambienteId);
+    if (dto.cursoId && dto.ambienteId) {
       const exists = await this.repo.findOne({
         where: {
           cursoId: dto.cursoId,
           ambienteId: dto.ambienteId,
-          tipo_clase: dto.tipo_clase,
         },
       });
-      if (exists && exists.id !== id) {
-        throw new BadRequestException("Ya existe esta relación curso-ambiente-tipo_clase");
+      if (exists && (exists.cursoId !== cursoId || exists.ambienteId !== ambienteId)) {
+        throw new BadRequestException("Ya existe esta relación curso-ambiente");
       }
     }
 
@@ -91,8 +86,8 @@ export class CursosAmbienteService {
     return this.repo.save(item);
   }
 
-  async remove(id: number): Promise<void> {
-    const item = await this.findOne(id);
+  async remove(cursoId: number, ambienteId: number): Promise<void> {
+    const item = await this.findOne(cursoId, ambienteId);
     await this.repo.remove(item);
   }
 

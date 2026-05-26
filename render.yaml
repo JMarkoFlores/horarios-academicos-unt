@@ -1,0 +1,77 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: horarios-backend
+    env: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: horarios-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: horarios-db
+          property: port
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: horarios-db
+          property: database
+      - key: DATABASE_USER
+        fromDatabase:
+          name: horarios-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: horarios-db
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: horarios-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: horarios-redis
+          property: port
+      - key: REDIS_TTL
+        value: 1800
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRACION
+        value: 7d
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: horarios-frontend
+          property: url
+
+  # Frontend Web Service
+  - type: web
+    name: horarios-frontend
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+
+# PostgreSQL Database
+databases:
+  - name: horarios-db
+    databaseName: horarios_db
+    user: horarios
+
+# Redis Instance
+- type: redis
+  name: horarios-redis
+  plan: free
+  maxmemoryPolicy: allkeys-lru
+  ipAllowList: []

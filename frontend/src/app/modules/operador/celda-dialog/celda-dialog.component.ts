@@ -20,6 +20,7 @@ export class CeldaDialogComponent {
   diaLabels = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   tiposClase = [
     { valor: 'TEORIA', label: 'Teoría' },
+    { valor: 'PRACTICA', label: 'Práctica' },
     { valor: 'LABORATORIO', label: 'Laboratorio' },
   ];
 

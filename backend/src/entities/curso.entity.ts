@@ -25,6 +25,9 @@ export class Curso {
   horas_teoria: number;
 
   @Column({ default: 0 })
+  horas_practica: number;
+
+  @Column({ default: 0 })
   horas_laboratorio: number;
 
   @Column()

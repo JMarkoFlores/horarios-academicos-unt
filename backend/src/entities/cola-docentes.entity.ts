@@ -16,6 +16,13 @@ export enum EstadoCola {
   AUSENTE = "AUSENTE",
 }
 
+export enum RazonAusencia {
+  INASISTENCIA = "INASISTENCIA",
+  REPROGRAMACION = "REPROGRAMACION",
+  CANCELACION = "CANCELACION",
+  OTRO = "OTRO",
+}
+
 @Entity("cola_docentes")
 @Index("idx_cola_docente_ventana", ["ventana_id", "orden"])
 @Index("idx_cola_docente_docente", ["docente_id"])
@@ -35,11 +42,25 @@ export class ColaDocente {
   @Column({ type: "enum", enum: EstadoCola, default: EstadoCola.ESPERANDO })
   estado: EstadoCola;
 
+  @Column({ type: "enum", enum: RazonAusencia, nullable: true })
+  razon_ausencia?: RazonAusencia;
+
   @Column({ type: "timestamp", nullable: true })
   hora_llamada: Date | null;
 
   @Column({ type: "timestamp", nullable: true })
   hora_fin_atencion: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  eventos_sesion?: Array<{
+    timestamp: Date;
+    evento: 'LLAMADO' | 'ATENCION_INICIADA' | 'SELECCION' | 'VALIDACION' | 'CONFIRMACION' | 'CANCELACION';
+    detalles: string;
+    usuario?: string;
+  }>;
+
+  @Column({ type: 'integer', default: 0 })
+  validaciones_ejecutadas: number = 0;
 
   @ManyToOne(() => VentanaAtencion, (ventana) => ventana.cola, {
     nullable: false,
@@ -57,6 +78,18 @@ export class ColaDocente {
 
   set turno_llamado_at(value: Date | null) {
     this.hora_llamada = value;
+  }
+
+  agregarEvento(evento: string, detalles: string, usuario?: string): void {
+    if (!this.eventos_sesion) {
+      this.eventos_sesion = [];
+    }
+    this.eventos_sesion.push({
+      timestamp: new Date(),
+      evento: evento as any,
+      detalles,
+      usuario,
+    });
   }
 }
 

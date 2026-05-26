@@ -1,5 +1,6 @@
 export enum TipoClase {
   TEORIA = "TEORIA",
+  PRACTICA = "PRACTICA",
   LABORATORIO = "LABORATORIO",
   PRACTICA = "PRACTICA",
 }

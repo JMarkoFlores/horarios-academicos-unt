@@ -581,18 +581,18 @@ $color-background: #f5f5f5;
     letter-spacing: 0.3px;
 
     &.categoria {
-      background: #ede9fe;
-      color: #5b21b6;
+      background: var(--color-primary-light);
+      color: var(--color-primary-600);
     }
 
     &.modalidad {
-      background: #dbeafe;
-      color: #1e40af;
+      background: var(--color-accent-light);
+      color: var(--color-accent-600);
     }
 
     &.antiguedad {
-      background: #f3f4f6;
-      color: #4b5563;
+      background: var(--color-surface-2);
+      color: var(--color-text-secondary);
       font-size: 10px;
       text-transform: none;
 
@@ -600,7 +600,7 @@ $color-background: #f5f5f5;
         font-size: 12px;
         width: 12px;
         height: 12px;
-        color: #6b7280;
+        color: var(--color-text-muted);
       }
     }
   }
@@ -798,10 +798,36 @@ $color-background: #f5f5f5;
 // SECCIONES DE CONTENIDO
 // =========================================================
 
+.buscar-curso-field {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 .cursos-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 8px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
 }
 
 .curso-card {
@@ -862,6 +888,11 @@ $color-background: #f5f5f5;
     &.tipo-teoria {
       background: $color-info-light;
       color: $color-info;
+    }
+
+    &.tipo-practica {
+      background: #e8f5e9;
+      color: #2e7d32;
     }
 
     &.tipo-lab {

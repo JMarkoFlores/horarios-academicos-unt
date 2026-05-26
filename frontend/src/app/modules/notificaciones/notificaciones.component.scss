@@ -20,8 +20,8 @@
 }
 
 .card-error {
-  background-color: #fff3e0;
-  border-left: 4px solid #ff9800;
+  background-color: var(--color-warning-bg);
+  border-left: 4px solid var(--color-warning);
 }
 
 .form-row {
@@ -29,7 +29,7 @@
 }
 
 .telegram-config {
-  background-color: #f5f5f5;
+  background-color: var(--color-surface-2);
   padding: 16px;
   border-radius: 8px;
   margin-top: 12px;
@@ -71,11 +71,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: #e3f2fd;
+  background-color: var(--color-primary-light);
   padding: 12px;
   border-radius: 8px;
   margin-top: 8px;
-  border: 1px dashed var(--primary-color);
+  border: 1px dashed var(--color-primary);
 }
 
 .comando-box code {
@@ -83,12 +83,12 @@
   font-family: 'Courier New', monospace;
   font-size: 1rem;
   font-weight: 600;
-  color: #1565c0;
+  color: var(--color-primary);
 }
 
 .chatid-instructions {
-  background-color: #fff8e1;
-  border: 1px solid #ffcc80;
+  background-color: var(--color-accent-light);
+  border: 1px solid var(--color-accent);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
@@ -106,7 +106,7 @@
 
 .hint-text {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-muted);
   font-style: italic;
   margin-top: 12px;
 }

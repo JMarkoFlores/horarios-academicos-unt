@@ -9,11 +9,14 @@ COPY package*.json ./
 # Install all dependencies (including dev for build)
 RUN npm ci
 
+# Install @nestjs/cli globally for build
+RUN npm install -g @nestjs/cli
+
 # Copy source code
 COPY . .
 
 # Build the application
-RUN ./node_modules/.bin/nest build
+RUN nest build
 
 # Production stage
 FROM node:20-alpine AS production

@@ -6,6 +6,7 @@ backend/.env
 backend/.env.local
 
 # Exclude frontend dist and build artifacts
+frontend/node_modules
 frontend/dist
 frontend/.angular
 frontend/.vscode

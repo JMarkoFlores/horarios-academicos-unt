@@ -51,8 +51,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile.backend
     container_name: ${BACKEND_CONTAINER_NAME}
     environment:
       DATABASE_HOST: postgres
@@ -90,8 +90,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/Dockerfile.frontend
     container_name: ${FRONTEND_CONTAINER_NAME}
     depends_on:
       backend:

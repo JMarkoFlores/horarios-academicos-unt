@@ -3,12 +3,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files (from repository root)
-COPY backend/package*.json ./
+# Copy package files
+COPY package*.json ./
 
-# Copy TypeScript config explicitly (from backend directory)
-COPY backend/tsconfig.json ./
-COPY backend/tsconfig.build.json ./
+# Copy TypeScript config
+COPY tsconfig.json ./
+COPY tsconfig.build.json ./
 
 # Install all dependencies (including dev for build)
 RUN npm ci
@@ -16,8 +16,8 @@ RUN npm ci
 # Install @nestjs/cli and TypeScript globally for build
 RUN npm install -g @nestjs/cli typescript
 
-# Copy source code (from backend directory)
-COPY backend/ ./
+# Copy source code
+COPY . .
 
 # Build the application using nest build
 RUN nest build

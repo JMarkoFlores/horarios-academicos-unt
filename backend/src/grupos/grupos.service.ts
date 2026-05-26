@@ -179,7 +179,7 @@ export class GruposService {
     try {
       await this.grupoRepo.remove(grupo);
     } catch (error) {
-      if (error.code === "23503") { // PostgreSQL foreign key constraint violation
+      if ((error as any).code === "23503") { // PostgreSQL foreign key constraint violation
         throw new ConflictException(
           `No se puede eliminar el grupo porque está siendo utilizado en otras asignaciones de horarios`,
         );

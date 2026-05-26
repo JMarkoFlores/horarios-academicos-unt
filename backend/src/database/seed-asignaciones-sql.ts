@@ -45,6 +45,6 @@ export async function seedAsignacionesSql(dataSource: DataSource) {
     await dataSource.query(ASIGNACIONES_SQL);
     console.log('✅ Seed SQL completado');
   } catch (error) {
-    console.error('❌ Error en seed SQL:', error.message);
+    console.error('❌ Error en seed SQL:', (error as any).message);
   }
 }

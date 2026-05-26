@@ -106,7 +106,7 @@ export class CsvMapperService {
         invalid.push({
           index,
           data: record,
-          errors: [{ row: index + 2, field: 'mapping', error: error.message }],
+          errors: [{ row: index + 2, field: 'mapping', error: (error as any).message }],
         });
       }
     });

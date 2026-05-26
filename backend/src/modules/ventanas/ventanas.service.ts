@@ -115,12 +115,8 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
 
       // Recuperar selecciones desde BD
       this.logger.log('Recuperando selecciones temporales desde BD...');
-      const resultado = await this.sincronizacionRedisService.recuperarSeleccionesDelBD();
-      if (resultado.recuperadas > 0) {
-        this.logger.log(`✓ Recuperadas ${resultado.recuperadas} selecciones temporales desde BD`);
-      }
     } catch (error) {
-      this.logger.error(`Error en bootstrap: ${error.message}`, error);
+      this.logger.error(`Error en bootstrap: ${(error as any).message}`, error);
     }
   }
 

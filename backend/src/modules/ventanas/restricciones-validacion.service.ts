@@ -349,7 +349,7 @@ export class RestriccionesValidacionService {
       } catch (error) {
         reglasFallidas.push({
           ...regla,
-          motivo: `Error al validar: ${error.message}`,
+          motivo: `Error al validar: ${(error as any).message}`,
         });
       }
     });

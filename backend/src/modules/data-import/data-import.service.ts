@@ -148,7 +148,7 @@ export class DataImportService {
       return result;
     } catch (error) {
       session.status = 'failed';
-      throw new InternalServerErrorException(`Error al cargar datos: ${error.message}`);
+      throw new InternalServerErrorException(`Error al cargar datos: ${(error as any).message}`);
     }
   }
 
@@ -346,7 +346,7 @@ export class DataImportService {
           }
         } catch (error) {
           failureCount++;
-          errors.push({ row: row.index + 2, field: 'database', error: error.message });
+          errors.push({ row: row.index + 2, field: 'database', error: (error as any).message });
         }
       }
 

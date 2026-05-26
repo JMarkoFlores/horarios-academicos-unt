@@ -428,7 +428,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         await this.redis.expire(claveSesion, 1800);
       } catch (error) {
         this.logger.error(
-          `Error persistiendo selección: ${error.message}`,
+          `Error persistiendo selección: ${(error as any).message}`,
           error,
         );
         throw error;

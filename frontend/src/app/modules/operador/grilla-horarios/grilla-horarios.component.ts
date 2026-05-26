@@ -225,6 +225,43 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     return 0;
   }
 
+  getOcupacionesArray(celda: CeldaMatriz): any[] {
+    if (celda.estado === 'TEMPORAL_PROPIO') {
+      return [{ docenteId: this.docenteId }];
+    }
+    if (celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' && celda.metadata?.ocupaciones) {
+      return celda.metadata.ocupaciones;
+    }
+    return [];
+  }
+
+  onBloqueRightClick(event: MouseEvent, dia: number, hora: string, ocupacion: any): void {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Solo permitir eliminar si es del propio docente
+    if (ocupacion.docenteId === this.docenteId) {
+      this.api.post<any>(`/ventanas/${this.ventanaId}/celda/deseleccionar`, {
+        sesionId: this.sesionId,
+        ambienteId: this.ambienteId,
+        dia,
+        horaInicio: hora,
+        periodo: this.periodo
+      }).subscribe({
+        next: () => {
+          this.snack.open('Bloque eliminado', 'OK', { duration: 2000 });
+          this.seleccionCambiada.emit();
+          this.cargarMatriz();
+        },
+        error: (err) => {
+          this.snack.open(err.error?.message || 'Error al eliminar bloque', 'Error', { duration: 3000 });
+        }
+      });
+    } else {
+      this.snack.open('Solo puedes eliminar tus propios bloques', 'Cerrar', { duration: 3000 });
+    }
+  }
+
   getClaseCelda(celda: CeldaMatriz | undefined): string {
     if (!celda) return '';
     switch (celda.estado) {

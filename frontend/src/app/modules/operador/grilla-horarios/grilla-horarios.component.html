@@ -35,19 +35,21 @@
             (dblclick)="onCeldaDoubleClick(d.valor, hora)"
           >
             <ng-container *ngIf="getCelda(d.valor, hora) as celda">
-              <!-- Contador de bloques para celdas libres o con selecciones temporales -->
-              <div *ngIf="celda.estado === 'LIBRE' || celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE'" class="bloque-counter">
-                <span class="counter-number">
-                  {{ getBloqueCount(celda) }}
-                </span>
-                <span class="counter-label">bloques</span>
+              <!-- Bloques individuales para celdas con selecciones temporales -->
+              <div *ngIf="celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE'" class="bloques-container">
+                <div *ngFor="let ocupacion of getOcupacionesArray(celda); let i = index"
+                     class="bloque-item"
+                     [ngClass]="{'bloque-propio': true}"
+                     [style.flex-grow.%]="100 / getBloqueCount(celda)"
+                     (contextmenu)="onBloqueRightClick($event, d.valor, hora, ocupacion)">
+                </div>
               </div>
-              <!-- Multiple occupations display for confirmed -->
-              <div *ngIf="celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE'" class="ocupaciones-multiples">
-                <div *ngFor="let ocupacion of (celda.metadata?.ocupaciones || []).slice(0, 3); let i = index" 
-                     class="ocupacion-block"
-                     [ngClass]="{'ocupacion-propia': ocupacion.docenteId === docenteId}">
-                  <span class="ocupacion-indice">{{ i + 1 }}</span>
+              <!-- Bloques individuales para ocupaciones confirmadas múltiples -->
+              <div *ngIf="celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE'" class="bloques-container">
+                <div *ngFor="let ocupacion of (celda.metadata?.ocupaciones || []).slice(0, 3); let i = index"
+                     class="bloque-item"
+                     [ngClass]="{'bloque-propio': ocupacion.docenteId === docenteId}"
+                     [style.flex-grow.%]="100 / (celda.metadata?.ocupaciones?.length || 1)">
                 </div>
               </div>
               <!-- Single occupation display -->

@@ -1021,76 +1021,63 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
             hc => hc.dia === dia && hc.hora_inicio.startsWith(horaInicio) && hc.ambiente_id !== ambienteId
           );
           
-          // Limitar a máximo 3 ocupaciones
-          ocupaciones = [
-            ...confirmados.map(hc => ({
-              docenteId: hc.docente_id,
-              cursoId: hc.curso_id,
-              cursoNombre: hc.curso?.nombre,
-              tipoClase: hc.tipo_clase,
-              ambienteId: hc.ambiente_id,
-              grupoId: hc.grupo_id
-            })),
-            ...horariosDocenteEnOtrosAmbientesSlot.map(hc => ({
-              docenteId: hc.docente_id,
-              cursoId: hc.curso_id,
-              cursoNombre: hc.curso?.nombre,
-              tipoClase: hc.tipo_clase,
-              ambienteId: hc.ambiente_id,
-              otroAmbiente: true,
-              grupoId: hc.grupo_id
-            }))
-          ].slice(0, 3);
+          // Verificar siempre Redis, incluso si hay horarios confirmados
+          const claveRedis = this.crearClaveSeleccion(ambienteId, dia, horaInicio, periodo);
+          const enRedis = await this.redis.get(claveRedis);
+          this.logger.debug(`[obtenerDisponibilidadMatriz] Redis clave=${claveRedis}, enRedis=${!!enRedis}`);
           
-          if (ocupaciones.length > 0) {
-            const ocupacionDocente = ocupaciones.find(o => o.docenteId === docenteId);
-            if (ocupacionDocente) {
-              estado = ocupaciones.length === 1 ? 'CONFIRMADO_DOCENTE' : 'CONFIRMADO_DOCENTE_MULTIPLE';
-            } else {
-              estado = ocupaciones.length === 1 ? 'CONFIRMADO' : 'CONFIRMADO_MULTIPLE';
+          let seleccionesTemporales: SeleccionTemporalRedis[] = [];
+          if (enRedis) {
+            try {
+              const parsed = JSON.parse(enRedis);
+              if (Array.isArray(parsed)) {
+                seleccionesTemporales = parsed;
+              } else {
+                seleccionesTemporales = [parsed];
+              }
+            } catch {
+              seleccionesTemporales = [];
             }
-            metadata = { ocupaciones };
-          } else {
-            const claveRedis = this.crearClaveSeleccion(ambienteId, dia, horaInicio, periodo);
-            const enRedis = await this.redis.get(claveRedis);
-            this.logger.debug(`[obtenerDisponibilidadMatriz] Redis clave=${claveRedis}, enRedis=${!!enRedis}`);
-            if (enRedis) {
-              // Manejar arrays de selecciones temporales
-              let seleccionesTemporales: SeleccionTemporalRedis[] = [];
-              try {
-                const parsed = JSON.parse(enRedis);
-                if (Array.isArray(parsed)) {
-                  seleccionesTemporales = parsed;
-                } else {
-                  seleccionesTemporales = [parsed];
-                }
-              } catch {
-                seleccionesTemporales = [];
+            this.logger.debug(`[obtenerDisponibilidadMatriz] Selecciones temporales=${seleccionesTemporales.length}, sesionIdQuery=${sesionIdQuery}`);
+          }
+          
+          // Combinar ocupaciones confirmadas y temporales
+          const ocupacionesTemporales = seleccionesTemporales.map(s => ({
+            docenteId: s.docenteId,
+            cursoId: s.cursoId,
+            cursoNombre: undefined, // No tenemos el nombre del curso en temporal
+            tipoClase: s.tipoClase,
+            ambienteId: s.ambienteId,
+            grupoId: s.grupoId
+          }));
+          
+          // Total de ocupaciones = confirmadas + temporales
+          const totalOcupaciones = [...ocupaciones, ...ocupacionesTemporales].slice(0, 3);
+          
+          if (totalOcupaciones.length > 0) {
+            const ocupacionDocente = totalOcupaciones.find(o => o.docenteId === docenteId);
+            
+            // Determinar si hay selecciones temporales propias
+            const seleccionPropia = seleccionesTemporales.find(s => s.sesionId === sesionIdQuery);
+            
+            if (seleccionPropia) {
+              // Hay selección temporal propia - priorizar estado temporal
+              if (totalOcupaciones.length > 1) {
+                estado = 'TEMPORAL_PROPIO_MULTIPLE';
+                metadata = { 
+                  sesionId: seleccionPropia.sesionId,
+                  ocupaciones: totalOcupaciones
+                };
+              } else {
+                estado = 'TEMPORAL_PROPIO';
+                metadata = { docenteId: seleccionPropia.docenteId, cursoId: seleccionPropia.cursoId, sesionId: seleccionPropia.sesionId };
               }
-              this.logger.debug(`[obtenerDisponibilidadMatriz] Selecciones temporales=${seleccionesTemporales.length}, sesionIdQuery=${sesionIdQuery}`);
-
-              // Buscar si hay selección de esta sesión
-              const seleccionPropia = seleccionesTemporales.find(s => s.sesionId === sesionIdQuery);
-              const seleccionOtro = seleccionesTemporales.find(s => s.sesionId !== sesionIdQuery);
-
-              if (seleccionPropia) {
-                if (seleccionesTemporales.length > 1) {
-                  estado = 'TEMPORAL_PROPIO_MULTIPLE';
-                  metadata = { 
-                    sesionId: seleccionPropia.sesionId,
-                    ocupaciones: seleccionesTemporales.map(s => ({
-                      docenteId: s.docenteId,
-                      cursoId: s.cursoId
-                    }))
-                  };
-                } else {
-                  estado = 'TEMPORAL_PROPIO';
-                  metadata = { docenteId: seleccionPropia.docenteId, cursoId: seleccionPropia.cursoId, sesionId: seleccionPropia.sesionId };
-                }
-              } else if (seleccionOtro) {
-                estado = 'TEMPORAL_OTRO';
-                metadata = { docenteId: seleccionOtro.docenteId, cursoId: seleccionOtro.cursoId, sesionId: seleccionOtro.sesionId };
-              }
+            } else if (ocupacionDocente) {
+              estado = totalOcupaciones.length === 1 ? 'CONFIRMADO_DOCENTE' : 'CONFIRMADO_DOCENTE_MULTIPLE';
+              metadata = { ocupaciones: totalOcupaciones };
+            } else {
+              estado = totalOcupaciones.length === 1 ? 'CONFIRMADO' : 'CONFIRMADO_MULTIPLE';
+              metadata = { ocupaciones: totalOcupaciones };
             }
           }
         }

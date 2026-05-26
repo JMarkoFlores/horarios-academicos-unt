@@ -4,30 +4,25 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY frontend/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source code
-COPY . .
+COPY frontend/ ./
 
 # Build the application
 RUN npm run build
 
 # Production stage - Use nginx to serve the built files
-FROM node:20-alpine AS config
-
-WORKDIR /app
-COPY nginx.conf .
-
 FROM nginx:alpine AS production
 
-# Copy nginx configuration from config stage
-COPY --from=config /app/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
 
 # Expose port
 EXPOSE 80

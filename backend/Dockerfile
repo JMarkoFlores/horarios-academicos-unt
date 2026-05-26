@@ -19,8 +19,8 @@ RUN npm install -g typescript
 # Copy source code (from backend directory)
 COPY backend/ ./
 
-# Build the application using tsc with production config
-RUN tsc -p tsconfig.build.json
+# Build the application using nest build
+RUN nest build
 
 # Production stage
 FROM node:20-alpine AS production

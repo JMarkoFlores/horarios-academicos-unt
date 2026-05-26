@@ -889,33 +889,50 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
         let estado = 'LIBRE';
         let metadata = null;
+        let ocupaciones: any[] = [];
 
         const fueraDeFranja = !this.validacionesService.verificarFranjaInstitucional(horaInicio, horaFin);
         if (fueraDeFranja || esNoLaborable) {
           estado = 'BLOQUEADO';
         } else {
-          const confirmado = horariosConfirmados.find(
+          const confirmados = horariosConfirmados.filter(
             hc => hc.dia === dia && hc.hora_inicio.startsWith(horaInicio)
           );
           
           // Verificar si el docente tiene horario confirmado en este slot en otro ambiente
-          const horarioDocenteEnOtroAmbiente = horariosDocenteEnOtrosAmbientes.find(
+          const horariosDocenteEnOtrosAmbientes = horariosDocenteEnOtrosAmbientes.filter(
             hc => hc.dia === dia && hc.hora_inicio.startsWith(horaInicio) && hc.ambiente_id !== ambienteId
           );
           
-          if (confirmado) {
-            this.logger.debug(`Horario confirmado encontrado: dia=${dia}, hora=${horaInicio}, docente_id=${confirmado.docente_id}, docenteIdParam=${docenteId}`);
-            if (docenteId && confirmado.docente_id === docenteId) {
-              estado = 'CONFIRMADO_DOCENTE';
+          // Limitar a máximo 3 ocupaciones
+          ocupaciones = [
+            ...confirmados.map(hc => ({
+              docenteId: hc.docente_id,
+              cursoId: hc.curso_id,
+              cursoNombre: hc.curso?.nombre,
+              tipoClase: hc.tipo_clase,
+              ambienteId: hc.ambiente_id,
+              grupoId: hc.grupo_id
+            })),
+            ...horariosDocenteEnOtrosAmbientes.map(hc => ({
+              docenteId: hc.docente_id,
+              cursoId: hc.curso_id,
+              cursoNombre: hc.curso?.nombre,
+              tipoClase: hc.tipo_clase,
+              ambienteId: hc.ambiente_id,
+              otroAmbiente: true,
+              grupoId: hc.grupo_id
+            }))
+          ].slice(0, 3);
+          
+          if (ocupaciones.length > 0) {
+            const ocupacionDocente = ocupaciones.find(o => o.docenteId === docenteId);
+            if (ocupacionDocente) {
+              estado = ocupaciones.length === 1 ? 'CONFIRMADO_DOCENTE' : 'CONFIRMADO_DOCENTE_MULTIPLE';
             } else {
-              estado = 'CONFIRMADO';
+              estado = ocupaciones.length === 1 ? 'CONFIRMADO' : 'CONFIRMADO_MULTIPLE';
             }
-            metadata = { docenteId: confirmado.docente_id, cursoId: confirmado.curso_id, cursoNombre: confirmado.curso?.nombre, tipoClase: confirmado.tipo_clase };
-          } else if (horarioDocenteEnOtroAmbiente) {
-            // Mostrar como CONFIRMADO_DOCENTE aunque sea en otro ambiente
-            this.logger.debug(`Horario de docente en otro ambiente encontrado: dia=${dia}, hora=${horaInicio}, docente_id=${horarioDocenteEnOtroAmbiente.docente_id}`);
-            estado = 'CONFIRMADO_DOCENTE';
-            metadata = { docenteId: horarioDocenteEnOtroAmbiente.docente_id, cursoId: horarioDocenteEnOtroAmbiente.curso_id, cursoNombre: horarioDocenteEnOtroAmbiente.curso?.nombre, tipoClase: horarioDocenteEnOtroAmbiente.tipo_clase, otroAmbiente: true };
+            metadata = { ocupaciones };
           } else {
             const claveRedis = this.crearClaveSeleccion(ambienteId, dia, horaInicio, periodo);
             const enRedis = await this.redis.get(claveRedis);

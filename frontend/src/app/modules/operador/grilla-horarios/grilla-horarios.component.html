@@ -7,7 +7,8 @@
   <div class="leyenda">
     <span class="leyenda-item"><span class="color-libre"></span> Libre</span>
     <span class="leyenda-item"><span class="color-bloqueado"></span> Restricción</span>
-    <span class="leyenda-item"><span class="color-confirmado"></span> Ocupado (confirmado)</span>
+    <span class="leyenda-item"><span class="color-confirmado-docente"></span> Tu horario confirmado</span>
+    <span class="leyenda-item"><span class="color-confirmado"></span> Ocupado (otro)</span>
     <span class="leyenda-item"><span class="color-temporal-otro"></span> Reservado (otro)</span>
     <span class="leyenda-item"><span class="color-temporal-propio"></span> Mi selección</span>
   </div>
@@ -22,19 +23,31 @@
       </thead>
       <tbody>
         <tr *ngFor="let hora of horas">
-          <td class="hora-cell">{{ hora }}</td>
+          <td class="hora-cell">{{ hora }}-{{ getHoraFin(hora) }}</td>
           <td
             *ngFor="let d of dias"
             class="grilla-celda"
             [ngClass]="getClaseCelda(getCelda(d.valor, hora))"
             [matTooltip]="getTooltipCelda(getCelda(d.valor, hora))"
+            [matTooltipDisabled]="!getCelda(d.valor, hora)"
             (click)="onCeldaClick(d.valor, hora)"
           >
             <ng-container *ngIf="getCelda(d.valor, hora) as celda">
-              <mat-icon *ngIf="celda.estado === 'TEMPORAL_PROPIO'" class="celda-icon">check</mat-icon>
-              <mat-icon *ngIf="celda.estado === 'TEMPORAL_OTRO'" class="celda-icon">lock</mat-icon>
-              <mat-icon *ngIf="celda.estado === 'CONFIRMADO'" class="celda-icon">event_busy</mat-icon>
-              <span *ngIf="celda.estado === 'CONFIRMADO' && celda.metadata?.docenteNombre" class="celda-docente">{{ celda.metadata.docenteNombre }}</span>
+              <!-- Multiple occupations display -->
+              <div *ngIf="celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE'" class="ocupaciones-multiples">
+                <div *ngFor="let ocupacion of (celda.metadata?.ocupaciones || []).slice(0, 3); let i = index" 
+                     class="ocupacion-block"
+                     [ngClass]="{'ocupacion-propia': ocupacion.docenteId === docenteId}">
+                  <span class="ocupacion-indice">{{ i + 1 }}</span>
+                </div>
+              </div>
+              <!-- Single occupation display -->
+              <ng-container *ngIf="celda.estado !== 'CONFIRMADO_MULTIPLE' && celda.estado !== 'CONFIRMADO_DOCENTE_MULTIPLE'">
+                <mat-icon *ngIf="celda.estado === 'TEMPORAL_PROPIO'" class="celda-icon">check</mat-icon>
+                <mat-icon *ngIf="celda.estado === 'TEMPORAL_OTRO'" class="celda-icon">lock</mat-icon>
+                <mat-icon *ngIf="celda.estado === 'CONFIRMADO'" class="celda-icon">event_busy</mat-icon>
+                <mat-icon *ngIf="celda.estado === 'CONFIRMADO_DOCENTE'" class="celda-icon">event</mat-icon>
+              </ng-container>
             </ng-container>
           </td>
         </tr>

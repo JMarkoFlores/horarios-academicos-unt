@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { ApiService } from '../../../core/services/api.service';
 import { SocketService } from '../../../core/services/socket.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -17,7 +17,7 @@ export interface CeldaMatriz {
   templateUrl: './grilla-horarios.component.html',
   styleUrl: './grilla-horarios.component.scss'
 })
-export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
+export class GrillaHorariosComponent implements OnInit, OnDestroy {
   @Input() ventanaId!: string;
   @Input() ambienteId!: number;
   @Input() sesionId!: string;
@@ -25,6 +25,20 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
   @Input() cursoId!: number;
   @Input() tipoClase!: string;
   @Input() periodo!: string;
+  
+  private _grupoSeleccionado?: number;
+  @Input() 
+  set grupoSeleccionado(value: number | undefined) {
+    console.log('[GrillaHorarios] grupoSeleccionado set a:', value);
+    this._grupoSeleccionado = value;
+    if (this.ambienteId) {
+      this.cargarMatriz();
+    }
+  }
+  get grupoSeleccionado(): number | undefined {
+    return this._grupoSeleccionado;
+  }
+  
   @Output() seleccionCambiada = new EventEmitter<void>();
 
   matriz: CeldaMatriz[] = [];
@@ -63,12 +77,6 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['ambienteId'] && this.ambienteId) {
-      this.cargarMatriz();
-    }
-  }
-
   ngOnDestroy(): void {
     this.socketService.leaveVentana(this.ventanaId);
     this.celdaSeleccionadaSub?.unsubscribe();
@@ -80,7 +88,8 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
     this.loading = true;
     this.api.get<any>(`/ventanas/${this.ventanaId}/disponibilidad-matriz`, {
       ambiente_id: this.ambienteId,
-      sesionId: this.sesionId
+      sesionId: this.sesionId,
+      docenteId: this.docenteId
     }).subscribe({
       next: (r) => {
         this.matriz = r.data || [];
@@ -93,8 +102,18 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  forzarRecargaMatriz(): void {
+    console.log('[GrillaHorarios] forzarRecargaMatriz llamado, grupoSeleccionado:', this._grupoSeleccionado);
+    this.cargarMatriz();
+  }
+
   getCelda(dia: number, hora: string): CeldaMatriz | undefined {
     return this.matriz.find(c => c.dia === dia && c.horaInicio === hora);
+  }
+
+  getHoraFin(hora: string): string {
+    const horaNum = parseInt(hora.split(':')[0], 10);
+    return `${(horaNum + 1).toString().padStart(2, '0')}:00`;
   }
 
   async onCeldaClick(dia: number, hora: string): Promise<void> {
@@ -128,11 +147,13 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     // Seleccionar
+    console.log('[GrillaHorarios] Enviando selección con grupoSeleccionado:', this._grupoSeleccionado);
     this.api.post<any>(`/ventanas/${this.ventanaId}/celda`, {
       ventanaId: this.ventanaId,
       sesionId: this.sesionId,
       docenteId: this.docenteId,
       cursoId: this.cursoId,
+      grupoId: this.grupoSeleccionado,
       tipoClase: this.tipoClase,
       ambienteId: this.ambienteId,
       dia,
@@ -167,6 +188,9 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
       case 'LIBRE': return 'celda-libre';
       case 'BLOQUEADO': return 'celda-bloqueada';
       case 'CONFIRMADO': return 'celda-confirmada';
+      case 'CONFIRMADO_DOCENTE': return 'celda-confirmada-docente';
+      case 'CONFIRMADO_MULTIPLE': return 'celda-confirmada-multiple';
+      case 'CONFIRMADO_DOCENTE_MULTIPLE': return 'celda-confirmada-docente-multiple';
       case 'TEMPORAL_OTRO': return 'celda-temporal-otro';
       case 'TEMPORAL_PROPIO': return 'celda-temporal-propio';
       default: return '';
@@ -179,9 +203,54 @@ export class GrillaHorariosComponent implements OnInit, OnChanges, OnDestroy {
       case 'LIBRE': return 'Disponible — Haz clic para seleccionar';
       case 'BLOQUEADO': return 'Fuera de franja institucional o restricción';
       case 'CONFIRMADO':
+        if (celda.metadata?.ocupaciones) {
+          return celda.metadata.ocupaciones.map((o: any) => 
+            `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''})`
+          ).join('\n');
+        }
         const docente = celda.metadata?.docenteNombre || `Docente ${celda.metadata?.docenteId || ''}`;
         const curso = celda.metadata?.cursoNombre || '';
-        return `Ocupado: ${docente}${curso ? ' — ' + curso : ''}`;
+        const tipo = celda.metadata?.tipoClase || '';
+        const grupo = celda.metadata?.grupoCodigo || '';
+        let tooltip = `Ocupado: ${docente}${curso ? ' — ' + curso : ''}${tipo ? ' (' + tipo : ''}`;
+        if (tipo === 'LABORATORIO' && grupo) {
+          const grupoNum = grupo.match(/-G(\d+)$/)?.[1] || '';
+          if (grupoNum) {
+            tooltip += `, G${grupoNum}`;
+          }
+        }
+        tooltip += ')';
+        return tooltip;
+      case 'CONFIRMADO_DOCENTE':
+        if (celda.metadata?.ocupaciones) {
+          return celda.metadata.ocupaciones.map((o: any) => 
+            `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''})`
+          ).join('\n');
+        }
+        const cursoDocente = celda.metadata?.cursoNombre || '';
+        const tipoDocente = celda.metadata?.tipoClase || '';
+        const grupoDocente = celda.metadata?.grupoCodigo || '';
+        let tooltipDocente = `Tu horario: ${cursoDocente}${tipoDocente ? ' (' + tipoDocente : ''}`;
+        if (tipoDocente === 'LABORATORIO' && grupoDocente) {
+          const grupoNumDocente = grupoDocente.match(/-G(\d+)$/)?.[1] || '';
+          if (grupoNumDocente) {
+            tooltipDocente += `, G${grupoNumDocente}`;
+          }
+        }
+        tooltipDocente += ')';
+        return tooltipDocente;
+      case 'CONFIRMADO_MULTIPLE':
+        return celda.metadata?.ocupaciones?.length > 0 
+          ? `${celda.metadata.ocupaciones.length} ocupaciones:\n${celda.metadata.ocupaciones.map((o: any) => 
+              `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}`
+            ).join('\n')}`
+          : 'Múltiples ocupaciones';
+      case 'CONFIRMADO_DOCENTE_MULTIPLE':
+        return celda.metadata?.ocupaciones?.length > 0 
+          ? `Tu horario + ${celda.metadata.ocupaciones.length - 1} más:\n${celda.metadata.ocupaciones.map((o: any) => 
+              `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''}`
+            ).join('\n')}`
+          : 'Tu horario + más ocupaciones';
       case 'TEMPORAL_OTRO': return 'Reservado temporalmente por otro operador';
       case 'TEMPORAL_PROPIO': return 'Tu selección temporal — Haz clic para quitar';
       default: return '';

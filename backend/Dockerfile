@@ -12,11 +12,14 @@ COPY tsconfig*.json ./
 # Install all dependencies (including dev for build)
 RUN npm ci
 
+# Install TypeScript globally for build
+RUN npm install -g typescript
+
 # Copy source code
 COPY . .
 
-# Build the application using tsc from node_modules
-RUN ./node_modules/.bin/tsc -p tsconfig.json
+# Build the application using tsc
+RUN tsc -p tsconfig.json
 
 # Production stage
 FROM node:20-alpine AS production

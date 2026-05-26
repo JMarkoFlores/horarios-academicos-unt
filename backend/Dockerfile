@@ -3,12 +3,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files (from backend context root)
-COPY package*.json ./
+# Copy package files (from repository root)
+COPY backend/package*.json ./
 
-# Copy TypeScript config explicitly (from backend context root)
-COPY tsconfig.json ./
-COPY tsconfig.build.json ./
+# Copy TypeScript config explicitly (from backend directory)
+COPY backend/tsconfig.json ./
+COPY backend/tsconfig.build.json ./
 
 # Install all dependencies (including dev for build)
 RUN npm ci
@@ -16,8 +16,8 @@ RUN npm ci
 # Install TypeScript globally for build
 RUN npm install -g typescript
 
-# Copy source code (from backend context root)
-COPY . .
+# Copy source code (from backend directory)
+COPY backend/ ./
 
 # Build the application using tsc
 RUN tsc -p tsconfig.json

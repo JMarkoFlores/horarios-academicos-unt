@@ -118,16 +118,16 @@
 // ── DIAGNOSTIC PANEL STYLES ──
 .diagnostic-panel {
   .status-ok {
-    background: rgba(16, 185, 129, 0.15) !important;
-    color: #10b981 !important;
+    background: var(--color-success-bg) !important;
+    color: var(--color-success) !important;
   }
   .status-warning {
-    background: rgba(245, 158, 11, 0.15) !important;
-    color: #f59e0b !important;
+    background: var(--color-warning-bg) !important;
+    color: var(--color-warning) !important;
   }
   .status-error {
-    background: rgba(239, 68, 68, 0.15) !important;
-    color: #ef4444 !important;
+    background: var(--color-danger-bg) !important;
+    color: var(--color-danger) !important;
   }
 }
 

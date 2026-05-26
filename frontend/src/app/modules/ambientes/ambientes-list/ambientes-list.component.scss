@@ -144,8 +144,8 @@
         }
 
         &.invalid-range ::ng-deep .mat-mdc-text-field-wrapper {
-          border: 1.5px solid #ef4444 !important;
-          background: rgba(239, 68, 68, 0.06) !important;
+          border: 1.5px solid var(--color-danger) !important;
+          background: var(--color-danger-bg) !important;
         }
 
         ::ng-deep .mat-mdc-form-field-subscript-wrapper {

@@ -751,17 +751,17 @@
   }
 
   .logout-menu-item {
-    color: #ef4444 !important;
+    color: var(--color-danger) !important;
 
     mat-icon {
-      color: #ef4444 !important;
+      color: var(--color-danger) !important;
     }
 
     &:hover {
-      background-color: rgba(239, 68, 68, 0.05) !important;
-      color: #ef4444 !important;
+      background-color: var(--color-danger-bg) !important;
+      color: var(--color-danger) !important;
       mat-icon {
-        color: #ef4444 !important;
+        color: var(--color-danger) !important;
       }
     }
   }

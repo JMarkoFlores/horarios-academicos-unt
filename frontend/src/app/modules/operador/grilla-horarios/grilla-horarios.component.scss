@@ -60,33 +60,33 @@
 }
 
 .color-libre {
-  background: #ffffff;
-  border-color: #4caf50 !important;
+  background: var(--color-surface);
+  border-color: var(--color-success) !important;
 }
 
 .color-bloqueado {
-  background: repeating-linear-gradient(45deg, #e0e0e0, #e0e0e0 5px, #f5f5f5 5px, #f5f5f5 10px);
-  border-color: #9e9e9e !important;
+  background: repeating-linear-gradient(45deg, var(--color-surface-3), var(--color-surface-3) 5px, var(--color-surface) 5px, var(--color-surface) 10px);
+  border-color: var(--color-text-disabled) !important;
 }
 
 .color-confirmado {
-  background: #1976d2;
-  border-color: #1565c0 !important;
+  background: var(--color-primary);
+  border-color: var(--color-primary-600) !important;
 }
 
 .color-confirmado-docente {
-  background: #2e7d32;
-  border-color: #1b5e20 !important;
+  background: var(--color-success);
+  border-color: var(--color-success-light) !important;
 }
 
 .color-temporal-otro {
-  background: #ff9800;
-  border-color: #f57c00 !important;
+  background: var(--color-warning);
+  border-color: var(--color-warning-light) !important;
 }
 
 .color-temporal-propio {
-  background: #4caf50;
-  border-color: #388e3c !important;
+  background: var(--color-success);
+  border-color: var(--color-success-light) !important;
 }
 
 .tabla-wrapper {
@@ -229,33 +229,37 @@
   display: flex;
   width: 100%;
   height: 100%;
-  gap: 2px;
-  padding: 2px;
+  gap: 4px;
+  padding: 4px;
 }
 
 .bloque-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  background: rgba(76, 175, 80, 0.3);
-  border: 1px solid rgba(76, 175, 80, 0.5);
+  border-radius: 6px;
+  background: rgba(76, 175, 80, 0.5);
+  border: 2px solid rgba(76, 175, 80, 0.7);
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 20px;
+  min-height: 24px;
   flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
   &:hover {
-    background: rgba(76, 175, 80, 0.5);
-    transform: scale(1.02);
+    background: rgba(76, 175, 80, 0.7);
+    transform: scale(1.03);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
 
   &.bloque-propio {
-    background: rgba(76, 175, 80, 0.6);
-    border-color: rgba(76, 175, 80, 0.8);
+    background: rgba(76, 175, 80, 0.8);
+    border-color: rgba(76, 175, 80, 1);
+    box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
 
     &:hover {
-      background: rgba(76, 175, 80, 0.8);
+      background: rgba(76, 175, 80, 0.9);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
     }
   }
 }

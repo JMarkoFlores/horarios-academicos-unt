@@ -227,7 +227,12 @@ $unt-dark-theme: mat.define-dark-theme(
   --z-tooltip: 1070;
 }
 
-// ── 4. DARK MODE (Sistema de Diseño Profesional UNT) ─────────────────────────────
+// ── 4. LIGHT MODE (Sistema de Diseño Profesional UNT) ─────────────────────────────
+body.light-theme {
+  background-color: var(--color-bg);
+}
+
+// ── 5. DARK MODE (Sistema de Diseño Profesional UNT) ─────────────────────────────
 body.dark-theme {
   // Colores principales UNT (dark)
   --color-primary-500: #42a5f5; // Más claro para dark mode

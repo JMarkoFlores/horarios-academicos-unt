@@ -231,9 +231,9 @@
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
 
   &.primary { 
-    background: #2563eb !important; 
+    background: var(--color-primary) !important; 
     color: white !important;
-    box-shadow: 0 10px 30px -10px rgba(37, 99, 235, 0.5) !important;
+    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.5) !important;
   }
 
   &:hover {

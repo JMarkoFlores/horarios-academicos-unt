@@ -72,7 +72,7 @@ export class ValidadorHorarioService {
     // Validaciones adicionales
     const validacionesAdicionales = [
       this.ejecutarValidacion(
-        () => this.validarCruceLaboratorio(params),
+        () => this.validarCruceLaboratorio(params, permitirSuperposiciones),
         "El laboratorio seleccionado ya está ocupado en ese horario.",
       ),
       params.curso_id
@@ -181,6 +181,7 @@ export class ValidadorHorarioService {
 
   private async validarCruceLaboratorio(
     params: ValidarSlotDto,
+    permitirSuperposiciones: boolean = false,
   ): Promise<boolean> {
     if (params.tipo_clase !== TipoClase.LABORATORIO) {
       return true;
@@ -198,7 +199,30 @@ export class ValidadorHorarioService {
       params.periodo,
     );
 
-    return !hayCruce;
+    if (!hayCruce) {
+      return true;
+    }
+
+    // Si se permiten superposiciones, verificar si hay espacio para más bloques
+    if (permitirSuperposiciones) {
+      // Obtener ocupaciones actuales en la celda
+      const horariosEnCelda = await this.horarioRepo.find({
+        where: {
+          ambiente_id: params.laboratorio_ambiente_id,
+          periodo: params.periodo,
+          dia: params.dia,
+        },
+      });
+
+      const ocupacionesEnSlot = horariosEnCelda.filter(
+        h => h.hora_inicio.startsWith(params.hora_inicio)
+      );
+
+      // Permitir si hay menos de 3 ocupaciones
+      return ocupacionesEnSlot.length < 3;
+    }
+
+    return false;
   }
 
   private async verificarCruceAmbienteConCache(

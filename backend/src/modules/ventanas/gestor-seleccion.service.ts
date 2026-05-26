@@ -319,9 +319,10 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     // Guardar el array en Redis directamente
     await this.redis.setex(
       clave,
-      10, // TTL de 10 segundos
+      1800, // TTL de 30 minutos (1800 segundos)
       JSON.stringify(todasLasSelecciones),
     );
+    this.logger.debug(`[seleccionarCelda] Guardado en Redis clave=${clave}, selecciones=${todasLasSelecciones.length}`);
 
     // Persistir cada selección individualmente en BD
     for (const sel of todasLasSelecciones) {
@@ -1017,6 +1018,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           } else {
             const claveRedis = this.crearClaveSeleccion(ambienteId, dia, horaInicio, periodo);
             const enRedis = await this.redis.get(claveRedis);
+            this.logger.debug(`[obtenerDisponibilidadMatriz] Redis clave=${claveRedis}, enRedis=${!!enRedis}`);
             if (enRedis) {
               // Manejar arrays de selecciones temporales
               let seleccionesTemporales: SeleccionTemporalRedis[] = [];
@@ -1030,6 +1032,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
               } catch {
                 seleccionesTemporales = [];
               }
+              this.logger.debug(`[obtenerDisponibilidadMatriz] Selecciones temporales=${seleccionesTemporales.length}, sesionIdQuery=${sesionIdQuery}`);
 
               // Buscar si hay selección de esta sesión
               const seleccionPropia = seleccionesTemporales.find(s => s.sesionId === sesionIdQuery);

@@ -93,6 +93,15 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (r) => {
         this.matriz = r.data || [];
+        // Buscar celdas con estado temporal para depurar
+        const celdasTemporales = this.matriz.filter((c: any) => 
+          c.estado === 'TEMPORAL_PROPIO' || c.estado === 'TEMPORAL_PROPIO_MULTIPLE'
+        );
+        console.log('[GrillaHorarios] Matriz cargada:', this.matriz.length, 'celdas');
+        console.log('[GrillaHorarios] Celdas temporales encontradas:', celdasTemporales);
+        if (celdasTemporales.length > 0) {
+          console.log('[GrillaHorarios] Ejemplo de celda temporal:', celdasTemporales[0]);
+        }
         this.loading = false;
       },
       error: () => {
@@ -230,15 +239,23 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
 
   getOcupacionesArray(celda: CeldaMatriz): any[] {
     if (celda.estado === 'TEMPORAL_PROPIO') {
+      // Para selección temporal simple, crear array con una ocupación
       return [{ docenteId: this.docenteId }];
     }
     if (celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' && celda.metadata?.ocupaciones) {
       return celda.metadata.ocupaciones;
     }
     if (celda.estado === 'CONFIRMADO' && celda.metadata) {
+      // Para confirmado simple, verificar si tiene ocupaciones array o metadata simple
+      if (celda.metadata.ocupaciones) {
+        return celda.metadata.ocupaciones;
+      }
       return [{ docenteId: celda.metadata.docenteId, cursoId: celda.metadata.cursoId }];
     }
     if (celda.estado === 'CONFIRMADO_DOCENTE' && celda.metadata) {
+      if (celda.metadata.ocupaciones) {
+        return celda.metadata.ocupaciones;
+      }
       return [{ docenteId: celda.metadata.docenteId, cursoId: celda.metadata.cursoId }];
     }
     if ((celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') && celda.metadata?.ocupaciones) {

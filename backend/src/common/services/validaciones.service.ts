@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
@@ -13,6 +13,7 @@ import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 
 @Injectable()
 export class ValidacionesService {
+  private readonly logger = new Logger(ValidacionesService.name);
   constructor(
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
@@ -164,7 +165,7 @@ export class ValidacionesService {
     };
     const inicioMin = toMinutes(horaInicio);
     const finMin = toMinutes(horaFin);
-    return inicioMin >= 7 * 60 && finMin <= 22 * 60 && inicioMin < finMin;
+    return inicioMin >= 7 * 60 && finMin <= 23 * 60 && inicioMin < finMin;
   }
 
   async verificarDiaNoLaborable(
@@ -255,29 +256,48 @@ export class ValidacionesService {
     tipoClase: string,
     duracionHoras: number,
     periodo: string,
+    docenteId?: number,
+    grupoId?: number,
   ): Promise<{
     valido: boolean;
     horasAsignadas: number;
     horasRequeridas: number;
   }> {
+    this.logger.debug(`[verificarHorasCurso] cursoId=${cursoId}, tipoClase=${tipoClase}, grupoId=${grupoId}`);
+    
     const curso = await this.cursoRepo.findOne({ where: { id: cursoId } });
     if (!curso) return { valido: false, horasAsignadas: 0, horasRequeridas: 0 };
 
     const horasRequeridas =
-      tipoClase === "LABORATORIO"
-        ? curso.horas_laboratorio
-        : curso.horas_teoria;
+      tipoClase === "TEORIA"
+        ? curso.horas_teoria
+        : tipoClase === "PRACTICA"
+        ? curso.horas_practica
+        : curso.horas_laboratorio;
+
+    this.logger.debug(`[verificarHorasCurso] horasRequeridas=${horasRequeridas}`);
 
     if (horasRequeridas === 0) {
-      return { valido: false, horasAsignadas: 0, horasRequeridas: 0 };
+      return { valido: true, horasAsignadas: 0, horasRequeridas: 0 }; // Permitir si no hay restricción de horas
     }
 
-    const horarios = await this.horarioRepo
+    const query = this.horarioRepo
       .createQueryBuilder("h")
       .where("h.curso_id = :cursoId", { cursoId })
       .andWhere("h.tipo_clase = :tipoClase", { tipoClase })
-      .andWhere("h.periodo = :periodo", { periodo })
-      .getMany();
+      .andWhere("h.periodo = :periodo", { periodo });
+
+    if (docenteId) {
+      query.andWhere("h.docente_id = :docenteId", { docenteId });
+    }
+    
+    // Filtrar por grupo_id si se proporciona (para laboratorio o práctica)
+    if (grupoId && (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA')) {
+      query.andWhere("h.grupo_id = :grupoId", { grupoId });
+      this.logger.debug(`[verificarHorasCurso] Filtrando por grupo_id=${grupoId}`);
+    }
+
+    const horarios = await query.getMany();
 
     let horasAsignadas = 0;
     const toMinutes = (t: string): number => {

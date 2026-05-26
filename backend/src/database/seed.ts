@@ -1532,8 +1532,8 @@ async function seed() {
   const slotsToSave: DisponibilidadDocente[] = [];
   for (const doc of dbDocentes) {
     for (let dia = 1; dia <= 5; dia++) {
-      // Horas completas: Turno Mañana 07-13 y Turno Tarde 14-20
-      const horasValidas = [7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19];
+      // Horas completas: Turno Mañana 07-13 y Turno Tarde 14-23
+      const horasValidas = [7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22];
       for (const h of horasValidas) {
         // Todos los docentes tienen disponibilidad completa
         slotsToSave.push(

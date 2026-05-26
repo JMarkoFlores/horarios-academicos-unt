@@ -44,20 +44,16 @@
                      (contextmenu)="onBloqueRightClick($event, d.valor, hora, ocupacion)">
                 </div>
               </div>
-              <!-- Bloques individuales para ocupaciones confirmadas múltiples -->
-              <div *ngIf="celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE'" class="bloques-container">
-                <div *ngFor="let ocupacion of (celda.metadata?.ocupaciones || []).slice(0, 3); let i = index"
+              <!-- Bloques individuales para ocupaciones confirmadas (simples y múltiples) -->
+              <div *ngIf="celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' || 
+                       celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE'" class="bloques-container">
+                <div *ngFor="let ocupacion of getOcupacionesArray(celda); let i = index"
                      class="bloque-item"
                      [ngClass]="{'bloque-propio': ocupacion.docenteId === docenteId}"
-                     [style.flex-grow.%]="100 / (celda.metadata?.ocupaciones?.length || 1)">
+                     [style.flex-grow.%]="100 / getBloqueCount(celda)">
                 </div>
               </div>
-              <!-- Single occupation display -->
-              <ng-container *ngIf="celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'TEMPORAL_OTRO'">
-                <mat-icon *ngIf="celda.estado === 'TEMPORAL_OTRO'" class="celda-icon">lock</mat-icon>
-                <mat-icon *ngIf="celda.estado === 'CONFIRMADO'" class="celda-icon">event_busy</mat-icon>
-                <mat-icon *ngIf="celda.estado === 'CONFIRMADO_DOCENTE'" class="celda-icon">event</mat-icon>
-              </ng-container>
+              <!-- Celda libre o bloqueada - sin bloques visibles -->
             </ng-container>
           </td>
         </tr>

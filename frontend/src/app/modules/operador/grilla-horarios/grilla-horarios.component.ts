@@ -122,13 +122,16 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
 
     const horaFin = `${(parseInt(hora.split(':')[0], 10) + 1).toString().padStart(2, '0')}:00`;
 
-    // Clic izquierdo: agregar bloque
-    if (celda.estado === 'LIBRE' || celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE') {
-      // Verificar si ya hay 3 bloques
+    // Clic izquierdo: agregar bloque (permitido en celdas libres, temporales propias, y con ocupaciones confirmadas)
+    if (celda.estado === 'LIBRE' || celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' ||
+        celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' || 
+        celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') {
+      
+      // Verificar si ya hay 3 bloques (confirmados + temporales)
       let bloquesActuales = 0;
       if (celda.metadata?.ocupaciones) {
         bloquesActuales = celda.metadata.ocupaciones.length;
-      } else if (celda.estado === 'TEMPORAL_PROPIO') {
+      } else if (celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_DOCENTE') {
         bloquesActuales = 1;
       }
 
@@ -218,8 +221,8 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
 
   getBloqueCount(celda: CeldaMatriz): number {
     if (celda.estado === 'LIBRE') return 0;
-    if (celda.estado === 'TEMPORAL_PROPIO') return 1;
-    if (celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' && celda.metadata?.ocupaciones) {
+    if (celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_DOCENTE') return 1;
+    if ((celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' || celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') && celda.metadata?.ocupaciones) {
       return celda.metadata.ocupaciones.length;
     }
     return 0;
@@ -230,6 +233,15 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       return [{ docenteId: this.docenteId }];
     }
     if (celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' && celda.metadata?.ocupaciones) {
+      return celda.metadata.ocupaciones;
+    }
+    if (celda.estado === 'CONFIRMADO' && celda.metadata) {
+      return [{ docenteId: celda.metadata.docenteId, cursoId: celda.metadata.cursoId }];
+    }
+    if (celda.estado === 'CONFIRMADO_DOCENTE' && celda.metadata) {
+      return [{ docenteId: celda.metadata.docenteId, cursoId: celda.metadata.cursoId }];
+    }
+    if ((celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') && celda.metadata?.ocupaciones) {
       return celda.metadata.ocupaciones;
     }
     return [];

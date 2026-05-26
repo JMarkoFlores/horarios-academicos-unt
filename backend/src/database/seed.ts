@@ -836,9 +836,9 @@ async function seed() {
       nombre: "Transformación Digital",
       creditos: 3,
       horas_teoria: 2,
-      horas_laboratorio: 0,
+      horas_laboratorio: 2,
       ciclo: 5,
-      tiene_laboratorio: false,
+      tiene_laboratorio: true,
       activo: true,
     },
     {

@@ -22,7 +22,7 @@ FROM nginx:alpine AS production
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built application from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/dist/frontend /usr/share/nginx/html
 
 # Expose port
 EXPOSE 80

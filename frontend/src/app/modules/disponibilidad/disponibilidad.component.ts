@@ -129,12 +129,12 @@ export class DisponibilidadComponent implements OnInit {
     this.cargarDisponibilidad();
   }
 
-  toggleCelda(diaIndex: number, turnoIndex: number, checked: boolean): void {
+  toggleCelda(diaIndex: number, turnoIndex: number): void {
     this.grilla.update((actual) =>
       actual.map((fila, filaIndex) =>
         filaIndex === diaIndex
           ? fila.map((valor, columnaIndex) =>
-              columnaIndex === turnoIndex ? (checked ? Math.min(valor + 1, 3) : Math.max(valor - 1, 0)) : valor,
+              columnaIndex === turnoIndex ? (valor === 0 ? 1 : 0) : valor,
             )
           : [...fila],
       ),

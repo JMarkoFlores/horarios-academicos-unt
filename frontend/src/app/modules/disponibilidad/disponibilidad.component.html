@@ -136,26 +136,8 @@
                 *ngFor="let dia of diasActivos(); let di = index"
                 class="slot-cell"
                 [class.disponible]="grilla()[di][ti] > 0"
+                (click)="toggleCelda(di, ti)"
               >
-                <div class="bloque-counter">
-                  <button 
-                    mat-icon-button
-                    class="counter-btn minus" 
-                    (click)="toggleCelda(di, ti, false)"
-                    [disabled]="grilla()[di][ti] === 0"
-                  >
-                    <mat-icon>remove</mat-icon>
-                  </button>
-                  <span class="counter-value">{{ grilla()[di][ti] }}</span>
-                  <button 
-                    mat-icon-button
-                    class="counter-btn plus" 
-                    (click)="toggleCelda(di, ti, true)"
-                    [disabled]="grilla()[di][ti] >= 3"
-                  >
-                    <mat-icon>add</mat-icon>
-                  </button>
-                </div>
               </td>
             </tr>
           </tbody>

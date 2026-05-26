@@ -14,9 +14,11 @@ import { Docente } from "../entities/docente.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
+import { CursoAmbiente } from "../entities/curso-ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { Grupo } from "../entities/grupo.entity";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
@@ -65,12 +67,16 @@ export class DocentesService {
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
+    @InjectRepository(CursoAmbiente)
+    private readonly cursoAmbienteRepo: Repository<CursoAmbiente>,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     @InjectRepository(ParametrosCarga)
     private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
+    @InjectRepository(Grupo)
+    private readonly grupoRepo: Repository<Grupo>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -509,6 +515,7 @@ export class DocentesService {
     await this.findOne(docenteId);
 
     let periodoId: number | null = null;
+    let periodoCodigo: string | null = null;
     if (dto.periodo) {
       const periodo = await this.periodoRepo.findOne({
         where: { codigo: dto.periodo },
@@ -517,6 +524,7 @@ export class DocentesService {
         throw new NotFoundException(`Período ${dto.periodo} no encontrado`);
       }
       periodoId = periodo.id;
+      periodoCodigo = periodo.codigo;
     }
 
     const asignaciones: DocenteCurso[] = [];
@@ -546,6 +554,18 @@ export class DocentesService {
         );
       }
 
+      // Validar ciclo del curso con el período (si hay período)
+      if (periodoCodigo) {
+        const isPeriodoImpar = this.esPeriodoImpar(periodoCodigo);
+        const cursoCicloImpar = curso.ciclo % 2 !== 0;
+        if (isPeriodoImpar !== cursoCicloImpar) {
+          const cicloRequerido = isPeriodoImpar ? 'impar' : 'par';
+          throw new BadRequestException(
+            `Para el período ${periodoCodigo} solo se pueden asignar cursos de ciclo ${cicloRequerido}. El curso ${curso.codigo} es de ciclo ${curso.ciclo}.`
+          );
+        }
+      }
+
       // Verificar duplicado exacto
       const yaExiste = await this.docenteCursoRepo.findOne({
         where: {
@@ -572,6 +592,14 @@ export class DocentesService {
     }
 
     return asignaciones;
+  }
+
+  private esPeriodoImpar(periodoCodigo: string): boolean {
+    const parts = periodoCodigo.split('-');
+    if (parts.length === 2 && parts[1] === 'I') {
+      return true;
+    }
+    return false;
   }
 
   async findCursosHabilitados(
@@ -605,12 +633,42 @@ export class DocentesService {
 
     const items = await qb.orderBy("curso.nombre", "ASC").getMany();
 
-    return items.map((item) => ({
-      id: item.id,
-      cursoId: item.cursoId,
-      tipo_clase: item.tipo_clase,
-      curso: item.curso,
-    }));
+    // Filter courses by cycle parity if periodoCodigo is provided
+    let filteredItems = items;
+    if (periodoCodigo) {
+      const isPeriodoImpar = this.esPeriodoImpar(periodoCodigo);
+      filteredItems = items.filter(item => {
+        return isPeriodoImpar 
+          ? (item.curso.ciclo % 2 !== 0) 
+          : (item.curso.ciclo % 2 === 0);
+      });
+    }
+
+    // Obtener la cantidad real de grupos creados para cada curso
+    const cursoIds = [...new Set(filteredItems.map(item => item.cursoId))];
+    const gruposPorCurso = new Map<number, number>();
+    
+    for (const cursoId of cursoIds) {
+      const count = await this.grupoRepo.count({
+        where: { 
+          curso_id: cursoId,
+          ...(periodoId ? { periodo_academico_id: periodoId } : {})
+        }
+      });
+      gruposPorCurso.set(cursoId, count);
+    }
+
+    return filteredItems.map((item) => {
+      const gruposReales = gruposPorCurso.get(item.cursoId) || 1;
+      const result = {
+        id: item.id,
+        cursoId: item.cursoId,
+        tipo_clase: item.tipo_clase,
+        curso: item.curso,
+        grupos: gruposReales,
+      };
+      return result;
+    });
   }
 
   async removeAsignacion(
@@ -655,6 +713,29 @@ export class DocentesService {
       .getOne();
 
     return docente?.ambientes ?? [];
+  }
+
+  async findAmbientesCompatibles(
+    cursoId: number,
+    tipoClase: string,
+  ): Promise<Ambiente[]> {
+    const cursoAmbienteRelations = await this.cursoAmbienteRepo.find({
+      where: {
+        cursoId,
+      },
+      relations: ["ambiente"],
+    });
+
+    let ambientes = cursoAmbienteRelations.map((ca) => ca.ambiente);
+
+    // Filtrar ambientes según tipo de clase
+    if (tipoClase === 'LABORATORIO') {
+      ambientes = ambientes.filter(a => a.tipo === 'LABORATORIO');
+    } else if (tipoClase === 'TEORIA' || tipoClase === 'PRACTICA') {
+      ambientes = ambientes.filter(a => a.tipo === 'AULA');
+    }
+
+    return ambientes;
   }
 
   async asignarAmbientes(

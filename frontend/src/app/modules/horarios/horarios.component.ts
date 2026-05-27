@@ -334,71 +334,128 @@ export class HorariosComponent implements OnInit, OnDestroy {
   }
 
   getEstiloCelda(asignacion: HorarioAsignado, tipo: 'docente' | 'ambiente' | 'ciclo'): any {
-    let color: string;
-    if (tipo === 'docente') {
-      color = this.getColorCurso(asignacion.curso?.id || 0);
-    } else if (tipo === 'ambiente') {
-      color = this.getColorDocente(asignacion.docente?.id || 0);
-    } else {
-      color = this.getColorCurso(asignacion.curso?.id || 0);
-    }
+    const color = this.getColorForProfesor(asignacion.docente?.id);
     return {
       'background-color': color,
     };
   }
 
   private generarBloques(asignaciones: HorarioAsignado[]): any[] {
+    console.log('[generarBloques] Input asignaciones:', asignaciones);
     const bloques: any[] = [];
+    const bloquesPorDiaYHora: Map<string, any[]> = new Map();
     
+    // Primero, fusionar horarios consecutivos
     const sortedAsignaciones = [...asignaciones].sort((a, b) => {
       const diaDiff = (a.dia_semana ?? a.dia) - (b.dia_semana ?? b.dia);
       if (diaDiff !== 0) return diaDiff;
       return this.horaToDecimal(a.hora_inicio) - this.horaToDecimal(b.hora_inicio);
     });
 
+    const mergedAsignaciones: HorarioAsignado[] = [];
+    const keyToAsignacionMap = new Map<string, HorarioAsignado>();
+
     sortedAsignaciones.forEach(asignacion => {
       const dia = asignacion.dia_semana ?? asignacion.dia;
-      const horaInicio = this.horaToDecimal(asignacion.hora_inicio);
-      const horaFin = this.horaToDecimal(asignacion.hora_fin);
-      const keyBase = `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${dia}`;
+      const key = `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${asignacion.grupo?.id}-${dia}-${asignacion.tipo_clase}`;
       
-      let bloqueEncontrado = false;
+      const existing = keyToAsignacionMap.get(key);
       
-      for (let i = 0; i < bloques.length; i++) {
-        const bloque = bloques[i];
-        if (bloque.key.startsWith(keyBase)) {
-          if (Math.abs(bloque.horaFin - horaInicio) < 0.1) {
-            bloque.horaFin = horaFin;
-            bloque.asignaciones.push(asignacion);
-            bloqueEncontrado = true;
-            break;
-          } else if (Math.abs(bloque.horaInicio - horaFin) < 0.1) {
-            bloque.horaInicio = horaInicio;
-            bloque.asignaciones.unshift(asignacion);
-            bloqueEncontrado = true;
-            break;
-          }
+      if (existing) {
+        const existingHoraFin = this.horaToDecimal(existing.hora_fin);
+        const currentHoraInicio = this.horaToDecimal(asignacion.hora_inicio);
+        
+        if (Math.abs(existingHoraFin - currentHoraInicio) < 0.1) {
+          existing.hora_fin = asignacion.hora_fin;
+        } else {
+          keyToAsignacionMap.set(`${key}-${Date.now()}-${Math.random()}`, asignacion);
         }
-      }
-      
-      if (!bloqueEncontrado) {
-        bloques.push({
-          key: `${keyBase}-${Date.now()}-${Math.random()}`,
-          dia,
-          horaInicio,
-          horaFin,
-          asignacion,
-          asignaciones: [asignacion],
-        });
+      } else {
+        keyToAsignacionMap.set(key, asignacion);
       }
     });
 
-    return bloques;
+    const finalAsignaciones = Array.from(keyToAsignacionMap.values());
+    console.log('[generarBloques] After merge, finalAsignaciones:', finalAsignaciones);
+
+    finalAsignaciones.forEach(asignacion => {
+      const dia = asignacion.dia_semana ?? asignacion.dia;
+      const horaInicio = this.horaToDecimal(asignacion.hora_inicio);
+      const horaFin = this.horaToDecimal(asignacion.hora_fin);
+      console.log('[generarBloques] Procesando asignacion (merged):', { 
+        curso: asignacion.curso?.nombre, 
+        dia, 
+        horaInicio, 
+        horaFin 
+      });
+      
+      const bloque = {
+        key: `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${Date.now()}-${Math.random()}`,
+        dia,
+        horaInicio,
+        horaFin,
+        asignacion,
+        asignaciones: [asignacion],
+      };
+      
+      for (let h = Math.floor(horaInicio); h < horaFin; h++) {
+        const key = `${dia}-${h}`;
+        console.log('[generarBloques]   Checking h:', h, 'key:', key, 'is start:', h === Math.floor(horaInicio));
+        if (!bloquesPorDiaYHora.has(key)) {
+          bloquesPorDiaYHora.set(key, []);
+        }
+        if (h === Math.floor(horaInicio)) {
+          console.log('[generarBloques]   Adding bloque to key:', key);
+          bloquesPorDiaYHora.get(key)!.push(bloque);
+        }
+      }
+    });
+
+    bloquesPorDiaYHora.forEach((bloquesEnCelda, key) => {
+      const anchoPorBloque = 100 / bloquesEnCelda.length;
+      console.log('[generarBloques] Key:', key, 'bloquesEnCelda count:', bloquesEnCelda.length, 'ancho:', anchoPorBloque);
+      bloquesEnCelda.forEach((bloque, index) => {
+        bloque.left = index * anchoPorBloque;
+        bloque.width = anchoPorBloque;
+        console.log('[generarBloques]   Adding final bloque:', { 
+          curso: bloque.asignacion.curso?.nombre, 
+          left: bloque.left, 
+          width: bloque.width, 
+          height: (bloque.horaFin - bloque.horaInicio) * 120 
+        });
+        bloques.push(bloque);
+      });
+    });
+
+    const sorted = bloques.sort((a, b) => {
+      if (a.dia !== b.dia) return a.dia - b.dia;
+      return a.horaInicio - b.horaInicio;
+    });
+    console.log('[generarBloques] Final bloques:', sorted);
+    return sorted;
   }
 
   private bloquesDocente: any[] = [];
   private bloquesAmbiente: any[] = [];
   private bloquesCiclo: any[] = [];
+  private profesorColorMap = new Map<number, string>();
+  private readonly profesorColors = [
+    '#FFCDD2',
+    '#F8BBD9',
+    '#F0B27A',
+    '#F9E79F',
+    '#D5F5E3',
+    '#AED6F1',
+    '#D7BDE2',
+    '#FADBD8',
+    '#A9DFBF',
+    '#F9EBEA',
+    '#D4EFDF',
+    '#A9CCE3',
+    '#E8DAEF',
+    '#F5EEF8',
+    '#EBF5FB',
+  ];
 
   selectDocente(d: Docente): void {
     this.docenteSeleccionado = d;
@@ -410,7 +467,9 @@ export class HorariosComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (r) => {
           this.asignacionesDocente = r.data?.items ?? r.data ?? [];
+          console.log('[selectDocente] asignacionesDocente:', this.asignacionesDocente);
           this.bloquesDocente = this.generarBloques(this.asignacionesDocente);
+          console.log('[selectDocente] bloquesDocente:', this.bloquesDocente);
           this.loadingDocente = false;
         },
         error: () => {
@@ -460,7 +519,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
       });
   }
 
-  getBloque(dia: number, hora: number, tipo: 'docente' | 'ambiente' | 'ciclo'): any | null {
+  getBloques(dia: number, hora: number, tipo: 'docente' | 'ambiente' | 'ciclo'): any[] {
     let bloques: any[];
     if (tipo === 'docente') {
       bloques = this.bloquesDocente;
@@ -470,22 +529,26 @@ export class HorariosComponent implements OnInit, OnDestroy {
       bloques = this.bloquesCiclo;
     }
 
-    const bloque = bloques.find(b => 
+    return bloques.filter(b => 
       b.dia === dia && 
-      hora >= b.horaInicio && 
-      hora < b.horaFin
+      Math.floor(b.horaInicio) === hora
     );
+  }
 
-    if (!bloque) return null;
-
-    if (hora !== bloque.horaInicio) return null;
-
-    return bloque;
+  getColorForProfesor(docenteId: number | undefined): string {
+    if (!docenteId) return this.profesorColors[0];
+    
+    if (!this.profesorColorMap.has(docenteId)) {
+      const index = this.profesorColorMap.size % this.profesorColors.length;
+      this.profesorColorMap.set(docenteId, this.profesorColors[index]);
+    }
+    
+    return this.profesorColorMap.get(docenteId)!;
   }
 
   getAlturaBloque(bloque: any): string {
     const horas = bloque.horaFin - bloque.horaInicio;
-    return `${horas * 120}px`;
+    return `${horas * 80}px`;
   }
 
   loadConflictos(): void {

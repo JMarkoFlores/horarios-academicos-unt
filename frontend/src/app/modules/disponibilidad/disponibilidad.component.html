@@ -96,11 +96,13 @@
               </span>
               <span
                 class="metric-badge hours"
-                [class.hours-good]="horasDisponibles() >= minimoNormativo()"
+                [class.hours-good]="horasDisponibles() >= minimoNormativo() && !limiteAlcanzado()"
+                [class.hours-limit]="limiteAlcanzado()"
               >
                 <mat-icon>history_toggle_off</mat-icon>
                 Horas disponibles:
-                <strong>{{ horasDisponibles() }} / Mínimo normativo: {{ minimoNormativo() }}</strong>
+                <strong>{{ horasDisponibles() }} / Mín: {{ minimoNormativo() }} — Máx: {{ maximoNormativo() }}</strong>
+                <span *ngIf="limiteAlcanzado()" class="limit-warning"> ⚠ Límite alcanzado</span>
               </span>
               <span class="metric-badge modality" *ngIf="docente.modalidad">
                 <mat-icon>badge</mat-icon>

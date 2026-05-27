@@ -25,6 +25,8 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   @Input() cursoId!: number;
   @Input() tipoClase!: string;
   @Input() periodo!: string;
+  @Input() horasRequeridas: number = 0;
+  @Input() horasAsignadas: number = 0;
   
   private _grupoSeleccionado?: number;
   @Input() 
@@ -130,6 +132,17 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     if (!celda) return;
 
     const horaFin = `${(parseInt(hora.split(':')[0], 10) + 1).toString().padStart(2, '0')}:00`;
+
+    // Verificar si ya se cubrieron las horas requeridas antes de agregar más bloques
+    const esNuevoBloque = celda.estado === 'LIBRE';
+    if (esNuevoBloque && this.horasRequeridas > 0 && this.horasAsignadas >= this.horasRequeridas) {
+      this.snack.open(
+        `Ya se cubrieron las ${this.horasRequeridas}h requeridas para este curso. No se pueden agregar más bloques.`,
+        'Cerrar',
+        { duration: 4000 }
+      );
+      return;
+    }
 
     // Clic izquierdo: agregar bloque (permitido en celdas libres, temporales propias, y con ocupaciones confirmadas)
     if (celda.estado === 'LIBRE' || celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' ||

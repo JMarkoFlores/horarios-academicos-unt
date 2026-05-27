@@ -93,6 +93,25 @@ export class ReportesService {
       .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
+    
+    // Normalizar horas para quitar segundos (convertir "07:00:00" a "07:00")
+    horarios.forEach(h => {
+      if (h.hora_inicio && h.hora_inicio.length > 5) {
+        h.hora_inicio = h.hora_inicio.substring(0, 5);
+      }
+      if (h.hora_fin && h.hora_fin.length > 5) {
+        h.hora_fin = h.hora_fin.substring(0, 5);
+      }
+    });
+
+    this.logger.log(`[generarReporteDocentePDF] Horarios recibidos (${horarios.length}): ${JSON.stringify(horarios.map(h => ({
+      id: h.id,
+      curso: h.curso?.nombre,
+      dia: h.dia ?? h.dia_semana,
+      horaInicio: h.hora_inicio,
+      horaFin: h.hora_fin,
+      grupo: h.grupo?.id
+    })))}`);
 
     const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
     const diasNum = [1, 2, 3, 4, 5];
@@ -112,64 +131,140 @@ export class ReportesService {
       this.logger.warn(`No se pudo obtener configuración de almuerzo, usando valores por defecto: ${error}`);
     }
 
-    // Normalizar horarios
-    const asignaciones = horarios.map((a) => {
-      (a as any).dia_semana = (a as any).dia ?? a.dia_semana;
-      a.hora_inicio = a.hora_inicio.substring(0, 5);
-      a.hora_fin = a.hora_fin.substring(0, 5);
-      return a;
+    // Colores pasteles
+    const profesorColorMap = new Map<number, [number, number, number]>();
+    const profesorColors: [number, number, number][] = [
+      [255, 205, 210],
+      [248, 187, 217],
+      [240, 178, 122],
+      [249, 231, 159],
+      [213, 245, 227],
+      [174, 214, 241],
+      [215, 189, 226],
+      [250, 219, 216],
+      [169, 223, 191],
+      [249, 235, 234],
+      [212, 239, 223],
+      [169, 204, 227],
+      [232, 218, 239],
+      [245, 238, 248],
+      [235, 245, 251],
+    ];
+    const getColorForProfesor = (docenteIdParam: number | undefined): [number, number, number] => {
+      if (!docenteIdParam) return profesorColors[0];
+      if (!profesorColorMap.has(docenteIdParam)) {
+        const index = profesorColorMap.size % profesorColors.length;
+        profesorColorMap.set(docenteIdParam, profesorColors[index]);
+      }
+      return profesorColorMap.get(docenteIdParam)!;
+    };
+
+    // Función para convertir horas a decimal
+    const horaToDecimal = (hora: string): number => {
+      const [h, m] = hora.split(':').map(Number);
+      return h + (m || 0) / 60;
+    };
+
+    // Fusionar horarios consecutivos (EXACTAMENTE igual que el frontend)
+    const sortedHorarios = [...horarios].sort((a, b) => {
+      const diaDiff = (a.dia ?? a.dia_semana) - (b.dia ?? b.dia_semana);
+      if (diaDiff !== 0) return diaDiff;
+      return horaToDecimal(a.hora_inicio) - horaToDecimal(b.hora_inicio);
     });
+    const keyToAsignacionMap = new Map<string, HorarioAsignado>();
+    sortedHorarios.forEach(asignacion => {
+      const dia = asignacion.dia ?? asignacion.dia_semana;
+      const key = `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${asignacion.grupo?.id}-${dia}-${asignacion.tipo_clase}`;
+      const existing = keyToAsignacionMap.get(key);
+      if (existing) {
+        const existingHoraFin = horaToDecimal(existing.hora_fin);
+        const currentHoraInicio = horaToDecimal(asignacion.hora_inicio);
+        if (Math.abs(existingHoraFin - currentHoraInicio) < 0.1) {
+          existing.hora_fin = asignacion.hora_fin;
+        } else {
+          keyToAsignacionMap.set(`${key}-${Date.now()}-${Math.random()}`, asignacion);
+        }
+      } else {
+        keyToAsignacionMap.set(key, asignacion);
+      }
+    });
+    const asignaciones = Array.from(keyToAsignacionMap.values());
+    this.logger.log(`[generarReporteDocentePDF] After merge, finalAsignaciones (${asignaciones.length}): ${JSON.stringify(asignaciones.map(a => ({
+      curso: a.curso?.nombre,
+      dia: a.dia ?? a.dia_semana,
+      horaInicio: a.hora_inicio,
+      horaFin: a.hora_fin,
+      grupo: a.grupo?.id
+    })))}`);
+
+    // Generar bloques para el grid (EXACTAMENTE igual que el frontend)
+    interface BloquePDF {
+      dia: number;
+      horaInicio: number;
+      horaFin: number;
+      asignacion: HorarioAsignado;
+      left: number;
+      width: number;
+    }
+    const bloques: BloquePDF[] = [];
+    const bloquesPorDiaYHora: Map<string, BloquePDF[]> = new Map();
+    asignaciones.forEach(asignacion => {
+      const dia = asignacion.dia ?? asignacion.dia_semana;
+      const horaInicio = horaToDecimal(asignacion.hora_inicio);
+      const horaFin = horaToDecimal(asignacion.hora_fin);
+      this.logger.log(`[generarReporteDocentePDF] Procesando horario (merged): curso=${asignacion.curso?.nombre}, dia=${dia}, horaInicio=${asignacion.hora_inicio} (${horaInicio}), horaFin=${asignacion.hora_fin} (${horaFin})`);
+      const bloque = {
+        dia,
+        horaInicio,
+        horaFin,
+        asignacion,
+        left: 0,
+        width: 0,
+      };
+      for (let h = Math.floor(horaInicio); h < horaFin; h++) {
+        const key = `${dia}-${h}`;
+        this.logger.log(`[generarReporteDocentePDF]   h=${h}, key=${key}, is start=${h === Math.floor(horaInicio)}`);
+        if (!bloquesPorDiaYHora.has(key)) {
+          bloquesPorDiaYHora.set(key, []);
+        }
+        if (h === Math.floor(horaInicio)) {
+          this.logger.log(`[generarReporteDocentePDF]   Adding bloque to key ${key}`);
+          bloquesPorDiaYHora.get(key)!.push(bloque);
+        }
+      }
+    });
+    bloquesPorDiaYHora.forEach((bloquesEnCelda, key) => {
+      const anchoPorBloque = 100 / bloquesEnCelda.length;
+      this.logger.log(`[generarReporteDocentePDF] Key ${key}: ${bloquesEnCelda.length} bloques, ancho por bloque=${anchoPorBloque}%`);
+      bloquesEnCelda.forEach((bloque, index) => {
+        bloque.left = index * anchoPorBloque;
+        bloque.width = anchoPorBloque;
+        bloques.push(bloque);
+      });
+    });
+    this.logger.log(`[generarReporteDocentePDF] Total bloques generados: ${bloques.length}`);
 
     // Calcular total horas
     const totalHoras = asignaciones.reduce((acc, a) => {
-      if (!a.hora_inicio || !a.hora_fin) return acc + 1;
       const ini = parseInt(a.hora_inicio.split(':')[0], 10);
       const fin = parseInt(a.hora_fin.split(':')[0], 10);
       return acc + (fin - ini);
     }, 0);
 
-    // ── jsPDF con diseño igual al frontend ─────────────────────────────────
+    // Iniciar jsPDF
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const docNombre = `${docente.apellidos}, ${docente.nombres}`;
     const codigo = docente.codigo ?? '';
     const categoria = docente.categoria ?? '';
-
-    // Paleta de colores
-    const C = {
-      primary: [79, 70, 229] as [number, number, number],
-      primaryDark: [55, 48, 163] as [number, number, number],
-      primaryLight: [237, 233, 254] as [number, number, number],
-      primaryText: [55, 48, 163] as [number, number, number],
-      labBg: [209, 250, 229] as [number, number, number],
-      labFg: [6, 78, 59] as [number, number, number],
-      labBorder: [16, 185, 129] as [number, number, number],
-      rowAlt: [248, 247, 255] as [number, number, number],
-      horaCol: [241, 245, 249] as [number, number, number],
-      horaTxt: [51, 65, 85] as [number, number, number],
-      border: [203, 213, 225] as [number, number, number],
-      white: [255, 255, 255] as [number, number, number],
-      gray: [100, 116, 139] as [number, number, number],
-      dark: [15, 23, 42] as [number, number, number],
-    };
-
-    const C_ALM_BG = [255, 243, 205] as [number, number, number];
-    const C_ALM_FG = [146, 64, 14] as [number, number, number];
-    const C_ALM_BD = [251, 191, 36] as [number, number, number];
-
     const PAGE_W = 297;
 
-    // Cabecera principal
-    doc.setFillColor(...C.primaryDark);
+    // Cabecera
+    doc.setFillColor(79, 70, 229);
     doc.rect(0, 0, PAGE_W, 22, 'F');
-
-    doc.setFillColor(...C.primary);
-    doc.rect(0, 18, PAGE_W, 4, 'F');
-
-    doc.setTextColor(...C.white);
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.text('HORARIO ACADEMICO', 12, 9);
-
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.text('Universidad Nacional de Trujillo', 12, 15);
@@ -188,180 +283,100 @@ export class ReportesService {
     partes.push(`${totalHoras} hrs/sem`);
     doc.text(partes.join('  |  '), infoX, 13, { align: 'right' });
 
-    // Construir matriz de datos para el grid
-    type TipoCelda = 'TEORIA' | 'LABORATORIO' | 'ALMUERZO' | 'LIBRE';
-    interface SlotInfo {
-      texto: string;
-      tipo: TipoCelda;
-      raw: HorarioAsignado | null;
-      span: number;
-      absorbida: boolean;
-    }
+    const startY = 27;
+    const cellHeight = 12;
+    const cellWidth = (PAGE_W - 16 - 20) / 6;
+    const horaColWidth = 20;
+    const gridHeight = horas.length * cellHeight;
+    const gridWidth = PAGE_W - 16;
 
-    const grid: SlotInfo[][] = horas.map((hora) => {
-      const filaHora = `${String(hora).padStart(2, '0')}:00`;
-      const esAlm = hora >= almuerzoInicio && hora < almuerzoFin;
-      const cols: SlotInfo[] = [
-        { texto: filaHora, tipo: 'LIBRE', raw: null, span: 1, absorbida: false },
-      ];
-      for (const dia of diasNum) {
-        const asig = asignaciones.find(
-          (a) => a.dia_semana === dia && a.hora_inicio === filaHora,
-        ) ?? null;
-        if (asig) {
-          const finH = asig.hora_fin ? parseInt(asig.hora_fin.split(':')[0], 10) : hora + 1;
-          const span = Math.max(1, finH - hora);
-          const curso = asig.curso?.nombre ?? '—';
-          const amb = asig.ambiente?.codigo ?? '—';
-          const tipo = asig.tipo_clase === TipoClase.LABORATORIO ? 'LAB' : 'TEO';
-          cols.push({
-            texto: `[${tipo}] ${curso}\n${amb}\n${asig.hora_inicio}–${asig.hora_fin}`,
-            tipo: asig.tipo_clase === TipoClase.LABORATORIO ? 'LABORATORIO' : 'TEORIA',
-            raw: asig, span, absorbida: false,
-          });
-        } else if (esAlm) {
-          cols.push({ texto: 'Almuerzo', tipo: 'ALMUERZO', raw: null, span: 1, absorbida: false });
-        } else {
-          cols.push({ texto: '', tipo: 'LIBRE', raw: null, span: 1, absorbida: false });
-        }
-      }
-      return cols;
-    });
-
-    // Marcar celdas absorbidas por span
-    for (let r = 0; r < grid.length; r++) {
-      for (let c = 1; c <= 5; c++) {
-        const slot = grid[r][c];
-        if (slot.span > 1 && !slot.absorbida) {
-          for (let s = 1; s < slot.span && r + s < grid.length; s++) {
-            grid[r + s][c].absorbida = true;
-          }
-        }
-      }
-    }
-
-    const head = [['Hora', ...dias]];
-    const body = grid.map((fila) =>
-      fila.map((s) => (s.absorbida ? '↕' : s.texto)),
-    );
-
-    autoTable(doc, {
-      startY: 27,
-      head,
-      body,
-      styles: {
-        fontSize: 7,
-        cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
-        valign: 'middle',
-        halign: 'center',
-        lineColor: C.border,
-        lineWidth: 0.25,
-        textColor: C.dark,
-      },
-      headStyles: {
-        fillColor: C.primary,
-        textColor: C.white,
-        fontStyle: 'bold',
-        fontSize: 8.5,
-        halign: 'center',
-        cellPadding: { top: 4, bottom: 4, left: 2, right: 2 },
-      },
-      columnStyles: {
-        0: {
-          halign: 'center',
-          fontStyle: 'bold',
-          fillColor: C.horaCol,
-          textColor: C.horaTxt,
-          cellWidth: 16,
-          fontSize: 7.5,
-        },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 'auto' },
-        3: { cellWidth: 'auto' },
-        4: { cellWidth: 'auto' },
-        5: { cellWidth: 'auto' },
-      },
-      didParseCell: (data) => {
-        if (data.section !== 'body') return;
-        if (data.column.index === 0) return;
-        const ri = data.row.index;
-        const ci = data.column.index;
-        const fila = grid[ri];
-        if (!fila) return;
-        const slot = fila[ci];
-
-        if (slot.absorbida) {
-          data.cell.styles.fillColor = C.white;
-          data.cell.styles.textColor = C.white;
-          data.cell.styles.fontSize = 1;
-          data.cell.styles.lineColor = C.white;
-          return;
-        }
-
-        if (slot.tipo === 'ALMUERZO') {
-          data.cell.styles.fillColor = C_ALM_BG;
-          data.cell.styles.textColor = C_ALM_FG;
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.lineColor = C_ALM_BD;
-          return;
-        }
-        if (slot.tipo === 'LABORATORIO') {
-          data.cell.styles.fillColor = C.labBg;
-          data.cell.styles.textColor = C.labFg;
-          data.cell.styles.fontStyle = 'bold';
-          return;
-        }
-        if (slot.tipo === 'TEORIA') {
-          const esPar = ri % 2 === 0;
-          data.cell.styles.fillColor = esPar
-            ? C.primaryLight
-            : [228, 224, 252] as [number, number, number];
-          data.cell.styles.textColor = C.primaryText;
-          data.cell.styles.fontStyle = 'bold';
-          return;
-        }
-        data.cell.styles.fillColor = C.white;
-      },
-      alternateRowStyles: { fillColor: C.rowAlt },
-      margin: { left: 8, right: 8 },
-      rowPageBreak: 'avoid',
-      tableLineColor: C.border,
-      tableLineWidth: 0.3,
-    });
-
-    // Pie de página con leyenda
-    const finalY = (doc as any).lastAutoTable?.finalY ?? 185;
-    const pieY = finalY + 7;
-
-    doc.setFillColor(...C.rowAlt);
-    doc.roundedRect(8, pieY - 1, 140, 9, 1.5, 1.5, 'F');
-
-    doc.setFontSize(7);
+    // 1. Dibujar encabezado
+    doc.setFillColor(79, 70, 229);
+    doc.rect(8, startY, gridWidth, 10, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('HORA', 10, startY + 7);
+    dias.forEach((dia, idx) => {
+      doc.text(dia, 8 + horaColWidth + idx * cellWidth + cellWidth / 2, startY + 7, { align: 'center' });
+    });
 
-    doc.setFillColor(...C.primary);
-    doc.rect(12, pieY + 1.5, 4, 4, 'F');
-    doc.setTextColor(...C.primaryText);
-    doc.text('Teoria', 18, pieY + 5);
+    // 2. Dibujar fondo del grid y celdas de hora
+    let currentY = startY + 10;
+    horas.forEach((hora) => {
+      // Columna hora izquierda
+      doc.setFillColor(241, 245, 249);
+      doc.rect(8, currentY, horaColWidth, cellHeight, 'F');
+      doc.setTextColor(51, 65, 85);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 10, currentY + cellHeight / 2 + 2);
+      
+      // Fondo solo para el almuerzo (no para las otras celdas, para que los bloques se vean completos)
+      diasNum.forEach((dia, idx) => {
+        const esAlm = hora >= almuerzoInicio && hora < almuerzoFin;
+        const cellX = 8 + horaColWidth + idx * cellWidth;
+        if (esAlm) {
+          doc.setFillColor(255, 243, 205);
+          doc.rect(cellX, currentY, cellWidth, cellHeight, 'F');
+          doc.setTextColor(146, 64, 14);
+          doc.setFontSize(8);
+          doc.text('Almuerzo', cellX + cellWidth / 2, currentY + cellHeight / 2 + 2, { align: 'center' });
+        }
+      });
+      currentY += cellHeight;
+    });
 
-    doc.setFillColor(...C.labBorder);
-    doc.rect(38, pieY + 1.5, 4, 4, 'F');
-    doc.setTextColor(...C.labFg);
-    doc.text('Laboratorio', 44, pieY + 5);
+    // 3. Dibujar bordes del grid (ANTES de los bloques)
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.25);
+    for (let i = 0; i <= horas.length; i++) {
+      const y = startY + 10 + i * cellHeight;
+      doc.line(8, y, 8 + gridWidth, y);
+    }
+    doc.line(8, startY + 10, 8, startY + 10 + gridHeight);
+    doc.line(8 + horaColWidth, startY + 10, 8 + horaColWidth, startY + 10 + gridHeight);
+    diasNum.forEach((_, idx) => {
+      const x = 8 + horaColWidth + (idx + 1) * cellWidth;
+      doc.line(x, startY + 10, x, startY + 10 + gridHeight);
+    });
+    doc.line(8 + gridWidth, startY + 10, 8 + gridWidth, startY + 10 + gridHeight);
 
-    doc.setFillColor(...C_ALM_BD);
-    doc.rect(70, pieY + 1.5, 4, 4, 'F');
-    doc.setTextColor(...C_ALM_FG);
-    doc.text(`Almuerzo (${almuerzoInicio}:00-${almuerzoFin}:00)`, 76, pieY + 5);
+    // 4. Dibujar bloques de horario (DESPUÉS de los bordes, para taparlos)
+    bloques.forEach(bloque => {
+      const diaIdx = bloque.dia - 1;
+      const cellX = 8 + horaColWidth + diaIdx * cellWidth + (bloque.left / 100) * cellWidth;
+      const cellWidthBloque = (bloque.width / 100) * cellWidth;
+      const startRowIdx = horas.indexOf(Math.floor(bloque.horaInicio));
+      const endRowIdx = horas.indexOf(Math.floor(bloque.horaFin));
+      if (startRowIdx === -1 || endRowIdx === -1) return;
+      const cellY = startY + 10 + startRowIdx * cellHeight;
+      const cellHeightBloque = (endRowIdx - startRowIdx) * cellHeight;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...C.gray);
-    doc.setFontSize(6.5);
-    doc.text(`Generado el ${new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' })}`, PAGE_W - 8, pieY + 5, { align: 'right' });
+      // Fondo del bloque (TAPA LOS BORDES)
+      const color = getColorForProfesor(bloque.asignacion.docente?.id);
+      doc.setFillColor(...color);
+      doc.rect(cellX, cellY, cellWidthBloque, cellHeightBloque, 'F');
+      
+      // Dibujar un borde fino alrededor del bloque para que se vea bien
+      doc.setDrawColor(150, 150, 150);
+      doc.setLineWidth(0.2);
+      doc.rect(cellX, cellY, cellWidthBloque, cellHeightBloque, 'S');
 
-    doc.setDrawColor(...C.border);
-    doc.setLineWidth(0.3);
-    doc.line(8, pieY + 9, PAGE_W - 8, pieY + 9);
+      // Texto del bloque
+      doc.setTextColor(51, 51, 51);
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'bold');
+      const curso = bloque.asignacion.curso?.nombre ?? '—';
+      const amb = bloque.asignacion.ambiente?.codigo ?? '—';
+      const texto1 = curso.length > 20 ? curso.substring(0, 20) + '...' : curso;
+      const texto2 = amb;
+      const texto3 = `${bloque.asignacion.hora_inicio}–${bloque.asignacion.hora_fin}`;
+      const textY = cellY + 4;
+      doc.text(texto1, cellX + cellWidthBloque / 2, textY, { align: 'center' });
+      doc.text(texto2, cellX + cellWidthBloque / 2, textY + 4, { align: 'center' });
+      doc.text(texto3, cellX + cellWidthBloque / 2, textY + 8, { align: 'center' });
+    });
 
     return Buffer.from(doc.output('arraybuffer'));
   }
@@ -810,6 +825,8 @@ export class ReportesService {
     return (await workbook.xlsx.writeBuffer()) as any;
   }
 
+
+
   private htmlWrapper(contenido: string, isLab = false): string {
     return `
       <!DOCTYPE html>
@@ -976,6 +993,16 @@ export class ReportesService {
       .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
+    
+    // Normalizar horas para quitar segundos (convertir "07:00:00" a "07:00")
+    horarios.forEach(h => {
+      if (h.hora_inicio && h.hora_inicio.length > 5) {
+        h.hora_inicio = h.hora_inicio.substring(0, 5);
+      }
+      if (h.hora_fin && h.hora_fin.length > 5) {
+        h.hora_fin = h.hora_fin.substring(0, 5);
+      }
+    });
 
     // Obtener configuración del bloque de almuerzo desde la base de datos
     let almuerzoInicio = 12;
@@ -1024,32 +1051,64 @@ export class ReportesService {
       almuerzoBorder: '#ffb74d',
     };
 
-    // Paleta de colores para profesores
-    const profesorColores = [
-      '#e3f2fd', // Azul
-      '#fff3e0', // Naranja
-      '#f3e5f5', // Morado
-      '#e8f5e9', // Verde
-      '#fffde7', // Amarillo
-      '#fce4ec', // Rosado
-      '#efebe9', // Café
-      '#eceff1', // Gris
-      '#f1f8e9', // Verde lima
-      '#e0f7fa', // Cian
+    // Paleta de colores pasteles para profesores
+    const profesorColors: [number, number, number][] = [
+      [255, 205, 210],
+      [248, 187, 217],
+      [240, 178, 122],
+      [249, 231, 159],
+      [213, 245, 227],
+      [174, 214, 241],
+      [215, 189, 226],
+      [250, 219, 216],
+      [169, 223, 191],
+      [249, 235, 234],
+      [212, 239, 223],
+      [169, 204, 227],
+      [232, 218, 239],
+      [245, 238, 248],
+      [235, 245, 251],
     ];
-    const profesorColorMap = new Map<number, string>();
+    const profesorColorMap = new Map<number, [number, number, number]>();
     const profesoresUnicos = Array.from(new Set(horarios.map(h => h.docente?.id).filter(Boolean)));
     profesoresUnicos.forEach((id, idx) => {
-      profesorColorMap.set(id, profesorColores[idx % profesorColores.length]);
+      profesorColorMap.set(id, profesorColors[idx % profesorColors.length]);
     });
+    const getColorForProfesor = (docenteIdParam: number | undefined): [number, number, number] => {
+      if (!docenteIdParam) return profesorColors[0];
+      return profesorColorMap.get(docenteIdParam) ?? profesorColors[0];
+    };
 
-    // Normalizar horarios
-    const asignaciones = horarios.map((a) => {
-      (a as any).dia_semana = (a as any).dia ?? a.dia_semana;
-      a.hora_inicio = a.hora_inicio.substring(0, 5);
-      a.hora_fin = a.hora_fin.substring(0, 5);
-      return a;
+    // Función para convertir horas a decimal
+    const horaToDecimal = (hora: string): number => {
+      const [h, m] = hora.split(':').map(Number);
+      return h + (m || 0) / 60;
+    };
+
+    // Fusionar horarios consecutivos (EXACTAMENTE igual que el frontend)
+    const sortedHorarios = [...horarios].sort((a, b) => {
+      const diaDiff = (a.dia ?? a.dia_semana) - (b.dia ?? b.dia_semana);
+      if (diaDiff !== 0) return diaDiff;
+      return horaToDecimal(a.hora_inicio) - horaToDecimal(b.hora_inicio);
     });
+    const keyToAsignacionMap = new Map<string, HorarioAsignado>();
+    sortedHorarios.forEach(asignacion => {
+      const dia = asignacion.dia ?? asignacion.dia_semana;
+      const key = `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${asignacion.grupo?.id}-${dia}-${asignacion.tipo_clase}`;
+      const existing = keyToAsignacionMap.get(key);
+      if (existing) {
+        const existingHoraFin = horaToDecimal(existing.hora_fin);
+        const currentHoraInicio = horaToDecimal(asignacion.hora_inicio);
+        if (Math.abs(existingHoraFin - currentHoraInicio) < 0.1) {
+          existing.hora_fin = asignacion.hora_fin;
+        } else {
+          keyToAsignacionMap.set(`${key}-${Date.now()}-${Math.random()}`, asignacion);
+        }
+      } else {
+        keyToAsignacionMap.set(key, asignacion);
+      }
+    });
+    const asignaciones = Array.from(keyToAsignacionMap.values());
 
     // Paleta de colores
     const C = {
@@ -1123,12 +1182,6 @@ export class ReportesService {
       a.docente.apellidos.localeCompare(b.docente.apellidos)
     );
 
-    // --- Lista de Profesores ---
-    doc.setFontSize(12);
-    doc.setTextColor(...C.primaryText);
-    doc.text('Lista de Profesores y Asignaturas', 8, yPos);
-    yPos += 7;
-
     // Construir tabla de profesores
     const profesoresTableData = profesoresCursos.map((item, idx) => ({
       n: idx + 1,
@@ -1137,7 +1190,8 @@ export class ReportesService {
       t: item.curso.horas_teoria || '-',
       p: '-',
       l: item.curso.horas_laboratorio || '-',
-      th: item.horas
+      th: item.horas,
+      docenteId: item.docente.id
     }));
 
     autoTable(doc, {
@@ -1146,196 +1200,195 @@ export class ReportesService {
       body: profesoresTableData.map(d => [d.n, d.profesor, d.asignatura, d.t, d.p, d.l, d.th]),
       theme: 'grid',
       styles: {
-        fontSize: 7,
-        cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+        fontSize: 6,
+        cellPadding: { top: 1.5, bottom: 1.5, left: 1.5, right: 1.5 },
         valign: 'middle',
         halign: 'left',
         lineColor: C.border,
         lineWidth: 0.25,
-        textColor: C.dark,
+        textColor: [51, 51, 51],
       },
       headStyles: {
         fillColor: C.primary,
         textColor: C.white,
         fontStyle: 'bold',
-        fontSize: 8.5,
-        halign: 'center',
-        cellPadding: { top: 4, bottom: 4, left: 2, right: 2 },
-      },
-      columnStyles: {
-        0: { halign: 'center', cellWidth: 15 },
-        3: { halign: 'center', cellWidth: 15 },
-        4: { halign: 'center', cellWidth: 15 },
-        5: { halign: 'center', cellWidth: 15 },
-        6: { halign: 'center', cellWidth: 20, fontStyle: 'bold' }
-      },
-      alternateRowStyles: {
-        fillColor: C.rowAlt
-      },
-      margin: { left: 8, right: 8 }
-    });
-    yPos = (doc as any).lastAutoTable.finalY + 10;
-
-    // --- Horario Semanal ---
-    doc.setFontSize(12);
-    doc.setTextColor(...C.primaryText);
-    doc.text('Horario Semanal', 8, yPos);
-    yPos += 7;
-
-    const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const diasNum = [1, 2, 3, 4, 5, 6];
-    const horas = Array.from({ length: 15 }, (_, i) => i + 7);
-
-    // Construir matriz de datos para el grid
-    type TipoCelda = 'TEORIA' | 'LABORATORIO' | 'ALMUERZO' | 'LIBRE';
-    interface SlotInfo {
-      texto: string;
-      tipo: TipoCelda;
-      raw: HorarioAsignado | null;
-      span: number;
-      absorbida: boolean;
-    }
-
-    const grid: SlotInfo[][] = horas.map((hora) => {
-      const filaHora = `${String(hora).padStart(2, '0')}:00`;
-      const esAlm = hora >= almuerzoInicio && hora < almuerzoFin;
-      const cols: SlotInfo[] = [
-        { texto: filaHora, tipo: 'LIBRE', raw: null, span: 1, absorbida: false },
-      ];
-      for (const dia of diasNum) {
-        const asig = asignaciones.find(
-          (a) => a.dia_semana === dia && a.hora_inicio === filaHora,
-        ) ?? null;
-        if (asig) {
-          const finH = asig.hora_fin ? parseInt(asig.hora_fin.split(':')[0], 10) : hora + 1;
-          const span = Math.max(1, finH - hora);
-          const curso = asig.curso?.nombre ?? '—';
-          const amb = asig.ambiente?.codigo ?? '—';
-          const profesor = asig.docente?.apellidos ?? '—';
-          const tipo = asig.tipo_clase === TipoClase.LABORATORIO ? 'LAB' : 'TEO';
-          cols.push({
-            texto: `${profesor}\n${curso}\n${amb}`,
-            tipo: asig.tipo_clase === TipoClase.LABORATORIO ? 'LABORATORIO' : 'TEORIA',
-            raw: asig, span, absorbida: false,
-          });
-        } else if (esAlm) {
-          cols.push({ texto: 'Almuerzo', tipo: 'ALMUERZO', raw: null, span: 1, absorbida: false });
-        } else {
-          cols.push({ texto: '', tipo: 'LIBRE', raw: null, span: 1, absorbida: false });
-        }
-      }
-      cols.push({ texto: filaHora, tipo: 'LIBRE', raw: null, span: 1, absorbida: false });
-      return cols;
-    });
-
-    // Marcar celdas absorbidas por span
-    for (let r = 0; r < grid.length; r++) {
-      for (let c = 1; c <= 6; c++) { // Columnas 1 a 6 (Lunes a Sábado)
-        const slot = grid[r][c];
-        if (slot.span > 1 && !slot.absorbida) {
-          for (let s = 1; s < slot.span && r + s < grid.length; s++) {
-            grid[r + s][c].absorbida = true;
-          }
-        }
-      }
-    }
-
-    const horarioHead = [['HORA', ...dias, 'HORA']];
-    const horarioBody = grid.map((fila) =>
-      fila.map((s) => (s.absorbida ? '↕' : s.texto)),
-    );
-
-    autoTable(doc, {
-      startY: yPos,
-      head: horarioHead,
-      body: horarioBody,
-      styles: {
         fontSize: 7,
-        cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
-        valign: 'middle',
         halign: 'center',
-        lineColor: C.border,
-        lineWidth: 0.25,
-        textColor: C.dark,
-      },
-      headStyles: {
-        fillColor: C.primary,
-        textColor: C.white,
-        fontStyle: 'bold',
-        fontSize: 8.5,
-        halign: 'center',
-        cellPadding: { top: 4, bottom: 4, left: 2, right: 2 },
+        cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 },
       },
       columnStyles: {
-        0: {
-          halign: 'center',
-          fontStyle: 'bold',
-          fillColor: C.horaCol,
-          textColor: C.horaTxt,
-          cellWidth: 16,
-          fontSize: 7.5,
-        },
-        7: {
-          halign: 'center',
-          fontStyle: 'bold',
-          fillColor: C.horaCol,
-          textColor: C.horaTxt,
-          cellWidth: 16,
-          fontSize: 7.5,
-        },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 'auto' },
-        3: { cellWidth: 'auto' },
-        4: { cellWidth: 'auto' },
-        5: { cellWidth: 'auto' },
-        6: { cellWidth: 'auto' },
+        0: { halign: 'center', cellWidth: 12 },
+        3: { halign: 'center', cellWidth: 12 },
+        4: { halign: 'center', cellWidth: 12 },
+        5: { halign: 'center', cellWidth: 12 },
+        6: { halign: 'center', cellWidth: 16, fontStyle: 'bold' }
       },
       didParseCell: (data) => {
         if (data.section !== 'body') return;
-        if (data.column.index === 0 || data.column.index === 7) return;
-        const ri = data.row.index;
-        const ci = data.column.index;
-        const fila = grid[ri];
-        if (!fila) return;
-        const slot = fila[ci];
-
-        if (slot.absorbida) {
-          data.cell.styles.fillColor = C.white;
-          data.cell.styles.textColor = C.white;
-          data.cell.styles.fontSize = 1;
-          data.cell.styles.lineColor = C.white;
-          return;
+        const rowIndex = data.row.index;
+        const item = profesoresTableData[rowIndex];
+        if (item?.docenteId) {
+          data.cell.styles.fillColor = getColorForProfesor(item.docenteId);
         }
-
-        if (slot.tipo === 'ALMUERZO') {
-          data.cell.styles.fillColor = C_ALM_BG;
-          data.cell.styles.textColor = C_ALM_FG;
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.lineColor = C_ALM_BD;
-          return;
-        }
-        if (slot.tipo === 'LABORATORIO') {
-          data.cell.styles.fillColor = C.labBg;
-          data.cell.styles.textColor = C.labFg;
-          data.cell.styles.fontStyle = 'bold';
-          return;
-        }
-        if (slot.tipo === 'TEORIA') {
-          const esPar = ri % 2 === 0;
-          data.cell.styles.fillColor = esPar
-            ? C.primaryLight
-            : [228, 224, 252] as [number, number, number];
-          data.cell.styles.textColor = C.primaryText;
-          data.cell.styles.fontStyle = 'bold';
-          return;
-        }
-        data.cell.styles.fillColor = C.white;
       },
-      alternateRowStyles: { fillColor: C.rowAlt },
-      margin: { left: 8, right: 8 },
-      rowPageBreak: 'avoid',
-      tableLineColor: C.border,
-      tableLineWidth: 0.3,
+      margin: { left: 8, right: 8 }
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 5;
+
+    const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const diasNum = [1, 2, 3, 4, 5, 6];
+    const horas = Array.from({ length: 18 }, (_, i) => i + 7); // De 7 a 24
+
+    // Función para convertir horas a decimal (renombrada para evitar conflictos)
+    const horaToDecimal2 = (hora: string): number => {
+      const [h, m] = hora.split(':').map(Number);
+      return h + (m || 0) / 60;
+    };
+
+    // Generar bloques para el grid
+    interface BloquePDF {
+      dia: number;
+      horaInicio: number;
+      horaFin: number;
+      asignacion: HorarioAsignado;
+      left: number;
+      width: number;
+    }
+    const bloques: BloquePDF[] = [];
+    const bloquesPorDiaYHora: Map<string, BloquePDF[]> = new Map();
+    asignaciones.forEach(asignacion => {
+      const dia = asignacion.dia ?? asignacion.dia_semana;
+      const horaInicio = horaToDecimal2(asignacion.hora_inicio);
+      const horaFin = horaToDecimal2(asignacion.hora_fin);
+      const bloque = {
+        dia,
+        horaInicio,
+        horaFin,
+        asignacion,
+        left: 0,
+        width: 0,
+      };
+      for (let h = Math.floor(horaInicio); h < horaFin; h++) {
+        const key = `${dia}-${h}`;
+        if (!bloquesPorDiaYHora.has(key)) {
+          bloquesPorDiaYHora.set(key, []);
+        }
+        if (h === Math.floor(horaInicio)) {
+          bloquesPorDiaYHora.get(key)!.push(bloque);
+        }
+      }
+    });
+    bloquesPorDiaYHora.forEach((bloquesEnCelda, key) => {
+      const anchoPorBloque = 100 / bloquesEnCelda.length;
+      bloquesEnCelda.forEach((bloque, index) => {
+        bloque.left = index * anchoPorBloque;
+        bloque.width = anchoPorBloque;
+        bloques.push(bloque);
+      });
+    });
+
+    const startY = yPos;
+    const cellHeight = 7.5;
+    const cellWidth = (PAGE_W - 16 - 20) / 7;
+    const horaColWidth = 20;
+    const gridHeight = horas.length * cellHeight;
+    const gridWidth = PAGE_W - 16;
+
+    // 1. Dibujar encabezado
+    doc.setFillColor(79, 70, 229);
+    doc.rect(8, startY, gridWidth, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('HORA', 10, startY + 7);
+    dias.forEach((dia, idx) => {
+      doc.text(dia, 8 + horaColWidth + idx * cellWidth + cellWidth / 2, startY + 7, { align: 'center' });
+    });
+    doc.text('HORA', 8 + gridWidth - 10, startY + 7, { align: 'right' });
+
+    // 2. Dibujar fondo del grid y celdas de hora
+    let currentY = startY + 10;
+    horas.forEach((hora) => {
+      // Columna hora izquierda
+      doc.setFillColor(241, 245, 249);
+      doc.rect(8, currentY, horaColWidth, cellHeight, 'F');
+      doc.setTextColor(51, 65, 85);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 10, currentY + cellHeight / 2 + 2);
+      
+      // Columna hora derecha
+      doc.setFillColor(241, 245, 249);
+      doc.rect(8 + gridWidth - horaColWidth, currentY, horaColWidth, cellHeight, 'F');
+      doc.setTextColor(51, 65, 85);
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 8 + gridWidth - 10, currentY + cellHeight / 2 + 2, { align: 'right' });
+      
+      // Fondo solo para el almuerzo (no para las otras celdas, para que los bloques se vean completos)
+      diasNum.forEach((dia, idx) => {
+        const esAlm = hora >= almuerzoInicio && hora < almuerzoFin;
+        const cellX = 8 + horaColWidth + idx * cellWidth;
+        if (esAlm) {
+          doc.setFillColor(255, 243, 205);
+          doc.rect(cellX, currentY, cellWidth, cellHeight, 'F');
+          doc.setTextColor(146, 64, 14);
+          doc.setFontSize(8);
+          doc.text('Almuerzo', cellX + cellWidth / 2, currentY + cellHeight / 2 + 2, { align: 'center' });
+        }
+      });
+      currentY += cellHeight;
+    });
+
+    // 3. Dibujar bordes del grid (ANTES de los bloques)
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.25);
+    for (let i = 0; i <= horas.length; i++) {
+      const y = startY + 10 + i * cellHeight;
+      doc.line(8, y, 8 + gridWidth, y);
+    }
+    doc.line(8, startY + 10, 8, startY + 10 + gridHeight);
+    doc.line(8 + horaColWidth, startY + 10, 8 + horaColWidth, startY + 10 + gridHeight);
+    diasNum.forEach((_, idx) => {
+      const x = 8 + horaColWidth + (idx + 1) * cellWidth;
+      doc.line(x, startY + 10, x, startY + 10 + gridHeight);
+    });
+    doc.line(8 + gridWidth - horaColWidth, startY + 10, 8 + gridWidth - horaColWidth, startY + 10 + gridHeight);
+    doc.line(8 + gridWidth, startY + 10, 8 + gridWidth, startY + 10 + gridHeight);
+
+    // 4. Dibujar bloques de horario (DESPUÉS de los bordes, para taparlos)
+    bloques.forEach(bloque => {
+      const diaIdx = bloque.dia - 1;
+      const cellX = 8 + horaColWidth + diaIdx * cellWidth + (bloque.left / 100) * cellWidth;
+      const cellWidthBloque = (bloque.width / 100) * cellWidth;
+      const startRowIdx = horas.indexOf(Math.floor(bloque.horaInicio));
+      const endRowIdx = horas.indexOf(Math.floor(bloque.horaFin));
+      if (startRowIdx === -1 || endRowIdx === -1) return;
+      const cellY = startY + 10 + startRowIdx * cellHeight;
+      const cellHeightBloque = (endRowIdx - startRowIdx) * cellHeight;
+
+      // Fondo del bloque (TAPA LOS BORDES)
+      const color = getColorForProfesor(bloque.asignacion.docente?.id);
+      doc.setFillColor(...color);
+      doc.rect(cellX, cellY, cellWidthBloque, cellHeightBloque, 'F');
+      
+      // Dibujar un borde fino alrededor del bloque para que se vea bien
+      doc.setDrawColor(150, 150, 150);
+      doc.setLineWidth(0.2);
+      doc.rect(cellX, cellY, cellWidthBloque, cellHeightBloque, 'S');
+
+      // Texto del bloque
+      doc.setTextColor(51, 51, 51);
+      doc.setFontSize(4);
+      doc.setFont('helvetica', 'bold');
+      const profesor = bloque.asignacion.docente?.apellidos ?? '—';
+      const curso = bloque.asignacion.curso?.nombre ?? '—';
+      const amb = bloque.asignacion.ambiente?.codigo ?? '—';
+      const texto1 = profesor.length > 10 ? profesor.substring(0, 10) + '...' : profesor;
+      const texto2 = curso.length > 12 ? curso.substring(0, 12) + '...' : curso;
+      const texto3 = amb;
+      const textY = cellY + 2;
+      doc.text(texto1, cellX + cellWidthBloque / 2, textY, { align: 'center' });
+      doc.text(texto2, cellX + cellWidthBloque / 2, textY + 2, { align: 'center' });
+      doc.text(texto3, cellX + cellWidthBloque / 2, textY + 4, { align: 'center' });
     });
 
     return Buffer.from(doc.output('arraybuffer'));

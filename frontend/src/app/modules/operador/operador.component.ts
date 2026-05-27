@@ -307,7 +307,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
   }
 
   cargarCursosDocente(docenteId: number): void {
-    this.api.get<ApiResponse<any[]>>(`/docentes/${docenteId}/cursos`).subscribe(r => {
+    this.api.get<ApiResponse<any[]>>(`/docentes/${docenteId}/cursos`, { periodo: this.periodoService.periodo }).subscribe(r => {
       const cursos = r.data || [];
       // Agrupar cursos por cursoId para no repetir por tipo de clase
       const cursosUnicos = new Map<number, any>();

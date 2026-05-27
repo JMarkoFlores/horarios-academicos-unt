@@ -113,10 +113,13 @@
               
               <div class="horario-body">
                 <div *ngFor="let hora of horas" class="hora-row">
-                  <div class="hora-cell" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">{{ fmtH(hora) }}</div>
+                  <div class="hora-cell" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">
+                    <div class="hora-inicio">{{ fmtH(hora) }}</div>
+                    <div class="hora-fin">{{ fmtH(hora + 1) }}</div>
+                  </div>
                   
                   <div *ngFor="let dNum of diasNum; let i = index" class="celda" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">
-                    <ng-container *ngIf="getBloque(dNum, hora, 'docente') as bloque">
+                    <ng-container *ngFor="let bloque of getBloques(dNum, hora, 'docente')">
                       <div
                         class="celda-content bloque"
                         [matTooltip]="
@@ -129,6 +132,10 @@
                         matTooltipPosition="above"
                         [style]="getEstiloCelda(bloque.asignacion, 'docente')"
                         [style.height]="getAlturaBloque(bloque)"
+                        [style.left]="bloque.left + '%'"
+                        [style.width]="bloque.width + '%'"
+                        [style.margin-top]="bloque.partialTop + '%'"
+                        [style.margin-bottom]="bloque.partialBottom + '%'"
                       >
                         <div class="curso-txt">{{ bloque.asignacion.curso?.nombre }}</div>
 
@@ -263,10 +270,13 @@
               
               <div class="horario-body">
                 <div *ngFor="let hora of horas" class="hora-row">
-                  <div class="hora-cell" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">{{ fmtH(hora) }}</div>
+                  <div class="hora-cell" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">
+                    <div class="hora-inicio">{{ fmtH(hora) }}</div>
+                    <div class="hora-fin">{{ fmtH(hora + 1) }}</div>
+                  </div>
                   
                   <div *ngFor="let dNum of diasNum; let i = index" class="celda" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">
-                    <ng-container *ngIf="getBloque(dNum, hora, 'ambiente') as bloque">
+                    <ng-container *ngFor="let bloque of getBloques(dNum, hora, 'ambiente')">
                       <div
                         class="celda-content bloque"
                         [matTooltip]="
@@ -279,6 +289,10 @@
                         matTooltipPosition="above"
                         [style]="getEstiloCelda(bloque.asignacion, 'ambiente')"
                         [style.height]="getAlturaBloque(bloque)"
+                        [style.left]="bloque.left + '%'"
+                        [style.width]="bloque.width + '%'"
+                        [style.margin-top]="bloque.partialTop + '%'"
+                        [style.margin-bottom]="bloque.partialBottom + '%'"
                       >
                         <div class="curso-txt">{{ bloque.asignacion.curso?.nombre }}</div>
 
@@ -439,7 +453,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of getProfesoresYCursos(); let i = index" [style.background-color]="(i % 2 === 0) ? '#e3f2fd' : '#fff3e0'">
+                <tr *ngFor="let item of getProfesoresYCursos(); let i = index" [style.background-color]="getColorForProfesor(item.docente?.id)" style="color: #333333;">
                   <td style="text-align: center; font-weight: bold;">{{ i + 1 }}</td>
                   <td>
                     {{ item.docente?.apellidos }}, {{ item.docente?.nombres }}
@@ -477,10 +491,13 @@
               
               <div class="horario-body">
                 <div *ngFor="let hora of horas" class="hora-row">
-                  <div class="hora-cell" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">{{ fmtH(hora) }}</div>
+                  <div class="hora-cell" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">
+                    <div class="hora-inicio">{{ fmtH(hora) }}</div>
+                    <div class="hora-fin">{{ fmtH(hora + 1) }}</div>
+                  </div>
                   
                   <div *ngFor="let dNum of diasNum; let i = index" class="celda" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">
-                    <ng-container *ngIf="getBloque(dNum, hora, 'ciclo') as bloque">
+                    <ng-container *ngFor="let bloque of getBloques(dNum, hora, 'ciclo')">
                       <div
                         class="celda-content bloque"
                         [matTooltip]="
@@ -493,6 +510,10 @@
                         matTooltipPosition="above"
                         [style]="getEstiloCelda(bloque.asignacion, 'ciclo')"
                         [style.height]="getAlturaBloque(bloque)"
+                        [style.left]="bloque.left + '%'"
+                        [style.width]="bloque.width + '%'"
+                        [style.margin-top]="bloque.partialTop + '%'"
+                        [style.margin-bottom]="bloque.partialBottom + '%'"
                       >
                         <div class="curso-txt">{{ bloque.asignacion.curso?.nombre }}</div>
                         <div class="amb-txt">
@@ -511,7 +532,10 @@
                     </ng-container>
                   </div>
                   
-                  <div class="hora-cell" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">{{ fmtH(hora) }}</div>
+                  <div class="hora-cell" [class.almuerzo-cell]="esHoraAlmuerzo(hora)">
+                    <div class="hora-inicio">{{ fmtH(hora) }}</div>
+                    <div class="hora-fin">{{ fmtH(hora + 1) }}</div>
+                  </div>
                 </div>
               </div>
             </div>

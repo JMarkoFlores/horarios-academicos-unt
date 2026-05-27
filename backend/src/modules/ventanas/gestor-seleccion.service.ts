@@ -455,7 +455,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     const existentesRaw = await this.redis.mget(...claves);
     const existentes = (existentesRaw || [])
       .filter((v): v is string => v !== null)
-      .map((v) => this.parseSeleccion(v))
+      .flatMap((v) => this.parseSelecciones(v))
       .filter(
         (s) => s.cursoId === datos.cursoId && s.tipoClase === datos.tipoClase,
       );
@@ -511,7 +511,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     const existentesRaw = await this.redis.mget(...claves);
     const existentes = (existentesRaw || [])
       .filter((v): v is string => v !== null)
-      .map((v) => this.parseSeleccion(v))
+      .flatMap((v) => this.parseSelecciones(v))
       .filter(
         (s) => s.cursoId === datos.cursoId && s.tipoClase === datos.tipoClase,
       );
@@ -730,7 +730,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       if (!valor) {
         continue;
       }
-      selecciones.push(this.parseSeleccion(valor));
+      selecciones.push(...this.parseSelecciones(valor));
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -1140,6 +1140,17 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
             (hc) => hc.dia === dia && hc.hora_inicio.startsWith(horaInicio),
           );
 
+          // Poblar ocupaciones con los horarios confirmados del ambiente actual
+          ocupaciones = confirmados.map((hc) => ({
+            docenteId: hc.docente_id,
+            cursoId: hc.curso_id,
+            cursoNombre: hc.curso?.nombre,
+            tipoClase: hc.tipo_clase,
+            ambienteId: hc.ambiente_id,
+            grupoId: hc.grupo_id,
+            otroAmbiente: false,
+          }));
+
           // Verificar si el docente tiene horario confirmado en este slot en otro ambiente
           const horariosDocenteEnOtrosAmbientesSlot =
             horariosDocenteEnOtrosAmbientes.filter(
@@ -1148,6 +1159,24 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
                 hc.hora_inicio.startsWith(horaInicio) &&
                 hc.ambiente_id !== ambienteId,
             );
+
+          // Agregar horarios del docente en otros ambientes para que se vean en la grilla
+          for (const hc of horariosDocenteEnOtrosAmbientesSlot) {
+            const yaExiste = ocupaciones.some(
+              (o) => o.docenteId === hc.docente_id && o.cursoId === hc.curso_id,
+            );
+            if (!yaExiste) {
+              ocupaciones.push({
+                docenteId: hc.docente_id,
+                cursoId: hc.curso_id,
+                cursoNombre: hc.curso?.nombre,
+                tipoClase: hc.tipo_clase,
+                ambienteId: hc.ambiente_id,
+                grupoId: hc.grupo_id,
+                otroAmbiente: true,
+              });
+            }
+          }
 
           // Verificar siempre Redis, incluso si hay horarios confirmados
           const claveRedis = this.crearClaveSeleccion(
@@ -1305,7 +1334,13 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
   }
 
   private parseSeleccion(valor: string): SeleccionTemporalRedis {
-    return JSON.parse(valor) as SeleccionTemporalRedis;
+    const parsed = JSON.parse(valor);
+    return Array.isArray(parsed) ? parsed[0] : parsed;
+  }
+
+  private parseSelecciones(valor: string): SeleccionTemporalRedis[] {
+    const parsed = JSON.parse(valor);
+    return Array.isArray(parsed) ? parsed : [parsed];
   }
 
   private calcularDuracionHoras(horaInicio: string, horaFin: string): number {
@@ -1324,7 +1359,9 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     let horasRequeridas =
       datos.tipoClase === "TEORIA"
         ? curso.horas_teoria || 0
-        : curso.horas_laboratorio || 0;
+        : datos.tipoClase === "PRACTICA"
+          ? curso.horas_practica || 0
+          : curso.horas_laboratorio || 0;
 
     this.logger.debug(
       `Validando horas: cursoId=${datos.cursoId}, tipoClase=${datos.tipoClase}, horasRequeridas=${horasRequeridas}, grupoId=${datos.grupoId}`,
@@ -1408,34 +1445,36 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     for (const clave of clavesSeleccion) {
       const valor = await this.redis.get(clave);
       if (valor) {
-        const seleccion = this.parseSeleccion(valor);
-        this.logger.debug(
-          `Selección temporal: cursoId=${seleccion.cursoId}, tipoClase=${seleccion.tipoClase}, grupoId=${seleccion.grupoId}`,
-        );
-        if (
-          seleccion.cursoId === datos.cursoId &&
-          seleccion.tipoClase === datos.tipoClase
-        ) {
-          // Para laboratorio o práctica, filtrar por grupo
+        const seleccionesEnClave = this.parseSelecciones(valor);
+        for (const seleccion of seleccionesEnClave) {
+          this.logger.debug(
+            `Selección temporal: cursoId=${seleccion.cursoId}, tipoClase=${seleccion.tipoClase}, grupoId=${seleccion.grupoId}`,
+          );
           if (
-            (datos.tipoClase === "LABORATORIO" ||
-              datos.tipoClase === "PRACTICA") &&
-            datos.grupoId
+            seleccion.cursoId === datos.cursoId &&
+            seleccion.tipoClase === datos.tipoClase
           ) {
-            this.logger.debug(
-              `Filtrando temporal: seleccion.grupoId=${seleccion.grupoId} vs datos.grupoId=${datos.grupoId}`,
-            );
-            if (seleccion.grupoId === datos.grupoId) {
+            // Para laboratorio o práctica, filtrar por grupo
+            if (
+              (datos.tipoClase === "LABORATORIO" ||
+                datos.tipoClase === "PRACTICA") &&
+              datos.grupoId
+            ) {
+              this.logger.debug(
+                `Filtrando temporal: seleccion.grupoId=${seleccion.grupoId} vs datos.grupoId=${datos.grupoId}`,
+              );
+              if (seleccion.grupoId === datos.grupoId) {
+                horasAsignadas += this.calcularDuracionHoras(
+                  seleccion.horaInicio,
+                  seleccion.horaFin,
+                );
+              }
+            } else {
               horasAsignadas += this.calcularDuracionHoras(
                 seleccion.horaInicio,
                 seleccion.horaFin,
               );
             }
-          } else {
-            horasAsignadas += this.calcularDuracionHoras(
-              seleccion.horaInicio,
-              seleccion.horaFin,
-            );
           }
         }
       }

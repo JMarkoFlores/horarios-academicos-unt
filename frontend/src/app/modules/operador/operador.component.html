@@ -405,6 +405,8 @@
                 [cursoId]="cursoSeleccionado.cursoId"
                 [tipoClase]="tipoClase"
                 [periodo]="periodoService.periodo"
+                [horasRequeridas]="getHorasRequeridas(cursoSeleccionado, tipoClase)"
+                [horasAsignadas]="getHorasAsignadasCurso(cursoSeleccionado.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined)"
                 [grupoSeleccionado]="(tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined"
                 (seleccionCambiada)="cargarHorariosDocente(docenteActual.id)"
                 #grillaRef

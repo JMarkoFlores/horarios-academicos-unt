@@ -86,8 +86,8 @@ export class CampañasVentanasService {
       cupos_maximos_ventana: dto.cupos_maximos_ventana ?? 20,
     } as CampañaVentanas;
 
-    const capacidadPorBloque = this.calcularCapacidadPorBloque(tempCampaña);
-    this.logger.log(`[crearCampaña] Capacidad por bloque: ${capacidadPorBloque}`);
+    const capacidadPorDia = this.calcularCapacidadPorDia(tempCampaña);
+    this.logger.log(`[crearCampaña] Capacidad por día: ${capacidadPorDia}`);
 
     // Obtener días hábiles para calcular la capacidad total
     const diasHabilitadosCalculados = this.obtenerDiasHabilitados(
@@ -98,7 +98,6 @@ export class CampañasVentanasService {
     );
     this.logger.log(`[crearCampaña] Días hábiles disponibles: ${diasHabilitadosCalculados.length}`);
 
-    const capacidadPorDia = capacidadPorBloque * tempCampaña.bloques_horarios.length;
     const capacidadTotal = capacidadPorDia * diasHabilitadosCalculados.length;
     this.logger.log(`[crearCampaña] Capacidad por día: ${capacidadPorDia}, Capacidad total: ${capacidadTotal}`);
 
@@ -111,7 +110,8 @@ export class CampañasVentanasService {
     }
 
     // Calcular ventanas necesarias
-    const ventanasNecesarias = Math.ceil(totalDocentes / capacidadPorDia);
+    const diasNecesarios = Math.ceil(totalDocentes / capacidadPorDia);
+    const ventanasNecesarias = diasNecesarios * tempCampaña.bloques_horarios.length; // días × bloques
     const ventanasReserva = Math.ceil(ventanasNecesarias * ((dto.porcentaje_reserva ?? 15) / 100));
     const totalVentanasRecomendadas = ventanasNecesarias + ventanasReserva;
     const totalVentanasPosibles = diasHabilitadosCalculados.length * tempCampaña.bloques_horarios.length;
@@ -219,16 +219,18 @@ export class CampañasVentanasService {
     const totalDocentes = await this.docenteRepo.count({ where: { activo: true } });
     this.logger.log(`[generarVentanas] Total de docentes activos: ${totalDocentes}`);
 
-    // Paso 2: Calcular capacidad por ventana
-    const capacidadPorBloque = this.calcularCapacidadPorBloque(campaña);
-    const capacidadTotalPorDia = capacidadPorBloque * campaña.bloques_horarios.length;
-    this.logger.log(`[generarVentanas] Capacidad por bloque: ${capacidadPorBloque}, por día: ${capacidadTotalPorDia}`);
+    // Paso 2: Calcular capacidad total por día (suma de todos los bloques)
+    const capacidadTotalPorDia = this.calcularCapacidadPorDia(campaña);
+    this.logger.log(`[generarVentanas] Capacidad total por día: ${capacidadTotalPorDia}`);
 
     // Paso 3: Calcular ventanas necesarias según fórmula de capacidad
-    const ventanasNecesarias = Math.ceil(totalDocentes / capacidadTotalPorDia);
+    // diasNecesarios = cuántos días hacen falta para acomodar a todos los docentes
+    const diasNecesarios = Math.ceil(totalDocentes / capacidadTotalPorDia);
+    // ventanasNecesarias = días × bloques (cada día genera N ventanas, una por bloque)
+    const ventanasNecesarias = diasNecesarios * campaña.bloques_horarios.length;
     const ventanasReserva = Math.ceil(ventanasNecesarias * (campaña.porcentaje_reserva / 100));
     const totalVentanas = ventanasNecesarias + ventanasReserva;
-    this.logger.log(`[generarVentanas] Ventanas base: ${ventanasNecesarias}, reserva: ${ventanasReserva}, total: ${totalVentanas}`);
+    this.logger.log(`[generarVentanas] Días necesarios: ${diasNecesarios}, ventanas base: ${ventanasNecesarias}, reserva: ${ventanasReserva}, total: ${totalVentanas}`);
 
     // Paso 4: Obtener días hábiles en el rango de fechas
     const diasHabilitados = this.obtenerDiasHabilitados(
@@ -332,8 +334,8 @@ export class CampañasVentanasService {
     const docentesPorVentana: Docente[][] = [];
     ventanas.forEach(() => docentesPorVentana.push([]));
     
-    const capacidadPorVentana = capacidadPorBloque;
-    this.logger.log(`[generarVentanas] Capacidad por ventana: ${capacidadPorVentana}`);
+    const duracionTurno = campaña.duracion_turno_minutos + campaña.buffer_minutos;
+    this.logger.log(`[generarVentanas] Duración turno (con buffer): ${duracionTurno} min`);
     
     // Calcular cuántos docentes por ventana para distribución equitativa
     const numDocentes = docentesOrdenados.length;
@@ -357,7 +359,7 @@ export class CampañasVentanasService {
         const docente = docentesOrdenados[docenteIndex];
         
         // Verificar si la ventana tiene espacio (solo como seguridad)
-        if (docentesPorVentana[v].length < capacidadPorVentana) {
+        if (docentesPorVentana[v].length < campaña.cupos_maximos_ventana) {
           docentesPorVentana[v].push(docente);
           const ventana = ventanas[v];
           this.logger.log(`[generarVentanas] Asignando docente ${docente.nombres} ${docente.apellidos} (${docente.categoria}) a ventana ${ventana.id} (orden ${docentesPorVentana[v].length})`);
@@ -416,25 +418,32 @@ export class CampañasVentanasService {
     return ventanas;
   }
 
-  private calcularCapacidadPorBloque(campaña: CampañaVentanas): number {
-    // Calcular capacidad por bloque individual (no promedio)
-    // Retorna la capacidad de un solo bloque para poder asignar docentes por bloque
+  private calcularCapacidadPorDia(campaña: CampañaVentanas): number {
     if (campaña.bloques_horarios.length === 0) {
       return 0;
     }
+    const duracionTurno = campaña.duracion_turno_minutos + campaña.buffer_minutos;
+    return campaña.bloques_horarios.reduce((total, bloque) => {
+      const [horaInicio, minInicio] = bloque.hora_inicio.split(':').map(Number);
+      const [horaFin, minFin] = bloque.hora_fin.split(':').map(Number);
+      const duracionBloque = (horaFin * 60 + minFin) - (horaInicio * 60 + minInicio);
+      const capacidadBloque = Math.min(
+        Math.floor(duracionBloque / duracionTurno),
+        campaña.cupos_maximos_ventana,
+      );
+      return total + capacidadBloque;
+    }, 0);
+  }
 
-    // Usar el primer bloque como referencia para calcular la capacidad
-    const bloque = campaña.bloques_horarios[0];
+  private calcularCapacidadDeBloque(
+    bloque: { hora_inicio: string; hora_fin: string },
+    duracionTurno: number,
+    cuposMaximos: number,
+  ): number {
     const [horaInicio, minInicio] = bloque.hora_inicio.split(':').map(Number);
     const [horaFin, minFin] = bloque.hora_fin.split(':').map(Number);
     const duracionBloque = (horaFin * 60 + minFin) - (horaInicio * 60 + minInicio);
-    const duracionTurno = campaña.duracion_turno_minutos + campaña.buffer_minutos;
-    const capacidadBloque = Math.min(
-      Math.floor(duracionBloque / duracionTurno),
-      campaña.cupos_maximos_ventana,
-    );
-
-    return capacidadBloque;
+    return Math.min(Math.floor(duracionBloque / duracionTurno), cuposMaximos);
   }
 
   private obtenerDiasHabilitados(
@@ -812,7 +821,7 @@ export class CampañasVentanasService {
           cupos_maximos_ventana: dto.cupos_maximos_ventana ?? campaña.cupos_maximos_ventana,
         } as CampañaVentanas;
 
-        const capacidadPorBloque = this.calcularCapacidadPorBloque(tempCampaña);
+        const capacidadPorDia = this.calcularCapacidadPorDia(tempCampaña);
         const fechaInicio = dto.fecha_inicio ? parsearFecha(dto.fecha_inicio)! : campaña.fecha_inicio;
         const fechaFin = dto.fecha_fin ? parsearFecha(dto.fecha_fin)! : campaña.fecha_fin;
         const diasHabilitados = dto.dias_habilitados ?? campaña.dias_habilitados;
@@ -822,7 +831,6 @@ export class CampañasVentanasService {
           diasHabilitados,
           dto.excluir_feriados ?? campaña.excluir_feriados,
         );
-        const capacidadPorDia = capacidadPorBloque * tempCampaña.bloques_horarios.length;
         const capacidadTotal = capacidadPorDia * diasHabilitadosCalculados.length;
 
         // Validar que la capacidad sea suficiente

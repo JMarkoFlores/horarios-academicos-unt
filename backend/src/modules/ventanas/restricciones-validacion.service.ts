@@ -255,7 +255,11 @@ export class RestriccionesValidacionService {
         if (!curso) return false;
 
         let horasRequeridas =
-          ctx.tipoClase === 'TEORIA' ? curso.horas_teoria : (ctx.tipoClase === 'PRACTICA' ? curso.horas_laboratorio : curso.horas_laboratorio);
+          ctx.tipoClase === 'TEORIA'
+            ? curso.horas_teoria
+            : ctx.tipoClase === 'PRACTICA'
+              ? curso.horas_practica
+              : curso.horas_laboratorio;
 
         // Si es laboratorio, dividir las horas requeridas por el número de grupos
         if (ctx.tipoClase === 'LABORATORIO' && ctx.grupoId) {

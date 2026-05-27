@@ -480,6 +480,18 @@
         color: rgb(16, 185, 129);
         mat-icon { color: rgb(16, 185, 129); }
       }
+
+      &.hours-limit {
+        background: rgba(239, 68, 68, 0.08);
+        border-color: rgba(239, 68, 68, 0.3);
+        color: rgb(220, 38, 38);
+        mat-icon { color: rgb(220, 38, 38); }
+      }
+
+      .limit-warning {
+        font-weight: 600;
+        color: rgb(220, 38, 38);
+      }
     }
 
   }

@@ -83,6 +83,35 @@ export class DisponibilidadComponent implements OnInit {
     );
   });
 
+  readonly maximoNormativo = computed(() => {
+    const docente = this.docenteSeleccionado();
+    if (!docente?.modalidad) {
+      return 0;
+    }
+
+    const parametros = this.parametrosCarga();
+    const coincidenciaExacta = parametros.find(
+      (parametro) =>
+        parametro.modalidad === docente.modalidad &&
+        parametro.tipo_docente === docente.tipo_docente &&
+        parametro.categoria === docente.categoria,
+    );
+    const coincidenciaModalidad = parametros.find(
+      (parametro) => parametro.modalidad === docente.modalidad,
+    );
+
+    return (
+      coincidenciaExacta?.horas_max_semanal ??
+      coincidenciaModalidad?.horas_max_semanal ??
+      0
+    );
+  });
+
+  readonly limiteAlcanzado = computed(() => {
+    const maximo = this.maximoNormativo();
+    return maximo > 0 && this.horasDisponibles() >= maximo;
+  });
+
   readonly hayTurnoManana = computed(() =>
     this.turnos().some((turno) => this.esTurnoManana(turno)),
   );
@@ -130,6 +159,18 @@ export class DisponibilidadComponent implements OnInit {
   }
 
   toggleCelda(diaIndex: number, turnoIndex: number): void {
+    const estaActiva = (this.grilla()[diaIndex]?.[turnoIndex] ?? 0) > 0;
+
+    if (!estaActiva && this.limiteAlcanzado()) {
+      const maximo = this.maximoNormativo();
+      this.snackBar.open(
+        `Límite alcanzado: no puedes superar las ${maximo} horas máximas semanales para este docente.`,
+        'Cerrar',
+        { duration: 4000 },
+      );
+      return;
+    }
+
     this.grilla.update((actual) =>
       actual.map((fila, filaIndex) =>
         filaIndex === diaIndex

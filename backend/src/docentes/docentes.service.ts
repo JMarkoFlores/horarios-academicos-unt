@@ -27,6 +27,7 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
+import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 
 type CargaPorDia = {
   lunes: number;
@@ -644,22 +645,10 @@ export class DocentesService {
       });
     }
 
-    // Obtener la cantidad real de grupos creados para cada curso
-    const cursoIds = [...new Set(filteredItems.map(item => item.cursoId))];
-    const gruposPorCurso = new Map<number, number>();
-    
-    for (const cursoId of cursoIds) {
-      const count = await this.grupoRepo.count({
-        where: { 
-          curso_id: cursoId,
-          ...(periodoId ? { periodo_academico_id: periodoId } : {})
-        }
-      });
-      gruposPorCurso.set(cursoId, count);
-    }
-
     return filteredItems.map((item) => {
-      const gruposReales = gruposPorCurso.get(item.cursoId) || 1;
+      const gruposReales = item.tipo_clase === TipoClase.LABORATORIO
+        ? (item.grupos || 1)
+        : 1;
       const result = {
         id: item.id,
         cursoId: item.cursoId,
@@ -719,21 +708,33 @@ export class DocentesService {
     cursoId: number,
     tipoClase: string,
   ): Promise<Ambiente[]> {
+    console.log('[findAmbientesCompatibles] cursoId:', cursoId, 'tipoClase:', tipoClase);
+    
     const cursoAmbienteRelations = await this.cursoAmbienteRepo.find({
       where: {
         cursoId,
       },
       relations: ["ambiente"],
     });
-
+    
+    console.log('[findAmbientesCompatibles] cursoAmbienteRelations:', cursoAmbienteRelations.length, 'items');
     let ambientes = cursoAmbienteRelations.map((ca) => ca.ambiente);
+    console.log('[findAmbientesCompatibles] ambientes before filter:', ambientes.map(a => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })));
 
     // Filtrar ambientes según tipo de clase
     if (tipoClase === 'LABORATORIO') {
-      ambientes = ambientes.filter(a => a.tipo === 'LABORATORIO');
+      ambientes = ambientes.filter(a => a.tipo === TipoAmbiente.LABORATORIO);
     } else if (tipoClase === 'TEORIA' || tipoClase === 'PRACTICA') {
-      ambientes = ambientes.filter(a => a.tipo === 'AULA');
+      ambientes = ambientes.filter(a => 
+        a.tipo === TipoAmbiente.AULA || 
+        a.tipo === TipoAmbiente.TALLER || 
+        a.tipo === TipoAmbiente.SEMINARIO || 
+        a.tipo === TipoAmbiente.SALA_COMPUTACION || 
+        a.tipo === TipoAmbiente.AUDITORIO
+      );
     }
+    
+    console.log('[findAmbientesCompatibles] ambientes after filter:', ambientes.map(a => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })));
 
     return ambientes;
   }

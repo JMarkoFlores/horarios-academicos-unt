@@ -115,6 +115,7 @@ export interface HorarioAsignado {
   docente?: Docente;
   curso?: Curso;
   ambiente?: Ambiente;
+  grupo?: Grupo;
 }
 
 export interface VentanaAtencion {

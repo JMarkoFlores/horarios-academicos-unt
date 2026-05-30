@@ -1,0 +1,135 @@
+.documento {
+  background: #ffffff;
+  border-radius: 28px;
+  padding: 2.75rem 3.25rem;
+  box-shadow: 0 24px 60px -32px rgba(15, 23, 42, 0.28);
+  font-family: 'Merriweather', 'Roboto', serif;
+  color: #1f2937;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 1.5rem;
+}
+
+.institucion {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.logo {
+  width: 68px;
+  height: 68px;
+  border: 2px solid #1d4ed8;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #1d4ed8;
+}
+
+.institucion h1 {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+
+.institucion p {
+  margin: 0.35rem 0 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.titulo-declaracion {
+  text-align: right;
+}
+
+.titulo-declaracion h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  letter-spacing: 0.24em;
+}
+
+.titulo-declaracion .periodo {
+  margin: 0.6rem 0 0;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.selector-sede {
+  margin: 1.8rem 0;
+  font-family: 'Roboto', sans-serif;
+}
+
+.contenido {
+  font-size: 1.05rem;
+  line-height: 1.9;
+  text-align: justify;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.nota-desconcentrada {
+  font-style: italic;
+  background: #fef3c7;
+  padding: 1rem 1.25rem;
+  border-left: 4px solid #f59e0b;
+  border-radius: 12px;
+}
+
+.acuse {
+  margin: 2.25rem 0 1.25rem;
+  display: flex;
+  justify-content: flex-start;
+  font-family: 'Roboto', sans-serif;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.accion-principal {
+  padding: 0.95rem 2.6rem;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.documento-loading {
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.95rem;
+  padding: 2rem;
+}
+
+@media (max-width: 768px) {
+  .documento {
+    padding: 2rem;
+    border-radius: 20px;
+  }
+
+  .encabezado {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .titulo-declaracion {
+    text-align: left;
+  }
+
+  .contenido {
+    font-size: 1rem;
+  }
+}

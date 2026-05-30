@@ -1,0 +1,118 @@
+
+.seleccionar-semestre {
+  min-height: calc(100vh - 120px);
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef1f7;
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+}
+
+.card-wrapper {
+  width: 100%;
+  max-width: 460px;
+}
+
+.selector-card {
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 26px 60px -32px rgba(15, 23, 42, 0.4);
+  padding: 0.5rem 0;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.headline {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.header h1 {
+  margin: 0.2rem 0 0;
+  font-size: 1.7rem;
+  color: #0f172a;
+}
+
+.subtext {
+  margin: 0.5rem auto 0;
+  max-width: 320px;
+  color: #475569;
+}
+
+.semestre-field {
+  width: 100%;
+}
+
+.docente {
+  margin-top: 1.5rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.docente-chip {
+  background: #f0f4ff;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.chip-label {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin-right: 0.25rem;
+}
+
+.chip-value {
+  font-weight: 600;
+}
+
+.docente-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #475569;
+  margin: 1.2rem 0;
+}
+
+.continuar-btn {
+  width: 100%;
+  margin-top: 2rem;
+  padding: 0.95rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  background-color: #1d4ed8;
+  color: #ffffff;
+}
+
+.continuar-btn[disabled] {
+  background-color: #93b4f6;
+  color: #e2e8f0;
+}
+
+@media (max-width: 600px) {
+  .selector-card {
+    border-radius: 20px;
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}

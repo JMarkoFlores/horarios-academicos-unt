@@ -12,6 +12,13 @@ const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'welcome', component: LandingComponent },
   {
+    path: 'carga-horaria',
+    loadChildren: () =>
+      import('./modules/carga-horaria/carga-horaria.module').then(
+        (m) => m.CargaHorariaModule,
+      ),
+  },
+  {
     path: 'app',
     component: LayoutComponent,
     canActivate: [AuthGuard],

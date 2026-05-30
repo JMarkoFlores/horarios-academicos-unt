@@ -1,0 +1,43 @@
+<mat-card class="confirmar-datos-card">
+  <mat-card-content>
+    <header class="card-header">
+      <h2>Confirmar Datos Institucionales</h2>
+      <ng-container *ngIf="!loadingSemestre; else semestreLoading">
+        <p class="subtitle" [class.placeholder]="!semestreNombre">
+          {{ semestreNombre || 'Semestre no disponible' }}
+        </p>
+      </ng-container>
+      <ng-template #semestreLoading>
+        <div class="subtitle loading">
+          <mat-progress-spinner diameter="18" mode="indeterminate"></mat-progress-spinner>
+          <span>Obteniendo semestre…</span>
+        </div>
+      </ng-template>
+    </header>
+
+    <section class="datos" *ngIf="!loadingDocente; else docenteLoading">
+      <div class="datos-grid" aria-label="Datos institucionales del docente">
+        <div class="dato" *ngFor="let campo of camposDocente">
+          <span class="label">{{ campo.label }}</span>
+          <span class="value">{{ campo.value || '—' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <ng-template #docenteLoading>
+      <div class="loading-bloque">
+        <mat-progress-spinner diameter="36" mode="indeterminate"></mat-progress-spinner>
+        <span>Cargando datos del docente…</span>
+      </div>
+    </ng-template>
+
+    <footer class="acciones">
+      <button mat-stroked-button color="primary" (click)="solicitarCorreccion()">
+        Solicitar corrección
+      </button>
+      <button mat-flat-button color="primary" (click)="guardarYContinuar()">
+        Guardar y continuar
+      </button>
+    </footer>
+  </mat-card-content>
+</mat-card>

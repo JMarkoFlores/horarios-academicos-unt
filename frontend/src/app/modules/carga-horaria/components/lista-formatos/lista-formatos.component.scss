@@ -1,0 +1,163 @@
+.lista-formatos {
+  padding: 1.5rem 0;
+  font-family: 'Roboto', 'Segoe UI', sans-serif;
+  color: #0f172a;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.titulos h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.semestre {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+  color: #1d4ed8;
+}
+
+.semestre.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+}
+
+.docente-resumen {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.docente-nombre {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.separator {
+  color: #cbd5f5;
+}
+
+.tabla-contenedor {
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 18px 32px -28px rgba(15, 23, 42, 0.4);
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.tabla-formatos {
+  width: 100%;
+  border-spacing: 0;
+  font-size: 0.95rem;
+}
+
+.tabla-formatos th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 600;
+  padding-bottom: 0.75rem;
+}
+
+.tabla-formatos td {
+  padding: 0.45rem 0;
+  border-top: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.tabla-formatos tr:first-child td {
+  border-top: none;
+}
+
+.titulo {
+  font-weight: 600;
+  color: #111827;
+}
+
+.accion-btn {
+  font-weight: 600;
+  min-width: 130px;
+}
+
+mat-chip {
+  font-weight: 600;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+}
+
+.chip-neutro {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.chip-azul {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.chip-ambar {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.chip-verde {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.chip-verde-oscuro {
+  background: #bbf7d0;
+  color: #065f46;
+}
+
+.estado-cargando,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 0;
+  color: #64748b;
+}
+
+.empty-state mat-icon {
+  font-size: 36px;
+  height: 36px;
+  width: 36px;
+}
+
+@media (max-width: 960px) {
+  .tabla-contenedor {
+    padding: 0.75rem 1rem;
+  }
+
+  .tabla-formatos th,
+  .tabla-formatos td {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .tabla-formatos {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .accion-btn {
+    min-width: unset;
+    width: 100%;
+  }
+}

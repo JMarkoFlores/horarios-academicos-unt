@@ -1,0 +1,55 @@
+<section class="seleccionar-semestre">
+  <div class="card-wrapper">
+    <mat-card class="selector-card">
+      <mat-card-content>
+        <header class="header">
+          <p class="headline">Carga Horaria</p>
+          <h1>Selecciona el semestre</h1>
+          <p class="subtext">
+            Elige el periodo académico sobre el que deseas declarar tu carga horaria.
+          </p>
+        </header>
+
+        <mat-form-field appearance="outline" class="semestre-field">
+          <mat-label>Semestre</mat-label>
+          <mat-select [formControl]="semestreControl" [disabled]="loadingSemestres">
+            <mat-option *ngFor="let semestre of semestres" [value]="semestre.id">
+              {{ semestre.nombre }}
+            </mat-option>
+          </mat-select>
+          <mat-progress-spinner
+            *ngIf="loadingSemestres"
+            matSuffix
+            diameter="18"
+            mode="indeterminate"
+          ></mat-progress-spinner>
+        </mat-form-field>
+
+        <section class="docente" *ngIf="!loadingDocente; else docenteLoading">
+          <div class="chips" aria-label="Resumen del docente">
+            <mat-chip class="docente-chip" *ngFor="let item of resumenDocente">
+              <span class="chip-label">{{ item.label }}:</span>
+              <span class="chip-value">{{ item.value || '—' }}</span>
+            </mat-chip>
+          </div>
+        </section>
+        <ng-template #docenteLoading>
+          <div class="docente-loading">
+            <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+            <span>Cargando datos del docente…</span>
+          </div>
+        </ng-template>
+
+        <button
+          mat-flat-button
+          color="primary"
+          class="continuar-btn"
+          (click)="continuar()"
+          [disabled]="semestreControl.invalid"
+        >
+          Continuar
+        </button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</section>

@@ -1,0 +1,79 @@
+<section class="documento" *ngIf="docente; else documentoLoading">
+  <header class="encabezado">
+    <div class="institucion">
+      <div class="logo">UNT</div>
+      <div>
+        <h1>Universidad Nacional de Trujillo</h1>
+        <p>Vicerrectorado Académico · Dirección de Desarrollo Docente</p>
+      </div>
+    </div>
+    <div class="titulo-declaracion">
+      <h2>DECLARACIÓN JURADA</h2>
+      <p class="periodo">
+        Período Académico: <strong>{{ semestre?.nombre || '—' }}</strong>
+      </p>
+    </div>
+  </header>
+
+  <mat-button-toggle-group class="selector-sede" [formControl]="sedeControl" disableRipple>
+    <mat-button-toggle value="central">Sede central</mat-button-toggle>
+    <mat-button-toggle value="desconcentrada">Sede desconcentrada</mat-button-toggle>
+  </mat-button-toggle-group>
+
+  <article class="contenido">
+    <p>
+      Yo, <strong>{{ docente.nombre }}</strong>, identificado con DNI N°
+      <strong>{{ docente.dni }}</strong>, docente con código IBM
+      <strong>{{ docente.ibm }}</strong>, de la
+      <strong>{{ docente.facultad }}</strong>, declaro bajo juramento que la
+      información consignada en el presente formato es verídica, y que no incurro
+      en incompatibilidad ni impedimento para el ejercicio de la docencia
+      universitaria en el presente período académico
+      <strong>{{ semestre?.nombre || '—' }}</strong>.
+    </p>
+    <p>
+      Asimismo, me comprometo a mantener actualizada la información relacionada a
+      mi carga académica y horas complementarias, así como a comunicar de manera
+      oportuna cualquier variación que pudiera afectar el normal desarrollo de mi
+      labor docente en la Universidad Nacional de Trujillo.
+    </p>
+    <p>
+      Declaro que conozco las disposiciones vigentes en materia de ética, deberes
+      y responsabilidades del cuerpo docente universitario, y que ejerzo mi
+      actividad en observancia de los principios de integridad, transparencia y
+      responsabilidad social que rigen nuestra institución.
+    </p>
+    <p *ngIf="sedeSeleccionada === 'desconcentrada'" class="nota-desconcentrada">
+      {{ parrafoDesconcentrada }}
+    </p>
+    <p>
+      Esta declaración jurada adquiere validez a partir de su suscripción
+      electrónica, ratificando mi voluntad de cumplir las funciones asignadas y
+      respetar la normativa académica de la Universidad Nacional de Trujillo.
+    </p>
+  </article>
+
+  <section class="acuse">
+    <mat-checkbox [formControl]="aceptaControl">
+      He leído y acepto esta declaración jurada.
+    </mat-checkbox>
+  </section>
+
+  <footer class="acciones">
+    <button
+      mat-flat-button
+      color="primary"
+      class="accion-principal"
+      (click)="firmarDeclaracion()"
+      [disabled]="!aceptaControl.value"
+    >
+      Firmar y enviar declaración
+    </button>
+  </footer>
+</section>
+
+<ng-template #documentoLoading>
+  <div class="documento-loading">
+    Preparando la declaración jurada…
+  </div>
+</ng-template>

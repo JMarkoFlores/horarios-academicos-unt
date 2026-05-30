@@ -1,0 +1,240 @@
+<mat-card class="formato-uno">
+  <mat-card-content>
+    <header class="encabezado">
+      <h1>Formato 1: Declaración de Carga Horaria</h1>
+      <div class="subtitulo">
+        <ng-container *ngIf="!loadingSemestre; else semestreLoading">
+          <span class="semestre">{{
+            semestre?.nombre || "Semestre no disponible"
+          }}</span>
+        </ng-container>
+        <span class="separador">•</span>
+        <ng-container *ngIf="!loadingDocente; else docenteLoading">
+          <span class="docente">{{
+            docente?.nombre || "Docente no disponible"
+          }}</span>
+        </ng-container>
+      </div>
+    </header>
+
+    <mat-divider></mat-divider>
+
+    <section class="bloque" data-bloque="I">
+      <header class="bloque-header">
+        <h2>Bloque I — Datos del profesor</h2>
+      </header>
+      <div class="datos-grid" *ngIf="docente; else docenteLoading">
+        <div class="dato" *ngFor="let campo of camposDocente">
+          <span class="label">{{ campo.label }}</span>
+          <span class="valor">{{ campo.valor }}</span>
+        </div>
+      </div>
+    </section>
+
+    <mat-divider></mat-divider>
+
+    <section class="bloque" data-bloque="II">
+      <header class="bloque-header">
+        <h2>Bloque II — Trabajo lectivo</h2>
+        <span class="nota">Tabla referencial en modo lectura</span>
+      </header>
+
+      <div class="tabla-wrapper">
+        <table mat-table [dataSource]="cursosLectivos" class="tabla-lectivo">
+          <ng-container matColumnDef="codigo">
+            <th mat-header-cell *matHeaderCellDef>Código</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.codigo }}</td>
+          </ng-container>
+          <ng-container matColumnDef="nombre">
+            <th mat-header-cell *matHeaderCellDef>Asignatura</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.nombre }}</td>
+          </ng-container>
+          <ng-container matColumnDef="seccion">
+            <th mat-header-cell *matHeaderCellDef>Sección</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.seccion }}</td>
+          </ng-container>
+          <ng-container matColumnDef="escuela">
+            <th mat-header-cell *matHeaderCellDef>Escuela</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.escuela }}</td>
+          </ng-container>
+          <ng-container matColumnDef="ciclo">
+            <th mat-header-cell *matHeaderCellDef>Ciclo</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.ciclo }}</td>
+          </ng-container>
+          <ng-container matColumnDef="alumnos">
+            <th mat-header-cell *matHeaderCellDef>Alumnos</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.alumnos }}</td>
+          </ng-container>
+          <ng-container matColumnDef="ht">
+            <th mat-header-cell *matHeaderCellDef>HT</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.ht }}</td>
+          </ng-container>
+          <ng-container matColumnDef="hp">
+            <th mat-header-cell *matHeaderCellDef>HP</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.hp }}</td>
+          </ng-container>
+          <ng-container matColumnDef="hl">
+            <th mat-header-cell *matHeaderCellDef>HL</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.hl }}</td>
+          </ng-container>
+          <ng-container matColumnDef="total">
+            <th mat-header-cell *matHeaderCellDef>Total</th>
+            <td mat-cell *matCellDef="let elemento">{{ elemento.total }}</td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+
+        <table class="tabla-lectivo totales">
+          <tr class="fila-totales">
+            <td colspan="5">Totales</td>
+            <td>{{ totales.alumnos }}</td>
+            <td>{{ totales.ht }}</td>
+            <td>{{ totales.hp }}</td>
+            <td>{{ totales.hl }}</td>
+            <td>{{ totales.total }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="acciones-secundarias">
+        <button
+          mat-stroked-button
+          color="primary"
+          (click)="reportarInconsistencia()"
+        >
+          Reportar inconsistencia
+        </button>
+      </div>
+    </section>
+
+    <mat-divider></mat-divider>
+
+    <section class="bloque">
+      <header class="bloque-header">
+        <h2>Bloques de carga no lectiva</h2>
+        <span class="nota"
+          >Complete la información con base a su plan de trabajo</span
+        >
+      </header>
+
+      <form [formGroup]="nonLectivoForm" class="no-lectivo-form">
+        <mat-accordion formArrayName="bloques" class="bloques-no-lectivos">
+          <mat-expansion-panel
+            *ngFor="let bloque of bloquesNoLectivos; let i = index"
+            [expanded]="i === 0"
+            class="bloque-panel"
+          >
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                {{ bloque.titulo }}
+              </mat-panel-title>
+            </mat-expansion-panel-header>
+
+            <div class="panel-body" [formGroupName]="i">
+              <div class="campos">
+                <mat-form-field appearance="outline" class="field horas">
+                  <mat-label>Horas semanales</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="horas"
+                    min="0"
+                    required
+                  />
+                  <mat-error
+                    *ngIf="bloqueControl(i).get('horas')?.hasError('required')"
+                  >
+                    Campo obligatorio
+                  </mat-error>
+                  <mat-error
+                    *ngIf="bloqueControl(i).get('horas')?.hasError('min')"
+                  >
+                    Debe ser 0 o mayor
+                  </mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="field descripcion">
+                  <mat-label>Descripción / Sustento</mat-label>
+                  <textarea
+                    matInput
+                    formControlName="descripcion"
+                    rows="3"
+                  ></textarea>
+                </mat-form-field>
+
+                <mat-form-field
+                  appearance="outline"
+                  class="field codigo"
+                  *ngIf="bloque.requiereCodigo"
+                >
+                  <mat-label>N° de resolución o código de proyecto</mat-label>
+                  <input matInput formControlName="codigo" />
+                </mat-form-field>
+              </div>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </form>
+    </section>
+
+    <mat-divider></mat-divider>
+
+    <section class="totales">
+      <div class="totales-card">
+        <div class="total-item">
+          <span class="etiqueta">Total lectivo</span>
+          <span class="valor">{{ totalLectivo() | number: "1.1-1" }} h</span>
+        </div>
+        <div class="total-item">
+          <span class="etiqueta">Total no lectivo</span>
+          <span class="valor">{{ totalNoLectivo() | number: "1.1-1" }} h</span>
+        </div>
+        <div class="total-item total-general">
+          <span class="etiqueta">Total general</span>
+          <span class="valor">{{ totalGeneral() | number: "1.1-1" }} h</span>
+        </div>
+      </div>
+    </section>
+
+    <mat-divider></mat-divider>
+
+    <footer class="footer">
+      <button mat-stroked-button color="primary" (click)="guardarBorrador()">
+        Guardar borrador
+      </button>
+      <button
+        mat-stroked-button
+        color="primary"
+        (click)="previsualizarPdf()"
+        disabled
+      >
+        Previsualizar PDF
+      </button>
+      <button mat-flat-button color="primary" (click)="continuarDeclaracion()">
+        Continuar a Declaración Jurada
+      </button>
+    </footer>
+  </mat-card-content>
+</mat-card>
+
+<ng-template #docenteLoading>
+  <div class="loading-row">
+    <mat-progress-spinner
+      diameter="20"
+      mode="indeterminate"
+    ></mat-progress-spinner>
+    <span>Cargando docente…</span>
+  </div>
+</ng-template>
+
+<ng-template #semestreLoading>
+  <div class="loading-row">
+    <mat-progress-spinner
+      diameter="16"
+      mode="indeterminate"
+    ></mat-progress-spinner>
+    <span>Cargando semestre…</span>
+  </div>
+</ng-template>

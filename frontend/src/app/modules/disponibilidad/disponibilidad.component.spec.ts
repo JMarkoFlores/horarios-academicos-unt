@@ -124,31 +124,28 @@ describe("DisponibilidadComponent", () => {
 
     fixture = TestBed.createComponent(DisponibilidadComponent);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   });
 
-  it("debe renderizar 10 celdas checkbox (2x5)", fakeAsync(() => {
-    fixture.detectChanges();
-    tick();
+  it("debe renderizar 10 celdas checkbox (2x5)", async () => {
     component.seleccionarDocente(docenteMock);
-    tick();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     const checkboxes = fixture.debugElement.queryAll(By.css("mat-checkbox"));
     expect(checkboxes.length).toBe(10);
-    flush();
-  }));
+  });
 
   it("debe limpiar toda la selección al hacer click en Limpiar selección", fakeAsync(() => {
-    fixture.detectChanges();
     tick();
     component.seleccionarDocente(docenteMock);
     tick();
     component.grilla.set([
-      [true, false],
-      [true, true],
-      [false, false],
-      [true, false],
-      [false, true],
+      [1, 0],
+      [1, 1],
+      [0, 0],
+      [1, 0],
+      [0, 1],
     ]);
     fixture.detectChanges();
 
@@ -172,11 +169,11 @@ describe("DisponibilidadComponent", () => {
     tick();
 
     const matrix = [
-      [true, false],
-      [false, true],
-      [false, false],
-      [true, true],
-      [false, false],
+      [1, 0],
+      [0, 1],
+      [0, 0],
+      [1, 1],
+      [0, 0],
     ];
     component.grilla.set(matrix);
     fixture.detectChanges();
@@ -194,7 +191,7 @@ describe("DisponibilidadComponent", () => {
         dia_semana: dia.dia_semana,
         hora_inicio: turno.hora_inicio,
         hora_fin: turno.hora_fin,
-        disponible: matrix[diaIndex][turnoIndex],
+        disponible: matrix[diaIndex][turnoIndex] > 0,
       })),
     );
 

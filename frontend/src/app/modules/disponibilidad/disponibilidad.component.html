@@ -140,6 +140,14 @@
                 [class.disponible]="grilla()[di][ti] > 0"
                 (click)="toggleCelda(di, ti)"
               >
+                <mat-checkbox
+                  class="slot-checkbox"
+                  [checked]="grilla()[di][ti] > 0"
+                  (click)="$event.stopPropagation()"
+                  (change)="toggleCelda(di, ti)"
+                  [aria-label]="'Disponibilidad ' + dia.nombre + ' - ' + turno.nombre"
+                  color="primary"
+                ></mat-checkbox>
               </td>
             </tr>
           </tbody>

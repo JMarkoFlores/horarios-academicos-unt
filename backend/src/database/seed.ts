@@ -173,10 +173,24 @@ async function seed() {
       activo: true,
     },
     {
+      nombre: "Director de Departamento",
+      email: "director.departamento@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_DEPARTAMENTO,
+      activo: true,
+    },
+    {
       nombre: "Coordinador Académico",
       email: "coordinador@unt.edu.pe",
       password_hash: passwordHash,
       rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true,
+    },
+    {
+      nombre: "Decano",
+      email: "decano@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DECANO,
       activo: true,
     },
     {
@@ -311,7 +325,7 @@ async function seed() {
     );
     dbDocentes.push(d);
 
-    await usuarioRepo.save(
+    const usuarioDocente = await usuarioRepo.save(
       usuarioRepo.create({
         nombre: `${d.nombres} ${d.apellidos}`,
         email: d.email,
@@ -320,6 +334,9 @@ async function seed() {
         activo: true,
       }),
     );
+    await docenteRepo.update(d.id, {
+      usuario_id: usuarioDocente.id,
+    });
   }
   console.log(
     `✅ ${dbDocentes.length} docentes y sus usuarios de acceso creados correctamente\n`,
@@ -1651,9 +1668,13 @@ async function seed() {
     { codigo: "DCONT", nombre: "Contabilidad y Finanzas", escuela_id: escuela.id },
   ];
 
+  const departamentosCreados = [];
   for (const dep of departamentosData) {
-    await departamentoRepo.save(departamentoRepo.create(dep));
+    departamentosCreados.push(
+      await departamentoRepo.save(departamentoRepo.create(dep)),
+    );
   }
+  const departamentoBase = departamentosCreados[0];
   console.log("✅ Facultades, escuelas y departamentos creados\n");
 
   console.log("🎉 Seed completado exitosamente!");

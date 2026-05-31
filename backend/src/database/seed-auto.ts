@@ -35,7 +35,9 @@ export async function seed(dataSource: DataSource): Promise<void> {
   const usuariosSistema = [
     { nombre: "Administrador del Sistema", email: "admin@unt.edu.pe", rol: RolUsuario.ADMINISTRADOR_SISTEMA },
     { nombre: "Director de Escuela", email: "director@unt.edu.pe", rol: RolUsuario.DIRECTOR_ESCUELA },
+    { nombre: "Director de Departamento", email: "director.departamento@unt.edu.pe", rol: RolUsuario.DIRECTOR_DEPARTAMENTO },
     { nombre: "Coordinador Académico", email: "coordinador@unt.edu.pe", rol: RolUsuario.COORDINADOR_ACADEMICO },
+    { nombre: "Decano", email: "decano@unt.edu.pe", rol: RolUsuario.DECANO },
     { nombre: "Operador de Horarios", email: "operador@unt.edu.pe", rol: RolUsuario.OPERADOR_HORARIOS },
   ];
   for (const u of usuariosSistema) {
@@ -59,7 +61,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   // Facultad, escuela y departamento base
   const facultad = await facultadRepo.save(facultadRepo.create({ nombre: "Facultad de Ingeniería", codigo: "FI", activo: true }));
   const escuela = await escuelaRepo.save(escuelaRepo.create({ nombre: "Ingeniería de Sistemas", codigo: "IS", activo: true, facultad }));
-  await departamentoRepo.save(departamentoRepo.create({ nombre: "Depto. de Sistemas", codigo: "DS", activo: true, escuela }));
+  const departamento = await departamentoRepo.save(departamentoRepo.create({ nombre: "Depto. de Sistemas", codigo: "DS", activo: true, escuela }));
 
   // Ambientes
   await ambienteRepo.save([
@@ -86,10 +88,15 @@ export async function seed(dataSource: DataSource): Promise<void> {
       tipo_contrato: TipoContrato.NOMBRADO, modalidad: modalidadesPool[i % modalidadesPool.length],
       fecha_ingreso: new Date(2005, 0, 1), activo: true,
     }));
-    await usuarioRepo.save(usuarioRepo.create({
+    const usuarioDocente = await usuarioRepo.save(usuarioRepo.create({
       nombre: `${d.nombres} ${d.apellidos}`, email: d.email,
       password_hash: passwordHash, rol: RolUsuario.DOCENTE, activo: true,
     }));
+    await docenteRepo.update(d.id, {
+      usuario_id: usuarioDocente.id,
+      departamento_id: departamento.id,
+      facultad_id: facultad.id,
+    });
   }
 
   // Cursos base

@@ -213,13 +213,16 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
     @Query("periodo") periodo: string,
   ) {
-    // Assuming Usuario entity has a relation to Docente or email matches
+    if (typeof (usuario as Usuario & { docenteId?: number | null }).docenteId === "number") {
+      const data = await this.horariosService.findHorariosByDocenteId(
+        (usuario as Usuario & { docenteId: number }).docenteId,
+        periodo,
+      );
+      return { data, message: "Horario obtenido", statusCode: HttpStatus.OK };
+    }
+
     if (!usuario.email) throw new BadRequestException("Usuario sin correo");
 
-    // We need to fetch the docenteId based on the logged-in user's email or link
-    // Assuming for simplicity that the auth process handles this mapping or we can fetch it
-    // For this implementation, I will assume a method in HorariosService or similar exists
-    // If not, this might need further implementation.
     const data = await this.horariosService.findHorariosByDocenteEmail(
       usuario.email,
       periodo,

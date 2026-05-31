@@ -70,4 +70,22 @@ export class CreateDocenteDto {
   @IsInt({ message: "Las horas asignadas deben ser un número entero" })
   @Min(0, { message: "Las horas asignadas no pueden ser negativas" })
   horas_asignadas?: number;
+
+  @ApiPropertyOptional({ example: 12, description: "ID de la facultad" })
+  @IsOptional()
+  @IsInt({ message: "La facultad debe ser un número entero" })
+  @Min(1, { message: "La facultad debe ser mayor a 0" })
+  facultad_id?: number;
+
+  @ApiPropertyOptional({ example: 34, description: "ID del departamento" })
+  @IsOptional()
+  @IsInt({ message: "El departamento debe ser un número entero" })
+  @Min(1, { message: "El departamento debe ser mayor a 0" })
+  departamento_id?: number;
+
+  @ApiPropertyOptional({ example: 56, description: "ID del usuario asociado" })
+  @IsOptional()
+  @IsInt({ message: "El usuario debe ser un número entero" })
+  @Min(1, { message: "El usuario debe ser mayor a 0" })
+  usuario_id?: number;
 }

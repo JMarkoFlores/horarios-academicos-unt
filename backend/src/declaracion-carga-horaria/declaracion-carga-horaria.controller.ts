@@ -1,0 +1,204 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpStatus,
+  Param,
+  Patch,
+  ParseIntPipe,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from "@nestjs/swagger";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { Usuario } from "../entities/usuario.entity";
+import { DeclaracionCargaHorariaService } from "./declaracion-carga-horaria.service";
+import { CreateDeclaracionCargaHorariaDto } from "./dto/create-declaracion-carga-horaria.dto";
+import { UpdateDeclaracionCargaHorariaDto } from "./dto/update-declaracion-carga-horaria.dto";
+import { AccionDeclaracionCargaHorariaDto } from "./dto/accion-declaracion-carga-horaria.dto";
+import { CargaLectivaDeclaracionDto } from "./dto/carga-lectiva.dto";
+
+@ApiTags("declaraciones")
+@Controller("declaraciones")
+@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiBearerAuth("JWT")
+export class DeclaracionCargaHorariaController {
+  constructor(
+    private readonly declaracionService: DeclaracionCargaHorariaService,
+  ) {}
+
+  @Get("mia")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+  )
+  @ApiOperation({ summary: "Obtener la declaración de carga horaria propia" })
+  @ApiResponse({ status: 200, description: "Declaración obtenida correctamente" })
+  async obtenerMia(@CurrentUser() usuario: Usuario): Promise<any> {
+    const data = await this.declaracionService.obtenerMia(usuario);
+    return { data, message: "Declaración obtenida correctamente" };
+  }
+
+  @Get(":id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({ summary: "Obtener una declaración por ID" })
+  @ApiParam({ name: "id", type: Number })
+  @ApiResponse({ status: 200, description: "Declaración encontrada" })
+  async obtenerPorId(@Param("id", ParseIntPipe) id: number): Promise<any> {
+    const data = await this.declaracionService.obtenerPorId(id);
+    return { data, message: "Declaración obtenida correctamente" };
+  }
+
+  @Get(":id/carga-lectiva")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+  )
+  @ApiOperation({ summary: "Obtener la carga lectiva institucional de una declaración" })
+  @ApiParam({ name: "id", type: Number })
+  @ApiResponse({
+    status: 200,
+    description: "Carga lectiva obtenida correctamente",
+    type: CargaLectivaDeclaracionDto,
+  })
+  @ApiResponse({ status: 403, description: "No tiene permisos para consultar esta declaración" })
+  @ApiResponse({ status: 404, description: "Declaración o período no encontrado" })
+  async obtenerCargaLectiva(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<CargaLectivaDeclaracionDto> {
+    return this.declaracionService.obtenerCargaLectivaDeclaracion(id, usuario);
+  }
+
+  @Post(":id/generar-carga-lectiva")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @ApiOperation({
+    summary: "Regenerar y guardar el snapshot de carga lectiva en una declaración",
+  })
+  @ApiParam({ name: "id", type: Number })
+  @ApiResponse({
+    status: 200,
+    description: "Carga lectiva regenerada y guardada correctamente",
+    type: CargaLectivaDeclaracionDto,
+  })
+  @ApiResponse({ status: 400, description: "La declaración no puede regenerarse" })
+  @ApiResponse({ status: 403, description: "No tiene permisos para regenerar esta declaración" })
+  @ApiResponse({ status: 404, description: "Declaración o período no encontrado" })
+  async generarCargaLectiva(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<CargaLectivaDeclaracionDto> {
+    return this.declaracionService.actualizarCargaLectivaDeclaracion(id, usuario);
+  }
+
+  @Post()
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @ApiOperation({ summary: "Crear una declaración de carga horaria" })
+  @ApiResponse({ status: 201, description: "Declaración creada correctamente" })
+  async crear(
+    @Body() dto: CreateDeclaracionCargaHorariaDto,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.crear(dto, usuario);
+    return {
+      data,
+      message: "Declaración creada correctamente",
+      statusCode: HttpStatus.CREATED,
+    };
+  }
+
+  @Patch(":id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @ApiOperation({ summary: "Actualizar una declaración en borrador" })
+  @ApiParam({ name: "id", type: Number })
+  @ApiResponse({ status: 200, description: "Declaración actualizada" })
+  async actualizar(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: UpdateDeclaracionCargaHorariaDto,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.actualizar(id, dto, usuario);
+    return { data, message: "Declaración actualizada correctamente" };
+  }
+
+  @Patch(":id/enviar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @ApiOperation({ summary: "Enviar la declaración para revisión" })
+  @ApiParam({ name: "id", type: Number })
+  async enviar(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: AccionDeclaracionCargaHorariaDto,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.enviar(id, usuario, dto);
+    return { data, message: "Declaración enviada correctamente" };
+  }
+
+  @Patch(":id/observar")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+  )
+  @ApiOperation({ summary: "Observar una declaración" })
+  @ApiParam({ name: "id", type: Number })
+  async observar(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: AccionDeclaracionCargaHorariaDto,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.observar(id, usuario, dto);
+    return { data, message: "Declaración observada correctamente" };
+  }
+
+  @Patch(":id/validar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @ApiOperation({ summary: "Validar una declaración a nivel departamental" })
+  @ApiParam({ name: "id", type: Number })
+  async validar(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: AccionDeclaracionCargaHorariaDto,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.validar(id, usuario, dto);
+    return { data, message: "Declaración validada correctamente" };
+  }
+
+  @Patch(":id/aprobar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
+  @ApiOperation({ summary: "Aprobar una declaración a nivel de facultad" })
+  @ApiParam({ name: "id", type: Number })
+  async aprobar(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: AccionDeclaracionCargaHorariaDto,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.aprobar(id, usuario, dto);
+    return { data, message: "Declaración aprobada correctamente" };
+  }
+}

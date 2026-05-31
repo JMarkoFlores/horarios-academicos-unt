@@ -17,11 +17,13 @@ import { CambiarPasswordDto } from "./dto/cambiar-password.dto";
 import { RecuperarPasswordDto } from "./dto/recuperar-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { MailService } from "../mail/mail.service";
+import { RolUsuario } from "../common/enums/rol-usuario.enum";
 
 export interface JwtPayload {
   sub: number;
   email: string;
-  rol: string;
+  rol: RolUsuario;
+  docenteId?: number | null;
 }
 
 export interface LoginResult {
@@ -54,9 +56,9 @@ export class AuthService {
 
     this.logger.log(`Login exitoso: ${usuario.email}`);
 
-    const docente = await this.docenteRepository.findOne({
-      where: { email: usuario.email },
-    });
+    const docente = await this.resolverDocentePorUsuario(usuario.id, usuario.email);
+
+    payload.docenteId = docente?.id ?? null;
 
     return {
       access_token: this.jwtService.sign(payload),
@@ -103,6 +105,23 @@ export class AuthService {
     }
 
     return usuario;
+  }
+
+  private async resolverDocentePorUsuario(
+    usuarioId: number,
+    email: string,
+  ): Promise<Docente | null> {
+    const docentePorUsuario = await this.docenteRepository.findOne({
+      where: { usuario_id: usuarioId },
+    });
+
+    if (docentePorUsuario) {
+      return docentePorUsuario;
+    }
+
+    return this.docenteRepository.findOne({
+      where: { email },
+    });
   }
 
   async hashPassword(password: string): Promise<string> {

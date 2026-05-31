@@ -3,6 +3,9 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { CacheModule } from "@nestjs/cache-manager";
 import { ConfigModule } from "@nestjs/config";
 import { Docente } from "../entities/docente.entity";
+import { Departamento } from "../entities/departamento.entity";
+import { Facultad } from "../entities/facultad.entity";
+import { Usuario } from "../entities/usuario.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
@@ -19,6 +22,9 @@ import { DocentesController } from "./docentes.controller";
     ConfigModule,
     TypeOrmModule.forFeature([
       Docente,
+      Departamento,
+      Facultad,
+      Usuario,
       DocenteCurso,
       Curso,
       Ambiente,

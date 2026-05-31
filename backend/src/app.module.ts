@@ -29,6 +29,7 @@ import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
 import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
 import { FacultadesModule } from "./facultades/facultades.module";
 import { DataImportModule } from "./modules/data-import/data-import.module";
+import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/declaracion-carga-horaria.module";
 
 @Module({
   imports: [
@@ -110,6 +111,7 @@ import { DataImportModule } from "./modules/data-import/data-import.module";
     CursosAmbienteModule,
     FacultadesModule,
     DataImportModule,
+    DeclaracionCargaHorariaModule,
   ],
   providers: [
     {

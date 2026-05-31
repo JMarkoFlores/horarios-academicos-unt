@@ -43,6 +43,8 @@ export class DocentesController {
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
   )
   @ApiOperation({ summary: "Listar docentes paginado con filtros" })
   @ApiResponse({ status: 200, description: "Lista paginada de docentes" })
@@ -56,6 +58,8 @@ export class DocentesController {
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
   )
   @ApiOperation({ summary: "Docentes ordenados por jerarquía institucional" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -75,6 +79,8 @@ export class DocentesController {
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
   )
   @ApiOperation({ summary: "Exportar todos los docentes sin paginación" })
   @ApiQuery({ name: "categoria", required: false })
@@ -98,6 +104,8 @@ export class DocentesController {
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
   )
   @ApiOperation({
     summary: "Listar docentes con carga horaria desequilibrada en un período",
@@ -122,6 +130,8 @@ export class DocentesController {
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
     RolUsuario.DOCENTE,
   )
   @ApiOperation({
@@ -149,6 +159,8 @@ export class DocentesController {
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
     RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Obtener un docente por ID" })

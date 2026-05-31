@@ -11,6 +11,9 @@ import { Repository } from "typeorm";
 import { Cache } from "cache-manager";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Docente } from "../entities/docente.entity";
+import { Departamento } from "../entities/departamento.entity";
+import { Facultad } from "../entities/facultad.entity";
+import { Usuario } from "../entities/usuario.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
@@ -62,6 +65,12 @@ export class DocentesService {
     private readonly configService: ConfigService,
     @InjectRepository(Docente)
     private readonly docenteRepo: Repository<Docente>,
+    @InjectRepository(Departamento)
+    private readonly departamentoRepo: Repository<Departamento>,
+    @InjectRepository(Facultad)
+    private readonly facultadRepo: Repository<Facultad>,
+    @InjectRepository(Usuario)
+    private readonly usuarioRepo: Repository<Usuario>,
     @InjectRepository(DocenteCurso)
     private readonly docenteCursoRepo: Repository<DocenteCurso>,
     @InjectRepository(Curso)
@@ -198,6 +207,11 @@ export class DocentesService {
   async findOne(id: number): Promise<Docente> {
     const docente = await this.docenteRepo
       .createQueryBuilder("docente")
+      .leftJoinAndSelect("docente.usuario", "usuario")
+      .leftJoinAndSelect("docente.departamento", "departamento")
+      .leftJoinAndSelect("departamento.escuela", "escuela")
+      .leftJoinAndSelect("escuela.facultad", "facultadDesdeDepartamento")
+      .leftJoinAndSelect("docente.facultad", "facultad")
       .leftJoinAndSelect("docente.disponibilidades", "disponibilidades")
       .leftJoinAndSelect("docente.horarios", "horarios")
       .leftJoinAndSelect("docente.colas", "colas")
@@ -338,6 +352,80 @@ export class DocentesService {
       : categoria;
   }
 
+  private async validarUsuarioAsociado(
+    usuarioId: number,
+    docenteIdExcluir?: number,
+  ): Promise<void> {
+    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado`);
+    }
+
+    const docenteExistente = await this.docenteRepo.findOne({
+      where: { usuario_id: usuarioId },
+    });
+
+    if (docenteExistente && docenteExistente.id !== docenteIdExcluir) {
+      throw new ConflictException(
+        `El usuario ${usuarioId} ya está asociado a otro docente`,
+      );
+    }
+  }
+
+  private async resolverVinculosInstitucionales(
+    facultadId?: number,
+    departamentoId?: number,
+    facultadActualId: number | null = null,
+    departamentoActualId: number | null = null,
+  ): Promise<{ facultad_id: number | null; departamento_id: number | null }> {
+    let facultad_id = facultadId ?? facultadActualId ?? null;
+    let departamento_id = departamentoId ?? departamentoActualId ?? null;
+
+    let facultad: Facultad | null = null;
+    let departamento: Departamento | null = null;
+
+    if (departamento_id) {
+      departamento = await this.departamentoRepo.findOne({
+        where: { id: departamento_id },
+        relations: ["escuela", "escuela.facultad"],
+      });
+
+      if (!departamento) {
+        throw new NotFoundException(
+          `Departamento con ID ${departamento_id} no encontrado`,
+        );
+      }
+
+      if (!facultad_id) {
+        facultad_id = departamento.escuela?.facultad?.id ?? null;
+      }
+    }
+
+    if (facultad_id) {
+      facultad = await this.facultadRepo.findOne({ where: { id: facultad_id } });
+      if (!facultad) {
+        throw new NotFoundException(`Facultad con ID ${facultad_id} no encontrada`);
+      }
+    }
+
+    if (departamento && facultad) {
+      const facultadDelDepartamento = departamento.escuela?.facultad?.id ?? null;
+      if (
+        facultadDelDepartamento !== null &&
+        facultadDelDepartamento !== facultad.id
+      ) {
+        throw new BadRequestException(
+          "El departamento no pertenece a la facultad indicada",
+        );
+      }
+    }
+
+    return {
+      facultad_id: facultad?.id ?? facultad_id ?? null,
+      departamento_id: departamento?.id ?? departamento_id ?? null,
+    };
+  }
+
   async validarCargaModalidad(
     docenteId: number,
     horasSolicitadas: number,
@@ -393,6 +481,15 @@ export class DocentesService {
       );
     }
 
+    if (dto.usuario_id) {
+      await this.validarUsuarioAsociado(dto.usuario_id);
+    }
+
+    const vinculosInstitucionales = await this.resolverVinculosInstitucionales(
+      dto.facultad_id,
+      dto.departamento_id,
+    );
+
     if (dto.modalidad && dto.horas_asignadas !== undefined) {
       const parametros = await this.parametrosCargaRepo
         .createQueryBuilder("p")
@@ -421,6 +518,8 @@ export class DocentesService {
 
     const docente = this.docenteRepo.create({
       ...dto,
+      ...vinculosInstitucionales,
+      usuario_id: dto.usuario_id ?? null,
       tipo_contrato: this.derivarTipoContrato(dto.tipo_docente),
       categoria: this.normalizarCategoria(dto.tipo_docente, dto.categoria),
       fecha_ingreso: new Date(dto.fecha_ingreso),
@@ -434,6 +533,17 @@ export class DocentesService {
 
   async update(id: number, dto: UpdateDocenteDto): Promise<Docente> {
     const docente = await this.findOne(id);
+
+    if (dto.usuario_id && dto.usuario_id !== docente.usuario_id) {
+      await this.validarUsuarioAsociado(dto.usuario_id, id);
+    }
+
+    const vinculosInstitucionales = await this.resolverVinculosInstitucionales(
+      dto.facultad_id,
+      dto.departamento_id,
+      docente.facultad_id,
+      docente.departamento_id,
+    );
 
     if (dto.modalidad && dto.horas_asignadas !== undefined) {
       await this.validarCargaModalidad(
@@ -464,6 +574,8 @@ export class DocentesService {
     const tipoDocente = dto.tipo_docente ?? docente.tipo_docente;
     const actualizado = this.docenteRepo.merge(docente, {
       ...dto,
+      ...vinculosInstitucionales,
+      usuario_id: dto.usuario_id ?? docente.usuario_id,
       tipo_contrato: this.derivarTipoContrato(tipoDocente),
       categoria:
         dto.tipo_docente !== undefined || dto.categoria !== undefined

@@ -5,7 +5,12 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+# Copy package files
+COPY package*.json ./
 
+# Copy TypeScript config
+COPY tsconfig.json ./
+COPY tsconfig.build.json ./
 # Copy TypeScript config
 COPY tsconfig.json ./
 COPY tsconfig.build.json ./

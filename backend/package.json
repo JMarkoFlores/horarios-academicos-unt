@@ -18,6 +18,11 @@
     "migration:generate": "npm run typeorm -- migration:generate src/migrations/Migration -d data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d data-source.ts",
     "seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
+    "seed:horarios-ciclo-I": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-I.ts",
+    "seed:horarios-ciclo-III": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-III.ts",
+    "seed:horarios-ciclo-V": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-V.ts",
+    "seed:horarios-ciclo-VII": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-VII.ts",
+    "seed:horarios-ciclo-IX": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-IX.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -67,7 +72,7 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "typeorm": "^0.3.20",
-    "uuid": "^14.0.0"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.3.2",
@@ -79,6 +84,7 @@
     "@types/node": "^20.12.7",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
     "dotenv": "^16.4.5",

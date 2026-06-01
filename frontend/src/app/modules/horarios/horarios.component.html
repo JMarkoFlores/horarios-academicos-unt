@@ -75,6 +75,19 @@
 
           <button
             mat-flat-button
+            class="action-btn download-btn excel-btn"
+            (click)="horasAsignadas > 0 ? descargarExcelDocente() : mostrarMensajeSinHorario()"
+            [disabled]="descargandoDocExcel"
+          >
+            <mat-spinner diameter="18" *ngIf="descargandoDocExcel"></mat-spinner>
+
+            <mat-icon *ngIf="!descargandoDocExcel">table_chart</mat-icon>
+
+            <span>Excel</span>
+          </button>
+
+          <button
+            mat-flat-button
             class="action-btn download-btn"
             (click)="horasAsignadas > 0 ? descargarICalendar() : mostrarMensajeSinHorario()"
             [disabled]="descargandoDoc"
@@ -123,11 +136,10 @@
                       <div
                         class="celda-content bloque"
                         [matTooltip]="
-                          bloque.asignacion.curso?.nombre + '\n' + 
-                          (bloque.asignacion.docente?.apellidos ? bloque.asignacion.docente?.apellidos + ', ' + bloque.asignacion.docente?.nombres : '') + '\n' +
+                          bloque.label + '\n' + 
                           bloque.asignacion.ambiente?.nombre + ' (' + bloque.asignacion.ambiente?.codigo + ')' + '\n' +
-                          'Horario: ' + bloque.asignacion.hora_inicio + ' - ' + bloque.asignacion.hora_fin + '\n' +
-                          'Tipo: ' + bloque.asignacion.tipo_clase
+                          'Horario: ' + bloque.totalHoraInicio + ' - ' + bloque.totalHoraFin + '\n' +
+                          'Tipo: ' + bloque.tiposClase.join(' / ')
                         "
                         matTooltipPosition="above"
                         [style]="getEstiloCelda(bloque.asignacion, 'docente')"
@@ -137,21 +149,21 @@
                         [style.margin-top]="bloque.partialTop + '%'"
                         [style.margin-bottom]="bloque.partialBottom + '%'"
                       >
-                        <div class="curso-txt">{{ bloque.asignacion.curso?.nombre }}</div>
+                        <div class="curso-txt">{{ bloque.label }}</div>
 
                         <div class="amb-txt">
                           <mat-icon>location_on</mat-icon>
-                          {{ bloque.asignacion.ambiente?.codigo }}
+                          {{ bloque.asignacion.ambiente?.nombre || bloque.asignacion.ambiente?.codigo }}
                         </div>
 
                         <div class="tipo-clase">
-                          <mat-icon class="tipo-icon">{{ bloque.asignacion.tipo_clase === 'LABORATORIO' ? 'science' : 'school' }}</mat-icon>
-                          {{ bloque.asignacion.tipo_clase }}
+                          <mat-icon class="tipo-icon">{{ bloque.tiposClase.includes('LABORATORIO') ? 'science' : 'school' }}</mat-icon>
+                          {{ bloque.tiposClase.join(' / ') }}
                         </div>
 
                         <div class="horario-txt">
                           <mat-icon>schedule</mat-icon>
-                          {{ bloque.asignacion.hora_inicio }} - {{ bloque.asignacion.hora_fin }}
+                          {{ bloque.totalHoraInicio }} - {{ bloque.totalHoraFin }}
                         </div>
                       </div>
                     </ng-container>
@@ -241,6 +253,37 @@
             </mat-select>
           </mat-form-field>
         </div>
+
+        <div
+          class="toolbar-actions"
+          *ngIf="ambienteSeleccionado && !loadingAmbiente"
+        >
+          <button
+            mat-flat-button
+            class="action-btn download-btn"
+            (click)="asignacionesAmbiente.length > 0 ? descargarPdfAmbiente() : mostrarMensajeSinHorario()"
+            [disabled]="descargandoAmbiente"
+          >
+            <mat-spinner diameter="18" *ngIf="descargandoAmbiente"></mat-spinner>
+
+            <mat-icon *ngIf="!descargandoAmbiente">picture_as_pdf</mat-icon>
+
+            <span>PDF</span>
+          </button>
+
+          <button
+            mat-flat-button
+            class="action-btn download-btn excel-btn"
+            (click)="asignacionesAmbiente.length > 0 ? descargarExcelAmbiente() : mostrarMensajeSinHorario()"
+            [disabled]="descargandoAmbienteExcel"
+          >
+            <mat-spinner diameter="18" *ngIf="descargandoAmbienteExcel"></mat-spinner>
+
+            <mat-icon *ngIf="!descargandoAmbienteExcel">table_chart</mat-icon>
+
+            <span>Excel</span>
+          </button>
+        </div>
       </div>
 
       <div *ngIf="loadingAmbiente" class="spinner-center">
@@ -280,11 +323,11 @@
                       <div
                         class="celda-content bloque"
                         [matTooltip]="
-                          bloque.asignacion.curso?.nombre + '\n' + 
+                          bloque.label + '\n' + 
                           (bloque.asignacion.docente?.apellidos ? bloque.asignacion.docente?.apellidos + ', ' + bloque.asignacion.docente?.nombres : '') + '\n' +
                           bloque.asignacion.ambiente?.nombre + ' (' + bloque.asignacion.ambiente?.codigo + ')' + '\n' +
-                          'Horario: ' + bloque.asignacion.hora_inicio + ' - ' + bloque.asignacion.hora_fin + '\n' +
-                          'Tipo: ' + bloque.asignacion.tipo_clase
+                          'Horario: ' + bloque.totalHoraInicio + ' - ' + bloque.totalHoraFin + '\n' +
+                          'Tipo: ' + bloque.tiposClase.join(' / ')
                         "
                         matTooltipPosition="above"
                         [style]="getEstiloCelda(bloque.asignacion, 'ambiente')"
@@ -294,21 +337,21 @@
                         [style.margin-top]="bloque.partialTop + '%'"
                         [style.margin-bottom]="bloque.partialBottom + '%'"
                       >
-                        <div class="curso-txt">{{ bloque.asignacion.curso?.nombre }}</div>
+                        <div class="curso-txt">{{ bloque.label }}</div>
 
                         <div class="amb-txt">
                           <mat-icon>person</mat-icon>
-                          {{ bloque.asignacion.docente?.apellidos }}
+                          {{ bloque.asignacion.docente?.apellidos }}{{ bloque.asignacion.docente?.nombres ? ', ' + bloque.asignacion.docente?.nombres : '' }}
                         </div>
 
                         <div class="tipo-clase">
-                          <mat-icon class="tipo-icon">{{ bloque.asignacion.tipo_clase === 'LABORATORIO' ? 'science' : 'school' }}</mat-icon>
-                          {{ bloque.asignacion.tipo_clase }}
+                          <mat-icon class="tipo-icon">{{ bloque.tiposClase.includes('LABORATORIO') ? 'science' : 'school' }}</mat-icon>
+                          {{ bloque.tiposClase.join(' / ') }}
                         </div>
 
                         <div class="horario-txt">
                           <mat-icon>schedule</mat-icon>
-                          {{ bloque.asignacion.hora_inicio }} - {{ bloque.asignacion.hora_fin }}
+                          {{ bloque.totalHoraInicio }} - {{ bloque.totalHoraFin }}
                         </div>
                       </div>
                     </ng-container>
@@ -403,12 +446,51 @@
             class="action-btn download-btn"
             (click)="descargarPdfCiclo()"
             [disabled]="descargandoCiclo"
+            matTooltip="Descargar PDF de este ciclo"
           >
             <mat-spinner diameter="18" *ngIf="descargandoCiclo"></mat-spinner>
 
             <mat-icon *ngIf="!descargandoCiclo">picture_as_pdf</mat-icon>
 
-            <span>PDF</span>
+            <span>PDF Ciclo</span>
+          </button>
+
+          <button
+            mat-flat-button
+            class="action-btn download-btn excel-btn"
+            (click)="descargarExcelCiclo()"
+            [disabled]="descargandoCicloExcel"
+            matTooltip="Descargar Excel de este ciclo"
+          >
+            <mat-spinner diameter="18" *ngIf="descargandoCicloExcel"></mat-spinner>
+            <mat-icon *ngIf="!descargandoCicloExcel">table_chart</mat-icon>
+            <span>Excel Ciclo</span>
+          </button>
+
+          <div class="divider-v"></div>
+
+          <button
+            mat-flat-button
+            class="action-btn download-all-btn"
+            (click)="descargarTodoPdf()"
+            [disabled]="descargandoTodo"
+            matTooltip="Descargar PDF formal de todos los ciclos (I, III, V, VII, IX)"
+          >
+            <mat-spinner diameter="18" *ngIf="descargandoTodoPdfStatus"></mat-spinner>
+            <mat-icon *ngIf="!descargandoTodoPdfStatus">library_books</mat-icon>
+            <span>Todo PDF</span>
+          </button>
+
+          <button
+            mat-flat-button
+            class="action-btn download-all-btn excel"
+            (click)="descargarTodoExcel()"
+            [disabled]="descargandoTodo"
+            matTooltip="Descargar Excel con hojas por ciclo"
+          >
+            <mat-spinner diameter="18" *ngIf="descargandoTodoExcelStatus"></mat-spinner>
+            <mat-icon *ngIf="!descargandoTodoExcelStatus">table_view</mat-icon>
+            <span>Todo Excel</span>
           </button>
         </div>
       </div>
@@ -445,30 +527,38 @@
                 <tr>
                   <th style="width: 50px;">N°</th>
                   <th>Profesor</th>
+                  <th>Departamento</th>
                   <th>Asignatura</th>
-                  <th style="width: 80px;">T</th>
-                  <th style="width: 80px;">P</th>
-                  <th style="width: 80px;">L</th>
-                  <th style="width: 100px;">T. Horas</th>
+                  <th style="width: 60px;">T</th>
+                  <th style="width: 60px;">P</th>
+                  <th style="width: 60px;">L</th>
+                  <th style="width: 60px;">G</th>
+                  <th style="width: 80px;">T. Horas</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of getProfesoresYCursos(); let i = index" [style.background-color]="getColorForProfesor(item.docente?.id)" style="color: #333333;">
+                <tr *ngFor="let item of getProfesoresYCursos(); let i = index" [style.background-color]="getColorForProfesorCurso(item.docente?.id, item.curso?.id)" style="color: #333333;">
                   <td style="text-align: center; font-weight: bold;">{{ i + 1 }}</td>
                   <td>
                     {{ item.docente?.apellidos }}, {{ item.docente?.nombres }}
                   </td>
                   <td>
+                    {{ item.docente?.departamento?.nombre || '—' }}
+                  </td>
+                  <td>
                     {{ item.curso?.nombre }}
                   </td>
                   <td style="text-align: center;">
-                    {{ item.curso?.horas_teoria || '-' }}
+                    {{ item.hTeoria || '-' }}
                   </td>
                   <td style="text-align: center;">
-                    {{ item.curso?.horas_laboratorio || '-' }}
+                    {{ item.hPractica || '-' }}
                   </td>
                   <td style="text-align: center;">
-                    -
+                    {{ item.hLaboratorio || '-' }}
+                  </td>
+                  <td style="text-align: center; font-weight: bold;">
+                    {{ item.g || '-' }}
                   </td>
                   <td style="text-align: center; font-weight: bold;">
                     {{ item.horas }}
@@ -501,11 +591,11 @@
                       <div
                         class="celda-content bloque"
                         [matTooltip]="
-                          bloque.asignacion.curso?.nombre + '\n' + 
+                          bloque.label + '\n' + 
                           (bloque.asignacion.docente?.apellidos ? bloque.asignacion.docente?.apellidos + ', ' + bloque.asignacion.docente?.nombres : '') + '\n' +
                           bloque.asignacion.ambiente?.nombre + ' (' + bloque.asignacion.ambiente?.codigo + ')' + '\n' +
-                          'Horario: ' + bloque.asignacion.hora_inicio + ' - ' + bloque.asignacion.hora_fin + '\n' +
-                          'Tipo: ' + bloque.asignacion.tipo_clase
+                          'Horario: ' + bloque.totalHoraInicio + ' - ' + bloque.totalHoraFin + '\n' +
+                          'Tipo: ' + bloque.tiposClase.join(' / ')
                         "
                         matTooltipPosition="above"
                         [style]="getEstiloCelda(bloque.asignacion, 'ciclo')"
@@ -515,18 +605,22 @@
                         [style.margin-top]="bloque.partialTop + '%'"
                         [style.margin-bottom]="bloque.partialBottom + '%'"
                       >
-                        <div class="curso-txt">{{ bloque.asignacion.curso?.nombre }}</div>
+                        <div class="curso-txt">{{ bloque.label }}</div>
                         <div class="amb-txt">
-                          <mat-icon>person</mat-icon>
+                          <mat-icon>location_on</mat-icon>
+                          {{ bloque.asignacion.ambiente?.nombre || bloque.asignacion.ambiente?.codigo }}
+                        </div>
+                        <div class="docente-txt" style="font-size: 0.75rem; color: #666; display: flex; align-items: center; gap: 4px;">
+                          <mat-icon style="font-size: 14px; width: 14px; height: 14px;">person</mat-icon>
                           {{ bloque.asignacion.docente?.apellidos }}
                         </div>
                         <div class="tipo-clase">
-                          <mat-icon class="tipo-icon">{{ bloque.asignacion.tipo_clase === 'LABORATORIO' ? 'science' : 'school' }}</mat-icon>
-                          {{ bloque.asignacion.tipo_clase }}
+                          <mat-icon class="tipo-icon">{{ bloque.tiposClase.includes('LABORATORIO') ? 'science' : 'school' }}</mat-icon>
+                          {{ bloque.tiposClase.join(' / ') }}
                         </div>
                         <div class="horario-txt">
                           <mat-icon>schedule</mat-icon>
-                          {{ bloque.asignacion.hora_inicio }} - {{ bloque.asignacion.hora_fin }}
+                          {{ bloque.totalHoraInicio }} - {{ bloque.totalHoraFin }}
                         </div>
                       </div>
                     </ng-container>

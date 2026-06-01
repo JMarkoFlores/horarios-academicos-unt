@@ -1,0 +1,1439 @@
+<div class="config-page animate-fadein">
+  <!-- ─── Cabecera Premium ─────────────────────────────────────────── -->
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Configuración del Sistema</h1>
+      <p class="subtitle">
+        Administración de reglas institucionales y días inhábiles
+      </p>
+    </div>
+    <div class="period-selector">
+      <mat-icon class="period-icon">event_note</mat-icon>
+      <mat-select
+        [(ngModel)]="periodoService.periodo"
+        (ngModelChange)="onPeriodoChange()"
+        class="period-select"
+      >
+        <mat-option *ngFor="let p of periodoService.periodos" [value]="p">{{
+          p
+        }}</mat-option>
+      </mat-select>
+    </div>
+  </div>
+
+  <!-- ─── Tabs ─────────────────────────────────────────────────────── -->
+  <div class="tab-bar">
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'restricciones'"
+      (click)="activeTab = 'restricciones'"
+      id="tab-restricciones"
+    >
+      <mat-icon>rule</mat-icon>
+      Restricciones Institucionales
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'diasNoLaborables'"
+      (click)="activeTab = 'diasNoLaborables'"
+      id="tab-dias-no-laborables"
+    >
+      <mat-icon>event_busy</mat-icon>
+      Días No Laborables
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'turnos'"
+      (click)="activeTab = 'turnos'"
+      id="tab-turnos"
+    >
+      <mat-icon>schedule</mat-icon>
+      Turnos Horarios
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'diasActivos'"
+      (click)="activeTab = 'diasActivos'"
+      id="tab-dias-activos"
+    >
+      <mat-icon>calendar_today</mat-icon>
+      Días Activos
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'parametrosCarga'"
+      (click)="activeTab = 'parametrosCarga'"
+      id="tab-parametros-carga"
+    >
+      <mat-icon>tune</mat-icon>
+      Parámetros de Carga
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'general'"
+      (click)="activeTab = 'general'"
+      id="tab-general"
+    >
+      <mat-icon>business</mat-icon>
+      Configuración General
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'prioridad'"
+      (click)="activeTab = 'prioridad'"
+      id="tab-prioridad"
+    >
+      <mat-icon>sort</mat-icon>
+      Reglas de Prioridad
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'campañas'"
+      (click)="activeTab = 'campañas'"
+      id="tab-campañas"
+    >
+      <mat-icon>campaign</mat-icon>
+      Campañas de Ventanas
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'modoPeriodo'"
+      (click)="activeTab = 'modoPeriodo'"
+      id="tab-modo-periodo"
+    >
+      <mat-icon>settings</mat-icon>
+      Modo de Período
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab === 'importacion'"
+      (click)="activeTab = 'importacion'"
+      id="tab-importacion"
+    >
+      <mat-icon>cloud_upload</mat-icon>
+      Importación de Datos
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 1 — RESTRICCIONES INSTITUCIONALES
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'restricciones'" class="tab-content animate-fadein">
+    <!-- Formulario Premium Amigable -->
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon"
+          >add_circle_outline</mat-icon
+        >
+        <mat-card-title>Establecer / Actualizar Restricción</mat-card-title>
+        <mat-card-subtitle
+          >Si ya existe el tipo de regla para el período seleccionado, se
+          actualizará su valor actual.</mat-card-subtitle
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="restriccionForm" class="restriccion-form">
+          <div class="form-row-two">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Tipo de Restricción</mat-label>
+              <mat-select
+                formControlName="tipo_restriccion"
+                id="select-tipo-restriccion"
+              >
+                <mat-option
+                  *ngFor="let t of tiposRestriccion"
+                  [value]="t.value"
+                >
+                  {{ t.label }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Inputs dinámicos según el tipo de restricción -->
+            <div class="dinamicos-container">
+              <!-- Horas (Franja Horaria o Almuerzo) -->
+              <div
+                *ngIf="
+                  tipoActual === 'FRANJA_HORARIA' ||
+                  tipoActual === 'BLOQUE_ALMUERZO'
+                "
+                class="inputs-rango-hora"
+              >
+                <mat-form-field appearance="outline">
+                  <mat-label>Hora de Inicio</mat-label>
+                  <input
+                    matInput
+                    type="time"
+                    formControlName="hora_inicio"
+                    id="input-hora-inicio"
+                  />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Hora de Fin</mat-label>
+                  <input
+                    matInput
+                    type="time"
+                    formControlName="hora_fin"
+                    id="input-hora-fin"
+                  />
+                </mat-form-field>
+              </div>
+
+              <!-- Límite de Horas Diarias/Semanales -->
+              <div
+                *ngIf="
+                  tipoActual === 'MAX_HORAS_DIARIAS' ||
+                  tipoActual === 'MAX_HORAS_SEMANALES'
+                "
+                class="input-numerico"
+              >
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Horas Límite</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="max_horas"
+                    id="input-max-horas"
+                    min="1"
+                    [max]="tipoActual === 'MAX_HORAS_DIARIAS' ? 24 : 168"
+                  />
+                  <mat-error
+                    >Valor entre 1 y
+                    {{ tipoActual === "MAX_HORAS_DIARIAS" ? 24 : 168 }}
+                    requerido</mat-error
+                  >
+                </mat-form-field>
+              </div>
+
+              <!-- Duración del Bloque -->
+              <div
+                *ngIf="tipoActual === 'DURACION_BLOQUE'"
+                class="input-numerico"
+              >
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Duración del Bloque (minutos)</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="duracion_minutos"
+                    id="input-duracion-minutos"
+                    min="15"
+                    max="600"
+                  />
+                  <mat-error>Valor entre 15 y 600 requerido</mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+          </div>
+        </form>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button
+          mat-flat-button
+          color="primary"
+          id="btn-guardar-restriccion"
+          (click)="guardarRestriccion()"
+          [disabled]="restriccionForm.invalid || guardandoRestriccion"
+        >
+          <mat-spinner
+            *ngIf="guardandoRestriccion"
+            diameter="16"
+            class="inline-spinner"
+          ></mat-spinner>
+          <mat-icon *ngIf="!guardandoRestriccion">save</mat-icon>
+          <span>{{
+            guardandoRestriccion ? "Guardando..." : "Guardar Regla"
+          }}</span>
+        </button>
+      </mat-card-actions>
+    </mat-card>
+
+    <!-- Gestión de Días Activos (Integrada) -->
+    <mat-card class="premium-form-card" style="margin-top: 24px">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">calendar_today</mat-icon>
+        <mat-card-title>Configuración de Días Activos</mat-card-title>
+        <mat-card-subtitle>Establece los días de la semana en los que se permiten actividades académicas.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingDiasActivos" class="loading-state">
+          <mat-spinner diameter="36"></mat-spinner>
+        </div>
+        <div class="dias-activos-grid integrated" *ngIf="!loadingDiasActivos">
+          <div
+            class="dia-toggle-card mini"
+            *ngFor="let d of diasActivos"
+            [class.activo]="d.activo"
+          >
+            <span class="dia-nombre">{{ d.nombre }}</span>
+            <mat-slide-toggle
+              [checked]="d.activo"
+              [disabled]="guardandoDiaActivo"
+              (change)="toggleDiaActivo(d)"
+              color="primary"
+            ></mat-slide-toggle>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Lista de Restricciones en Tabla Premium -->
+    <mat-card class="table-container-premium">
+      <div *ngIf="loadingRestricciones" class="loading-overlay">
+        <mat-spinner diameter="40" strokeWidth="3"></mat-spinner>
+        <span>Cargando restricciones...</span>
+      </div>
+
+      <div *ngIf="!loadingRestricciones">
+        <div *ngIf="restricciones.length === 0" class="empty-state-premium">
+          <div class="empty-illustration">
+            <mat-icon>rule_folder</mat-icon>
+          </div>
+          <h3>Sin reglas registradas</h3>
+          <p>
+            No se han definido restricciones para el período
+            <strong>{{ periodoService.periodo }}</strong
+            >.
+          </p>
+        </div>
+
+        <div
+          *ngIf="restricciones.length > 0"
+          class="table-scroll animate-fadein"
+        >
+          <table mat-table [dataSource]="restricciones" class="premium-table">
+            <ng-container matColumnDef="icono">
+              <th mat-header-cell *matHeaderCellDef style="width: 60px"></th>
+              <td mat-cell *matCellDef="let r" style="width: 60px">
+                <span class="icon-avatar">
+                  <mat-icon>{{
+                    getRestriccionIcon(r.tipo_restriccion)
+                  }}</mat-icon>
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="tipo">
+              <th mat-header-cell *matHeaderCellDef style="width: 250px">
+                Tipo de Regla
+              </th>
+              <td mat-cell *matCellDef="let r" style="width: 250px">
+                <span class="code-badge">{{
+                  restriccionLabels[r.tipo_restriccion] || r.tipo_restriccion
+                }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="descripcion">
+              <th mat-header-cell *matHeaderCellDef>
+                Descripción de la Restricción
+              </th>
+              <td mat-cell *matCellDef="let r">
+                {{ getRestriccionDescripcion(r) }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="acciones">
+              <th mat-header-cell *matHeaderCellDef style="width: 120px"></th>
+              <td
+                mat-cell
+                *matCellDef="let r"
+                class="actions-cell"
+                style="width: 120px"
+              >
+                <button
+                  mat-icon-button
+                  class="btn-action edit"
+                  (click)="editarRestriccion(r)"
+                  matTooltip="Editar"
+                >
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  class="btn-action delete"
+                  (click)="eliminarRestriccion(r.id)"
+                  matTooltip="Eliminar"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+
+            <tr
+              mat-header-row
+              *matHeaderRowDef="['icono', 'tipo', 'descripcion', 'acciones']"
+              style="width: 120px"
+            ></tr>
+            <tr
+              mat-row
+              *matRowDef="
+                let row;
+                columns: ['icono', 'tipo', 'descripcion', 'acciones']
+              "
+              class="premium-row"
+            ></tr>
+          </table>
+        </div>
+      </div>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 2 — DÍAS NO LABORABLES
+  ══════════════════════════════════════════════════════════════════ -->
+  <div
+    *ngIf="activeTab === 'diasNoLaborables'"
+    class="tab-content animate-fadein"
+  >
+    <!-- Formulario Crear Día -->
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">event_busy</mat-icon>
+        <mat-card-title>Registrar Día No Laborable</mat-card-title>
+        <mat-card-subtitle
+          >Feriados, periodos de mantenimiento, suspensiones de actividades y
+          otros eventos inhábiles.</mat-card-subtitle
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="diaForm" class="dia-form">
+          <div class="form-row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Fecha del Suceso</mat-label>
+              <input
+                matInput
+                type="date"
+                formControlName="fecha"
+                id="input-fecha-dia"
+              />
+              <mat-error>Fecha requerida</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Tipo de Suspensión</mat-label>
+              <mat-select formControlName="tipo" id="select-tipo-dia">
+                <mat-option *ngFor="let t of tiposDia" [value]="t.value">{{
+                  t.label
+                }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Descripción / Motivo</mat-label>
+            <input
+              matInput
+              formControlName="descripcion"
+              id="input-descripcion-dia"
+              placeholder="Ej: Semana Santa, Festividad Nacional, Aniversario..."
+            />
+            <mat-error>Descripción requerida</mat-error>
+          </mat-form-field>
+
+          <div class="toggles-row">
+            <mat-slide-toggle formControlName="afecta_aulas" color="primary">
+              Afecta Aulas de Teoría
+            </mat-slide-toggle>
+            <mat-slide-toggle
+              formControlName="afecta_laboratorios"
+              color="primary"
+            >
+              Afecta Laboratorios
+            </mat-slide-toggle>
+          </div>
+        </form>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button
+          mat-flat-button
+          color="primary"
+          id="btn-guardar-dia"
+          (click)="guardarDia()"
+          [disabled]="diaForm.invalid || guardandoDia"
+        >
+          <mat-spinner
+            *ngIf="guardandoDia"
+            diameter="16"
+            class="inline-spinner"
+          ></mat-spinner>
+          <mat-icon *ngIf="!guardandoDia">add_task</mat-icon>
+          <span>{{ guardandoDia ? "Registrando..." : "Registrar Día" }}</span>
+        </button>
+      </mat-card-actions>
+    </mat-card>
+
+    <!-- Lista de Días No Laborables -->
+    <mat-card class="table-container-premium">
+      <div *ngIf="loadingDias" class="loading-overlay">
+        <mat-spinner diameter="40" strokeWidth="3"></mat-spinner>
+        <span>Cargando calendario...</span>
+      </div>
+
+      <div *ngIf="!loadingDias">
+        <div *ngIf="diasNoLaborables.length === 0" class="empty-state-premium">
+          <div class="empty-illustration">
+            <mat-icon>calendar_today</mat-icon>
+          </div>
+          <h3>Sin días no laborables</h3>
+          <p>
+            No se registran feriados o suspensiones para el período
+            <strong>{{ periodoService.periodo }}</strong
+            >.
+          </p>
+        </div>
+
+        <div
+          *ngIf="diasNoLaborables.length > 0"
+          class="table-scroll animate-fadein"
+        >
+          <table
+            mat-table
+            [dataSource]="diasNoLaborables"
+            class="premium-table"
+          >
+            <ng-container matColumnDef="fecha">
+              <th mat-header-cell *matHeaderCellDef style="width: 140px">
+                Fecha
+              </th>
+              <td mat-cell *matCellDef="let d" style="width: 140px">
+                <span class="date-badge">{{
+                  d.fecha | date: "dd/MM/yyyy" : "UTC"
+                }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="descripcion">
+              <th mat-header-cell *matHeaderCellDef>Descripción / Motivo</th>
+              <td mat-cell *matCellDef="let d" style="font-weight: 500">
+                {{ d.descripcion }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="tipo">
+              <th mat-header-cell *matHeaderCellDef style="width: 200px">
+                Categoría
+              </th>
+              <td mat-cell *matCellDef="let d" style="width: 200px">
+                <span
+                  class="tipo-dia-badge"
+                  [class]="'tipo-' + d.tipo.toLowerCase()"
+                >
+                  {{ tipoDiaLabel(d.tipo) }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="afecta">
+              <th mat-header-cell *matHeaderCellDef style="width: 150px">
+                Afecta a
+              </th>
+              <td mat-cell *matCellDef="let d" style="width: 150px">
+                <span
+                  *ngIf="d.afecta_aulas"
+                  class="afecta-chip aula"
+                  matTooltip="Aulas de Teoría"
+                >
+                  <mat-icon>meeting_room</mat-icon>
+                </span>
+                <span
+                  *ngIf="d.afecta_laboratorios"
+                  class="afecta-chip lab"
+                  matTooltip="Laboratorios"
+                >
+                  <mat-icon>biotech</mat-icon>
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="acciones">
+              <th mat-header-cell *matHeaderCellDef style="width: 80px"></th>
+              <td
+                mat-cell
+                *matCellDef="let d"
+                class="actions-cell"
+                style="width: 80px"
+              >
+                <button
+                  mat-icon-button
+                  class="btn-action delete"
+                  (click)="eliminarDia(d.id, d.descripcion)"
+                  matTooltip="Eliminar"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+
+            <tr
+              mat-header-row
+              *matHeaderRowDef="[
+                'fecha',
+                'descripcion',
+                'tipo',
+                'afecta',
+                'acciones',
+              ]"
+            ></tr>
+            <tr
+              mat-row
+              *matRowDef="
+                let row;
+                columns: ['fecha', 'descripcion', 'tipo', 'afecta', 'acciones']
+              "
+              class="premium-row"
+            ></tr>
+          </table>
+        </div>
+      </div>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 3 — TURNOS HORARIOS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'turnos'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">schedule</mat-icon>
+        <mat-card-title>Registrar Turno Horario</mat-card-title>
+        <mat-card-subtitle
+          >Los turnos no pueden superponerse entre sí.</mat-card-subtitle
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="turnoForm" class="restriccion-form">
+          <div class="form-row-two">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Nombre del Turno</mat-label>
+              <input
+                matInput
+                formControlName="nombre"
+                placeholder="Ej: Mañana"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Hora Inicio</mat-label>
+              <input matInput type="time" formControlName="hora_inicio" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Hora Fin</mat-label>
+              <input matInput type="time" formControlName="hora_fin" />
+            </mat-form-field>
+          </div>
+          <div class="form-actions">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="guardarTurno()"
+              [disabled]="turnoForm.invalid || guardandoTurno"
+            >
+              <mat-icon>add</mat-icon>
+              {{ guardandoTurno ? "Guardando..." : "Registrar Turno" }}
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="premium-form-card" style="margin-top: 16px">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">list</mat-icon>
+        <mat-card-title>Turnos Registrados</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingTurnos" class="loading-state">
+          <mat-spinner diameter="36"></mat-spinner>
+        </div>
+        <div *ngIf="!loadingTurnos && turnos.length === 0" class="empty-state">
+          <mat-icon>schedule</mat-icon>
+          <p>No hay turnos registrados.</p>
+        </div>
+        <div
+          *ngIf="!loadingTurnos && turnos.length > 0"
+          class="turnos-cards-grid"
+        >
+          <div class="turno-card" *ngFor="let t of turnos">
+            <div class="turno-card-icon">
+              <mat-icon>schedule</mat-icon>
+            </div>
+            <div class="turno-card-body">
+              <span class="turno-card-nombre">{{ t.nombre }}</span>
+              <span class="turno-card-horario">
+                <mat-icon class="turno-clock-icon">access_time</mat-icon>
+                {{ t.hora_inicio }} — {{ t.hora_fin }}
+              </span>
+            </div>
+            <button
+              mat-icon-button
+              color="warn"
+              class="turno-card-delete"
+              (click)="eliminarTurno(t.id, t.nombre)"
+              matTooltip="Eliminar turno"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 4 — DÍAS ACTIVOS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'diasActivos'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">calendar_today</mat-icon>
+        <mat-card-title>Días Activos de la Semana</mat-card-title>
+        <mat-card-subtitle
+          >Activa o desactiva los días en que se puede dictar
+          clases.</mat-card-subtitle
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingDiasActivos" class="loading-state">
+          <mat-spinner diameter="36"></mat-spinner>
+        </div>
+        <div class="dias-activos-grid" *ngIf="!loadingDiasActivos">
+          <div
+            class="dia-toggle-card"
+            *ngFor="let d of diasActivos"
+            [class.activo]="d.activo"
+          >
+            <span class="dia-nombre">{{ d.nombre }}</span>
+            <mat-slide-toggle
+              [checked]="d.activo"
+              [disabled]="guardandoDiaActivo"
+              (change)="toggleDiaActivo(d)"
+              color="primary"
+            ></mat-slide-toggle>
+            <span class="dia-estado">{{
+              d.activo ? "Activo" : "Inactivo"
+            }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 5 — PARÁMETROS DE CARGA
+  ══════════════════════════════════════════════════════════════════ -->
+  <div
+    *ngIf="activeTab === 'parametrosCarga'"
+    class="tab-content animate-fadein"
+  >
+    <!-- Formulario -->
+    <mat-card class="premium-form-card parametros-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">tune</mat-icon>
+        <mat-card-title>
+          {{
+            editingParametroId ? "Editar Parámetro" : "Nuevo Parámetro de Carga"
+          }}
+        </mat-card-title>
+        <mat-card-subtitle>
+          Período: <strong>{{ periodoService.periodo }}</strong>
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="parametrosForm" class="restriccion-form">
+          <div class="form-row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Tipo de docente</mat-label>
+              <mat-select
+                formControlName="tipo_docente"
+                (selectionChange)="onTipoDocenteChange($event.value)"
+              >
+                <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{
+                  t.label
+                }}</mat-option>
+              </mat-select>
+              <mat-icon matSuffix>badge</mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Categoría</mat-label>
+              <mat-select
+                formControlName="categoria"
+                (selectionChange)="onCategoriaChange($event.value)"
+              >
+                <mat-option
+                  *ngFor="let c of categoriasDisponibles"
+                  [value]="c.value"
+                  >{{ c.label }}</mat-option
+                >
+              </mat-select>
+              <mat-icon matSuffix>workspace_premium</mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Modalidad</mat-label>
+              <mat-select formControlName="modalidad">
+                <mat-option
+                  *ngFor="let m of modalidadesDisponibles"
+                  [value]="m.value"
+                  >{{ m.label }}</mat-option
+                >
+              </mat-select>
+              <mat-icon matSuffix>schedule</mat-icon>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Horas Mín. Semanal</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="horas_min_semanal"
+                min="1"
+                max="40"
+              />
+              <mat-hint>Por docente</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Horas Máx. Semanal</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="horas_max_semanal"
+                min="1"
+                max="80"
+              />
+              <mat-hint>Por docente</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Cursos Mín. por Docente</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="cursos_min_docente"
+                min="0"
+                max="20"
+              />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Cursos Máx. por Docente</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="cursos_max_docente"
+                min="1"
+                max="20"
+              />
+            </mat-form-field>
+          </div>
+          <div class="form-actions">
+            <button
+              mat-stroked-button
+              *ngIf="editingParametroId"
+              (click)="cancelarEdicionParametro()"
+              type="button"
+            >
+              <mat-icon>cancel</mat-icon> Cancelar
+            </button>
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="guardarParametrosCarga()"
+              [disabled]="parametrosForm.invalid || guardandoParametros"
+            >
+              <mat-icon>{{ editingParametroId ? "save" : "add" }}</mat-icon>
+              {{
+                guardandoParametros
+                  ? "Guardando..."
+                  : editingParametroId
+                    ? "Actualizar"
+                    : "Agregar Parámetro"
+              }}
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Lista de parámetros registrados -->
+    <div
+      class="section-title-row"
+      style="margin-top: 24px; margin-bottom: 12px"
+    >
+      <mat-icon>list_alt</mat-icon>
+      <h3 style="margin: 0 0 0 8px">Parámetros Registrados</h3>
+    </div>
+
+    <!-- Filters -->
+    <div class="filtros-container" style="margin-bottom: 16px;">
+      <mat-form-field appearance="outline" style="min-width: 200px;">
+        <mat-label>Filtrar por Tipo de Docente</mat-label>
+        <mat-select [(ngModel)]="filtrosParametros.tipo_docente" (selectionChange)="onFiltroChange()">
+          <mat-option value="">Todos</mat-option>
+          <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{ t.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" style="min-width: 200px;">
+        <mat-label>Filtrar por Categoría</mat-label>
+        <mat-select [(ngModel)]="filtrosParametros.categoria" (selectionChange)="onFiltroChange()">
+          <mat-option value="">Todas</mat-option>
+          <mat-option *ngFor="let c of categoriasPorTipo['ORDINARIO']" [value]="c.value">{{ c.label }}</mat-option>
+          <mat-option value="SIN_CATEGORIA">Sin categoría</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" style="min-width: 200px;">
+        <mat-label>Filtrar por Modalidad</mat-label>
+        <mat-select [(ngModel)]="filtrosParametros.modalidad" (selectionChange)="onFiltroChange()">
+          <mat-option value="">Todas</mat-option>
+          <mat-option *ngFor="let m of modalidades" [value]="m.value">{{ m.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div *ngIf="loadingParametros" class="loading-state">
+      <mat-spinner diameter="36"></mat-spinner>
+    </div>
+
+    <div
+      *ngIf="!loadingParametros && parametrosFiltrados.length === 0"
+      class="empty-state-inline"
+    >
+      <mat-icon>info_outline</mat-icon>
+      <span>No hay parámetros que coincidan con los filtros.</span>
+    </div>
+
+    <div
+      class="parametros-cards-grid"
+      *ngIf="!loadingParametros && parametrosFiltrados.length > 0"
+    >
+      <mat-card class="parametro-card" *ngFor="let p of parametrosFiltrados">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="param-icon">person</mat-icon>
+          <mat-card-title>
+            <span class="badge-pill badge-tipo">{{
+              getTipoDocenteLabel(p.tipo_docente)
+            }}</span>
+            <span class="tc-badge">{{ getCategoriaLabel(p.categoria) }}</span>
+            <span class="mod-badge">{{ getModalidadLabel(p.modalidad) }}</span>
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="param-content">
+          <div class="param-stat">
+            <span class="param-label">Horas Semanal</span>
+            <span class="param-value"
+              >{{ p.horas_min_semanal }} – {{ p.horas_max_semanal }} h</span
+            >
+          </div>
+          <div class="param-stat">
+            <span class="param-label">Cursos</span>
+            <span class="param-value"
+              >{{ p.cursos_min_docente }} – {{ p.cursos_max_docente }}</span
+            >
+          </div>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button
+            mat-icon-button
+            color="primary"
+            matTooltip="Editar"
+            (click)="editarParametro(p)"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            color="warn"
+            matTooltip="Eliminar"
+            (click)="eliminarParametro(p.id)"
+            [disabled]="eliminandoParametroId === p.id"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 6 — CONFIGURACIÓN GENERAL
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'general'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">business</mat-icon>
+        <mat-card-title>Configuración General Institucional</mat-card-title>
+        <mat-card-subtitle
+          >Nombre, logo y paleta de colores del sistema.</mat-card-subtitle
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingGeneral" class="loading-state">
+          <mat-spinner diameter="36"></mat-spinner>
+        </div>
+        <form
+          [formGroup]="generalForm"
+          class="restriccion-form"
+          *ngIf="!loadingGeneral"
+        >
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Nombre Institucional</mat-label>
+            <input
+              matInput
+              formControlName="nombre_institucional"
+              placeholder="Universidad Nacional de Trujillo"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>URL del Logo</mat-label>
+            <input
+              matInput
+              formControlName="logo_url"
+              placeholder="https://ejemplo.com/logo.png"
+            />
+            <mat-hint
+              >Enlace directo a la imagen del logo (PNG/SVG
+              recomendado)</mat-hint
+            >
+          </mat-form-field>
+          <div class="form-row-two" style="margin-top: 8px">
+            <mat-form-field appearance="outline">
+              <mat-label>Color Primario</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="color_primario"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.color_primario }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Color Secundario</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="color_secundario"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.color_secundario }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Color Acento</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="color_acento"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.color_acento }}</mat-hint>
+            </mat-form-field>
+          </div>
+          <div class="form-actions" style="margin-top: 16px">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="guardarConfiguracionGeneral()"
+              [disabled]="generalForm.invalid || guardandoGeneral"
+            >
+              <mat-icon>save</mat-icon>
+              {{ guardandoGeneral ? "Guardando..." : "Guardar Configuración" }}
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 2 — REGLAS DE PRIORIDAD
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'prioridad'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">sort</mat-icon>
+        <mat-card-title>Reglas de Prioridad Institucionales</mat-card-title>
+        <mat-card-subtitle>Configure el orden en que se asignan las ventanas a los docentes (política global)</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="info-box">
+          <mat-icon>info</mat-icon>
+          <span>Estas reglas se aplican a todas las campañas de ventanas. Las reglas se aplican en orden: la primera regla tiene mayor prioridad.</span>
+        </div>
+        <div class="config-list-header">
+          <h3>Reglas Configuradas</h3>
+          <button mat-stroked-button color="primary" (click)="agregarReglaPrioridad()">
+            <mat-icon>add</mat-icon>
+            Agregar Regla
+          </button>
+        </div>
+        <ng-container *ngIf="reglasPrioridad && reglasPrioridad.length > 0">
+          <div *ngFor="let regla of reglasPrioridad; let i = index" class="config-item">
+            <div class="config-item-header">
+              <span>Regla {{ i + 1 }}</span>
+              <button mat-icon-button color="warn" (click)="eliminarReglaPrioridad(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Campo</mat-label>
+                <mat-select [(ngModel)]="regla.campo" [ngModelOptions]="{standalone: true}">
+                  <mat-option value="tipo_contrato">Condición Laboral (Nombrado > Contratado)</mat-option>
+                  <mat-option value="tipo_docente">Tipo Docente (Ordinario > Contratado > Jefe Práctica)</mat-option>
+                  <mat-option value="categoria">Categoría (Principal > Asociado > Auxiliar > Sin Categoría)</mat-option>
+                  <mat-option value="modalidad">Modalidad (Dedicación Exclusiva > Tiempo Completo > Tiempo Parcial)</mat-option>
+                  <mat-option value="fecha_ingreso">Antigüedad (fecha más antigua)</mat-option>
+                  <mat-option value="horas_asignadas">Horas Asignadas (menos horas primero)</mat-option>
+                  <mat-option value="codigo">Código del Docente</mat-option>
+                  <mat-option value="apellidos">Apellidos</mat-option>
+                  <mat-option value="nombres">Nombres</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Orden</mat-label>
+                <mat-select [(ngModel)]="regla.orden" [ngModelOptions]="{standalone: true}">
+                  <mat-option value="DESC">Descendente (mayor a menor)</mat-option>
+                  <mat-option value="ASC">Ascendente (menor a mayor)</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+        </ng-container>
+        <div *ngIf="!reglasPrioridad || reglasPrioridad.length === 0" class="empty-state">
+          <mat-icon>playlist_add</mat-icon>
+          <p>No hay reglas configuradas. Configure las reglas de prioridad para definir el orden de asignación de ventanas.</p>
+        </div>
+        <div class="form-actions" style="margin-top: 16px">
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="guardarReglasPrioridad()"
+            [disabled]="guardandoReglasPrioridad"
+          >
+            <mat-icon>save</mat-icon>
+            {{ guardandoReglasPrioridad ? "Guardando..." : "Guardar Reglas" }}
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 3 — CAMPAÑAS DE VENTANAS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'campañas'" class="tab-content animate-fadein">
+    <div class="cards-container">
+      <!-- Card: Lista de Campañas -->
+      <mat-card class="premium-form-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="form-icon">list</mat-icon>
+          <mat-card-title>Campañas del Período</mat-card-title>
+          <mat-card-subtitle>Gestione las campañas de ventanas del período actual</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content class="campañas-list-container">
+          <div *ngIf="campanas.length === 0" class="empty-state">
+            <mat-icon>folder_open</mat-icon>
+            <p>No hay campañas creadas para este período</p>
+          </div>
+          <div *ngFor="let campana of campanas" class="campaña-item" [class.selected]="campanaSeleccionada?.id === campana.id" (click)="seleccionarCampana(campana)">
+            <div class="campaña-item-header">
+              <mat-icon>campaign</mat-icon>
+              <div class="campaña-info">
+                <h3>{{ campana.nombre }}</h3>
+                <p>{{ campana.descripcion }}</p>
+              </div>
+              <span class="badge" [class]="campana.estado.toLowerCase()">{{ campana.estado }}</span>
+            </div>
+            <div class="campaña-metrics">
+              <span><mat-icon>event</mat-icon> {{ campana.total_ventanas_generadas }} ventanas</span>
+              <span><mat-icon>people</mat-icon> {{ campana.total_docentes_asignados }} docentes</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Card: Crear Nueva Campaña -->
+      <mat-card class="premium-form-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="form-icon">add_circle</mat-icon>
+          <mat-card-title>Crear Nueva Campaña</mat-card-title>
+          <mat-card-subtitle>Configure una nueva campaña de ventanas automáticas</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <form [formGroup]="campanaForm">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Nombre de la Campaña</mat-label>
+              <input matInput formControlName="nombre" placeholder="Ej: Campaña 2026-I - Principal" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Descripción</mat-label>
+              <textarea matInput formControlName="descripcion" rows="2" placeholder="Describa el objetivo de la campaña"></textarea>
+            </mat-form-field>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Fecha Inicio</mat-label>
+                <input matInput [matDatepicker]="pickerInicio" formControlName="fechaInicio" />
+                <mat-datepicker-toggle matSuffix [for]="pickerInicio">
+                  <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+                </mat-datepicker-toggle>
+                <mat-datepicker #pickerInicio />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Fecha Fin</mat-label>
+                <input matInput [matDatepicker]="pickerFin" formControlName="fechaFin" />
+                <mat-datepicker-toggle matSuffix [for]="pickerFin">
+                  <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+                </mat-datepicker-toggle>
+                <mat-datepicker #pickerFin />
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Días Habilitados</mat-label>
+              <mat-select formControlName="diasHabilitados" multiple>
+                <mat-option value="LUNES">Lunes</mat-option>
+                <mat-option value="MARTES">Martes</mat-option>
+                <mat-option value="MIERCOLES">Miércoles</mat-option>
+                <mat-option value="JUEVES">Jueves</mat-option>
+                <mat-option value="VIERNES">Viernes</mat-option>
+                <mat-option value="SABADO">Sábado</mat-option>
+                <mat-option value="DOMINGO">Domingo</mat-option>
+              </mat-select>
+              <mat-hint>Seleccione los días de la semana en los que se generarán ventanas</mat-hint>
+            </mat-form-field>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Duración Turno (min)</mat-label>
+                <input matInput type="number" formControlName="duracionTurnoMinutos" min="5" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Buffer (min)</mat-label>
+                <input matInput type="number" formControlName="bufferMinutos" min="0" />
+              </mat-form-field>
+            </div>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Cupos Máximos por Ventana</mat-label>
+                <input matInput type="number" formControlName="cuposMaximosVentana" min="1" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Reserva para Contingencia (%)</mat-label>
+                <input matInput type="number" formControlName="porcentajeReserva" min="0" max="50" />
+                <mat-hint>Porcentaje de ventanas adicionales para reprogramaciones (10-20%)</mat-hint>
+              </mat-form-field>
+            </div>
+            <div class="checkbox-group">
+              <mat-checkbox formControlName="excluirFeriados">Excluir Feriados</mat-checkbox>
+              <mat-checkbox formControlName="excluirEventos">Excluir Eventos</mat-checkbox>
+              <mat-checkbox formControlName="distribucionEquitativa">Distribución Equitativa</mat-checkbox>
+            </div>
+            <div class="form-actions">
+              <button
+                mat-raised-button
+                color="primary"
+                type="button"
+                (click)="crearCampana()"
+                [disabled]="creandoCampana"
+              >
+                <mat-icon>add</mat-icon>
+                {{ creandoCampana ? "Creando..." : "Crear Campaña" }}
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Card: Bloques Horarios -->
+      <mat-card class="premium-form-card" *ngIf="campanaSeleccionada">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="form-icon">schedule</mat-icon>
+          <mat-card-title>Bloques Horarios</mat-card-title>
+          <mat-card-subtitle>Configure los bloques de atención</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngFor="let bloque of bloquesHorarios; let i = index" class="bloque-item">
+            <div class="bloque-item-header">
+              <span>{{ bloque.nombre }}</span>
+              <button mat-icon-button color="warn" (click)="eliminarBloqueHorario(i)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+            <div class="form-row-two">
+              <mat-form-field appearance="outline">
+                <mat-label>Hora Inicio</mat-label>
+                <input matInput type="time" [(ngModel)]="bloque.hora_inicio" [ngModelOptions]="{standalone: true}" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Hora Fin</mat-label>
+                <input matInput type="time" [(ngModel)]="bloque.hora_fin" [ngModelOptions]="{standalone: true}" />
+              </mat-form-field>
+            </div>
+          </div>
+          <button mat-stroked-button color="primary" (click)="agregarBloqueHorario()">
+            <mat-icon>add</mat-icon>
+            Agregar Bloque
+          </button>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Card: Acciones de Campaña -->
+      <mat-card class="premium-form-card" *ngIf="campanaSeleccionada">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="form-icon">play_circle</mat-icon>
+          <mat-card-title>Acciones de Campaña</mat-card-title>
+          <mat-card-subtitle>Gestione el ciclo de vida de la campaña</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="info-box" *ngIf="campanaSeleccionada.estado === 'BORRADOR'">
+            <mat-icon>info</mat-icon>
+            <span>Campaña en borrador. Genere las ventanas para revisarlas antes de publicar.</span>
+          </div>
+          <div class="info-box success" *ngIf="campanaSeleccionada.estado === 'GENERADO'">
+            <mat-icon>check_circle</mat-icon>
+            <span>Ventanas generadas. Revise y publique la campaña cuando esté lista.</span>
+          </div>
+          <div class="info-box success" *ngIf="campanaSeleccionada.estado === 'PUBLICADO'">
+            <mat-icon>check_circle</mat-icon>
+            <span>Campaña publicada. Las ventanas están activas para el período.</span>
+          </div>
+          <div class="form-actions">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="generarVentanasCampana()"
+              [disabled]="generandoVentanas || campanaSeleccionada.estado !== 'BORRADOR'"
+            >
+              <mat-icon>auto_awesome</mat-icon>
+              {{ generandoVentanas ? "Generando..." : "Generar Ventanas" }}
+            </button>
+            <button
+              mat-raised-button
+              color="accent"
+              (click)="publicarCampana()"
+              [disabled]="publicandoCampana || campanaSeleccionada.estado !== 'GENERADO'"
+            >
+              <mat-icon>publish</mat-icon>
+              {{ publicandoCampana ? "Publicando..." : "Publicar Campaña" }}
+            </button>
+            <button
+              mat-raised-button
+              color="warn"
+              (click)="eliminarVentanasCampana()"
+              [disabled]="campanaSeleccionada.estado === 'BORRADOR'"
+            >
+              <mat-icon>delete</mat-icon>
+              Eliminar Ventanas
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 4 — MODO DE PERÍODO
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'modoPeriodo'" class="tab-content animate-fadein">
+    <mat-card class="premium-form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="form-icon">settings</mat-icon>
+        <mat-card-title>Modo de Asignación del Período</mat-card-title>
+        <mat-card-subtitle>Configure cómo se asignarán los horarios en el período académico actual</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="modo-periodo-container">
+          <!-- Info del período actual -->
+          <div class="periodo-info-card" *ngIf="periodoService.periodoActivo">
+            <div class="info-row">
+              <mat-icon>calendar_today</mat-icon>
+              <div class="info-content">
+                <span class="label">Período Activo:</span>
+                <span class="value">{{ periodoService.periodoActivo.nombre }}</span>
+              </div>
+            </div>
+            <div class="info-row">
+              <mat-icon>schedule</mat-icon>
+              <div class="info-content">
+                <span class="label">Modo Actual:</span>
+                <span class="value modo-badge" [class]="(modoAsignacionPeriodo ? modoAsignacionPeriodo.toLowerCase() : 'ventanas')">
+                  {{ getModoLabel() }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selector de modo -->
+          <div class="modo-selector">
+            <h3>Seleccionar Modo de Asignación</h3>
+            <p class="modo-description">Por defecto: <strong>Ventanas de Atención</strong></p>
+
+            <div class="modo-options">
+              <div
+                class="modo-option"
+                [class.selected]="nuevoModo === 'VENTANAS'"
+                (click)="nuevoModo = 'VENTANAS'"
+              >
+                <div class="modo-icon ventanas">
+                  <mat-icon>event_seat</mat-icon>
+                </div>
+                <div class="modo-content">
+                  <h4>Ventanas de Atención</h4>
+                  <p>Los docentes son atendidos uno por uno en ventanas programadas. Ideal para periodos con reclamos o casos especiales.</p>
+                  <span class="modo-recomendado">Recomendado por defecto</span>
+                </div>
+              </div>
+
+              <div
+                class="modo-option"
+                [class.selected]="nuevoModo === 'AUTOMATICA'"
+                (click)="nuevoModo = 'AUTOMATICA'"
+              >
+                <div class="modo-icon automatica">
+                  <mat-icon>auto_fix_high</mat-icon>
+                </div>
+                <div class="modo-content">
+                  <h4>Generación Automática</h4>
+                  <p>El sistema genera automáticamente todos los horarios basándose en algoritmos de optimización. Rápido y eficiente.</p>
+                </div>
+              </div>
+
+              <div
+                class="modo-option"
+                [class.selected]="nuevoModo === 'MIXTA'"
+                (click)="nuevoModo = 'MIXTA'"
+              >
+                <div class="modo-icon mixta">
+                  <mat-icon>call_split</mat-icon>
+                </div>
+                <div class="modo-content">
+                  <h4>Modo Mixto</h4>
+                  <p>Generación automática inicial + ventanas para docentes pendientes. Balance entre velocidad y personalización.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advertencias -->
+            <div class="warning-box" *ngIf="puedeCambiarModo === false">
+              <mat-icon>warning</mat-icon>
+              <span>No se puede cambiar el modo: el período ya tiene horarios asignados o está en curso.</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+      <mat-card-actions class="form-actions">
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="cambiarModoAsignacion()"
+          [disabled]="!nuevoModo || nuevoModo === modoAsignacionPeriodo || cambiandoModo || puedeCambiarModo === false"
+        >
+          <mat-spinner diameter="20" *ngIf="cambiandoModo"></mat-spinner>
+          <mat-icon *ngIf="!cambiandoModo">save</mat-icon>
+          {{ cambiandoModo ? 'Cambiando...' : 'Cambiar Modo' }}
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TAB 9 — IMPORTACIÓN DE DATOS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeTab === 'importacion'" class="tab-content animate-fadein">
+    <app-importador-csv></app-importador-csv>
+  </div>
+</div>

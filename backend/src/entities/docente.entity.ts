@@ -7,6 +7,8 @@ import {
   OneToMany,
   ManyToMany,
   JoinTable,
+  ManyToOne,
+  JoinColumn,
 } from "typeorm";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
@@ -16,6 +18,7 @@ import { DisponibilidadDocente } from "./disponibilidad-docente.entity";
 import { HorarioAsignado } from "./horario-asignado.entity";
 import { ColaDocentes } from "./cola-docentes.entity";
 import { Ambiente } from "./ambiente.entity";
+import { Departamento } from "./departamento.entity";
 
 @Entity("docente")
 export class Docente {
@@ -60,6 +63,13 @@ export class Docente {
 
   @Column({ nullable: true, type: "text" })
   firebase_token: string | null;
+
+  @Column({ nullable: true, name: "departamento_id" })
+  departamento_id: number;
+
+  @ManyToOne(() => Departamento, { nullable: true, eager: true })
+  @JoinColumn({ name: "departamento_id" })
+  departamento: Departamento;
 
   @CreateDateColumn()
   created_at: Date;

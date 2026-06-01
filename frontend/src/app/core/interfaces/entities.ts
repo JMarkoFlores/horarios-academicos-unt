@@ -31,11 +31,20 @@ export interface Docente {
   fecha_ingreso: string;
   activo: boolean;
   puntaje_jerarquia?: number;
+  departamento_id?: number;
+  departamento?: Departamento;
   antiguedad?: {
     anios: number;
     meses: number;
   };
   disponibilidades?: any[];
+}
+
+export interface Departamento {
+  id: number;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
 }
 
 export interface Curso {

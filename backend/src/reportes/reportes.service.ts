@@ -13,6 +13,7 @@ import * as ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { ConfiguracionService } from "../configuracion/configuracion.service";
+import * as https from "https";
 
 @Injectable()
 export class ReportesService {
@@ -33,6 +34,24 @@ export class ReportesService {
     private readonly grupoRepo: Repository<Grupo>,
     private readonly configuracionService: ConfiguracionService,
   ) {}
+
+  private async getBase64Image(url: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      https
+        .get(url, (res) => {
+          const data: any[] = [];
+          res.on("data", (chunk) => data.push(chunk));
+          res.on("end", () => {
+            const buffer = Buffer.concat(data);
+            resolve(`data:${res.headers["content-type"]};base64,${buffer.toString("base64")}`);
+          });
+        })
+        .on("error", (err) => {
+          this.logger.error(`Error al cargar imagen del logo: ${err.message}`);
+          resolve(null);
+        });
+    });
+  }
 
   async generarPDF(html: string): Promise<Buffer> {
     const puppeteer = await import("puppeteer");
@@ -78,8 +97,14 @@ export class ReportesService {
     docenteId: number,
     periodo: string,
   ): Promise<Buffer> {
+    const config = await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl = config?.logo_url || "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
+    const primaryColor = config?.color_primario || "#4f46e5";
+    const logoBase64 = await this.getBase64Image(logoUrl);
+
     const docente = await this.docenteRepo.findOne({
       where: { id: docenteId },
+      relations: ["departamento"]
     });
     if (!docente) throw new Error("Docente no encontrado");
 
@@ -94,288 +119,274 @@ export class ReportesService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
     
-    // Normalizar horas para quitar segundos (convertir "07:00:00" a "07:00")
+    // Normalizar horas
     horarios.forEach(h => {
-      if (h.hora_inicio && h.hora_inicio.length > 5) {
-        h.hora_inicio = h.hora_inicio.substring(0, 5);
-      }
-      if (h.hora_fin && h.hora_fin.length > 5) {
-        h.hora_fin = h.hora_fin.substring(0, 5);
-      }
+      if (h.hora_inicio && h.hora_inicio.length > 5) h.hora_inicio = h.hora_inicio.substring(0, 5);
+      if (h.hora_fin && h.hora_fin.length > 5) h.hora_fin = h.hora_fin.substring(0, 5);
     });
 
-    this.logger.log(`[generarReporteDocentePDF] Horarios recibidos (${horarios.length}): ${JSON.stringify(horarios.map(h => ({
-      id: h.id,
-      curso: h.curso?.nombre,
-      dia: h.dia ?? h.dia_semana,
-      horaInicio: h.hora_inicio,
-      horaFin: h.hora_fin,
-      grupo: h.grupo?.id
-    })))}`);
-
-    const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-    const diasNum = [1, 2, 3, 4, 5];
-    const horas = Array.from({ length: 15 }, (_, i) => i + 7);
-
-    // Obtener configuración del bloque de almuerzo desde la base de datos
-    let almuerzoInicio = 12;
-    let almuerzoFin = 14;
-    try {
-      const restricciones = await this.configuracionService.getRestriccionesMap(periodo);
-      const bloqueAlmuerzo = restricciones['BLOQUE_ALMUERZO'] as any;
-      if (bloqueAlmuerzo && bloqueAlmuerzo.hora_inicio && bloqueAlmuerzo.hora_fin) {
-        almuerzoInicio = parseInt(bloqueAlmuerzo.hora_inicio.split(':')[0], 10);
-        almuerzoFin = parseInt(bloqueAlmuerzo.hora_fin.split(':')[0], 10);
-      }
-    } catch (error) {
-      this.logger.warn(`No se pudo obtener configuración de almuerzo, usando valores por defecto: ${error}`);
-    }
-
-    // Colores pasteles
-    const profesorColorMap = new Map<number, [number, number, number]>();
-    const profesorColors: [number, number, number][] = [
-      [255, 205, 210],
-      [248, 187, 217],
-      [240, 178, 122],
-      [249, 231, 159],
-      [213, 245, 227],
-      [174, 214, 241],
-      [215, 189, 226],
-      [250, 219, 216],
-      [169, 223, 191],
-      [249, 235, 234],
-      [212, 239, 223],
-      [169, 204, 227],
-      [232, 218, 239],
-      [245, 238, 248],
-      [235, 245, 251],
-    ];
-    const getColorForProfesor = (docenteIdParam: number | undefined): [number, number, number] => {
-      if (!docenteIdParam) return profesorColors[0];
-      if (!profesorColorMap.has(docenteIdParam)) {
-        const index = profesorColorMap.size % profesorColors.length;
-        profesorColorMap.set(docenteIdParam, profesorColors[index]);
-      }
-      return profesorColorMap.get(docenteIdParam)!;
-    };
-
-    // Función para convertir horas a decimal
-    const horaToDecimal = (hora: string): number => {
-      const [h, m] = hora.split(':').map(Number);
-      return h + (m || 0) / 60;
-    };
-
-    // Fusionar horarios consecutivos (EXACTAMENTE igual que el frontend)
-    const sortedHorarios = [...horarios].sort((a, b) => {
-      const diaDiff = (a.dia ?? a.dia_semana) - (b.dia ?? b.dia_semana);
-      if (diaDiff !== 0) return diaDiff;
-      return horaToDecimal(a.hora_inicio) - horaToDecimal(b.hora_inicio);
-    });
-    const keyToAsignacionMap = new Map<string, HorarioAsignado>();
-    sortedHorarios.forEach(asignacion => {
-      const dia = asignacion.dia ?? asignacion.dia_semana;
-      const key = `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${asignacion.grupo?.id}-${dia}-${asignacion.tipo_clase}`;
-      const existing = keyToAsignacionMap.get(key);
-      if (existing) {
-        const existingHoraFin = horaToDecimal(existing.hora_fin);
-        const currentHoraInicio = horaToDecimal(asignacion.hora_inicio);
-        if (Math.abs(existingHoraFin - currentHoraInicio) < 0.1) {
-          existing.hora_fin = asignacion.hora_fin;
-        } else {
-          keyToAsignacionMap.set(`${key}-${Date.now()}-${Math.random()}`, asignacion);
-        }
-      } else {
-        keyToAsignacionMap.set(key, asignacion);
-      }
-    });
-    const asignaciones = Array.from(keyToAsignacionMap.values());
-    this.logger.log(`[generarReporteDocentePDF] After merge, finalAsignaciones (${asignaciones.length}): ${JSON.stringify(asignaciones.map(a => ({
-      curso: a.curso?.nombre,
-      dia: a.dia ?? a.dia_semana,
-      horaInicio: a.hora_inicio,
-      horaFin: a.hora_fin,
-      grupo: a.grupo?.id
-    })))}`);
-
-    // Generar bloques para el grid (EXACTAMENTE igual que el frontend)
-    interface BloquePDF {
-      dia: number;
-      horaInicio: number;
-      horaFin: number;
-      asignacion: HorarioAsignado;
-      left: number;
-      width: number;
-    }
-    const bloques: BloquePDF[] = [];
-    const bloquesPorDiaYHora: Map<string, BloquePDF[]> = new Map();
-    asignaciones.forEach(asignacion => {
-      const dia = asignacion.dia ?? asignacion.dia_semana;
-      const horaInicio = horaToDecimal(asignacion.hora_inicio);
-      const horaFin = horaToDecimal(asignacion.hora_fin);
-      this.logger.log(`[generarReporteDocentePDF] Procesando horario (merged): curso=${asignacion.curso?.nombre}, dia=${dia}, horaInicio=${asignacion.hora_inicio} (${horaInicio}), horaFin=${asignacion.hora_fin} (${horaFin})`);
-      const bloque = {
-        dia,
-        horaInicio,
-        horaFin,
-        asignacion,
-        left: 0,
-        width: 0,
-      };
-      for (let h = Math.floor(horaInicio); h < horaFin; h++) {
-        const key = `${dia}-${h}`;
-        this.logger.log(`[generarReporteDocentePDF]   h=${h}, key=${key}, is start=${h === Math.floor(horaInicio)}`);
-        if (!bloquesPorDiaYHora.has(key)) {
-          bloquesPorDiaYHora.set(key, []);
-        }
-        if (h === Math.floor(horaInicio)) {
-          this.logger.log(`[generarReporteDocentePDF]   Adding bloque to key ${key}`);
-          bloquesPorDiaYHora.get(key)!.push(bloque);
-        }
-      }
-    });
-    bloquesPorDiaYHora.forEach((bloquesEnCelda, key) => {
-      const anchoPorBloque = 100 / bloquesEnCelda.length;
-      this.logger.log(`[generarReporteDocentePDF] Key ${key}: ${bloquesEnCelda.length} bloques, ancho por bloque=${anchoPorBloque}%`);
-      bloquesEnCelda.forEach((bloque, index) => {
-        bloque.left = index * anchoPorBloque;
-        bloque.width = anchoPorBloque;
-        bloques.push(bloque);
-      });
-    });
-    this.logger.log(`[generarReporteDocentePDF] Total bloques generados: ${bloques.length}`);
-
-    // Calcular total horas
-    const totalHoras = asignaciones.reduce((acc, a) => {
-      const ini = parseInt(a.hora_inicio.split(':')[0], 10);
-      const fin = parseInt(a.hora_fin.split(':')[0], 10);
-      return acc + (fin - ini);
-    }, 0);
-
-    // Iniciar jsPDF
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const docNombre = `${docente.apellidos}, ${docente.nombres}`;
-    const codigo = docente.codigo ?? '';
-    const categoria = docente.categoria ?? '';
+    const hexToRgb = (hex: string): [number, number, number] => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return [r, g, b];
+    };
+    const primaryRGB = hexToRgb(primaryColor);
+
     const PAGE_W = 297;
+    const PAGE_H = 210;
+    const C = {
+      primary: primaryRGB,
+      white: [255, 255, 255] as [number, number, number],
+      text: [51, 65, 85] as [number, number, number],
+      lightText: [100, 116, 139] as [number, number, number],
+    };
 
-    // Cabecera
-    doc.setFillColor(79, 70, 229);
-    doc.rect(0, 0, PAGE_W, 22, 'F');
-    doc.setTextColor(255, 255, 255);
+    // PÁGINA 1: INFORMACIÓN DETALLADA
+    // Cabecera premium
+    doc.setFillColor(...C.primary);
+    doc.rect(0, 0, PAGE_W, 35, 'F');
+    if (logoBase64) {
+      try { doc.addImage(logoBase64, 'PNG', 12, 5, 22, 22); } catch (e) {}
+    }
+    doc.setTextColor(...C.white);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text('HORARIO ACADEMICO', 12, 9);
+    doc.setFontSize(18);
+    doc.text(`REPORTE DETALLADO DEL DOCENTE`, 40, 15);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('Universidad Nacional de Trujillo', 12, 15);
+    doc.setFontSize(11);
+    doc.text(`Periodo Académico: ${periodo}`, 40, 22);
+    doc.text(`Generado el: ${new Date().toLocaleDateString()}`, PAGE_W - 12, 22, { align: 'right' });
 
-    // Info docente (derecha)
-    doc.setFontSize(8);
+    // Sección 1: Datos Personales
+    let yPos = 45;
+    doc.setTextColor(...C.primary);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    const infoX = PAGE_W - 12;
-    doc.text(docNombre, infoX, 7, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    const partes: string[] = [];
-    if (codigo) partes.push(`Cod: ${codigo}`);
-    if (categoria) partes.push(categoria);
-    partes.push(`Periodo: ${periodo}`);
-    partes.push(`${totalHoras} hrs/sem`);
-    doc.text(partes.join('  |  '), infoX, 13, { align: 'right' });
+    doc.text("1. INFORMACIÓN DEL DOCENTE", 12, yPos);
+    doc.setDrawColor(...C.primary);
+    doc.setLineWidth(0.5);
+    doc.line(12, yPos + 2, 80, yPos + 2);
 
-    const startY = 27;
-    const cellHeight = 12;
-    const cellWidth = (PAGE_W - 16 - 20) / 6;
-    const horaColWidth = 20;
-    const gridHeight = horas.length * cellHeight;
-    const gridWidth = PAGE_W - 16;
-
-    // 1. Dibujar encabezado
-    doc.setFillColor(79, 70, 229);
-    doc.rect(8, startY, gridWidth, 10, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('HORA', 10, startY + 7);
-    dias.forEach((dia, idx) => {
-      doc.text(dia, 8 + horaColWidth + idx * cellWidth + cellWidth / 2, startY + 7, { align: 'center' });
+    yPos += 12;
+    autoTable(doc, {
+      startY: yPos,
+      body: [
+        ['Apellidos y Nombres:', `${docente.apellidos}, ${docente.nombres}`, 'Código:', docente.codigo || '—'],
+        ['Categoría:', docente.categoria || '—', 'Contrato:', docente.tipo_contrato || '—'],
+        ['Departamento:', docente.departamento?.nombre || '—', 'Modalidad:', docente.modalidad || '—'],
+        ['Email:', docente.email || '—', 'Teléfono:', docente.telefono || '—']
+      ],
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 3 },
+      columnStyles: {
+        0: { fontStyle: 'bold', textColor: C.lightText, cellWidth: 40 },
+        1: { cellWidth: 100 },
+        2: { fontStyle: 'bold', textColor: C.lightText, cellWidth: 30 },
+        3: { cellWidth: 50 }
+      },
+      margin: { left: 12 }
     });
 
-    // 2. Dibujar fondo del grid y celdas de hora
-    let currentY = startY + 10;
-    horas.forEach((hora) => {
-      // Columna hora izquierda
-      doc.setFillColor(241, 245, 249);
-      doc.rect(8, currentY, horaColWidth, cellHeight, 'F');
-      doc.setTextColor(51, 65, 85);
-      doc.setFont('helvetica', 'bold');
+    // Sección 2: Carga Académica Detallada
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+    doc.setTextColor(...C.primary);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text("2. CARGA ACADÉMICA DETALLADA", 12, yPos);
+    doc.setDrawColor(...C.primary);
+    doc.line(12, yPos + 2, 80, yPos + 2);
+
+    yPos += 10;
+    const resumenMap = new Map<string, any>();
+    horarios.forEach(h => {
+      if (!h.curso) return;
+      const key = `${h.curso.id}-${h.tipo_clase}-${h.grupo?.id}`;
+      if (!resumenMap.has(key)) {
+        resumenMap.set(key, { curso: h.curso, tipo: h.tipo_clase, horas: 0, grupo: h.grupo?.codigo, ambiente: h.ambiente?.codigo });
+      }
+      const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
+      const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+      resumenMap.get(key).horas += (hFin - hIni);
+    });
+
+    const totalHorasSemana = Array.from(resumenMap.values()).reduce((sum, r) => sum + r.horas, 0);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Código', 'Asignatura', 'Ciclo', 'Tipo', 'Grupo', 'Ambiente', 'Horas Sem.']],
+      body: Array.from(resumenMap.values()).map(r => [
+        r.curso.codigo || '—',
+        r.curso.nombre,
+        r.curso.ciclo || '—',
+        r.tipo === TipoClase.TEORIA ? 'Teoría' : r.tipo === TipoClase.PRACTICA ? 'Práctica' : 'Laboratorio',
+        r.grupo || '—',
+        r.ambiente || '—',
+        `${r.horas} hrs`
+      ]),
+      foot: [['', '', '', '', '', 'TOTAL HORAS:', `${totalHorasSemana} hrs`]],
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: C.primary, textColor: C.white, fontStyle: 'bold' },
+      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' },
+      margin: { left: 12, right: 12 }
+    });
+
+    // PÁGINA 2: HORARIO (GRID HORIZONTAL)
+    doc.addPage();
+    
+    // Cabecera simplificada para el horario
+    doc.setFillColor(...C.primary);
+    doc.rect(0, 0, PAGE_W, 20, 'F');
+    doc.setTextColor(...C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(`PROGRAMACIÓN SEMANAL: ${docente.apellidos}, ${docente.nombres}`, 12, 13);
+    doc.setFontSize(10);
+    doc.text(`Periodo: ${periodo}`, PAGE_W - 12, 13, { align: 'right' });
+
+    const gridY = 28;
+    const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const horas = Array.from({ length: 15 }, (_, i) => i + 7);
+    const cellHeight = 10;
+    const horaColWidth = 15;
+    const gridWidth = PAGE_W - 24;
+    const cellWidth = (gridWidth - (horaColWidth * 2)) / 6;
+
+    doc.setFillColor(...C.primary);
+    doc.rect(12, gridY, gridWidth, 10, 'F');
+    doc.setTextColor(...C.white);
+    doc.setFontSize(9);
+    doc.text('HORA', 12 + horaColWidth / 2, gridY + 6.5, { align: 'center' });
+    dias.forEach((dia, idx) => {
+      doc.text(dia, 12 + horaColWidth + idx * cellWidth + cellWidth / 2, gridY + 6.5, { align: 'center' });
+    });
+    doc.text('HORA', 12 + gridWidth - horaColWidth / 2, gridY + 6.5, { align: 'center' });
+
+    let currentY = gridY + 10;
+    horas.forEach(hora => {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(12, currentY, horaColWidth, cellHeight, 'F');
+      doc.rect(12 + gridWidth - horaColWidth, currentY, horaColWidth, cellHeight, 'F');
+      doc.setTextColor(...C.text);
       doc.setFontSize(8);
-      doc.text(`${String(hora).padStart(2, '0')}:00`, 10, currentY + cellHeight / 2 + 2);
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 12 + horaColWidth / 2, currentY + cellHeight / 2 + 1.5, { align: 'center' });
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 12 + gridWidth - horaColWidth / 2, currentY + cellHeight / 2 + 1.5, { align: 'center' });
       
-      // Fondo solo para el almuerzo (no para las otras celdas, para que los bloques se vean completos)
-      diasNum.forEach((dia, idx) => {
-        const esAlm = hora >= almuerzoInicio && hora < almuerzoFin;
-        const cellX = 8 + horaColWidth + idx * cellWidth;
-        if (esAlm) {
-          doc.setFillColor(255, 243, 205);
-          doc.rect(cellX, currentY, cellWidth, cellHeight, 'F');
-          doc.setTextColor(146, 64, 14);
-          doc.setFontSize(8);
-          doc.text('Almuerzo', cellX + cellWidth / 2, currentY + cellHeight / 2 + 2, { align: 'center' });
-        }
-      });
+      for (let i = 0; i < 6; i++) {
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(12 + horaColWidth + i * cellWidth, currentY, cellWidth, cellHeight, 'S');
+      }
       currentY += cellHeight;
     });
 
-    // 3. Dibujar bordes del grid (ANTES de los bloques)
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(0.25);
-    for (let i = 0; i <= horas.length; i++) {
-      const y = startY + 10 + i * cellHeight;
-      doc.line(8, y, 8 + gridWidth, y);
-    }
-    doc.line(8, startY + 10, 8, startY + 10 + gridHeight);
-    doc.line(8 + horaColWidth, startY + 10, 8 + horaColWidth, startY + 10 + gridHeight);
-    diasNum.forEach((_, idx) => {
-      const x = 8 + horaColWidth + (idx + 1) * cellWidth;
-      doc.line(x, startY + 10, x, startY + 10 + gridHeight);
+    // Bloques de clase con lógica de fusión
+    const bloquesPorDia = new Map<number, HorarioAsignado[]>();
+    horarios.forEach(h => {
+      const dia = h.dia || h.dia_semana;
+      if (!bloquesPorDia.has(dia)) bloquesPorDia.set(dia, []);
+      bloquesPorDia.get(dia)!.push(h);
     });
-    doc.line(8 + gridWidth, startY + 10, 8 + gridWidth, startY + 10 + gridHeight);
 
-    // 4. Dibujar bloques de horario (DESPUÉS de los bordes, para taparlos)
-    bloques.forEach(bloque => {
-      const diaIdx = bloque.dia - 1;
-      const cellX = 8 + horaColWidth + diaIdx * cellWidth + (bloque.left / 100) * cellWidth;
-      const cellWidthBloque = (bloque.width / 100) * cellWidth;
-      const startRowIdx = horas.indexOf(Math.floor(bloque.horaInicio));
-      const endRowIdx = horas.indexOf(Math.floor(bloque.horaFin));
-      if (startRowIdx === -1 || endRowIdx === -1) return;
-      const cellY = startY + 10 + startRowIdx * cellHeight;
-      const cellHeightBloque = (endRowIdx - startRowIdx) * cellHeight;
+    bloquesPorDia.forEach((asigs, dia) => {
+      const diaIdx = dia - 1;
+      const sortedAsigs = [...asigs].sort((a, b) => {
+        const hA = parseInt(a.hora_inicio.split(':')[0], 10);
+        const hB = parseInt(b.hora_inicio.split(':')[0], 10);
+        return hA - hB;
+      });
 
-      // Fondo del bloque (TAPA LOS BORDES)
-      const color = getColorForProfesor(bloque.asignacion.docente?.id);
-      doc.setFillColor(...color);
-      doc.rect(cellX, cellY, cellWidthBloque, cellHeightBloque, 'F');
-      
-      // Dibujar un borde fino alrededor del bloque para que se vea bien
-      doc.setDrawColor(150, 150, 150);
-      doc.setLineWidth(0.2);
-      doc.rect(cellX, cellY, cellWidthBloque, cellHeightBloque, 'S');
+      const carriles: HorarioAsignado[][] = [];
+      sortedAsigs.forEach(asig => {
+        const hIni = parseInt(asig.hora_inicio.split(':')[0], 10);
+        let carrilIndex = -1;
+        for (let i = 0; i < carriles.length; i++) {
+          const ultimo = carriles[i][carriles[i].length - 1];
+          const hFinUltimo = parseInt(ultimo.hora_fin.split(':')[0], 10);
+          if (hFinUltimo === hIni && ultimo.curso?.id === asig.curso?.id) {
+            carrilIndex = i;
+            break;
+          }
+        }
+        if (carrilIndex === -1) {
+          for (let i = 0; i < carriles.length; i++) {
+            const ultimo = carriles[i][carriles[i].length - 1];
+            if (parseInt(ultimo.hora_fin.split(':')[0], 10) <= hIni) {
+              carrilIndex = i;
+              break;
+            }
+          }
+        }
+        if (carrilIndex === -1) carriles.push([asig]);
+        else carriles[carrilIndex].push(asig);
+      });
 
-      // Texto del bloque
-      doc.setTextColor(51, 51, 51);
-      doc.setFontSize(6);
-      doc.setFont('helvetica', 'bold');
-      const curso = bloque.asignacion.curso?.nombre ?? '—';
-      const amb = bloque.asignacion.ambiente?.codigo ?? '—';
-      const texto1 = curso.length > 20 ? curso.substring(0, 20) + '...' : curso;
-      const texto2 = amb;
-      const texto3 = `${bloque.asignacion.hora_inicio}–${bloque.asignacion.hora_fin}`;
-      const textY = cellY + 4;
-      doc.text(texto1, cellX + cellWidthBloque / 2, textY, { align: 'center' });
-      doc.text(texto2, cellX + cellWidthBloque / 2, textY + 4, { align: 'center' });
-      doc.text(texto3, cellX + cellWidthBloque / 2, textY + 8, { align: 'center' });
+      carriles.forEach((bloquesEnCarril, carrilIdx) => {
+        const fusionados: any[] = [];
+        bloquesEnCarril.forEach(h => {
+          const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
+          const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+          const dur = hFin - hIni;
+          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${dur}T` : 
+                           h.tipo_clase === TipoClase.PRACTICA ? `${dur}P` : 
+                           `${dur}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+
+          if (fusionados.length > 0) {
+            const ultimo = fusionados[fusionados.length - 1];
+            const esTP = (ultimo.asignacion.tipo_clase === TipoClase.TEORIA && h.tipo_clase === TipoClase.PRACTICA) ||
+                         (ultimo.asignacion.tipo_clase === TipoClase.PRACTICA && h.tipo_clase === TipoClase.TEORIA);
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
+            if (esTP && mismoAmbiente && ultimo.asignacion.curso?.id === h.curso?.id && ultimo.horaFin === hIni) {
+              ultimo.horaFin = hFin;
+              ultimo.totalHoraFin = h.hora_fin;
+              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
+              return;
+            }
+          }
+
+          fusionados.push({
+            horaInicio: hIni,
+            horaFin: hFin,
+            totalHoraInicio: h.hora_inicio,
+            totalHoraFin: h.hora_fin,
+            asignacion: h,
+            carrilIdx,
+            numCarriles: carriles.length,
+            label: (h.curso?.nombre || '') + ` (${labelPart})`
+          });
+        });
+
+        fusionados.forEach(f => {
+          const startRowIdx = horas.indexOf(f.horaInicio);
+          const endRowIdx = horas.indexOf(f.horaFin);
+          if (startRowIdx !== -1 && endRowIdx !== -1 && diaIdx >= 0 && diaIdx < 6) {
+            const blockY = gridY + 10 + startRowIdx * cellHeight;
+            const blockH = (endRowIdx - startRowIdx) * cellHeight;
+            const laneWidth = cellWidth / f.numCarriles;
+            const blockX = 12 + horaColWidth + diaIdx * cellWidth + (f.carrilIdx * laneWidth);
+            const blockW = laneWidth;
+
+            const color = this.getColorForProfesorCurso(docente.id, f.asignacion.curso?.id);
+            doc.setFillColor(...color);
+            doc.rect(blockX, blockY, blockW, blockH, 'F');
+            doc.setDrawColor(150, 150, 150);
+            doc.rect(blockX, blockY, blockW, blockH, 'S');
+
+            doc.setTextColor(51, 51, 51);
+            doc.setFontSize(f.numCarriles > 1 ? 6 : 7);
+            doc.setFont('helvetica', 'bold');
+            const cursoText = f.label;
+            const ambienteText = f.asignacion.ambiente?.codigo || '';
+            const grupoText = f.asignacion.grupo?.codigo || '';
+            
+            const splitCurso = doc.splitTextToSize(cursoText, blockW - 2);
+            doc.text(splitCurso.slice(0, 2), blockX + blockW / 2, blockY + 4, { align: 'center' });
+            if (blockH > 8) doc.text(ambienteText, blockX + blockW / 2, blockY + blockH - 5, { align: 'center' });
+            if (blockH > 12 && f.numCarriles === 1) doc.text(grupoText, blockX + blockW / 2, blockY + blockH - 1.5, { align: 'center' });
+          }
+        });
+      });
     });
 
     return Buffer.from(doc.output('arraybuffer'));
@@ -471,25 +482,267 @@ export class ReportesService {
     return this.generarPDF(html);
   }
 
+  private getColorForProfesorCurso(docenteId: number | undefined, cursoId: number | undefined): [number, number, number] {
+    if (!docenteId || !cursoId) return [240, 240, 240];
+    const colors: [number, number, number][] = [
+      [232, 245, 233], [225, 245, 254], [255, 243, 224], [243, 229, 245], [252, 228, 236],
+      [224, 242, 241], [232, 234, 246], [255, 235, 238], [249, 248, 227], [224, 247, 250]
+    ];
+    const index = (docenteId * 7 + cursoId * 13) % colors.length;
+    return colors[index];
+  }
+
+  private async dibujarPaginaAmbiente(doc: jsPDF, ambienteId: number, periodo: string, logoBase64: string | null, primaryRGB: [number, number, number]): Promise<void> {
+    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
+    if (!ambiente) return;
+
+    const horarios = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("horario.ambiente_id = :ambienteId", { ambienteId })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
+
+    const PAGE_W = 297;
+    const PAGE_H = 210;
+    const C = {
+      primary: primaryRGB,
+      white: [255, 255, 255] as [number, number, number],
+      border: [203, 213, 225] as [number, number, number],
+      text: [51, 65, 85] as [number, number, number],
+    };
+
+    // Cabecera
+    doc.setFillColor(...C.primary);
+    doc.rect(0, 0, PAGE_W, 25, 'F');
+    if (logoBase64) {
+      try { doc.addImage(logoBase64, 'PNG', 10, 3, 18, 18); } catch (e) {}
+    }
+    doc.setTextColor(...C.white);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(`HORARIO POR AMBIENTE: ${ambiente.nombre}`, 32, 11);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`${ambiente.tipo === TipoAmbiente.LABORATORIO ? 'Laboratorio' : 'Aula'} | Capacidad: ${ambiente.capacidad} alumnos`, 32, 18);
+    doc.setFontSize(10);
+    doc.text(`Periodo: ${periodo}`, PAGE_W - 12, 15, { align: 'right' });
+
+    let yPos = 32;
+
+    // Resumen de Cursos en este ambiente
+    const resumenMap = new Map<string, any>();
+    horarios.forEach(h => {
+      if (!h.curso || !h.docente) return;
+      const key = `${h.docente.id}-${h.curso.id}`;
+      if (!resumenMap.has(key)) {
+        resumenMap.set(key, { curso: h.curso, docente: h.docente, horas: 0 });
+      }
+      const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
+      const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+      resumenMap.get(key).horas += (hFin - hIni);
+    });
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Docente', 'Asignatura', 'Horas Semanales']],
+      body: Array.from(resumenMap.values()).map(r => [
+        `${r.docente.apellidos}, ${r.docente.nombres}`,
+        r.curso.nombre,
+        `${r.horas} hrs`
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: C.primary, textColor: C.white, fontStyle: 'bold' },
+      margin: { left: 10, right: 10 }
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 8;
+
+    // Grid de Horarios
+    const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const horas = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 a 22:00
+    const cellHeight = 8;
+    const horaColWidth = 15;
+    const gridWidth = PAGE_W - 20;
+    const cellWidth = (gridWidth - (horaColWidth * 2)) / 6;
+
+    doc.setFillColor(...C.primary);
+    doc.rect(10, yPos, gridWidth, 8, 'F');
+    doc.setTextColor(...C.white);
+    doc.setFontSize(8);
+    doc.text('HORA', 10 + horaColWidth / 2, yPos + 5, { align: 'center' });
+    dias.forEach((dia, idx) => {
+      doc.text(dia, 10 + horaColWidth + idx * cellWidth + cellWidth / 2, yPos + 5, { align: 'center' });
+    });
+    doc.text('HORA', 10 + gridWidth - horaColWidth / 2, yPos + 5, { align: 'center' });
+
+    let currentY = yPos + 8;
+    horas.forEach(hora => {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(10, currentY, horaColWidth, cellHeight, 'F');
+      doc.rect(10 + gridWidth - horaColWidth, currentY, horaColWidth, cellHeight, 'F');
+      doc.setTextColor(...C.text);
+      doc.setFontSize(7);
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 10 + horaColWidth / 2, currentY + cellHeight / 2 + 1.5, { align: 'center' });
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 10 + gridWidth - horaColWidth / 2, currentY + cellHeight / 2 + 1.5, { align: 'center' });
+      
+      for (let i = 0; i < 6; i++) {
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(10 + horaColWidth + i * cellWidth, currentY, cellWidth, cellHeight, 'S');
+      }
+      currentY += cellHeight;
+    });
+
+    // Bloques de clase con lógica de fusión (Teoría + Práctica consecutivo)
+    const bloquesPorDia = new Map<number, HorarioAsignado[]>();
+    horarios.forEach(h => {
+      const dia = h.dia || h.dia_semana;
+      if (!bloquesPorDia.has(dia)) bloquesPorDia.set(dia, []);
+      bloquesPorDia.get(dia)!.push(h);
+    });
+
+    bloquesPorDia.forEach((asigs, dia) => {
+      const diaIdx = dia - 1;
+      const sortedAsigs = [...asigs].sort((a, b) => {
+        const hA = parseInt(a.hora_inicio.split(':')[0], 10);
+        const hB = parseInt(b.hora_inicio.split(':')[0], 10);
+        return hA - hB;
+      });
+
+      const carriles: HorarioAsignado[][] = [];
+      sortedAsigs.forEach(asig => {
+        const hIni = parseInt(asig.hora_inicio.split(':')[0], 10);
+        let carrilIndex = -1;
+        for (let i = 0; i < carriles.length; i++) {
+          const ultimo = carriles[i][carriles[i].length - 1];
+          const hFinUltimo = parseInt(ultimo.hora_fin.split(':')[0], 10);
+          if (hFinUltimo === hIni && ultimo.curso?.id === asig.curso?.id && ultimo.docente?.id === asig.docente?.id) {
+            carrilIndex = i;
+            break;
+          }
+        }
+        if (carrilIndex === -1) {
+          for (let i = 0; i < carriles.length; i++) {
+            const ultimo = carriles[i][carriles[i].length - 1];
+            if (parseInt(ultimo.hora_fin.split(':')[0], 10) <= hIni) {
+              carrilIndex = i;
+              break;
+            }
+          }
+        }
+        if (carrilIndex === -1) carriles.push([asig]);
+        else carriles[carrilIndex].push(asig);
+      });
+
+      carriles.forEach((bloquesEnCarril, carrilIdx) => {
+        const fusionados: any[] = [];
+        bloquesEnCarril.forEach(h => {
+          const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
+          const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+          const dur = hFin - hIni;
+          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${dur}T` : 
+                           h.tipo_clase === TipoClase.PRACTICA ? `${dur}P` : 
+                           `${dur}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+
+          if (fusionados.length > 0) {
+            const ultimo = fusionados[fusionados.length - 1];
+            const esTP = (ultimo.asignacion.tipo_clase === TipoClase.TEORIA && h.tipo_clase === TipoClase.PRACTICA) ||
+                         (ultimo.asignacion.tipo_clase === TipoClase.PRACTICA && h.tipo_clase === TipoClase.TEORIA);
+            if (esTP && ultimo.asignacion.curso?.id === h.curso?.id && ultimo.asignacion.docente?.id === h.docente?.id && ultimo.horaFin === hIni) {
+              ultimo.horaFin = hFin;
+              ultimo.totalHoraFin = h.hora_fin;
+              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
+              return;
+            }
+          }
+
+          fusionados.push({
+            horaInicio: hIni,
+            horaFin: hFin,
+            totalHoraInicio: h.hora_inicio,
+            totalHoraFin: h.hora_fin,
+            asignacion: h,
+            carrilIdx,
+            numCarriles: carriles.length,
+            label: (h.curso?.nombre || '') + ` (${labelPart})`
+          });
+        });
+
+        fusionados.forEach(f => {
+          const startRowIdx = horas.indexOf(f.horaInicio);
+          const endRowIdx = horas.indexOf(f.horaFin);
+          if (startRowIdx !== -1 && endRowIdx !== -1 && diaIdx >= 0 && diaIdx < 6) {
+            const blockY = yPos + 8 + startRowIdx * cellHeight;
+            const blockH = (endRowIdx - startRowIdx) * cellHeight;
+            const laneWidth = cellWidth / f.numCarriles;
+            const blockX = 10 + horaColWidth + diaIdx * cellWidth + (f.carrilIdx * laneWidth);
+            const blockW = laneWidth;
+
+            const color = this.getColorForProfesorCurso(f.asignacion.docente?.id, f.asignacion.curso?.id);
+            doc.setFillColor(...color);
+            doc.rect(blockX, blockY, blockW, blockH, 'F');
+            doc.setDrawColor(150, 150, 150);
+            doc.rect(blockX, blockY, blockW, blockH, 'S');
+
+            doc.setTextColor(51, 51, 51);
+            doc.setFontSize(f.numCarriles > 1 ? 5 : 6);
+            doc.setFont('helvetica', 'bold');
+            const cursoText = f.label;
+            const docenteText = f.asignacion.docente?.apellidos || '';
+            const grupoText = f.asignacion.grupo?.codigo || '';
+            
+            const splitCurso = doc.splitTextToSize(cursoText, blockW - 2);
+            doc.text(splitCurso.slice(0, 2), blockX + blockW / 2, blockY + 3, { align: 'center' });
+            if (blockH > 6) doc.text(docenteText, blockX + blockW / 2, blockY + blockH - 4, { align: 'center' });
+            if (blockH > 9 && f.numCarriles === 1) doc.text(grupoText, blockX + blockW / 2, blockY + blockH - 1.5, { align: 'center' });
+          }
+        });
+      });
+    });
+  }
+
+  async generarReporteAmbienteExcel(ambienteId: number, periodo: string): Promise<Buffer> {
+    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
+    if (!ambiente) throw new Error("Ambiente no encontrado");
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Horario Ambiente');
+    await this.dibujarCicloEnExcel(sheet, 0, periodo, ambienteId); // Modificar dibujarCicloEnExcel para aceptar ambienteId opcional
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
+
   async generarReporteAmbientePDF(
     ambienteId: number,
     periodo: string,
   ): Promise<{ buffer: Buffer; tipo: string }> {
-    const ambiente = await this.ambienteRepo.findOne({
-      where: { id: ambienteId },
-    });
-    if (!ambiente) throw new Error("Ambiente no encontrado");
+    const config = await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl = config?.logo_url || "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
+    const primaryColor = config?.color_primario || "#1a237e";
+    const logoBase64 = await this.getBase64Image(logoUrl);
 
-    if (ambiente.tipo === TipoAmbiente.LABORATORIO) {
-      const buffer = await this.generarReporteLaboratorioPDF(
-        ambienteId,
-        periodo,
-      );
-      return { buffer, tipo: "laboratorio" };
-    }
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    
+    const hexToRgb = (hex: string): [number, number, number] => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return [r, g, b];
+    };
+    const primaryRGB = hexToRgb(primaryColor);
 
-    const buffer = await this.generarReporteAulaPDF(ambienteId, periodo);
-    return { buffer, tipo: "aula" };
+    await this.dibujarPaginaAmbiente(doc, ambienteId, periodo, logoBase64, primaryRGB);
+
+    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
+    return { 
+      buffer: Buffer.from(doc.output('arraybuffer')), 
+      tipo: ambiente?.tipo === TipoAmbiente.LABORATORIO ? "laboratorio" : "aula" 
+    };
   }
 
   async generarReporteOperacionalPDF(periodo: string): Promise<Buffer> {
@@ -698,39 +951,15 @@ export class ReportesService {
     docenteId: number,
     periodo: string,
   ): Promise<Buffer> {
-    const docente = await this.docenteRepo.findOne({
-      where: { id: docenteId },
-    });
-    const horarios = await this.horarioRepo.find({
-      where: { docente_id: docenteId, periodo },
-      relations: ["curso", "ambiente"],
-    });
+    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    if (!docente) throw new Error("Docente no encontrado");
 
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Horario");
-
-    sheet.columns = [
-      { header: "Día", key: "dia", width: 15 },
-      { header: "Hora Inicio", key: "inicio", width: 12 },
-      { header: "Hora Fin", key: "fin", width: 12 },
-      { header: "Curso", key: "curso", width: 30 },
-      { header: "Tipo", key: "tipo", width: 10 },
-      { header: "Ambiente", key: "ambiente", width: 15 },
-    ];
-
-    const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-    horarios.forEach((h) => {
-      sheet.addRow({
-        dia: dias[h.dia] || h.dia,
-        inicio: h.hora_inicio,
-        fin: h.hora_fin,
-        curso: h.curso?.nombre,
-        tipo: h.tipo_clase,
-        ambiente: h.ambiente?.codigo,
-      });
-    });
-
-    return (await workbook.xlsx.writeBuffer()) as any;
+    const sheet = workbook.addWorksheet('Horario Docente');
+    
+    await this.dibujarCicloEnExcel(sheet, 0, periodo, undefined, docenteId);
+    
+    return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
   async generarReporteCompletoExcel(periodo: string): Promise<Buffer> {
@@ -978,13 +1207,162 @@ export class ReportesService {
       .sort((a, b) => b.horas - a.horas);
   }
 
-  async generarReporteCicloPDF(
-    ciclo: number,
-    periodo: string,
-  ): Promise<Buffer> {
+  async generarReporteCicloPDF(ciclo: number, periodo: string): Promise<Buffer> {
+    const config = await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl = config?.logo_url || "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
+    const primaryColor = config?.color_primario || "#1a237e";
+    const logoBase64 = await this.getBase64Image(logoUrl);
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    
+    const hexToRgb = (hex: string): [number, number, number] => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return [r, g, b];
+    };
+    const primaryRGB = hexToRgb(primaryColor);
+
+    await this.dibujarPaginaCiclo(doc, ciclo, periodo, logoBase64, primaryRGB);
+
+    // Agregar pie de página para reporte individual
+    const pW = doc.internal.pageSize.getWidth();
+    const pH = doc.internal.pageSize.getHeight();
+    doc.setPage(1);
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, pH - 12, pW, 12, 'F');
+    doc.setDrawColor(230, 230, 230);
+    doc.line(10, pH - 12, pW - 10, pH - 12);
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Generado el: ${new Date().toLocaleString()}`, 15, pH - 6);
+    doc.text(`Página 1 de 1`, pW - 15, pH - 6, { align: 'right' });
+
+    return Buffer.from(doc.output('arraybuffer'));
+  }
+
+  async generarReporteTodosCiclosPDF(periodo: string): Promise<Buffer> {
+    const config = await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl = config?.logo_url || "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
+    const primaryColor = config?.color_primario || "#1a237e";
+
+    // Cargar logo como base64
+    const logoBase64 = await this.getBase64Image(logoUrl);
+
+    const ciclos = [1, 3, 5, 7, 9];
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const PAGE_W = 210;
+    const PAGE_H = 297;
+
+    // Convertir hexadecimal a RGB para jsPDF
+    const hexToRgb = (hex: string): [number, number, number] => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return [r, g, b];
+    };
+    const primaryRGB = hexToRgb(primaryColor);
+
+    // --- PÁGINA 1: INFORMACIÓN GENERAL (VERTICAL) ---
+    doc.setFillColor(...primaryRGB);
+    doc.rect(0, 0, PAGE_W, 45, 'F');
+    
+    // Logo en la primera página
+    if (logoBase64) {
+      try {
+        doc.addImage(logoBase64, 'PNG', 15, 10, 25, 25);
+      } catch (e) {
+        this.logger.warn("No se pudo cargar el logo en la primera página del PDF");
+      }
+    }
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text('PROGRAMACIÓN ACADÉMICA', PAGE_W / 2 + 10, 22, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text(`SEMESTRE ACADÉMICO ${periodo}`, PAGE_W / 2 + 10, 32, { align: 'center' });
+
+    doc.setTextColor(33, 33, 33);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    
+    let currentY = 60;
+    doc.setFont('helvetica', 'bold');
+    doc.text('INFORMACIÓN DE LA INSTITUCIÓN', 20, currentY);
+    currentY += 10;
+    doc.setFont('helvetica', 'normal');
+    doc.text(config?.nombre_institucional || 'Universidad Nacional de Trujillo', 25, currentY); currentY += 7;
+    doc.text('Facultad de Ingeniería', 25, currentY); currentY += 7;
+    doc.text('Escuela Profesional de Ingeniería de Sistemas', 25, currentY); currentY += 15;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMEN DE CICLOS INCLUIDOS', 20, currentY);
+    currentY += 10;
+    
+    const tableData = [];
+    for (const ciclo of ciclos) {
+      const count = await this.horarioRepo
+        .createQueryBuilder("horario")
+        .innerJoin("horario.curso", "curso")
+        .where("curso.ciclo = :ciclo", { ciclo })
+        .andWhere("horario.periodo = :periodo", { periodo })
+        .getCount();
+      tableData.push([`Ciclo ${ciclo}`, `${count} asignaciones`]);
+    }
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Ciclo', 'N° Asignaciones']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: primaryRGB },
+      margin: { left: 25, right: 25 }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 25;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Este documento contiene la programación detallada de horarios para los ciclos impares del periodo.', 20, currentY);
+    currentY += 6;
+    doc.text('Generado automáticamente por el Sistema de Gestión de Horarios UNT.', 20, currentY);
+
+    // --- SIGUIENTES PÁGINAS: HORARIOS (HORIZONTAL) ---
+    for (const ciclo of ciclos) {
+      doc.addPage('a4', 'landscape');
+      await this.dibujarPaginaCiclo(doc, ciclo, periodo, logoBase64, primaryRGB);
+    }
+
+    // --- AGREGAR PIE DE PÁGINA (NÚMEROS Y FECHA) ---
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      const isLandscape = doc.internal.pageSize.getWidth() > doc.internal.pageSize.getHeight();
+      const pW = doc.internal.pageSize.getWidth();
+      const pH = doc.internal.pageSize.getHeight();
+      
+      // Fondo para el pie de página para que no se superponga
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, pH - 12, pW, 12, 'F');
+      
+      doc.setDrawColor(230, 230, 230);
+      doc.line(10, pH - 12, pW - 10, pH - 12);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Generado el: ${new Date().toLocaleString()}`, 15, pH - 6);
+      doc.text(`Página ${i} de ${pageCount}`, pW - 15, pH - 6, { align: 'right' });
+    }
+
+    return Buffer.from(doc.output('arraybuffer'));
+  }
+
+  private async dibujarPaginaCiclo(doc: jsPDF, ciclo: number, periodo: string, logoBase64: string | null, primaryRGB: [number, number, number]): Promise<void> {
     const horarios = await this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("docente.departamento", "departamento")
       .leftJoinAndSelect("horario.curso", "curso")
       .leftJoinAndSelect("horario.ambiente", "ambiente")
       .leftJoinAndSelect("horario.grupo", "grupo")
@@ -994,18 +1372,12 @@ export class ReportesService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
     
-    // Normalizar horas para quitar segundos (convertir "07:00:00" a "07:00")
     horarios.forEach(h => {
-      if (h.hora_inicio && h.hora_inicio.length > 5) {
-        h.hora_inicio = h.hora_inicio.substring(0, 5);
-      }
-      if (h.hora_fin && h.hora_fin.length > 5) {
-        h.hora_fin = h.hora_fin.substring(0, 5);
-      }
+      if (h.hora_inicio && h.hora_inicio.length > 5) h.hora_inicio = h.hora_inicio.substring(0, 5);
+      if (h.hora_fin && h.hora_fin.length > 5) h.hora_fin = h.hora_fin.substring(0, 5);
     });
 
-    // Obtener configuración del bloque de almuerzo desde la base de datos
-    let almuerzoInicio = 12;
+    let almuerzoInicio = 13;
     let almuerzoFin = 14;
     try {
       const restricciones = await this.configuracionService.getRestriccionesMap(periodo);
@@ -1014,193 +1386,112 @@ export class ReportesService {
         almuerzoInicio = parseInt(bloqueAlmuerzo.hora_inicio.split(':')[0], 10);
         almuerzoFin = parseInt(bloqueAlmuerzo.hora_fin.split(':')[0], 10);
       }
-    } catch (error) {
-      this.logger.warn(`No se pudo obtener configuración de almuerzo, usando valores por defecto: ${error}`);
-    }
-
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4',
-    });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 10;
-    const contentWidth = pageWidth - margin * 2;
-
-    // Colores
-    const colors = {
-      primary: '#1a237e',
-      primaryLight: '#3f51b5',
-      secondary: '#0d47a1',
-      accent: '#ffc107',
-      success: '#2e7d32',
-      danger: '#c62828',
-      info: '#0277bd',
-      light: '#f5f5f5',
-      dark: '#263238',
-      blanco: '#ffffff',
-      grisClaro: '#e0e0e0',
-      grisMedio: '#bdbdbd',
-      grisOscuro: '#757575',
-      theory: '#e3f2fd',
-      theoryBorder: '#90caf9',
-      lab: '#e8f5e9',
-      labBorder: '#81c784',
-      almuerzo: '#fff3e0',
-      almuerzoBorder: '#ffb74d',
-    };
-
-    // Paleta de colores pasteles para profesores
-    const profesorColors: [number, number, number][] = [
-      [255, 205, 210],
-      [248, 187, 217],
-      [240, 178, 122],
-      [249, 231, 159],
-      [213, 245, 227],
-      [174, 214, 241],
-      [215, 189, 226],
-      [250, 219, 216],
-      [169, 223, 191],
-      [249, 235, 234],
-      [212, 239, 223],
-      [169, 204, 227],
-      [232, 218, 239],
-      [245, 238, 248],
-      [235, 245, 251],
-    ];
-    const profesorColorMap = new Map<number, [number, number, number]>();
-    const profesoresUnicos = Array.from(new Set(horarios.map(h => h.docente?.id).filter(Boolean)));
-    profesoresUnicos.forEach((id, idx) => {
-      profesorColorMap.set(id, profesorColors[idx % profesorColors.length]);
-    });
-    const getColorForProfesor = (docenteIdParam: number | undefined): [number, number, number] => {
-      if (!docenteIdParam) return profesorColors[0];
-      return profesorColorMap.get(docenteIdParam) ?? profesorColors[0];
-    };
-
-    // Función para convertir horas a decimal
-    const horaToDecimal = (hora: string): number => {
-      const [h, m] = hora.split(':').map(Number);
-      return h + (m || 0) / 60;
-    };
-
-    // Fusionar horarios consecutivos (EXACTAMENTE igual que el frontend)
-    const sortedHorarios = [...horarios].sort((a, b) => {
-      const diaDiff = (a.dia ?? a.dia_semana) - (b.dia ?? b.dia_semana);
-      if (diaDiff !== 0) return diaDiff;
-      return horaToDecimal(a.hora_inicio) - horaToDecimal(b.hora_inicio);
-    });
-    const keyToAsignacionMap = new Map<string, HorarioAsignado>();
-    sortedHorarios.forEach(asignacion => {
-      const dia = asignacion.dia ?? asignacion.dia_semana;
-      const key = `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${asignacion.grupo?.id}-${dia}-${asignacion.tipo_clase}`;
-      const existing = keyToAsignacionMap.get(key);
-      if (existing) {
-        const existingHoraFin = horaToDecimal(existing.hora_fin);
-        const currentHoraInicio = horaToDecimal(asignacion.hora_inicio);
-        if (Math.abs(existingHoraFin - currentHoraInicio) < 0.1) {
-          existing.hora_fin = asignacion.hora_fin;
-        } else {
-          keyToAsignacionMap.set(`${key}-${Date.now()}-${Math.random()}`, asignacion);
-        }
-      } else {
-        keyToAsignacionMap.set(key, asignacion);
-      }
-    });
-    const asignaciones = Array.from(keyToAsignacionMap.values());
-
-    // Paleta de colores
-    const C = {
-      primary: [79, 70, 229] as [number, number, number],
-      primaryDark: [55, 48, 163] as [number, number, number],
-      primaryLight: [237, 233, 254] as [number, number, number],
-      primaryText: [55, 48, 163] as [number, number, number],
-      labBg: [209, 250, 229] as [number, number, number],
-      labFg: [6, 78, 59] as [number, number, number],
-      labBorder: [16, 185, 129] as [number, number, number],
-      rowAlt: [248, 247, 255] as [number, number, number],
-      horaCol: [241, 245, 249] as [number, number, number],
-      horaTxt: [51, 65, 85] as [number, number, number],
-      border: [203, 213, 225] as [number, number, number],
-      white: [255, 255, 255] as [number, number, number],
-      gray: [100, 116, 139] as [number, number, number],
-      dark: [15, 23, 42] as [number, number, number],
-    };
-
-    const C_ALM_BG = [255, 243, 205] as [number, number, number];
-    const C_ALM_FG = [146, 64, 14] as [number, number, number];
-    const C_ALM_BD = [251, 191, 36] as [number, number, number];
+    } catch (error) {}
 
     const PAGE_W = 297;
+    const PAGE_H = 210;
+    const C = {
+      primary: primaryRGB,
+      white: [255, 255, 255] as [number, number, number],
+      border: [203, 213, 225] as [number, number, number],
+      text: [51, 65, 85] as [number, number, number],
+    };
 
-    // Cabecera principal
-    doc.setFillColor(...C.primaryDark);
-    doc.rect(0, 0, PAGE_W, 22, 'F');
-
+    // Cabecera con Logo
     doc.setFillColor(...C.primary);
-    doc.rect(0, 18, PAGE_W, 4, 'F');
+    doc.rect(0, 0, PAGE_W, 25, 'F');
+    
+    if (logoBase64) {
+      try {
+        doc.addImage(logoBase64, 'PNG', 10, 3, 18, 18);
+      } catch (e) {}
+    }
 
     doc.setTextColor(...C.white);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text('HORARIO ACADEMICO - CICLO ' + ciclo, 12, 9);
-
+    doc.setFontSize(14);
+    doc.text(`HORARIO ACADÉMICO - CICLO ${ciclo}`, 32, 11);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('Universidad Nacional de Trujillo', 12, 15);
-
-    // Info ciclo (derecha)
-    doc.setFontSize(8);
+    doc.setFontSize(9);
+    doc.text('Universidad Nacional de Trujillo | Ingeniería de Sistemas', 32, 18);
+    
     doc.setFont('helvetica', 'bold');
-    const infoX = PAGE_W - 12;
-    doc.text(`Periodo: ${periodo}`, infoX, 7, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.text(`Almuerzo: ${almuerzoInicio}:00 - ${almuerzoFin}:00`, infoX, 13, { align: 'right' });
+    doc.setFontSize(10);
+    doc.text(`Periodo: ${periodo}`, PAGE_W - 12, 15, { align: 'right' });
 
-    let yPos = 27;
+    let yPos = 30;
 
-    // Obtener profesores y cursos únicos
+    // Profesores Table (Resumen)
     const profesoresCursosMap = new Map<string, any>();
     horarios.forEach(a => {
       if (!a.docente || !a.curso) return;
       const key = `${a.docente.id}-${a.curso.id}`;
       if (!profesoresCursosMap.has(key)) {
-        profesoresCursosMap.set(key, {
-          docente: a.docente,
-          curso: a.curso,
-          horas: 0
+        profesoresCursosMap.set(key, { 
+          docente: a.docente, 
+          curso: a.curso, 
+          horas: 0,
+          hTeoria: 0,
+          hPractica: 0,
+          hLaboratorio: 0
         });
       }
       const entry = profesoresCursosMap.get(key);
       const hInicio = parseInt(a.hora_inicio.split(':')[0], 10);
       const hFin = parseInt(a.hora_fin.split(':')[0], 10);
-      entry.horas += (hFin - hInicio);
+      const duration = (hFin - hInicio);
+      entry.horas += duration;
+      
+      if (a.tipo_clase === TipoClase.TEORIA) entry.hTeoria += duration;
+      else if (a.tipo_clase === TipoClase.PRACTICA) entry.hPractica += duration;
+      else if (a.tipo_clase === TipoClase.LABORATORIO) entry.hLaboratorio += duration;
     });
-    const profesoresCursos = Array.from(profesoresCursosMap.values()).sort((a, b) => 
-      a.docente.apellidos.localeCompare(b.docente.apellidos)
-    );
+    
+    const hierarchy: { [key: string]: number } = {
+      'PRINCIPAL': 1,
+      'ASOCIADO': 2,
+      'AUXILIAR': 3,
+      'SIN_CATEGORIA': 4
+    };
 
-    // Construir tabla de profesores
-    const profesoresTableData = profesoresCursos.map((item, idx) => ({
-      n: idx + 1,
-      profesor: `${item.docente.apellidos}, ${item.docente.nombres}`,
-      asignatura: item.curso.nombre,
-      t: item.curso.horas_teoria || '-',
-      p: '-',
-      l: item.curso.horas_laboratorio || '-',
-      th: item.horas,
-      docenteId: item.docente.id
-    }));
+    const profesoresCursos = Array.from(profesoresCursosMap.values()).sort((a, b) => {
+      const docA = a.docente;
+      const docB = b.docente;
+      const isSistemasA = docA?.departamento?.nombre === 'Ing. de Sistemas' ? 1 : 0;
+      const isSistemasB = docB?.departamento?.nombre === 'Ing. de Sistemas' ? 1 : 0;
+      if (isSistemasA !== isSistemasB) return isSistemasB - isSistemasA;
+      const rankA = hierarchy[docA?.categoria] || 99;
+      const rankB = hierarchy[docB?.categoria] || 99;
+      if (rankA !== rankB) return rankA - rankB;
+      return (docA?.apellidos || '').localeCompare(docB?.apellidos || '');
+    });
+
+    const profesorColorsCiclo: [number, number, number][] = [
+      [255, 235, 238], [252, 228, 236], [243, 229, 245], [237, 231, 246], [232, 234, 246],
+      [227, 242, 253], [224, 247, 250], [224, 242, 241], [232, 245, 233], [241, 248, 233]
+    ];
+    const profesorCursoColorMapCiclo = new Map<string, [number, number, number]>();
+    profesoresCursos.forEach((item, idx) => {
+      const key = `${item.docente.id}-${item.curso.id}`;
+      profesorCursoColorMapCiclo.set(key, profesorColorsCiclo[idx % profesorColorsCiclo.length]);
+    });
 
     autoTable(doc, {
       startY: yPos,
-      head: [['N°', 'Profesor', 'Asignatura', 'T', 'P', 'L', 'T. Horas']],
-      body: profesoresTableData.map(d => [d.n, d.profesor, d.asignatura, d.t, d.p, d.l, d.th]),
+      head: [['N°', 'Profesor', 'Departamento', 'Asignatura', 'T', 'P', 'L', 'T. Horas']],
+      body: profesoresCursos.map((item, idx) => [
+        idx + 1,
+        `${item.docente.apellidos}, ${item.docente.nombres}`,
+        item.docente.departamento?.nombre || '—',
+        item.curso.nombre,
+        item.hTeoria || '-',
+        item.hPractica || '-',
+        item.hLaboratorio || '-',
+        item.horas
+      ]),
       theme: 'grid',
       styles: {
-        fontSize: 6,
+        fontSize: 5.5,
         cellPadding: { top: 1.5, bottom: 1.5, left: 1.5, right: 1.5 },
         valign: 'middle',
         halign: 'left',
@@ -1212,186 +1503,654 @@ export class ReportesService {
         fillColor: C.primary,
         textColor: C.white,
         fontStyle: 'bold',
-        fontSize: 7,
+        fontSize: 6.5,
         halign: 'center',
         cellPadding: { top: 2, bottom: 2, left: 1.5, right: 1.5 },
       },
       columnStyles: {
-        0: { halign: 'center', cellWidth: 12 },
-        3: { halign: 'center', cellWidth: 12 },
-        4: { halign: 'center', cellWidth: 12 },
-        5: { halign: 'center', cellWidth: 12 },
-        6: { halign: 'center', cellWidth: 16, fontStyle: 'bold' }
+        0: { halign: 'center', cellWidth: 8 },
+        2: { cellWidth: 35 },
+        4: { halign: 'center', cellWidth: 8 },
+        5: { halign: 'center', cellWidth: 8 },
+        6: { halign: 'center', cellWidth: 8 },
+        7: { halign: 'center', cellWidth: 12, fontStyle: 'bold' }
       },
       didParseCell: (data) => {
         if (data.section !== 'body') return;
         const rowIndex = data.row.index;
-        const item = profesoresTableData[rowIndex];
-        if (item?.docenteId) {
-          data.cell.styles.fillColor = getColorForProfesor(item.docenteId);
+        const item = profesoresCursos[rowIndex];
+        if (item?.docente?.id && item?.curso?.id) {
+          const key = `${item.docente.id}-${item.curso.id}`;
+          const rgb = profesorCursoColorMapCiclo.get(key);
+          if (rgb) data.cell.styles.fillColor = rgb;
         }
       },
       margin: { left: 8, right: 8 }
     });
-    yPos = (doc as any).lastAutoTable.finalY + 5;
+    
+    yPos = (doc as any).lastAutoTable.finalY + 6;
 
+    // Grid de Horarios
     const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     const diasNum = [1, 2, 3, 4, 5, 6];
-    const horas = Array.from({ length: 18 }, (_, i) => i + 7); // De 7 a 24
+    const horas = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 a 22:00
+    const cellHeight = 6.5; // Reducido un poco más para asegurar que quepa con el footer
+    const horaColWidth = 15;
+    const gridWidth = PAGE_W - 20;
+    const cellWidth = (gridWidth - (horaColWidth * 2)) / 6;
 
-    // Función para convertir horas a decimal (renombrada para evitar conflictos)
-    const horaToDecimal2 = (hora: string): number => {
-      const [h, m] = hora.split(':').map(Number);
-      return h + (m || 0) / 60;
-    };
-
-    // Generar bloques para el grid
-    interface BloquePDF {
-      dia: number;
-      horaInicio: number;
-      horaFin: number;
-      asignacion: HorarioAsignado;
-      left: number;
-      width: number;
-    }
-    const bloques: BloquePDF[] = [];
-    const bloquesPorDiaYHora: Map<string, BloquePDF[]> = new Map();
-    asignaciones.forEach(asignacion => {
-      const dia = asignacion.dia ?? asignacion.dia_semana;
-      const horaInicio = horaToDecimal2(asignacion.hora_inicio);
-      const horaFin = horaToDecimal2(asignacion.hora_fin);
-      const bloque = {
-        dia,
-        horaInicio,
-        horaFin,
-        asignacion,
-        left: 0,
-        width: 0,
-      };
-      for (let h = Math.floor(horaInicio); h < horaFin; h++) {
-        const key = `${dia}-${h}`;
-        if (!bloquesPorDiaYHora.has(key)) {
-          bloquesPorDiaYHora.set(key, []);
-        }
-        if (h === Math.floor(horaInicio)) {
-          bloquesPorDiaYHora.get(key)!.push(bloque);
-        }
-      }
-    });
-    bloquesPorDiaYHora.forEach((bloquesEnCelda, key) => {
-      const anchoPorBloque = 100 / bloquesEnCelda.length;
-      bloquesEnCelda.forEach((bloque, index) => {
-        bloque.left = index * anchoPorBloque;
-        bloque.width = anchoPorBloque;
-        bloques.push(bloque);
-      });
-    });
-
-    const startY = yPos;
-    const cellHeight = 7.5;
-    const cellWidth = (PAGE_W - 16 - 20) / 7;
-    const horaColWidth = 20;
-    const gridHeight = horas.length * cellHeight;
-    const gridWidth = PAGE_W - 16;
-
-    // 1. Dibujar encabezado
-    doc.setFillColor(79, 70, 229);
-    doc.rect(8, startY, gridWidth, 10, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('HORA', 10, startY + 7);
+    // Dibujar Encabezado Grid
+    doc.setFillColor(...C.primary);
+    doc.rect(10, yPos, gridWidth, 8, 'F');
+    doc.setTextColor(...C.white);
+    doc.setFontSize(8);
+    doc.text('HORA', 10 + horaColWidth / 2, yPos + 5, { align: 'center' });
     dias.forEach((dia, idx) => {
-      doc.text(dia, 8 + horaColWidth + idx * cellWidth + cellWidth / 2, startY + 7, { align: 'center' });
+      doc.text(dia, 10 + horaColWidth + idx * cellWidth + cellWidth / 2, yPos + 5, { align: 'center' });
     });
-    doc.text('HORA', 8 + gridWidth - 10, startY + 7, { align: 'right' });
-
-    // 2. Dibujar fondo del grid y celdas de hora
-    let currentY = startY + 10;
+    doc.text('HORA', 10 + gridWidth - horaColWidth / 2, yPos + 5, { align: 'center' });
+    
+    let currentY = yPos + 8;
+    
+    // Dibujar Filas de Horas
     horas.forEach((hora) => {
-      // Columna hora izquierda
-      doc.setFillColor(241, 245, 249);
-      doc.rect(8, currentY, horaColWidth, cellHeight, 'F');
-      doc.setTextColor(51, 65, 85);
+      // Fondos de columnas de horas
+      doc.setFillColor(248, 250, 252);
+      doc.rect(10, currentY, horaColWidth, cellHeight, 'F');
+      doc.rect(10 + gridWidth - horaColWidth, currentY, horaColWidth, cellHeight, 'F');
+      
+      doc.setTextColor(...C.text);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.text(`${String(hora).padStart(2, '0')}:00`, 10, currentY + cellHeight / 2 + 2);
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 10 + horaColWidth / 2, currentY + cellHeight / 2 + 1.5, { align: 'center' });
+      doc.text(`${String(hora).padStart(2, '0')}:00`, 10 + gridWidth - horaColWidth / 2, currentY + cellHeight / 2 + 1.5, { align: 'center' });
       
-      // Columna hora derecha
-      doc.setFillColor(241, 245, 249);
-      doc.rect(8 + gridWidth - horaColWidth, currentY, horaColWidth, cellHeight, 'F');
-      doc.setTextColor(51, 65, 85);
-      doc.text(`${String(hora).padStart(2, '0')}:00`, 8 + gridWidth - 10, currentY + cellHeight / 2 + 2, { align: 'right' });
-      
-      // Fondo solo para el almuerzo (no para las otras celdas, para que los bloques se vean completos)
-      diasNum.forEach((dia, idx) => {
-        const esAlm = hora >= almuerzoInicio && hora < almuerzoFin;
-        const cellX = 8 + horaColWidth + idx * cellWidth;
-        if (esAlm) {
-          doc.setFillColor(255, 243, 205);
+      // Dibujar celdas de días y almuerzo
+      diasNum.forEach((d, idx) => {
+        const cellX = 10 + horaColWidth + idx * cellWidth;
+        const isAlmuerzo = hora >= almuerzoInicio && hora < almuerzoFin;
+        
+        if (isAlmuerzo) {
+          doc.setFillColor(255, 248, 225);
           doc.rect(cellX, currentY, cellWidth, cellHeight, 'F');
-          doc.setTextColor(146, 64, 14);
-          doc.setFontSize(8);
-          doc.text('Almuerzo', cellX + cellWidth / 2, currentY + cellHeight / 2 + 2, { align: 'center' });
+          doc.setTextColor(180, 120, 0);
+          doc.setFontSize(6);
+          doc.text('ALMUERZO', cellX + cellWidth / 2, currentY + cellHeight / 2 + 1, { align: 'center' });
         }
+        
+        // Bordes de celda
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.1);
+        doc.rect(cellX, currentY, cellWidth, cellHeight, 'S');
       });
+      
+      // Bordes de columna de hora
+      doc.rect(10, currentY, horaColWidth, cellHeight, 'S');
+      doc.rect(10 + gridWidth - horaColWidth, currentY, horaColWidth, cellHeight, 'S');
+      
       currentY += cellHeight;
     });
 
-    // 3. Dibujar bordes del grid (ANTES de los bloques)
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(0.25);
-    for (let i = 0; i <= horas.length; i++) {
-      const y = startY + 10 + i * cellHeight;
-      doc.line(8, y, 8 + gridWidth, y);
-    }
-    doc.line(8, startY + 10, 8, startY + 10 + gridHeight);
-    doc.line(8 + horaColWidth, startY + 10, 8 + horaColWidth, startY + 10 + gridHeight);
-    diasNum.forEach((_, idx) => {
-      const x = 8 + horaColWidth + (idx + 1) * cellWidth;
-      doc.line(x, startY + 10, x, startY + 10 + gridHeight);
+    // Dibujar Bloques de Clase
+    const bloquesPorDia = new Map<number, any[]>();
+    horarios.forEach(h => {
+      const dia = h.dia ?? h.dia_semana;
+      if (!bloquesPorDia.has(dia)) bloquesPorDia.set(dia, []);
+      bloquesPorDia.get(dia).push(h);
     });
-    doc.line(8 + gridWidth - horaColWidth, startY + 10, 8 + gridWidth - horaColWidth, startY + 10 + gridHeight);
-    doc.line(8 + gridWidth, startY + 10, 8 + gridWidth, startY + 10 + gridHeight);
 
-    // 4. Dibujar bloques de horario (DESPUÉS de los bordes, para taparlos)
-    bloques.forEach(bloque => {
-      const diaIdx = bloque.dia - 1;
-      const cellX = 8 + horaColWidth + diaIdx * cellWidth + (bloque.left / 100) * cellWidth;
-      const cellWidthBloque = (bloque.width / 100) * cellWidth;
-      const startRowIdx = horas.indexOf(Math.floor(bloque.horaInicio));
-      const endRowIdx = horas.indexOf(Math.floor(bloque.horaFin));
-      if (startRowIdx === -1 || endRowIdx === -1) return;
-      const cellY = startY + 10 + startRowIdx * cellHeight;
-      const cellHeightBloque = (endRowIdx - startRowIdx) * cellHeight;
-
-      // Fondo del bloque (TAPA LOS BORDES)
-      const color = getColorForProfesor(bloque.asignacion.docente?.id);
-      doc.setFillColor(...color);
-      doc.rect(cellX, cellY, cellWidthBloque, cellHeightBloque, 'F');
+    bloquesPorDia.forEach((bloques, dia) => {
+      const diaIdx = dia - 1;
       
-      // Dibujar un borde fino alrededor del bloque para que se vea bien
-      doc.setDrawColor(150, 150, 150);
-      doc.setLineWidth(0.2);
-      doc.rect(cellX, cellY, cellWidthBloque, cellHeightBloque, 'S');
+      // Ordenar bloques por hora de inicio
+      const bloquesOrdenados = [...bloques].sort((a, b) => {
+        const hIniA = parseInt(a.hora_inicio.split(':')[0], 10);
+        const hIniB = parseInt(b.hora_inicio.split(':')[0], 10);
+        if (hIniA !== hIniB) return hIniA - hIniB;
+        return a.id - b.id;
+      });
 
-      // Texto del bloque
-      doc.setTextColor(51, 51, 51);
-      doc.setFontSize(4);
-      doc.setFont('helvetica', 'bold');
-      const profesor = bloque.asignacion.docente?.apellidos ?? '—';
-      const curso = bloque.asignacion.curso?.nombre ?? '—';
-      const amb = bloque.asignacion.ambiente?.codigo ?? '—';
-      const texto1 = profesor.length > 10 ? profesor.substring(0, 10) + '...' : profesor;
-      const texto2 = curso.length > 12 ? curso.substring(0, 12) + '...' : curso;
-      const texto3 = amb;
-      const textY = cellY + 2;
-      doc.text(texto1, cellX + cellWidthBloque / 2, textY, { align: 'center' });
-      doc.text(texto2, cellX + cellWidthBloque / 2, textY + 2, { align: 'center' });
-      doc.text(texto3, cellX + cellWidthBloque / 2, textY + 4, { align: 'center' });
+      // Lane assignment algorithm (Interval Scheduling)
+      const carriles: any[][] = [];
+      
+      bloquesOrdenados.forEach(bloque => {
+        const hIni = parseInt(bloque.hora_inicio.split(':')[0], 10);
+        
+        // Buscar primer carril libre
+        let carrilIndex = -1;
+
+        // 1. Prioridad: Mismo curso consecutivo
+        for (let i = 0; i < carriles.length; i++) {
+          const ultimoBloque = carriles[i][carriles[i].length - 1];
+          const hFinUltimo = parseInt(ultimoBloque.hora_fin.split(':')[0], 10);
+          if (hFinUltimo === hIni && ultimoBloque.curso?.id === bloque.curso?.id) {
+            carrilIndex = i;
+            break;
+          }
+        }
+
+        // 2. Segunda opción: Cualquier carril libre
+        if (carrilIndex === -1) {
+          for (let i = 0; i < carriles.length; i++) {
+            const ultimoBloque = carriles[i][carriles[i].length - 1];
+            const hFinUltimo = parseInt(ultimoBloque.hora_fin.split(':')[0], 10);
+            if (hFinUltimo <= hIni) {
+              carrilIndex = i;
+              break;
+            }
+          }
+        }
+
+        if (carrilIndex === -1) {
+          carriles.push([bloque]);
+        } else {
+          carriles[carrilIndex].push(bloque);
+        }
+      });
+
+      const numCarriles = carriles.length;
+      
+      // Pre-procesar bloques para calcular anchos dinámicos (Igual que en el frontend)
+      const todosLosBloquesDelDia: any[] = [];
+      carriles.forEach((bloquesEnCarril, carrilIdx) => {
+        bloquesEnCarril.forEach(asig => {
+          todosLosBloquesDelDia.push({
+            asig,
+            carrilIdx,
+            hIni: parseInt(asig.hora_inicio.split(':')[0], 10),
+            hFin: parseInt(asig.hora_fin.split(':')[0], 10)
+          });
+        });
+      });
+
+      carriles.forEach((bloquesEnCarril, carrilIdx) => {
+        const fusionados: any[] = [];
+        bloquesEnCarril.forEach(h => {
+          const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
+          const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+          const dur = hFin - hIni;
+          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${dur}T` : 
+                           h.tipo_clase === TipoClase.PRACTICA ? `${dur}P` : 
+                           `${dur}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+
+          // Calcular el número máximo de carriles ocupados durante este bloque específico
+          let maxCarrilIdxEnIntervalo = 0;
+          todosLosBloquesDelDia.forEach(otro => {
+            if (hIni < otro.hFin && otro.hIni < hFin) {
+              if (otro.carrilIdx > maxCarrilIdxEnIntervalo) {
+                maxCarrilIdxEnIntervalo = otro.carrilIdx;
+              }
+            }
+          });
+          
+          const numCarrilesLocales = maxCarrilIdxEnIntervalo + 1;
+          const widthPorBloqueLocal = (cellWidth - 1) / numCarrilesLocales;
+
+          if (fusionados.length > 0) {
+            const ultimo = fusionados[fusionados.length - 1];
+            const esTP = (ultimo.asignacion.tipo_clase === TipoClase.TEORIA && h.tipo_clase === TipoClase.PRACTICA) ||
+                         (ultimo.asignacion.tipo_clase === TipoClase.PRACTICA && h.tipo_clase === TipoClase.TEORIA);
+            
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
+
+            if (esTP && mismoAmbiente && ultimo.asignacion.curso?.id === h.curso?.id && ultimo.horaFin === hIni) {
+              ultimo.horaFin = hFin;
+              ultimo.totalHoraFin = h.hora_fin;
+              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
+              
+              // Actualizar el ancho y posición si el nuevo bloque fusionado tiene más colisiones
+              if (numCarrilesLocales > Math.round((cellWidth - 1) / ultimo.width)) {
+                ultimo.width = (cellWidth - 1) / numCarrilesLocales;
+                ultimo.left = carrilIdx * ultimo.width;
+              }
+              return;
+            }
+          }
+
+          fusionados.push({
+            dia: dia,
+            horaInicio: hIni,
+            horaFin: hFin,
+            totalHoraInicio: h.hora_inicio,
+            totalHoraFin: h.hora_fin,
+            asignacion: h,
+            left: carrilIdx * widthPorBloqueLocal,
+            width: widthPorBloqueLocal,
+            label: (h.curso?.nombre || '') + ` (${labelPart})`
+          });
+        });
+
+        fusionados.forEach(f => {
+          const rowStart = horas.indexOf(f.horaInicio);
+          const rowEnd = horas.indexOf(f.horaFin);
+          
+          if (rowStart !== -1 && rowEnd !== -1) {
+            const blockX = 10 + horaColWidth + diaIdx * cellWidth + 0.5 + f.left;
+            const blockY = yPos + 8 + rowStart * cellHeight + 0.5;
+            const blockW = f.width - 0.5;
+            const blockH = (rowEnd - rowStart) * cellHeight - 1;
+
+            const colorKey = `${f.asignacion.docente?.id}-${f.asignacion.curso?.id}`;
+            const color = profesorCursoColorMapCiclo.get(colorKey) || [255, 255, 255];
+            doc.setFillColor(...color as [number, number, number]);
+            doc.rect(blockX, blockY, blockW, blockH, 'F');
+            
+            doc.setDrawColor(...C.primary);
+            doc.setLineWidth(0.1);
+            doc.rect(blockX, blockY, blockW, blockH, 'S');
+
+            doc.setTextColor(30, 41, 59);
+            doc.setFont('helvetica', 'bold');
+            
+            let fontSize = 5.5;
+            const numCarrilesBlock = Math.round((cellWidth - 1) / f.width);
+            if (numCarrilesBlock > 1) fontSize = 4;
+            if (numCarrilesBlock > 2) fontSize = 3;
+            doc.setFontSize(fontSize);
+            
+            const cursoNombre = f.label;
+            const docenteApellidos = f.asignacion.docente?.apellidos || '';
+            const ambienteNombre = f.asignacion.ambiente?.nombre || f.asignacion.ambiente?.codigo || '';
+            
+            const splitCurso = doc.splitTextToSize(cursoNombre, blockW - 1);
+            doc.text(splitCurso.slice(0, 2), blockX + blockW / 2, blockY + (fontSize / 2) + 1, { align: 'center' });
+            
+            if (blockH > 10) {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(fontSize - 0.5);
+              doc.text(docenteApellidos, blockX + blockW / 2, blockY + blockH - (fontSize) - 1, { align: 'center' });
+              
+              doc.setFont('helvetica', 'bold');
+              doc.setTextColor(...C.primary);
+              const splitAmb = doc.splitTextToSize(ambienteNombre, blockW - 1);
+              doc.text(splitAmb[0], blockX + blockW / 2, blockY + blockH - 1.5, { align: 'center' });
+            }
+          }
+        });
+      });
+    });
+  }
+
+  async generarReporteCicloExcel(ciclo: number, periodo: string): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(`Ciclo ${ciclo}`);
+    await this.dibujarCicloEnExcel(sheet, ciclo, periodo);
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
+
+  async generarReporteTodosCiclosExcel(periodo: string): Promise<Buffer> {
+    const ciclos = [1, 3, 5, 7, 9];
+    const workbook = new ExcelJS.Workbook();
+
+    for (const ciclo of ciclos) {
+      const sheet = workbook.addWorksheet(`Ciclo ${ciclo}`);
+      await this.dibujarCicloEnExcel(sheet, ciclo, periodo);
+    }
+
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
+
+  private async dibujarCicloEnExcel(sheet: ExcelJS.Worksheet, ciclo: number, periodo: string, ambienteId?: number, docenteId?: number): Promise<void> {
+    const query = this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("docente.departamento", "departamento")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("horario.periodo = :periodo", { periodo });
+
+    if (ambienteId) {
+      query.andWhere("horario.ambiente_id = :ambienteId", { ambienteId });
+    } else if (docenteId) {
+      query.andWhere("horario.docente_id = :docenteId", { docenteId });
+    } else {
+      query.andWhere("curso.ciclo = :ciclo", { ciclo });
+    }
+
+    const horarios = await query
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
+
+    const ambiente = ambienteId ? await this.ambienteRepo.findOne({ where: { id: ambienteId } }) : null;
+    const docente = docenteId ? await this.docenteRepo.findOne({ where: { id: docenteId } }) : null;
+
+    const primaryColor = '4F46E5'; // Indigo-600
+    const primaryDark = '3730A3'; // Indigo-800
+    const white = 'FFFFFF';
+
+    // 1. Cabecera
+    sheet.mergeCells('A1:H2');
+    const headerCell = sheet.getCell('A1');
+    if (ambienteId) {
+      headerCell.value = `HORARIO DE AMBIENTE: ${ambiente?.nombre || ''} | Periodo: ${periodo}`;
+    } else if (docenteId) {
+      headerCell.value = `HORARIO PERSONAL: ${docente?.apellidos}, ${docente?.nombres} | Periodo: ${periodo}`;
+    } else {
+      headerCell.value = `HORARIO ACADÉMICO - CICLO ${ciclo} | Periodo: ${periodo}`;
+    }
+    headerCell.font = { bold: true, size: 14, color: { argb: white } };
+    headerCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryDark } };
+
+    // 2. Tabla de Profesores
+    const profesoresCursosMap = new Map<string, any>();
+    horarios.forEach(a => {
+      if (!a.docente || !a.curso) return;
+      const key = `${a.docente.id}-${a.curso.id}`;
+      if (!profesoresCursosMap.has(key)) {
+        profesoresCursosMap.set(key, { 
+          docente: a.docente, 
+          curso: a.curso, 
+          horas: 0, hTeoria: 0, hPractica: 0, hLaboratorio: 0 
+        });
+      }
+      const entry = profesoresCursosMap.get(key);
+      const hInicio = parseInt(a.hora_inicio.split(':')[0], 10);
+      const hFin = parseInt(a.hora_fin.split(':')[0], 10);
+      const duration = (hFin - hInicio);
+      entry.horas += duration;
+      if (a.tipo_clase === TipoClase.TEORIA) entry.hTeoria += duration;
+      else if (a.tipo_clase === TipoClase.PRACTICA) entry.hPractica += duration;
+      else if (a.tipo_clase === TipoClase.LABORATORIO) entry.hLaboratorio += duration;
     });
 
-    return Buffer.from(doc.output('arraybuffer'));
+    const hierarchy: { [key: string]: number } = { 'PRINCIPAL': 1, 'ASOCIADO': 2, 'AUXILIAR': 3, 'SIN_CATEGORIA': 4 };
+    const profesoresCursos = Array.from(profesoresCursosMap.values()).sort((a, b) => {
+      const docA = a.docente; const docB = b.docente;
+      const isSistemasA = docA?.departamento?.nombre === 'Ing. de Sistemas' ? 1 : 0;
+      const isSistemasB = docB?.departamento?.nombre === 'Ing. de Sistemas' ? 1 : 0;
+      if (isSistemasA !== isSistemasB) return isSistemasB - isSistemasA;
+      const rankA = hierarchy[docA?.categoria] || 99; const rankB = hierarchy[docB?.categoria] || 99;
+      if (rankA !== rankB) return rankA - rankB;
+      return (docA?.apellidos || '').localeCompare(docB?.apellidos || '');
+    });
+
+    let currentRow = 4;
+    sheet.getCell(`A${currentRow}`).value = 'RESUMEN DE DOCENTES Y ASIGNATURAS';
+    sheet.getCell(`A${currentRow}`).font = { bold: true, size: 11 };
+    currentRow++;
+
+    const tableHeaders = ['N°', 'Profesor', 'Departamento', 'Asignatura', 'T', 'P', 'L', 'T. Horas'];
+    tableHeaders.forEach((h, i) => {
+      const cell = sheet.getCell(currentRow, i + 1);
+      cell.value = h;
+      cell.font = { bold: true, color: { argb: white } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryColor } };
+      cell.alignment = { horizontal: 'center' };
+      cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+    });
+    currentRow++;
+
+    // Colores para profesores (los mismos que en el PDF para consistencia)
+    const rowColors = [
+      'FFEBEE', 'FCE4EC', 'F3E5F5', 'EDE7F6', 'E8EAF6', 
+      'E3F2FD', 'E0F7FA', 'E0F2F1', 'E8F5E9', 'F1F8E9'
+    ];
+    const profesorCursoColorMap = new Map<string, string>();
+
+    profesoresCursos.forEach((item, idx) => {
+      const color = rowColors[idx % rowColors.length];
+      const key = `${item.docente.id}-${item.curso.id}`;
+      profesorCursoColorMap.set(key, color);
+
+      const row = [
+        idx + 1, 
+        `${item.docente.apellidos}, ${item.docente.nombres}`, 
+        item.docente.departamento?.nombre || '—', 
+        item.curso.nombre, 
+        item.hTeoria || '-', 
+        item.hPractica || '-', 
+        item.hLaboratorio || '-', 
+        item.horas
+      ];
+      row.forEach((val, i) => {
+        const cell = sheet.getCell(currentRow, i + 1);
+        cell.value = val;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+        cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+        if (i === 0 || i >= 4) cell.alignment = { horizontal: 'center' };
+      });
+      currentRow++;
+    });
+
+    currentRow += 2;
+
+    // 3. Grid de Horarios
+    sheet.getCell(`A${currentRow}`).value = 'PROGRAMACIÓN SEMANAL';
+    sheet.getCell(`A${currentRow}`).font = { bold: true, size: 11 };
+    currentRow++;
+
+    // --- LÓGICA DINÁMICA DE COLUMNAS ---
+    // 1. Agrupar asignaciones por día y calcular peak lanes por día
+    const asignacionesPorDia = new Map<number, HorarioAsignado[]>();
+    horarios.forEach(h => {
+      const dia = h.dia || h.dia_semana;
+      if (dia >= 1 && dia <= 6) {
+        if (!asignacionesPorDia.has(dia)) asignacionesPorDia.set(dia, []);
+        asignacionesPorDia.get(dia).push(h);
+      }
+    });
+
+    const peakLanesPorDia = new Map<number, number>();
+    const carrilesPorDia = new Map<number, HorarioAsignado[][]>();
+
+    for (let d = 1; d <= 6; d++) {
+      const asigs = asignacionesPorDia.get(d) || [];
+      const sortedAsigs = [...asigs].sort((a, b) => {
+        const hA = parseInt(a.hora_inicio.split(':')[0], 10);
+        const hB = parseInt(b.hora_inicio.split(':')[0], 10);
+        return hA - hB;
+      });
+
+      const carriles: HorarioAsignado[][] = [];
+      sortedAsigs.forEach(asig => {
+        const hIni = parseInt(asig.hora_inicio.split(':')[0], 10);
+        let carrilIndex = -1;
+        for (let i = 0; i < carriles.length; i++) {
+          const ultimo = carriles[i][carriles[i].length - 1];
+          const hFinUltimo = parseInt(ultimo.hora_fin.split(':')[0], 10);
+          if (hFinUltimo <= hIni) { carrilIndex = i; break; }
+        }
+        if (carrilIndex === -1) carriles.push([asig]);
+        else carriles[carrilIndex].push(asig);
+      });
+
+      // Calcular el peak real en cualquier momento del día
+      let peak = 1;
+      const horasCheck = Array.from({ length: 15 }, (_, i) => i + 7);
+      horasCheck.forEach(hCheck => {
+        let count = 0;
+        asigs.forEach(a => {
+          const start = parseInt(a.hora_inicio.split(':')[0], 10);
+          const end = parseInt(a.hora_fin.split(':')[0], 10);
+          if (hCheck >= start && hCheck < end) count++;
+        });
+        if (count > peak) peak = count;
+      });
+
+      peakLanesPorDia.set(d, peak);
+      carrilesPorDia.set(d, carriles);
+    }
+
+    // 2. Mapear columnas a días
+    const dayToStartCol = new Map<number, number>();
+    let currentColumn = 2; // Empezamos en B (la A es para HORA)
+    const diasHeaders = ["HORA", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    
+    diasHeaders.forEach((d, i) => {
+      if (i === 0) { // HORA
+        const cell = sheet.getCell(currentRow, 1);
+        cell.value = d;
+        cell.font = { bold: true, color: { argb: white } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryColor } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+      } else { // Días
+        const diaNum = i;
+        const peak = peakLanesPorDia.get(diaNum);
+        dayToStartCol.set(diaNum, currentColumn);
+        
+        const startCol = currentColumn;
+        const endCol = currentColumn + peak - 1;
+        
+        if (startCol !== endCol) sheet.mergeCells(currentRow, startCol, currentRow, endCol);
+        const cell = sheet.getCell(currentRow, startCol);
+        cell.value = d;
+        cell.font = { bold: true, color: { argb: white } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: primaryColor } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+        
+        currentColumn += peak;
+      }
+    });
+    currentRow++;
+
+    const horasArr = Array.from({ length: 15 }, (_, i) => i + 7);
+    const horaToRowMap = new Map<number, number>();
+    
+    // Obtener almuerzo
+    let almuerzoInicio = 13; let almuerzoFin = 14;
+    try {
+      const restricciones = await this.configuracionService.getRestriccionesMap(periodo);
+      const bAlm = restricciones['BLOQUE_ALMUERZO'] as any;
+      if (bAlm?.hora_inicio && bAlm?.hora_fin) {
+        almuerzoInicio = parseInt(bAlm.hora_inicio.split(':')[0], 10);
+        almuerzoFin = parseInt(bAlm.hora_fin.split(':')[0], 10);
+      }
+    } catch (e) {}
+
+    const startGridRow = currentRow;
+    horasArr.forEach(h => {
+      horaToRowMap.set(h, currentRow);
+      const cellHora = sheet.getCell(currentRow, 1);
+      cellHora.value = `${String(h).padStart(2, '0')}:00`;
+      cellHora.font = { bold: true };
+      cellHora.alignment = { horizontal: 'center', vertical: 'middle' };
+      cellHora.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } };
+      cellHora.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+      for (let dayIdx = 1; dayIdx <= 6; dayIdx++) {
+        const startCol = dayToStartCol.get(dayIdx);
+        const peak = peakLanesPorDia.get(dayIdx);
+        const endCol = startCol + peak - 1;
+        
+        for (let col = startCol; col <= endCol; col++) {
+          const cell = sheet.getCell(currentRow, col);
+          cell.border = { 
+            top: { style: 'thin' }, bottom: { style: 'thin' },
+            left: col === startCol ? { style: 'thin' } : undefined,
+            right: col === endCol ? { style: 'thin' } : undefined
+          };
+          if (h >= almuerzoInicio && h < almuerzoFin) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8E1' } };
+          }
+        }
+        if (h >= almuerzoInicio && h < almuerzoFin) {
+          try {
+            if (startCol !== endCol) sheet.mergeCells(currentRow, startCol, currentRow, endCol);
+            const cell = sheet.getCell(currentRow, startCol);
+            cell.value = 'ALMUERZO';
+            cell.font = { color: { argb: 'B47800' }, size: 8, italic: true };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          } catch (e) {}
+        }
+      }
+      currentRow++;
+    });
+
+    // Dibujar bloques usando carriles dinámicos
+    for (let dia = 1; dia <= 6; dia++) {
+      const asigs = asignacionesPorDia.get(dia) || [];
+      const carriles = carrilesPorDia.get(dia) || [];
+      const dayStartCol = dayToStartCol.get(dia);
+      const dayPeak = peakLanesPorDia.get(dia);
+
+      carriles.forEach((bloquesEnCarril, carrilIdx) => {
+        const fusionados: any[] = [];
+        bloquesEnCarril.forEach(h => {
+          const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
+          const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+          const dur = hFin - hIni;
+          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${dur}T` : 
+                           h.tipo_clase === TipoClase.PRACTICA ? `${dur}P` : 
+                           `${dur}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+
+          if (fusionados.length > 0) {
+            const ultimo = fusionados[fusionados.length - 1];
+            const esTP = (ultimo.asignacion.tipo_clase === TipoClase.TEORIA && h.tipo_clase === TipoClase.PRACTICA) ||
+                         (ultimo.asignacion.tipo_clase === TipoClase.PRACTICA && h.tipo_clase === TipoClase.TEORIA);
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
+            if (esTP && mismoAmbiente && ultimo.asignacion.curso?.id === h.curso?.id && ultimo.horaFin === hIni) {
+              ultimo.horaFin = hFin;
+              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
+              return;
+            }
+          }
+
+          fusionados.push({
+            horaInicio: hIni,
+            horaFin: hFin,
+            asignacion: h,
+            carrilIdx,
+            label: `${h.curso?.nombre} (${labelPart})`
+          });
+        });
+
+        fusionados.forEach(f => {
+          const hIni = f.horaInicio;
+          const hFin = f.horaFin;
+          const rowStart = horaToRowMap.get(hIni);
+          const rowEnd = horaToRowMap.get(hFin - 1);
+
+          if (rowStart && rowEnd) {
+            // Calcular colSpan: si este bloque no choca con nada en otros carriles, expandir
+            let puedeExpandirse = true;
+            carriles.forEach((otros, idx) => {
+              if (idx !== carrilIdx) {
+                otros.forEach(o => {
+                  const oIni = parseInt(o.hora_inicio.split(':')[0], 10);
+                  const oFin = parseInt(o.hora_fin.split(':')[0], 10);
+                  if (hIni < oFin && oIni < hFin) puedeExpandirse = false;
+                });
+              }
+            });
+
+            const startCol = puedeExpandirse ? dayStartCol : dayStartCol + carrilIdx;
+            const endCol = puedeExpandirse ? dayStartCol + dayPeak - 1 : startCol;
+
+            const cell = sheet.getCell(rowStart, startCol);
+            cell.value = `${f.label}\n${f.asignacion.docente?.apellidos}\n${f.asignacion.ambiente?.nombre || f.asignacion.ambiente?.codigo || ''}`;
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            cell.font = { size: !puedeExpandirse ? 7 : 8, bold: true };
+            
+            const colorKey = `${f.asignacion.docente?.id}-${f.asignacion.curso?.id}`;
+            const color = profesorCursoColorMap.get(colorKey) || 'FFFFFF';
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+            cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+
+            try {
+              if (rowStart !== rowEnd || startCol !== endCol) {
+                sheet.mergeCells(rowStart, startCol, rowEnd, endCol);
+              }
+            } catch (e) {}
+          }
+        });
+      });
+    }
+
+    // Ajustar anchos
+    sheet.getColumn(1).width = 10;
+    for (let c = 2; c < currentColumn; c++) {
+      sheet.getColumn(c).width = 10; // Ancho base por sub-columna
+    }
+
+    // Altura de filas
+    for (let r = startGridRow; r < currentRow; r++) {
+      sheet.getRow(r).height = 55;
+    }
   }
 
   private calcularCursosIncompletos(

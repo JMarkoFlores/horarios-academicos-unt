@@ -13,7 +13,11 @@ export class ConfiguracionGeneral {
   @Column({ length: 200, default: 'Universidad Nacional de Trujillo' })
   nombre_institucional: string;
 
-  @Column({ length: 500, nullable: true })
+  @Column({ 
+    length: 500, 
+    nullable: true, 
+    default: 'https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png' 
+  })
   logo_url: string;
 
   @Column({ length: 20, default: '#1a237e' })

@@ -111,6 +111,24 @@ export class ReportesController {
     res.end(result.buffer);
   }
 
+  @Get("ambiente/:id/excel")
+  @ApiOperation({ summary: "Excel del horario de un ambiente (aula/laboratorio)" })
+  @ApiParam({ name: "id", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async ambienteExcel(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteAmbienteExcel(id, periodo);
+    res.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename=horario-ambiente-${id}-${periodo}.xlsx`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
   @Get("operacional/pdf")
   @ApiOperation({
     summary: "PDF consolidado de todas las asignaciones del período",
@@ -196,6 +214,60 @@ export class ReportesController {
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=horario-ciclo-${ciclo}-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("ciclo/:ciclo/excel")
+  @ApiOperation({ summary: "Excel del horario de un ciclo" })
+  @ApiParam({ name: "ciclo", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async cicloExcel(
+    @Param("ciclo", ParseIntPipe) ciclo: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteCicloExcel(
+      ciclo,
+      periodo,
+    );
+    res.set({
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename=horario-ciclo-${ciclo}-${periodo}.xlsx`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("todos-ciclos/pdf")
+  @ApiOperation({ summary: "PDF formal de todos los ciclos del periodo" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async todosCiclosPDF(
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteTodosCiclosPDF(periodo);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=horarios-todos-ciclos-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("todos-ciclos/excel")
+  @ApiOperation({ summary: "Excel con hojas por ciclo" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async todosCiclosExcel(
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteTodosCiclosExcel(periodo);
+    res.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename=horarios-todos-ciclos-${periodo}.xlsx`,
       "Content-Length": buffer.length,
     });
     res.end(buffer);

@@ -69,6 +69,15 @@
   }
 }
 
+.tab-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  margin: 0 8px;
+  align-self: center;
+  flex: 0 0 auto;
+}
+
 .tab-btn {
   flex: 0 0 auto;
   display: flex;
@@ -429,6 +438,11 @@
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
   margin-top: 8px;
+
+  &.integrated {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
 }
 
 .dia-toggle-card {
@@ -443,6 +457,20 @@
   transition:
     border-color 0.2s,
     background 0.2s;
+
+  &.mini {
+    padding: 10px 8px;
+    border-width: 1px;
+    
+    .dia-nombre {
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+
+    mat-slide-toggle {
+      transform: scale(0.85);
+    }
+  }
 
   &.activo {
     border-color: var(--color-primary);

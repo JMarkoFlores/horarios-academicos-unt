@@ -53,6 +53,8 @@ export class Ambiente {
   @BeforeInsert()
   @BeforeUpdate()
   syncActivo(): void {
-    this.activo = this.estado === EstadoAmbiente.ACTIVO || this.estado === EstadoAmbiente.RESERVADO;
+    if (this.estado) {
+      this.activo = this.estado === EstadoAmbiente.ACTIVO || this.estado === EstadoAmbiente.RESERVADO;
+    }
   }
 }

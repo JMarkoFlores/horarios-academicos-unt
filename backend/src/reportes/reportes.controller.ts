@@ -241,6 +241,45 @@ export class ReportesController {
     res.end(buffer);
   }
 
+  @Get("dia/:dia/pdf")
+  @ApiOperation({ summary: "PDF del horario de un día específico" })
+  @ApiParam({ name: "dia", type: Number, description: "Número de día (1-6)" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "ciclo", required: false, type: Number })
+  @ApiQuery({ name: "tipo", required: false, type: String })
+  @ApiQuery({ name: "search", required: false, type: String })
+  async diaPDF(
+    @Param("dia", ParseIntPipe) dia: number,
+    @Query("periodo") periodo: string,
+    @Query("ciclo") ciclo: string,
+    @Query("tipo") tipo: string,
+    @Query("search") search: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteDiaPDF(
+      dia,
+      periodo,
+      ciclo ? parseInt(ciclo, 10) : undefined,
+      tipo,
+      search,
+    );
+    const nombresDias = [
+      "Lunes",
+      "Martes",
+      "Miercoles",
+      "Jueves",
+      "Viernes",
+      "Sabado",
+    ];
+    const nombreDia = nombresDias[dia - 1] || "dia";
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=horario-${nombreDia}-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
   @Get("todos-ciclos/pdf")
   @ApiOperation({ summary: "PDF formal de todos los ciclos del periodo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })

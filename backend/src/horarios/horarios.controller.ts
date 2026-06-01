@@ -203,6 +203,32 @@ export class HorariosController {
     };
   }
 
+  @Get("dia/:dia")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Listar asignaciones por día y período" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiResponse({ status: 200, description: "Asignaciones del día" })
+  async getPorDia(
+    @Param("dia", ParseIntPipe) dia: number,
+    @Query("periodo") periodo: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
+    const data = await this.horariosService.findByDia(
+      dia,
+      periodo,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 50,
+    );
+    return {
+      data,
+      message: "Horario del día obtenido",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
   @Get("mis-horarios")
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar horario propio del docente autenticado" })

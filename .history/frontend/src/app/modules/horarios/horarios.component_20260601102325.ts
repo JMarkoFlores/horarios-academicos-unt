@@ -723,36 +723,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
       filtered = filtered.filter((a) => a.tipo_clase === this.filtroDiaTipo);
     }
 
-    if (this.filtroDiaEstado) {
-      filtered = filtered.filter((a) => a.estado === this.filtroDiaEstado);
-    }
-
-    if (this.filtroDiaPabellon) {
-      filtered = filtered.filter(
-        (a) => a.ambiente?.pabellon === this.filtroDiaPabellon,
-      );
-    }
-
-    if (this.filtroDiaTurno) {
-      filtered = filtered.filter((a) => {
-        const hIni = parseInt(a.hora_inicio.split(':')[0], 10);
-        if (this.filtroDiaTurno === 'MAÑANA') return hIni < 13;
-        if (this.filtroDiaTurno === 'TARDE') return hIni >= 13;
-        return true;
-      });
-    }
-
     this.filteredAsignacionesDia = filtered;
-  }
-
-  limpiarFiltrosDia(): void {
-    this.filtroDiaTexto = '';
-    this.filtroDiaCiclo = null;
-    this.filtroDiaTipo = null;
-    this.filtroDiaEstado = null;
-    this.filtroDiaTurno = null;
-    this.filtroDiaPabellon = null;
-    this.aplicarFiltrosDia();
   }
 
   getNombreDia(diaNum: number): string {

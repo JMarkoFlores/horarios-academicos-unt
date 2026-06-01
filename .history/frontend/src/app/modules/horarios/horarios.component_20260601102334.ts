@@ -745,16 +745,6 @@ export class HorariosComponent implements OnInit, OnDestroy {
     this.filteredAsignacionesDia = filtered;
   }
 
-  limpiarFiltrosDia(): void {
-    this.filtroDiaTexto = '';
-    this.filtroDiaCiclo = null;
-    this.filtroDiaTipo = null;
-    this.filtroDiaEstado = null;
-    this.filtroDiaTurno = null;
-    this.filtroDiaPabellon = null;
-    this.aplicarFiltrosDia();
-  }
-
   getNombreDia(diaNum: number): string {
     const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     return nombres[diaNum - 1] || 'Día';

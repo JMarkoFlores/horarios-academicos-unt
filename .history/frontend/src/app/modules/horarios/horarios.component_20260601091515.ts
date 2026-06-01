@@ -74,24 +74,8 @@ export class HorariosComponent implements OnInit, OnDestroy {
   // Tab 5 — Vista por Día
   diaSeleccionado: number | null = null;
   asignacionesDia: HorarioAsignado[] = [];
-  filteredAsignacionesDia: HorarioAsignado[] = [];
   loadingDia = false;
   descargandoDiaPdf = false;
-
-  // Filtros Vista por Día
-  filtroDiaTexto = '';
-  filtroDiaCiclo: number | null = null;
-  filtroDiaTipo: string | null = null;
-  filtroDiaEstado: string | null = null;
-  filtroDiaTurno: string | null = null;
-  filtroDiaPabellon: string | null = null;
-
-  getPabellones(): string[] {
-    const pabellones = this.todosAmbientes
-      .map((a) => a.pabellon)
-      .filter((p): p is string => !!p);
-    return [...new Set(pabellones)].sort();
-  }
 
   // Hora de almuerzo (se cargará desde restricciones)
   horaInicioAlmuerzo = 12;
@@ -693,96 +677,15 @@ export class HorariosComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (r) => {
           this.asignacionesDia = r.data?.items ?? r.data ?? [];
-          this.aplicarFiltrosDia();
           this.loadingDia = false;
         },
         error: () => (this.loadingDia = false),
       });
   }
 
-  aplicarFiltrosDia(): void {
-    let filtered = [...this.asignacionesDia];
-
-    if (this.filtroDiaTexto) {
-      const search = this.filtroDiaTexto.toLowerCase();
-      filtered = filtered.filter(
-        (a) =>
-          a.curso?.nombre?.toLowerCase().includes(search) ||
-          a.docente?.apellidos?.toLowerCase().includes(search) ||
-          a.docente?.nombres?.toLowerCase().includes(search) ||
-          a.ambiente?.codigo?.toLowerCase().includes(search) ||
-          a.ambiente?.nombre?.toLowerCase().includes(search),
-      );
-    }
-
-    if (this.filtroDiaCiclo) {
-      filtered = filtered.filter((a) => a.curso?.ciclo === this.filtroDiaCiclo);
-    }
-
-    if (this.filtroDiaTipo) {
-      filtered = filtered.filter((a) => a.tipo_clase === this.filtroDiaTipo);
-    }
-
-    if (this.filtroDiaEstado) {
-      filtered = filtered.filter((a) => a.estado === this.filtroDiaEstado);
-    }
-
-    if (this.filtroDiaPabellon) {
-      filtered = filtered.filter(
-        (a) => a.ambiente?.pabellon === this.filtroDiaPabellon,
-      );
-    }
-
-    if (this.filtroDiaTurno) {
-      filtered = filtered.filter((a) => {
-        const hIni = parseInt(a.hora_inicio.split(':')[0], 10);
-        if (this.filtroDiaTurno === 'MAÑANA') return hIni < 13;
-        if (this.filtroDiaTurno === 'TARDE') return hIni >= 13;
-        return true;
-      });
-    }
-
-    this.filteredAsignacionesDia = filtered;
-  }
-
-  limpiarFiltrosDia(): void {
-    this.filtroDiaTexto = '';
-    this.filtroDiaCiclo = null;
-    this.filtroDiaTipo = null;
-    this.filtroDiaEstado = null;
-    this.filtroDiaTurno = null;
-    this.filtroDiaPabellon = null;
-    this.aplicarFiltrosDia();
-  }
-
   getNombreDia(diaNum: number): string {
     const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     return nombres[diaNum - 1] || 'Día';
-  }
-
-  descargarPdfDia(): void {
-    if (!this.diaSeleccionado) return;
-    this.descargandoDiaPdf = true;
-    this.api
-      .getBlob(`/reportes/dia/${this.diaSeleccionado}/pdf`, {
-        periodo: this.periodoService.periodo,
-      })
-      .subscribe({
-        next: (blob) => {
-          this.descargandoDiaPdf = false;
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          const nombreDia = this.getNombreDia(this.diaSeleccionado!);
-          a.download = `horario_${nombreDia}_${this.periodoService.periodo}.pdf`;
-          a.click();
-          URL.revokeObjectURL(url);
-        },
-        error: () => {
-          this.descargandoDiaPdf = false;
-          this.notif.error('Error al descargar PDF del día');
-        },
-      });
   }
 
   getBloques(dia: number, hora: number, tipo: 'docente' | 'ambiente' | 'ciclo'): any[] {

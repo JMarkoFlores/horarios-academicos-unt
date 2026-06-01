@@ -100,22 +100,12 @@
   flex-wrap: wrap;
   gap: 16px;
 
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 16px;
-  }
-
   .toolbar-search {
     display: flex;
     align-items: center;
     gap: 12px;
     flex: 1;
     min-width: 300px;
-
-    @media (max-width: 768px) {
-      min-width: 100%;
-    }
 
     .search-icon {
       color: var(--color-primary);
@@ -136,12 +126,6 @@
     display: flex;
     align-items: center;
     gap: 16px;
-
-    @media (max-width: 768px) {
-      justify-content: space-between;
-      width: 100%;
-      flex-wrap: wrap;
-    }
   }
 
   .toolbar-title {
@@ -559,7 +543,7 @@
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  overflow-x: auto;
+  overflow: hidden;
   box-shadow: var(--shadow-md);
 }
 
@@ -773,122 +757,6 @@
   100% {
     left: 100%;
   }
-}
-
-.day-view-toolbar {
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px 24px;
-
-  .toolbar-main-layout {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    width: 100%;
-
-    @media (max-width: 992px) {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  }
-
-  .day-selector-section {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 200px;
-
-    .calendar-icon {
-      color: var(--color-primary);
-      font-size: 28px;
-      width: 28px;
-      height: 28px;
-    }
-
-    .dia-select-field {
-      width: 100%;
-    }
-  }
-
-  .toolbar-v-divider {
-    width: 1px;
-    height: 60px;
-    background: var(--color-border);
-
-    @media (max-width: 992px) {
-      display: none;
-    }
-  }
-
-  .filters-grid-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-
-    .filters-top-row, .filters-bottom-row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .filter-item {
-      width: 130px;
-      @media (max-width: 576px) {
-        width: 100%;
-      }
-    }
-  }
-
-  .toolbar-actions-section {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    @media (max-width: 992px) {
-      width: 100%;
-      justify-content: flex-end;
-    }
-
-    @media (max-width: 576px) {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .pdf-btn {
-      background: #1e1b4b !important; // Indigo-950
-      color: white !important;
-      padding: 0 24px;
-      height: 44px;
-      border-radius: 8px;
-      font-weight: 600;
-
-      &:hover {
-        background: #312e81 !important;
-      }
-    }
-  }
-
-  .search-full-width {
-    width: 100%;
-    .premium-search-field {
-      width: 100%;
-    }
-  }
-}
-
-.pabellon-text {
-  font-weight: 500;
-  color: var(--color-text-muted);
-}
-
-.filter-indicator {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-primary);
-  margin-left: 8px;
-  font-style: italic;
-  opacity: 0.8;
 }
 
 // ── VISTA POR DÍA STYLES ──

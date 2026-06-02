@@ -50,7 +50,16 @@
             "inlineStyleLanguage": "scss",
             "assets": ["src/favicon.ico", "src/assets"],
             "styles": ["src/styles.scss"],
-            "scripts": []
+            "scripts": [],
+            "allowedCommonJsDependencies": [
+              "core-js",
+              "xlsx-js-style",
+              "html2canvas",
+              "jspdf",
+              "canvg",
+              "raf",
+              "rgbcolor"
+            ]
           },
           "configurations": {
             "production": {

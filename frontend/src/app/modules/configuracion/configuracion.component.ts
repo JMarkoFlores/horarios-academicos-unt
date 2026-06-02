@@ -67,7 +67,7 @@ interface DiaNoLaborable {
 })
 export class ConfiguracionComponent implements OnInit {
   // ─── Estado General ─────────────────────────────────────────────────────
-  activeTab: string = 'restricciones';
+  activeTab: string = 'general';
 
   // ─── Turnos Horarios ─────────────────────────────────────────────────────
   turnos: TurnoHorario[] = [];
@@ -283,7 +283,10 @@ export class ConfiguracionComponent implements OnInit {
         '',
         [Validators.required, Validators.maxLength(200)],
       ],
-      logo_url: ['', Validators.maxLength(500)],
+      logo_url: [
+        'https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png',
+        Validators.maxLength(500),
+      ],
       color_primario: ['#1a237e', Validators.required],
       color_secundario: ['#283593', Validators.required],
       color_acento: ['#e91e63', Validators.required],
@@ -348,10 +351,10 @@ export class ConfiguracionComponent implements OnInit {
       
       if (restriccionExistente && restriccionExistente.valor) {
         const val = restriccionExistente.valor as any;
-        horaInicioCtrl?.setValue(val.hora_inicio || (tipo === 'BLOQUE_ALMUERZO' ? '12:00' : '07:00'));
+        horaInicioCtrl?.setValue(val.hora_inicio || (tipo === 'BLOQUE_ALMUERZO' ? '13:00' : '07:00'));
         horaFinCtrl?.setValue(val.hora_fin || (tipo === 'BLOQUE_ALMUERZO' ? '14:00' : '22:00'));
       } else if (tipo === 'BLOQUE_ALMUERZO') {
-        horaInicioCtrl?.setValue('12:00');
+        horaInicioCtrl?.setValue('13:00');
         horaFinCtrl?.setValue('14:00');
       } else {
         horaInicioCtrl?.setValue('07:00');

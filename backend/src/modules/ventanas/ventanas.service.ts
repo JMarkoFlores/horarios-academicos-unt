@@ -54,6 +54,8 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     private readonly docenteRepo: Repository<Docente>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
+    @InjectRepository(HorarioAsignado)
+    private readonly horarioRepo: Repository<HorarioAsignado>,
     private readonly gateway: HorariosGateway,
     private readonly gestorSeleccionService: GestorSeleccionTemporalService,
     private readonly sincronizacionRedisService: SincronizacionRedisService,
@@ -159,6 +161,10 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     return ventana;
   }
 
+  async obtenerDocentesParaCategoria(categoria: string, periodo: string, modalidad?: string): Promise<Docente[]> {
+    return this.buscarDocentesPorCategoria(categoria, modalidad, periodo);
+  }
+
   async actualizarVentana(ventanaId: string, dto: UpdateVentanaDto): Promise<VentanaAtencion> {
     this.logger.log(`[actualizarVentana] ID=${ventanaId}, DTO=${JSON.stringify(dto)}`);
 
@@ -211,10 +217,11 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     if (ventana.estado === EstadoVentanaAtencion.EN_CURSO) {
       throw new BadRequestException('❌ No se puede eliminar una ventana que está en curso. Finalícela primero.');
     }
-    if (ventana.estado === EstadoVentanaAtencion.COMPLETADA) {
-      throw new BadRequestException('❌ No se puede eliminar una ventana que ya fue completada.');
-    }
 
+    // Eliminar docentes de la cola primero
+    await this.colaRepo.delete({ ventana_id: ventanaId });
+    
+    // Eliminar la ventana
     await this.ventanaRepo.delete(ventanaId);
     this.logger.log(`✅ Ventana ${ventanaId} eliminada`);
   }
@@ -261,7 +268,31 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
 
     qb.orderBy('v.fecha', 'DESC').addOrderBy('v.hora_inicio', 'ASC');
 
-    return qb.getMany();
+    const ventanas = await qb.getMany();
+    if (ventanas.length === 0) {
+      return ventanas;
+    }
+
+    const counts = await this.colaRepo
+      .createQueryBuilder('cola')
+      .select('cola.ventana_id', 'ventanaId')
+      .addSelect('COUNT(cola.id)', 'total_docentes')
+      .where('cola.ventana_id IN (:...ventanaIds)', {
+        ventanaIds: ventanas.map((v) => v.id),
+      })
+      .groupBy('cola.ventana_id')
+      .getRawMany();
+
+    const countsMap = counts.reduce((acc, row) => {
+      acc[row.ventanaId] = Number(row.total_docentes);
+      return acc;
+    }, {} as Record<string, number>);
+
+    ventanas.forEach((ventana) => {
+      ventana.total_docentes = countsMap[ventana.id] ?? 0;
+    });
+
+    return ventanas;
   }
 
   async crearVentana(dto: CreateVentanaDto): Promise<VentanaAtencion> {
@@ -286,7 +317,7 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     const minutosFin = hFin * 60 + mFin;
     
     if (minutosInicio >= minutosFin) {
-      throw new BadRequestException('La hora de inicio debe ser menor que la hora de fin');
+      throw new BadRequestException('La hora de inicio debe ser menor que la hora fin');
     }
     
     // Validar duración mínima (al menos 15 minutos)
@@ -294,13 +325,79 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       throw new BadRequestException('La ventana debe tener una duración mínima de 15 minutos');
     }
     
-    const [year, month, day] = dto.fecha.split("-").map(Number);
-    const fechaVentana = new Date(year, month - 1, day);
+    // Parsear fecha: puede venir en formato ISO (2026-06-01T05:00:00.000Z) o YYYY-MM-DD
+    let fechaVentana: Date;
+    if (dto.fecha.includes('T')) {
+      // Formato ISO
+      fechaVentana = new Date(dto.fecha);
+    } else {
+      // Formato YYYY-MM-DD
+      const [year, month, day] = dto.fecha.split("-").map(Number);
+      fechaVentana = new Date(year, month - 1, day);
+    }
+    
+    // Validar que la fecha sea válida
+    if (isNaN(fechaVentana.getTime())) {
+      throw new BadRequestException('Formato de fecha inválido');
+    }
+    
     const hoy = this.normalizarFecha(new Date());
     
     // Validar que la fecha no sea en el pasado
     if (fechaVentana < hoy) {
       throw new BadRequestException('No se pueden crear ventanas en fechas pasadas');
+    }
+    
+    // Calcular duración disponible de la ventana
+    const duracionVentanaMinutos = minutosFin - minutosInicio;
+    const intervaloMinutos = dto.intervalo_minutos ?? 30;
+    
+    // Si es categoría de ventana (DECLARACION, SUBSANACION, etc.), estimar docentes y validar capacidad
+    // Para SUBSANACION con sinAsignarDocentes=true no se valida aquí porque se hará una pre-asignación manual posterior
+    if (!dto.saltarValidacionCapacidad && !dto.sinAsignarDocentes && ['DECLARACION', 'SUBSANACION', 'CAMBIO', 'CONTINGENCIA'].includes(dto.categoria) && dto.periodo) {
+      // Estimar cuántos docentes se asignarán
+      let docentesEstimados: Docente[];
+      try {
+        docentesEstimados = await this.buscarDocentesPorCategoria(dto.categoria, dto.modalidad, dto.periodo);
+      } catch (error) {
+        this.logger.warn(`[crearVentana] No se pudo estimar docentes: ${error.message}`);
+        docentesEstimados = [];
+      }
+      
+      const capacidadMaxima = Math.floor(duracionVentanaMinutos / intervaloMinutos);
+      
+      if (docentesEstimados.length > capacidadMaxima) {
+        this.logger.warn(`[crearVentana] ⚠️ Capacidad insuficiente: ${docentesEstimados.length} docentes estimados, capacidad máxima: ${capacidadMaxima}`);
+        
+        // Calcular sugerencias
+        const sugerencias: string[] = [];
+        
+        // Sugerencia 1: Reducir intervalo
+        const intervaloMinimoNecesario = Math.ceil(duracionVentanaMinutos / docentesEstimados.length);
+        if (intervaloMinimoNecesario >= 5) {
+          sugerencias.push(`Reduce el intervalo a ${intervaloMinimoNecesario} minutos (actual: ${intervaloMinutos})`);
+        } else {
+          sugerencias.push(`Reduce el intervalo a 5 minutos (mínimo permitido, actual: ${intervaloMinutos})`);
+        }
+        
+        // Sugerencia 2: Aumentar duración
+        const duracionNecesaria = docentesEstimados.length * intervaloMinutos;
+        const duracionHoras = Math.floor(duracionNecesaria / 60);
+        const duracionMin = duracionNecesaria % 60;
+        sugerencias.push(`Aumenta la duración a ${duracionHoras}h ${duracionMin}min (actual: ${Math.floor(duracionVentanaMinutos / 60)}h ${duracionVentanaMinutos % 60}min)`);
+        
+        // Sugerencia 3: Múltiples ventanas
+        const ventanasNecesarias = Math.ceil(docentesEstimados.length / capacidadMaxima);
+        if (ventanasNecesarias > 1) {
+          sugerencias.push(`Crea ${ventanasNecesarias} ventanas en lugar de 1`);
+        }
+        
+        throw new BadRequestException(
+          `Capacidad insuficiente: Se estiman ${docentesEstimados.length} docentes, pero la ventana solo puede atender ${capacidadMaxima} docentes con el intervalo de ${intervaloMinutos} minutos.\n\n` +
+          `Sugerencias:\n` +
+          sugerencias.map((s, i) => `${i + 1}. ${s}`).join('\n')
+        );
+      }
     }
     
     // Verificar solapamiento con otras ventanas del mismo período Y categoría
@@ -337,6 +434,27 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     const savedVentana = await this.ventanaRepo.save(ventana);
     this.logger.log(`✅ Ventana ${savedVentana.id} creada exitosamente`);
     
+    // Si no se indica sinAsignarDocentes, pre-asignar docentes
+    if (!dto.sinAsignarDocentes) {
+      this.logger.log(`Pre-asignando docentes a la ventana...`);
+      const docentes = await this.buscarDocentesPorCategoria(dto.categoria, dto.modalidad, dto.periodo);
+      
+      for (const docente of docentes) {
+        await this.colaRepo.save(this.colaRepo.create({
+          ventana_id: savedVentana.id,
+          docente_id: docente.id,
+          orden: docentes.indexOf(docente) + 1,
+          estado: EstadoCola.ESPERANDO,
+          ventana: savedVentana,
+          docente
+        }));
+      }
+      
+      this.logger.log(`✅ ${docentes.length} docentes pre-asignados`);
+    } else {
+      this.logger.log(`⚠️ sinAsignarDocentes=true, no se asignan docentes automáticamente`);
+    }
+    
     // Notificaciones: Si la ventana es futura (más allá de mañana), programar recordatorio 24h
     // La alerta de 15min solo se programa cuando se inicia la ventana (se asignan docentes)
     const manana = new Date(hoy);
@@ -349,6 +467,60 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     }
     
     return savedVentana;
+  }
+
+  async distribuirDocentesEntreVentanas(ventanasIds: string[], periodo: string, categoria: string, modalidad?: string): Promise<void> {
+    this.logger.log(`[distribuirDocentesEntreVentanas] Distribuyendo docentes entre ${ventanasIds.length} ventanas...`);
+    
+    // Obtener docentes de la categoría
+    const docentes = await this.buscarDocentesPorCategoria(categoria, modalidad, periodo);
+    this.logger.log(`[distribuirDocentesEntreVentanas] ${docentes.length} docentes encontrados`);
+    
+    if (docentes.length === 0) {
+      throw new BadRequestException('No se encontraron docentes para la categoría especificada');
+    }
+    
+    // Calcular distribución equitativa
+    const numVentanas = ventanasIds.length;
+    const docentesPorVentanaMin = Math.floor(docentes.length / numVentanas);
+    const docentesExtra = docentes.length % numVentanas;
+    
+    this.logger.log(`[distribuirDocentesEntreVentanas] Distribución: ${docentesPorVentanaMin} por ventana, ${docentesExtra} ventanas con 1 extra`);
+    
+    // Distribuir docentes
+    let docenteIndex = 0;
+    for (let v = 0; v < numVentanas; v++) {
+      const ventanaId = ventanasIds[v];
+      const numDocentesEstaVentana = v < docentesExtra ? docentesPorVentanaMin + 1 : docentesPorVentanaMin;
+      
+      this.logger.log(`[distribuirDocentesEntreVentanas] Ventana ${v + 1} (${ventanaId}): ${numDocentesEstaVentana} docentes`);
+      
+      // Obtener ventana
+      const ventana = await this.ventanaRepo.findOne({ where: { id: ventanaId } });
+      if (!ventana) {
+        this.logger.warn(`[distribuirDocentesEntreVentanas] Ventana ${ventanaId} no encontrada, saltando`);
+        continue;
+      }
+      
+      // Asignar docentes a esta ventana
+      for (let i = 0; i < numDocentesEstaVentana; i++) {
+        if (docenteIndex >= docentes.length) break;
+        
+        const docente = docentes[docenteIndex];
+        await this.colaRepo.save(this.colaRepo.create({
+          ventana_id: ventanaId,
+          docente_id: docente.id,
+          orden: i + 1,
+          estado: EstadoCola.ESPERANDO,
+          ventana,
+          docente
+        }));
+        
+        docenteIndex++;
+      }
+    }
+    
+    this.logger.log(`[distribuirDocentesEntreVentanas] ✅ Distribución completada`);
   }
 
   async configurarVentanasPeriodo(idPeriodo: number, fechaInicio: string, config: ConfiguracionVentanaCategoriaDto[]): Promise<VentanaAtencion[]> {
@@ -429,16 +601,6 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       );
     }
     
-    // Validar fecha: no se puede iniciar una ventana de fecha futura
-    const hoy = this.normalizarFecha(new Date());
-    const fechaVentana = this.normalizarFecha(ventana.fecha);
-    
-    if (fechaVentana > hoy) {
-      throw new BadRequestException(
-        `❌ No se puede iniciar una ventana programada para fecha futura (${ventana.fecha.toISOString().split('T')[0]})`
-      );
-    }
-    
     this.logger.log(`✅ Validaciones pasadas. Cambiando estado a EN_CURSO...`);
     
     // Cambiar estado
@@ -496,20 +658,37 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     } else {
       // Si no hay docentes asignados, buscar por categoría (comportamiento original)
       this.logger.log(`⚠️ No hay docentes asignados. Buscando por categoría ${ventana.categoria}...`);
+      
+      // Primero obtener docentes que ya están asignados a otras ventanas del mismo período
+      const docentesEnOtrasVentanas = await this.colaRepo.createQueryBuilder('c')
+        .innerJoin('c.ventana', 'v')
+        .where('v.periodo = :periodo', { periodo: ventana.periodo })
+        .andWhere('v.estado != :estado', { estado: EstadoVentanaAtencion.CANCELADA })
+        .andWhere('v.estado != :estado2', { estado2: EstadoVentanaAtencion.COMPLETADA })
+        .select('c.docente_id')
+        .distinct()
+        .getRawMany();
+      
+      const docentesIdsExcluidos = docentesEnOtrasVentanas.map(r => r.docente_id);
+      this.logger.log(`⚠️ Docentes ya asignados a otras ventanas del período: ${docentesIdsExcluidos.length}`);
+      
       const docentes = await this.buscarDocentesPorCategoria(
         ventana.categoria,
         ventana.modalidad ?? undefined,
         ventana.periodo,
       );
       
-      if (docentes.length === 0) {
-        this.logger.warn(`⚠️ No se encontraron docentes para la categoría ${ventana.categoria}`);
-      } else {
-        this.logger.log(`✅ ${docentes.length} docente(s) encontrados`);
+      // Filtrar docentes que ya están en otras ventanas
+      const docentesDisponibles = docentes.filter(d => !docentesIdsExcluidos.includes(d.id));
+      
+      this.logger.log(`✅ ${docentesDisponibles.length} docente(s) disponibles después de filtrar (de ${docentes.length} totales)`);
+      
+      if (docentesDisponibles.length === 0) {
+        this.logger.warn(`⚠️ No hay docentes disponibles para asignar a esta ventana`);
       }
       
       // Crear cola de docentes
-      const colas = docentes.map((docente, index) =>
+      const colas = docentesDisponibles.map((docente, index) =>
         this.colaRepo.create({
           ventana_id: ventana.id,
           docente_id: docente.id,
@@ -784,6 +963,10 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     await this.cacheManager.set(this.crearClaveCola(ventanaId), estado, VentanasService.TTL_COLA_SEGUNDOS);
   }
 
+  private async borrarEstadoColaCache(ventanaId: string): Promise<void> {
+    await this.cacheManager.del(this.crearClaveCola(ventanaId));
+  }
+
   private crearClaveCola(ventanaId: string): string {
     return `cola_ventana_${ventanaId}`;
   }
@@ -793,21 +976,63 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     modalidad?: string,
     periodo?: string,
   ): Promise<Docente[]> {
+    this.logger.log(`[buscarDocentesPorCategoria] Buscando docentes: categoria=${categoria}, modalidad=${modalidad}, periodo=${periodo}`);
+    
     const qb = this.docenteRepo
       .createQueryBuilder("docente")
-      .where("docente.activo = :activo", { activo: true })
-      .andWhere("docente.categoria = :categoria", { categoria });
+      .where("docente.activo = :activo", { activo: true });
+
+    // Si la categoría es un tipo de ventana (DECLARACION, SUBSANACION, CAMBIO, CONTINGENCIA),
+    // buscar docentes según el tipo de ventana
+    if (['DECLARACION', 'SUBSANACION', 'CAMBIO', 'CONTINGENCIA'].includes(categoria)) {
+      this.logger.log(`[buscarDocentesPorCategoria] Categoría de ventana detectada: ${categoria}`);
+      // Buscar docentes sin horario o que necesiten cambios
+      if (periodo) {
+        const subQuery = this.horarioRepo
+          .createQueryBuilder("h")
+          .select("h.docente_id")
+          .where("h.periodo = :periodo", { periodo });
+        
+        const subQueryStr = subQuery.getQuery();
+        this.logger.log(`[buscarDocentesPorCategoria] Subquery: ${subQueryStr}`);
+        
+        if (categoria === 'DECLARACION') {
+          // Docentes sin horario
+          qb.andWhere(`docente.id NOT IN (${subQueryStr})`);
+          qb.setParameters(subQuery.getParameters());
+          this.logger.log(`[buscarDocentesPorCategoria] Filtrando docentes SIN horario`);
+        } else if (categoria === 'SUBSANACION' || categoria === 'CAMBIO' || categoria === 'CONTINGENCIA') {
+          // Docentes con horario (para subsanación/cambio/contingencia)
+          qb.andWhere(`docente.id IN (${subQueryStr})`);
+          qb.setParameters(subQuery.getParameters());
+          this.logger.log(`[buscarDocentesPorCategoria] Filtrando docentes CON horario`);
+        }
+      } else {
+        this.logger.warn(`[buscarDocentesPorCategoria] No se proporcionó período para categoría de ventana`);
+      }
+    } else {
+      // Si es una categoría de docente (PRINCIPAL, ASOCIADO, etc.), filtrar por ella
+      qb.andWhere("docente.categoria = :categoria", { categoria });
+      this.logger.log(`[buscarDocentesPorCategoria] Filtrando por categoría de docente: ${categoria}`);
+    }
 
     if (modalidad) {
       qb.andWhere("docente.tipo_contrato = :modalidad", { modalidad });
+      this.logger.log(`[buscarDocentesPorCategoria] Filtrando por modalidad: ${modalidad}`);
     }
 
+    const queryStr = qb.getQuery();
+    this.logger.log(`[buscarDocentesPorCategoria] Query final: ${queryStr}`);
+    
     // Ordenar por prioridad: categoría DESC (mayor prioridad primero), tipo_contrato DESC, fecha_ingreso ASC
-    return qb
+    const docentes = await qb
       .addOrderBy("docente.categoria", "DESC")
       .addOrderBy("docente.tipo_contrato", "DESC")
       .addOrderBy("docente.fecha_ingreso", "ASC")
       .getMany();
+    
+    this.logger.log(`[buscarDocentesPorCategoria] Encontrados ${docentes.length} docentes`);
+    return docentes;
   }
 
   private normalizarFecha(fecha: Date): Date {
@@ -832,5 +1057,160 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       .padStart(2, "0");
     const minutosResultado = (total % 60).toString().padStart(2, "0");
     return `${horas}:${minutosResultado}`;
+  }
+
+  async sugerirDistribucion(dto: CreateVentanaDto): Promise<{
+    docentesEstimados: number;
+    capacidadMaxima: number;
+    ventanasNecesarias: number;
+    sugerencias: Array<{
+      numero: number;
+      fecha: string;
+      hora_inicio: string;
+      hora_fin: string;
+      docentes_asignados: number;
+    }>;
+  }> {
+    this.logger.log(`[sugerirDistribucion] Calculando distribución para: ${JSON.stringify(dto)}`);
+    
+    // Parsear fecha
+    let fechaBase: Date;
+    if (dto.fecha.includes('T')) {
+      fechaBase = new Date(dto.fecha);
+    } else {
+      const [year, month, day] = dto.fecha.split("-").map(Number);
+      fechaBase = new Date(year, month - 1, day);
+    }
+    
+    // Calcular duración
+    const [hInicio, mInicio] = dto.hora_inicio.split(':').map(Number);
+    const [hFin, mFin] = dto.hora_fin.split(':').map(Number);
+    const duracionMinutos = (hFin * 60 + mFin) - (hInicio * 60 + mInicio);
+    const intervaloMinutos = dto.intervalo_minutos ?? 30;
+    
+    // Estimar docentes (sin validar capacidad)
+    const docentesEstimados = await this.buscarDocentesPorCategoria(dto.categoria, dto.modalidad, dto.periodo);
+    const capacidadMaxima = Math.floor(duracionMinutos / intervaloMinutos);
+    const ventanasNecesarias = Math.ceil(docentesEstimados.length / capacidadMaxima);
+    
+    this.logger.log(`[sugerirDistribucion] Docentes: ${docentesEstimados.length}, Capacidad: ${capacidadMaxima}, Ventanas: ${ventanasNecesarias}`);
+    
+    // Generar sugerencias de distribución
+    const sugerencias: Array<{
+      numero: number;
+      fecha: string;
+      hora_inicio: string;
+      hora_fin: string;
+      docentes_asignados: number;
+    }> = [];
+    
+    let fechaActual = new Date(fechaBase);
+    let docentesRestantes = docentesEstimados.length;
+    
+    for (let i = 1; i <= ventanasNecesarias; i++) {
+      const docentesEstaVentana = Math.min(docentesRestantes, capacidadMaxima);
+      const duracionEstaVentana = docentesEstaVentana * intervaloMinutos;
+      
+      const minutosFin = (hInicio * 60 + mInicio) + duracionEstaVentana;
+      const hFinVentana = Math.floor(minutosFin / 60);
+      const mFinVentana = minutosFin % 60;
+      
+      sugerencias.push({
+        numero: i,
+        fecha: fechaActual.toISOString().split('T')[0],
+        hora_inicio: dto.hora_inicio,
+        hora_fin: `${String(hFinVentana).padStart(2, '0')}:${String(mFinVentana).padStart(2, '0')}`,
+        docentes_asignados: docentesEstaVentana,
+      });
+      
+      docentesRestantes -= docentesEstaVentana;
+      
+      // Si quedan docentes, pasar al siguiente día
+      if (docentesRestantes > 0) {
+        fechaActual = this.siguienteDiaHabil(fechaActual);
+      }
+    }
+    
+    return {
+      docentesEstimados: docentesEstimados.length,
+      capacidadMaxima,
+      ventanasNecesarias,
+      sugerencias,
+    };
+  }
+
+  async preAsignarDocentes(ventanaId: string, docentesIds: number[]): Promise<any> {
+    this.logger.log(`[preAsignarDocentes] Ventana ${ventanaId}, docentes: ${docentesIds.join(',')}`);
+
+    // Verificar que la ventana existe
+    const ventana = await this.obtenerVentana(ventanaId);
+    if (!ventana) {
+      throw new NotFoundException(`Ventana ${ventanaId} no encontrada`);
+    }
+
+    // Validar que no sea una ventana en curso
+    if (ventana.estado === EstadoVentanaAtencion.EN_CURSO) {
+      throw new BadRequestException('❌ No se puede pre-asignar docentes a una ventana que está en curso');
+    }
+
+    // Obtener docentes de la BD
+    const docentes = await this.docenteRepo.findByIds(docentesIds);
+    if (docentes.length !== docentesIds.length) {
+      const docentesNoEncontrados = docentesIds.filter(id => !docentes.find(d => d.id === id));
+      this.logger.warn(`⚠️ Docentes no encontrados: ${docentesNoEncontrados.join(',')}`);
+    }
+
+    // Limpiar cola existente (si la ventana aún está en PROGRAMADA)
+    if (ventana.estado === EstadoVentanaAtencion.PROGRAMADA) {
+      await this.colaRepo.delete({ ventana_id: ventanaId });
+      this.logger.log(`Limpiada cola anterior de la ventana ${ventanaId}`);
+    }
+
+    // Validar capacidad
+    const duracionVentanaMinutos = this.calcularDuracionVentana(ventana.hora_inicio, ventana.hora_fin);
+    const intervaloMinutos = ventana.intervalo_minutos ?? 30;
+    const capacidadMaxima = Math.floor(duracionVentanaMinutos / intervaloMinutos);
+
+    if (docentes.length > capacidadMaxima) {
+      this.logger.warn(`⚠️ Capacidad insuficiente: ${docentes.length} docentes, capacidad: ${capacidadMaxima}`);
+      throw new BadRequestException(
+        `Capacidad insuficiente: Se intenta asignar ${docentes.length} docentes, pero la ventana solo puede atender ${capacidadMaxima} docentes con intervalo de ${intervaloMinutos} minutos`
+      );
+    }
+
+    // Pre-asignar docentes a la cola
+    const colas = docentes.map((docente, index) =>
+      this.colaRepo.create({
+        ventana_id: ventanaId,
+        docente_id: docente.id,
+        orden: index + 1,
+        estado: EstadoCola.ESPERANDO,
+        ventana,
+        docente,
+      })
+    );
+
+    await this.colaRepo.save(colas);
+    this.logger.log(`✅ ${docentes.length} docentes pre-asignados a ventana ${ventanaId}`);
+
+    await this.borrarEstadoColaCache(ventanaId);
+
+    return {
+      ventana_id: ventanaId,
+      docentes_asignados: docentes.length,
+      docentes: docentes.map(d => ({
+        id: d.id,
+        nombre: `${d.apellidos}, ${d.nombres}`,
+        categoria: d.categoria,
+      })),
+    };
+  }
+
+  private calcularDuracionVentana(horaInicio: string, horaFin: string): number {
+    const [hInicio, mInicio] = horaInicio.split(':').map(Number);
+    const [hFin, mFin] = horaFin.split(':').map(Number);
+    const minutosInicio = hInicio * 60 + mInicio;
+    const minutosFin = hFin * 60 + mFin;
+    return minutosFin - minutosInicio;
   }
 }

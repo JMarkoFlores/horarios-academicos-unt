@@ -31,12 +31,15 @@ export class HorariosComponent implements OnInit, OnDestroy {
   asignacionesDocente: HorarioAsignado[] = [];
   loadingDocente = false;
   descargandoDoc = false;
+  descargandoDocExcel = false;
 
   // Tab 2 — Vista Ambiente
   todosAmbientes: Ambiente[] = [];
   ambienteSeleccionado: Ambiente | null = null;
   asignacionesAmbiente: HorarioAsignado[] = [];
   loadingAmbiente = false;
+  descargandoAmbiente = false;
+  descargandoAmbienteExcel = false;
 
   // Tab 3 — Conflictos
   conflictos: ConflictoAsignacion[] = [];
@@ -63,6 +66,32 @@ export class HorariosComponent implements OnInit, OnDestroy {
   asignacionesCiclo: HorarioAsignado[] = [];
   loadingCiclo = false;
   descargandoCiclo = false;
+  descargandoCicloExcel = false;
+  descargandoTodo = false;
+  descargandoTodoPdfStatus = false;
+  descargandoTodoExcelStatus = false;
+
+  // Tab 5 — Vista por Día
+  diaSeleccionado: number | null = null;
+  asignacionesDia: HorarioAsignado[] = [];
+  filteredAsignacionesDia: HorarioAsignado[] = [];
+  loadingDia = false;
+  descargandoDiaPdf = false;
+
+  // Filtros Vista por Día
+  filtroDiaTexto = '';
+  filtroDiaCiclo: number | null = null;
+  filtroDiaTipo: string | null = null;
+  filtroDiaEstado: string | null = null;
+  filtroDiaTurno: string | null = null;
+  filtroDiaPabellon: string | null = null;
+
+  getPabellones(): string[] {
+    const pabellones = this.todosAmbientes
+      .map((a) => a.pabellon)
+      .filter((p): p is string => !!p);
+    return [...new Set(pabellones)].sort();
+  }
 
   // Hora de almuerzo (se cargará desde restricciones)
   horaInicioAlmuerzo = 12;
@@ -134,6 +163,9 @@ export class HorariosComponent implements OnInit, OnDestroy {
       }
       if (this.ambienteSeleccionado) {
         this.selectAmbiente(this.ambienteSeleccionado);
+      }
+      if (this.diaSeleccionado) {
+        this.selectDia(this.diaSeleccionado);
       }
     });
   }
@@ -271,8 +303,80 @@ export class HorariosComponent implements OnInit, OnDestroy {
       });
   }
 
+  descargarExcelDocente(): void {
+    if (!this.docenteSeleccionado) return;
+    this.descargandoDocExcel = true;
+    this.api
+      .getBlob(`/reportes/docente/${this.docenteSeleccionado.id}/excel`, {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoDocExcel = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `horario_${this.docenteSeleccionado!.apellidos}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: () => {
+          this.descargandoDocExcel = false;
+          this.notif.error('Error al descargar Excel');
+        },
+      });
+  }
+
+  descargarPdfAmbiente(): void {
+    if (!this.ambienteSeleccionado) return;
+    this.descargandoAmbiente = true;
+    this.api
+      .getBlob(`/reportes/ambiente/${this.ambienteSeleccionado.id}/pdf`, {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoAmbiente = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `horario_ambiente_${this.ambienteSeleccionado!.codigo}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: () => {
+          this.descargandoAmbiente = false;
+          this.notif.error('Error al descargar PDF');
+        },
+      });
+  }
+
+  descargarExcelAmbiente(): void {
+    if (!this.ambienteSeleccionado) return;
+    this.descargandoAmbienteExcel = true;
+    this.api
+      .getBlob(`/reportes/ambiente/${this.ambienteSeleccionado.id}/excel`, {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoAmbienteExcel = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `horario_ambiente_${this.ambienteSeleccionado!.codigo}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: () => {
+          this.descargandoAmbienteExcel = false;
+          this.notif.error('Error al descargar Excel');
+        },
+      });
+  }
+
   mostrarMensajeSinHorario(): void {
-    this.notif.info('Este docente aún no tiene horarios asignados. Primero genere o asigne horarios.');
+    this.notif.info('No hay horarios asignados para este elemento en el periodo actual.');
   }
 
   descargarICalendar(): void {
@@ -334,111 +438,195 @@ export class HorariosComponent implements OnInit, OnDestroy {
   }
 
   getEstiloCelda(asignacion: HorarioAsignado, tipo: 'docente' | 'ambiente' | 'ciclo'): any {
-    const color = this.getColorForProfesor(asignacion.docente?.id);
+    const color = this.getColorForProfesorCurso(asignacion.docente?.id, asignacion.curso?.id);
     return {
       'background-color': color,
     };
   }
 
   private generarBloques(asignaciones: HorarioAsignado[]): any[] {
-    console.log('[generarBloques] Input asignaciones:', asignaciones);
-    const bloques: any[] = [];
-    const bloquesPorDiaYHora: Map<string, any[]> = new Map();
+    const bloquesFinales: any[] = [];
     
-    // Primero, fusionar horarios consecutivos
-    const sortedAsignaciones = [...asignaciones].sort((a, b) => {
-      const diaDiff = (a.dia_semana ?? a.dia) - (b.dia_semana ?? b.dia);
-      if (diaDiff !== 0) return diaDiff;
-      return this.horaToDecimal(a.hora_inicio) - this.horaToDecimal(b.hora_inicio);
+    // Agrupar asignaciones por día
+    const asignacionesPorDia: Map<number, HorarioAsignado[]> = new Map();
+    asignaciones.forEach(a => {
+      const dia = a.dia_semana ?? a.dia;
+      if (!asignacionesPorDia.has(dia)) asignacionesPorDia.set(dia, []);
+      asignacionesPorDia.get(dia)!.push(a);
     });
 
-    const mergedAsignaciones: HorarioAsignado[] = [];
-    const keyToAsignacionMap = new Map<string, HorarioAsignado>();
+    asignacionesPorDia.forEach((asigs, dia) => {
+      // Ordenar asignaciones del día por hora de inicio
+      const sortedAsigs = [...asigs].sort((a, b) => {
+        const hIniA = this.horaToDecimal(a.hora_inicio);
+        const hIniB = this.horaToDecimal(b.hora_inicio);
+        if (hIniA !== hIniB) return hIniA - hIniB;
+        return (a.id ?? 0) - (b.id ?? 0);
+      });
 
-    sortedAsignaciones.forEach(asignacion => {
-      const dia = asignacion.dia_semana ?? asignacion.dia;
-      const key = `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${asignacion.grupo?.id}-${dia}-${asignacion.tipo_clase}`;
+      // Lane assignment algorithm (Interval Scheduling)
+      const carriles: HorarioAsignado[][] = [];
       
-      const existing = keyToAsignacionMap.get(key);
-      
-      if (existing) {
-        const existingHoraFin = this.horaToDecimal(existing.hora_fin);
-        const currentHoraInicio = this.horaToDecimal(asignacion.hora_inicio);
+      sortedAsigs.forEach(asig => {
+        const hIni = this.horaToDecimal(asig.hora_inicio);
         
-        if (Math.abs(existingHoraFin - currentHoraInicio) < 0.1) {
-          existing.hora_fin = asignacion.hora_fin;
+        let carrilIndex = -1;
+        
+        // 1. Prioridad: Buscar un carril que termine exactamente donde empieza este y sea del mismo curso
+        for (let i = 0; i < carriles.length; i++) {
+          const ultimoEnCarril = carriles[i][carriles[i].length - 1];
+          const hFinUltimo = this.horaToDecimal(ultimoEnCarril.hora_fin);
+          if (Math.abs(hFinUltimo - hIni) < 0.01 && ultimoEnCarril.curso?.id === asig.curso?.id) {
+            carrilIndex = i;
+            break;
+          }
+        }
+
+        // 2. Segunda opción: Buscar cualquier carril libre
+        if (carrilIndex === -1) {
+          for (let i = 0; i < carriles.length; i++) {
+            const ultimoEnCarril = carriles[i][carriles[i].length - 1];
+            const hFinUltimo = this.horaToDecimal(ultimoEnCarril.hora_fin);
+            if (hFinUltimo <= hIni) {
+              carrilIndex = i;
+              break;
+            }
+          }
+        }
+
+        if (carrilIndex === -1) {
+          carriles.push([asig]);
         } else {
-          keyToAsignacionMap.set(`${key}-${Date.now()}-${Math.random()}`, asignacion);
+          carriles[carrilIndex].push(asig);
         }
-      } else {
-        keyToAsignacionMap.set(key, asignacion);
-      }
-    });
-
-    const finalAsignaciones = Array.from(keyToAsignacionMap.values());
-    console.log('[generarBloques] After merge, finalAsignaciones:', finalAsignaciones);
-
-    finalAsignaciones.forEach(asignacion => {
-      const dia = asignacion.dia_semana ?? asignacion.dia;
-      const horaInicio = this.horaToDecimal(asignacion.hora_inicio);
-      const horaFin = this.horaToDecimal(asignacion.hora_fin);
-      console.log('[generarBloques] Procesando asignacion (merged):', { 
-        curso: asignacion.curso?.nombre, 
-        dia, 
-        horaInicio, 
-        horaFin 
       });
-      
-      const bloque = {
-        key: `${asignacion.curso?.id}-${asignacion.docente?.id}-${asignacion.ambiente?.id}-${Date.now()}-${Math.random()}`,
-        dia,
-        horaInicio,
-        horaFin,
-        asignacion,
-        asignaciones: [asignacion],
-      };
-      
-      for (let h = Math.floor(horaInicio); h < horaFin; h++) {
-        const key = `${dia}-${h}`;
-        console.log('[generarBloques]   Checking h:', h, 'key:', key, 'is start:', h === Math.floor(horaInicio));
-        if (!bloquesPorDiaYHora.has(key)) {
-          bloquesPorDiaYHora.set(key, []);
-        }
-        if (h === Math.floor(horaInicio)) {
-          console.log('[generarBloques]   Adding bloque to key:', key);
-          bloquesPorDiaYHora.get(key)!.push(bloque);
-        }
-      }
-    });
 
-    bloquesPorDiaYHora.forEach((bloquesEnCelda, key) => {
-      const anchoPorBloque = 100 / bloquesEnCelda.length;
-      console.log('[generarBloques] Key:', key, 'bloquesEnCelda count:', bloquesEnCelda.length, 'ancho:', anchoPorBloque);
-      bloquesEnCelda.forEach((bloque, index) => {
-        bloque.left = index * anchoPorBloque;
-        bloque.width = anchoPorBloque;
-        console.log('[generarBloques]   Adding final bloque:', { 
-          curso: bloque.asignacion.curso?.nombre, 
-          left: bloque.left, 
-          width: bloque.width, 
-          height: (bloque.horaFin - bloque.horaInicio) * 120 
+      const numCarriles = carriles.length;
+      
+      // Pre-procesar bloques para calcular anchos dinámicos
+      const todosLosBloquesDelDia: any[] = [];
+
+      carriles.forEach((bloquesEnCarril, carrilIdx) => {
+        bloquesEnCarril.forEach(asig => {
+          const hIni = this.horaToDecimal(asig.hora_inicio);
+          const hFin = this.horaToDecimal(asig.hora_fin);
+          todosLosBloquesDelDia.push({
+            asig,
+            carrilIdx,
+            hIni,
+            hFin
+          });
         });
-        bloques.push(bloque);
+      });
+
+      const construirLabel = (asignaciones: HorarioAsignado[]) => {
+        const cursoNombre = asignaciones[0].curso?.nombre || '';
+        const duraciones: Record<string, number> = {};
+
+        asignaciones.forEach(a => {
+          const dur = this.horaToDecimal(a.hora_fin) - this.horaToDecimal(a.hora_inicio);
+          if (a.tipo_clase === 'LABORATORIO') {
+            const grupo = a.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || '';
+            const key = `L-G${grupo}`;
+            duraciones[key] = (duraciones[key] ?? 0) + dur;
+          } else {
+            const key = a.tipo_clase === 'TEORIA' ? 'T' : 'P';
+            duraciones[key] = (duraciones[key] ?? 0) + dur;
+          }
+        });
+
+        const partes = Object.entries(duraciones).map(([key, dur]) => `${dur}${key}`);
+        return `${cursoNombre} (${partes.join('+')})`;
+      };
+
+      carriles.forEach((bloquesEnCarril, carrilIdx) => {
+        // Fusión visual de bloques consecutivos del mismo curso
+        const bloquesFusionados: any[] = [];
+        
+        bloquesEnCarril.forEach(asig => {
+          const hIni = this.horaToDecimal(asig.hora_inicio);
+          const hFin = this.horaToDecimal(asig.hora_fin);
+          const dur = hFin - hIni;
+          const labelPart = asig.tipo_clase === 'TEORIA' ? `${dur}T` : 
+                           asig.tipo_clase === 'PRACTICA' ? `${dur}P` : 
+                           `${dur}L-G${asig.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+
+          // Calcular el número máximo de carriles ocupados durante este bloque
+          let maxCarrilIdxEnIntervalo = 0;
+          todosLosBloquesDelDia.forEach(otro => {
+            // Si hay solapamiento temporal
+            if (hIni < otro.hFin && otro.hIni < hFin) {
+              if (otro.carrilIdx > maxCarrilIdxEnIntervalo) {
+                maxCarrilIdxEnIntervalo = otro.carrilIdx;
+              }
+            }
+          });
+          
+          const numCarrilesLocales = maxCarrilIdxEnIntervalo + 1;
+          const widthPorBloque = 100 / numCarrilesLocales;
+
+          if (bloquesFusionados.length > 0) {
+            const ultimo = bloquesFusionados[bloquesFusionados.length - 1];
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === asig.ambiente?.id;
+            const mismoCurso = ultimo.asignacion.curso?.id === asig.curso?.id;
+            const mismaReglaGrupo = asig.tipo_clase === 'LABORATORIO'
+              ? ultimo.asignacion.grupo?.id === asig.grupo?.id
+              : true;
+            const esTP = (ultimo.asignacion.tipo_clase === 'TEORIA' && asig.tipo_clase === 'PRACTICA') ||
+                         (ultimo.asignacion.tipo_clase === 'PRACTICA' && asig.tipo_clase === 'TEORIA');
+            const mismoTipoTP = ultimo.asignacion.tipo_clase === asig.tipo_clase &&
+                                (asig.tipo_clase === 'TEORIA' || asig.tipo_clase === 'PRACTICA');
+            const mismoLaboratorio = ultimo.asignacion.tipo_clase === 'LABORATORIO' &&
+                                     asig.tipo_clase === 'LABORATORIO' &&
+                                     mismaReglaGrupo;
+
+            if (mismoCurso && mismoAmbiente && Math.abs(ultimo.horaFin - hIni) < 0.01 &&
+                (esTP || mismoTipoTP || mismoLaboratorio)) {
+              ultimo.horaFin = hFin;
+              ultimo.totalHoraFin = asig.hora_fin.substring(0, 5);
+              ultimo.asignaciones.push(asig);
+              ultimo.tiposClase.push(asig.tipo_clase);
+              ultimo.label = construirLabel(ultimo.asignaciones);
+
+              // Actualizar el ancho si el nuevo bloque fusionado tiene más colisiones
+              if (numCarrilesLocales > (100 / ultimo.width)) {
+                ultimo.width = 100 / numCarrilesLocales;
+                ultimo.left = carrilIdx * ultimo.width;
+              }
+              return;
+            }
+          }
+
+          bloquesFusionados.push({
+            key: `${asig.id}-${Date.now()}-${Math.random()}`,
+            dia,
+            horaInicio: hIni,
+            horaFin: hFin,
+            totalHoraInicio: asig.hora_inicio.substring(0, 5),
+            totalHoraFin: asig.hora_fin.substring(0, 5),
+            tiposClase: [asig.tipo_clase],
+            asignacion: asig,
+            asignaciones: [asig],
+            left: carrilIdx * widthPorBloque,
+            width: widthPorBloque,
+            label: (asig.curso?.nombre || '') + ` (${labelPart})`
+          });
+        });
+
+        bloquesFinales.push(...bloquesFusionados);
       });
     });
 
-    const sorted = bloques.sort((a, b) => {
+    return bloquesFinales.sort((a, b) => {
       if (a.dia !== b.dia) return a.dia - b.dia;
       return a.horaInicio - b.horaInicio;
     });
-    console.log('[generarBloques] Final bloques:', sorted);
-    return sorted;
   }
 
   private bloquesDocente: any[] = [];
   private bloquesAmbiente: any[] = [];
   private bloquesCiclo: any[] = [];
-  private profesorColorMap = new Map<number, string>();
+  private profesorCursoColorMap = new Map<string, string>();
   private readonly profesorColors = [
     '#FFCDD2',
     '#F8BBD9',
@@ -460,6 +648,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
   selectDocente(d: Docente): void {
     this.docenteSeleccionado = d;
     this.loadingDocente = true;
+    this.profesorCursoColorMap.clear(); // Limpiar para recalculas colores por curso
     this.api
       .get<
         ApiResponse<any>
@@ -481,6 +670,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
   selectAmbiente(a: Ambiente): void {
     this.ambienteSeleccionado = a;
     this.loadingAmbiente = true;
+    this.profesorCursoColorMap.clear();
     this.api
       .get<
         ApiResponse<any>
@@ -500,9 +690,10 @@ export class HorariosComponent implements OnInit, OnDestroy {
   selectCiclo(ciclo: number): void {
     this.cicloSeleccionado = ciclo;
     this.loadingCiclo = true;
+    this.profesorCursoColorMap.clear();
     this.api
       .get<ApiResponse<any>>(`/horarios/periodo/${this.periodoService.periodo}`, {
-        limit: 500,
+        limit: 1000,
       })
       .subscribe({
         next: (r) => {
@@ -515,6 +706,109 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingCiclo = false;
+        },
+      });
+  }
+
+  selectDia(diaNum: number): void {
+    this.diaSeleccionado = diaNum;
+    this.loadingDia = true;
+    this.api
+      .get<ApiResponse<any>>(`/horarios/dia/${diaNum}`, {
+        periodo: this.periodoService.periodo,
+        limit: 1000,
+      })
+      .subscribe({
+        next: (r) => {
+          this.asignacionesDia = r.data?.items ?? r.data ?? [];
+          this.aplicarFiltrosDia();
+          this.loadingDia = false;
+        },
+        error: () => (this.loadingDia = false),
+      });
+  }
+
+  aplicarFiltrosDia(): void {
+    let filtered = [...this.asignacionesDia];
+
+    if (this.filtroDiaTexto) {
+      const search = this.filtroDiaTexto.toLowerCase();
+      filtered = filtered.filter(
+        (a) =>
+          a.curso?.nombre?.toLowerCase().includes(search) ||
+          a.docente?.apellidos?.toLowerCase().includes(search) ||
+          a.docente?.nombres?.toLowerCase().includes(search) ||
+          a.ambiente?.codigo?.toLowerCase().includes(search) ||
+          a.ambiente?.nombre?.toLowerCase().includes(search),
+      );
+    }
+
+    if (this.filtroDiaCiclo) {
+      filtered = filtered.filter((a) => a.curso?.ciclo === this.filtroDiaCiclo);
+    }
+
+    if (this.filtroDiaTipo) {
+      filtered = filtered.filter((a) => a.tipo_clase === this.filtroDiaTipo);
+    }
+
+    if (this.filtroDiaEstado) {
+      filtered = filtered.filter((a) => a.estado === this.filtroDiaEstado);
+    }
+
+    if (this.filtroDiaPabellon) {
+      filtered = filtered.filter(
+        (a) => a.ambiente?.pabellon === this.filtroDiaPabellon,
+      );
+    }
+
+    if (this.filtroDiaTurno) {
+      filtered = filtered.filter((a) => {
+        const hIni = parseInt(a.hora_inicio.split(':')[0], 10);
+        if (this.filtroDiaTurno === 'MAÑANA') return hIni < 13;
+        if (this.filtroDiaTurno === 'TARDE') return hIni >= 13;
+        return true;
+      });
+    }
+
+    this.filteredAsignacionesDia = filtered;
+  }
+
+  limpiarFiltrosDia(): void {
+    this.filtroDiaTexto = '';
+    this.filtroDiaCiclo = null;
+    this.filtroDiaTipo = null;
+    this.filtroDiaEstado = null;
+    this.filtroDiaTurno = null;
+    this.filtroDiaPabellon = null;
+    this.aplicarFiltrosDia();
+  }
+
+  getNombreDia(diaNum: number): string {
+    const nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    return nombres[diaNum - 1] || 'Día';
+  }
+
+  descargarPdfDia(): void {
+    if (!this.diaSeleccionado) return;
+    this.descargandoDiaPdf = true;
+    this.api
+      .getBlob(`/reportes/dia/${this.diaSeleccionado}/pdf`, {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoDiaPdf = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const nombreDia = this.getNombreDia(this.diaSeleccionado!);
+          a.download = `horario_${nombreDia}_${this.periodoService.periodo}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: () => {
+          this.descargandoDiaPdf = false;
+          this.notif.error('Error al descargar PDF del día');
         },
       });
   }
@@ -535,15 +829,16 @@ export class HorariosComponent implements OnInit, OnDestroy {
     );
   }
 
-  getColorForProfesor(docenteId: number | undefined): string {
-    if (!docenteId) return this.profesorColors[0];
+  getColorForProfesorCurso(docenteId: number | undefined, cursoId: number | undefined): string {
+    if (!docenteId || !cursoId) return this.profesorColors[0];
     
-    if (!this.profesorColorMap.has(docenteId)) {
-      const index = this.profesorColorMap.size % this.profesorColors.length;
-      this.profesorColorMap.set(docenteId, this.profesorColors[index]);
+    const key = `${docenteId}-${cursoId}`;
+    if (!this.profesorCursoColorMap.has(key)) {
+      const index = this.profesorCursoColorMap.size % this.profesorColors.length;
+      this.profesorCursoColorMap.set(key, this.profesorColors[index]);
     }
     
-    return this.profesorColorMap.get(docenteId)!;
+    return this.profesorCursoColorMap.get(key)!;
   }
 
   getAlturaBloque(bloque: any): string {
@@ -690,18 +985,54 @@ export class HorariosComponent implements OnInit, OnDestroy {
           docente: a.docente,
           curso: a.curso,
           horas: 0,
+          hTeoria: 0,
+          hPractica: 0,
+          hLaboratorio: 0,
           ambiente: a.ambiente,
+          gruposIds: new Set<number>(),
         });
       }
       const entry = map.get(key);
       const hInicio = this.horaToDecimal(a.hora_inicio);
       const hFin = this.horaToDecimal(a.hora_fin);
-      entry.horas += (hFin - hInicio);
+      const duration = (hFin - hInicio);
+      entry.horas += duration;
+
+      if (a.tipo_clase === 'TEORIA') entry.hTeoria += duration;
+      else if (a.tipo_clase === 'PRACTICA') entry.hPractica += duration;
+      else if (a.tipo_clase === 'LABORATORIO') {
+        entry.hLaboratorio += duration;
+        if (a.grupo?.id) entry.gruposIds.add(a.grupo.id);
+      }
     });
 
-    return Array.from(map.values()).sort((a, b) => {
-      const nameA = a.docente?.apellidos || '';
-      const nameB = b.docente?.apellidos || '';
+    const hierarchy: { [key: string]: number } = {
+      'PRINCIPAL': 1,
+      'ASOCIADO': 2,
+      'AUXILIAR': 3,
+      'SIN_CATEGORIA': 4
+    };
+
+    return Array.from(map.values()).map(item => ({
+      ...item,
+      g: item.gruposIds.size || (item.curso?.tiene_laboratorio ? 1 : 0)
+    })).sort((a, b) => {
+      const docA = a.docente;
+      const docB = b.docente;
+
+      // 1. Priorizar Departamento de Ingeniería de Sistemas
+      const isSistemasA = docA?.departamento?.nombre === 'Ing. de Sistemas' ? 1 : 0;
+      const isSistemasB = docB?.departamento?.nombre === 'Ing. de Sistemas' ? 1 : 0;
+      if (isSistemasA !== isSistemasB) return isSistemasB - isSistemasA;
+
+      // 2. Jerarquía de mayor a menor (Principal > Asociado > Auxiliar)
+      const rankA = hierarchy[docA?.categoria] || 99;
+      const rankB = hierarchy[docB?.categoria] || 99;
+      if (rankA !== rankB) return rankA - rankB;
+
+      // 3. Alfabético por apellidos
+      const nameA = docA?.apellidos || '';
+      const nameB = docB?.apellidos || '';
       return nameA.localeCompare(nameB);
     });
   }
@@ -726,6 +1057,84 @@ export class HorariosComponent implements OnInit, OnDestroy {
         error: () => {
           this.descargandoCiclo = false;
           this.notif.error('Error al descargar PDF');
+        },
+      });
+  }
+
+  descargarExcelCiclo(): void {
+    if (!this.cicloSeleccionado) return;
+    this.descargandoCicloExcel = true;
+    this.api
+      .getBlob(`/reportes/ciclo/${this.cicloSeleccionado}/excel`, {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoCicloExcel = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `horario_ciclo_${this.cicloSeleccionado}_${this.periodoService.periodo}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: () => {
+          this.descargandoCicloExcel = false;
+          this.notif.error('Error al descargar Excel');
+        },
+      });
+  }
+
+  descargarTodoPdf(): void {
+    this.descargandoTodo = true;
+    this.descargandoTodoPdfStatus = true;
+    this.api
+      .getBlob(`/reportes/todos-ciclos/pdf`, {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoTodo = false;
+          this.descargandoTodoPdfStatus = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `horarios_todos_ciclos_${this.periodoService.periodo}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.notif.success('PDF consolidado descargado');
+        },
+        error: () => {
+          this.descargandoTodo = false;
+          this.descargandoTodoPdfStatus = false;
+          this.notif.error('Error al descargar PDF consolidado');
+        },
+      });
+  }
+
+  descargarTodoExcel(): void {
+    this.descargandoTodo = true;
+    this.descargandoTodoExcelStatus = true;
+    this.api
+      .getBlob(`/reportes/todos-ciclos/excel`, {
+        periodo: this.periodoService.periodo,
+      })
+      .subscribe({
+        next: (blob) => {
+          this.descargandoTodo = false;
+          this.descargandoTodoExcelStatus = false;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `horarios_todos_ciclos_${this.periodoService.periodo}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.notif.success('Excel por ciclos descargado');
+        },
+        error: () => {
+          this.descargandoTodo = false;
+          this.descargandoTodoExcelStatus = false;
+          this.notif.error('Error al descargar Excel');
         },
       });
   }

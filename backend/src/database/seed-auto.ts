@@ -38,6 +38,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
     { nombre: "Director de Departamento", email: "director.departamento@unt.edu.pe", rol: RolUsuario.DIRECTOR_DEPARTAMENTO },
     { nombre: "Coordinador Académico", email: "coordinador@unt.edu.pe", rol: RolUsuario.COORDINADOR_ACADEMICO },
     { nombre: "Decano", email: "decano@unt.edu.pe", rol: RolUsuario.DECANO },
+    { nombre: "Secretaria", email: "secretaria@unt.edu.pe", rol: RolUsuario.SECRETARIA },
     { nombre: "Operador de Horarios", email: "operador@unt.edu.pe", rol: RolUsuario.OPERADOR_HORARIOS },
   ];
   for (const u of usuariosSistema) {

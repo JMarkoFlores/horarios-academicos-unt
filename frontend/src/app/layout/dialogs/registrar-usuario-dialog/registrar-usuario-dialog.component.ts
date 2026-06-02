@@ -17,7 +17,7 @@ export class RegistrarUsuarioDialogComponent {
     { value: 'administradorsistema', label: 'Administrador del Sistema' },
     { value: 'directorescuela', label: 'Director de Escuela' },
     { value: 'coordinadoracademico', label: 'Coordinador Académico' },
-    { value: 'operadorhorarios', label: 'Operador de Horarios' },
+    { value: 'secretaria', label: 'Secretaria' },
     { value: 'docente', label: 'Docente' },
   ];
 
@@ -31,7 +31,7 @@ export class RegistrarUsuarioDialogComponent {
       nombre: ['', [Validators.required, Validators.minLength(3)]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
-      rol: ['operadorhorarios', Validators.required],
+      rol: ['secretaria', Validators.required],
     });
   }
 

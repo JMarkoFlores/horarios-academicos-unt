@@ -16,7 +16,7 @@ export class EditarUsuarioDialogComponent {
     { value: 'administradorsistema', label: 'Administrador del Sistema' },
     { value: 'directorescuela', label: 'Director de Escuela' },
     { value: 'coordinadoracademico', label: 'Coordinador Académico' },
-    { value: 'operadorhorarios', label: 'Operador de Horarios' },
+    { value: 'secretaria', label: 'Secretaria' },
     { value: 'docente', label: 'Docente' },
   ];
 

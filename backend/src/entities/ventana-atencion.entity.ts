@@ -67,6 +67,8 @@ export class VentanaAtencion {
   @OneToMany(() => ColaDocente, (cola) => cola.ventana)
   colas: ColaDocente[];
 
+  total_docentes?: number;
+
   get periodo_academico(): string {
     return this.periodo;
   }

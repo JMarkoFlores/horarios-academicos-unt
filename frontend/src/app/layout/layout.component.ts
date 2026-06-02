@@ -62,6 +62,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   isDark = false;
   sectionTitle = 'Dashboard';
   sidebarCollapsed = false;
+  selectedPeriodoCodigo: string = '';
 
   // Cachear usuario y navGroups para evitar recálculos en change detection
   usuario = this.authService.getUsuarioActual();
@@ -70,6 +71,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   private _routerSub!: Subscription;
   private _photoSub!: Subscription;
   private _resizeTimer: any;
+  private _periodoSub!: Subscription;
 
   // Grupos de navegación para mejor organización visual
   navGroups: NavGroup[] = [
@@ -150,12 +152,12 @@ export class LayoutComponent implements OnInit, OnDestroy {
         },
         {
           icon: 'support_agent',
-          label: 'Operador',
-          route: '/app/operador',
+          label: 'Secretaria',
+          route: '/app/secretaria',
           roles: [
             'administradorsistema',
             'coordinadoracademico',
-            'operadorhorarios',
+            'secretaria',
           ],
         },
       ],
@@ -213,6 +215,12 @@ export class LayoutComponent implements OnInit, OnDestroy {
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
+          icon: 'campaign',
+          label: 'Campañas',
+          route: '/app/campaigns',
+          roles: ['administradorsistema', 'coordinadoracademico'],
+        },
+        {
           icon: 'notifications',
           label: 'Notificaciones',
           route: '/app/notificaciones',
@@ -260,10 +268,11 @@ export class LayoutComponent implements OnInit, OnDestroy {
     asignaciones: 'Gestión de Asignaciones',
     analytics: 'Análisis Inteligente',
     'analisis-carga': 'Análisis de Carga Docente',
-    operador: 'Operador — Sistema de Turnos',
+    secretaria: 'Secretaria — Sistema de Turnos',
     preasignaciones: 'Preasignaciones de Cursos',
     auditoria: 'Auditoría de Horarios',
     periodos: 'Períodos Académicos',
+    campaigns: 'Campañas de Ventanas',
     usuarios: 'Usuarios del Sistema',
     configuracion: 'Configuración del Sistema',
     notificaciones: 'Notificaciones y Preferencias',
@@ -275,11 +284,13 @@ export class LayoutComponent implements OnInit, OnDestroy {
     'ambientes',
     'configuracion',
     'periodos',
+    'campaigns',
     'usuarios',
     'notificaciones',
     'analisis-carga',
   ]);
   showPeriodoSelector = true;
+  notificacionesCount = 3; // Simulación de notificaciones no leídas
 
   constructor(
     public authService: AuthService,
@@ -302,6 +313,11 @@ export class LayoutComponent implements OnInit, OnDestroy {
     // Cargar periodos desde la base de datos (no bloqueante)
     this.periodoService.cargarPeriodos();
 
+    // Suscribirse a cambios en el período seleccionado
+    this._periodoSub = this.periodoService.periodo$.subscribe((codigo) => {
+      this.selectedPeriodoCodigo = codigo;
+    });
+
     this._photoSub = this.authService.profilePhoto$.subscribe((photo) => {
       this.userPhoto = photo;
     });
@@ -321,6 +337,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
     }
     if (this._photoSub) {
       this._photoSub.unsubscribe();
+    }
+    if (this._periodoSub) {
+      this._periodoSub.unsubscribe();
     }
     clearTimeout(this._resizeTimer);
   }

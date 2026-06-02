@@ -24,7 +24,7 @@ export class Usuario {
   @Column({
     type: "enum",
     enum: RolUsuario,
-    default: RolUsuario.OPERADOR_HORARIOS,
+    default: RolUsuario.SECRETARIA,
   })
   rol: RolUsuario;
 

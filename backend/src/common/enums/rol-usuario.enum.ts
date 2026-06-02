@@ -4,6 +4,7 @@ export enum RolUsuario {
   DIRECTOR_DEPARTAMENTO = "directordepartamento",
   COORDINADOR_ACADEMICO = "coordinadoracademico",
   DECANO = "decano",
+  SECRETARIA = "secretaria",
   OPERADOR_HORARIOS = "operadorhorarios",
   DOCENTE = "docente",
 }

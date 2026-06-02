@@ -23,12 +23,14 @@ import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.
 import { Preasignacion } from "../entities/preasignacion.entity";
 import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
 import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
+import { DiaActivo } from "../entities/dia-activo.entity";
 import { TurnoHorario } from "../entities/turno-horario.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Facultad } from "../entities/facultad.entity";
 import { Escuela } from "../entities/escuela.entity";
 import { Departamento } from "../entities/departamento.entity";
+import { ConfiguracionGeneral } from "../entities/configuracion-general.entity";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
@@ -38,7 +40,10 @@ import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
+import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
+import { EstadoCampaña } from "../common/enums/estado-campaña.enum";
+import { EstadoVentanaAtencion } from "../entities/ventana-atencion.entity";
 
 const AppDataSource = new DataSource({
   type: "postgres",
@@ -65,17 +70,17 @@ const AppDataSource = new DataSource({
     Preasignacion,
     RestriccionInstitucional,
     DiaNoLaborable,
+    DiaActivo,
     TurnoHorario,
     DocenteCurso,
     ParametrosCarga,
     Facultad,
     Escuela,
     Departamento,
+    ConfiguracionGeneral,
   ],
-  synchronize: false,
+  synchronize: true,
   logging: false,
-  ssl:
-    process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
 });
 
 async function seed() {
@@ -83,21 +88,6 @@ async function seed() {
 
   await AppDataSource.initialize();
   console.log("✅ Conexión a la base de datos establecida");
-
-  // ── 0. VERIFICAR Y AGREGAR COLUMNA grupos SI NO EXISTE ─────────────────────
-  console.log("🔍 Verificando columna grupos en tabla docente_curso...");
-  try {
-    await AppDataSource.query(`
-      ALTER TABLE docente_curso 
-      ADD COLUMN IF NOT EXISTS grupos INTEGER DEFAULT 1
-    `);
-    console.log("✅ Columna grupos verificada/creada");
-  } catch (error) {
-    console.log(
-      "⚠️  Error al verificar columna grupos (puede que ya exista):",
-      error,
-    );
-  }
 
   // ── 0. LIMPIEZA DE BASE DE DATOS (TRUNCATE CASCADE) ──────────────────────
   console.log("🧹 Limpiando base de datos existente...");
@@ -113,6 +103,7 @@ async function seed() {
     "preferencias_notificacion",
     "docente_curso",
     "curso_ambiente",
+    "dia_activo",
     "grupo",
     "curso",
     "docente",
@@ -126,6 +117,7 @@ async function seed() {
     "departamento",
     "escuela",
     "facultad",
+    "configuracion_general",
   ];
   for (const table of tables) {
     await AppDataSource.query(
@@ -146,6 +138,11 @@ async function seed() {
   const disponibilidadRepo = AppDataSource.getRepository(DisponibilidadDocente);
   const turnoRepo = AppDataSource.getRepository(TurnoHorario);
   const parametrosCargaRepo = AppDataSource.getRepository(ParametrosCarga);
+  const facultadRepo = AppDataSource.getRepository(Facultad);
+  const escuelaRepo = AppDataSource.getRepository(Escuela);
+  const departamentoRepo = AppDataSource.getRepository(Departamento);
+  const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
+  const configuracionRepo = AppDataSource.getRepository(ConfiguracionGeneral);
 
   const passwordHash = await bcrypt.hash("Admin123!", 10);
 
@@ -192,42 +189,71 @@ async function seed() {
       activo: true,
     },
     {
-      nombre: "Operador de Horarios",
-      email: "operador@unt.edu.pe",
+      nombre: "Secretaria",
+      email: "secretaria@unt.edu.pe",
       password_hash: passwordHash,
-      rol: RolUsuario.OPERADOR_HORARIOS,
+      rol: RolUsuario.SECRETARIA,
       activo: true,
     },
   ];
 
+  const dbUsuariosSistemas: Usuario[] = [];
   for (const u of usuariosSistemas) {
-    await usuarioRepo.save(usuarioRepo.create(u));
+    dbUsuariosSistemas.push(await usuarioRepo.save(usuarioRepo.create(u)));
   }
   console.log(
     "✅ Usuarios del sistema creados (Contraseña por defecto: Admin123!)\n",
   );
 
+  // ── 1.1 FACULTADES, ESCUELAS Y DEPARTAMENTOS ────────────────────────────────────
+  console.log("🏛️  Creando facultades, escuelas y departamentos...");
+
+  const fing = await facultadRepo.save(
+    facultadRepo.create({
+      codigo: "FING",
+      nombre: "Facultad de Ingeniería",
+      descripcion: "Facultad de Ingeniería",
+      activo: true,
+      coordinador_id: dbUsuariosSistemas[2].id, // Coordinador
+    }),
+  );
+
+  const escuela = await escuelaRepo.save(
+    escuelaRepo.create({
+      codigo: "EISIST",
+      nombre: "Ingeniería de Sistemas",
+      facultad_id: fing.id,
+      activo: true,
+    }),
+  );
+
+  const departamentosData = [
+    { codigo: "DINGSI", nombre: "Ing. de Sistemas", escuela_id: escuela.id },
+    { codigo: "DMATEM", nombre: "Matemáticas", escuela_id: escuela.id },
+    { codigo: "DESTAD", nombre: "Estadística", escuela_id: escuela.id },
+    { codigo: "DLENGUA", nombre: "Lengua Nacional y Literatura", escuela_id: escuela.id },
+    { codigo: "DPSICO", nombre: "CC. Psicológicas", escuela_id: escuela.id },
+    { codigo: "DADMIN", nombre: "Administración", escuela_id: escuela.id },
+    { codigo: "DFISICA", nombre: "Física", escuela_id: escuela.id },
+    { codigo: "DINDUS", nombre: "Ingeniería Industrial", escuela_id: escuela.id },
+    { codigo: "DCONT", nombre: "Contabilidad y Finanzas", escuela_id: escuela.id },
+  ];
+
+  const dbDepartamentos: Departamento[] = [];
+  for (const dep of departamentosData) {
+    dbDepartamentos.push(await departamentoRepo.save(departamentoRepo.create(dep)));
+  }
+  const depSistemas = dbDepartamentos.find(d => d.codigo === "DINGSI");
+  const depMatemat = dbDepartamentos.find(d => d.codigo === "DMATEM");
+  const depEstadis = dbDepartamentos.find(d => d.codigo === "DESTAD");
+  const depLengua = dbDepartamentos.find(d => d.codigo === "DLENGUA");
+  const depPsicol = dbDepartamentos.find(d => d.codigo === "DPSICO");
+
+  console.log("✅ Facultades, escuelas y departamentos creados\n");
+
   // ── 2. PERÍODOS ACADÉMICOS (CON MODOS DE ASIGNACIÓN PARA PRUEBA) ──────────
   console.log("📅 Creando periodos académicos con modos de asignación...");
   const periodosData = [
-    {
-      codigo: "2025-I",
-      nombre: "Semestre 2025-I",
-      fecha_inicio: new Date("2025-03-16"),
-      fecha_fin: new Date("2025-07-31"),
-      estado: EstadoPeriodo.FINALIZADO,
-      activo: false,
-      modo_asignacion: ModoAsignacion.VENTANAS,
-    },
-    {
-      codigo: "2025-II",
-      nombre: "Semestre 2025-II",
-      fecha_inicio: new Date("2025-08-16"),
-      fecha_fin: new Date("2025-12-20"),
-      estado: EstadoPeriodo.FINALIZADO,
-      activo: false,
-      modo_asignacion: ModoAsignacion.AUTOMATICA,
-    },
     {
       codigo: "2026-I",
       nombre: "Semestre 2026-I",
@@ -235,7 +261,7 @@ async function seed() {
       fecha_fin: new Date("2026-07-31"),
       estado: EstadoPeriodo.EN_CURSO,
       activo: true,
-      modo_asignacion: ModoAsignacion.MIXTA, // Período activo en modo MIXTA para probar
+      modo_asignacion: ModoAsignacion.MIXTA,
     },
   ];
 
@@ -247,138 +273,100 @@ async function seed() {
   if (!periodoActivo) {
     throw new Error("No se pudo crear el período académico activo 2026-I");
   }
+  const periodoId = periodoActivo.id;
   console.log("✅ Períodos académicos creados (2026-I Activo)\n");
 
-  // ── 3. DOCENTES Y SUS USUARIOS ASOCIADOS (DE LOS DATOS DEL PDF) ───────────
-  console.log("👨‍🏫 Creando docentes de los datos del PDF...");
-  const docentesData = [
-    { nombres: "Marcelino", apellidos: "Torres Villanueva", codigo: "DOC001" },
-    {
-      nombres: "Alberto",
-      apellidos: "Mendoza de los Santos",
-      codigo: "DOC002",
-    },
-    { nombres: "Paul", apellidos: "Cotrina Castellanos", codigo: "DOC003" },
-    { nombres: "Bertha", apellidos: "Urtecho Zavaleta", codigo: "DOC004" },
-    { nombres: "Jose Luis", apellidos: "Ponte Bejarano", codigo: "DOC005" },
-    { nombres: "Jorge Luis", apellidos: "Rios Gonzales", codigo: "DOC006" },
-    { nombres: "Segundo", apellidos: "Guibar Obeso", codigo: "DOC007" },
-    { nombres: "Miguel", apellidos: "Ipanaque Zapata", codigo: "DOC008" },
-    { nombres: "Martha", apellidos: "Cardoso", codigo: "DOC009" },
-    { nombres: "Zoraida", apellidos: "Vidal Melgarejo", codigo: "DOC010" },
-    { nombres: "Everson David", apellidos: "Agreda Gamboa", codigo: "DOC011" },
-    { nombres: "Juan Carlos", apellidos: "Obando Roldán", codigo: "DOC012" },
-    { nombres: "Marcos", apellidos: "Ferrer Reyna", codigo: "DOC013" },
-    { nombres: "Teresita", apellidos: "Rojas Garcia", codigo: "DOC014" },
-    { nombres: "Juan", apellidos: "Carrascal Cabanillas", codigo: "DOC015" },
-    { nombres: "Vilma", apellidos: "Mendez Gil", codigo: "DOC016" },
-    {
-      nombres: "Sheyla Laura",
-      apellidos: "Escobedo Rodriguez",
-      codigo: "DOC017",
-    },
-    { nombres: "Luis", apellidos: "Boy Chavil", codigo: "DOC018" },
-    { nombres: "Robert Jerry", apellidos: "Sánchez Ticona", codigo: "DOC019" },
-    { nombres: "Cesar", apellidos: "Arellano Salazar", codigo: "DOC020" },
-    { nombres: "Camilo", apellidos: "Suárez Rebaza", codigo: "DOC021" },
-    { nombres: "Marcos", apellidos: "Baca Lopez", codigo: "DOC022" },
-    { nombres: "Ana", apellidos: "Cuadra Mitzugaray", codigo: "DOC023" },
-    { nombres: "Juan Pedro", apellidos: "Santos Fernández", codigo: "DOC024" },
-    { nombres: "Ricardo", apellidos: "Mendoza Rivera", codigo: "DOC025" },
-    { nombres: "Oscar Romel", apellidos: "Alcántara Moreno", codigo: "DOC026" },
-    { nombres: "José", apellidos: "Gómez Ávila", codigo: "DOC027" },
-    { nombres: "Jhoe", apellidos: "Gonzalez Vasquez", codigo: "DOC028" },
-  ];
+  // ── 2.1 CAMPAÑA DE VENTANAS DE ATENCIÓN ───────────────────────────────────
+  console.log("📅 Creando campaña de ventanas de atención para el semestre...");
+  const campañaRepo = AppDataSource.getRepository(CampañaVentanas);
+  const ventanaRepo = AppDataSource.getRepository(VentanaAtencion);
 
-  const dbDocentes: Docente[] = [];
-  const modalidadesPool = [
-    ModalidadDocente.DEDICACION_EXCLUSIVA,
-    ModalidadDocente.TIEMPO_COMPLETO_40,
-    ModalidadDocente.TIEMPO_PARCIAL_20,
-    ModalidadDocente.TIEMPO_PARCIAL_12,
-    ModalidadDocente.TIEMPO_PARCIAL_10,
-    ModalidadDocente.TIEMPO_PARCIAL_8,
-  ];
+  const campaña = await campañaRepo.save(campañaRepo.create({
+    nombre: "Campaña de Asignación de Horarios 2026-I",
+    descripcion: "Campaña principal para la declaración y asignación de horarios del primer semestre de 2026",
+    periodo_id: periodoActivo.id,
+    periodo: periodoActivo,
+    estado: EstadoCampaña.PUBLICADO,
+    fecha_inicio: new Date("2026-03-16"),
+    fecha_fin: new Date("2026-07-31"),
+    dias_habilitados: ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"],
+    bloques_horarios: [
+      { nombre: "Mañana", hora_inicio: "07:00", hora_fin: "14:00" },
+      { nombre: "Tarde", hora_inicio: "14:00", hora_fin: "21:00" }
+    ],
+    duracion_turno_minutos: 60,
+    buffer_minutos: 10,
+    cupos_maximos_ventana: 10,
+    porcentaje_reserva: 20,
+    reglas_prioridad: [
+      { campo: "tipo_docente", orden: "DESC" },
+      { campo: "categoria", orden: "DESC" },
+      { campo: "modalidad", orden: "DESC" },
+      { campo: "fecha_ingreso", orden: "ASC" }
+    ],
+    excluir_feriados: true,
+    excluir_eventos: false,
+    distribucion_equitativa: true,
+    total_ventanas_generadas: 0,
+    total_docentes_asignados: 0,
+    total_docentes_atendidos: 0,
+    total_ausencias: 0,
+    tiempo_promedio_atencion: 0,
+    creado_por_id: dbUsuariosSistemas[0].id,
+  }));
 
-  for (let i = 0; i < docentesData.length; i++) {
-    const docData = docentesData[i];
-    let tipoDocente: TipoDocente;
-    let categoria: CategoriaDocente;
-    if (i < 5) {
-      tipoDocente = TipoDocente.ORDINARIO;
-      categoria = CategoriaDocente.PRINCIPAL;
-    } else if (i < 10) {
-      tipoDocente = TipoDocente.ORDINARIO;
-      categoria = CategoriaDocente.ASOCIADO;
-    } else if (i < 18) {
-      tipoDocente = TipoDocente.ORDINARIO;
-      categoria = CategoriaDocente.AUXILIAR;
-    } else if (i < 23) {
-      tipoDocente = TipoDocente.CONTRATADO;
-      categoria = CategoriaDocente.SIN_CATEGORIA;
-    } else {
-      tipoDocente = TipoDocente.JEFE_PRACTICA_CONTRATADO;
-      categoria = CategoriaDocente.SIN_CATEGORIA;
-    }
-    const tipoContrato =
-      tipoDocente === TipoDocente.ORDINARIO
-        ? TipoContrato.NOMBRADO
-        : TipoContrato.CONTRATADO;
+  console.log("✅ Campaña creada exitosamente!\n");
 
-    const d = await docenteRepo.save(
-      docenteRepo.create({
-        codigo: docData.codigo,
-        nombres: docData.nombres,
-        apellidos: docData.apellidos,
-        email: `${docData.nombres.toLowerCase().replace(/\s+/g, ".")}.${docData.apellidos.toLowerCase().replace(/\s+/g, ".")}@unt.edu.pe`,
-        categoria,
-        tipo_docente: tipoDocente,
-        tipo_contrato: tipoContrato,
-        modalidad: modalidadesPool[i % modalidadesPool.length],
-        fecha_ingreso: new Date(2000 + (i % 20), 0, 1),
-        activo: true,
-      }),
-    );
-    dbDocentes.push(d);
+  // ── 2.2 VENTANAS DE ATENCIÓN ASOCIADAS ────────────────────────────────────
+  console.log("📋 Creando ventanas de atención para la campaña...");
+  
+  // Ventana de Declaración Inicial
+  const ventanaDeclaracion = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-03-20"),
+    categoria: "DECLARACION",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
 
-    await usuarioRepo.save(
-      usuarioRepo.create({
-        nombre: `${d.nombres} ${d.apellidos}`,
-        email: d.email,
-        password_hash: passwordHash,
-        rol: RolUsuario.DOCENTE,
-        activo: true,
-      }),
-    );
-  }
-  console.log(
-    `✅ ${dbDocentes.length} docentes y sus usuarios de acceso creados correctamente\n`,
-  );
+  // Ventana de Subsanación
+  const ventanaSubsanacion = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-04-01"),
+    categoria: "SUBSANACION",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
 
-  // ── 4. AMBIENTES (Aulas de Posgrado y Laboratorios) ──────────────────────────────
-  console.log(
-    "🏢 Creando ambientes de estudio (posgrado aulas y laboratorios)...",
-  );
+  // Ventana de Cambio de Horario
+  const ventanaCambio = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-04-15"),
+    categoria: "CAMBIO",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
+
+  console.log("✅ Ventanas de atención creadas exitosamente!\n");
+
+  // ── 3. AMBIENTES (AULAS Y LABORATORIOS) ──────────────────────────────────
+  console.log("🏢 Creando ambientes de estudio...");
   const ambientesData = [
-    // Aulas de Posgrado
-    {
-      codigo: "A-301",
-      nombre: "Posgrado A-301",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 30,
-      piso: 3,
-      pabellon: "A",
-      activo: true,
-    },
-    {
-      codigo: "A-303",
-      nombre: "Posgrado A-303",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 30,
-      piso: 3,
-      pabellon: "A",
-      activo: true,
-    },
     {
       codigo: "A-307",
       nombre: "Posgrado A-307",
@@ -389,15 +377,50 @@ async function seed() {
       activo: true,
     },
     {
-      codigo: "A-311",
-      nombre: "Posgrado A-311",
+      codigo: "A-303",
+      nombre: "Posgrado A-303",
       tipo: TipoAmbiente.AULA,
-      capacidad: 30,
+      capacidad: 35,
       piso: 3,
       pabellon: "A",
       activo: true,
     },
-    // Laboratorios
+    {
+      codigo: "A-311",
+      nombre: "Posgrado A-311",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 40,
+      piso: 1,
+      pabellon: "A",
+      activo: true,
+    },
+    {
+      codigo: "I-4",
+      nombre: "I-4",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 30,
+      piso: 1,
+      pabellon: "A",
+      activo: true,
+    },
+    {
+      codigo: "II-2",
+      nombre: "II-2 (Pabellon Ing. Industrial)",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 30,
+      piso: 2,
+      pabellon: "Industrial",
+      activo: true,
+    },
+    {
+      codigo: "TALLER-CONFECCIONES",
+      nombre: "Taller de Confecciones - Ing. Industrial",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 40,
+      piso: 2,
+      pabellon: "C",
+      activo: true,
+    },
     {
       codigo: "LAB-1",
       nombre: "Lab. 1",
@@ -444,39 +467,12 @@ async function seed() {
       activo: true,
     },
     {
-      codigo: "TALLER-CONFECCIONES",
-      nombre: "Taller de Confecciones - Ing. Industrial",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 40,
-      piso: 2,
-      pabellon: "C",
-      activo: true,
-    },
-    {
-      codigo: "I-4",
-      nombre: "I-4",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 30,
-      piso: 1,
-      pabellon: "A",
-      activo: true,
-    },
-    {
-      codigo: "II-2",
-      nombre: "II-2 (Pabellon Ing. Industrial)",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 30,
-      piso: 2,
-      pabellon: "Industrial",
-      activo: true,
-    },
-    {
       codigo: "AUDIOVISUALES",
-      nombre: "Audiovisuales",
+      nombre: "Sala de Audiovisuales",
       tipo: TipoAmbiente.AULA,
-      capacidad: 40,
+      capacidad: 50,
       piso: 1,
-      pabellon: "A",
+      pabellon: "B",
       activo: true,
     },
   ];
@@ -486,17 +482,172 @@ async function seed() {
     const ambiente = await ambienteRepo.save(ambienteRepo.create(a));
     dbAmbientes.push(ambiente);
   }
-  console.log("✅ 6 aulas y 4 laboratorios creados exitosamente\n");
+  console.log("✅ Ambientes creados exitosamente\n");
 
-  // ── 5. PLAN DE ESTUDIOS COMPLETO INGENIERÍA DE SISTEMAS 2018 (82 CURSOS) ─
+  // ── 4. DOCENTES Y SUS USUARIOS ASOCIADOS ───────────
+  console.log("👨‍🏫 Creando docentes de los datos proporcionados...");
+  const docentesData = [
+    { nombres: "Marcelino", apellidos: "Torres Villanueva", codigo: "DOC001" },
+    {
+      nombres: "Alberto",
+      apellidos: "Mendoza de los Santos",
+      codigo: "DOC002",
+    },
+    { nombres: "Paul", apellidos: "Cotrina Castellanos", codigo: "DOC003" },
+    { nombres: "Bertha", apellidos: "Urtecho Zavaleta", codigo: "DOC004" },
+    { nombres: "Jose Luis", apellidos: "Ponte Bejarano", codigo: "DOC005" },
+    { nombres: "Jorge Luis", apellidos: "Rios Gonzales", codigo: "DOC006" },
+    { nombres: "Segundo", apellidos: "Guibar Obeso", codigo: "DOC007" },
+    { nombres: "Miguel", apellidos: "Ipanaque Zapata", codigo: "DOC008" },
+    { nombres: "Martha", apellidos: "Cardoso", codigo: "DOC009" },
+    { nombres: "Zoraida", apellidos: "Vidal Melgarejo", codigo: "DOC010" },
+    { nombres: "Everson David", apellidos: "Agreda Gamboa", codigo: "DOC011" },
+    { nombres: "Juan Carlos", apellidos: "Obando Roldán", codigo: "DOC012" },
+    { nombres: "Marcos", apellidos: "Ferrer Reyna", codigo: "DOC013" },
+    { nombres: "Teresita", apellidos: "Rojas Garcia", codigo: "DOC014" },
+    { nombres: "Juan", apellidos: "Carrascal Cabanillas", codigo: "DOC015" },
+    { nombres: "Vilma", apellidos: "Mendez Gil", codigo: "DOC016" },
+    {
+      nombres: "Sheyla Laura",
+      apellidos: "Escobedo Rodriguez",
+      codigo: "DOC017",
+    },
+    { nombres: "Luis", apellidos: "Boy Chavil", codigo: "DOC018" },
+    { nombres: "Robert Jerry", apellidos: "Sánchez Ticona", codigo: "DOC019" },
+    { nombres: "César", apellidos: "Arellano Salazar", codigo: "DOC020" },
+    { nombres: "Camilo", apellidos: "Suárez Rebaza", codigo: "DOC021" },
+    { nombres: "Marcos", apellidos: "Baca Lopez", codigo: "DOC022" },
+    { nombres: "Ana", apellidos: "Cuadra Mitzugaray", codigo: "DOC023" },
+    { nombres: "Juan Pedro", apellidos: "Santos Fernández", codigo: "DOC024" },
+    { nombres: "Ricardo", apellidos: "Mendoza Rivera", codigo: "DOC025" },
+    { nombres: "Oscar Romel", apellidos: "Alcántara Moreno", codigo: "DOC026" },
+    { nombres: "José", apellidos: "Gómez Ávila", codigo: "DOC027" },
+    { nombres: "Jhoe", apellidos: "Gonzalez Vasquez", codigo: "DOC028" },
+  ];
+
+  const dbDocentes: Docente[] = [];
+  const modalidadesPool = [
+    ModalidadDocente.DEDICACION_EXCLUSIVA,
+    ModalidadDocente.TIEMPO_COMPLETO_40,
+    ModalidadDocente.TIEMPO_PARCIAL_20,
+    ModalidadDocente.TIEMPO_PARCIAL_12,
+    ModalidadDocente.TIEMPO_PARCIAL_10,
+    ModalidadDocente.TIEMPO_PARCIAL_8,
+  ];
+
+  for (let i = 0; i < docentesData.length; i++) {
+    const docData = docentesData[i];
+    let tipoDocente: TipoDocente;
+    let categoria: CategoriaDocente;
+    let modalidad: ModalidadDocente;
+    
+    // Excepción para Juan Pedro Santos Fernández (DOC024)
+    if (docData.codigo === "DOC024") {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.PRINCIPAL;
+      modalidad = ModalidadDocente.DEDICACION_EXCLUSIVA;
+    } else if (i < 5) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.PRINCIPAL;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    } else if (i < 10) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.ASOCIADO;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    } else if (i < 18) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.AUXILIAR;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    } else if (i < 23) {
+      tipoDocente = TipoDocente.CONTRATADO;
+      categoria = CategoriaDocente.SIN_CATEGORIA;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    } else {
+      tipoDocente = TipoDocente.JEFE_PRACTICA_CONTRATADO;
+      categoria = CategoriaDocente.SIN_CATEGORIA;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    }
+    
+    const tipoContrato =
+      tipoDocente === TipoDocente.ORDINARIO
+        ? TipoContrato.NOMBRADO
+        : TipoContrato.CONTRATADO;
+
+    const d = await docenteRepo.save(
+      docenteRepo.create({
+        codigo: docData.codigo,
+        nombres: docData.nombres,
+        apellidos: docData.apellidos,
+        email: `${docData.nombres.toLowerCase().replace(/\s+/g, ".")}.${docData.apellidos.toLowerCase().replace(/\s+/g, ".")}@unt.edu.pe`,
+        categoria,
+        tipo_docente: tipoDocente,
+        tipo_contrato: tipoContrato,
+        modalidad: modalidad,
+        fecha_ingreso: new Date(2000 + (i % 20), 0, 1),
+        activo: true,
+        departamento_id: (i === 3) ? depPsicol?.id : 
+                        (i === 4 || i === 6) ? depMatemat?.id :
+                        (i === 5) ? depLengua?.id :
+                        (i === 7 || i === 8) ? depEstadis?.id :
+                        depSistemas?.id
+      }),
+    );
+    dbDocentes.push(d);
+
+    await usuarioRepo.save(
+      usuarioRepo.create({
+        nombre: `${d.nombres} ${d.apellidos}`,
+        email: d.email,
+        password_hash: passwordHash,
+        rol: RolUsuario.DOCENTE,
+        activo: true,
+      }),
+    );
+  }
   console.log(
-    "📚 Creando plan de estudios completo de Ingeniería de Sistemas 2018...",
+    `✅ ${dbDocentes.length} docentes y sus usuarios de acceso creados correctamente\n`,
   );
+
+  // ── 5. CURSOS (PLAN DE ESTUDIOS COMPLETO) ─
+  console.log("📚 Creando plan de estudios...");
   const cursosData = [
     // === CICLO I ===
     {
+      codigo: "EE-102",
+      nombre: "Introducción a la Programación",
+      creditos: 3,
+      horas_teoria: 2,
+      horas_practica: 0,
+      horas_laboratorio: 2,
+      ciclo: 1,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EE-101",
+      nombre: "Introducción a la Ing. de Sistemas",
+      creditos: 2,
+      horas_teoria: 1,
+      horas_practica: 2,
+      horas_laboratorio: 0,
+      ciclo: 1,
+      tiene_laboratorio: false,
+      activo: true,
+    },
+    {
+      codigo: "EG-103",
+      nombre: "Desarrollo Personal",
+      creditos: 3,
+      horas_teoria: 2,
+      horas_practica: 2,
+      horas_laboratorio: 0,
+      ciclo: 1,
+      tiene_laboratorio: false,
+      activo: true,
+    },
+    {
       codigo: "EG-101",
-      nombre: "Desarrollo del Pensamiento Lógico Matemático",
+      nombre: "Desarrollo del Pens. Lógico Matemát.",
       creditos: 3,
       horas_teoria: 1,
       horas_practica: 4,
@@ -507,18 +658,7 @@ async function seed() {
     },
     {
       codigo: "EG-102",
-      nombre: "Lectura Crítica y Redacción de Textos Académicos",
-      creditos: 3,
-      horas_teoria: 2,
-      horas_practica: 2,
-      horas_laboratorio: 0,
-      ciclo: 1,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EG-103",
-      nombre: "Desarrollo Personal",
+      nombre: "Lectura Crítica y Redac. Textos Acad.",
       creditos: 3,
       horas_teoria: 2,
       horas_practica: 2,
@@ -549,160 +689,47 @@ async function seed() {
       tiene_laboratorio: false,
       activo: true,
     },
-    {
-      codigo: "EE-101",
-      nombre: "Introducción a la Ingeniería de Sistemas",
-      creditos: 2,
-      horas_teoria: 1,
-      horas_practica: 2,
-      horas_laboratorio: 0,
-      ciclo: 1,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EE-102",
-      nombre: "Introducción a la Programación",
-      creditos: 3,
-      horas_teoria: 2,
-      horas_practica: 0,
-      horas_laboratorio: 2,
-      ciclo: 1,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EG-106",
-      nombre: "Lengua Nacional y Literatura",
-      creditos: 2,
-      horas_teoria: 2,
-      horas_laboratorio: 0,
-      ciclo: 1,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EG-107",
-      nombre: "Matemáticas",
-      creditos: 3,
-      horas_teoria: 2,
-      horas_laboratorio: 0,
-      ciclo: 1,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EL-101",
-      nombre: "Electivo 1a: Técnicas de comunicación eficaz",
-      creditos: 1,
-      horas_teoria: 1,
-      horas_laboratorio: 0,
-      ciclo: 1,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-
-    // === CICLO II ===
-    {
-      codigo: "EG-201",
-      nombre: "Ética, Convivencia Humana y Ciudadanía",
-      creditos: 3,
-      horas_teoria: 2,
-      horas_laboratorio: 0,
-      ciclo: 2,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EG-202",
-      nombre: "Sociedad, Cultura y Ecología",
-      creditos: 3,
-      horas_teoria: 2,
-      horas_laboratorio: 0,
-      ciclo: 2,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EG-203",
-      nombre: "Cultura Investigativa y Pensamiento Crítico",
-      creditos: 3,
-      horas_teoria: 2,
-      horas_laboratorio: 0,
-      ciclo: 2,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EG-204",
-      nombre: "Análisis Matemático",
-      creditos: 4,
-      horas_teoria: 2,
-      horas_laboratorio: 0,
-      ciclo: 2,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EG-205",
-      nombre: "Física General",
-      creditos: 4,
-      horas_teoria: 2,
-      horas_laboratorio: 2,
-      ciclo: 2,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-201",
-      nombre: "Programación Orientada a Objetos I",
-      creditos: 4,
-      horas_teoria: 2,
-      horas_laboratorio: 4,
-      ciclo: 2,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EL-201",
-      nombre: "Electivo 2a: Taller de Manejo de TIC",
-      creditos: 1,
-      horas_teoria: 0,
-      horas_laboratorio: 2,
-      ciclo: 2,
-      tiene_laboratorio: true,
-      activo: true,
-    },
 
     // === CICLO III ===
     {
-      codigo: "EP-305",
-      nombre: "Psicología Organizacional",
-      creditos: 2,
-      horas_teoria: 2,
-      horas_practica: 2,
-      horas_laboratorio: 0,
-      ciclo: 3,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EP-301",
-      nombre: "Administración General",
-      creditos: 3,
-      horas_teoria: 2,
-      horas_practica: 2,
-      horas_laboratorio: 0,
-      ciclo: 3,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
       codigo: "EE-301",
+      nombre: "Programación Orientada a Objetos II",
+      creditos: 4,
+      horas_teoria: 2,
+      horas_practica: 0,
+      horas_laboratorio: 4,
+      ciclo: 3,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EE-302",
       nombre: "Sistémica",
       creditos: 3,
       horas_teoria: 2,
       horas_practica: 1,
+      horas_laboratorio: 2,
+      ciclo: 3,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EE-303",
+      nombre: "Ingeniería Gráfica (e)",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 1,
+      horas_laboratorio: 3,
+      ciclo: 3,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EP-301",
+      nombre: "Matemática Aplicada",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 2,
       horas_laboratorio: 2,
       ciclo: 3,
       tiene_laboratorio: true,
@@ -721,13 +748,13 @@ async function seed() {
     },
     {
       codigo: "EP-303",
-      nombre: "Matemática Aplicada",
+      nombre: "Administración General",
       creditos: 3,
-      horas_teoria: 1,
+      horas_teoria: 2,
       horas_practica: 2,
-      horas_laboratorio: 2,
+      horas_laboratorio: 0,
       ciclo: 3,
-      tiene_laboratorio: true,
+      tiene_laboratorio: false,
       activo: true,
     },
     {
@@ -742,165 +769,46 @@ async function seed() {
       activo: true,
     },
     {
-      codigo: "EE-302",
-      nombre: "Programación Orientada a Objetos II",
-      creditos: 4,
-      horas_teoria: 2,
-      horas_laboratorio: 4,
-      ciclo: 3,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EL-301",
-      nombre: "Ingeniería Gráfica",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_practica: 1,
-      horas_laboratorio: 2,
-      ciclo: 3,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-
-    // === CICLO IV ===
-    {
-      codigo: "EP-401",
-      nombre: "Economía General",
+      codigo: "EP-305",
+      nombre: "Psicología Organizacional (e)",
       creditos: 3,
       horas_teoria: 2,
+      horas_practica: 2,
       horas_laboratorio: 0,
-      ciclo: 4,
+      ciclo: 3,
       tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EE-401",
-      nombre: "Diseño Web",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 3,
-      ciclo: 4,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EP-402",
-      nombre: "Pensamiento de Diseño",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 4,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EP-403",
-      nombre: "Gestión por Procesos",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 4,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-402",
-      nombre: "Sistemas Digitales",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 4,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-403",
-      nombre: "Estructura de Datos Orientado a Objetos",
-      creditos: 4,
-      horas_teoria: 2,
-      horas_laboratorio: 3,
-      ciclo: 4,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EL-401",
-      nombre: "Electivo 4a: Computación Gráfica y Visual",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 3,
-      ciclo: 4,
-      tiene_laboratorio: true,
       activo: true,
     },
 
     // === CICLO V ===
     {
-      codigo: "EE-505",
-      nombre: "Transformación Digital",
-      creditos: 3,
-      horas_teoria: 2,
-      horas_laboratorio: 2,
-      ciclo: 5,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-506",
-      nombre: "Teleinformática",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 5,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EP-501",
-      nombre: "Contabilidad Gerencial",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 5,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
       codigo: "EE-501",
-      nombre: "Tecnología Web",
-      creditos: 3,
-      horas_teoria: 1,
+      nombre: "Ingeniería de Datos I",
+      creditos: 4,
+      horas_teoria: 2,
+      horas_practica: 1,
       horas_laboratorio: 3,
-      ciclo: 5,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EP-502",
-      nombre: "Investigación de Operaciones",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
       ciclo: 5,
       tiene_laboratorio: true,
       activo: true,
     },
     {
       codigo: "EE-502",
-      nombre: "Ingeniería de Datos I",
+      nombre: "Sistemas de Información",
       creditos: 4,
       horas_teoria: 2,
-      horas_laboratorio: 3,
+      horas_practica: 2,
+      horas_laboratorio: 2,
       ciclo: 5,
       tiene_laboratorio: true,
       activo: true,
     },
     {
       codigo: "EE-503",
-      nombre: "Arquitectura de Computadoras",
+      nombre: "Transformación digital",
       creditos: 3,
-      horas_teoria: 1,
+      horas_teoria: 2,
+      horas_practica: 0,
       horas_laboratorio: 2,
       ciclo: 5,
       tiene_laboratorio: true,
@@ -908,93 +816,100 @@ async function seed() {
     },
     {
       codigo: "EE-504",
-      nombre: "Sistemas de Información",
-      creditos: 4,
-      horas_teoria: 2,
+      nombre: "Tecnología web",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 1,
+      horas_laboratorio: 3,
+      ciclo: 5,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EE-505",
+      nombre: "Arquitectura de computadoras",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 2,
+      horas_laboratorio: 2,
+      ciclo: 5,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EE-506",
+      nombre: "Teleinformática(e)",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 2,
+      horas_laboratorio: 2,
+      ciclo: 5,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EP-501",
+      nombre: "Investigación de Operaciones",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 2,
+      horas_laboratorio: 2,
+      ciclo: 5,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EP-502",
+      nombre: "Contabilidad Gerencial",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 2,
       horas_laboratorio: 2,
       ciclo: 5,
       tiene_laboratorio: true,
       activo: true,
     },
 
-    // === CICLO VI ===
-    {
-      codigo: "EP-601",
-      nombre: "Finanzas Corporativas",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 6,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-601",
-      nombre: "Sistemas Inteligentes",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 6,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EP-602",
-      nombre: "Ingeniería Económica",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 6,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-602",
-      nombre: "Ingeniería de Datos II",
-      creditos: 4,
-      horas_teoria: 2,
-      horas_laboratorio: 3,
-      ciclo: 6,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-603",
-      nombre: "Sistemas Operativos",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 6,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-604",
-      nombre: "Ingeniería de Requerimientos",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 6,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-
     // === CICLO VII ===
     {
-      codigo: "EP-701",
-      nombre: "Cadena de Suministros",
-      creditos: 3,
+      codigo: "EE-701",
+      nombre: "Ingeniería de Software I",
+      creditos: 4,
       horas_teoria: 2,
-      horas_laboratorio: 0,
+      horas_practica: 1,
+      horas_laboratorio: 3,
       ciclo: 7,
-      tiene_laboratorio: false,
+      tiene_laboratorio: true,
       activo: true,
     },
     {
-      codigo: "EE-701",
-      nombre: "Gestión de Servicios de TIC",
+      codigo: "EE-702",
+      nombre: "Redes y Comunicaciones I",
       creditos: 3,
       horas_teoria: 1,
+      horas_practica: 1,
+      horas_laboratorio: 3,
+      ciclo: 7,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EE-703",
+      nombre: "Negocios Electrónicos (e)",
+      creditos: 3,
+      horas_teoria: 2,
+      horas_practica: 0,
+      horas_laboratorio: 2,
+      ciclo: 7,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EE-704",
+      nombre: "Gestión de Servicios de TI",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 2,
       horas_laboratorio: 2,
       ciclo: 7,
       tiene_laboratorio: true,
@@ -1005,130 +920,53 @@ async function seed() {
       nombre: "Metodología de la Investigación Científica",
       creditos: 3,
       horas_teoria: 2,
+      horas_practica: 2,
       horas_laboratorio: 0,
       ciclo: 7,
       tiene_laboratorio: false,
       activo: true,
     },
     {
-      codigo: "EE-702",
+      codigo: "EE-705",
+      nombre: "Administración de Base de Datos",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 1,
+      horas_laboratorio: 3,
+      ciclo: 7,
+      tiene_laboratorio: true,
+      activo: true,
+    },
+    {
+      codigo: "EE-706",
       nombre: "Planeamiento Estratégico de TI",
       creditos: 3,
       horas_teoria: 1,
+      horas_practica: 2,
       horas_laboratorio: 2,
       ciclo: 7,
       tiene_laboratorio: true,
       activo: true,
     },
     {
-      codigo: "EE-703",
-      nombre: "Redes y Comunicaciones I",
+      codigo: "EP-701",
+      nombre: "Cadena de Suministros (e)",
       creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 3,
-      ciclo: 7,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-704",
-      nombre: "Ingeniería de Software I",
-      creditos: 4,
       horas_teoria: 2,
-      horas_laboratorio: 3,
+      horas_practica: 2,
+      horas_laboratorio: 0,
       ciclo: 7,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-
-    // === CICLO VIII ===
-    {
-      codigo: "EP-801",
-      nombre: "Marketing y Medios Sociales",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 8,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-801",
-      nombre: "Seguridad de la Información",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 8,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-802",
-      nombre: "Internet de las Cosas",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 3,
-      ciclo: 8,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-803",
-      nombre: "Inteligencia de Negocios",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 8,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-804",
-      nombre: "Redes y Comunicaciones II",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 3,
-      ciclo: 8,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-805",
-      nombre: "Ingeniería del Software II",
-      creditos: 4,
-      horas_teoria: 2,
-      horas_laboratorio: 3,
-      ciclo: 8,
-      tiene_laboratorio: true,
+      tiene_laboratorio: false,
       activo: true,
     },
 
     // === CICLO IX ===
     {
-      codigo: "EE-906",
-      nombre: "Analítica de Negocios",
-      creditos: 3,
+      codigo: "EI-901",
+      nombre: "Tesis I",
+      creditos: 4,
       horas_teoria: 2,
-      horas_laboratorio: 0,
-      ciclo: 9,
-      tiene_laboratorio: false,
-      activo: true,
-    },
-    {
-      codigo: "EE-907",
-      nombre: "Emprendimiento Tecnológico",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 9,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-908",
-      nombre: "Hackeo Ético",
-      creditos: 3,
-      horas_teoria: 1,
+      horas_practica: 2,
       horas_laboratorio: 2,
       ciclo: 9,
       tiene_laboratorio: true,
@@ -1136,9 +974,10 @@ async function seed() {
     },
     {
       codigo: "EE-901",
-      nombre: "Gestión de Proyectos de TIC",
-      creditos: 1,
+      nombre: "Analítica de Negocios",
+      creditos: 3,
       horas_teoria: 1,
+      horas_practica: 2,
       horas_laboratorio: 2,
       ciclo: 9,
       tiene_laboratorio: true,
@@ -1149,16 +988,18 @@ async function seed() {
       nombre: "Auditoría Informática",
       creditos: 3,
       horas_teoria: 1,
+      horas_practica: 2,
       horas_laboratorio: 2,
       ciclo: 9,
       tiene_laboratorio: true,
       activo: true,
     },
     {
-      codigo: "EI-901",
-      nombre: "Tesis I",
-      creditos: 4,
-      horas_teoria: 2,
+      codigo: "EE-903",
+      nombre: "Gestión de Proyectos de TI",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 2,
       horas_laboratorio: 2,
       ciclo: 9,
       tiene_laboratorio: true,
@@ -1166,10 +1007,11 @@ async function seed() {
     },
     {
       codigo: "EE-904",
-      nombre: "Computación en la Nube",
+      nombre: "Emprendimiento Tecnológico",
       creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 3,
+      horas_teoria: 2,
+      horas_practica: 0,
+      horas_laboratorio: 2,
       ciclo: 9,
       tiene_laboratorio: true,
       activo: true,
@@ -1179,60 +1021,31 @@ async function seed() {
       nombre: "Ingeniería Web",
       creditos: 3,
       horas_teoria: 1,
+      horas_practica: 1,
       horas_laboratorio: 3,
       ciclo: 9,
       tiene_laboratorio: true,
       activo: true,
     },
-
-    // === CICLO X ===
     {
-      codigo: "EE-X01",
-      nombre: "Sistemas de Información Empresarial",
-      creditos: 4,
-      horas_teoria: 2,
+      codigo: "EE-906",
+      nombre: "Computación en la Nube",
+      creditos: 3,
+      horas_teoria: 1,
+      horas_practica: 1,
       horas_laboratorio: 3,
-      ciclo: 10,
+      ciclo: 9,
       tiene_laboratorio: true,
       activo: true,
     },
     {
-      codigo: "EE-X02",
-      nombre: "Gobierno de TIC",
+      codigo: "EE-907",
+      nombre: "Hackeo Ético (e)",
       creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 10,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EI-X01",
-      nombre: "Tesis II",
-      creditos: 4,
       horas_teoria: 2,
+      horas_practica: 0,
       horas_laboratorio: 2,
-      ciclo: 10,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-X03",
-      nombre: "Arquitectura Empresarial",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 2,
-      ciclo: 10,
-      tiene_laboratorio: true,
-      activo: true,
-    },
-    {
-      codigo: "EE-X04",
-      nombre: "Aplicaciones Móviles",
-      creditos: 3,
-      horas_teoria: 1,
-      horas_laboratorio: 3,
-      ciclo: 10,
+      ciclo: 9,
       tiene_laboratorio: true,
       activo: true,
     },
@@ -1243,49 +1056,40 @@ async function seed() {
     const curso = await cursoRepo.save(cursoRepo.create(c));
     dbCursos.push(curso);
   }
-  console.log(`✅ ¡Éxito! ${dbCursos.length} cursos reales creados.`);
+  console.log(`✅ ¡Éxito! ${dbCursos.length} cursos creados.`);
 
+  // ── 6. GRUPOS ACADÉMICOS (según valor G de laboratorios) ─────────────────
   console.log("👥 Creando grupos académicos para 2026-I...");
-  // Mapeo de cursos que necesitan múltiples grupos (según valor G)
   const cursosConGruposMultiples: { [key: string]: number } = {
-    // CICLO I
-    "EE-102": 2, // Introducción a la Programación
-
-    // CICLO II
-    "EE-302": 3, // Programación Orientada a Objetos II
-    "EE-301": 3, // Sistémica
-    "EL-301": 3, // Ingeniería Gráfica
-    "EP-303": 1, // Matemática Aplicada
-    "EP-302": 3, // Estadística Aplicada
-    "EP-304": 1, // Física Electrónica
-
-    // CICLO III
-    "EE-502": 3, // Ingeniería de Datos I
-    "EE-504": 3, // Sistemas de Información
-    "EE-505": 2, // Transformación digital
-    "EE-501": 3, // Tecnología web
-    "EE-503": 3, // Arquitectura de computadoras
-    "EE-506": 2, // Teleinformática
-    "EP-502": 1, // Investigación de Operaciones
-    "EP-501": 1, // Contabilidad Gerencial
-
-    // CICLO IV
-    "EE-401": 1, // Ingeniería de Software I
-    "EE-402": 3, // Redes y Comunicaciones I
-    "EE-403": 2, // Gestión de Servicios de TI
-    "EE-404": 2, // Administración de Base de Datos
-    "EE-405": 4, // Planeamiento Estratégico de TI
-    "EE-406": 2, // Negocios Electrónicos
-
-    // CICLO V
-    "EE-507": 1, // Tesis I
-    "EE-508": 1, // Analítica de Negocios
-    "EE-509": 2, // Auditoría Informática
-    "EE-510": 3, // Gestión de Proyectos de TI
-    "EE-511": 2, // Emprendimiento Tecnológico
-    "EE-512": 3, // Ingeniería Web
-    "EE-513": 3, // Computación en la Nube
-    "EE-514": 2, // Hackeo Ético
+    "EE-102": 2,
+    "EE-301": 3,
+    "EE-302": 3,
+    "EE-303": 3,
+    "EP-301": 1,
+    "EP-302": 3,
+    "EP-304": 4,
+    "EE-501": 3,
+    "EE-502": 3,
+    "EE-503": 2,
+    "EE-504": 3,
+    "EE-505": 3,
+    "EE-506": 2,
+    "EP-501": 3,
+    "EP-502": 1,
+    "EE-701": 4,
+    "EE-702": 3,
+    "EE-703": 2,
+    "EE-704": 2,
+    "EE-705": 2,
+    "EE-706": 4,
+    "EI-901": 1,
+    "EE-901": 1,
+    "EE-902": 2,
+    "EE-903": 3,
+    "EE-904": 2,
+    "EE-905": 3,
+    "EE-906": 3,
+    "EE-907": 2,
   };
 
   for (const curso of dbCursos) {
@@ -1305,276 +1109,430 @@ async function seed() {
   }
   console.log("✅ Grupos académicos creados\n");
 
-  // ── 6. RELACIÓN CURSO-AMBIENTE ───────────────────────────────────────────
+  // ── 7. RELACIÓN CURSO-AMBIENTE ───────────────────────────────────────────
   console.log("🔗 Configurando relaciones Curso-Ambiente...");
   const laboratorios = dbAmbientes.filter(
     (a) => a.tipo === TipoAmbiente.LABORATORIO,
   );
-  const aulas = dbAmbientes.filter((a) => a.tipo === TipoAmbiente.AULA);
+  const ambientesNoLaboratorio = dbAmbientes.filter(
+    (a) => a.tipo !== TipoAmbiente.LABORATORIO,
+  );
 
   for (const curso of dbCursos) {
     curso.ambientes = curso.tiene_laboratorio
-      ? [...aulas, ...laboratorios]
-      : [...aulas];
+      ? [...ambientesNoLaboratorio, ...laboratorios]
+      : [...ambientesNoLaboratorio];
     await cursoRepo.save(curso);
   }
   console.log("✅ Relaciones Curso-Ambiente mapeadas\n");
 
-  // ── 7. HABILITACIONES DOCENTE-CURSO (ESPECIALIZACIÓN POR DEPARTAMENTOS) ──
-  console.log("🎓 Distribuyendo cursos entre 28 docentes por especialidad...");
+  // ── 8. HABILITACIONES DOCENTE-CURSO (según datos del usuario) ──────────────────────
+  console.log("🎓 Asignando docentes a cursos según datos proporcionados...");
 
-  const depts = [
+  // --- RESTRICCIONES INSTITUCIONALES ---
+  console.log("📏 Creando restricciones institucionales...");
+  const periodoCodigo = periodoActivo?.codigo ?? "2026-I";
+
+  const restriccionesData = [
     {
-      nombre: "CIENCIAS_BASICAS",
-      docenteIds: [4, 5, 6, 7, 8, 16],
-      prefix: ["EG", "EP-302", "EP-303"],
+      tipo_restriccion: "BLOQUE_ALMUERZO",
+      valor: { hora_inicio: "13:00", hora_fin: "14:00" },
+      periodo_academico: periodoCodigo,
+      activo: true,
     },
     {
-      nombre: "SISTEMAS",
-      docenteIds: [1, 2, 3, 10, 11, 12, 18, 19, 20, 21, 24, 25, 26, 27],
-      prefix: [
-        "EE-101",
-        "EE-102",
-        "EE-201",
-        "EE-301",
-        "EE-302",
-        "EE-401",
-        "EE-403",
-        "EE-501",
-        "EE-502",
-        "EE-504",
-        "EE-601",
-        "EE-602",
-        "EE-703",
-        "EE-704",
-        "EE-802",
-        "EE-803",
-        "EE-804",
-        "EE-901",
-        "EE-902",
-        "EE-904",
-        "EE-905",
-        "EE-X01",
-        "EE-X03",
-        "EE-X04",
-        "EL-401",
-        "EL-701",
-        "EL-802",
-      ],
+      tipo_restriccion: "DURACION_BLOQUE",
+      valor: { duracion_minutos: 60 },
+      periodo_academico: periodoCodigo,
+      activo: true,
     },
     {
-      nombre: "ESTADISTICA",
-      docenteIds: [8, 9, 14],
-      prefix: [
-        "EE-103",
-        "EE-203",
-        "EE-303",
-        "EE-403",
-        "EE-503",
-        "EE-603",
-        "EE-703",
-        "EE-803",
-        "EE-903",
-      ],
-    },
-    {
-      nombre: "ADMINISTRACION",
-      docenteIds: [15],
-      prefix: [
-        "EP-301",
-        "EP-401",
-        "EP-403",
-        "EP-501",
-        "EP-601",
-        "EP-602",
-        "EP-701",
-        "EP-801",
-        "EP-X01",
-      ],
-    },
-    {
-      nombre: "FISICA",
-      docenteIds: [16],
-      prefix: ["EL-501", "EL-902"],
-    },
-    {
-      nombre: "PSICOLOGIA",
-      docenteIds: [4, 17],
-      prefix: ["EP-304"],
-    },
-    {
-      nombre: "INDUSTRIAL",
-      docenteIds: [22, 28],
-      prefix: ["EP-402", "EP-502"],
-    },
-    {
-      nombre: "CONTABILIDAD",
-      docenteIds: [23],
-      prefix: ["EP-503"],
+      tipo_restriccion: "MAX_HORAS_DIARIAS",
+      valor: { max_horas: 10 },
+      periodo_academico: periodoCodigo,
+      activo: true,
     },
   ];
 
-  const habilitacionesRegistradas = new Set<string>();
-
-  // Usar el período activo ya definido anteriormente
-  const periodoId = periodoActivo?.id ?? dbPeriodos[0]?.id;
-
-  for (const dept of depts) {
-    const docentesDelDept = dbDocentes.filter((_, idx) =>
-      dept.docenteIds.includes(idx + 1),
-    );
-    const cursosDelDept = dbCursos.filter((c) =>
-      dept.prefix.some((p) => c.codigo.startsWith(p)),
-    );
-
-    for (let i = 0; i < cursosDelDept.length; i++) {
-      const curso = cursosDelDept[i];
-      const docente = docentesDelDept[i % docentesDelDept.length];
-
-      habilitacionesRegistradas.add(
-        `${docente.id}_${curso.id}_${TipoClase.TEORIA}`,
-      );
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: docente.id,
-          cursoId: curso.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId,
-        }),
-      );
-
-      if (curso.tiene_laboratorio) {
-        const docenteLab = docentesDelDept[(i + 1) % docentesDelDept.length];
-        habilitacionesRegistradas.add(
-          `${docenteLab.id}_${curso.id}_${TipoClase.LABORATORIO}`,
-        );
-        await docenteCursoRepo.save(
-          docenteCursoRepo.create({
-            docenteId: docenteLab.id,
-            cursoId: curso.id,
-            tipo_clase: TipoClase.LABORATORIO,
-            periodoId,
-          }),
-        );
-      }
-    }
+  for (const r of restriccionesData) {
+    await restriccionRepo.save(restriccionRepo.create(r));
   }
 
-  console.log("🔗 Verificando cobertura total de cursos...");
-  for (const cur of dbCursos) {
-    const hasAnyHabilitacion = Array.from(habilitacionesRegistradas).some((h) =>
-      h.includes(`_${cur.id}_`),
-    );
-    if (!hasAnyHabilitacion) {
-      const doc = dbDocentes[cur.id % dbDocentes.length];
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: doc.id,
-          cursoId: cur.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId,
-        }),
-      );
-      if (cur.tiene_laboratorio) {
-        await docenteCursoRepo.save(
-          docenteCursoRepo.create({
-            docenteId: doc.id,
-            cursoId: cur.id,
-            tipo_clase: TipoClase.LABORATORIO,
-            periodoId,
-          }),
-        );
-      }
-    }
+  // --- DÍAS ACTIVOS ---
+  console.log("📅 Configurando días activos...");
+  const diasSemana = [
+    { dia_semana: 1, nombre: "Lunes", activo: true },
+    { dia_semana: 2, nombre: "Martes", activo: true },
+    { dia_semana: 3, nombre: "Miércoles", activo: true },
+    { dia_semana: 4, nombre: "Jueves", activo: true },
+    { dia_semana: 5, nombre: "Viernes", activo: true },
+    { dia_semana: 6, nombre: "Sábado", activo: true },
+    { dia_semana: 7, nombre: "Domingo", activo: false },
+  ];
+
+  const diaActivoRepo = AppDataSource.getRepository(DiaActivo);
+  for (const d of diasSemana) {
+    await diaActivoRepo.save(diaActivoRepo.create(d));
   }
-  console.log("✅ Distribución académica realista completada\n");
 
-  // ── 7.5. ASIGNACIÓN DE AMBIENTES PREFERENTES A DOCENTES ──────────────────
-  console.log(
-    "🏢 Asignando aulas y laboratorios preferentes a docentes por departamento...",
-  );
+  const getDocente = (nombre: string) => {
+    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return dbDocentes.find(d => norm(`${d.nombres} ${d.apellidos}`).includes(norm(nombre)));
+  };
 
-  const aulasA = dbAmbientes.filter((a) => a.pabellon === "A");
-  const labsB = dbAmbientes.filter((a) => a.pabellon === "B");
+  const dbDepartamentosList = await departamentoRepo.find();
+  const getDep = (nombre: string) => {
+    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return dbDepartamentosList.find(d => norm(d.nombre).includes(norm(nombre)));
+  };
 
-  for (const dept of depts) {
-    const docentesDelDept = dbDocentes.filter((_, idx) =>
-      dept.docenteIds.includes(idx + 1),
-    );
+  const dataDepartamentosDocentes = [
+    { nombre: "Marcelino Torres Villanueva", dep: "Ing. de Sistemas" },
+    { nombre: "Alberto Mendoza de los Santos", dep: "Ing. de Sistemas" },
+    { nombre: "Paul Cotrina Castellanos", dep: "Ing. de Sistemas" },
+    { nombre: "Bertha Urtecho Zavaleta", dep: "CC. Psicológicas" },
+    { nombre: "Jose Luis Ponte Bejarano", dep: "Matemáticas" },
+    { nombre: "Jorge Luis Rios Gonzales", dep: "Lengua Nacional y Literatura" },
+    { nombre: "Segundo Guibar Obeso", dep: "Matemáticas" },
+    { nombre: "Miguel Ipanaque Zapata", dep: "Estadística" },
+    { nombre: "Martha Cardoso", dep: "Estadística" },
+    { nombre: "Zoraida Vidal Melgarejo", dep: "Ing. de Sistemas" },
+    { nombre: "Everson David Agreda Gamboa", dep: "Ing. de Sistemas" },
+    { nombre: "Juan Carlos Obando Roldán", dep: "Ing. de Sistemas" },
+    { nombre: "Marcos Ferrer Reyna", dep: "Matemáticas" },
+    { nombre: "Teresita Rojas Garcia", dep: "Estadística" },
+    { nombre: "Juan Carrascal Cabanillas", dep: "Administración" },
+    { nombre: "Vilma Mendez Gil", dep: "Física" },
+    { nombre: "Sheyla Laura Escobedo Rodriguez", dep: "CC. Psicológicas" },
+    { nombre: "Luis Boy Chavil", dep: "Ing. de Sistemas" },
+    { nombre: "Robert Jerry Sánchez Ticona", dep: "Ing. de Sistemas" },
+    { nombre: "César Arellano Salazar", dep: "Ing. de Sistemas" },
+    { nombre: "Camilo Suárez Rebaza", dep: "Ing. de Sistemas" },
+    { nombre: "Marcos Baca Lopez", dep: "Ingeniería Industrial" },
+    { nombre: "Ana Cuadra Mitzugaray", dep: "Contabilidad y Finanzas" },
+    { nombre: "Juan Pedro Santos Fernández", dep: "Ing. de Sistemas" },
+    { nombre: "Ricardo Mendoza Rivera", dep: "Ing. de Sistemas" },
+    { nombre: "Oscar Romel Alcántara Moreno", dep: "Ing. de Sistemas" },
+    { nombre: "José Gómez Ávila", dep: "Ing. de Sistemas" },
+    { nombre: "Jhoe Gonzalez Vasquez", dep: "Ingeniería Industrial" },
+  ];
 
-    // Asignar ambientes según el nombre del departamento
-    let ambientesParaAsignar: Ambiente[] = [];
-
-    if (dept.nombre === "CIENCIAS_BASICAS") {
-      ambientesParaAsignar = aulasA.filter((a) =>
-        ["A-101", "A-102"].includes(a.codigo),
-      );
-    } else if (dept.nombre === "SOFTWARE_ING") {
-      ambientesParaAsignar = [
-        aulasA.find((a) => a.codigo === "A-201")!,
-        labsB.find((a) => a.codigo === "LAB-1")!,
-      ].filter(Boolean);
-    } else if (dept.nombre === "SISTEMAS_INF") {
-      ambientesParaAsignar = [
-        aulasA.find((a) => a.codigo === "A-202")!,
-        labsB.find((a) => a.codigo === "LAB-2")!,
-      ].filter(Boolean);
-    } else if (dept.nombre === "GESTION_TIC") {
-      ambientesParaAsignar = aulasA.filter((a) => ["A-301"].includes(a.codigo));
-    } else if (dept.nombre === "HARDWARE_REDES") {
-      ambientesParaAsignar = [
-        aulasA.find((a) => a.codigo === "A-302")!,
-        labsB.find((a) => a.codigo === "LAB-3")!,
-        labsB.find((a) => a.codigo === "LAB-4")!,
-      ].filter(Boolean);
-    }
-
-    for (const doc of docentesDelDept) {
-      doc.ambientes = ambientesParaAsignar;
+  console.log("🏢 Actualizando departamentos de docentes...");
+  for (const item of dataDepartamentosDocentes) {
+    const doc = getDocente(item.nombre);
+    const dep = getDep(item.dep);
+    if (doc && dep) {
+      doc.departamento_id = dep.id;
       await docenteRepo.save(doc);
     }
   }
-  console.log("✅ Ambientes físicos vinculados a docentes correctamente\n");
 
-  // ── 8. DISPONIBILIDAD DOCENTE (COMPLETA PARA ASIGNACIONES) ───────────────────────
-  console.log(
-    "🕐 Registrando disponibilidad horaria completa para asignaciones...",
-  );
-  const slotsToSave: DisponibilidadDocente[] = [];
-  for (const doc of dbDocentes) {
-    for (let dia = 1; dia <= 5; dia++) {
-      // Horas completas: Turno Mañana 07-14 y Turno Tarde 14-23
-      const horasValidas = [
-        7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-      ];
-      for (const h of horasValidas) {
-        // Todos los docentes tienen disponibilidad completa
-        slotsToSave.push(
-          disponibilidadRepo.create({
-            docente: doc,
-            dia_semana: dia,
-            hora_inicio: `${h.toString().padStart(2, "0")}:00:00`,
-            hora_fin: `${(h + 1).toString().padStart(2, "0")}:00:00`,
-            disponible: true,
-            periodo_academico: "2026-I",
+  const docenteCursoData = [
+    // === CICLO I ===
+    {
+      docenteNombre: "Marcelino Torres Villanueva",
+      cursoCodigo: "EE-102",
+      tipoClases: [TipoClase.TEORIA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Alberto Mendoza de los Santos",
+      cursoCodigo: "EE-101",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Paul Cotrina Castellanos",
+      cursoCodigo: "EE-102",
+      tipoClases: [TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Bertha Urtecho Zavaleta",
+      cursoCodigo: "EG-103",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Jose Luis Ponte Bejarano",
+      cursoCodigo: "EG-101",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Jorge Luis Rios Gonzales",
+      cursoCodigo: "EG-102",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Segundo Guibar Obeso",
+      cursoCodigo: "EG-104",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Miguel Ipanaque Zapata",
+      cursoCodigo: "EG-105",
+      tipoClases: [TipoClase.PRACTICA],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Martha Cardoso",
+      cursoCodigo: "EG-105",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+
+    // === CICLO III ===
+    {
+      docenteNombre: "Zoraida Vidal Melgarejo",
+      cursoCodigo: "EE-301",
+      tipoClases: [TipoClase.TEORIA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Everson David Agreda Gamboa",
+      cursoCodigo: "EE-302",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Juan Carlos Obando Roldán",
+      cursoCodigo: "EE-303",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Marcos Ferrer Reyna",
+      cursoCodigo: "EP-301",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Teresita Rojas Garcia",
+      cursoCodigo: "EP-302",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Juan Carrascal Cabanillas",
+      cursoCodigo: "EP-303",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Vilma Mendez Gil",
+      cursoCodigo: "EP-304",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 4,
+    },
+    {
+      docenteNombre: "Sheyla Laura Escobedo Rodriguez",
+      cursoCodigo: "EP-305",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+
+    // === CICLO V ===
+    {
+      docenteNombre: "Luis Boy Chavil",
+      cursoCodigo: "EE-501",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Juan Carlos Obando Roldan",
+      cursoCodigo: "EE-502",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Everson David Agreda Gamboa",
+      cursoCodigo: "EE-503",
+      tipoClases: [TipoClase.TEORIA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Robert Jerry Sánchez Ticona",
+      cursoCodigo: "EE-504",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Cesar Arellano Salazar",
+      cursoCodigo: "EE-505",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Camilo Suárez Rebaza",
+      cursoCodigo: "EE-506",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Marcos Baca Lopez",
+      cursoCodigo: "EP-501",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Ana Cuadra Mitzugaray",
+      cursoCodigo: "EP-502",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 1,
+    },
+
+    // === CICLO VII ===
+    {
+      docenteNombre: "Juan Pedro Santos Fernández",
+      cursoCodigo: "EE-701",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "César Arellano Salazar",
+      cursoCodigo: "EE-702",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "César Arellano Salazar",
+      cursoCodigo: "EE-505",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Robert Jerry Sánchez Ticona",
+      cursoCodigo: "EE-701",
+      tipoClases: [TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Everson David Agreda Gamboa",
+      cursoCodigo: "EE-703",
+      tipoClases: [TipoClase.TEORIA],
+      grupos: 0,
+    },
+    {
+      docenteNombre: "Alberto Mendoza de los Santos",
+      cursoCodigo: "EE-704",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Paul Cotrina Castellanos",
+      cursoCodigo: "EI-701",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Ricardo Mendoza Rivera",
+      cursoCodigo: "EE-705",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Oscar Romel Alcántara Moreno",
+      cursoCodigo: "EE-706",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 4,
+    },
+    {
+      docenteNombre: "Paul Cotrina Castellanos",
+      cursoCodigo: "EE-703",
+      tipoClases: [TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Jhoe Gonzalez Vasquez",
+      cursoCodigo: "EP-701",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA],
+      grupos: 1,
+    },
+
+    // === CICLO IX ===
+    {
+      docenteNombre: "Juan Pedro Santos Fernández",
+      cursoCodigo: "EI-901",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Ricardo Mendoza Rivera",
+      cursoCodigo: "EI-901",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Ricardo Mendoza Rivera",
+      cursoCodigo: "EE-901",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 1,
+    },
+    {
+      docenteNombre: "Alberto Mendoza de los Santos",
+      cursoCodigo: "EE-902",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "José Gómez Ávila",
+      cursoCodigo: "EE-903",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Oscar Romel Alcántara Moreno",
+      cursoCodigo: "EE-904",
+      tipoClases: [TipoClase.TEORIA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+    {
+      docenteNombre: "Marcelino Torres Villanueva",
+      cursoCodigo: "EE-905",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "José Gómez Ávila",
+      cursoCodigo: "EE-906",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
+      docenteNombre: "Camilo Suarez Rebaza",
+      cursoCodigo: "EE-907",
+      tipoClases: [TipoClase.TEORIA, TipoClase.LABORATORIO],
+      grupos: 2,
+    },
+  ];
+
+  for (const dcData of docenteCursoData) {
+    const docente = dbDocentes.find(
+      (d) => `${d.nombres} ${d.apellidos}` === dcData.docenteNombre,
+    );
+    const curso = dbCursos.find((c) => c.codigo === dcData.cursoCodigo);
+
+    if (docente && curso) {
+      for (const tipoClase of dcData.tipoClases) {
+        await docenteCursoRepo.save(
+          docenteCursoRepo.create({
+            docenteId: docente.id,
+            cursoId: curso.id,
+            tipo_clase: tipoClase,
+            periodoId,
+            grupos: dcData.grupos,
           }),
         );
       }
     }
   }
-  await disponibilidadRepo.save(slotsToSave);
-  console.log("✅ Disponibilidad horaria registrada\n");
+  console.log("✅ Asignaciones docente-curso completadas\n");
 
-  // ── 9. RESTRICCIÓN INSTITUCIONAL ──────────────────────────────────────────
-  await restriccionRepo.save(
-    restriccionRepo.create({
-      tipo_restriccion: "MAX_HORAS_DIA",
-      valor: { max_horas: 8 },
-      periodo_academico: "2026-I",
-      activo: true,
-    }),
-  );
-  console.log("✅ Restricción institucional configurada\n");
+  // ── 9. (Horarios Asignados serán creados por el usuario) ────────────────
+  console.log("📅 Horarios asignados no creados (listo para que tú los crees)\n");
 
   // ── 10. PARÁMETROS DE CARGA DOCENTE ────────────────────────────────────
   console.log("📋 Creando parámetros de carga docente...");
@@ -1880,5352 +1838,50 @@ async function seed() {
   }
   console.log("✅ Parámetros de carga docente registrados\n");
 
-  // ── FACULTADES, ESCUELAS Y DEPARTAMENTOS ────────────────────────────────────
-  console.log("🏛️  Creando facultades, escuelas y departamentos...");
-  const facultadRepo = AppDataSource.getRepository(Facultad);
-  const escuelaRepo = AppDataSource.getRepository(Escuela);
-  const departamentoRepo = AppDataSource.getRepository(Departamento);
-
-  // Un coordinador por facultad (rol COORDINADOR_ACADEMICO)
-  const coordFacs = await usuarioRepo.save([
-    usuarioRepo.create({
-      nombre: "Dr. Carlos Sánchez Vásquez",
-      email: "coord.fca@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Rosa Mendoza Herrera",
-      email: "coord.fcb@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Luis Torres Paredes",
-      email: "coord.fce@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. José Espinoza Cruz",
-      email: "coord.fcfm@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. María Rodríguez León",
-      email: "coord.fcs@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Roberto Flores García",
-      email: "coord.fdcp@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Ana Gutiérrez Pérez",
-      email: "coord.fecc@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Carmen Vega Ortiz",
-      email: "coord.fenf@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Ricardo Castro Morales",
-      email: "coord.fest@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Patricia Lozano Díaz",
-      email: "coord.ffb@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Miguel Reyes Campos",
-      email: "coord.fing@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Fernando Alvarado Ruiz",
-      email: "coord.fiq@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Elena Vargas Suárez",
-      email: "coord.fm@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.COORDINADOR_ACADEMICO,
-      activo: true,
-    }),
-  ]);
-  const [
-    cFCA,
-    cFCB,
-    cFCE,
-    cFCFM,
-    cFCS,
-    cFDCP,
-    cFECC,
-    cFENF,
-    cFEST,
-    cFFB,
-    cFING,
-    cFIQ,
-    cFM,
-  ] = coordFacs;
-
-  // Facultades
-  const fca = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FCA",
-      nombre: "Facultad de Ciencias Agropecuarias",
-      descripcion: "Formación en ciencias del agro y producción animal",
-      activo: true,
-      coordinador_id: cFCA.id,
-    }),
-  );
-  const fcb = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FCB",
-      nombre: "Facultad de Ciencias Biológicas",
-      descripcion: "Formación en biología, biología pesquera y microbiología",
-      activo: true,
-      coordinador_id: cFCB.id,
-    }),
-  );
-  const fce = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FCE",
-      nombre: "Facultad de Ciencias Económicas",
-      descripcion: "Formación en administración, contabilidad y economía",
-      activo: true,
-      coordinador_id: cFCE.id,
-    }),
-  );
-  const fcfm = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FCFM",
-      nombre: "Facultad de Ciencias Físicas y Matemáticas",
-      descripcion:
-        "Formación en física, matemáticas, estadística e informática",
-      activo: true,
-      coordinador_id: cFCFM.id,
-    }),
-  );
-  const fcs = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FCS",
-      nombre: "Facultad de Ciencias Sociales",
-      descripcion:
-        "Formación en antropología, arqueología, historia, trabajo social y turismo",
-      activo: true,
-      coordinador_id: cFCS.id,
-    }),
-  );
-  const fdcp = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FDCP",
-      nombre: "Facultad de Derecho y Ciencias Políticas",
-      descripcion: "Formación jurídica y en ciencias políticas",
-      activo: true,
-      coordinador_id: cFDCP.id,
-    }),
-  );
-  const fecc = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FECC",
-      nombre: "Facultad de Educación y Ciencias de la Comunicación",
-      descripcion: "Formación docente y en comunicación social",
-      activo: true,
-      coordinador_id: cFECC.id,
-    }),
-  );
-  const fenf = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FENF",
-      nombre: "Facultad de Enfermería",
-      descripcion: "Formación en ciencias de la enfermería y salud pública",
-      activo: true,
-      coordinador_id: cFENF.id,
-    }),
-  );
-  const fest = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FEST",
-      nombre: "Facultad de Estomatología",
-      descripcion: "Formación en salud bucodental y odontología",
-      activo: true,
-      coordinador_id: cFEST.id,
-    }),
-  );
-  const ffb = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FFB",
-      nombre: "Facultad de Farmacia y Bioquímica",
-      descripcion: "Formación en farmacia, bioquímica y ciencias farmacéuticas",
-      activo: true,
-      coordinador_id: cFFB.id,
-    }),
-  );
-  const fing = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FING",
-      nombre: "Facultad de Ingeniería",
-      descripcion:
-        "Formación en ingenierías civil, de sistemas, industrial, mecánica y más",
-      activo: true,
-      coordinador_id: cFING.id,
-    }),
-  );
-  const fiq = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FIQ",
-      nombre: "Facultad de Ingeniería Química",
-      descripcion:
-        "Formación en ingeniería química, ambiental, metalúrgica y de minas",
-      activo: true,
-      coordinador_id: cFIQ.id,
-    }),
-  );
-  const fm = await facultadRepo.save(
-    facultadRepo.create({
-      codigo: "FM",
-      nombre: "Facultad de Medicina",
-      descripcion: "Formación en medicina humana y ciencias de la salud",
-      activo: true,
-      coordinador_id: cFM.id,
-    }),
-  );
-
-  // Directores de escuela — el mismo usuario coordina la escuela y su departamento (índice 1:1 con escDep)
-  const dirEscuelas = await usuarioRepo.save([
-    // FCA
-    usuarioRepo.create({
-      nombre: "Dr. Alejandro Guerrero Paredes",
-      email: "dir.eagro@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Mónica Cabrera Ríos",
-      email: "dir.eiagri@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Sergio Palomino Vega",
-      email: "dir.eiaind@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Lucía Castillo Fuentes",
-      email: "dir.ezoot@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FCB
-    usuarioRepo.create({
-      nombre: "Dr. Hernán Montoya Salinas",
-      email: "dir.ecbiol@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Valentina Quispe Arroyo",
-      email: "dir.ebpesk@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Óscar Palacios Medina",
-      email: "dir.emipar@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FCE
-    usuarioRepo.create({
-      nombre: "Dra. Claudia Benites Aguilar",
-      email: "dir.eadmin@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Raúl Jiménez Contreras",
-      email: "dir.ecyfin@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Norma Alcántara Paz",
-      email: "dir.eecono@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FCFM
-    usuarioRepo.create({
-      nombre: "Dr. Arturo Delgado Núñez",
-      email: "dir.efisic@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Pilar Cornejo Salazar",
-      email: "dir.emates@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Iván Solís Bazán",
-      email: "dir.estad@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Fabiola Vilela Tello",
-      email: "dir.einfor@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FCS
-    usuarioRepo.create({
-      nombre: "Dr. Gonzalo Leyva Adrianzén",
-      email: "dir.eantro@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Susana Portal Huanca",
-      email: "dir.earque@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Hugo Saavedra Orbegoso",
-      email: "dir.ehisto@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Natalia Trujillo Burgos",
-      email: "dir.etraso@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. César Moncada Valverde",
-      email: "dir.eturis@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FDCP
-    usuarioRepo.create({
-      nombre: "Dr. Enrique Minaya Rodas",
-      email: "dir.ederec@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Roxana Bacilio Villena",
-      email: "dir.ecpoli@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FECC
-    usuarioRepo.create({
-      nombre: "Dr. Ernesto Guevara Cisneros",
-      email: "dir.ecomun@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Graciela Ocampo Huertas",
-      email: "dir.eedini@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Alfredo Zevallos Urteaga",
-      email: "dir.eedpri@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Miriam Abanto Quiroz",
-      email: "dir.esidio@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Néstor Quispe Vera",
-      email: "dir.esicm@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Silvia Anticona Valverde",
-      email: "dir.esill@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Jaime Noriega Chomba",
-      email: "dir.esicn@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Blanca Vidal Polo",
-      email: "dir.esifp@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Rolando Arteaga Briceño",
-      email: "dir.esihg@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FENF
-    usuarioRepo.create({
-      nombre: "Dra. Hilda Morillo Salcedo",
-      email: "dir.eenfer@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FEST
-    usuarioRepo.create({
-      nombre: "Dr. Augusto Pretell Gamboa",
-      email: "dir.eestom@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FFB
-    usuarioRepo.create({
-      nombre: "Dra. Consuelo Alayo Rebaza",
-      email: "dir.efybio@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FING
-    usuarioRepo.create({
-      nombre: "Dr. Damián Florián Julca",
-      email: "dir.earqur@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Inés Otiniano Pereda",
-      email: "dir.ecivil@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Bruno Domínguez Aguilar",
-      email: "dir.eisist@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Lorena Morán Rodríguez",
-      email: "dir.einind@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Gilberto Robles Chávez",
-      email: "dir.einmec@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Marisol Bueno Terrones",
-      email: "dir.einmct@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Dante Polo Chacón",
-      email: "dir.einmat@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FIQ
-    usuarioRepo.create({
-      nombre: "Dra. Yolanda Mostacero Zavaleta",
-      email: "dir.eiquim@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Humberto Marín Aguilar",
-      email: "dir.eambnt@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dra. Estela Castañeda Azabache",
-      email: "dir.emetlu@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    usuarioRepo.create({
-      nombre: "Dr. Wilfredo Asmat Abanto",
-      email: "dir.eminas@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-    // FM
-    usuarioRepo.create({
-      nombre: "Dra. Isabel Rebaza Linares",
-      email: "dir.emedc@unt.edu.pe",
-      password_hash: passwordHash,
-      rol: RolUsuario.DIRECTOR_ESCUELA,
-      activo: true,
-    }),
-  ]);
-
-  // Escuelas + Departamentos — un par por fila
-  // { esc: datos de escuela (sin escuela_id), dep: datos del departamento (sin escuela_id) }
-  const escDep: Array<{
-    esc: Partial<Escuela>;
-    dep: { codigo: string; nombre: string };
-  }> = [
-    // FCA
-    {
-      esc: { codigo: "EAGRO", nombre: "Agronomía", facultad_id: fca.id },
-      dep: { codigo: "DAGRO", nombre: "Departamento de Agronomía" },
-    },
-    {
-      esc: {
-        codigo: "EIAGRI",
-        nombre: "Ingeniería Agrícola",
-        facultad_id: fca.id,
-      },
-      dep: { codigo: "DIAGRI", nombre: "Departamento de Ingeniería Agrícola" },
-    },
-    {
-      esc: {
-        codigo: "EIAIND",
-        nombre: "Ingeniería Agroindustrial",
-        facultad_id: fca.id,
-      },
-      dep: {
-        codigo: "DIAIND",
-        nombre: "Departamento de Ingeniería Agroindustrial",
-      },
-    },
-    {
-      esc: { codigo: "EZOOT", nombre: "Zootecnia", facultad_id: fca.id },
-      dep: { codigo: "DZOOT", nombre: "Departamento de Zootecnia" },
-    },
-    // FCB
-    {
-      esc: {
-        codigo: "ECBIOL",
-        nombre: "Ciencias Biológicas",
-        facultad_id: fcb.id,
-      },
-      dep: { codigo: "DCBIOL", nombre: "Departamento de Biología" },
-    },
-    {
-      esc: {
-        codigo: "EBPESK",
-        nombre: "Biología Pesquera",
-        facultad_id: fcb.id,
-      },
-      dep: { codigo: "DBPESK", nombre: "Departamento de Biología Pesquera" },
-    },
-    {
-      esc: {
-        codigo: "EMIPAR",
-        nombre: "Microbiología y Parasitología",
-        facultad_id: fcb.id,
-      },
-      dep: {
-        codigo: "DMIPAR",
-        nombre: "Departamento de Microbiología y Parasitología",
-      },
-    },
-    // FCE
-    {
-      esc: { codigo: "EADMIN", nombre: "Administración", facultad_id: fce.id },
-      dep: { codigo: "DADMIN", nombre: "Departamento de Administración" },
-    },
-    {
-      esc: {
-        codigo: "ECYFIN",
-        nombre: "Contabilidad y Finanzas",
-        facultad_id: fce.id,
-      },
-      dep: {
-        codigo: "DCYFIN",
-        nombre: "Departamento de Contabilidad y Finanzas",
-      },
-    },
-    {
-      esc: { codigo: "EECONO", nombre: "Economía", facultad_id: fce.id },
-      dep: { codigo: "DECONO", nombre: "Departamento de Economía" },
-    },
-    // FCFM
-    {
-      esc: { codigo: "EFISIC", nombre: "Física", facultad_id: fcfm.id },
-      dep: { codigo: "DFISIC", nombre: "Departamento de Física" },
-    },
-    {
-      esc: { codigo: "EMATES", nombre: "Matemáticas", facultad_id: fcfm.id },
-      dep: { codigo: "DMATES", nombre: "Departamento de Matemáticas" },
-    },
-    {
-      esc: { codigo: "ESTAD", nombre: "Estadística", facultad_id: fcfm.id },
-      dep: { codigo: "DSTAD", nombre: "Departamento de Estadística" },
-    },
-    {
-      esc: { codigo: "EINFOR", nombre: "Informática", facultad_id: fcfm.id },
-      dep: { codigo: "DINFOR", nombre: "Departamento de Informática" },
-    },
-    // FCS
-    {
-      esc: { codigo: "EANTRO", nombre: "Antropología", facultad_id: fcs.id },
-      dep: { codigo: "DANTRO", nombre: "Departamento de Antropología" },
-    },
-    {
-      esc: { codigo: "EARQUE", nombre: "Arqueología", facultad_id: fcs.id },
-      dep: { codigo: "DARQUE", nombre: "Departamento de Arqueología" },
-    },
-    {
-      esc: { codigo: "EHISTO", nombre: "Historia", facultad_id: fcs.id },
-      dep: { codigo: "DHISTO", nombre: "Departamento de Historia" },
-    },
-    {
-      esc: { codigo: "ETRASO", nombre: "Trabajo Social", facultad_id: fcs.id },
-      dep: { codigo: "DTRASO", nombre: "Departamento de Trabajo Social" },
-    },
-    {
-      esc: { codigo: "ETURIS", nombre: "Turismo", facultad_id: fcs.id },
-      dep: { codigo: "DTURIS", nombre: "Departamento de Turismo" },
-    },
-    // FDCP
-    {
-      esc: { codigo: "EDEREC", nombre: "Derecho", facultad_id: fdcp.id },
-      dep: { codigo: "DDEREC", nombre: "Departamento de Derecho" },
-    },
-    {
-      esc: {
-        codigo: "ECPOLI",
-        nombre: "Ciencias Políticas y Gobernabilidad",
-        facultad_id: fdcp.id,
-      },
-      dep: { codigo: "DCPOLI", nombre: "Departamento de Ciencias Políticas" },
-    },
-    // FECC
-    {
-      esc: {
-        codigo: "ECOMUN",
-        nombre: "Ciencias de la Comunicación",
-        facultad_id: fecc.id,
-      },
-      dep: {
-        codigo: "DCOMUN",
-        nombre: "Departamento de Ciencias de la Comunicación",
-      },
-    },
-    {
-      esc: {
-        codigo: "EEDINI",
-        nombre: "Educación Inicial",
-        facultad_id: fecc.id,
-      },
-      dep: { codigo: "DEDINI", nombre: "Departamento de Educación" },
-    },
-    {
-      esc: {
-        codigo: "EEDPRI",
-        nombre: "Educación Primaria",
-        facultad_id: fecc.id,
-      },
-      dep: { codigo: "DEDPRI", nombre: "Departamento de Educación" },
-    },
-    {
-      esc: {
-        codigo: "ESIDIO",
-        nombre: "Educación Secundaria - Idiomas",
-        facultad_id: fecc.id,
-      },
-      dep: { codigo: "DEDSID", nombre: "Departamento de Educación" },
-    },
-    {
-      esc: {
-        codigo: "ESICM",
-        nombre: "Educación Secundaria - Ciencias Matemáticas",
-        facultad_id: fecc.id,
-      },
-      dep: { codigo: "DEDSCM", nombre: "Departamento de Educación" },
-    },
-    {
-      esc: {
-        codigo: "ESILL",
-        nombre: "Educación Secundaria - Lengua y Literatura",
-        facultad_id: fecc.id,
-      },
-      dep: { codigo: "DEDSLL", nombre: "Departamento de Educación" },
-    },
-    {
-      esc: {
-        codigo: "ESICN",
-        nombre: "Educación Secundaria - Ciencias Naturales",
-        facultad_id: fecc.id,
-      },
-      dep: { codigo: "DEDSCN", nombre: "Departamento de Educación" },
-    },
-    {
-      esc: {
-        codigo: "ESIFP",
-        nombre:
-          "Educación Secundaria - Filosofía, Psicología y Ciencias Sociales",
-        facultad_id: fecc.id,
-      },
-      dep: { codigo: "DEDSFP", nombre: "Departamento de Educación" },
-    },
-    {
-      esc: {
-        codigo: "ESIHG",
-        nombre: "Educación Secundaria - Historia y Geografía",
-        facultad_id: fecc.id,
-      },
-      dep: { codigo: "DEDSHG", nombre: "Departamento de Educación" },
-    },
-    // FENF
-    {
-      esc: { codigo: "EENFER", nombre: "Enfermería", facultad_id: fenf.id },
-      dep: { codigo: "DENFER", nombre: "Departamento de Enfermería" },
-    },
-    // FEST
-    {
-      esc: { codigo: "EESTOM", nombre: "Estomatología", facultad_id: fest.id },
-      dep: { codigo: "DESTOM", nombre: "Departamento de Estomatología" },
-    },
-    // FFB
-    {
-      esc: {
-        codigo: "EFYBIO",
-        nombre: "Farmacia y Bioquímica",
-        facultad_id: ffb.id,
-      },
-      dep: {
-        codigo: "DFYBIO",
-        nombre: "Departamento de Farmacia y Bioquímica",
-      },
-    },
-    // FING
-    {
-      esc: {
-        codigo: "EARQUR",
-        nombre: "Arquitectura y Urbanismo",
-        facultad_id: fing.id,
-      },
-      dep: { codigo: "DARQUR", nombre: "Departamento de Arquitectura" },
-    },
-    {
-      esc: {
-        codigo: "ECIVIL",
-        nombre: "Ingeniería Civil",
-        facultad_id: fing.id,
-      },
-      dep: { codigo: "DCIVIL", nombre: "Departamento de Ingeniería Civil" },
-    },
-    {
-      esc: {
-        codigo: "EISIST",
-        nombre: "Ingeniería de Sistemas",
-        facultad_id: fing.id,
-      },
-      dep: {
-        codigo: "DISIST",
-        nombre: "Departamento de Ingeniería de Sistemas",
-      },
-    },
-    {
-      esc: {
-        codigo: "EININD",
-        nombre: "Ingeniería Industrial",
-        facultad_id: fing.id,
-      },
-      dep: {
-        codigo: "DININD",
-        nombre: "Departamento de Ingeniería Industrial",
-      },
-    },
-    {
-      esc: {
-        codigo: "EINMEC",
-        nombre: "Ingeniería Mecánica",
-        facultad_id: fing.id,
-      },
-      dep: { codigo: "DINMEC", nombre: "Departamento de Ingeniería Mecánica" },
-    },
-    {
-      esc: {
-        codigo: "EINMCT",
-        nombre: "Ingeniería Mecatrónica",
-        facultad_id: fing.id,
-      },
-      dep: {
-        codigo: "DINMCT",
-        nombre: "Departamento de Ingeniería Mecatrónica",
-      },
-    },
-    {
-      esc: {
-        codigo: "EINMAT",
-        nombre: "Ingeniería de Materiales",
-        facultad_id: fing.id,
-      },
-      dep: {
-        codigo: "DINMAT",
-        nombre: "Departamento de Ingeniería de Materiales",
-      },
-    },
-    // FIQ
-    {
-      esc: {
-        codigo: "EIQUIM",
-        nombre: "Ingeniería Química",
-        facultad_id: fiq.id,
-      },
-      dep: { codigo: "DIQUIM", nombre: "Departamento de Ingeniería Química" },
-    },
-    {
-      esc: {
-        codigo: "EAMBNT",
-        nombre: "Ingeniería Ambiental",
-        facultad_id: fiq.id,
-      },
-      dep: { codigo: "DAMBNT", nombre: "Departamento de Ingeniería Ambiental" },
-    },
-    {
-      esc: {
-        codigo: "EMETLU",
-        nombre: "Ingeniería Metalúrgica",
-        facultad_id: fiq.id,
-      },
-      dep: {
-        codigo: "DMETLU",
-        nombre: "Departamento de Ingeniería Metalúrgica",
-      },
-    },
-    {
-      esc: {
-        codigo: "EMINAS",
-        nombre: "Ingeniería de Minas",
-        facultad_id: fiq.id,
-      },
-      dep: { codigo: "DMINAS", nombre: "Departamento de Ingeniería de Minas" },
-    },
-    // FM
-    {
-      esc: { codigo: "EMEDC", nombre: "Medicina", facultad_id: fm.id },
-      dep: { codigo: "DMEDC", nombre: "Departamento de Medicina" },
-    },
-  ];
-
-  for (let i = 0; i < escDep.length; i++) {
-    const { esc, dep } = escDep[i];
-    const coordId = dirEscuelas[i].id;
-    const escuela = await escuelaRepo.save(
-      escuelaRepo.create({ ...esc, activo: true, coordinador_id: coordId }),
-    );
-    await departamentoRepo.save(
-      departamentoRepo.create({
-        ...dep,
-        escuela_id: escuela.id,
-        activo: true,
-        coordinador_id: coordId,
-      }),
-    );
-  }
+  // ── 11. DISPONIBILIDAD DOCENTE ───────────────────────
   console.log(
-    `✅ 13 facultades, ${escDep.length} escuelas y ${escDep.length} departamentos creados (con coordinadores)\n`,
+    "🕐 Registrando disponibilidad horaria completa para asignaciones...",
   );
-
-  // Helper functions
-  const getDocente = (nombreCompleto: string) => {
-    return (
-      dbDocentes.find(
-        (d) => `${d.nombres} ${d.apellidos}` === nombreCompleto,
-      ) || dbDocentes[0]
-    );
-  };
-  const getCurso = (nombre: string) => {
-    return dbCursos.find((c) => c.nombre === nombre) || dbCursos[0];
-  };
-  const getAmbiente = (nombre: string) => {
-    const key = nombre.toLowerCase().replace(/\./g, "").replace(/\s+/g, "");
-    return (
-      dbAmbientes.find((a) =>
-        a.nombre
-          .toLowerCase()
-          .replace(/\./g, "")
-          .replace(/\s+/g, "")
-          .includes(key),
-      ) || dbAmbientes[0]
-    );
-  };
-  const diaToNumber = (dia: string) => {
-    const map: Record<string, number> = {
-      lunes: 1,
-      martes: 2,
-      miércoles: 3,
-      jueves: 4,
-      viernes: 5,
-      sábado: 6,
-    };
-    return map[dia.toLowerCase()];
-  };
-  const horaToStr = (h: string) => {
-    const [h1, h2] = h.split("-").map((x) => parseInt(x.trim()));
-    return [
-      `${String(h1).padStart(2, "0")}:00`,
-      `${String(h2).padStart(2, "0")}:00`,
-    ];
-  };
-
-  // Lista de asignaciones del PDF
-  const horariosData = [
-    // CICLO I
-    {
-      curso: "Introducción a la Programación",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "7-8",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción a la Programación",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "8-9",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción a la Programación",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "2-3",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Introducción a la Programación",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "3-4",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Introducción a la Programación",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "4-5",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Introducción a la Programación",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "5-6",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Introducción a la Ingeniería de Sistemas",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Martes",
-      hora: "7-8",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción a la Ingeniería de Sistemas",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Martes",
-      hora: "8-9",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción a la Ingeniería de Sistemas",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Martes",
-      hora: "9-10",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Desarrollo del Pensamiento Lógico Matemático",
-      docente: "Jose Luis Ponte Bejarano",
-      dia: "Martes",
-      hora: "10-11",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Desarrollo del Pensamiento Lógico Matemático",
-      docente: "Jose Luis Ponte Bejarano",
-      dia: "Martes",
-      hora: "11-12",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción al Análisis Matemático",
-      docente: "Segundo Guibar Obeso",
-      dia: "Martes",
-      hora: "4-5",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción al Análisis Matemático",
-      docente: "Segundo Guibar Obeso",
-      dia: "Martes",
-      hora: "5-6",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción a la Programación",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Jueves",
-      hora: "9-10",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Introducción a la Programación",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Jueves",
-      hora: "10-11",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Introducción a la Programación",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Jueves",
-      hora: "11-12",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Lectura Crítica y Redacción de Textos Académicos",
-      docente: "Jorge Luis Rios Gonzales",
-      dia: "Jueves",
-      hora: "2-3",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Lectura Crítica y Redacción de Textos Académicos",
-      docente: "Jorge Luis Rios Gonzales",
-      dia: "Jueves",
-      hora: "3-4",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Lectura Crítica y Redacción de Textos Académicos",
-      docente: "Jorge Luis Rios Gonzales",
-      dia: "Jueves",
-      hora: "4-5",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Lectura Crítica y Redacción de Textos Académicos",
-      docente: "Jorge Luis Rios Gonzales",
-      dia: "Jueves",
-      hora: "5-6",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Estadística General",
-      docente: "Miguel Ipanaque Zapata",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Estadística General",
-      docente: "Miguel Ipanaque Zapata",
-      dia: "Jueves",
-      hora: "8-9",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Desarrollo Personal",
-      docente: "Bertha Urtecho Zavaleta",
-      dia: "Viernes",
-      hora: "9-10",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Desarrollo Personal",
-      docente: "Bertha Urtecho Zavaleta",
-      dia: "Viernes",
-      hora: "10-11",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Desarrollo Personal",
-      docente: "Bertha Urtecho Zavaleta",
-      dia: "Viernes",
-      hora: "11-12",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Desarrollo del Pensamiento Lógico Matemático",
-      docente: "Jose Luis Ponte Bejarano",
-      dia: "Viernes",
-      hora: "7-8",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Desarrollo del Pensamiento Lógico Matemático",
-      docente: "Jose Luis Ponte Bejarano",
-      dia: "Viernes",
-      hora: "8-9",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción al Análisis Matemático",
-      docente: "Segundo Guibar Obeso",
-      dia: "Lunes",
-      hora: "9-10",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción al Análisis Matemático",
-      docente: "Segundo Guibar Obeso",
-      dia: "Lunes",
-      hora: "10-11",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Introducción al Análisis Matemático",
-      docente: "Segundo Guibar Obeso",
-      dia: "Lunes",
-      hora: "11-12",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Estadística General",
-      docente: "Martha Cardoso",
-      dia: "Viernes",
-      hora: "2-3",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Estadística General",
-      docente: "Martha Cardoso",
-      dia: "Viernes",
-      hora: "3-4",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Estadística General",
-      docente: "Martha Cardoso",
-      dia: "Viernes",
-      hora: "4-5",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Estadística General",
-      docente: "Martha Cardoso",
-      dia: "Viernes",
-      hora: "5-6",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-
-    // CICLO III
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Lunes",
-      hora: "9-10",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Lunes",
-      hora: "10-11",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Lunes",
-      hora: "11-12",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Martes",
-      hora: "9-10",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Martes",
-      hora: "10-11",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Martes",
-      hora: "11-12",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Martes",
-      hora: "2-3",
-      ambiente: "I-4",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Viernes",
-      hora: "9-10",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Viernes",
-      hora: "10-11",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Programación Orientada a Objetos II",
-      docente: "Zoraida Vidal Melgarejo",
-      dia: "Viernes",
-      hora: "11-12",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Sistémica",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Miércoles",
-      hora: "9-10",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Sistémica",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Miércoles",
-      hora: "10-11",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Sistémica",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Miércoles",
-      hora: "11-12",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Sistémica",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Miércoles",
-      hora: "2-3",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Sistémica",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Miércoles",
-      hora: "3-4",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Sistémica",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Miércoles",
-      hora: "4-5",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Sistémica",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Jueves",
-      hora: "4-5",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Sistémica",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Jueves",
-      hora: "5-6",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Ingeniería Gráfica",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "7-8",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería Gráfica",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "8-9",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería Gráfica",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Jueves",
-      hora: "8-9",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería Gráfica",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Jueves",
-      hora: "9-10",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería Gráfica",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Jueves",
-      hora: "10-11",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería Gráfica",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Jueves",
-      hora: "11-12",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Matemática Aplicada",
-      docente: "Marcos Ferrer Reyna",
-      dia: "Jueves",
-      hora: "2-3",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Matemática Aplicada",
-      docente: "Marcos Ferrer Reyna",
-      dia: "Jueves",
-      hora: "3-4",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Matemática Aplicada",
-      docente: "Marcos Ferrer Reyna",
-      dia: "Miércoles",
-      hora: "6-7",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Matemática Aplicada",
-      docente: "Marcos Ferrer Reyna",
-      dia: "Miércoles",
-      hora: "7-8",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Matemática Aplicada",
-      docente: "Marcos Ferrer Reyna",
-      dia: "Miércoles",
-      hora: "8-9",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Martes",
-      hora: "4-5",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Martes",
-      hora: "5-6",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Jueves",
-      hora: "6-7",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Jueves",
-      hora: "8-9",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Viernes",
-      hora: "7-8",
-      ambiente: "Taller de Confecciones (Ing. Industrial)",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Viernes",
-      hora: "8-9",
-      ambiente: "Taller de Confecciones (Ing. Industrial)",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Viernes",
-      hora: "4-5",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Estadística Aplicada",
-      docente: "Teresita Rojas García",
-      dia: "Viernes",
-      hora: "5-6",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Administración General",
-      docente: "Juan Carrascal Cabanillas",
-      dia: "Lunes",
-      hora: "7-8",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Administración General",
-      docente: "Juan Carrascal Cabanillas",
-      dia: "Lunes",
-      hora: "8-9",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Administración General",
-      docente: "Juan Carrascal Cabanillas",
-      dia: "Martes",
-      hora: "7-8",
-      ambiente: "II-2 (Pabellon Ing. Industrial)",
-    },
-    {
-      curso: "Administración General",
-      docente: "Juan Carrascal Cabanillas",
-      dia: "Martes",
-      hora: "8-9",
-      ambiente: "II-2 (Pabellon Ing. Industrial)",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Lunes",
-      hora: "3-4",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Lunes",
-      hora: "4-5",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Lunes",
-      hora: "5-6",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Miércoles",
-      hora: "2-3",
-      ambiente: "Lab. Física",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Miércoles",
-      hora: "3-4",
-      ambiente: "Lab. Física",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Miércoles",
-      hora: "4-5",
-      ambiente: "Lab. Física",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "Lab. Física",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Jueves",
-      hora: "8-9",
-      ambiente: "Lab. Física",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Jueves",
-      hora: "9-10",
-      ambiente: "Lab. Física",
-    },
-    {
-      curso: "Física Electrónica",
-      docente: "Vilma Méndez Gil",
-      dia: "Jueves",
-      hora: "10-11",
-      ambiente: "Lab. Física",
-    },
-    {
-      curso: "Psicología Organizacional",
-      docente: "Sheyla Laura Escobedo Rodríguez",
-      dia: "Martes",
-      hora: "6-7",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Psicología Organizacional",
-      docente: "Sheyla Laura Escobedo Rodríguez",
-      dia: "Martes",
-      hora: "7-8",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Psicología Organizacional",
-      docente: "Sheyla Laura Escobedo Rodríguez",
-      dia: "Viernes",
-      hora: "6-7",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Psicología Organizacional",
-      docente: "Sheyla Laura Escobedo Rodríguez",
-      dia: "Viernes",
-      hora: "7-8",
-      ambiente: "posgrado A-311",
-    },
-
-    // CICLO V
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Lunes",
-      hora: "7-8",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Lunes",
-      hora: "8-9",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Lunes",
-      hora: "9-10",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Lunes",
-      hora: "10-11",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Lunes",
-      hora: "11-12",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Martes",
-      hora: "7-8",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Martes",
-      hora: "8-9",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Martes",
-      hora: "9-10",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Martes",
-      hora: "10-11",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería de Datos I",
-      docente: "Luis Boy Chavil",
-      dia: "Martes",
-      hora: "11-12",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Sistemas de Información",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "9-10",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Sistemas de Información",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "10-11",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Sistemas de Información",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "11-12",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Sistemas de Información",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "2-3",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Sistemas de Información",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "3-4",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Sistemas de Información",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "4-5",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Sistemas de Información",
-      docente: "Juan Carlos Obando Roldán",
-      dia: "Miércoles",
-      hora: "5-6",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Transformación Digital",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Transformación Digital",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Jueves",
-      hora: "8-9",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Transformación Digital",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Jueves",
-      hora: "9-10",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Transformación Digital",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Jueves",
-      hora: "10-11",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Transformación Digital",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Jueves",
-      hora: "11-12",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Lunes",
-      hora: "3-4",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Lunes",
-      hora: "4-5",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Lunes",
-      hora: "5-6",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Martes",
-      hora: "3-4",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Martes",
-      hora: "4-5",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Martes",
-      hora: "5-6",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Miércoles",
-      hora: "7-8",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Jueves",
-      hora: "3-4",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Jueves",
-      hora: "4-5",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Tecnología Web",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Jueves",
-      hora: "5-6",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Viernes",
-      hora: "9-10",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Viernes",
-      hora: "10-11",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Viernes",
-      hora: "11-12",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Miércoles",
-      hora: "2-3",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Miércoles",
-      hora: "3-4",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Miércoles",
-      hora: "4-5",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Miércoles",
-      hora: "5-6",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Miércoles",
-      hora: "6-7",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Arquitectura de Computadoras",
-      docente: "Cesar Arellano Salazar",
-      dia: "Miércoles",
-      hora: "7-8",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Teleinformática",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "1-2",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Teleinformática",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "2-3",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Teleinformática",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "7-8",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Teleinformática",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "8-9",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Teleinformática",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Viernes",
-      hora: "5-6",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Teleinformática",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Viernes",
-      hora: "6-7",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Teleinformática",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Viernes",
-      hora: "7-8",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Investigación de Operaciones",
-      docente: "Marcos Baca Lopez",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Investigación de Operaciones",
-      docente: "Marcos Baca Lopez",
-      dia: "Jueves",
-      hora: "8-9",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Investigación de Operaciones",
-      docente: "Marcos Baca Lopez",
-      dia: "Jueves",
-      hora: "9-10",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Investigación de Operaciones",
-      docente: "Marcos Baca Lopez",
-      dia: "Jueves",
-      hora: "10-11",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Investigación de Operaciones",
-      docente: "Marcos Baca Lopez",
-      dia: "Jueves",
-      hora: "11-12",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Investigación de Operaciones",
-      docente: "Marcos Baca Lopez",
-      dia: "Viernes",
-      hora: "7-8",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Contabilidad Gerencial",
-      docente: "Ana Cuadra Mitzugaray",
-      dia: "Jueves",
-      hora: "6-7",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Contabilidad Gerencial",
-      docente: "Ana Cuadra Mitzugaray",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Contabilidad Gerencial",
-      docente: "Ana Cuadra Mitzugaray",
-      dia: "Viernes",
-      hora: "2-3",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Contabilidad Gerencial",
-      docente: "Ana Cuadra Mitzugaray",
-      dia: "Viernes",
-      hora: "3-4",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Contabilidad Gerencial",
-      docente: "Ana Cuadra Mitzugaray",
-      dia: "Viernes",
-      hora: "4-5",
-      ambiente: "posgrado A-307",
-    },
-
-    // CICLO VII
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Martes",
-      hora: "7-8",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Martes",
-      hora: "8-9",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Martes",
-      hora: "9-10",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Martes",
-      hora: "10-11",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Martes",
-      hora: "11-12",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Lunes",
-      hora: "10-11",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Lunes",
-      hora: "11-12",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Lunes",
-      hora: "12-1",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Lunes",
-      hora: "1-2",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Lunes",
-      hora: "2-3",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Lunes",
-      hora: "4-5",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Lunes",
-      hora: "5-6",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Lunes",
-      hora: "6-7",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Viernes",
-      hora: "4-5",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Redes y Comunicaciones I",
-      docente: "Cesar Arellano Salazar",
-      dia: "Viernes",
-      hora: "5-6",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Lunes",
-      hora: "7-8",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Lunes",
-      hora: "8-9",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Lunes",
-      hora: "9-10",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Lunes",
-      hora: "10-11",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Ingeniería de Software I",
-      docente: "Robert Jerry Sánchez Ticona",
-      dia: "Lunes",
-      hora: "11-12",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Negocios Electrónicos",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Martes",
-      hora: "4-5",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Negocios Electrónicos",
-      docente: "Everson David Agreda Gamboa",
-      dia: "Martes",
-      hora: "5-6",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Gestión de Servicios de TI",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Viernes",
-      hora: "7-8",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Gestión de Servicios de TI",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Viernes",
-      hora: "8-9",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Gestión de Servicios de TI",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Viernes",
-      hora: "9-10",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Gestión de Servicios de TI",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Viernes",
-      hora: "10-11",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Gestión de Servicios de TI",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Viernes",
-      hora: "11-12",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Gestión de Servicios de TI",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Viernes",
-      hora: "12-1",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Metodología de la Investigación Científica",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Jueves",
-      hora: "2-3",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Metodología de la Investigación Científica",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Jueves",
-      hora: "3-4",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Metodología de la Investigación Científica",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Jueves",
-      hora: "4-5",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Metodología de la Investigación Científica",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Jueves",
-      hora: "5-6",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Administración de Base de Datos",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Administración de Base de Datos",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Jueves",
-      hora: "6-7",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Administración de Base de Datos",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "6-7",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Administración de Base de Datos",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "7-8",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Martes",
-      hora: "1-2",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Martes",
-      hora: "2-3",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Martes",
-      hora: "3-4",
-      ambiente: "posgrado A-307",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Miércoles",
-      hora: "1-2",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Miércoles",
-      hora: "2-3",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Miércoles",
-      hora: "3-4",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Miércoles",
-      hora: "4-5",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Miércoles",
-      hora: "5-6",
-      ambiente: "Audiovisuales",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Jueves",
-      hora: "9-10",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Planeamiento Estratégico de TI",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Jueves",
-      hora: "10-11",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Negocios Electrónicos",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Lunes",
-      hora: "1-2",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Negocios Electrónicos",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Lunes",
-      hora: "2-3",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Negocios Electrónicos",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Lunes",
-      hora: "3-4",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Negocios Electrónicos",
-      docente: "Paul Cotrina Castellanos",
-      dia: "Lunes",
-      hora: "4-5",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Cadena de Suministros",
-      docente: "Jhoe Gonzalez Vasquez",
-      dia: "Miércoles",
-      hora: "7-8",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Cadena de Suministros",
-      docente: "Jhoe Gonzalez Vasquez",
-      dia: "Miércoles",
-      hora: "8-9",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Cadena de Suministros",
-      docente: "Jhoe Gonzalez Vasquez",
-      dia: "Miércoles",
-      hora: "9-10",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-    {
-      curso: "Cadena de Suministros",
-      docente: "Jhoe Gonzalez Vasquez",
-      dia: "Miércoles",
-      hora: "10-11",
-      ambiente: "Taller de Confecciones - Ing. Industrial",
-    },
-
-    // CICLO IX
-    {
-      curso: "Tesis I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Jueves",
-      hora: "8-9",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Jueves",
-      hora: "9-10",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Jueves",
-      hora: "10-11",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Juan Pedro Santos Fernández",
-      dia: "Jueves",
-      hora: "11-12",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Jueves",
-      hora: "2-3",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Jueves",
-      hora: "3-4",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Jueves",
-      hora: "4-5",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Jueves",
-      hora: "5-6",
-      ambiente: "posgrado A-311",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "4-5",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Tesis I",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "5-6",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Analítica de Negocios",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "10-11",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Analítica de Negocios",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "11-12",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Analítica de Negocios",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "12-1",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Analítica de Negocios",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "2-3",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Analítica de Negocios",
-      docente: "Ricardo Mendoza Rivera",
-      dia: "Viernes",
-      hora: "3-4",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Auditoría Informática",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Lunes",
-      hora: "9-10",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Auditoría Informática",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Lunes",
-      hora: "10-11",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Auditoría Informática",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Lunes",
-      hora: "11-12",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Auditoría Informática",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Martes",
-      hora: "10-11",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Auditoría Informática",
-      docente: "Alberto Mendoza de los Santos",
-      dia: "Martes",
-      hora: "11-12",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Lunes",
-      hora: "1-2",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Lunes",
-      hora: "2-3",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Lunes",
-      hora: "3-4",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Lunes",
-      hora: "4-5",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Martes",
-      hora: "10-11",
-      ambiente: "Audiovisuales",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Martes",
-      hora: "11-12",
-      ambiente: "Audiovisuales",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Martes",
-      hora: "1-2",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Martes",
-      hora: "2-3",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Martes",
-      hora: "7-8",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Gestión de Proyectos de TIC",
-      docente: "José Gómez Ávila",
-      dia: "Martes",
-      hora: "8-9",
-      ambiente: "Lab. 1",
-    },
-    {
-      curso: "Emprendimiento Tecnológico",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Viernes",
-      hora: "2-3",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Emprendimiento Tecnológico",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Viernes",
-      hora: "3-4",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Emprendimiento Tecnológico",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Viernes",
-      hora: "4-5",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Emprendimiento Tecnológico",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Viernes",
-      hora: "5-6",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Emprendimiento Tecnológico",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Viernes",
-      hora: "6-7",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Emprendimiento Tecnológico",
-      docente: "Oscar Romel Alcántara Moreno",
-      dia: "Viernes",
-      hora: "7-8",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "5-6",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "6-7",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Lunes",
-      hora: "7-8",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Martes",
-      hora: "2-3",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Martes",
-      hora: "3-4",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Martes",
-      hora: "5-6",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Martes",
-      hora: "6-7",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Miércoles",
-      hora: "10-11",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Ingeniería Web",
-      docente: "Marcelino Torres Villanueva",
-      dia: "Miércoles",
-      hora: "11-12",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Lunes",
-      hora: "7-8",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Lunes",
-      hora: "8-9",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Miércoles",
-      hora: "7-8",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Miércoles",
-      hora: "8-9",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Miércoles",
-      hora: "9-10",
-      ambiente: "Lab. 3",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Miércoles",
-      hora: "4-5",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Miércoles",
-      hora: "5-6",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Miércoles",
-      hora: "6-7",
-      ambiente: "Lab. 4",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Jueves",
-      hora: "6-7",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Computación en la Nube",
-      docente: "José Gómez Ávila",
-      dia: "Jueves",
-      hora: "7-8",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Hackeo Ético",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "8-9",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Hackeo Ético",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "9-10",
-      ambiente: "posgrado A-303",
-    },
-    {
-      curso: "Hackeo Ético",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "3-4",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Hackeo Ético",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "4-5",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Hackeo Ético",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "5-6",
-      ambiente: "Lab. 2",
-    },
-    {
-      curso: "Hackeo Ético",
-      docente: "Camilo Suárez Rebaza",
-      dia: "Martes",
-      hora: "6-7",
-      ambiente: "Lab. 2",
-    },
-  ];
-
-  // First create docente-curso habilitaciones
-  console.log("🔗 Creando habilitaciones docente-curso...");
-  const habilitadas = new Set<string>();
-  const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
-
-  // ── BORRAR HORARIOS DE LABORATORIO EXISTENTES ──────────────────────────
-  console.log("🗑️ Borrando horarios de laboratorio existentes...");
-  const horariosLaboratorio = await horarioRepo.find({
-    where: { tipo_clase: "LABORATORIO" as any },
-  });
-  await horarioRepo.remove(horariosLaboratorio);
-  console.log(
-    `✅ ${horariosLaboratorio.length} horarios de laboratorio borrados`,
-  );
-
-  // ── BORRAR HORARIOS CON grupo_id INCORRECTO ───────────────────────────
-  console.log("🔧 Borrando horarios con grupo_id incorrecto...");
-  const allHorarios = await horarioRepo.find();
-  const cursos = await AppDataSource.getRepository(Curso).find();
-  const cursoIds = new Set(cursos.map((c) => c.id));
-
-  let horariosConGrupoIncorrecto = 0;
-  for (const horario of allHorarios) {
-    if (horario.grupo_id && cursoIds.has(horario.grupo_id)) {
-      // grupo_id coincide con un curso_id, es incorrecto
-      await horarioRepo.remove(horario);
-      horariosConGrupoIncorrecto++;
-    }
-  }
-  console.log(
-    `✅ ${horariosConGrupoIncorrecto} horarios con grupo_id incorrecto borrados\n`,
-  );
-
-  for (const h of horariosData) {
-    if (!h.docente) continue;
-    const docente = getDocente(h.docente);
-    const curso = getCurso(h.curso);
-    const key = `${docente.id}_${curso.id}`;
-    if (!habilitadas.has(key)) {
-      habilitadas.add(key);
-      const existing = await docenteCursoRepo.findOne({
-        where: {
-          docenteId: docente.id,
-          cursoId: curso.id,
-          periodoId: periodoActivo.id,
-        },
-      });
-      if (!existing) {
-        await docenteCursoRepo.save(
-          docenteCursoRepo.create({
-            docenteId: docente.id,
-            cursoId: curso.id,
-            tipo_clase: TipoClase.TEORIA,
-            periodoId: periodoActivo.id,
+  const slotsToSave: DisponibilidadDocente[] = [];
+  for (const doc of dbDocentes) {
+    for (let dia = 1; dia <= 5; dia++) {
+      const horasValidas = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+      for (const h of horasValidas) {
+        slotsToSave.push(
+          disponibilidadRepo.create({
+            docente: doc,
+            dia_semana: dia,
+            hora_inicio: `${h.toString().padStart(2, "0")}:00:00`,
+            hora_fin: `${(h + 1).toString().padStart(2, "0")}:00:00`,
+            disponible: true,
+            periodo_academico: "2026-I",
           }),
         );
       }
     }
   }
-  console.log("✅ Habilitaciones creadas\n");
+  await disponibilidadRepo.save(slotsToSave);
+  console.log("✅ Disponibilidad horaria registrada\n");
 
-  // Asignaciones específicas para Estadística General
-  const estadisticaGeneral = await cursoRepo.findOne({
-    where: { nombre: "Estadística General" },
-  });
-  const miguelIpanaque = await docenteRepo.findOne({
-    where: { nombres: "Miguel", apellidos: "Ipanaque Zapata" },
-  });
-  const marthaCardoso = await docenteRepo.findOne({
-    where: { nombres: "Martha", apellidos: "Cardoso" },
-  });
-
-  // Miguel Ipanaque: solo PRACTICA (2 horas), LABORATORIO: 0 (G: 0)
-  if (estadisticaGeneral && miguelIpanaque) {
-    const existing = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: miguelIpanaque.id,
-        cursoId: estadisticaGeneral.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existing) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: miguelIpanaque.id,
-          cursoId: estadisticaGeneral.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Martha Cardoso: TEORIA (2 horas) y PRACTICA (2 horas), LABORATORIO: 0 (G: 0)
-  if (estadisticaGeneral && marthaCardoso) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marthaCardoso.id,
-        cursoId: estadisticaGeneral.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marthaCardoso.id,
-          cursoId: estadisticaGeneral.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marthaCardoso.id,
-        cursoId: estadisticaGeneral.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marthaCardoso.id,
-          cursoId: estadisticaGeneral.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Asignaciones específicas para Introducción a la Programación
-  const introProgramacion = await cursoRepo.findOne({
-    where: { nombre: "Introducción a la Programación" },
-  });
-  const marcelinoTorres = await docenteRepo.findOne({
-    where: { nombres: "Marcelino", apellidos: "Torres Villanueva" },
-  });
-  const paulCotrina = await docenteRepo.findOne({
-    where: { nombres: "Paul", apellidos: "Cotrina Castellanos" },
-  });
-
-  // Marcelino Torres: TEORIA (2 horas), LABORATORIO (2 horas, G: 2 grupos paralelos), PRACTICA: 0
-  if (introProgramacion && marcelinoTorres) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcelinoTorres.id,
-        cursoId: introProgramacion.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcelinoTorres.id,
-          cursoId: introProgramacion.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcelinoTorres.id,
-        cursoId: introProgramacion.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcelinoTorres.id,
-          cursoId: introProgramacion.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // Paul Cotrina: LABORATORIO (2 horas, G: 2 grupos paralelos), TEORIA: 0, PRACTICA: 0
-  if (introProgramacion && paulCotrina) {
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: paulCotrina.id,
-        cursoId: introProgramacion.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: paulCotrina.id,
-          cursoId: introProgramacion.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    } else {
-      // Actualizar el valor de grupos si ya existe
-      existingLab.grupos = 2;
-      await docenteCursoRepo.save(existingLab);
-    }
-  }
-
-  // Asignaciones específicas para Introducción a la Ingeniería de Sistemas
-  const introIngSistemas = await cursoRepo.findOne({
-    where: { nombre: "Introducción a la Ingeniería de Sistemas" },
-  });
-  const albertoMendoza = await docenteRepo.findOne({
-    where: { nombres: "Alberto", apellidos: "Mendoza de los Santos" },
-  });
-
-  // Alberto Mendoza: TEORIA (1 hora), PRACTICA (2 horas), LABORATORIO: 0 (G: 0)
-  if (introIngSistemas && albertoMendoza) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: albertoMendoza.id,
-        cursoId: introIngSistemas.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: albertoMendoza.id,
-          cursoId: introIngSistemas.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: albertoMendoza.id,
-        cursoId: introIngSistemas.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: albertoMendoza.id,
-          cursoId: introIngSistemas.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Asignaciones específicas para Desarrollo Personal
-  const desarrolloPersonal = await cursoRepo.findOne({
-    where: { nombre: "Desarrollo Personal" },
-  });
-  const berthaUrtecho = await docenteRepo.findOne({
-    where: { nombres: "Bertha", apellidos: "Urtecho Zavaleta" },
-  });
-
-  // Bertha Urtecho: TEORIA (2 horas), PRACTICA (2 horas), LABORATORIO: 0 (G: 0)
-  if (desarrolloPersonal && berthaUrtecho) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: berthaUrtecho.id,
-        cursoId: desarrolloPersonal.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: berthaUrtecho.id,
-          cursoId: desarrolloPersonal.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: berthaUrtecho.id,
-        cursoId: desarrolloPersonal.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: berthaUrtecho.id,
-          cursoId: desarrolloPersonal.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Asignaciones específicas para Desarrollo del Pensamiento Lógico Matemático
-  const pensamientoLogico = await cursoRepo.findOne({
-    where: { nombre: "Desarrollo del Pensamiento Lógico Matemático" },
-  });
-  const joseLuisPonte = await docenteRepo.findOne({
-    where: { nombres: "Jose Luis", apellidos: "Ponte Bejarano" },
-  });
-
-  // Jose Luis Ponte: TEORIA (1 hora), PRACTICA (4 horas), LABORATORIO: 0 (G: 0)
-  if (pensamientoLogico && joseLuisPonte) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: joseLuisPonte.id,
-        cursoId: pensamientoLogico.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: joseLuisPonte.id,
-          cursoId: pensamientoLogico.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: joseLuisPonte.id,
-        cursoId: pensamientoLogico.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: joseLuisPonte.id,
-          cursoId: pensamientoLogico.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Asignaciones específicas para Lectura Crítica y Redacción de Textos Académicos
-  const lecturaCritica = await cursoRepo.findOne({
-    where: { nombre: "Lectura Crítica y Redacción de Textos Académicos" },
-  });
-  const jorgeLuisRios = await docenteRepo.findOne({
-    where: { nombres: "Jorge Luis", apellidos: "Rios Gonzales" },
-  });
-
-  // Jorge Luis Rios: TEORIA (2 horas), PRACTICA (2 horas), LABORATORIO: 0 (G: 0)
-  if (lecturaCritica && jorgeLuisRios) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: jorgeLuisRios.id,
-        cursoId: lecturaCritica.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: jorgeLuisRios.id,
-          cursoId: lecturaCritica.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: jorgeLuisRios.id,
-        cursoId: lecturaCritica.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: jorgeLuisRios.id,
-          cursoId: lecturaCritica.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Asignaciones específicas para Introducción al Análisis Matemático
-  const analisisMatematico = await cursoRepo.findOne({
-    where: { nombre: "Introducción al Análisis Matemático" },
-  });
-  const segundoGuibar = await docenteRepo.findOne({
-    where: { nombres: "Segundo", apellidos: "Guibar Obeso" },
-  });
-
-  // Segundo Guibar: TEORIA (2 horas), PRACTICA (4 horas), LABORATORIO: 0 (G: 0)
-  if (analisisMatematico && segundoGuibar) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: segundoGuibar.id,
-        cursoId: analisisMatematico.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: segundoGuibar.id,
-          cursoId: analisisMatematico.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: segundoGuibar.id,
-        cursoId: analisisMatematico.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: segundoGuibar.id,
-          cursoId: analisisMatematico.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Asignaciones específicas para los 8 nuevos docentes
-  const zoraidaVidal = await docenteRepo.findOne({
-    where: { nombres: "Zoraida", apellidos: "Vidal Melgarejo" },
-  });
-  const eversonAgreda = await docenteRepo.findOne({
-    where: { nombres: "Everson David", apellidos: "Agreda Gamboa" },
-  });
-  const juanCarlosObando = await docenteRepo.findOne({
-    where: { nombres: "Juan Carlos", apellidos: "Obando Roldán" },
-  });
-  const marcosFerrer = await docenteRepo.findOne({
-    where: { nombres: "Marcos", apellidos: "Ferrer Reyna" },
-  });
-  const teresitaRojas = await docenteRepo.findOne({
-    where: { nombres: "Teresita", apellidos: "Rojas Garcia" },
-  });
-  const juanCarrascal = await docenteRepo.findOne({
-    where: { nombres: "Juan", apellidos: "Carrascal Cabanillas" },
-  });
-  const vilmaMendez = await docenteRepo.findOne({
-    where: { nombres: "Vilma", apellidos: "Mendez Gil" },
-  });
-  const sheylaEscobedo = await docenteRepo.findOne({
-    where: { nombres: "Sheyla Laura", apellidos: "Escobedo Rodriguez" },
-  });
-
-  // Zoraida Vidal: Programación Orientada a Objetos II (T: 2, P: 0, L: 4, G: 3)
-  const poo2 = await cursoRepo.findOne({
-    where: { nombre: "Programación Orientada a Objetos II" },
-  });
-  if (poo2 && zoraidaVidal) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: zoraidaVidal.id,
-        cursoId: poo2.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: zoraidaVidal.id,
-          cursoId: poo2.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: zoraidaVidal.id,
-        cursoId: poo2.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: zoraidaVidal.id,
-          cursoId: poo2.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Everson David: Sistémica (T: 2, P: 1, L: 2, G: 3)
-  const sistemica = await cursoRepo.findOne({ where: { nombre: "Sistémica" } });
-  if (sistemica && eversonAgreda) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: eversonAgreda.id,
-        cursoId: sistemica.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: eversonAgreda.id,
-          cursoId: sistemica.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: eversonAgreda.id,
-        cursoId: sistemica.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: eversonAgreda.id,
-          cursoId: sistemica.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: eversonAgreda.id,
-        cursoId: sistemica.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: eversonAgreda.id,
-          cursoId: sistemica.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Juan Carlos Obando: Ingeniería Gráfica (T: 1, P: 1, L: 2, G: 3)
-  const ingGrafica = await cursoRepo.findOne({
-    where: { nombre: "Ingeniería Gráfica" },
-  });
-  if (ingGrafica && juanCarlosObando) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanCarlosObando.id,
-        cursoId: ingGrafica.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanCarlosObando.id,
-          cursoId: ingGrafica.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanCarlosObando.id,
-        cursoId: ingGrafica.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanCarlosObando.id,
-          cursoId: ingGrafica.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanCarlosObando.id,
-        cursoId: ingGrafica.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanCarlosObando.id,
-          cursoId: ingGrafica.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Marcos Ferrer: Matemática Aplicada (T: 1, P: 2, L: 2, G: 1)
-  const matAplicada = await cursoRepo.findOne({
-    where: { nombre: "Matemática Aplicada" },
-  });
-  if (matAplicada && marcosFerrer) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcosFerrer.id,
-        cursoId: matAplicada.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcosFerrer.id,
-          cursoId: matAplicada.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcosFerrer.id,
-        cursoId: matAplicada.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcosFerrer.id,
-          cursoId: matAplicada.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcosFerrer.id,
-        cursoId: matAplicada.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcosFerrer.id,
-          cursoId: matAplicada.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Teresita Rojas: Estadística Aplicada (T: 1, P: 2, L: 2, G: 3)
-  const estAplicada = await cursoRepo.findOne({
-    where: { nombre: "Estadística Aplicada" },
-  });
-  if (estAplicada && teresitaRojas) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: teresitaRojas.id,
-        cursoId: estAplicada.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: teresitaRojas.id,
-          cursoId: estAplicada.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: teresitaRojas.id,
-        cursoId: estAplicada.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: teresitaRojas.id,
-          cursoId: estAplicada.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: teresitaRojas.id,
-        cursoId: estAplicada.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: teresitaRojas.id,
-          cursoId: estAplicada.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Juan Carrascal: Administración General (T: 2, P: 2, LABORATORIO: 0 (G: 0))
-  const adminGeneral = await cursoRepo.findOne({
-    where: { nombre: "Administración General" },
-  });
-  if (adminGeneral && juanCarrascal) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanCarrascal.id,
-        cursoId: adminGeneral.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanCarrascal.id,
-          cursoId: adminGeneral.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanCarrascal.id,
-        cursoId: adminGeneral.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanCarrascal.id,
-          cursoId: adminGeneral.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Vilma Mendez: Física Electrónica (T: 1, P: 2, L: 2, G: 1)
-  const fisElectronica = await cursoRepo.findOne({
-    where: { nombre: "Física Electrónica" },
-  });
-  if (fisElectronica && vilmaMendez) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: vilmaMendez.id,
-        cursoId: fisElectronica.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: vilmaMendez.id,
-          cursoId: fisElectronica.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: vilmaMendez.id,
-        cursoId: fisElectronica.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: vilmaMendez.id,
-          cursoId: fisElectronica.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: vilmaMendez.id,
-        cursoId: fisElectronica.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: vilmaMendez.id,
-          cursoId: fisElectronica.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Sheyla Laura: Psicología Organizacional (T: 2, P: 2, LABORATORIO: 0 (G: 0))
-  const psicologiaOrg = await cursoRepo.findOne({
-    where: { nombre: "Psicología Organizacional" },
-  });
-  if (psicologiaOrg && sheylaEscobedo) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: sheylaEscobedo.id,
-        cursoId: psicologiaOrg.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: sheylaEscobedo.id,
-          cursoId: psicologiaOrg.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: sheylaEscobedo.id,
-        cursoId: psicologiaOrg.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: sheylaEscobedo.id,
-          cursoId: psicologiaOrg.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Asignaciones para los 11 nuevos docentes (Ciclos V, VII, IX)
-  const luisBoy = await docenteRepo.findOne({
-    where: { nombres: "Luis", apellidos: "Boy Chavil" },
-  });
-  const robertJerry = await docenteRepo.findOne({
-    where: { nombres: "Robert Jerry", apellidos: "Sánchez Ticona" },
-  });
-  const cesarArellano = await docenteRepo.findOne({
-    where: { nombres: "Cesar", apellidos: "Arellano Salazar" },
-  });
-  const camiloSuarez = await docenteRepo.findOne({
-    where: { nombres: "Camilo", apellidos: "Suárez Rebaza" },
-  });
-  const marcosBaca = await docenteRepo.findOne({
-    where: { nombres: "Marcos", apellidos: "Baca Lopez" },
-  });
-  const anaCuadra = await docenteRepo.findOne({
-    where: { nombres: "Ana", apellidos: "Cuadra Mitzugaray" },
-  });
-  const juanPedro = await docenteRepo.findOne({
-    where: { nombres: "Juan Pedro", apellidos: "Santos Fernández" },
-  });
-  const ricardoMendoza = await docenteRepo.findOne({
-    where: { nombres: "Ricardo", apellidos: "Mendoza Rivera" },
-  });
-  const oscarRomel = await docenteRepo.findOne({
-    where: { nombres: "Oscar Romel", apellidos: "Alcántara Moreno" },
-  });
-  const joseGomez = await docenteRepo.findOne({
-    where: { nombres: "José", apellidos: "Gómez Ávila" },
-  });
-  const jhoeGonzalez = await docenteRepo.findOne({
-    where: { nombres: "Jhoe", apellidos: "Gonzalez Vasquez" },
-  });
-
-  // CICLO V
-  // Luis Boy: Ingeniería de Datos I (T: 2, P: 1, L: 3, G: 3)
-  const ingDatosI = await cursoRepo.findOne({
-    where: { nombre: "Ingeniería de Datos I" },
-  });
-  if (ingDatosI && luisBoy) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: luisBoy.id,
-        cursoId: ingDatosI.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: luisBoy.id,
-          cursoId: ingDatosI.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: luisBoy.id,
-        cursoId: ingDatosI.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: luisBoy.id,
-          cursoId: ingDatosI.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: luisBoy.id,
-        cursoId: ingDatosI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: luisBoy.id,
-          cursoId: ingDatosI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Juan Carlos Obando: Sistemas de Información (T: 2, P: 2, L: 2, G: 3)
-  const sistemasInfo = await cursoRepo.findOne({
-    where: { nombre: "Sistemas de Información" },
-  });
-  if (sistemasInfo && juanCarlosObando) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanCarlosObando.id,
-        cursoId: sistemasInfo.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanCarlosObando.id,
-          cursoId: sistemasInfo.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanCarlosObando.id,
-        cursoId: sistemasInfo.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanCarlosObando.id,
-          cursoId: sistemasInfo.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanCarlosObando.id,
-        cursoId: sistemasInfo.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanCarlosObando.id,
-          cursoId: sistemasInfo.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Everson David: Transformación digital (T: 2, P: 0, L: 2, G: 2)
-  const transDigital = await cursoRepo.findOne({
-    where: { nombre: "Transformación Digital" },
-  });
-  if (transDigital && eversonAgreda) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: eversonAgreda.id,
-        cursoId: transDigital.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: eversonAgreda.id,
-          cursoId: transDigital.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: eversonAgreda.id,
-        cursoId: transDigital.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: eversonAgreda.id,
-          cursoId: transDigital.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // Robert Jerry: Tecnología web (T: 1, P: 1, L: 2, G: 3)
-  const tecnologiaWeb = await cursoRepo.findOne({
-    where: { nombre: "Tecnología Web" },
-  });
-  if (tecnologiaWeb && robertJerry) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: robertJerry.id,
-        cursoId: tecnologiaWeb.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: robertJerry.id,
-          cursoId: tecnologiaWeb.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: robertJerry.id,
-        cursoId: tecnologiaWeb.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: robertJerry.id,
-          cursoId: tecnologiaWeb.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: robertJerry.id,
-        cursoId: tecnologiaWeb.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: robertJerry.id,
-          cursoId: tecnologiaWeb.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Cesar Arellano: Arquitectura de computadoras (T: 1, P: 2, L: 2, G: 3)
-  const arquitecturaComp = await cursoRepo.findOne({
-    where: { nombre: "Arquitectura de Computadoras" },
-  });
-  if (arquitecturaComp && cesarArellano) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: cesarArellano.id,
-        cursoId: arquitecturaComp.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: cesarArellano.id,
-          cursoId: arquitecturaComp.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: cesarArellano.id,
-        cursoId: arquitecturaComp.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: cesarArellano.id,
-          cursoId: arquitecturaComp.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: cesarArellano.id,
-        cursoId: arquitecturaComp.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: cesarArellano.id,
-          cursoId: arquitecturaComp.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Camilo Suárez: Teleinformática (T: 1, P: 2, L: 2, G: 2)
-  const teleinformatica = await cursoRepo.findOne({
-    where: { nombre: "Teleinformática" },
-  });
-  if (teleinformatica && camiloSuarez) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: camiloSuarez.id,
-        cursoId: teleinformatica.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: camiloSuarez.id,
-          cursoId: teleinformatica.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: camiloSuarez.id,
-        cursoId: teleinformatica.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: camiloSuarez.id,
-          cursoId: teleinformatica.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: camiloSuarez.id,
-        cursoId: teleinformatica.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: camiloSuarez.id,
-          cursoId: teleinformatica.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // Marcos Baca: Investigación de Operaciones (T: 1, P: 2, L: 2, G: 1)
-  const investigacionOperaciones = await cursoRepo.findOne({
-    where: { nombre: "Investigación de Operaciones" },
-  });
-  if (investigacionOperaciones && marcosBaca) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcosBaca.id,
-        cursoId: investigacionOperaciones.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcosBaca.id,
-          cursoId: investigacionOperaciones.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcosBaca.id,
-        cursoId: investigacionOperaciones.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcosBaca.id,
-          cursoId: investigacionOperaciones.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcosBaca.id,
-        cursoId: investigacionOperaciones.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcosBaca.id,
-          cursoId: investigacionOperaciones.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Ana Cuadra: Contabilidad Gerencial (T: 1, P: 2, L: 2, G: 1)
-  const contabilidadGerencial = await cursoRepo.findOne({
-    where: { nombre: "Contabilidad Gerencial" },
-  });
-  if (contabilidadGerencial && anaCuadra) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: anaCuadra.id,
-        cursoId: contabilidadGerencial.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: anaCuadra.id,
-          cursoId: contabilidadGerencial.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: anaCuadra.id,
-        cursoId: contabilidadGerencial.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: anaCuadra.id,
-          cursoId: contabilidadGerencial.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: anaCuadra.id,
-        cursoId: contabilidadGerencial.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: anaCuadra.id,
-          cursoId: contabilidadGerencial.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // CICLO VII
-  // Juan Pedro: Ingeniería de Software I (T: 2, P: 1, L: 3, G: 1)
-  const ingSoftwareI = await cursoRepo.findOne({
-    where: { nombre: "Ingeniería de Software I" },
-  });
-  if (ingSoftwareI && juanPedro) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanPedro.id,
-        cursoId: ingSoftwareI.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanPedro.id,
-          cursoId: ingSoftwareI.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanPedro.id,
-        cursoId: ingSoftwareI.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanPedro.id,
-          cursoId: ingSoftwareI.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanPedro.id,
-        cursoId: ingSoftwareI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanPedro.id,
-          cursoId: ingSoftwareI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // César Arellano: Redes y Comunicaciones I (T: 1, P: 1, L: 3, G: 3)
-  const redesComunicacionesI = await cursoRepo.findOne({
-    where: { nombre: "Redes y Comunicaciones I" },
-  });
-  if (redesComunicacionesI && cesarArellano) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: cesarArellano.id,
-        cursoId: redesComunicacionesI.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: cesarArellano.id,
-          cursoId: redesComunicacionesI.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: cesarArellano.id,
-        cursoId: redesComunicacionesI.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: cesarArellano.id,
-          cursoId: redesComunicacionesI.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: cesarArellano.id,
-        cursoId: redesComunicacionesI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: cesarArellano.id,
-          cursoId: redesComunicacionesI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Robert Jerry: Ingeniería de Software I (T: -, P: -, L: 2, G: 3)
-  if (ingSoftwareI && robertJerry) {
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: robertJerry.id,
-        cursoId: ingSoftwareI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: robertJerry.id,
-          cursoId: ingSoftwareI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Everson David: Negocios Electrónicos (T: 2, P: 0, L: 0, G: 0)
-  const negociosElectronicos = await cursoRepo.findOne({
-    where: { nombre: "Negocios Electrónicos" },
-  });
-  if (negociosElectronicos && eversonAgreda) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: eversonAgreda.id,
-        cursoId: negociosElectronicos.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: eversonAgreda.id,
-          cursoId: negociosElectronicos.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Alberto Mendoza: Gestión de Servicios de TI (T: 1, P: 2, L: 2, G: 2)
-  const gestionServiciosTI = await cursoRepo.findOne({
-    where: { nombre: "Gestión de Servicios de TI" },
-  });
-  if (gestionServiciosTI && albertoMendoza) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: albertoMendoza.id,
-        cursoId: gestionServiciosTI.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: albertoMendoza.id,
-          cursoId: gestionServiciosTI.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: albertoMendoza.id,
-        cursoId: gestionServiciosTI.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: albertoMendoza.id,
-          cursoId: gestionServiciosTI.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: albertoMendoza.id,
-        cursoId: gestionServiciosTI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: albertoMendoza.id,
-          cursoId: gestionServiciosTI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // Paul Cotrina: Metodología de la Investigación Científica (T: 2, P: 2, LABORATORIO: 0 (G: 0))
-  const metodologiaInvestigacion = await cursoRepo.findOne({
-    where: { nombre: "Metodología de la Investigación Científica" },
-  });
-  if (metodologiaInvestigacion && paulCotrina) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: paulCotrina.id,
-        cursoId: metodologiaInvestigacion.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: paulCotrina.id,
-          cursoId: metodologiaInvestigacion.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: paulCotrina.id,
-        cursoId: metodologiaInvestigacion.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: paulCotrina.id,
-          cursoId: metodologiaInvestigacion.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Ricardo Mendoza: Administración de Base de Datos (T: 1, P: 1, L: 3, G: 2)
-  const adminBaseDatos = await cursoRepo.findOne({
-    where: { nombre: "Administración de Base de Datos" },
-  });
-  if (adminBaseDatos && ricardoMendoza) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: adminBaseDatos.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: adminBaseDatos.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: adminBaseDatos.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: adminBaseDatos.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: adminBaseDatos.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: adminBaseDatos.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // Oscar Romel: Planeamiento Estratégico de TI (T: 1, P: 2, L: 2, G: 4)
-  const planeamientoEstrategicoTI = await cursoRepo.findOne({
-    where: { nombre: "Planeamiento Estratégico de TI" },
-  });
-  if (planeamientoEstrategicoTI && oscarRomel) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: oscarRomel.id,
-        cursoId: planeamientoEstrategicoTI.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: oscarRomel.id,
-          cursoId: planeamientoEstrategicoTI.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: oscarRomel.id,
-        cursoId: planeamientoEstrategicoTI.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: oscarRomel.id,
-          cursoId: planeamientoEstrategicoTI.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: oscarRomel.id,
-        cursoId: planeamientoEstrategicoTI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: oscarRomel.id,
-          cursoId: planeamientoEstrategicoTI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 4,
-        }),
-      );
-    }
-  }
-
-  // Paul Cotrina: Negocios Electrónicos (L: 2, G: 2)
-  if (negociosElectronicos && paulCotrina) {
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: paulCotrina.id,
-        cursoId: negociosElectronicos.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: paulCotrina.id,
-          cursoId: negociosElectronicos.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // Jhoe Gonzalez: Cadena de Suministros (T: 2, P: 2, LABORATORIO: 0 (G: 0))
-  const cadenaSuministros = await cursoRepo.findOne({
-    where: { nombre: "Cadena de Suministros" },
-  });
-  if (cadenaSuministros && jhoeGonzalez) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: jhoeGonzalez.id,
-        cursoId: cadenaSuministros.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: jhoeGonzalez.id,
-          cursoId: cadenaSuministros.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: jhoeGonzalez.id,
-        cursoId: cadenaSuministros.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: jhoeGonzalez.id,
-          cursoId: cadenaSuministros.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // CICLO IX
-  // Juan Pedro: Tesis I (T: 2, P: 2, L: 2, G: 1)
-  const tesisI = await cursoRepo.findOne({ where: { nombre: "Tesis I" } });
-  if (tesisI && juanPedro) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanPedro.id,
-        cursoId: tesisI.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanPedro.id,
-          cursoId: tesisI.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanPedro.id,
-        cursoId: tesisI.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanPedro.id,
-          cursoId: tesisI.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: juanPedro.id,
-        cursoId: tesisI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: juanPedro.id,
-          cursoId: tesisI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Ricardo Mendoza: Tesis I (T: 2, P: 2, L: 2, G: 1)
-  if (tesisI && ricardoMendoza) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: tesisI.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: tesisI.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: tesisI.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: tesisI.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: tesisI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: tesisI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Ricardo Mendoza: Analítica de Negocios (T: 1, P: 2, L: 2, G: 1)
-  const analiticaNegocios = await cursoRepo.findOne({
-    where: { nombre: "Analítica de Negocios" },
-  });
-  if (analiticaNegocios && ricardoMendoza) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: analiticaNegocios.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: analiticaNegocios.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: analiticaNegocios.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: analiticaNegocios.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: ricardoMendoza.id,
-        cursoId: analiticaNegocios.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: ricardoMendoza.id,
-          cursoId: analiticaNegocios.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-  }
-
-  // Alberto Mendoza: Auditoría Informática (T: 1, P: 2, L: 2, G: 2)
-  const auditoriaInformatica = await cursoRepo.findOne({
-    where: { nombre: "Auditoría Informática" },
-  });
-  if (auditoriaInformatica && albertoMendoza) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: albertoMendoza.id,
-        cursoId: auditoriaInformatica.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: albertoMendoza.id,
-          cursoId: auditoriaInformatica.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: albertoMendoza.id,
-        cursoId: auditoriaInformatica.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: albertoMendoza.id,
-          cursoId: auditoriaInformatica.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: albertoMendoza.id,
-        cursoId: auditoriaInformatica.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: albertoMendoza.id,
-          cursoId: auditoriaInformatica.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // José Gómez: Gestión de Proyectos de TI (T: 1, P: 2, L: 2, G: 3)
-  const gestionProyectosTI = await cursoRepo.findOne({
-    where: { nombre: "Gestión de Proyectos de TI" },
-  });
-  if (gestionProyectosTI && joseGomez) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: joseGomez.id,
-        cursoId: gestionProyectosTI.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: joseGomez.id,
-          cursoId: gestionProyectosTI.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: joseGomez.id,
-        cursoId: gestionProyectosTI.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: joseGomez.id,
-          cursoId: gestionProyectosTI.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: joseGomez.id,
-        cursoId: gestionProyectosTI.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: joseGomez.id,
-          cursoId: gestionProyectosTI.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Oscar Romel: Emprendimiento Tecnológico (T: 2, P: 0, L: 2, G: 2)
-  const emprendimientoTecnologico = await cursoRepo.findOne({
-    where: { nombre: "Emprendimiento Tecnológico" },
-  });
-  if (emprendimientoTecnologico && oscarRomel) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: oscarRomel.id,
-        cursoId: emprendimientoTecnologico.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: oscarRomel.id,
-          cursoId: emprendimientoTecnologico.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: oscarRomel.id,
-        cursoId: emprendimientoTecnologico.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: oscarRomel.id,
-          cursoId: emprendimientoTecnologico.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // Marcelino Torres: Ingeniería Web (T: 1, P: 1, L: 3, G: 3)
-  const ingWeb = await cursoRepo.findOne({
-    where: { nombre: "Ingeniería Web" },
-  });
-  if (ingWeb && marcelinoTorres) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcelinoTorres.id,
-        cursoId: ingWeb.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcelinoTorres.id,
-          cursoId: ingWeb.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcelinoTorres.id,
-        cursoId: ingWeb.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcelinoTorres.id,
-          cursoId: ingWeb.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: marcelinoTorres.id,
-        cursoId: ingWeb.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: marcelinoTorres.id,
-          cursoId: ingWeb.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // José Gómez: Computación en la Nube (T: 1, P: 1, L: 3, G: 3)
-  const computacionNube = await cursoRepo.findOne({
-    where: { nombre: "Computación en la Nube" },
-  });
-  if (computacionNube && joseGomez) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: joseGomez.id,
-        cursoId: computacionNube.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: joseGomez.id,
-          cursoId: computacionNube.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingPractica = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: joseGomez.id,
-        cursoId: computacionNube.id,
-        tipo_clase: TipoClase.PRACTICA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingPractica) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: joseGomez.id,
-          cursoId: computacionNube.id,
-          tipo_clase: TipoClase.PRACTICA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: joseGomez.id,
-        cursoId: computacionNube.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: joseGomez.id,
-          cursoId: computacionNube.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 3,
-        }),
-      );
-    }
-  }
-
-  // Camilo Suarez: Hackeo Ético (T: 2, P: 0, L: 2, G: 2)
-  const hackeoEtico = await cursoRepo.findOne({
-    where: { nombre: "Hackeo Ético" },
-  });
-  if (hackeoEtico && camiloSuarez) {
-    const existingTeoria = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: camiloSuarez.id,
-        cursoId: hackeoEtico.id,
-        tipo_clase: TipoClase.TEORIA,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingTeoria) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: camiloSuarez.id,
-          cursoId: hackeoEtico.id,
-          tipo_clase: TipoClase.TEORIA,
-          periodoId: periodoActivo.id,
-          grupos: 1,
-        }),
-      );
-    }
-    const existingLab = await docenteCursoRepo.findOne({
-      where: {
-        docenteId: camiloSuarez.id,
-        cursoId: hackeoEtico.id,
-        tipo_clase: TipoClase.LABORATORIO,
-        periodoId: periodoActivo.id,
-      },
-    });
-    if (!existingLab) {
-      await docenteCursoRepo.save(
-        docenteCursoRepo.create({
-          docenteId: camiloSuarez.id,
-          cursoId: hackeoEtico.id,
-          tipo_clase: TipoClase.LABORATORIO,
-          periodoId: periodoActivo.id,
-          grupos: 2,
-        }),
-      );
-    }
-  }
-
-  // NOTA: No se crean horarios asignados precargados para modalidad ventanas de atención
-  // Los horarios se crearán desde 0 mediante el sistema de ventanas de atención
-
-  await AppDataSource.destroy();
-  console.log(
-    "🎉 ¡Seed completado con 28 docentes, 82 cursos, 13 facultades, 45 escuelas y 45 departamentos! (Sin horarios asignados precargados)",
+  // ── 13. CONFIGURACIÓN GENERAL ────────────────────────────────────────────────
+  console.log("⚙️  Configurando parámetros generales del sistema...");
+  await configuracionRepo.save(
+    configuracionRepo.create({
+      id: 1,
+      nombre_institucional: "Universidad Nacional de Trujillo",
+      logo_url: "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png",
+      color_primario: "#1a237e",
+      color_secundario: "#283593",
+      color_acento: "#e91e63",
+    }),
   );
+  console.log("✅ Configuración general inicializada\n");
+
+  console.log("🎉 Seed completado exitosamente!");
+  await AppDataSource.destroy();
 }
 
 seed().catch((error) => {
-  console.error("❌ Error durante la ejecución del seed:", error);
+  console.error("❌ Error durante el seed:", error);
   process.exit(1);
 });

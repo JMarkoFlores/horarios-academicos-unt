@@ -1,63 +1,111 @@
 <div class="docente-horario-container">
   <header class="page-header">
-    <h1>Mi Horario Académico</h1>
-    <p>Período actual: <strong>{{ periodoService.periodo }}</strong></p>
+    <div class="header-content">
+      <div class="title-block">
+        <div class="title-avatar">
+          <mat-icon>person</mat-icon>
+        </div>
+        <div>
+          <h1>Mi Horario Académico</h1>
+          <p class="periodo-label">Período actual: <strong>{{ periodoService.periodo }}</strong></p>
+        </div>
+      </div>
+      <div class="stats-block">
+        <span class="chip-stat">
+          <mat-icon>schedule</mat-icon>{{ totalHorasSemanales }} horas/semana
+        </span>
+        <span class="chip-stat">
+          <mat-icon>assignment</mat-icon>{{ horasAsignadas }} bloques
+        </span>
+      </div>
+    </div>
   </header>
 
-  <mat-card class="info-card">
-    <mat-card-header>
-      <mat-icon mat-card-avatar>event_note</mat-icon>
-      <mat-card-title>Ventanas de Atención</mat-card-title>
-      <mat-card-subtitle>Sistema de turnos para asignación de horarios</mat-card-subtitle>
-    </mat-card-header>
+  <mat-card class="horario-card">
     <mat-card-content>
-      <p>
-        El sistema organiza la asignación de horarios mediante <strong>ventanas de atención</strong> por categoría docente.
-        Cada ventana corresponde a una franja horaria en la que los docentes eligen sus horarios en orden de jerarquía.
-      </p>
-      <p>
-        Recibirá recordatorios automáticos <strong>24 horas antes</strong> y una alerta urgente <strong>15 minutos antes</strong>
-        de su turno vía correo electrónico o Telegram (si configuró sus preferencias).
-      </p>
-    </mat-card-content>
-  </mat-card>
-
-  <mat-card class="premium-card">
-    <mat-card-content>
-      <div *ngIf="loading" class="loading-state">
+      <div *ngIf="loading" class="spinner-center">
         <mat-spinner diameter="40"></mat-spinner>
+        <span class="loading-txt">Cargando horario...</span>
       </div>
 
-      <table mat-table [dataSource]="horarios" class="mat-elevation-z8" *ngIf="!loading && horarios.length > 0">
-        
-        <ng-container matColumnDef="dia">
-          <th mat-header-cell *matHeaderCellDef> Día </th>
-          <td mat-cell *matCellDef="let h"> {{ dias[h.dia_semana || h.dia] }} </td>
-        </ng-container>
+      <ng-container *ngIf="!loading">
+        <div *ngIf="asignaciones.length === 0" class="empty-state">
+          <div class="empty-icon-wrap"><mat-icon>event_busy</mat-icon></div>
+          <h3>Sin asignaciones</h3>
+          <p>No tiene horario asignado para el período <strong>{{ periodoService.periodo }}</strong>.</p>
+        </div>
 
-        <ng-container matColumnDef="hora">
-          <th mat-header-cell *matHeaderCellDef> Hora </th>
-          <td mat-cell *matCellDef="let h"> {{ h.hora_inicio }} - {{ h.hora_fin }} </td>
-        </ng-container>
+        <div *ngIf="asignaciones.length > 0" class="grid-wrapper">
+          <table class="horario-grid">
+            <thead>
+              <tr>
+                <th class="hora-col">Hora</th>
+                <th *ngFor="let dia of dias">{{ dia }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let hora of horas">
+                <td class="hora-cell" [class.hora-cell-almuerzo]="esAlmuerzoHora(hora)">
+                  <span class="hora-ini">{{ fmtH(hora) }}</span>
+                  <span *ngIf="esAlmuerzoHora(hora)" class="almuerzo-label">ALM</span>
+                </td>
+                <ng-container *ngFor="let dNum of diasNum">
+                  <ng-container *ngIf="getCell(dNum, hora) as cell">
+                    <td *ngIf="!cell.skip"
+                      class="celda"
+                      [ngClass]="cls(dNum, hora)"
+                      [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null">
+                      <div *ngIf="cell.asig as a" class="celda-content">
+                        <span class="tipo-badge" [class.lab]="a.tipo_clase === 'LABORATORIO'">
+                          {{ a.tipo_clase === 'LABORATORIO' ? 'LAB' : 'TEO' }}
+                        </span>
+                        <div class="curso-txt">{{ a.curso?.nombre ?? '—' }}</div>
+                        <div class="meta-row">
+                          <mat-icon class="meta-icon">room</mat-icon>
+                          <span class="amb-txt">{{ a.ambiente?.codigo ?? '—' }}</span>
+                        </div>
+                        <div class="hora-rango">{{ a.hora_inicio }} – {{ a.hora_fin }}</div>
+                      </div>
+                    </td>
+                  </ng-container>
+                </ng-container>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-        <ng-container matColumnDef="curso">
-          <th mat-header-cell *matHeaderCellDef> Curso </th>
-          <td mat-cell *matCellDef="let h"> {{ h.curso?.nombre }} </td>
-        </ng-container>
-
-        <ng-container matColumnDef="ambiente">
-          <th mat-header-cell *matHeaderCellDef> Ambiente </th>
-          <td mat-cell *matCellDef="let h"> {{ h.ambiente?.nombre }} ({{ h.ambiente?.codigo }}) </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="['dia', 'hora', 'curso', 'ambiente']"></tr>
-        <tr mat-row *matRowDef="let row; columns: ['dia', 'hora', 'curso', 'ambiente'];"></tr>
-      </table>
-
-      <div *ngIf="!loading && horarios.length === 0" class="empty-state">
-        <mat-icon>event_busy</mat-icon>
-        <p>No tiene horarios asignados para este período.</p>
-      </div>
+        <div class="legend" *ngIf="asignaciones.length > 0">
+          <span class="legend-item"><span class="dot dot-teoria"></span> Teoría</span>
+          <span class="legend-item"><span class="dot dot-lab"></span> Laboratorio</span>
+          <span class="legend-item"><span class="dot dot-almuerzo"></span> Almuerzo ({{ fmtH(almuerzoInicio) }}–{{ fmtH(almuerzoFin) }})</span>
+          <span class="legend-spacer"></span>
+          <span class="legend-info">Las celdas fusionadas representan bloques de varias horas consecutivas</span>
+        </div>
+      </ng-container>
     </mat-card-content>
   </mat-card>
+
+  <div class="actions-bar" *ngIf="!loading && asignaciones.length > 0">
+    <button mat-flat-button class="btn-pdf"
+      (click)="descargarPdf()"
+      [disabled]="descargandoPdf">
+      <mat-spinner *ngIf="descargandoPdf" diameter="16" class="inline-spinner"></mat-spinner>
+      <mat-icon *ngIf="!descargandoPdf">picture_as_pdf</mat-icon>
+      {{ descargandoPdf ? 'Generando...' : 'Descargar PDF' }}
+    </button>
+    <button mat-flat-button class="btn-excel"
+      (click)="descargarExcel()"
+      [disabled]="descargandoExcel">
+      <mat-spinner *ngIf="descargandoExcel" diameter="16" class="inline-spinner"></mat-spinner>
+      <mat-icon *ngIf="!descargandoExcel">table_view</mat-icon>
+      {{ descargandoExcel ? 'Generando...' : 'Descargar Excel' }}
+    </button>
+    <button mat-flat-button class="btn-ical"
+      (click)="descargarIcal()"
+      [disabled]="descargandoIcal">
+      <mat-spinner *ngIf="descargandoIcal" diameter="16" class="inline-spinner"></mat-spinner>
+      <mat-icon *ngIf="!descargandoIcal">calendar_today</mat-icon>
+      {{ descargandoIcal ? 'Generando...' : 'Descargar iCalendar' }}
+    </button>
+  </div>
 </div>

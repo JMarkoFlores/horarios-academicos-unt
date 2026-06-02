@@ -7,9 +7,10 @@ import {
   IsString,
   Matches,
   Min,
+  IsBoolean,
 } from "class-validator";
 import { Transform } from "class-transformer";
-import { CategoriaDocente } from "../../../common/enums/categoria-docente.enum";
+import { CategoriaVentana } from "../../../common/enums/categoria-ventana.enum";
 import { TipoContrato } from "../../../common/enums/tipo-contrato.enum";
 
 export class CreateVentanaDto {
@@ -21,9 +22,9 @@ export class CreateVentanaDto {
   @IsDateString()
   fecha: string;
 
-  @ApiProperty({ enum: CategoriaDocente })
+  @ApiProperty({ enum: CategoriaVentana })
   @Transform(({ value }) => {
-    // Normalizar formato: "Jefe Práctica" -> "JEFE_PRACTICA"
+    // Normalizar formato: "Declaración Inicial" -> "DECLARACION"
     if (typeof value === 'string') {
       return value
         .normalize('NFD')
@@ -33,8 +34,8 @@ export class CreateVentanaDto {
     }
     return value;
   })
-  @IsEnum(CategoriaDocente)
-  categoria: CategoriaDocente;
+  @IsEnum(CategoriaVentana)
+  categoria: CategoriaVentana;
 
   @ApiPropertyOptional({ enum: TipoContrato })
   @IsOptional()
@@ -56,4 +57,14 @@ export class CreateVentanaDto {
   @IsInt()
   @Min(1)
   intervalo_minutos?: number;
+
+  @ApiPropertyOptional({ default: false, description: 'Saltar validación de capacidad (para creación automática de múltiples ventanas)' })
+  @IsOptional()
+  @IsBoolean()
+  saltarValidacionCapacidad?: boolean;
+
+  @ApiPropertyOptional({ default: false, description: 'No asignar docentes automáticamente (para ventanas que se crean en serie)' })
+  @IsOptional()
+  @IsBoolean()
+  sinAsignarDocentes?: boolean;
 }

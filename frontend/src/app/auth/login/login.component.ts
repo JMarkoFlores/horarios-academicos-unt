@@ -9,7 +9,7 @@ const ROL_REDIRECT: Record<string, string> = {
   coordinadoracademico: '/app/dashboard',
   directorescuela: '/app/dashboard',
   visualizador: '/app/dashboard',
-  operadorhorarios: '/app/operador',
+  secretaria: '/app/secretaria',
   docente: '/app/mis-horarios',
 };
 

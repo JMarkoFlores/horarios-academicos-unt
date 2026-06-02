@@ -70,17 +70,26 @@ const routes: Routes = [
         data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
-        path: 'periodos',
-        loadChildren: () =>
-          import('./modules/periodos/periodos.module').then(
-            (m) => m.PeriodosModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
-      },
-      // Operador
+            path: 'periodos',
+            loadChildren: () =>
+              import('./modules/periodos/periodos.module').then(
+                (m) => m.PeriodosModule,
+              ),
+            canActivate: [RolesGuard],
+            data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+          },
+          {
+            path: 'campaigns',
+            loadChildren: () =>
+              import('./modules/campaigns/campaigns.module').then(
+                (m) => m.CampaignsModule,
+              ),
+            canActivate: [RolesGuard],
+            data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+          },
+      // Secretaria
       {
-        path: 'operador',
+        path: 'secretaria',
         loadChildren: () =>
           import('./modules/operador/operador.module').then(
             (m) => m.OperadorModule,
@@ -90,7 +99,7 @@ const routes: Routes = [
           roles: [
             'administradorsistema',
             'coordinadoracademico',
-            'operadorhorarios',
+            'secretaria',
           ],
         },
       },

@@ -1,7 +1,9 @@
-import { NgModule } from '@angular/core';
+import { NgModule, LOCALE_ID } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
+import { registerLocaleData } from '@angular/common';
+import localeEs from '@angular/common/locales/es';
 import { AppRoutingModule } from './app-routing.module';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
@@ -24,6 +26,8 @@ export function HttpLoaderFactory(http: HttpClient) {
   return new CustomTranslateLoader(http);
 }
 
+registerLocaleData(localeEs);
+
 @NgModule({
   declarations: [AppComponent, NotFoundComponent],
   imports: [
@@ -43,6 +47,9 @@ export function HttpLoaderFactory(http: HttpClient) {
     CoreModule,
     LayoutModule,
     AuthModule,
+  ],
+  providers: [
+    { provide: LOCALE_ID, useValue: 'es-ES' }
   ],
   bootstrap: [AppComponent],
 })

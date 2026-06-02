@@ -805,45 +805,90 @@
   .topbar-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
   }
 
-  .theme-toggle {
+  .topbar-btn {
+    position: relative;
     color: var(--color-text-muted);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
     &:hover {
       background-color: var(--color-background);
-      color: var(--color-primary);
+      color: var(--color-primary-600);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+      border: 2px solid var(--color-surface);
     }
   }
 
   .periodo-field {
-    width: 140px;
+    width: 220px;
     margin-bottom: -1.25em; // Alineación con el botón de tema
 
     ::ng-deep {
       .mat-mdc-text-field-wrapper {
         background-color: var(--color-background) !important;
-        height: 40px !important;
-        padding: 0 12px !important;
+        height: 44px !important;
+        padding: 0 16px !important;
+        border-radius: 12px !important;
+        border: 1px solid var(--color-border) !important;
       }
+
       .mat-mdc-form-field-flex {
-        height: 40px !important;
+        height: 44px !important;
         align-items: center !important;
+        padding-top: 0 !important;
       }
+
       .mat-mdc-form-field-infix {
         padding: 0 !important;
         min-height: auto !important;
+        padding-top: 0 !important;
       }
-      .mdc-notched-outline__leading,
-      .mdc-notched-outline__notch,
-      .mdc-notched-outline__trailing {
-        border-color: var(--color-border) !important;
+
+      .mat-mdc-form-field-subscript-wrapper {
+        display: none !important;
       }
-      .mat-mdc-select-value {
+
+      .mdc-notched-outline {
+        display: none !important;
+      }
+
+      .mat-mdc-floating-label {
         font-size: 13px;
+        font-weight: 600;
+      }
+
+      .mat-mdc-select-value {
+        font-size: 13.5px;
         font-weight: 600;
         color: var(--color-text);
       }
+
       .mat-mdc-select-arrow {
         color: var(--color-text-muted);
       }
@@ -877,13 +922,28 @@
   .topbar {
     padding: 0 12px !important;
   }
+
   .content-area {
     padding: 16px;
   }
+
   .section-title {
     font-size: 16px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+
   .periodo-field {
-    width: 110px;
+    width: 120px;
+  }
+
+  .topbar-actions {
+    gap: 8px;
+  }
+
+  .language-selector {
+    display: none; // Ocultar selector de idioma en móvil para ahorrar espacio
   }
 }

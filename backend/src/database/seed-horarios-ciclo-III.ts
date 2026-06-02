@@ -105,10 +105,30 @@ async function seedHorariosCicloIII() {
   };
 
   const parsearRangoHoras = (rango: string): { inicio: string; fin: string } => {
+    // Si ya viene en formato HH:mm-HH:mm, lo usamos directamente
+    if (rango.includes(":")) {
+      const [i, f] = rango.split("-");
+      return { inicio: i.trim(), fin: f.trim() };
+    }
+
     const [h1, h2] = rango.split("-").map(s => parseInt(s.trim(), 10));
-    const horaInicio = h1 < 7 ? h1 + 12 : h1;
-    let horaFin = h2 < 7 ? h2 + 12 : h2;
-    if (horaFin <= horaInicio) horaFin += 12;
+    
+    // Heurística mejorada: 
+    // Si la hora es <= 6, asumimos tarde (12+h) excepto si es un rango que empieza temprano
+    // Si la hora es >= 7 y <= 12, asumimos mañana
+    // Si la hora es < 7 y es h2, y h1 >= 7, entonces h2 es tarde (12+h2)
+    
+    let horaInicio = h1;
+    if (h1 <= 6) horaInicio += 12;
+    
+    let horaFin = h2;
+    if (h2 <= 6 || h2 < h1) horaFin += 12;
+    
+    // Caso especial: si el rango es algo como "7-10" o "9-1", h2=1 debe ser 13
+    if (h1 >= 7 && h1 <= 12 && h2 < 7) {
+      horaFin = h2 + 12;
+    }
+
     return {
       inicio: `${String(horaInicio).padStart(2, '0')}:00`,
       fin: `${String(horaFin).padStart(2, '0')}:00`
@@ -147,40 +167,56 @@ async function seedHorariosCicloIII() {
   // ── 3. DATOS DE LOS HORARIOS DEL CICLO III ───────────────────────────────
   console.log("📋 Datos de horarios del ciclo III cargados");
   const horariosCicloIIIData = [
-    // 1
-    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Lunes", horas: "9-1", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 1 },
-    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Martes", horas: "9-1", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 1 },
-    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Martes", horas: "2-3", tipo: "Teoría/Práctica", ambiente: "I-4", grupo: 1 },
-    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Viernes", horas: "9-1", tipo: "Laboratorio", ambiente: "Lab. 4", grupo: 1 },
-    // 2
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "9-12", tipo: "Teoría/Práctica", ambiente: "posgrado A-307", grupo: 1 },
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "2-4", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 1 },
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "4-6", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 1 },
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Jueves", horas: "4-6", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 1 },
-    // 3
-    { docente: "Juan Carlos Obando Roldán", curso: "Ingeniería Gráfica (e)", dia: "Miércoles", horas: "7-9", tipo: "Teoría/Práctica", ambiente: "posgrado A-303", grupo: 1 },
-    { docente: "Juan Carlos Obando Roldán", curso: "Ingeniería Gráfica (e)", dia: "Jueves", horas: "8-10", tipo: "Laboratorio", ambiente: "Lab. 1", grupo: 1 },
-    { docente: "Juan Carlos Obando Roldán", curso: "Ingeniería Gráfica (e)", dia: "Jueves", horas: "10-1", tipo: "Laboratorio", ambiente: "Lab. 1", grupo: 1 },
-    // 4
-    { docente: "Marcos Ferrer Reyna", curso: "Matemática Aplicada", dia: "Jueves", horas: "2-4", tipo: "Teoría/Práctica", ambiente: "Taller Confecciones - Ing. Industrial", grupo: 1 },
-    { docente: "Marcos Ferrer Reyna", curso: "Matemática Aplicada", dia: "Miércoles", horas: "6-9", tipo: "Teoría/Práctica", ambiente: "posgrado A-303", grupo: 1 },
-    // 5
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Martes", horas: "4-6", tipo: "Teoría/Práctica", ambiente: "posgrado A-303", grupo: 1 },
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Jueves", horas: "6-9", tipo: "Teoría", ambiente: "Taller Confecciones - Ing. Industrial", grupo: 1 },
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Viernes", horas: "7-9", tipo: "Teoría/Práctica", ambiente: "Taller Confecciones (Ing. Industrial)", grupo: 1 },
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Viernes", horas: "4-6", tipo: "Teoría/Práctica", ambiente: "posgrado A-303", grupo: 1 },
-    // 6
-    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Lunes", horas: "7-9", tipo: "Teoría/Práctica", ambiente: "Taller Confecciones - Ing. Indust.", grupo: 1 },
-    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Martes", horas: "7-9", tipo: "Teoría/Práctica", ambiente: "I I - 2 (Pabellon Ing. Industrial)", grupo: 1 },
-    //7
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Lunes", horas: "3-6", tipo: "Teoría/Práctica", ambiente: "posgrado A-307", grupo: 1 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Miércoles", horas: "2-4", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 1 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Miércoles", horas: "4-6", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 1 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Jueves", horas: "7-9", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 1 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Jueves", horas: "9-11", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 1 },
-    //8
-    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicología Organizacional (e)", dia: "Martes", horas: "6-8", tipo: "Teoría/Práctica", ambiente: "posgrado A-311", grupo: 1 },
-    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicología Organizacional (e)", dia: "Viernes", horas: "6-8", tipo: "Teoría/Práctica", ambiente: "posgrado A-311", grupo: 1 },
+    // 1. Zoraida Vidal Melgarejo - POO II (T:2, P:0, L:4, G:3)
+    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Lunes", horas: "09:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 1 },
+    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Martes", horas: "09:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 2 },
+    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Martes", horas: "14:00-16:00", tipo: "Teoría", ambiente: "I-4", grupo: 1 },
+    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Viernes", horas: "09:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 4", grupo: 3 },
+    
+    // 2. Everson David Agreda Gamboa - Sistémica (T:2, P:1, L:2, G:3)
+    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "09:00-11:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "11:00-12:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 1 },
+    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 2 },
+    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Jueves", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 3 },
+    
+    // 3. Juan Carlos obando Roldán - Ing. Gráfica (T:1, P:1, L:3, G:2)
+    { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Miércoles", horas: "07:00-08:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Miércoles", horas: "08:00-09:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Jueves", horas: "07:00-10:00", tipo: "Laboratorio", ambiente: "Lab. 1", grupo: 1 },
+    { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Jueves", horas: "10:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 1", grupo: 2 },
+    
+    // 4. Marcos Ferrer Reyna - Matemática Aplicada (T:1, P:2, L:2, G:1)
+    { docente: "Marcos Ferrer Reyna", curso: "Matemática Aplicada", dia: "Jueves", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Taller Confecciones - Ing. Industrial", grupo: 1 },
+    { docente: "Marcos Ferrer Reyna", curso: "Matemática Aplicada", dia: "Miércoles", horas: "18:00-19:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Marcos Ferrer Reyna", curso: "Matemática Aplicada", dia: "Miércoles", horas: "19:00-21:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    
+    // 5. Teresita Rojas Garcia - Estadística Aplicada (T:1, P:2, L:2, G:3)
+    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Martes", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Jueves", horas: "18:00-19:00", tipo: "Teoría", ambiente: "Taller Confecciones - Ing. Industrial", grupo: 1 },
+    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Jueves", horas: "19:00-21:00", tipo: "Práctica", ambiente: "Taller Confecciones - Ing. Industrial", grupo: 1 },
+    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Viernes", horas: "07:00-09:00", tipo: "Laboratorio", ambiente: "Taller Confecciones (Ing. Industrial)", grupo: 2 },
+    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Viernes", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "posgrado A-303", grupo: 3 },
+    
+    // 6. Juan Carrascal Cabanillas - Administración General (T:2, P:2, L:0, G:1)
+    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Lunes", horas: "07:00-08:00", tipo: "Teoría", ambiente: "Taller Confecciones - Ing. Indust.", grupo: 1 },
+    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Lunes", horas: "08:00-09:00", tipo: "Práctica", ambiente: "Taller Confecciones - Ing. Indust.", grupo: 1 },
+    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Martes", horas: "07:00-08:00", tipo: "Teoría", ambiente: "I I - 2 (Pabellon Ing. Industrial)", grupo: 1 },
+    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Martes", horas: "08:00-09:00", tipo: "Práctica", ambiente: "I I - 2 (Pabellon Ing. Industrial)", grupo: 1 },
+    
+    // 7. Vilma Mendez Gil - Física Electrónica (T:1, P:2, L:2, G:4)
+    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Lunes", horas: "15:00-16:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Lunes", horas: "16:00-18:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 1 },
+    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 2 },
+    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Jueves", horas: "07:00-09:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 3 },
+    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Jueves", horas: "09:00-11:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 4 },
+    
+    // 8. Sheyla Laura Escobedo Rodriguez - Psicología Organizacional (T:2, P:2, L:0, G:1)
+    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicologia Organizacional (e )", dia: "Martes", horas: "18:00-19:00", tipo: "Teoría", ambiente: "posgrado A-311", grupo: 1 },
+    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicologia Organizacional (e )", dia: "Martes", horas: "19:00-20:00", tipo: "Práctica", ambiente: "posgrado A-311", grupo: 1 },
+    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicologia Organizacional (e )", dia: "Viernes", horas: "18:00-19:00", tipo: "Teoría", ambiente: "posgrado A-311", grupo: 1 },
+    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicologia Organizacional (e )", dia: "Viernes", horas: "19:00-20:00", tipo: "Práctica", ambiente: "posgrado A-311", grupo: 1 },
   ];
 
   // ── 4. CREAR LOS HORARIOS EN LA BD ───────────────────────────────────────
@@ -189,12 +225,21 @@ async function seedHorariosCicloIII() {
   let saltados = 0;
 
   for (const data of horariosCicloIIIData) {
-    const docente = dbDocentes.find(d => 
-      `${d.nombres} ${d.apellidos}`.toLowerCase().includes(data.docente.toLowerCase())
-    );
-    const curso = dbCursos.find(c => 
-      c.nombre.toLowerCase().includes(data.curso.toLowerCase())
-    );
+    const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const docente = dbDocentes.find(d => {
+      const fullNombre = normalize(`${d.nombres} ${d.apellidos}`);
+      const searchNombre = normalize(data.docente);
+      return fullNombre.includes(searchNombre) || searchNombre.includes(fullNombre);
+    });
+    
+    const curso = dbCursos.find(c => {
+      const dbNombre = normalize(c.nombre);
+      const searchNombre = normalize(data.curso);
+      const searchNombreClean = searchNombre.split("(")[0].trim();
+      return dbNombre.includes(searchNombreClean) || searchNombreClean.includes(dbNombre);
+    });
+
     const ambiente = dbAmbientes.find(a => 
       a.codigo === mapAmbiente(data.ambiente)
     );

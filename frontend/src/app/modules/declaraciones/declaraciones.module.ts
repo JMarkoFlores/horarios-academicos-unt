@@ -5,14 +5,20 @@ import { FormsModule } from '@angular/forms';
 import { SharedModule } from '../../shared/shared.module';
 import { DeclaracionesComponent } from './declaraciones.component';
 import { VerificarDeclaracionComponent } from './verificar-declaracion/verificar-declaracion.component';
+import { VerificarFirmaComponent } from './verificar-firma/verificar-firma.component';
 
 const routes: Routes = [
   { path: '', component: DeclaracionesComponent },
   { path: 'verificar/:id', component: VerificarDeclaracionComponent },
+  { path: 'verificar-firma/:id', component: VerificarFirmaComponent },
 ];
 
 @NgModule({
-  declarations: [DeclaracionesComponent, VerificarDeclaracionComponent],
+  declarations: [
+    DeclaracionesComponent,
+    VerificarDeclaracionComponent,
+    VerificarFirmaComponent,
+  ],
   imports: [
     CommonModule,
     FormsModule,

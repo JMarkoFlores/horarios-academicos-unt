@@ -1,0 +1,183 @@
+.verificar-firma-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+
+  .back-btn {
+    margin-right: 12px;
+  }
+
+  .header-title {
+    h2 {
+      margin: 0;
+      color: #1a237e;
+      font-size: 1.5rem;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: #666;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.loading-spinner {
+  margin: 60px auto;
+  display: block;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.docente-card {
+  .docente-info {
+    h3 {
+      margin: 0 0 12px 0;
+      color: #1a237e;
+      font-size: 1.1rem;
+    }
+  }
+}
+
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  td {
+    padding: 6px 8px;
+    font-size: 0.95rem;
+  }
+
+  .info-label {
+    width: 140px;
+    font-weight: 500;
+    color: #555;
+  }
+
+  .info-value {
+    color: #333;
+  }
+}
+
+.upload-card {
+  .upload-hint {
+    color: #666;
+    margin-bottom: 16px;
+  }
+
+  .upload-area {
+    margin-bottom: 20px;
+  }
+
+  .upload-btn {
+    padding: 8px 24px;
+  }
+}
+
+.file-info {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+
+  .file-details {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .file-icon {
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
+      color: #1976d2;
+    }
+
+    .file-meta {
+      p {
+        margin: 2px 0;
+      }
+
+      .file-name {
+        font-weight: 500;
+        color: #333;
+      }
+
+      .file-extension {
+        color: #1976d2;
+        font-size: 0.95rem;
+      }
+
+      .file-date {
+        color: #666;
+        font-size: 0.85rem;
+      }
+    }
+  }
+
+  .preview-container {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #ddd;
+
+    .preview-label {
+      font-weight: 500;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    .firma-preview {
+      max-width: 300px;
+      max-height: 150px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      object-fit: contain;
+      display: block;
+    }
+  }
+}
+
+.firma-actual-preview {
+  margin-top: 16px;
+  text-align: center;
+
+  .firma-preview {
+    max-width: 400px;
+    max-height: 200px;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+  }
+}
+
+.actions-bar {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+
+  .btn-volver {
+    padding: 8px 20px;
+  }
+
+  .btn-enviar {
+    padding: 8px 24px;
+  }
+}
+
+.btn-spinner {
+  display: inline-block;
+  margin-right: 8px;
+}

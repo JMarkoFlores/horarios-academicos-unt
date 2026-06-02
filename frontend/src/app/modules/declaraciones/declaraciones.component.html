@@ -87,9 +87,17 @@
             <mat-icon>description</mat-icon>
             Verificar Declaración
           </button>
-          <button mat-raised-button color="accent" class="action-btn">
-            <mat-icon>print</mat-icon>
-            Imprimir
+          <button
+            mat-raised-button
+            color="accent"
+            class="action-btn"
+            [routerLink]="[
+              '/app/declaraciones/verificar-firma',
+              selectedDocente.id,
+            ]"
+          >
+            <mat-icon>verified</mat-icon>
+            Verificar Firma
           </button>
         </div>
       </mat-card-content>

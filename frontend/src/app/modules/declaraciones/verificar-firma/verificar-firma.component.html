@@ -1,0 +1,175 @@
+<div class="verificar-firma-container">
+  <!-- Header -->
+  <div class="header">
+    <button mat-icon-button (click)="volver()" class="back-btn">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="header-title">
+      <h2>Verificaci&oacute;n de Firma</h2>
+      <p class="subtitle">Subir imagen de la firma del docente</p>
+    </div>
+  </div>
+
+  <mat-spinner *ngIf="loading" class="loading-spinner"></mat-spinner>
+
+  <div *ngIf="!loading && docente" class="content">
+    <!-- Docente info card -->
+    <mat-card class="docente-card">
+      <mat-card-content>
+        <div class="docente-info">
+          <h3>Informaci&oacute;n del Docente</h3>
+          <table class="info-table">
+            <tbody>
+              <tr>
+                <td class="info-label">Docente :</td>
+                <td class="info-value">
+                  {{ docente.apellidos.toUpperCase() }},
+                  {{ docente.nombres.toUpperCase() }}
+                </td>
+              </tr>
+              <tr>
+                <td class="info-label">C&oacute;digo :</td>
+                <td class="info-value">{{ docente.codigo }}</td>
+              </tr>
+              <tr>
+                <td class="info-label">Departamento :</td>
+                <td class="info-value">
+                  {{ docente.departamento?.nombre || "No asignado" }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Existing signature -->
+    <mat-card
+      *ngIf="firmaExistente && !mostrarFormularioSubida"
+      class="upload-card"
+    >
+      <mat-card-content>
+        <h3>Firma Registrada</h3>
+        <p class="upload-hint">
+          Este docente ya tiene una firma registrada en el sistema.
+        </p>
+
+        <div class="firma-actual-preview">
+          <img
+            [src]="firmaExistente"
+            alt="Firma actual del docente"
+            class="firma-preview"
+          />
+        </div>
+
+        <div class="actions-bar" style="margin-top: 16px">
+          <button
+            mat-raised-button
+            color="basic"
+            class="btn-volver"
+            (click)="volver()"
+          >
+            <mat-icon>arrow_back</mat-icon>
+            Volver
+          </button>
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="mostrarActualizar()"
+          >
+            <mat-icon>refresh</mat-icon>
+            Actualizar Firma
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Upload section (new or update) -->
+    <mat-card
+      *ngIf="!firmaExistente || mostrarFormularioSubida"
+      class="upload-card"
+    >
+      <mat-card-content>
+        <h3>
+          {{ mostrarFormularioSubida ? "Actualizar Firma" : "Subir Firma" }}
+        </h3>
+        <p class="upload-hint">
+          Seleccione una imagen de la firma del docente (JPG, PNG, etc.)
+        </p>
+
+        <div class="upload-area">
+          <input
+            type="file"
+            accept="image/*"
+            #fileInput
+            (change)="onFileSelected($event)"
+            style="display: none"
+          />
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="fileInput.click()"
+            class="upload-btn"
+          >
+            <mat-icon>upload</mat-icon>
+            Seleccionar Archivo
+          </button>
+        </div>
+
+        <!-- File info when selected -->
+        <div *ngIf="firma.nombre" class="file-info">
+          <div class="file-details">
+            <mat-icon class="file-icon">insert_drive_file</mat-icon>
+            <div class="file-meta">
+              <p class="file-name">{{ firma.nombre }}</p>
+              <p class="file-extension">
+                <strong>Extensi&oacute;n:</strong> {{ firma.extension }}
+              </p>
+              <p *ngIf="firma.fechaSubida" class="file-date">
+                <strong>Fecha de subida:</strong> {{ firma.fechaSubida }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div *ngIf="firma.urlPreview" class="preview-container">
+            <p class="preview-label">Vista previa:</p>
+            <img
+              [src]="firma.urlPreview"
+              alt="Preview de firma"
+              class="firma-preview"
+            />
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Actions -->
+    <div *ngIf="!firmaExistente || mostrarFormularioSubida" class="actions-bar">
+      <button
+        mat-raised-button
+        color="basic"
+        class="btn-volver"
+        (click)="mostrarFormularioSubida ? cancelarActualizar() : volver()"
+      >
+        <mat-icon>arrow_back</mat-icon>
+        {{ mostrarFormularioSubida ? "Cancelar" : "Volver" }}
+      </button>
+      <button
+        mat-raised-button
+        color="accent"
+        class="btn-enviar"
+        (click)="enviar()"
+        [disabled]="enviando || !firma.archivo"
+      >
+        <mat-icon *ngIf="!enviando">send</mat-icon>
+        <mat-spinner
+          *ngIf="enviando"
+          diameter="20"
+          class="btn-spinner"
+        ></mat-spinner>
+        {{ enviando ? "Enviando..." : "Enviar" }}
+      </button>
+    </div>
+  </div>
+</div>

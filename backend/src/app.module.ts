@@ -30,6 +30,7 @@ import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
 import { FacultadesModule } from "./facultades/facultades.module";
 import { DataImportModule } from "./modules/data-import/data-import.module";
 import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/declaracion-carga-horaria.module";
+import { DeclaracionesModule } from "./modules/declaraciones/declaraciones.module";
 
 @Module({
   imports: [
@@ -117,6 +118,7 @@ import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/decla
     FacultadesModule,
     DataImportModule,
     DeclaracionCargaHorariaModule,
+    DeclaracionesModule,
   ],
   providers: [
     {

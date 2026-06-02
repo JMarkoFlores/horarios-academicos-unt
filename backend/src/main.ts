@@ -3,6 +3,8 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import helmet from "helmet";
+import * as express from "express";
+import * as path from "path";
 import { AppModule } from "./app.module";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
@@ -103,6 +105,10 @@ async function bootstrap() {
     .get("/health", (_req: any, res: any) => {
       res.status(200).json({ status: "ok" });
     });
+
+  // Servir archivos subidos (firmas, etc.)
+  const uploadsPath = path.join(process.cwd(), "uploads");
+  app.use("/uploads", express.static(uploadsPath));
 
   // Auto-seed if DB is empty
   if (process.env.AUTO_SEED === "true") {

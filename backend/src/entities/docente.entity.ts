@@ -69,6 +69,9 @@ export class Docente {
   @Column({ nullable: true, type: "text" })
   firebase_token: string | null;
 
+  @Column({ nullable: true, length: 500 })
+  firma_url: string | null;
+
   @Column({ nullable: true, unique: true, name: "usuario_id" })
   usuario_id: number | null;
 

@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { Docente, ApiResponse } from '../../../core/interfaces/entities';
@@ -355,6 +357,285 @@ export class VerificarDeclaracionComponent implements OnInit {
           this.saving = false;
         },
       });
+  }
+
+  generarPDF(): void {
+    if (!this.docente) return;
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 15;
+    const marginY = 25;
+    let y = marginY;
+
+    // Helper para centrar texto
+    const centerText = (
+      text: string,
+      yPos: number,
+      fontSize = 10,
+      bold = false,
+    ) => {
+      doc.setFontSize(fontSize);
+      if (bold) doc.setFont('helvetica', 'bold');
+      else doc.setFont('helvetica', 'normal');
+      const textWidth = doc.getTextWidth(text);
+      doc.text(text, (pageWidth - textWidth) / 2, yPos);
+    };
+
+    // Helper para texto a la izquierda
+    const leftText = (
+      text: string,
+      yPos: number,
+      fontSize = 9,
+      x = marginX,
+    ) => {
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', 'normal');
+      doc.text(text, x, yPos);
+    };
+
+    // Encabezado
+    centerText('FORMATO N° 1', y, 10, true);
+    y += 5;
+    centerText('DECLARACION DE CARGA HORARIA ASIGNADA', y, 12, true);
+    y += 10;
+
+    // Sección I
+    leftText('I. DATOS SOBRE LA SITUACION DEL PROFESOR:', y, 10, marginX);
+    y += 6;
+    leftText(
+      `FACULTAD: ${this.docente.facultad?.nombre || 'No asignada'}`,
+      y,
+      9,
+      marginX,
+    );
+    y += 5;
+    leftText(
+      `DPTO. ACADEMICO: ${this.docente.departamento?.nombre || 'No asignado'}`,
+      y,
+      9,
+      marginX,
+    );
+    y += 6;
+
+    // Tabla de datos del docente
+    autoTable(doc, {
+      startY: y,
+      margin: { left: marginX, right: marginX },
+      tableWidth: pageWidth - marginX * 2,
+      body: [
+        ['NOMBRE COMPLETO', 'CONDICION', 'CATEGORIA', 'MODALIDAD'],
+        [
+          `${this.docente.apellidos.toUpperCase()}, ${this.docente.nombres.toUpperCase()}`,
+          this.docente.tipo_contrato === 'NOMBRADO' ? 'Nombrado' : 'Contratado',
+          this.docente.categoria || 'Sin categoría',
+          this.docente.modalidad || 'Tiempo Completo 40 H',
+        ],
+      ],
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2, textColor: 20 },
+      headStyles: {
+        fillColor: [220, 220, 220],
+        textColor: 20,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: { fillColor: [255, 255, 255] },
+      showHead: false,
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 4;
+
+    leftText(`PERIODO ACADEMICO: ${this.periodoActivo}`, y, 9, marginX);
+    leftText(`CICLO/SEM: 1`, y, 9, marginX + 80);
+    y += 5;
+    leftText(
+      `INICIO: ${new Date().toLocaleDateString('es-PE')}      FINAL: ${new Date().toLocaleDateString('es-PE')}`,
+      y,
+      9,
+      marginX,
+    );
+    y += 8;
+
+    // 1. TRABAJO LECTIVO
+    leftText(
+      '1. TRABAJO LECTIVO - Datos completos y con claridad',
+      y,
+      10,
+      marginX,
+    );
+    doc.setFont('helvetica', 'bold');
+    y += 6;
+
+    // Tabla de cursos
+    const cursosBody = this.cursosLectivos.map((c) => [
+      c.codigo,
+      c.nombre,
+      c.escuela || '',
+      String(c.ciclo || ''),
+      c.seccion || '',
+      String(c.nroAlumnos || 0),
+      String(c.hrsTeo || 0),
+      String(c.hrsPra || 0),
+      String(c.hrsLab || 0),
+      String(c.totalHrs || 0),
+    ]);
+
+    // Si no hay cursos, agregar fila vacía
+    if (cursosBody.length === 0) {
+      cursosBody.push(['', '', '', '', '', '', '', '', '', '']);
+    }
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: marginX, right: marginX },
+      tableWidth: pageWidth - marginX * 2,
+      head: [
+        [
+          'CÓDIGO',
+          'NOMBRE DEL CURSO',
+          'ESC. PROF.',
+          'CIC.',
+          'SEC.',
+          'N° AL.',
+          'H.T.',
+          'H.P.',
+          'H.L.',
+          'Total',
+        ],
+      ],
+      body: cursosBody,
+      theme: 'grid',
+      styles: {
+        fontSize: 7,
+        cellPadding: 1.5,
+        textColor: 20,
+        valign: 'middle',
+      },
+      headStyles: {
+        fillColor: [200, 200, 200],
+        textColor: 20,
+        fontStyle: 'bold',
+      },
+      columnStyles: {
+        0: { cellWidth: 18 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 10 },
+        4: { cellWidth: 10 },
+        5: { cellWidth: 12 },
+        6: { cellWidth: 10 },
+        7: { cellWidth: 10 },
+        8: { cellWidth: 10 },
+        9: { cellWidth: 12 },
+      },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 4;
+
+    // Subtotal horas lectivas
+    leftText(`Equipo Docente`, y, 9, pageWidth - marginX - 40);
+    leftText(String(this.totalHorasLectivas), y, 9, pageWidth - marginX - 15);
+    y += 8;
+
+    // 2. PREPARACIÓN Y EVALUACIÓN
+    leftText(
+      '2. PREPARACIÓN Y EVALUACIÓN (Max 50% de Trabajo Lectivo)',
+      y,
+      10,
+      marginX,
+    );
+    y += 6;
+
+    // Tabla de actividades no lectivas
+    const actividadesBody = this.actividadesNoLectivas.map((a) => [
+      String(a.id),
+      a.descripcion,
+      a.detalle || '',
+      String(a.horas || 0),
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: marginX, right: marginX },
+      tableWidth: pageWidth - marginX * 2,
+      head: [['Nro', 'Actividad', 'Descripción / Detalle', 'Horas']],
+      body: actividadesBody,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2, textColor: 20, valign: 'middle' },
+      headStyles: {
+        fillColor: [200, 200, 200],
+        textColor: 20,
+        fontStyle: 'bold',
+      },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 55 },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 15 },
+      },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    // TOTAL
+    doc.setFont('helvetica', 'bold');
+    leftText('TOTAL:', y, 11, pageWidth - marginX - 50);
+    leftText(String(this.totalHoras), y, 11, pageWidth - marginX - 15);
+    y += 10;
+
+    // Lugar y fecha
+    doc.setFont('helvetica', 'normal');
+    leftText(
+      `Trujillo, ${new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+      y,
+      9,
+      marginX,
+    );
+    y += 15;
+
+    // Verificar si hay espacio suficiente para las firmas en la página actual
+    // Si no hay espacio, agregar una nueva página
+    const espacioNecesarioFirmas = 35; // mm aproximados para líneas + textos
+    const pageHeight = doc.internal.pageSize.getHeight();
+    if (y + espacioNecesarioFirmas > pageHeight - marginY) {
+      doc.addPage();
+      y = marginY;
+    }
+
+    // Firmas
+    const firmasY = y;
+    const colWidth = (pageWidth - marginX * 2) / 3;
+
+    // Líneas de firma
+    doc.line(marginX, firmasY, marginX + colWidth - 5, firmasY);
+    doc.line(marginX + colWidth + 5, firmasY, marginX + colWidth * 2, firmasY);
+    doc.line(marginX + colWidth * 2 + 5, firmasY, pageWidth - marginX, firmasY);
+
+    y += 5;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+
+    // Helper para centrar texto dentro de una columna
+    const colCenterText = (text: string, colIndex: number) => {
+      const colStart = marginX + colIndex * (colWidth + 5);
+      const colEnd = colStart + colWidth - 5;
+      const centerX = (colStart + colEnd) / 2;
+      const textW = doc.getTextWidth(text);
+      doc.text(text, centerX - textW / 2, y);
+    };
+
+    colCenterText('Firma del Profesor', 0);
+    colCenterText('Firma del Director de Dpto.', 1);
+    colCenterText('V° B° DECANO FAC.', 2);
+
+    // Guardar
+    doc.save(
+      `declaracion_carga_horaria_${this.docente.apellidos}_${this.periodoActivo}.pdf`,
+    );
   }
 
   volver(): void {

@@ -336,6 +336,16 @@
           <mat-icon>send</mat-icon>
           Enviar
         </button>
+        <button
+          *ngIf="!esEditable"
+          mat-raised-button
+          color="warn"
+          class="btn-pdf"
+          (click)="generarPDF()"
+        >
+          <mat-icon>picture_as_pdf</mat-icon>
+          Generar PDF
+        </button>
       </div>
     </div>
   </div>

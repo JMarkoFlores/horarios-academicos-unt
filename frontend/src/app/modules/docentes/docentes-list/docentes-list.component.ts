@@ -20,6 +20,7 @@ import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/c
 export class DocentesListComponent implements OnInit {
   displayedColumns = [
     'nombre',
+    'ibm',
     'email',
     'tipo_docente',
     'categoria',
@@ -35,7 +36,10 @@ export class DocentesListComponent implements OnInit {
   currentPage = 0;
   loading = false;
   exportando = false;
-  cargaDocentes: Record<number, { actual: number; minimo: number; cumplimiento: number }> = {};
+  cargaDocentes: Record<
+    number,
+    { actual: number; minimo: number; cumplimiento: number }
+  > = {};
   loadingCarga = false;
 
   searchControl = new FormControl('');
@@ -226,7 +230,8 @@ export class DocentesListComponent implements OnInit {
     const carga = this.cargaDocentes[docenteId];
     if (!carga) return { color: 'gray', icon: 'help_outline' };
 
-    if (carga.cumplimiento >= 100) return { color: 'green', icon: 'check_circle' };
+    if (carga.cumplimiento >= 100)
+      return { color: 'green', icon: 'check_circle' };
     if (carga.cumplimiento >= 80) return { color: 'blue', icon: 'trending_up' };
     if (carga.cumplimiento >= 50) return { color: 'orange', icon: 'warning' };
     return { color: 'red', icon: 'error' };

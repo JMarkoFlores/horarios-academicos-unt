@@ -1,0 +1,386 @@
+.verificar-container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  .btn-back {
+    color: #1a237e;
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a237e;
+    margin: 0;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin: 4px 0 0 0;
+  }
+}
+
+.estado-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px 20px;
+  margin-bottom: 16px;
+
+  .estado-label {
+    font-weight: 500;
+    color: #555;
+  }
+
+  .estado-valor {
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-size: 13px;
+  }
+
+  .estado-sufijo {
+    font-weight: 400;
+    margin-left: 4px;
+  }
+}
+
+.estado-borrador { background: #fff3e0; color: #e65100; }
+.estado-enviado { background: #e3f2fd; color: #1565c0; }
+.estado-observado { background: #ffebee; color: #c62828; }
+.estado-validado { background: #e8f5e9; color: #2e7d32; }
+.estado-aprobado { background: #f3e5f5; color: #6a1b9a; }
+.estado-cerrado { background: #eceff1; color: #455a64; }
+
+.aviso-borrador,
+.aviso-no-editable {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+
+  mat-icon {
+    flex-shrink: 0;
+  }
+}
+
+.aviso-borrador {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  color: #1565c0;
+}
+
+.aviso-no-editable {
+  background: #ffebee;
+  border: 1px solid #ffcdd2;
+  color: #c62828;
+}
+
+.loading-center {
+  display: block;
+  margin: 60px auto;
+}
+
+.content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.docente-card {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+
+  .info-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .info-label {
+      width: 35%;
+      color: #555;
+      font-weight: 500;
+    }
+
+    .info-value {
+      width: 65%;
+      color: #333;
+    }
+  }
+}
+
+.seccion-card {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+
+  .header-lectivas,
+  .header-no-lectivas {
+    background: #1565c0;
+    color: white;
+    margin: -16px -16px 16px -16px;
+    padding: 12px 16px;
+    border-radius: 4px 4px 0 0;
+
+    .mat-card-title {
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-left: 8px;
+    }
+
+    .horas-label {
+      margin-left: auto;
+      font-size: 13px;
+    }
+  }
+
+  .header-no-lectivas {
+    background: #6a1b9a;
+  }
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    padding: 8px 6px;
+    font-weight: 600;
+    text-align: center;
+    font-size: 11px;
+    color: #333;
+  }
+
+  td {
+    border: 1px solid #ddd;
+    padding: 6px;
+    text-align: center;
+  }
+
+  .even-row {
+    background: #fafafa;
+  }
+
+  .no-data {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+  }
+
+  .total-cell {
+    font-weight: 700;
+    background: #e8f5e9;
+  }
+
+  .subtotal-row {
+    .subtotal-label {
+      text-align: right;
+      font-weight: 600;
+      background: #fff8e1;
+      padding-right: 12px;
+    }
+
+    .subtotal-value {
+      font-weight: 700;
+      background: #fff8e1;
+      font-size: 13px;
+    }
+  }
+}
+
+.lectivas-table {
+  th { background: #1565c0; color: white; }
+}
+
+.no-lectivas-table {
+  th { background: #6a1b9a; color: white; }
+
+  .act-descripcion {
+    text-align: left;
+    font-size: 11px;
+    padding: 8px;
+    vertical-align: top;
+  }
+}
+
+.cell-input {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-size: 12px;
+  text-align: center;
+  background: white;
+
+  &:disabled {
+    background: #f5f5f5;
+    color: #666;
+  }
+
+  &.small {
+    width: 50px;
+    margin: 0 auto;
+    display: block;
+  }
+
+  &.code-input {
+    width: 40px;
+  }
+}
+
+.cell-textarea {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 6px;
+  font-size: 12px;
+  resize: vertical;
+  min-height: 40px;
+  background: #fffde7;
+
+  &:disabled {
+    background: #f5f5f5;
+    color: #666;
+  }
+}
+
+.total-horas-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 14px 24px;
+
+  .total-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+  }
+
+  .total-value {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    padding: 6px 20px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 16px;
+    min-width: 60px;
+    text-align: center;
+  }
+}
+
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+
+  .btn-volver {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+    color: #555;
+    border: 1px solid #ccc;
+  }
+
+  .right-buttons {
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn-guardar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 24px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #43a047, #2e7d32);
+    color: white;
+  }
+
+  .btn-enviar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 24px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #1976d2, #1565c0);
+    color: white;
+  }
+}
+
+@media (max-width: 1200px) {
+  .data-table {
+    font-size: 11px;
+
+    th, td {
+      padding: 4px;
+    }
+  }
+
+  .cell-input.small {
+    width: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .verificar-container {
+    padding: 12px;
+  }
+
+  .data-table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .action-bar {
+    flex-direction: column;
+    gap: 12px;
+
+    .right-buttons {
+      width: 100%;
+      justify-content: stretch;
+
+      button {
+        flex: 1;
+      }
+    }
+  }
+}

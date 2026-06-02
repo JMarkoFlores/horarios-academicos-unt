@@ -141,6 +141,14 @@
           </td>
         </ng-container>
 
+        <!-- IBM Column -->
+        <ng-container matColumnDef="ibm">
+          <th mat-header-cell *matHeaderCellDef>IBM</th>
+          <td mat-cell *matCellDef="let d">
+            <span class="ibm-cell">{{ d.ibm || "-" }}</span>
+          </td>
+        </ng-container>
+
         <!-- Email Column -->
         <ng-container matColumnDef="email">
           <th mat-header-cell *matHeaderCellDef>Email</th>
@@ -201,9 +209,13 @@
           <td mat-cell *matCellDef="let d">
             <div class="carga-cell" *ngIf="cargaDocentes[d.id]">
               <div class="carga-info">
-                <span class="carga-actual">{{ cargaDocentes[d.id].actual }}h</span>
+                <span class="carga-actual"
+                  >{{ cargaDocentes[d.id].actual }}h</span
+                >
                 <span class="carga-separator">/</span>
-                <span class="carga-minimo">{{ cargaDocentes[d.id].minimo }}h</span>
+                <span class="carga-minimo"
+                  >{{ cargaDocentes[d.id].minimo }}h</span
+                >
               </div>
               <div class="carga-progress">
                 <mat-progress-bar
@@ -215,7 +227,9 @@
               <mat-icon
                 class="carga-icon"
                 [style.color]="getCargaIndicator(d.id).color"
-                matTooltip="{{ round(cargaDocentes[d.id].cumplimiento) }}% de cumplimiento"
+                matTooltip="{{
+                  round(cargaDocentes[d.id].cumplimiento)
+                }}% de cumplimiento"
               >
                 {{ getCargaIndicator(d.id).icon }}
               </mat-icon>

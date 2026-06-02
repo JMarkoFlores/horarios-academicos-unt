@@ -1,0 +1,98 @@
+<div class="declaraciones-container">
+  <div class="header-section">
+    <h1 class="page-title">Declaraciones</h1>
+    <p class="page-description">
+      Seleccione un docente para generar su declaración
+    </p>
+  </div>
+
+  <div class="content-section">
+    <mat-card class="selection-card">
+      <mat-card-header>
+        <mat-card-title class="card-title">Selección de Docente</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="declaracionesForm" class="selection-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Seleccione un docente</mat-label>
+            <mat-select
+              formControlName="docenteSeleccionado"
+              (selectionChange)="onDocenteSeleccionado($event.value)"
+            >
+              <mat-option value="">-- Seleccione un docente --</mat-option>
+              <mat-option *ngFor="let docente of docentes" [value]="docente.id">
+                {{ docente.apellidos }}, {{ docente.nombres }} ({{
+                  docente.codigo
+                }})
+              </mat-option>
+            </mat-select>
+            <mat-spinner *ngIf="loading" diameter="20" class="loading-spinner">
+            </mat-spinner>
+          </mat-form-field>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card *ngIf="selectedDocente" class="info-card" appearance="outlined">
+      <mat-card-header>
+        <mat-card-title class="card-title"
+          >Información del Docente</mat-card-title
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <table class="info-table">
+          <tbody>
+            <tr>
+              <td class="info-label">Semestre Académico :</td>
+              <td class="info-value">{{ periodoActivo }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Docente :</td>
+              <td class="info-value">{{ nombreCompletoDocente }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">IBM completo:</td>
+              <td class="info-value">{{ selectedDocente.ibm }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Departamento Académico :</td>
+              <td class="info-value">{{ departamentoDocente }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Facultad :</td>
+              <td class="info-value">{{ facultadDocente }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Condición :</td>
+              <td class="info-value">{{ condicionDocente }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Categoría :</td>
+              <td class="info-value">{{ categoriaDocente }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Dedicación :</td>
+              <td class="info-value">{{ dedicacionDocente }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="action-buttons">
+          <button
+            mat-raised-button
+            color="primary"
+            class="action-btn"
+            [routerLink]="['/app/declaraciones/verificar', selectedDocente.id]"
+          >
+            <mat-icon>description</mat-icon>
+            Verificar Declaración
+          </button>
+          <button mat-raised-button color="accent" class="action-btn">
+            <mat-icon>print</mat-icon>
+            Imprimir
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

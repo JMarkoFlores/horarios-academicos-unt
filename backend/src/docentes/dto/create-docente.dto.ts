@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsInt,
   Min,
+  Max,
   MaxLength,
   IsNotEmpty,
   Matches,
@@ -21,6 +22,16 @@ export class CreateDocenteDto {
   @IsNotEmpty({ message: "El código no puede estar vacío" })
   @MaxLength(20)
   codigo: string;
+
+  @ApiProperty({
+    example: 4247,
+    description: "Código IBM único de 4 dígitos",
+  })
+  @IsNotEmpty({ message: "El IBM es obligatorio" })
+  @IsInt({ message: "El IBM debe ser un número entero" })
+  @Min(1000, { message: "El IBM debe tener 4 dígitos" })
+  @Max(9999, { message: "El IBM debe tener 4 dígitos" })
+  ibm: number;
 
   @ApiProperty({ example: "Juan Carlos" })
   @IsString()

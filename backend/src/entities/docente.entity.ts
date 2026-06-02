@@ -30,6 +30,9 @@ export class Docente {
   @Column({ unique: true, length: 20 })
   codigo: string;
 
+  @Column({ unique: true, nullable: true })
+  ibm: number;
+
   @Column({ length: 150 })
   nombres: string;
 

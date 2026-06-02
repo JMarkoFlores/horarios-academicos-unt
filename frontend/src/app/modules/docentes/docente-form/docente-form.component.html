@@ -115,6 +115,27 @@
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Código IBM</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="ibm"
+                placeholder="Ej. 4247"
+              />
+              <mat-icon matPrefix>numbers</mat-icon>
+              <mat-error *ngIf="form.get('ibm')?.hasError('required')"
+                >El IBM es necesario</mat-error
+              >
+              <mat-error
+                *ngIf="
+                  form.get('ibm')?.hasError('min') ||
+                  form.get('ibm')?.hasError('max')
+                "
+                >Debe ser un número de 4 dígitos (1000-9999)</mat-error
+              >
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Fecha de Ingreso</mat-label>
               <input
                 matInput

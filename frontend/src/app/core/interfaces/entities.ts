@@ -20,6 +20,7 @@ export interface Usuario {
 export interface Docente {
   id: number;
   codigo: string;
+  ibm?: number;
   nombres: string;
   apellidos: string;
   email: string;
@@ -38,6 +39,8 @@ export interface Docente {
     meses: number;
   };
   disponibilidades?: any[];
+  departamento?: { id: number; nombre: string } | null;
+  facultad?: { id: number; nombre: string } | null;
 }
 
 export interface Departamento {
@@ -220,7 +223,12 @@ export interface CeldaMatriz {
   dia: number;
   horaInicio: string;
   horaFin: string;
-  estado: 'LIBRE' | 'OCUPADO' | 'TEMPORAL_PROPIO' | 'TEMPORAL_OTRO' | 'BLOQUEADO';
+  estado:
+    | 'LIBRE'
+    | 'OCUPADO'
+    | 'TEMPORAL_PROPIO'
+    | 'TEMPORAL_OTRO'
+    | 'BLOQUEADO';
   lockStatus?: 'LOCKED' | 'AVAILABLE' | 'LOCKED_BY_OTHER';
   validationResult?: ValidationFeedback;
   metadata?: {

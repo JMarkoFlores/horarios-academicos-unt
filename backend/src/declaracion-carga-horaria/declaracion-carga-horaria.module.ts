@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { Docente } from "../entities/docente.entity";
+import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Departamento } from "../entities/departamento.entity";
 import { Facultad } from "../entities/facultad.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
@@ -14,6 +15,7 @@ import { DeclaracionCargaHorariaController } from "./declaracion-carga-horaria.c
     TypeOrmModule.forFeature([
       DeclaracionCargaHoraria,
       Docente,
+      DocenteCurso,
       Departamento,
       Facultad,
       PeriodoAcademico,

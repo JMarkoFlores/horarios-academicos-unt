@@ -93,6 +93,10 @@ export class DocenteFormComponent implements OnInit {
   ngOnInit(): void {
     this.form = this.fb.group({
       codigo: ['', [Validators.required, Validators.maxLength(20)]],
+      ibm: [
+        null,
+        [Validators.required, Validators.min(1000), Validators.max(9999)],
+      ],
       nombres: ['', [Validators.required, Validators.maxLength(150)]],
       apellidos: ['', [Validators.required, Validators.maxLength(150)]],
       email: ['', [Validators.required, emailInstitucionalValidator()]],
@@ -156,6 +160,7 @@ export class DocenteFormComponent implements OnInit {
 
           this.form.patchValue({
             codigo: d.codigo,
+            ibm: d.ibm,
             nombres: d.nombres,
             apellidos: d.apellidos,
             email: d.email,

@@ -164,6 +164,22 @@ const routes: Routes = [
         data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
+        path: 'declaraciones',
+        loadChildren: () =>
+          import('./modules/declaraciones/declaraciones.module').then(
+            (m) => m.DeclaracionesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: {
+          roles: [
+            'administradorsistema',
+            'directorescuela',
+            'coordinadoracademico',
+            'operadorhorarios',
+          ],
+        },
+      },
+      {
         path: 'facultades',
         loadChildren: () =>
           import('./modules/facultades/facultades.module').then(

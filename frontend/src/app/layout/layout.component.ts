@@ -196,6 +196,17 @@ export class LayoutComponent implements OnInit, OnDestroy {
             'directorescuela',
           ],
         },
+        {
+          icon: 'description',
+          label: 'Declaraciones',
+          route: '/app/declaraciones',
+          roles: [
+            'administradorsistema',
+            'directorescuela',
+            'coordinadoracademico',
+            'operadorhorarios',
+          ],
+        },
       ],
     },
     {
@@ -276,6 +287,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
     usuarios: 'Usuarios del Sistema',
     configuracion: 'Configuración del Sistema',
     notificaciones: 'Notificaciones y Preferencias',
+    declaraciones: 'Gestión de Declaraciones Normativas',
   };
 
   private _rutasSinPeriodo = new Set([
@@ -288,6 +300,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
     'usuarios',
     'notificaciones',
     'analisis-carga',
+    'declaraciones',
   ]);
   showPeriodoSelector = true;
   notificacionesCount = 3; // Simulación de notificaciones no leídas

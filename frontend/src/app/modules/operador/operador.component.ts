@@ -38,7 +38,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
 
   // Filtros
   filtroEstado = '';
-  filtroCategoria = '';
+  filtroProposito = '';
   filtroFechaInicio = '';
   filtroFechaFin = '';
 
@@ -50,12 +50,11 @@ export class OperadorComponent implements OnInit, OnDestroy {
   mostrandoDistribucion = false;
   creandoVentanasMultiples = false;
 
-  categorias = [
-    { value: '', label: 'Todas' },
+  propositos = [
+    { value: '', label: 'Todos los propósitos' },
     { value: 'DECLARACION', label: 'Declaración Inicial' },
     { value: 'SUBSANACION', label: 'Subsanación' },
     { value: 'CAMBIO', label: 'Cambio de Horario' },
-    { value: 'PRINCIPAL', label: 'Principal' },
     { value: 'CONTINGENCIA', label: 'Contingencia' },
   ];
 
@@ -68,7 +67,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
   ];
 
   // Información detallada por categoría de ventana
-  categoriasInfo = {
+  propositosInfo = {
     'DECLARACION': {
       titulo: 'Declaración Inicial',
       descripcion: 'Para docentes que NO tienen horario asignado en el período.',
@@ -175,7 +174,8 @@ export class OperadorComponent implements OnInit, OnDestroy {
       fecha: [localDate, Validators.required],
       hora_inicio: ["09:00", Validators.required],
       hora_fin: ["17:00", Validators.required],
-      categoria: ["DECLARACION", Validators.required],
+      proposito: ["DECLARACION", Validators.required],
+      filtro_categorias_docente: [[]],
       modalidad: [null],
       intervalo_minutos: [30, [Validators.min(5), Validators.max(60)]],
       sinAsignarDocentes: [false]
@@ -200,7 +200,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
   cargarVentanas(): void {
     const params: any = { periodo: this.periodoService.periodo };
     if (this.filtroEstado) params.estado = this.filtroEstado;
-    if (this.filtroCategoria) params.categoria = this.filtroCategoria;
+    if (this.filtroProposito) params.proposito = this.filtroProposito;
     this.api.get<ApiResponse<VentanaAtencion[]>>('/ventanas', params).subscribe(r => {
       this.ventanas = (r.data || []).slice().sort((a, b) => {
         const fechaA = new Date(`${a.fecha}T${a.hora_inicio}`).getTime();
@@ -219,9 +219,9 @@ export class OperadorComponent implements OnInit, OnDestroy {
       filtradas = filtradas.filter(v => v.estado === this.filtroEstado);
     }
 
-    // Filtrar por categoría
-    if (this.filtroCategoria) {
-      filtradas = filtradas.filter(v => v.categoria === this.filtroCategoria);
+    // Filtrar por propósito
+    if (this.filtroProposito) {
+      filtradas = filtradas.filter(v => v.proposito === this.filtroProposito);
     }
 
     // Filtrar por rango de fechas
@@ -252,7 +252,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
 
   limpiarFiltros(): void {
     this.filtroEstado = '';
-    this.filtroCategoria = '';
+    this.filtroProposito = '';
     this.filtroFechaInicio = '';
     this.filtroFechaFin = '';
     this.aplicarFiltros();
@@ -320,7 +320,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
   }
 
   eliminarVentana(ventana: VentanaAtencion): void {
-    if (!confirm(`¿Eliminar ventana del ${new Date(ventana.fecha).toLocaleDateString()} (${ventana.categoria})?`)) return;
+    if (!confirm(`¿Eliminar ventana del ${new Date(ventana.fecha).toLocaleDateString()} (${ventana.proposito})?`)) return;
     this.api.delete<ApiResponse<any>>(`/ventanas/${ventana.id}`).subscribe({
       next: () => {
         this.snack.open('Ventana eliminada', 'OK', { duration: 3000 });
@@ -353,15 +353,15 @@ export class OperadorComponent implements OnInit, OnDestroy {
     return map[estado] || '';
   }
 
-  getCategoriaLabel(cat: string): string {
-    const map: Record<string, string> = {
+  getPropositoLabel(cat: string): string {
+    const labels: Record<string, string> = {
       DECLARACION: 'Declaración Inicial',
       SUBSANACION: 'Subsanación',
       CAMBIO: 'Cambio de Horario',
       PRINCIPAL: 'Principal',
-      CONTINGENCIA: 'Contingencia',
+      CONTINGENCIA: 'Contingencia'
     };
-    return map[cat] || cat;
+    return labels[cat] || cat;
   }
 
   checkVentanaActiva(): void {
@@ -600,7 +600,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
           `Horarios confirmados: ${data.horarios_confirmados || 0}`,
         ];
         if (data.nueva_ventana) {
-          lines.push(`Nueva ventana: ${new Date(data.nueva_ventana.fecha).toLocaleDateString()} (${data.nueva_ventana.categoria})`);
+          lines.push(`Nueva ventana: ${new Date(data.nueva_ventana.fecha).toLocaleDateString()} (${data.nueva_ventana.proposito})`);
         }
         this.snack.open(lines.join(' | '), 'OK', { duration: 10000 });
         this.cargarVentanas();
@@ -725,7 +725,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
     this.api.post('/ventanas/distribuir-docentes', {
       ventanas_ids: ventanasIds,
       periodo: bodyBase.periodo,
-      categoria: bodyBase.categoria,
+      proposito: bodyBase.proposito,
       modalidad: bodyBase.modalidad,
     }).subscribe({
       next: () => {
@@ -821,7 +821,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
 
   // Métodos para pre-asignación de docentes (SUBSANACION)
   abrirSeleccionDocentes(ventana: VentanaAtencion): void {
-    if (ventana.categoria !== 'SUBSANACION') {
+    if (ventana.proposito !== 'SUBSANACION') {
       this.snack.open('La pre-asignación está disponible solo para SUBSANACION', 'OK', { duration: 3000 });
       return;
     }
@@ -837,7 +837,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
 
     forkJoin([
       this.api.get<ApiResponse<any>>('/ventanas/candidatos-docentes', {
-        categoria: 'SUBSANACION',
+        proposito: 'SUBSANACION',
         periodo: this.periodoService.periodoActivo?.codigo ?? this.periodoService.periodo,
       }),
       this.api.get<ApiResponse<any>>(`/ventanas/${ventanaId}/cola`)
@@ -926,7 +926,7 @@ export class OperadorComponent implements OnInit, OnDestroy {
     this.docentesSeleccionados.clear();
   }
 
-  getCategoriaInfo(categoria: string): any {
-    return (this.categoriasInfo as any)[categoria] || null;
+  getPropositoInfo(proposito: string): any {
+    return (this.propositosInfo as any)[proposito] || null;
   }
 }

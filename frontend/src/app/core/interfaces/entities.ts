@@ -131,7 +131,8 @@ export interface VentanaAtencion {
   id: string;
   periodo: string;
   fecha: string;
-  categoria: string;
+  proposito: string;
+  filtro_categorias_docente?: string[] | null;
   modalidad: string | null;
   hora_inicio: string;
   hora_fin: string;

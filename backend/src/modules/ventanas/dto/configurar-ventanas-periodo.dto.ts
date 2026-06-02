@@ -12,9 +12,9 @@ import {
 import { Type } from "class-transformer";
 
 export class ConfiguracionVentanaCategoriaDto {
-  @ApiProperty({ example: "PRINCIPAL" })
+  @ApiProperty({ example: "DECLARACION", description: "Propósito operativo de la ventana" })
   @IsString()
-  categoria: string;
+  proposito: string;
 
   @ApiPropertyOptional({ example: "NOMBRADO" })
   @IsOptional()

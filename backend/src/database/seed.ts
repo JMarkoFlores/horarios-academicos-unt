@@ -324,7 +324,7 @@ async function seed() {
   const ventanaDeclaracion = await ventanaRepo.save(ventanaRepo.create({
     periodo: periodoActivo.codigo,
     fecha: new Date("2026-03-20"),
-    categoria: "DECLARACION",
+    proposito: "DECLARACION",
     modalidad: null,
     hora_inicio: "09:00",
     hora_fin: "17:00",
@@ -338,7 +338,7 @@ async function seed() {
   const ventanaSubsanacion = await ventanaRepo.save(ventanaRepo.create({
     periodo: periodoActivo.codigo,
     fecha: new Date("2026-04-01"),
-    categoria: "SUBSANACION",
+    proposito: "SUBSANACION",
     modalidad: null,
     hora_inicio: "09:00",
     hora_fin: "17:00",
@@ -352,7 +352,7 @@ async function seed() {
   const ventanaCambio = await ventanaRepo.save(ventanaRepo.create({
     periodo: periodoActivo.codigo,
     fecha: new Date("2026-04-15"),
-    categoria: "CAMBIO",
+    proposito: "CAMBIO",
     modalidad: null,
     hora_inicio: "09:00",
     hora_fin: "17:00",

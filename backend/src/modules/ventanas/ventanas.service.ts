@@ -161,8 +161,8 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     return ventana;
   }
 
-  async obtenerDocentesParaCategoria(categoria: string, periodo: string, modalidad?: string): Promise<Docente[]> {
-    return this.buscarDocentesPorCategoria(categoria, modalidad, periodo);
+  async obtenerDocentesParaCategoria(proposito: string, periodo: string, modalidad?: string): Promise<Docente[]> {
+    return this.buscarDocentesPorProposito(proposito, modalidad, periodo);
   }
 
   async actualizarVentana(ventanaId: string, dto: UpdateVentanaDto): Promise<VentanaAtencion> {
@@ -236,11 +236,12 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
   async listarVentanasConFiltros(
     periodo?: string,
     estado?: string,
-    categoria?: string,
+    proposito?: string,
     fechaDesde?: string,
     fechaHasta?: string,
   ): Promise<VentanaAtencion[]> {
-    const qb = this.ventanaRepo.createQueryBuilder('v');
+    const qb = this.ventanaRepo.createQueryBuilder('v')
+      .leftJoinAndSelect('v.campaña', 'campaña');
 
     if (periodo) {
       qb.andWhere('v.periodo = :periodo', { periodo });
@@ -250,8 +251,8 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       qb.andWhere('v.estado = :estado', { estado });
     }
 
-    if (categoria) {
-      qb.andWhere('v.categoria = :categoria', { categoria });
+    if (proposito) {
+      qb.andWhere('v.proposito = :proposito', { proposito });
     }
 
     if (fechaDesde) {
@@ -352,13 +353,14 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     const duracionVentanaMinutos = minutosFin - minutosInicio;
     const intervaloMinutos = dto.intervalo_minutos ?? 30;
     
-    // Si es categoría de ventana (DECLARACION, SUBSANACION, etc.), estimar docentes y validar capacidad
-    // Para SUBSANACION con sinAsignarDocentes=true no se valida aquí porque se hará una pre-asignación manual posterior
-    if (!dto.saltarValidacionCapacidad && !dto.sinAsignarDocentes && ['DECLARACION', 'SUBSANACION', 'CAMBIO', 'CONTINGENCIA'].includes(dto.categoria) && dto.periodo) {
+    // Si es categoría DECLARACION, estimar docentes y validar capacidad. Para el resto (ad-hoc), no auto-asignar por defecto.
+    const esCategoriaMasiva = dto.proposito === 'DECLARACION';
+    
+    if (!dto.saltarValidacionCapacidad && !dto.sinAsignarDocentes && esCategoriaMasiva && dto.periodo) {
       // Estimar cuántos docentes se asignarán
       let docentesEstimados: Docente[];
       try {
-        docentesEstimados = await this.buscarDocentesPorCategoria(dto.categoria, dto.modalidad, dto.periodo);
+        docentesEstimados = await this.buscarDocentesElegibles(dto.proposito, dto.filtro_categorias_docente, dto.modalidad, dto.periodo);
       } catch (error) {
         this.logger.warn(`[crearVentana] No se pudo estimar docentes: ${error.message}`);
         docentesEstimados = [];
@@ -400,10 +402,10 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       }
     }
     
-    // Verificar solapamiento con otras ventanas del mismo período Y categoría
+    // Verificar solapamiento con otras ventanas del mismo período Y propósito
     const solapamiento = await this.ventanaRepo.createQueryBuilder('v')
       .where('v.periodo = :periodo', { periodo: dto.periodo })
-      .andWhere('v.categoria = :categoria', { categoria: dto.categoria })
+      .andWhere('v.proposito = :proposito', { proposito: dto.proposito })
       .andWhere('v.fecha = :fecha', { fecha: fechaVentana })
       .andWhere('v.estado != :estado', { estado: EstadoVentanaAtencion.CANCELADA })
       .andWhere('(CAST(:horaInicio AS time) < v.hora_fin AND CAST(:horaFin AS time) > v.hora_inicio)', {
@@ -418,12 +420,13 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       );
     }
     
-    this.logger.log(`Creando ventana: ${dto.fecha} ${dto.hora_inicio}-${dto.hora_fin} (${dto.categoria})`);
+    this.logger.log(`Creando ventana: ${dto.fecha} ${dto.hora_inicio}-${dto.hora_fin} (${dto.proposito})`);
     
     const ventana = this.ventanaRepo.create({
       periodo: dto.periodo,
       fecha: fechaVentana,
-      categoria: dto.categoria,
+      proposito: dto.proposito,
+      filtro_categorias_docente: dto.filtro_categorias_docente || null,
       modalidad: dto.modalidad ?? null,
       hora_inicio: dto.hora_inicio,
       hora_fin: dto.hora_fin,
@@ -434,10 +437,10 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     const savedVentana = await this.ventanaRepo.save(ventana);
     this.logger.log(`✅ Ventana ${savedVentana.id} creada exitosamente`);
     
-    // Si no se indica sinAsignarDocentes, pre-asignar docentes
-    if (!dto.sinAsignarDocentes) {
+    // Si no se indica sinAsignarDocentes, pre-asignar docentes (solo para ventanas masivas)
+    if (!dto.sinAsignarDocentes && esCategoriaMasiva) {
       this.logger.log(`Pre-asignando docentes a la ventana...`);
-      const docentes = await this.buscarDocentesPorCategoria(dto.categoria, dto.modalidad, dto.periodo);
+      const docentes = await this.buscarDocentesElegibles(dto.proposito, dto.filtro_categorias_docente, dto.modalidad, dto.periodo);
       
       for (const docente of docentes) {
         await this.colaRepo.save(this.colaRepo.create({
@@ -469,11 +472,11 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     return savedVentana;
   }
 
-  async distribuirDocentesEntreVentanas(ventanasIds: string[], periodo: string, categoria: string, modalidad?: string): Promise<void> {
+  async distribuirDocentesEntreVentanas(ventanasIds: string[], periodo: string, proposito: string, modalidad?: string): Promise<void> {
     this.logger.log(`[distribuirDocentesEntreVentanas] Distribuyendo docentes entre ${ventanasIds.length} ventanas...`);
     
-    // Obtener docentes de la categoría
-    const docentes = await this.buscarDocentesPorCategoria(categoria, modalidad, periodo);
+    // Obtener docentes según el propósito
+    const docentes = await this.buscarDocentesPorProposito(proposito, modalidad, periodo);
     this.logger.log(`[distribuirDocentesEntreVentanas] ${docentes.length} docentes encontrados`);
     
     if (docentes.length === 0) {
@@ -532,12 +535,13 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     let fechaActual = new Date(y, m - 1, d);
 
     for (const item of config) {
-      const docentes = await this.buscarDocentesPorCategoria(item.categoria, item.modalidad);
+      const docentes = await this.buscarDocentesElegibles(item.proposito, null, item.modalidad, periodo.codigo);
       
       const ventana = this.ventanaRepo.create({
         periodo: periodo.codigo,
         fecha: new Date(fechaActual),
-        categoria: item.categoria,
+        proposito: item.proposito,
+        filtro_categorias_docente: null,
         modalidad: item.modalidad ?? null,
         hora_inicio: item.hora_inicio,
         hora_fin: this.sumarMinutos(item.hora_inicio, docentes.length * (item.intervalo_minutos ?? 30)),
@@ -656,80 +660,85 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       
       this.logger.log(`� Resumen notificaciones: ${notificacionesExitosas} exitosas, ${notificacionesFallidas} fallidas`);
     } else {
-      // Si no hay docentes asignados, buscar por categoría (comportamiento original)
-      this.logger.log(`⚠️ No hay docentes asignados. Buscando por categoría ${ventana.categoria}...`);
-      
-      // Primero obtener docentes que ya están asignados a otras ventanas del mismo período
-      const docentesEnOtrasVentanas = await this.colaRepo.createQueryBuilder('c')
-        .innerJoin('c.ventana', 'v')
-        .where('v.periodo = :periodo', { periodo: ventana.periodo })
-        .andWhere('v.estado != :estado', { estado: EstadoVentanaAtencion.CANCELADA })
-        .andWhere('v.estado != :estado2', { estado2: EstadoVentanaAtencion.COMPLETADA })
-        .select('c.docente_id')
-        .distinct()
-        .getRawMany();
-      
-      const docentesIdsExcluidos = docentesEnOtrasVentanas.map(r => r.docente_id);
-      this.logger.log(`⚠️ Docentes ya asignados a otras ventanas del período: ${docentesIdsExcluidos.length}`);
-      
-      const docentes = await this.buscarDocentesPorCategoria(
-        ventana.categoria,
-        ventana.modalidad ?? undefined,
-        ventana.periodo,
-      );
-      
-      // Filtrar docentes que ya están en otras ventanas
-      const docentesDisponibles = docentes.filter(d => !docentesIdsExcluidos.includes(d.id));
-      
-      this.logger.log(`✅ ${docentesDisponibles.length} docente(s) disponibles después de filtrar (de ${docentes.length} totales)`);
-      
-      if (docentesDisponibles.length === 0) {
-        this.logger.warn(`⚠️ No hay docentes disponibles para asignar a esta ventana`);
-      }
-      
-      // Crear cola de docentes
-      const colas = docentesDisponibles.map((docente, index) =>
-        this.colaRepo.create({
-          ventana_id: ventana.id,
-          docente_id: docente.id,
-          orden: index + 1,
-          estado: EstadoCola.ESPERANDO,
-          hora_llamada: null,
-          hora_fin_atencion: null,
-          ventana,
-          docente,
-        }),
-      );
+      // Si no hay docentes asignados, buscar por categoría (solo si es masiva, como DECLARACION)
+      if (ventana.proposito === 'DECLARACION') {
+        this.logger.log(`⚠️ No hay docentes asignados. Buscando para propósito ${ventana.proposito}...`);
+        
+        // Primero obtener docentes que ya están asignados a otras ventanas del mismo período
+        const docentesEnOtrasVentanas = await this.colaRepo.createQueryBuilder('c')
+          .innerJoin('c.ventana', 'v')
+          .where('v.periodo = :periodo', { periodo: ventana.periodo })
+          .andWhere('v.estado != :estado', { estado: EstadoVentanaAtencion.CANCELADA })
+          .andWhere('v.estado != :estado2', { estado2: EstadoVentanaAtencion.COMPLETADA })
+          .select('c.docente_id')
+          .distinct()
+          .getRawMany();
+        
+        const docentesIdsExcluidos = docentesEnOtrasVentanas.map(r => r.docente_id);
+        this.logger.log(`⚠️ Docentes ya asignados a otras ventanas del período: ${docentesIdsExcluidos.length}`);
+        
+        const docentes = await this.buscarDocentesElegibles(
+          ventana.proposito,
+          ventana.filtro_categorias_docente,
+          ventana.modalidad ?? undefined,
+          ventana.periodo,
+        );
+        
+        // Filtrar docentes que ya están en otras ventanas
+        const docentesDisponibles = docentes.filter(d => !docentesIdsExcluidos.includes(d.id));
+        
+        this.logger.log(`✅ ${docentesDisponibles.length} docente(s) disponibles después de filtrar (de ${docentes.length} totales)`);
+        
+        if (docentesDisponibles.length === 0) {
+          this.logger.warn(`⚠️ No hay docentes disponibles para asignar a esta ventana`);
+        }
+        
+        // Crear cola de docentes
+        const colas = docentesDisponibles.map((docente, index) =>
+          this.colaRepo.create({
+            ventana_id: ventana.id,
+            docente_id: docente.id,
+            orden: index + 1,
+            estado: EstadoCola.ESPERANDO,
+            hora_llamada: null,
+            hora_fin_atencion: null,
+            ventana,
+            docente,
+          }),
+        );
 
-      await this.colaRepo.save(colas);
-      this.logger.log(`✅ Cola creada con ${colas.length} docente(s)`);
-      
-      // Programar notificaciones para docentes recién asignados
-      this.logger.log(`📨 Programando notificaciones...`);
-      let notificacionesExitosas = 0;
-      let notificacionesFallidas = 0;
-      
-      for (const cola of colas) {
-        if (cola.docente) {
-          try {
-            this.logger.log(`  → Programando para docente ${cola.docente.id} (${cola.docente.nombres} ${cola.docente.apellidos})...`);
-            
-            // Recordatorio 24h (solo si la ventana es mañana o posterior)
-            await this.notificacionesService.enviarRecordatorio24h(cola.docente.id, ventana.id);
-            
-            // Alerta 15min (siempre programar)
-            await this.notificacionesService.enviarAlerta15min(cola.docente.id, ventana.id);
-            
-            notificacionesExitosas++;
-            this.logger.log(`    ✅ Notificaciones programadas`);
-          } catch (err: any) {
-            notificacionesFallidas++;
-            this.logger.error(`    ❌ Error programando notificaciones: ${err.message}`);
+        await this.colaRepo.save(colas);
+        this.logger.log(`✅ Cola creada con ${colas.length} docente(s)`);
+        
+        // Programar notificaciones para docentes recién asignados
+        this.logger.log(`📨 Programando notificaciones...`);
+        let notificacionesExitosas = 0;
+        let notificacionesFallidas = 0;
+        
+        for (const cola of colas) {
+          if (cola.docente) {
+            try {
+              this.logger.log(`  → Programando para docente ${cola.docente.id} (${cola.docente.nombres} ${cola.docente.apellidos})...`);
+              
+              // Recordatorio 24h (solo si la ventana es mañana o posterior)
+              await this.notificacionesService.enviarRecordatorio24h(cola.docente.id, ventana.id);
+              
+              // Alerta 15min (siempre programar)
+              await this.notificacionesService.enviarAlerta15min(cola.docente.id, ventana.id);
+              
+              notificacionesExitosas++;
+              this.logger.log(`    ✅ Notificaciones programadas`);
+            } catch (err: any) {
+              notificacionesFallidas++;
+              this.logger.error(`    ❌ Error programando notificaciones: ${err.message}`);
+            }
           }
         }
+        
+        this.logger.log(`📊 Resumen notificaciones: ${notificacionesExitosas} exitosas, ${notificacionesFallidas} fallidas`);
+      } else {
+        this.logger.log(`⚠️ No hay docentes asignados y es una ventana ad-hoc (${ventana.proposito}). Iniciando ventana vacía.`);
       }
-      
-      this.logger.log(`📊 Resumen notificaciones: ${notificacionesExitosas} exitosas, ${notificacionesFallidas} fallidas`);
     }
     
     // Emitir estado actualizado
@@ -918,7 +927,8 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       this.ventanaRepo.create({
         periodo: ventana.periodo,
         fecha: this.siguienteDiaHabil(this.normalizarFecha(new Date(ventana.fecha))),
-        categoria: ventana.categoria,
+        proposito: ventana.proposito,
+        filtro_categorias_docente: ventana.filtro_categorias_docente,
         modalidad: ventana.modalidad,
         hora_inicio: ventana.hora_inicio,
         hora_fin: ventana.hora_fin,
@@ -971,68 +981,96 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     return `cola_ventana_${ventanaId}`;
   }
 
-  private async buscarDocentesPorCategoria(
-    categoria: string,
+  private async buscarDocentesElegibles(
+    proposito: string,
+    filtroCategoriasDocente: string[] | null | undefined,
     modalidad?: string,
     periodo?: string,
   ): Promise<Docente[]> {
-    this.logger.log(`[buscarDocentesPorCategoria] Buscando docentes: categoria=${categoria}, modalidad=${modalidad}, periodo=${periodo}`);
+    this.logger.log(`[buscarDocentesElegibles] Buscando docentes: propósito=${proposito}, modalidad=${modalidad}, periodo=${periodo}`);
     
-    const qb = this.docenteRepo
-      .createQueryBuilder("docente")
-      .where("docente.activo = :activo", { activo: true });
+    const qb = this.docenteRepo.createQueryBuilder("docente")
+      .leftJoinAndSelect("docente.parametrosCarga", "parametros");
 
-    // Si la categoría es un tipo de ventana (DECLARACION, SUBSANACION, CAMBIO, CONTINGENCIA),
-    // buscar docentes según el tipo de ventana
-    if (['DECLARACION', 'SUBSANACION', 'CAMBIO', 'CONTINGENCIA'].includes(categoria)) {
-      this.logger.log(`[buscarDocentesPorCategoria] Categoría de ventana detectada: ${categoria}`);
+    // Si el propósito es uno de los tipos operativos (DECLARACION, SUBSANACION, CAMBIO, CONTINGENCIA),
+    // la lógica depende de si el docente ya tiene horario o no en el período dado.
+    if (['DECLARACION', 'SUBSANACION', 'CAMBIO', 'CONTINGENCIA'].includes(proposito)) {
+      this.logger.log(`[buscarDocentesElegibles] Propósito operativo detectado: ${proposito}`);
+      
       // Buscar docentes sin horario o que necesiten cambios
       if (periodo) {
-        const subQuery = this.horarioRepo
+        const subQb = this.horarioRepo
           .createQueryBuilder("h")
           .select("h.docente_id")
           .where("h.periodo = :periodo", { periodo });
         
-        const subQueryStr = subQuery.getQuery();
-        this.logger.log(`[buscarDocentesPorCategoria] Subquery: ${subQueryStr}`);
+        const subQueryStr = subQb.getQuery();
+        this.logger.log(`[buscarDocentesElegibles] Subquery: ${subQueryStr}`);
         
-        if (categoria === 'DECLARACION') {
-          // Docentes sin horario
-          qb.andWhere(`docente.id NOT IN (${subQueryStr})`);
-          qb.setParameters(subQuery.getParameters());
-          this.logger.log(`[buscarDocentesPorCategoria] Filtrando docentes SIN horario`);
-        } else if (categoria === 'SUBSANACION' || categoria === 'CAMBIO' || categoria === 'CONTINGENCIA') {
-          // Docentes con horario (para subsanación/cambio/contingencia)
-          qb.andWhere(`docente.id IN (${subQueryStr})`);
-          qb.setParameters(subQuery.getParameters());
-          this.logger.log(`[buscarDocentesPorCategoria] Filtrando docentes CON horario`);
+        if (proposito === 'DECLARACION') {
+          // Para declaración inicial: docentes que NO tienen horario aún
+          qb.andWhere(`docente.id NOT IN (${subQueryStr})`, subQb.getParameters());
+          this.logger.log(`[buscarDocentesElegibles] Filtrando docentes SIN horario`);
+        } else if (proposito === 'SUBSANACION' || proposito === 'CAMBIO' || proposito === 'CONTINGENCIA') {
+          // Para subsanación/cambio: docentes que SÍ tienen horario
+          qb.andWhere(`docente.id IN (${subQueryStr})`, subQb.getParameters());
+          this.logger.log(`[buscarDocentesElegibles] Filtrando docentes CON horario`);
         }
       } else {
-        this.logger.warn(`[buscarDocentesPorCategoria] No se proporcionó período para categoría de ventana`);
+        this.logger.warn(`[buscarDocentesElegibles] No se proporcionó período para propósito operativo`);
       }
-    } else {
-      // Si es una categoría de docente (PRINCIPAL, ASOCIADO, etc.), filtrar por ella
-      qb.andWhere("docente.categoria = :categoria", { categoria });
-      this.logger.log(`[buscarDocentesPorCategoria] Filtrando por categoría de docente: ${categoria}`);
+    }
+
+    if (filtroCategoriasDocente && filtroCategoriasDocente.length > 0) {
+      qb.andWhere("docente.categoria IN (:...filtroCategoriasDocente)", { filtroCategoriasDocente });
+      this.logger.log(`[buscarDocentesElegibles] Filtrando por categorías de docente: ${filtroCategoriasDocente.join(', ')}`);
     }
 
     if (modalidad) {
       qb.andWhere("docente.tipo_contrato = :modalidad", { modalidad });
-      this.logger.log(`[buscarDocentesPorCategoria] Filtrando por modalidad: ${modalidad}`);
+      this.logger.log(`[buscarDocentesElegibles] Filtrando por modalidad: ${modalidad}`);
     }
 
     const queryStr = qb.getQuery();
-    this.logger.log(`[buscarDocentesPorCategoria] Query final: ${queryStr}`);
+    this.logger.log(`[buscarDocentesElegibles] Query final: ${queryStr}`);
     
-    // Ordenar por prioridad: categoría DESC (mayor prioridad primero), tipo_contrato DESC, fecha_ingreso ASC
-    const docentes = await qb
-      .addOrderBy("docente.categoria", "DESC")
-      .addOrderBy("docente.tipo_contrato", "DESC")
-      .addOrderBy("docente.fecha_ingreso", "ASC")
-      .getMany();
-    
-    this.logger.log(`[buscarDocentesPorCategoria] Encontrados ${docentes.length} docentes`);
+    // Ordenar jerárquicamente
+    qb.addSelect(`CASE docente.categoria 
+        WHEN 'PRINCIPAL' THEN 4
+        WHEN 'ASOCIADO' THEN 3
+        WHEN 'AUXILIAR' THEN 2
+        WHEN 'JEFE_PRACTICA' THEN 1
+        ELSE 0 END`, 'orden_jerarquia')
+      .orderBy('orden_jerarquia', 'DESC')
+      .addOrderBy('docente.apellidos', 'ASC')
+      .addOrderBy('docente.nombres', 'ASC');
+
+    const docentes = await qb.getMany();
+    this.logger.log(`[buscarDocentesElegibles] Encontrados ${docentes.length} docentes`);
     return docentes;
+  }
+
+  /**
+   * Alias conveniente: busca docentes por propósito operativo de ventana.
+   */
+  private async buscarDocentesPorProposito(
+    proposito: string,
+    modalidad?: string,
+    periodo?: string,
+  ): Promise<Docente[]> {
+    return this.buscarDocentesElegibles(proposito, null, modalidad, periodo);
+  }
+
+  /**
+   * Alias de compatibilidad: busca docentes filtrando por categoría de docente (no por propósito).
+   * Se mantiene para compatibilidad con métodos legacy.
+   */
+  private async buscarDocentesPorCategoria(
+    categoriaDocente: string,
+    modalidad?: string,
+    periodo?: string,
+  ): Promise<Docente[]> {
+    return this.buscarDocentesElegibles('DECLARACION', [categoriaDocente], modalidad, periodo);
   }
 
   private normalizarFecha(fecha: Date): Date {
@@ -1088,8 +1126,8 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     const duracionMinutos = (hFin * 60 + mFin) - (hInicio * 60 + mInicio);
     const intervaloMinutos = dto.intervalo_minutos ?? 30;
     
-    // Estimar docentes (sin validar capacidad)
-    const docentesEstimados = await this.buscarDocentesPorCategoria(dto.categoria, dto.modalidad, dto.periodo);
+    // Validar de nuevo ahora que se asignarán
+    const docentesEstimados = await this.buscarDocentesElegibles(dto.proposito, dto.filtro_categorias_docente, dto.modalidad, dto.periodo);
     const capacidadMaxima = Math.floor(duracionMinutos / intervaloMinutos);
     const ventanasNecesarias = Math.ceil(docentesEstimados.length / capacidadMaxima);
     

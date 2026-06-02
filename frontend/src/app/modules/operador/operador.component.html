@@ -49,13 +49,22 @@
         </div>
 
         <mat-form-field appearance="outline">
-          <mat-label>Categoría</mat-label>
-          <mat-select formControlName="categoria">
+          <mat-label>Propósito Operativo</mat-label>
+          <mat-select formControlName="proposito">
             <mat-option value="DECLARACION">Declaración Inicial</mat-option>
             <mat-option value="SUBSANACION">Subsanación</mat-option>
             <mat-option value="CAMBIO">Cambio de Horario</mat-option>
-            <mat-option value="PRINCIPAL">Principal</mat-option>
             <mat-option value="CONTINGENCIA">Contingencia</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Restringir por Categoría Docente (Opcional)</mat-label>
+          <mat-select formControlName="filtro_categorias_docente" multiple>
+            <mat-option value="PRINCIPAL">Principal</mat-option>
+            <mat-option value="ASOCIADO">Asociado</mat-option>
+            <mat-option value="AUXILIAR">Auxiliar</mat-option>
+            <mat-option value="JEFE_PRACTICA">Jefe de Práctica</mat-option>
           </mat-select>
         </mat-form-field>
 
@@ -74,7 +83,7 @@
         </mat-form-field>
 
         <!-- Checkbox para SUBSANACION: crear sin auto-asignar docentes -->
-        <div class="sin-asignar-section" *ngIf="ventanaForm.get('categoria')?.value === 'SUBSANACION'">
+        <div class="sin-asignar-section" *ngIf="ventanaForm.get('proposito')?.value === 'SUBSANACION'">
           <mat-checkbox formControlName="sinAsignarDocentes" class="checkbox-sin-asignar">
             <span class="checkbox-label">No auto-asignar docentes</span>
             <span class="checkbox-hint">Permite pre-asignar manualmente solo los docentes que necesitan
@@ -90,21 +99,21 @@
         </div>
       </form>
 
-      <mat-card class="categoria-info" *ngIf="getCategoriaInfo(ventanaForm.get('categoria')?.value)">
+      <mat-card class="categoria-info" *ngIf="getPropositoInfo(ventanaForm.get('proposito')?.value)">
         <mat-card-header>
-          <mat-card-title>{{ getCategoriaInfo(ventanaForm.get('categoria')?.value)?.titulo }}</mat-card-title>
+          <mat-card-title>{{ getPropositoInfo(ventanaForm.get('proposito')?.value)?.titulo }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
-          <p class="descripcion">{{ getCategoriaInfo(ventanaForm.get('categoria')?.value)?.descripcion }}</p>
+          <p class="descripcion">{{ getPropositoInfo(ventanaForm.get('proposito')?.value)?.descripcion }}</p>
           <div class="usos">
             <strong>Usos:</strong>
             <ul>
-              <li *ngFor="let uso of getCategoriaInfo(ventanaForm.get('categoria')?.value)?.usos">{{ uso }}</li>
+              <li *ngFor="let uso of getPropositoInfo(ventanaForm.get('proposito')?.value)?.usos">{{ uso }}</li>
             </ul>
           </div>
-          <div class="recomendaciones">
+          <div class="recomendaciones" *ngIf="getPropositoInfo(ventanaForm.get('proposito')?.value)?.recomendaciones">
             <strong>Recomendación:</strong>
-            <p>{{ getCategoriaInfo(ventanaForm.get('categoria')?.value)?.recomendaciones }}</p>
+            <p>{{ getPropositoInfo(ventanaForm.get('proposito')?.value)?.recomendaciones }}</p>
           </div>
         </mat-card-content>
       </mat-card>
@@ -120,10 +129,10 @@
           </mat-select>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="filtro-field">
-          <mat-label>Categoría</mat-label>
-          <mat-select [(ngModel)]="filtroCategoria" (selectionChange)="aplicarFiltros()">
-            <mat-option *ngFor="let c of categorias" [value]="c.value">{{ c.label }}</mat-option>
+        <mat-form-field appearance="outline">
+          <mat-label>Filtrar por Propósito</mat-label>
+          <mat-select [(ngModel)]="filtroProposito" (selectionChange)="aplicarFiltros()">
+            <mat-option *ngFor="let c of propositos" [value]="c.value">{{ c.label }}</mat-option>
           </mat-select>
         </mat-form-field>
 
@@ -168,16 +177,21 @@
               <mat-card-title>{{ v.fecha | date:'EEEE d MMMM, y':'':'es-ES' }}</mat-card-title>
               <mat-card-subtitle>{{ v.hora_inicio }} - {{ v.hora_fin }}</mat-card-subtitle>
             </div>
-            <span class="estado-badge" [ngClass]="getEstadoClass(v.estado)">
-              {{ getEstadoLabel(v.estado) }}
-            </span>
+            <div class="badges-container">
+              <span class="pub-badge" [ngClass]="(v['campaña']?.estado === 'BORRADOR' || v['campaña']?.estado === 'GENERADO') ? 'borrador' : 'publicado'">
+                {{ (v['campaña']?.estado === 'BORRADOR' || v['campaña']?.estado === 'GENERADO') ? 'Borrador' : 'Publicada' }}
+              </span>
+              <span class="estado-badge" [ngClass]="getEstadoClass(v.estado)">
+                {{ getEstadoLabel(v.estado) }}
+              </span>
+            </div>
           </mat-card-header>
 
           <mat-card-content>
             <div class="ventana-info">
               <div class="info-row">
                 <mat-icon>category</mat-icon>
-                <span>{{ getCategoriaLabel(v.categoria) }}</span>
+                <span>{{ getPropositoLabel(v.proposito) }}</span>
               </div>
               <div class="info-row" *ngIf="v.modalidad">
                 <mat-icon>badge</mat-icon>
@@ -203,7 +217,7 @@
               [disabled]="loading">
               <mat-icon>play_circle</mat-icon> Iniciar
             </button>
-            <button mat-button color="accent" *ngIf="v.categoria === 'SUBSANACION' && v.estado === 'PROGRAMADA'"
+            <button mat-button color="accent" *ngIf="v.proposito === 'SUBSANACION' && v.estado === 'PROGRAMADA'"
               (click)="abrirSeleccionDocentes(v)" [disabled]="loading">
               <mat-icon>person_add</mat-icon> Pre-asignar
             </button>
@@ -229,8 +243,8 @@
       <div *ngIf="ventanasFiltradas.length === 0" class="estado-vacio">
         <mat-icon>event_busy</mat-icon>
         <h3>No hay ventanas</h3>
-        <p *ngIf="filtroEstado || filtroCategoria">No se encontraron ventanas con los filtros seleccionados.</p>
-        <p *ngIf="!filtroEstado && !filtroCategoria">Crea una nueva ventana de atención para comenzar.</p>
+        <p *ngIf="filtroEstado || filtroProposito">No se encontraron ventanas con los filtros seleccionados.</p>
+        <p *ngIf="!filtroEstado && !filtroProposito">Crea una nueva ventana de atención para comenzar.</p>
       </div>
     </section>
 
@@ -302,7 +316,7 @@
           <h2>Ventana de Atención</h2>
           <div class="header-meta">
             <span class="meta-chip categoria">
-              <mat-icon>category</mat-icon> {{ getCategoriaLabel(ventanaActiva.categoria) }}
+              <mat-icon>category</mat-icon> {{ getPropositoLabel(ventanaActiva.proposito) }}
             </span>
             <span class="meta-chip modalidad" *ngIf="ventanaActiva.modalidad">
               <mat-icon>badge</mat-icon> {{ ventanaActiva.modalidad }}

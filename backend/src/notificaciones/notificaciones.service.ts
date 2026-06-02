@@ -172,7 +172,7 @@ export class NotificacionesService {
         await this.enviarNotificacion(docente, CanalNotificacion.CORREO, `Recordatorio: Turno de selección mañana`, html, undefined, destinatarioEmail);
       }
       if (prefs && prefs.canal_telegram && prefs.telegram_chat_id) {
-        const text = `Recordatorio: mañana ${fechaStr} a las ${ventana.hora_inicio} es tu turno de selección de horario (${ventana.categoria}).`;
+        const text = `Recordatorio: mañana ${fechaStr} a las ${ventana.hora_inicio} es tu turno de selección de horario (${ventana.proposito}).`;
         await this.enviarNotificacion(docente, CanalNotificacion.TELEGRAM, `Recordatorio 24h`, text, prefs.telegram_chat_id);
       }
     } else {
@@ -211,7 +211,7 @@ export class NotificacionesService {
                 <td style="border: 1px solid #ddd; padding: 10px;">${fechaStr}</td>
                 <td style="border: 1px solid #ddd; padding: 10px;">${ventana.hora_inicio}</td>
                 <td style="border: 1px solid #ddd; padding: 10px;">${ventana.hora_fin}</td>
-                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.categoria}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.proposito}</td>
               </tr>
             </tbody>
           </table>
@@ -248,7 +248,7 @@ export class NotificacionesService {
                 <td style="border: 1px solid #ddd; padding: 10px;">${fechaStr}</td>
                 <td style="border: 1px solid #ddd; padding: 10px; font-weight: bold; color: #ff6b35;">${ventana.hora_inicio}</td>
                 <td style="border: 1px solid #ddd; padding: 10px;">${ventana.hora_fin}</td>
-                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.categoria}</td>
+                <td style="border: 1px solid #ddd; padding: 10px;">${ventana.proposito}</td>
               </tr>
             </tbody>
           </table>

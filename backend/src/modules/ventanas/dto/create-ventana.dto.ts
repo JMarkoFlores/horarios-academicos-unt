@@ -24,18 +24,21 @@ export class CreateVentanaDto {
 
   @ApiProperty({ enum: CategoriaVentana })
   @Transform(({ value }) => {
-    // Normalizar formato: "Declaración Inicial" -> "DECLARACION"
     if (typeof value === 'string') {
       return value
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // quitar acentos
+        .replace(/[\u0300-\u036f]/g, '')
         .toUpperCase()
-        .replace(/\s+/g, '_'); // espacios -> guiones bajos
+        .replace(/\s+/g, '_');
     }
     return value;
   })
   @IsEnum(CategoriaVentana)
-  categoria: CategoriaVentana;
+  proposito: CategoriaVentana;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  filtro_categorias_docente?: string[];
 
   @ApiPropertyOptional({ enum: TipoContrato })
   @IsOptional()

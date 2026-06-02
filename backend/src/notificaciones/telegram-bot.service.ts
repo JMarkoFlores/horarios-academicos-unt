@@ -152,7 +152,7 @@ export class TelegramBotService {
 
     return {
       chat_id: chatId,
-      text: `Tu próxima ventana de atención:\n\n📆 ${fechaStr}\n🕐 ${siguiente.hora_inicio} – ${siguiente.hora_fin}\n📂 Categoría: ${siguiente.categoria}\n📝 Estado: ${estadoStr}`,
+      text: `Tu próxima ventana de atención:\n\n📆 ${fechaStr}\n🕐 ${siguiente.hora_inicio} – ${siguiente.hora_fin}\n📂 Categoría: ${siguiente.proposito}\n📝 Estado: ${estadoStr}`,
     };
   }
 

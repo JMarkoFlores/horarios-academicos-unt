@@ -1,0 +1,352 @@
+<div class="verificar-container">
+  <div class="page-header">
+    <button mat-icon-button (click)="volver()" class="btn-back">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div>
+      <h1 class="page-title">Gestión de Declaraciones Normativas</h1>
+      <p class="page-subtitle">Verificación de carga horaria docente</p>
+    </div>
+  </div>
+
+  <!-- Estado -->
+  <div class="estado-bar" *ngIf="!loading">
+    <span class="estado-label">Estado Actual:</span>
+    <span class="estado-valor {{ estadoColor }}">
+      {{ estadoLabel }}
+      <span *ngIf="estadoDeclaracion === 'BORRADOR'" class="estado-sufijo"
+        >(Docente)</span
+      >
+      <span *ngIf="estadoDeclaracion === 'OBSERVADO_DPTO'" class="estado-sufijo"
+        >(Director)</span
+      >
+      <span *ngIf="estadoDeclaracion === 'VALIDADO_DPTO'" class="estado-sufijo"
+        >(Director)</span
+      >
+      <span
+        *ngIf="estadoDeclaracion === 'APROBADO_FACULTAD'"
+        class="estado-sufijo"
+        >(Decano)</span
+      >
+    </span>
+  </div>
+
+  <!-- Aviso si es borrador -->
+  <div
+    class="aviso-borrador"
+    *ngIf="estadoDeclaracion === 'BORRADOR' && esEditable"
+  >
+    <mat-icon>info</mat-icon>
+    <span
+      >Complete su declaración de carga horaria. Una vez enviada, no podrá
+      realizar modificaciones.</span
+    >
+  </div>
+
+  <!-- Aviso si no es editable -->
+  <div class="aviso-no-editable" *ngIf="!esEditable">
+    <mat-icon>lock</mat-icon>
+    <span>La declaración ha sido enviada y no puede ser modificada.</span>
+  </div>
+
+  <mat-spinner
+    *ngIf="loading"
+    diameter="40"
+    class="loading-center"
+  ></mat-spinner>
+
+  <div class="content-grid" *ngIf="!loading && docente">
+    <!-- Docente info card -->
+    <mat-card class="docente-card">
+      <mat-card-header>
+        <mat-card-title>Información del Docente</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <table class="info-table">
+          <tbody>
+            <tr>
+              <td class="info-label">Semestre Académico :</td>
+              <td class="info-value">{{ periodoActivo }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Docente :</td>
+              <td class="info-value">
+                {{ docente.apellidos.toUpperCase() }},
+                {{ docente.nombres.toUpperCase() }}
+              </td>
+            </tr>
+            <tr>
+              <td class="info-label">IBM completo:</td>
+              <td class="info-value">{{ docente.ibm }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Departamento Académico :</td>
+              <td class="info-value">
+                {{
+                  docente.departamento?.nombre
+                    ? "Dpto. de " + docente.departamento?.nombre
+                    : "No asignado"
+                }}
+              </td>
+            </tr>
+            <tr>
+              <td class="info-label">Facultad :</td>
+              <td class="info-value">
+                {{ docente.facultad?.nombre || "No asignada" }}
+              </td>
+            </tr>
+            <tr>
+              <td class="info-label">Condición :</td>
+              <td class="info-value">
+                {{
+                  docente.tipo_contrato === "NOMBRADO"
+                    ? "Nombrado"
+                    : docente.tipo_contrato === "CONTRATADO"
+                      ? "Contratado"
+                      : docente.tipo_contrato
+                }}
+              </td>
+            </tr>
+            <tr>
+              <td class="info-label">Categoría :</td>
+              <td class="info-value">
+                {{
+                  docente.categoria === "PRINCIPAL"
+                    ? "Principal"
+                    : docente.categoria === "ASOCIADO"
+                      ? "Asociado"
+                      : docente.categoria === "AUXILIAR"
+                        ? "Auxiliar"
+                        : docente.categoria === "SIN_CATEGORIA"
+                          ? "Sin categoría"
+                          : docente.categoria
+                }}
+              </td>
+            </tr>
+            <tr>
+              <td class="info-label">Dedicación :</td>
+              <td class="info-value">
+                {{
+                  docente.modalidad === "DEDICACION_EXCLUSIVA"
+                    ? "Dedicación Exclusiva"
+                    : docente.modalidad === "TIEMPO_COMPLETO_40"
+                      ? "Tiempo Completo 40 H"
+                      : docente.modalidad === "TIEMPO_PARCIAL_20"
+                        ? "Tiempo Parcial 20 H"
+                        : docente.modalidad === "TIEMPO_PARCIAL_12"
+                          ? "Tiempo Parcial 12 H"
+                          : docente.modalidad === "TIEMPO_PARCIAL_10"
+                            ? "Tiempo Parcial 10 H"
+                            : docente.modalidad === "TIEMPO_PARCIAL_8"
+                              ? "Tiempo Parcial 8 H"
+                              : docente.modalidad
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- HORAS LECTIVAS -->
+    <mat-card class="seccion-card">
+      <mat-card-header class="header-lectivas">
+        <mat-card-title>1. TRABAJO LECTIVO</mat-card-title>
+        <span class="subtitle">Datos completos y con claridad</span>
+      </mat-card-header>
+      <mat-card-content>
+        <table class="data-table lectivas-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Nombre del Curso</th>
+              <th>Sección</th>
+              <th>Curso</th>
+              <th>Escuela Prof.</th>
+              <th>Año o Ciclo</th>
+              <th>Nro.Tot. Alumnos</th>
+              <th>HrsTeo/Grupos</th>
+              <th>HrsPra/Grupos</th>
+              <th>HrsLab/Grupos</th>
+              <th>Total Hrs.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let curso of cursosLectivos; let i = index"
+              [class.even-row]="i % 2 === 0"
+            >
+              <td>{{ curso.codigo }}</td>
+              <td>{{ curso.nombre }}</td>
+              <td>{{ curso.seccion }}</td>
+              <td></td>
+              <td>{{ curso.escuela }}</td>
+              <td>{{ curso.ciclo }}</td>
+              <td>
+                <input
+                  type="number"
+                  [(ngModel)]="curso.nroAlumnos"
+                  (ngModelChange)="onCursoChange(curso)"
+                  [disabled]="!esEditable"
+                  class="cell-input small"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  [(ngModel)]="curso.hrsTeo"
+                  (ngModelChange)="onCursoChange(curso)"
+                  [disabled]="!esEditable"
+                  class="cell-input small"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  [(ngModel)]="curso.hrsPra"
+                  (ngModelChange)="onCursoChange(curso)"
+                  [disabled]="!esEditable"
+                  class="cell-input small"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  [(ngModel)]="curso.hrsLab"
+                  (ngModelChange)="onCursoChange(curso)"
+                  [disabled]="!esEditable"
+                  class="cell-input small"
+                />
+              </td>
+              <td class="total-cell">{{ curso.totalHrs }}</td>
+            </tr>
+            <tr *ngIf="cursosLectivos.length === 0">
+              <td colspan="11" class="no-data">
+                No hay cursos asignados para este período
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="subtotal-row">
+              <td colspan="10" class="subtotal-label">Equipo Docente</td>
+              <td class="subtotal-value">{{ totalHorasLectivas }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- HORAS NO LECTIVAS -->
+    <mat-card class="seccion-card">
+      <mat-card-header class="header-no-lectivas">
+        <mat-card-title>2. PREPARACIÓN Y EVALUACIÓN</mat-card-title>
+        <span class="subtitle">(Max 50% de Trabajo Lectivo)</span>
+        <span class="horas-label"
+          >Horas: <strong>{{ totalHorasNoLectivas }}</strong></span
+        >
+      </mat-card-header>
+      <mat-card-content>
+        <table class="data-table no-lectivas-table">
+          <thead>
+            <tr>
+              <th style="width: 5%">Nro</th>
+              <th style="width: 35%">Actividad</th>
+              <th style="width: 10%">Cod.</th>
+              <th style="width: 40%">Descripción / Detalle</th>
+              <th style="width: 10%">Horas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let act of actividadesNoLectivas; let i = index"
+              [class.even-row]="i % 2 === 0"
+            >
+              <td>{{ act.id }}</td>
+              <td class="act-descripcion">{{ act.descripcion }}</td>
+              <td>
+                <input
+                  type="text"
+                  [(ngModel)]="act.codigo"
+                  [disabled]="!esEditable"
+                  class="cell-input code-input"
+                />
+              </td>
+              <td>
+                <textarea
+                  [(ngModel)]="act.detalle"
+                  (ngModelChange)="onActividadChange()"
+                  [disabled]="!esEditable"
+                  class="cell-textarea"
+                  rows="2"
+                  placeholder="Ingrese detalle de la actividad..."
+                ></textarea>
+              </td>
+              <td>
+                <input
+                  type="number"
+                  [(ngModel)]="act.horas"
+                  (ngModelChange)="onActividadChange()"
+                  [disabled]="!esEditable"
+                  class="cell-input small"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- TOTAL HORAS -->
+    <div class="total-horas-bar">
+      <span class="total-label">Total Horas:</span>
+      <span class="total-value">{{ totalHoras }}</span>
+    </div>
+
+    <!-- BOTONES -->
+    <div class="action-bar">
+      <button
+        mat-stroked-button
+        color="warn"
+        class="btn-volver"
+        (click)="volver()"
+      >
+        <mat-icon>arrow_back</mat-icon>
+        Volver
+      </button>
+      <div class="right-buttons">
+        <button
+          *ngIf="esEditable"
+          mat-raised-button
+          color="primary"
+          class="btn-guardar"
+          (click)="guardar()"
+          [disabled]="saving"
+        >
+          <mat-icon>save</mat-icon>
+          Guardar
+        </button>
+        <button
+          *ngIf="esEditable && estadoDeclaracion === 'BORRADOR'"
+          mat-raised-button
+          color="accent"
+          class="btn-enviar"
+          (click)="enviar()"
+          [disabled]="saving"
+        >
+          <mat-icon>send</mat-icon>
+          Enviar
+        </button>
+        <button
+          *ngIf="!esEditable"
+          mat-raised-button
+          color="warn"
+          class="btn-pdf"
+          (click)="generarPDF()"
+        >
+          <mat-icon>picture_as_pdf</mat-icon>
+          Generar PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

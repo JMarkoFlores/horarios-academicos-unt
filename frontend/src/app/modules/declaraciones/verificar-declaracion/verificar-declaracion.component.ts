@@ -315,6 +315,7 @@ export class VerificarDeclaracionComponent implements OnInit {
             duration: 3000,
           });
           this.saving = false;
+          this.router.navigate(['/app/declaraciones']);
         },
         error: (err) => {
           this.snackBar.open(

@@ -29,6 +29,7 @@ import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
 import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
 import { FacultadesModule } from "./facultades/facultades.module";
 import { DataImportModule } from "./modules/data-import/data-import.module";
+import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/declaracion-carga-horaria.module";
 
 @Module({
   imports: [
@@ -47,11 +48,14 @@ import { DataImportModule } from "./modules/data-import/data-import.module";
         username: config.get<string>("DATABASE_USER", "unt_user"),
         password: config.get<string>("DATABASE_PASSWORD", "unt_pass123"),
         autoLoadEntities: true,
-        synchronize: config.get<string>("NODE_ENV") !== "production" || config.get<string>("DB_SYNC") === "true",
+        synchronize:
+          config.get<string>("NODE_ENV") !== "production" ||
+          config.get<string>("DB_SYNC") === "true",
         logging: config.get<string>("DATABASE_LOGGING") === "true",
-        ssl: config.get<string>("DATABASE_SSL") === "true" 
-          ? { rejectUnauthorized: false } 
-          : false,
+        ssl:
+          config.get<string>("DATABASE_SSL") === "true"
+            ? { rejectUnauthorized: false }
+            : false,
       }),
     }),
     CacheModule.registerAsync({
@@ -112,6 +116,7 @@ import { DataImportModule } from "./modules/data-import/data-import.module";
     CursosAmbienteModule,
     FacultadesModule,
     DataImportModule,
+    DeclaracionCargaHorariaModule,
   ],
   providers: [
     {

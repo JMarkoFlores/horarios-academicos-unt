@@ -135,6 +135,23 @@ export class HorariosService {
     return { items, total, page, limit };
   }
 
+  async findByDia(dia: number, periodo: string, page = 1, limit = 50) {
+    const [items, total] = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("horario.dia = :dia", { dia })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.hora_inicio", "ASC")
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return { items, total, page, limit };
+  }
+
   async findHorariosByDocenteEmail(email: string, periodo: string) {
     const docente = await this.docenteRepo.findOne({ where: { email } });
     if (!docente) throw new NotFoundException("Docente no encontrado");
@@ -198,13 +215,14 @@ export class HorariosService {
       throw new ConflictException(franja.motivo);
     }
 
-    const disponibilidad = await this.validacionesService.verificarDisponibilidadDocente(
-      horario.docente.id,
-      dia,
-      horaInicio,
-      horaFin,
-      horario.periodo,
-    );
+    const disponibilidad =
+      await this.validacionesService.verificarDisponibilidadDocente(
+        horario.docente.id,
+        dia,
+        horaInicio,
+        horaFin,
+        horario.periodo,
+      );
     if (!disponibilidad.valido) {
       throw new ConflictException(disponibilidad.motivo);
     }
@@ -304,13 +322,14 @@ export class HorariosService {
       throw new ConflictException(franja.motivo);
     }
 
-    const disponibilidad = await this.validacionesService.verificarDisponibilidadDocente(
-      dto.docente_id,
-      dto.dia_semana,
-      dto.hora_inicio,
-      dto.hora_fin,
-      dto.periodo_academico,
-    );
+    const disponibilidad =
+      await this.validacionesService.verificarDisponibilidadDocente(
+        dto.docente_id,
+        dto.dia_semana,
+        dto.hora_inicio,
+        dto.hora_fin,
+        dto.periodo_academico,
+      );
     if (!disponibilidad.valido) {
       throw new ConflictException(disponibilidad.motivo);
     }
@@ -377,11 +396,12 @@ export class HorariosService {
       );
     }
 
-    const cursosCheck = await this.commonValidacionesService.verificarCursosDocente(
-      dto.docente_id,
-      dto.periodo_academico,
-      dto.curso_id,
-    );
+    const cursosCheck =
+      await this.commonValidacionesService.verificarCursosDocente(
+        dto.docente_id,
+        dto.periodo_academico,
+        dto.curso_id,
+      );
     if (!cursosCheck.valido) {
       throw new BadRequestException(
         `El docente supera la cantidad máxima de cursos permitidos (máx. ${cursosCheck.maxCursos})`,
@@ -471,7 +491,7 @@ export class HorariosService {
   async getMatrizDisponibilidad(periodo: string, ambienteIds?: number[]) {
     const horas: string[] = [];
     for (let h = 7; h <= 21; h++) {
-      horas.push(`${h.toString().padStart(2, '0')}:00`);
+      horas.push(`${h.toString().padStart(2, "0")}:00`);
     }
     const diasSemana = [1, 2, 3, 4, 5, 6]; // Mon-Sat
 
@@ -479,16 +499,16 @@ export class HorariosService {
 
     // Get all assigned schedules for the period
     const query = this.horarioRepo
-      .createQueryBuilder('h')
-      .leftJoinAndSelect('h.docente', 'docente')
-      .leftJoinAndSelect('h.curso', 'curso')
-      .leftJoinAndSelect('h.grupo', 'grupo')
-      .leftJoinAndSelect('h.ambiente', 'ambiente')
-      .where('h.periodo = :periodo', { periodo })
-      .andWhere('h.estado = :estado', { estado: EstadoHorario.PUBLICADO });
+      .createQueryBuilder("h")
+      .leftJoinAndSelect("h.docente", "docente")
+      .leftJoinAndSelect("h.curso", "curso")
+      .leftJoinAndSelect("h.grupo", "grupo")
+      .leftJoinAndSelect("h.ambiente", "ambiente")
+      .where("h.periodo = :periodo", { periodo })
+      .andWhere("h.estado = :estado", { estado: EstadoHorario.PUBLICADO });
 
     if (ambienteIds && ambienteIds.length > 0) {
-      query.andWhere('h.ambiente_id IN (:...ambienteIds)', { ambienteIds });
+      query.andWhere("h.ambiente_id IN (:...ambienteIds)", { ambienteIds });
     }
 
     const horarios = await query.getMany();
@@ -498,9 +518,8 @@ export class HorariosService {
         const horaFin = this.calcularHoraFin(hora);
 
         // Check if this cell is occupied
-        const ocupado = horarios.find(h =>
-          h.dia === dia &&
-          h.hora_inicio === hora
+        const ocupado = horarios.find(
+          (h) => h.dia === dia && h.hora_inicio === hora,
         );
 
         if (ocupado) {
@@ -508,7 +527,7 @@ export class HorariosService {
             dia,
             horaInicio: hora,
             horaFin,
-            estado: 'OCUPADO',
+            estado: "OCUPADO",
             metadata: {
               docenteNombre: ocupado.docente?.apellidos,
               cursoNombre: ocupado.curso?.nombre,
@@ -521,7 +540,7 @@ export class HorariosService {
             dia,
             horaInicio: hora,
             horaFin,
-            estado: 'LIBRE',
+            estado: "LIBRE",
           });
         }
       }
@@ -531,8 +550,8 @@ export class HorariosService {
   }
 
   private calcularHoraFin(horaInicio: string): string {
-    const [h, m] = horaInicio.split(':').map(Number);
+    const [h, m] = horaInicio.split(":").map(Number);
     const proximaHora = h + 1;
-    return `${proximaHora.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    return `${proximaHora.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
   }
 }

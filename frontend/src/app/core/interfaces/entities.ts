@@ -39,7 +39,6 @@ export interface Docente {
     meses: number;
   };
   disponibilidades?: any[];
-  departamento?: { id: number; nombre: string } | null;
   facultad?: { id: number; nombre: string } | null;
 }
 

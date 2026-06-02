@@ -239,7 +239,10 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
     @Query("periodo") periodo: string,
   ) {
-    if (typeof (usuario as Usuario & { docenteId?: number | null }).docenteId === "number") {
+    if (
+      typeof (usuario as Usuario & { docenteId?: number | null }).docenteId ===
+      "number"
+    ) {
       const data = await this.horariosService.findHorariosByDocenteId(
         (usuario as Usuario & { docenteId: number }).docenteId,
         periodo,
@@ -258,7 +261,10 @@ export class HorariosController {
 
   @Get("mis-horarios/ical")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Exportar horario propio del docente autenticado a formato iCalendar (.ics)" })
+  @ApiOperation({
+    summary:
+      "Exportar horario propio del docente autenticado a formato iCalendar (.ics)",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({ status: 200, description: "Archivo iCalendar generado" })
   @Roles(RolUsuario.DOCENTE)
@@ -270,18 +276,20 @@ export class HorariosController {
     try {
       if (!usuario.email) throw new BadRequestException("Usuario sin correo");
 
-      // Obtener el docenteId basado en el email del usuario
-      const result = await this.horariosService.findHorariosByDocenteEmail(
+      // Obtener horarios del docente por email
+      const horarios = await this.horariosService.findHorariosByDocenteEmail(
         usuario.email,
         periodo,
       );
 
-      if (!result.horarios || result.horarios.length === 0) {
-        throw new NotFoundException("No se encontraron horarios para el docente");
+      if (!horarios || horarios.length === 0) {
+        throw new NotFoundException(
+          "No se encontraron horarios para el docente",
+        );
       }
 
-      // Obtener el docenteId del resultado
-      const docenteId = result.docente.id;
+      // Obtener el docenteId del primer horario
+      const docenteId = horarios[0].docente?.id;
       if (!docenteId) {
         throw new NotFoundException("No se pudo identificar el docente");
       }
@@ -446,7 +454,8 @@ export class HorariosController {
   @ApiOperation({ summary: "Publicar horarios auto-generados de un período" })
   @ApiResponse({ status: 200, description: "Horarios publicados" })
   async publicarAutoGenerados(@Body() dto: GenerarAutomaticoDto) {
-    const resultado = await this.generacionService.publicarHorariosAutoGenerados(dto.periodo);
+    const resultado =
+      await this.generacionService.publicarHorariosAutoGenerados(dto.periodo);
     return {
       data: resultado,
       message: "Horarios auto-generados publicados",
@@ -457,10 +466,14 @@ export class HorariosController {
   @Get("debug/:periodo")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Depurar horarios de un período (verificar consistencia)" })
+  @ApiOperation({
+    summary: "Depurar horarios de un período (verificar consistencia)",
+  })
   @ApiParam({ name: "periodo", type: String })
   async debugHorarios(@Param("periodo") periodo: string) {
-    const periodoEntity = await this.periodoRepo.findOne({ where: { codigo: periodo } });
+    const periodoEntity = await this.periodoRepo.findOne({
+      where: { codigo: periodo },
+    });
     const periodoId = periodoEntity?.id;
 
     const horarios = await this.horarioRepo.find({
@@ -524,7 +537,9 @@ export class HorariosController {
 
   @Get("docente/:id/ics")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Exportar horario de docente a formato iCalendar (.ics)" })
+  @ApiOperation({
+    summary: "Exportar horario de docente a formato iCalendar (.ics)",
+  })
   @ApiParam({ name: "id", description: "ID del docente" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({ status: 200, description: "Archivo iCalendar generado" })
@@ -561,17 +576,32 @@ export class HorariosController {
 
   @Get("matriz-disponibilidad")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Obtener matriz de disponibilidad para selección de horarios" })
+  @ApiOperation({
+    summary: "Obtener matriz de disponibilidad para selección de horarios",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  @ApiQuery({ name: "ambientes", required: false, description: "IDs de ambientes separados por comas" })
+  @ApiQuery({
+    name: "ambientes",
+    required: false,
+    description: "IDs de ambientes separados por comas",
+  })
   @ApiResponse({ status: 200, description: "Matriz de disponibilidad" })
-  @Roles(RolUsuario.DOCENTE, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
+  @Roles(
+    RolUsuario.DOCENTE,
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+  )
   async getMatrizDisponibilidad(
     @Query("periodo") periodo: string,
     @Query("ambientes") ambientes?: string,
   ) {
-    const ambienteIds = ambientes ? ambientes.split(',').map(id => parseInt(id, 10)) : undefined;
-    const data = await this.horariosService.getMatrizDisponibilidad(periodo, ambienteIds);
+    const ambienteIds = ambientes
+      ? ambientes.split(",").map((id) => parseInt(id, 10))
+      : undefined;
+    const data = await this.horariosService.getMatrizDisponibilidad(
+      periodo,
+      ambienteIds,
+    );
     return {
       data,
       message: "Matriz de disponibilidad obtenida",

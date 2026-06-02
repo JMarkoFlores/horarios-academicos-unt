@@ -25,7 +25,7 @@ export class UsuariosListComponent implements OnInit {
     administradorsistema: 'Administrador del Sistema',
     directorescuela: 'Director de Escuela',
     coordinadoracademico: 'Coordinador Académico',
-    operadorhorarios: 'Operador de Horarios',
+    secretaria: 'Secretaria',
     docente: 'Docente',
   };
 

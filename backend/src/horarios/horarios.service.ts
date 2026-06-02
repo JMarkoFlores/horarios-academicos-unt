@@ -190,7 +190,7 @@ export class HorariosService {
     const docente = await this.docenteRepo.findOne({ where: { email } });
     if (!docente) throw new NotFoundException("Docente no encontrado");
 
-    return await this.horarioRepo
+    const horarios = await this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.docente", "docente")
       .leftJoinAndSelect("horario.curso", "curso")
@@ -201,6 +201,18 @@ export class HorariosService {
       .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
+
+    return {
+      horarios,
+      docente: {
+        id: docente.id,
+        nombres: docente.nombres,
+        apellidos: docente.apellidos,
+        codigo: docente.codigo,
+        email: docente.email,
+        categoria: (docente as any).categoria || '',
+      },
+    };
   }
 
   async getOcupacionHeatmap(periodo: string) {

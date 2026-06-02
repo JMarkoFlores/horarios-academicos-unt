@@ -1,0 +1,190 @@
+<div class="campaign-form-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <button mat-icon-button (click)="router.navigate(['/app/campaigns'])" class="back-button">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1 class="gradient-text">{{ isEdit ? 'Editar Campaña' : 'Nueva Campaña' }}</h1>
+    </div>
+    <div class="header-actions">
+      <button mat-raised-button class="btn-cancel" (click)="router.navigate(['/app/campaigns'])" [disabled]="saving">
+        <mat-icon>close</mat-icon>
+        <span>Cancelar</span>
+      </button>
+      <button mat-raised-button class="btn-save" (click)="guardar()" [disabled]="form.invalid || saving">
+        <mat-spinner *ngIf="saving" diameter="20" style="margin-right: 8px;"></mat-spinner>
+        <mat-icon *ngIf="!saving">save</mat-icon>
+        <span>{{ isEdit ? 'Actualizar' : 'Crear' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <form [formGroup]="form" class="form-container" (ngSubmit)="guardar()">
+    <mat-card class="form-card">
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre de la Campaña</mat-label>
+          <input matInput formControlName="nombre" placeholder="Ej: Campaña 2026-I" required />
+          <mat-error *ngIf="form.get('nombre')?.hasError('required')">Campo obligatorio</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Período Académico</mat-label>
+          <mat-select formControlName="idPeriodo" required>
+            <mat-option *ngFor="let p of periodos" [value]="p.id">
+              {{ p.nombre }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('idPeriodo')?.hasError('required')">Campo obligatorio</mat-error>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Descripción</mat-label>
+        <textarea matInput formControlName="descripcion" rows="3" placeholder="Descripción de la campaña" required></textarea>
+        <mat-error *ngIf="form.get('descripcion')?.hasError('required')">Campo obligatorio</mat-error>
+      </mat-form-field>
+
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Fecha Inicio</mat-label>
+          <input matInput [matDatepicker]="pickerInicio" formControlName="fecha_inicio" required />
+          <mat-datepicker-toggle matSuffix [for]="pickerInicio"></mat-datepicker-toggle>
+          <mat-datepicker #pickerInicio></mat-datepicker>
+          <mat-error *ngIf="form.get('fecha_inicio')?.hasError('required')">Campo obligatorio</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Fecha Fin</mat-label>
+          <input matInput [matDatepicker]="pickerFin" formControlName="fecha_fin" required />
+          <mat-datepicker-toggle matSuffix [for]="pickerFin"></mat-datepicker-toggle>
+          <mat-datepicker #pickerFin></mat-datepicker>
+          <mat-error *ngIf="form.get('fecha_fin')?.hasError('required')">Campo obligatorio</mat-error>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Días Habilitados</mat-label>
+        <mat-select formControlName="dias_habilitados" multiple required>
+          <mat-option *ngFor="let d of diasSemana" [value]="d.value">
+            {{ d.label }}
+          </mat-option>
+        </mat-select>
+        <mat-error *ngIf="form.get('dias_habilitados')?.hasError('required')">Campo obligatorio</mat-error>
+      </mat-form-field>
+
+      <div class="section-title">
+        <mat-icon>schedule</mat-icon>
+        <h3>Bloques Horarios</h3>
+      </div>
+
+      <div formArrayName="bloques_horarios" class="bloques-container">
+        <div *ngFor="let bloque of bloquesHorarios.controls; let i = index" [formGroupName]="i" class="bloque-item">
+          <div class="bloque-header">
+            <span class="bloque-index">Bloque {{ i + 1 }}</span>
+            <button mat-icon-button color="warn" type="button" (click)="removeBloqueHorario(i)" *ngIf="bloquesHorarios.length > 1">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+          <div class="bloque-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>Nombre</mat-label>
+              <input matInput formControlName="nombre" placeholder="Ej: Mañana" required />
+              <mat-error *ngIf="bloque.get('nombre')?.hasError('required')">Campo obligatorio</mat-error>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Hora Inicio</mat-label>
+              <input matInput type="time" formControlName="hora_inicio" required />
+              <mat-error *ngIf="bloque.get('hora_inicio')?.hasError('required')">Campo obligatorio</mat-error>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Hora Fin</mat-label>
+              <input matInput type="time" formControlName="hora_fin" required />
+              <mat-error *ngIf="bloque.get('hora_fin')?.hasError('required')">Campo obligatorio</mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+        <button mat-stroked-button type="button" (click)="addBloqueHorario()" class="add-btn">
+          <mat-icon>add</mat-icon>
+          Agregar Bloque
+        </button>
+      </div>
+
+      <div class="section-title">
+        <mat-icon>settings</mat-icon>
+        <h3>Configuración</h3>
+      </div>
+
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Duración Turno (minutos)</mat-label>
+          <input matInput type="number" formControlName="duracion_turno_minutos" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Buffer (minutos)</mat-label>
+          <input matInput type="number" formControlName="buffer_minutos" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Cupos Máximos por Ventana</mat-label>
+          <input matInput type="number" formControlName="cupos_maximos_ventana" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Porcentaje de Reserva (%)</mat-label>
+          <input matInput type="number" formControlName="porcentaje_reserva" max="50" />
+        </mat-form-field>
+      </div>
+
+      <div class="checkboxes-container">
+        <mat-checkbox formControlName="excluir_feriados">
+          Excluir Feriados
+        </mat-checkbox>
+        <mat-checkbox formControlName="excluir_eventos">
+          Excluir Eventos
+        </mat-checkbox>
+        <mat-checkbox formControlName="distribucion_equitativa">
+          Distribución Equitativa
+        </mat-checkbox>
+      </div>
+
+      <div class="section-title">
+        <mat-icon>priority_high</mat-icon>
+        <h3>Reglas de Prioridad</h3>
+      </div>
+
+      <div formArrayName="reglas_prioridad" class="reglas-container">
+        <div *ngFor="let regla of reglasPrioridad.controls; let i = index" [formGroupName]="i" class="regla-item">
+          <div class="regla-header">
+            <span class="regla-index">Regla {{ i + 1 }}</span>
+            <button mat-icon-button color="warn" type="button" (click)="removeReglaPrioridad(i)" *ngIf="reglasPrioridad.length > 1">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+          <div class="regla-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>Campo</mat-label>
+              <mat-select formControlName="campo" required>
+                <mat-option *ngFor="let c of camposPrioridad" [value]="c.value">
+                  {{ c.label }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Orden</mat-label>
+              <mat-select formControlName="orden" required>
+                <mat-option value="ASC">Ascendente</mat-option>
+                <mat-option value="DESC">Descendente</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+        <button mat-stroked-button type="button" (click)="addReglaPrioridad()" class="add-btn">
+          <mat-icon>add</mat-icon>
+          Agregar Regla
+        </button>
+      </div>
+    </mat-card>
+  </form>
+</div>

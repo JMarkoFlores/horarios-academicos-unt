@@ -42,6 +42,8 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
+import { EstadoCampaña } from "../common/enums/estado-campaña.enum";
+import { EstadoVentanaAtencion } from "../entities/ventana-atencion.entity";
 
 const AppDataSource = new DataSource({
   type: "postgres",
@@ -187,10 +189,10 @@ async function seed() {
       activo: true,
     },
     {
-      nombre: "Operador de Horarios",
-      email: "operador@unt.edu.pe",
+      nombre: "Secretaria",
+      email: "secretaria@unt.edu.pe",
       password_hash: passwordHash,
-      rol: RolUsuario.OPERADOR_HORARIOS,
+      rol: RolUsuario.SECRETARIA,
       activo: true,
     },
   ];
@@ -273,6 +275,94 @@ async function seed() {
   }
   const periodoId = periodoActivo.id;
   console.log("✅ Períodos académicos creados (2026-I Activo)\n");
+
+  // ── 2.1 CAMPAÑA DE VENTANAS DE ATENCIÓN ───────────────────────────────────
+  console.log("📅 Creando campaña de ventanas de atención para el semestre...");
+  const campañaRepo = AppDataSource.getRepository(CampañaVentanas);
+  const ventanaRepo = AppDataSource.getRepository(VentanaAtencion);
+
+  const campaña = await campañaRepo.save(campañaRepo.create({
+    nombre: "Campaña de Asignación de Horarios 2026-I",
+    descripcion: "Campaña principal para la declaración y asignación de horarios del primer semestre de 2026",
+    periodo_id: periodoActivo.id,
+    periodo: periodoActivo,
+    estado: EstadoCampaña.PUBLICADO,
+    fecha_inicio: new Date("2026-03-16"),
+    fecha_fin: new Date("2026-07-31"),
+    dias_habilitados: ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"],
+    bloques_horarios: [
+      { nombre: "Mañana", hora_inicio: "07:00", hora_fin: "14:00" },
+      { nombre: "Tarde", hora_inicio: "14:00", hora_fin: "21:00" }
+    ],
+    duracion_turno_minutos: 60,
+    buffer_minutos: 10,
+    cupos_maximos_ventana: 10,
+    porcentaje_reserva: 20,
+    reglas_prioridad: [
+      { campo: "tipo_docente", orden: "DESC" },
+      { campo: "categoria", orden: "DESC" },
+      { campo: "modalidad", orden: "DESC" },
+      { campo: "fecha_ingreso", orden: "ASC" }
+    ],
+    excluir_feriados: true,
+    excluir_eventos: false,
+    distribucion_equitativa: true,
+    total_ventanas_generadas: 0,
+    total_docentes_asignados: 0,
+    total_docentes_atendidos: 0,
+    total_ausencias: 0,
+    tiempo_promedio_atencion: 0,
+    creado_por_id: dbUsuariosSistemas[0].id,
+  }));
+
+  console.log("✅ Campaña creada exitosamente!\n");
+
+  // ── 2.2 VENTANAS DE ATENCIÓN ASOCIADAS ────────────────────────────────────
+  console.log("📋 Creando ventanas de atención para la campaña...");
+  
+  // Ventana de Declaración Inicial
+  const ventanaDeclaracion = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-03-20"),
+    categoria: "DECLARACION",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
+
+  // Ventana de Subsanación
+  const ventanaSubsanacion = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-04-01"),
+    categoria: "SUBSANACION",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
+
+  // Ventana de Cambio de Horario
+  const ventanaCambio = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-04-15"),
+    categoria: "CAMBIO",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
+
+  console.log("✅ Ventanas de atención creadas exitosamente!\n");
 
   // ── 3. AMBIENTES (AULAS Y LABORATORIOS) ──────────────────────────────────
   console.log("🏢 Creando ambientes de estudio...");
@@ -449,22 +539,35 @@ async function seed() {
     const docData = docentesData[i];
     let tipoDocente: TipoDocente;
     let categoria: CategoriaDocente;
-    if (i < 5) {
+    let modalidad: ModalidadDocente;
+    
+    // Excepción para Juan Pedro Santos Fernández (DOC024)
+    if (docData.codigo === "DOC024") {
       tipoDocente = TipoDocente.ORDINARIO;
       categoria = CategoriaDocente.PRINCIPAL;
+      modalidad = ModalidadDocente.DEDICACION_EXCLUSIVA;
+    } else if (i < 5) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.PRINCIPAL;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
     } else if (i < 10) {
       tipoDocente = TipoDocente.ORDINARIO;
       categoria = CategoriaDocente.ASOCIADO;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
     } else if (i < 18) {
       tipoDocente = TipoDocente.ORDINARIO;
       categoria = CategoriaDocente.AUXILIAR;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
     } else if (i < 23) {
       tipoDocente = TipoDocente.CONTRATADO;
       categoria = CategoriaDocente.SIN_CATEGORIA;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
     } else {
       tipoDocente = TipoDocente.JEFE_PRACTICA_CONTRATADO;
       categoria = CategoriaDocente.SIN_CATEGORIA;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
     }
+    
     const tipoContrato =
       tipoDocente === TipoDocente.ORDINARIO
         ? TipoContrato.NOMBRADO
@@ -479,7 +582,7 @@ async function seed() {
         categoria,
         tipo_docente: tipoDocente,
         tipo_contrato: tipoContrato,
-        modalidad: modalidadesPool[i % modalidadesPool.length],
+        modalidad: modalidad,
         fecha_ingreso: new Date(2000 + (i % 20), 0, 1),
         activo: true,
         departamento_id: (i === 3) ? depPsicol?.id : 
@@ -616,7 +719,7 @@ async function seed() {
       creditos: 3,
       horas_teoria: 1,
       horas_practica: 1,
-      horas_laboratorio: 2,
+      horas_laboratorio: 3,
       ciclo: 3,
       tiene_laboratorio: true,
       activo: true,
@@ -717,7 +820,7 @@ async function seed() {
       creditos: 3,
       horas_teoria: 1,
       horas_practica: 1,
-      horas_laboratorio: 2,
+      horas_laboratorio: 3,
       ciclo: 5,
       tiene_laboratorio: true,
       activo: true,
@@ -1198,7 +1301,7 @@ async function seed() {
       docenteNombre: "Juan Carlos Obando Roldán",
       cursoCodigo: "EE-303",
       tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
-      grupos: 3,
+      grupos: 2,
     },
     {
       docenteNombre: "Marcos Ferrer Reyna",
@@ -1222,7 +1325,7 @@ async function seed() {
       docenteNombre: "Vilma Mendez Gil",
       cursoCodigo: "EP-304",
       tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
-      grupos: 1,
+      grupos: 4,
     },
     {
       docenteNombre: "Sheyla Laura Escobedo Rodriguez",
@@ -1295,10 +1398,16 @@ async function seed() {
       grupos: 3,
     },
     {
+      docenteNombre: "César Arellano Salazar",
+      cursoCodigo: "EE-505",
+      tipoClases: [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO],
+      grupos: 3,
+    },
+    {
       docenteNombre: "Robert Jerry Sánchez Ticona",
       cursoCodigo: "EE-701",
       tipoClases: [TipoClase.LABORATORIO],
-      grupos: 3,
+      grupos: 2,
     },
     {
       docenteNombre: "Everson David Agreda Gamboa",

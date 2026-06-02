@@ -75,7 +75,7 @@ export class HorariosController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   async asignarHorario(@Body() dto: CrearAsignacionDto) {
     const data = await this.horariosService.crearAsignacion(dto);
@@ -253,6 +253,60 @@ export class HorariosController {
     return { data, message: "Horario obtenido", statusCode: HttpStatus.OK };
   }
 
+  @Get("mis-horarios/ical")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Exportar horario propio del docente autenticado a formato iCalendar (.ics)" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiResponse({ status: 200, description: "Archivo iCalendar generado" })
+  @Roles(RolUsuario.DOCENTE)
+  async exportarMiICalendar(
+    @CurrentUser() usuario: Usuario,
+    @Query("periodo") periodo: string,
+    @Res() res: any,
+  ) {
+    try {
+      if (!usuario.email) throw new BadRequestException("Usuario sin correo");
+
+      // Obtener el docenteId basado en el email del usuario
+      const result = await this.horariosService.findHorariosByDocenteEmail(
+        usuario.email,
+        periodo,
+      );
+
+      if (!result.horarios || result.horarios.length === 0) {
+        throw new NotFoundException("No se encontraron horarios para el docente");
+      }
+
+      // Obtener el docenteId del resultado
+      const docenteId = result.docente.id;
+      if (!docenteId) {
+        throw new NotFoundException("No se pudo identificar el docente");
+      }
+
+      const icsContent = await this.icalendarService.generarICalendarDocente(
+        docenteId,
+        periodo,
+      );
+
+      res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=horario_${periodo}.ics`,
+      );
+      res.setHeader("Content-Length", Buffer.byteLength(icsContent));
+
+      // Cache control para evitar descargas repetidas
+      res.setHeader("Cache-Control", "public, max-age=3600");
+
+      return res.send(icsContent);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException("Error al generar archivo iCalendar");
+    }
+  }
+
   @Post("reasignar-manual")
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Reasignar manualmente un horario" })
@@ -260,7 +314,7 @@ export class HorariosController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   async reasignarManual(
     @Body() dto: ReasignarHorarioDto & { id: number },
@@ -282,7 +336,7 @@ export class HorariosController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   async reasignarHorario(
     @Param("id", ParseIntPipe) id: number,
@@ -508,7 +562,7 @@ export class HorariosController {
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "ambientes", required: false, description: "IDs de ambientes separados por comas" })
   @ApiResponse({ status: 200, description: "Matriz de disponibilidad" })
-  @Roles(RolUsuario.DOCENTE, RolUsuario.OPERADOR_HORARIOS, RolUsuario.COORDINADOR_ACADEMICO)
+  @Roles(RolUsuario.DOCENTE, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
   async getMatrizDisponibilidad(
     @Query("periodo") periodo: string,
     @Query("ambientes") ambientes?: string,

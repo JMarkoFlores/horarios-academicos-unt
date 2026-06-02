@@ -279,3 +279,5 @@
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_CONFIGURACION_GENERAL","entidad":"configuracion_general","entidadId":1,"ip":"::1","timestamp":"2026-05-31T22:50:19.906Z"}
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_CONFIGURACION_GENERAL","entidad":"configuracion_general","entidadId":9,"ip":"::1","timestamp":"2026-05-31T22:56:45.082Z"}
 {"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_CONFIGURACION_GENERAL","entidad":"configuracion_general","entidadId":11,"ip":"::1","timestamp":"2026-05-31T22:56:48.165Z"}
+{"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":6,"ip":"::1","timestamp":"2026-06-02T00:46:22.240Z"}
+{"usuario":"admin@unt.edu.pe","accion":"ACTUALIZAR_RESTRICCION","entidad":"restriccion_institucional","entidadId":6,"ip":"::1","timestamp":"2026-06-02T00:46:30.355Z"}

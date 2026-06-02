@@ -53,7 +53,7 @@ export class VentanasController {
   ) {}
 
   @Post()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.OPERADOR_HORARIOS)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.SECRETARIA)
   @ApiOperation({ summary: "Crear ventana de atención" })
   @ApiResponse({ status: 201, description: "Ventana creada" })
   async crear(@Body() dto: CreateVentanaDto) {
@@ -82,7 +82,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Iniciar ventana y cargar cola" })
@@ -96,7 +96,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Llamar al siguiente docente" })
@@ -110,7 +110,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Marcar docente ausente" })
@@ -131,7 +131,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Finalizar ventana de atención" })
@@ -141,7 +141,7 @@ export class VentanasController {
   }
 
   @Delete("all")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.OPERADOR_HORARIOS)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.SECRETARIA)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Eliminar TODAS las ventanas (limpieza)" })
   async eliminarTodas() {
@@ -182,6 +182,28 @@ export class VentanasController {
     };
   }
 
+  @Get("candidatos-docentes")
+  @ApiOperation({ summary: "Obtener docentes candidatos para una categoría de ventana" })
+  @ApiQuery({ name: 'categoria', required: true, type: String })
+  @ApiQuery({ name: 'periodo', required: true, type: String })
+  @ApiQuery({ name: 'modalidad', required: false, type: String })
+  async getCandidatosDocentes(
+    @Query('categoria') categoria: string,
+    @Query('periodo') periodo: string,
+    @Query('modalidad') modalidad?: string,
+  ) {
+    const data = await this.ventanasService.obtenerDocentesParaCategoria(
+      categoria,
+      periodo,
+      modalidad,
+    );
+    return {
+      data,
+      message: 'Docentes candidatos obtenidos',
+      statusCode: HttpStatus.OK,
+    };
+  }
+
   @Get(":id/cola")
   @ApiOperation({ summary: "Obtener estado de cola" })
   async getEstadoCola(@Param("id") id: string) {
@@ -197,7 +219,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Seleccionar celda temporalmente" })
@@ -219,7 +241,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Deseleccionar celda temporal" })
@@ -242,7 +264,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Limpiar todas las selecciones temporales de una sesión" })
@@ -258,7 +280,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Confirmar selecciones temporales" })
@@ -315,7 +337,7 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Actualizar ventana de atención" })
@@ -328,12 +350,57 @@ export class VentanasController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
-    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
   )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Eliminar ventana de atención" })
   async eliminar(@Param("id") id: string) {
     await this.ventanasService.eliminarVentana(id);
     return { data: null, message: "Ventana eliminada", statusCode: HttpStatus.OK };
+  }
+
+  @Post("sugerir-distribucion")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+  )
+  @ApiOperation({ summary: "Sugerir distribución de múltiples ventanas cuando capacidad insuficiente" })
+  async sugerirDistribucion(@Body() dto: CreateVentanaDto) {
+    const data = await this.ventanasService.sugerirDistribucion(dto);
+    return { data, message: "Distribución sugerida", statusCode: HttpStatus.OK };
+  }
+
+  @Post("distribuir-docentes")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+  )
+  @ApiOperation({ summary: "Distribuir docentes entre múltiples ventanas creadas automáticamente" })
+  async distribuirDocentes(@Body() dto: { ventanas_ids: string[], periodo: string, categoria: string, modalidad?: string }) {
+    await this.ventanasService.distribuirDocentesEntreVentanas(
+      dto.ventanas_ids,
+      dto.periodo,
+      dto.categoria,
+      dto.modalidad
+    );
+    return { data: null, message: "Docentes distribuidos exitosamente", statusCode: HttpStatus.OK };
+  }
+
+  @Post(":id/pre-asignar-docentes")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Pre-asignar docentes seleccionados a la cola de una ventana" })
+  async preAsignarDocentes(
+    @Param("id") ventanaId: string,
+    @Body("docentes_ids") docentesIds: number[]
+  ) {
+    const data = await this.ventanasService.preAsignarDocentes(ventanaId, docentesIds);
+    return { data, message: "Docentes pre-asignados exitosamente", statusCode: HttpStatus.OK };
   }
 }

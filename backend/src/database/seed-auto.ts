@@ -36,7 +36,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
     { nombre: "Administrador del Sistema", email: "admin@unt.edu.pe", rol: RolUsuario.ADMINISTRADOR_SISTEMA },
     { nombre: "Director de Escuela", email: "director@unt.edu.pe", rol: RolUsuario.DIRECTOR_ESCUELA },
     { nombre: "Coordinador Académico", email: "coordinador@unt.edu.pe", rol: RolUsuario.COORDINADOR_ACADEMICO },
-    { nombre: "Operador de Horarios", email: "operador@unt.edu.pe", rol: RolUsuario.OPERADOR_HORARIOS },
+    { nombre: "Secretaria", email: "secretaria@unt.edu.pe", rol: RolUsuario.SECRETARIA },
   ];
   for (const u of usuariosSistema) {
     await usuarioRepo.save(usuarioRepo.create({ ...u, password_hash: passwordHash, activo: true }));

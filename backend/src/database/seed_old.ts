@@ -174,10 +174,10 @@ async function seed() {
       activo: true,
     },
     {
-      nombre: "Operador de Horarios",
-      email: "operador@unt.edu.pe",
+      nombre: "Secretaria",
+      email: "secretaria@unt.edu.pe",
       password_hash: passwordHash,
-      rol: RolUsuario.OPERADOR_HORARIOS,
+      rol: RolUsuario.SECRETARIA,
       activo: true,
     },
   ];

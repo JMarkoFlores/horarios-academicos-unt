@@ -29,7 +29,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isCoord(): boolean { return this.rol === 'coordinadoracademico'; }
   isDirector(): boolean { return this.rol === 'directorescuela'; }
   isDocente(): boolean { return this.rol === 'docente'; }
-  isOperador(): boolean { return this.rol === 'operadorhorarios'; }
+  isSecretaria(): boolean { return this.rol === 'secretaria'; }
   isAdminOrCoord(): boolean { return this.isAdmin() || this.isCoord(); }
   canViewFullDashboard(): boolean { return this.isAdminOrCoord() || this.isDirector(); }
   canGenerateHorario(): boolean { return this.isAdminOrCoord(); }

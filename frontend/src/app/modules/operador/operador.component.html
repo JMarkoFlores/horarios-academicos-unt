@@ -1,7 +1,9 @@
 <div class="operador-container">
   <header class="page-header">
     <div class="header-info">
-      <h1><mat-icon>dashboard</mat-icon> Panel del Operador</h1>
+      <h1>
+        <mat-icon>dashboard</mat-icon> Panel de la Secretaria
+      </h1>
       <p>Gestión de ventanas de atención en tiempo real</p>
     </div>
     <div class="header-actions" *ngIf="!ventanaActiva">
@@ -17,7 +19,9 @@
 
     <!-- Formulario colapsable -->
     <section class="creacion-section" *ngIf="mostrarFormulario">
-      <h3><mat-icon>add_circle</mat-icon> Nueva Ventana de Atención</h3>
+      <h3>
+        <mat-icon>add_circle</mat-icon> Nueva Ventana de Atención
+      </h3>
       <form [formGroup]="ventanaForm" (ngSubmit)="crearVentana()" class="ventana-form">
         <mat-form-field appearance="outline">
           <mat-label>Período</mat-label>
@@ -33,24 +37,6 @@
           <mat-datepicker #pickerFecha />
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Categoría</mat-label>
-          <mat-select formControlName="categoria">
-            <mat-option value="PRINCIPAL">Principal</mat-option>
-            <mat-option value="ASOCIADO">Asociado</mat-option>
-            <mat-option value="AUXILIAR">Auxiliar</mat-option>
-            <mat-option value="JEFE_PRACTICA">Jefe de Práctica</mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Modalidad</mat-label>
-          <mat-select formControlName="modalidad">
-            <mat-option value="NOMBRADO">Nombrado</mat-option>
-            <mat-option value="CONTRATADO">Contratado</mat-option>
-          </mat-select>
-        </mat-form-field>
-
         <div class="row">
           <mat-form-field appearance="outline">
             <mat-label>Hora Inicio</mat-label>
@@ -62,6 +48,40 @@
           </mat-form-field>
         </div>
 
+        <mat-form-field appearance="outline">
+          <mat-label>Categoría</mat-label>
+          <mat-select formControlName="categoria">
+            <mat-option value="DECLARACION">Declaración Inicial</mat-option>
+            <mat-option value="SUBSANACION">Subsanación</mat-option>
+            <mat-option value="CAMBIO">Cambio de Horario</mat-option>
+            <mat-option value="PRINCIPAL">Principal</mat-option>
+            <mat-option value="CONTINGENCIA">Contingencia</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Modalidad</mat-label>
+          <mat-select formControlName="modalidad">
+            <mat-option value="NOMBRADO">Nombrado</mat-option>
+            <mat-option value="CONTRATADO">Contratado</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Intervalo por Docente (minutos)</mat-label>
+          <input matInput type="number" min="5" max="60" step="5" formControlName="intervalo_minutos">
+          <mat-hint>Tiempo máximo para cada docente (5-60 min)</mat-hint>
+        </mat-form-field>
+
+        <!-- Checkbox para SUBSANACION: crear sin auto-asignar docentes -->
+        <div class="sin-asignar-section" *ngIf="ventanaForm.get('categoria')?.value === 'SUBSANACION'">
+          <mat-checkbox formControlName="sinAsignarDocentes" class="checkbox-sin-asignar">
+            <span class="checkbox-label">No auto-asignar docentes</span>
+            <span class="checkbox-hint">Permite pre-asignar manualmente solo los docentes que necesitan
+              subsanación</span>
+          </mat-checkbox>
+        </div>
+
         <div class="form-actions">
           <button mat-button type="button" (click)="mostrarFormulario = false">Cancelar</button>
           <button mat-raised-button color="primary" type="submit" [disabled]="creandoVentana || ventanaForm.invalid">
@@ -69,6 +89,25 @@
           </button>
         </div>
       </form>
+
+      <mat-card class="categoria-info" *ngIf="getCategoriaInfo(ventanaForm.get('categoria')?.value)">
+        <mat-card-header>
+          <mat-card-title>{{ getCategoriaInfo(ventanaForm.get('categoria')?.value)?.titulo }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="descripcion">{{ getCategoriaInfo(ventanaForm.get('categoria')?.value)?.descripcion }}</p>
+          <div class="usos">
+            <strong>Usos:</strong>
+            <ul>
+              <li *ngFor="let uso of getCategoriaInfo(ventanaForm.get('categoria')?.value)?.usos">{{ uso }}</li>
+            </ul>
+          </div>
+          <div class="recomendaciones">
+            <strong>Recomendación:</strong>
+            <p>{{ getCategoriaInfo(ventanaForm.get('categoria')?.value)?.recomendaciones }}</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
     </section>
 
     <!-- Filtros -->
@@ -90,7 +129,8 @@
 
         <mat-form-field appearance="outline" class="filtro-field">
           <mat-label>Fecha Desde</mat-label>
-          <input matInput [matDatepicker]="pickerDesde" [(ngModel)]="filtroFechaInicio" (ngModelChange)="aplicarFiltros()">
+          <input matInput [matDatepicker]="pickerDesde" [(ngModel)]="filtroFechaInicio"
+            (ngModelChange)="aplicarFiltros()">
           <mat-datepicker-toggle matSuffix [for]="pickerDesde">
             <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
           </mat-datepicker-toggle>
@@ -122,10 +162,10 @@
     <section class="ventanas-section">
       <div class="ventanas-grid" *ngIf="ventanasPaginadas.length > 0">
         <mat-card *ngFor="let v of ventanasPaginadas" class="ventana-card mat-elevation-z2"
-                  [ngClass]="getEstadoClass(v.estado)">
+          [ngClass]="getEstadoClass(v.estado)">
           <mat-card-header>
             <div class="card-header-content">
-              <mat-card-title>{{ v.fecha | date:'EEEE d MMMM, y' }}</mat-card-title>
+              <mat-card-title>{{ v.fecha | date:'EEEE d MMMM, y':'':'es-ES' }}</mat-card-title>
               <mat-card-subtitle>{{ v.hora_inicio }} - {{ v.hora_fin }}</mat-card-subtitle>
             </div>
             <span class="estado-badge" [ngClass]="getEstadoClass(v.estado)">
@@ -148,6 +188,10 @@
                 <span>Intervalo: {{ v.intervalo_minutos || 30 }} min</span>
               </div>
               <div class="info-row">
+                <mat-icon>people</mat-icon>
+                <span>Docentes en ventana: {{ v.total_docentes ?? 0 }}</span>
+              </div>
+              <div class="info-row">
                 <mat-icon>calendar_today</mat-icon>
                 <span>Período: {{ v.periodo }}</span>
               </div>
@@ -155,8 +199,13 @@
           </mat-card-content>
 
           <mat-card-actions align="end">
-            <button mat-button color="primary" *ngIf="puedeIniciar(v)" (click)="iniciarAtencion(v.id)" [disabled]="loading">
+            <button mat-button color="primary" *ngIf="puedeIniciar(v)" (click)="iniciarAtencion(v.id)"
+              [disabled]="loading">
               <mat-icon>play_circle</mat-icon> Iniciar
+            </button>
+            <button mat-button color="accent" *ngIf="v.categoria === 'SUBSANACION' && v.estado === 'PROGRAMADA'"
+              (click)="abrirSeleccionDocentes(v)" [disabled]="loading">
+              <mat-icon>person_add</mat-icon> Pre-asignar
             </button>
             <button mat-button color="warn" *ngIf="puedeEliminar(v)" (click)="eliminarVentana(v)">
               <mat-icon>delete</mat-icon> Eliminar
@@ -184,6 +233,59 @@
         <p *ngIf="!filtroEstado && !filtroCategoria">Crea una nueva ventana de atención para comenzar.</p>
       </div>
     </section>
+
+    <!-- Modal de selección de docentes para SUBSANACION -->
+    <div class="docentes-selection-overlay" *ngIf="mostrandoSeleccionDocentes">
+      <mat-card class="docentes-selection-modal">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>person_add</mat-icon> Pre-asignar Docentes a SUBSANACION
+          </mat-card-title>
+          <mat-card-subtitle *ngIf="ventanaActualParaAsignar">
+            Ventana: {{ ventanaActualParaAsignar.fecha | date:'EEEE d MMMM, y':'':'es-ES' }}
+            ({{ ventanaActualParaAsignar.hora_inicio }} - {{ ventanaActualParaAsignar.hora_fin }})
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="cargandoDocentes" class="loading-state">
+            <mat-spinner diameter="40"></mat-spinner>
+            <p>Cargando docentes elegibles para SUBSANACION...</p>
+          </div>
+
+          <div *ngIf="!cargandoDocentes && docentesDisponibles.length > 0" class="docentes-list">
+            <p class="info-text">
+              Selecciona los docentes que necesitan subsanación (se cargaron {{ docentesDisponibles.length }} docentes
+              con horario asignado en este período):
+            </p>
+            <div class="docentes-checkboxes">
+              <mat-checkbox *ngFor="let doc of docentesDisponibles" [checked]="doc.selected"
+                (change)="toggleDocente(doc)" class="docente-checkbox">
+                <span class="docente-name">{{ doc.nombre }}</span>
+                <span class="docente-status" *ngIf="doc.selected">Seleccionado</span>
+              </mat-checkbox>
+            </div>
+          </div>
+
+          <div *ngIf="!cargandoDocentes && docentesDisponibles.length === 0" class="empty-state">
+            <mat-icon>search_off</mat-icon>
+            <p>No se encontraron docentes elegibles para SUBSANACION en este período.</p>
+          </div>
+
+          <div class="selection-summary">
+            <strong>Seleccionados: {{ docentesSeleccionados.size }} docente(s)</strong>
+          </div>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button mat-button (click)="cerrarSeleccionDocentes()">
+            Cancelar
+          </button>
+          <button mat-raised-button color="primary" [disabled]="docentesSeleccionados.size === 0 || cargandoDocentes"
+            (click)="preAsignarDocentes()">
+            <mat-icon>save</mat-icon> Pre-asignar {{ docentesSeleccionados.size }} Docente(s)
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    </div>
   </div>
 
   <!-- ESTADO B: VENTANA ACTIVA -->
@@ -206,7 +308,7 @@
               <mat-icon>badge</mat-icon> {{ ventanaActiva.modalidad }}
             </span>
             <span class="meta-chip">
-              <mat-icon>calendar_today</mat-icon> {{ ventanaActiva.fecha | date:'EEEE d MMM, y' }}
+              <mat-icon>calendar_today</mat-icon> {{ ventanaActiva.fecha | date:'EEEE d MMM, y':'':'es-ES' }}
             </span>
             <span class="meta-chip">
               <mat-icon>schedule</mat-icon> {{ ventanaActiva.hora_inicio }} — {{ ventanaActiva.hora_fin }}
@@ -226,7 +328,9 @@
     <div class="info-flujo" *ngIf="!docenteActual">
       <mat-icon>info</mat-icon>
       <div>
-        <strong>Flujo de atención:</strong> Presiona <em>"Llamar siguiente docente"</em> en la cola de la izquierda. Luego selecciona un curso habilitado, elige el ambiente compatible, y finalmente haz clic en las celdas libres de la grilla para asignar horarios. Termina con <em>"Confirmar y guardar horario"</em>.
+        <strong>Flujo de atención:</strong> Presiona <em>"Llamar siguiente docente"</em> en la cola de la izquierda.
+        Luego selecciona un curso habilitado, elige el ambiente compatible, y finalmente haz clic en las celdas libres
+        de la grilla para asignar horarios. Termina con <em>"Confirmar y guardar horario"</em>.
       </div>
     </div>
 
@@ -235,7 +339,8 @@
 
       <!-- Panel izquierdo: Cola -->
       <div class="panel-izquierdo">
-        <app-cola-atencion [ventanaId]="ventanaActiva.id" (docenteEnAtencion)="onDocenteEnAtencion($event)"></app-cola-atencion>
+        <app-cola-atencion [ventanaId]="ventanaActiva.id" (docenteEnAtencion)="onDocenteEnAtencion($event)">
+        </app-cola-atencion>
       </div>
 
       <!-- Panel derecho: Selección y Grilla -->
@@ -288,18 +393,15 @@
               </mat-form-field>
 
               <div class="cursos-list" *ngIf="cursosFiltrados && cursosFiltrados.length > 0">
-                <div
-                  *ngFor="let c of cursosFiltrados"
-                  class="curso-card"
+                <div *ngFor="let c of cursosFiltrados" class="curso-card"
                   [class.seleccionado]="cursoSeleccionado?.cursoId === c.cursoId"
-                  [class.expandido]="cursoSeleccionado?.cursoId === c.cursoId"
-                  (click)="seleccionarCurso(c)"
-                >
+                  [class.expandido]="cursoSeleccionado?.cursoId === c.cursoId" (click)="seleccionarCurso(c)">
                   <div class="curso-main">
                     <span class="curso-codigo">{{ c.curso?.codigo }}</span>
                     <span class="curso-nombre">{{ c.curso?.nombre }}</span>
                   </div>
-                  <div class="tipos-clase" *ngIf="cursoSeleccionado?.cursoId === c.cursoId" (click)="$event.stopPropagation()">
+                  <div class="tipos-clase" *ngIf="cursoSeleccionado?.cursoId === c.cursoId"
+                    (click)="$event.stopPropagation()">
                     <mat-form-field appearance="outline" class="tipo-clase-select">
                       <mat-label>Tipo de Clase</mat-label>
                       <mat-select [(ngModel)]="tipoClase" (ngModelChange)="seleccionarTipoClase(c, $event)">
@@ -312,20 +414,21 @@
                       <mat-form-field appearance="outline" class="grupo-select">
                         <mat-label>Grupo</mat-label>
                         <mat-select [(ngModel)]="grupoSeleccionado" (ngModelChange)="onGrupoChange($event)">
-                          <mat-option *ngFor="let g of [].constructor(gruposDisponibles); let i = index" [value]="i + 1">Grupo {{ i + 1 }}</mat-option>
+                          <mat-option *ngFor="let g of [].constructor(gruposDisponibles); let i = index"
+                            [value]="i + 1">Grupo {{ i + 1 }}</mat-option>
                         </mat-select>
                       </mat-form-field>
                     </div>
                   </div>
                   <div class="curso-progress" *ngIf="cursoSeleccionado?.cursoId === c.cursoId && tipoClase">
                     <div class="progress-text">
-                      <span>{{ getHorasAsignadasCurso(c.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined) }}h / {{ getHorasRequeridas(c, tipoClase) }}h</span>
+                      <span>{{ getHorasAsignadasCurso(c.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined) }}h
+                        / {{ getHorasRequeridas(c, tipoClase) }}h</span>
                     </div>
-                    <mat-progress-bar
-                      mode="determinate"
+                    <mat-progress-bar mode="determinate"
                       [value]="(getHorasAsignadasCurso(c.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined) / getHorasRequeridas(c, tipoClase)) * 100 || 0"
-                      [color]="(getHorasAsignadasCurso(c.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined) >= getHorasRequeridas(c, tipoClase)) ? 'accent' : 'primary'"
-                    ></mat-progress-bar>
+                      [color]="(getHorasAsignadasCurso(c.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined) >= getHorasRequeridas(c, tipoClase)) ? 'accent' : 'primary'">
+                    </mat-progress-bar>
                   </div>
                 </div>
               </div>
@@ -346,7 +449,8 @@
             <div class="step-header">
               <span class="step-number" [class.active]="cursoSeleccionado && !ambienteSeleccionado">2</span>
               <h4>Seleccionar Ambiente</h4>
-              <span class="step-count" *ngIf="ambientesDocente.length > 0">{{ ambientesDocente.length }} disponible(s)</span>
+              <span class="step-count" *ngIf="ambientesDocente.length > 0">{{ ambientesDocente.length }}
+                disponible(s)</span>
             </div>
 
             <div *ngIf="ambientesDocente && ambientesDocente.length > 0">
@@ -359,16 +463,13 @@
               </mat-form-field>
 
               <div class="ambientes-rapidos">
-                <div
-                  class="ambiente-rapido-item"
-                  *ngFor="let a of ambientesFiltrados"
-                  [class.seleccionado]="ambienteSeleccionado?.id === a.id"
-                  (click)="seleccionarAmbienteRapido(a)"
-                >
+                <div class="ambiente-rapido-item" *ngFor="let a of ambientesFiltrados"
+                  [class.seleccionado]="ambienteSeleccionado?.id === a.id" (click)="seleccionarAmbienteRapido(a)">
                   <div class="ambiente-rapido-info">
                     <span class="ambiente-rapido-code">{{ a.codigo }}</span>
                     <span class="ambiente-rapido-name">{{ a.nombre }}</span>
-                    <span class="ambiente-rapido-meta">{{ a.tipo }} · Cap. {{ a.capacidad }} · {{ a.pabellon || 'Sin pabellón' }}</span>
+                    <span class="ambiente-rapido-meta">{{ a.tipo }} · Cap. {{ a.capacidad }} ·
+                      {{ a.pabellon || 'Sin pabellón' }}</span>
                   </div>
                   <mat-icon *ngIf="ambienteSeleccionado?.id === a.id" class="check-icon">check_circle</mat-icon>
                 </div>
@@ -397,30 +498,100 @@
             </div>
 
             <div class="grilla-section">
-              <app-grilla-horarios
-                [ventanaId]="ventanaActiva.id"
-                [ambienteId]="ambienteSeleccionado.id"
-                [sesionId]="sesionId"
-                [docenteId]="docenteActual.id"
-                [cursoId]="cursoSeleccionado.cursoId"
-                [tipoClase]="tipoClase"
-                [periodo]="periodoService.periodo"
+              <app-grilla-horarios [ventanaId]="ventanaActiva.id" [ambienteId]="ambienteSeleccionado.id"
+                [sesionId]="sesionId" [docenteId]="docenteActual.id" [cursoId]="cursoSeleccionado.cursoId"
+                [tipoClase]="tipoClase" [periodo]="periodoService.periodo"
                 [horasRequeridas]="getHorasRequeridas(cursoSeleccionado, tipoClase)"
                 [horasAsignadas]="getHorasAsignadasCurso(cursoSeleccionado.cursoId, tipoClase, (tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined)"
                 [grupoSeleccionado]="(tipoClase === 'LABORATORIO' || tipoClase === 'PRACTICA') ? grupoSeleccionado : undefined"
-                (seleccionCambiada)="cargarHorariosDocente(docenteActual.id)"
-                #grillaRef
-              ></app-grilla-horarios>
+                (seleccionCambiada)="cargarHorariosDocente(docenteActual.id)" #grillaRef></app-grilla-horarios>
             </div>
           </div>
 
           <!-- Confirmar -->
           <div class="confirmar-section" *ngIf="cursoSeleccionado">
-            <button mat-raised-button color="primary" (click)="confirmarHorario()" [disabled]="loading" class="btn-confirmar">
+            <button mat-raised-button color="primary" (click)="confirmarHorario()" [disabled]="loading"
+              class="btn-confirmar">
               <mat-icon>check_circle</mat-icon> Confirmar y guardar horario
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diálogo de Sugerencias de Capacidad -->
+  <div class="dialog-overlay" *ngIf="mostrarSugerencias">
+    <div class="dialog-content">
+      <h2>⚠️ Capacidad Insuficiente</h2>
+      <p class="error-message">{{ errorOriginal.split('\n\n')[0] }}</p>
+
+      <h3>Sugerencias:</h3>
+      <ul class="sugerencias-list">
+        <li *ngFor="let sugerencia of sugerenciasCapacidad; let i = index">
+          <button mat-button
+            (click)="i === 0 ? ajustarIntervalo() : i === 1 ? ajustarDuracion() : obtenerDistribucion()"
+            [class.sugerencia-3]="i === 2">
+            <mat-icon>{{ i === 0 ? 'timer' : i === 1 ? 'schedule' : 'event' }}</mat-icon>
+            {{ sugerencia }}
+          </button>
+        </li>
+      </ul>
+
+      <div class="dialog-actions">
+        <button mat-button (click)="cancelarSugerencias()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diálogo de Distribución Sugerida -->
+  <div class="dialog-overlay" *ngIf="mostrandoDistribucion">
+    <div class="dialog-content distribution-dialog">
+      <h2>Distribución Sugerida</h2>
+
+      <div class="distribution-summary">
+        <div class="summary-item">
+          <span class="label">Docentes estimados:</span>
+          <span class="value">{{ distribucionSugerida?.docentesEstimados }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Capacidad por ventana:</span>
+          <span class="value">{{ distribucionSugerida?.capacidadMaxima }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="label">Ventanas necesarias:</span>
+          <span class="value highlight">{{ distribucionSugerida?.ventanasNecesarias }}</span>
+        </div>
+      </div>
+
+      <h3>Ventanas a crear:</h3>
+      <table class="distribution-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Horario</th>
+            <th>Docentes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let sugerencia of distribucionSugerida?.sugerencias">
+            <td>{{ sugerencia.numero }}</td>
+            <td>{{ sugerencia.fecha }}</td>
+            <td>{{ sugerencia.hora_inicio }} - {{ sugerencia.hora_fin }}</td>
+            <td>{{ sugerencia.docentes_asignados }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="dialog-actions">
+        <button mat-button (click)="cancelarDistribucion()">Cancelar</button>
+        <button mat-raised-button color="primary" (click)="crearVentanasAutomaticamente()"
+          [disabled]="creandoVentanasMultiples">
+          <mat-icon *ngIf="!creandoVentanasMultiples">check_circle</mat-icon>
+          <mat-spinner *ngIf="creandoVentanasMultiples" diameter="20"></mat-spinner>
+          {{ creandoVentanasMultiples ? 'Creando...' : 'Crear Ventanas Automáticamente' }}
+        </button>
       </div>
     </div>
   </div>

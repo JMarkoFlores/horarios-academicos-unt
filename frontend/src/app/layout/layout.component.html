@@ -34,7 +34,7 @@
         class="collapse-btn"
         *ngIf="!isMobile"
         (click)="toggleSidebarCollapsed()"
-        [matTooltip]="sidebarCollapsed ? ('layout.expandMenu' | translate) : ('layout.collapseMenu' | translate)"
+        matTooltip="Cambiar tamaño de menú"
         matTooltipPosition="right"
       >
         <mat-icon class="collapse-icon">{{
@@ -48,7 +48,7 @@
       class="collapse-btn-floating"
       *ngIf="sidebarCollapsed && !isMobile"
       (click)="toggleSidebarCollapsed()"
-      [matTooltip]="'Expandir menú'"
+      matTooltip="Expandir menú"
       matTooltipPosition="right"
     >
       <mat-icon class="collapse-icon">arrow_forward_ios</mat-icon>
@@ -177,8 +177,20 @@
       <div class="topbar-actions">
         <button
           mat-icon-button
+          class="topbar-btn"
+          [routerLink]="['/app/notificaciones']"
+          matTooltip="Notificaciones"
+        >
+          <mat-icon>notifications</mat-icon>
+          <span *ngIf="notificacionesCount > 0" class="notif-badge">
+            {{ notificacionesCount > 9 ? '9+' : notificacionesCount }}
+          </span>
+        </button>
+
+        <button
+          mat-icon-button
+          class="topbar-btn"
           (click)="toggleDarkMode()"
-          class="theme-toggle"
           matTooltip="Cambiar Tema"
         >
           <mat-icon>{{ isDark ? "light_mode" : "dark_mode" }}</mat-icon>
@@ -191,14 +203,15 @@
           class="periodo-field"
           *ngIf="showPeriodoSelector"
         >
+          <mat-label>Período</mat-label>
           <mat-select
-            [value]="periodoService.periodo"
+            [(value)]="selectedPeriodoCodigo"
             (selectionChange)="onPeriodoChange($event)"
           >
             <mat-option
               *ngFor="let p of periodoService.periodos$ | async"
-              [value]="p"
-              >{{ p }}</mat-option
+              [value]="p.codigo"
+            >{{ p.nombre }}</mat-option
             >
           </mat-select>
         </mat-form-field>

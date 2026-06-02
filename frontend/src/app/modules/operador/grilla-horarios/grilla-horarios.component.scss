@@ -1,10 +1,10 @@
 .grilla-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   background: var(--color-surface);
   border-radius: 16px;
-  padding: 24px;
+  padding: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid var(--color-border);
 }
@@ -25,7 +25,7 @@
 .leyenda {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   font-size: 13px;
   padding: 16px;
   background: var(--color-surface-2);
@@ -54,43 +54,40 @@
     display: inline-block;
     width: 16px;
     height: 16px;
-    border-radius: 4px;
+    border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 }
 
 .color-libre {
   background: var(--color-surface);
-  border-color: var(--color-success) !important;
+  border: 2px dashed var(--color-success);
 }
 
 .color-bloqueado {
   background: repeating-linear-gradient(45deg, var(--color-surface-3), var(--color-surface-3) 5px, var(--color-surface) 5px, var(--color-surface) 10px);
-  border-color: var(--color-text-disabled) !important;
 }
 
 .color-confirmado {
   background: var(--color-primary);
-  border-color: var(--color-primary-600) !important;
 }
 
 .color-confirmado-docente {
   background: var(--color-success);
-  border-color: var(--color-success-light) !important;
 }
 
 .color-temporal-otro {
   background: var(--color-warning);
-  border-color: var(--color-warning-light) !important;
 }
 
 .color-temporal-propio {
-  background: var(--color-success);
-  border-color: var(--color-success-light) !important;
+  background: var(--color-accent, #8b5cf6);
 }
 
 .tabla-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 500px;
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -113,30 +110,42 @@
     padding: 14px 10px;
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 1px;
+    font-size: 12px;
+    letter-spacing: 0.5px;
     border-bottom: 2px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
   }
 
   .hora-header, .hora-cell {
     background: var(--color-surface-2);
     font-weight: 700;
     padding: 12px 10px;
-    width: 80px;
+    width: 90px;
     color: var(--color-text);
     border-right: 2px solid var(--color-border);
     font-size: 12px;
+    position: sticky;
+    left: 0;
+    z-index: 10;
+  }
+
+  .hora-header {
+    z-index: 30;
   }
 
   .grilla-celda {
-    height: 48px;
-    width: 75px;
+    height: 50px;
+    width: 80px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    border-radius: 4px;
+    margin: 2px;
 
     &:hover:not(.celda-bloqueada):not(.celda-confirmada):not(.celda-confirmada-docente):not(.celda-temporal-otro) {
-      transform: scale(1.1);
+      transform: scale(1.08);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
       z-index: 10;
     }
@@ -145,18 +154,18 @@
 
 .celda-libre {
   background: var(--color-surface);
-  border: 2px solid var(--color-success-bg);
+  border: 2px dashed var(--color-success);
+
   &:hover {
     background: var(--color-success-light);
     border-color: var(--color-success) !important;
-    transform: scale(1.1);
   }
 }
 
 .celda-bloqueada {
-  background: var(--color-text-disabled);
+  background: repeating-linear-gradient(45deg, var(--color-surface-3), var(--color-surface-3) 5px, var(--color-surface) 5px, var(--color-surface) 10px);
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.6;
   border: 2px solid var(--color-border);
 }
 
@@ -164,7 +173,7 @@
   background: var(--color-primary);
   cursor: not-allowed;
   color: white;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
   border: 2px solid var(--color-primary-700);
 }
 
@@ -172,57 +181,26 @@
   background: var(--color-success);
   cursor: not-allowed;
   color: white;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
   border: 2px solid var(--color-success-700);
 }
 
 .celda-confirmada-multiple {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-700) 100%);
+  background: var(--color-primary);
   cursor: not-allowed;
   color: white;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
   border: 2px solid var(--color-primary-700);
   position: relative;
 }
 
 .celda-confirmada-docente-multiple {
-  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-700) 100%);
+  background: var(--color-success);
   cursor: not-allowed;
   color: white;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
   border: 2px solid var(--color-success-700);
   position: relative;
-}
-
-.ocupaciones-multiples {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 2px;
-  height: 100%;
-  justify-content: center;
-}
-
-.ocupacion-block {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-
-  &.ocupacion-propia {
-    background: rgba(76, 175, 80, 0.4);
-    border-color: rgba(76, 175, 80, 0.6);
-  }
-}
-
-.ocupacion-indice {
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .bloques-container {
@@ -238,59 +216,29 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  background: var(--color-success);
-  border: 2px solid var(--color-success-600);
+  background: rgba(255, 255, 255, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 24px;
+  min-height: 28px;
   flex-shrink: 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
   &:hover {
-    background: rgba(76, 175, 80, 0.7);
+    background: rgba(255, 255, 255, 0.6);
     transform: scale(1.03);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
 
   &.bloque-propio {
-    background: rgba(76, 175, 80, 0.8);
-    border-color: rgba(76, 175, 80, 1);
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.8);
     box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
 
     &:hover {
-      background: rgba(76, 175, 80, 0.9);
+      background: rgba(255, 255, 255, 0.8);
       box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
     }
-  }
-}
-
-.celda-temporal-propio .bloques-container .bloque-item,
-.celda-temporal-propio-multiple .bloques-container .bloque-item {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
-
-  &.bloque-propio {
-    background: rgba(255, 255, 255, 0.5);
-    border-color: rgba(255, 255, 255, 0.7);
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.6);
-  }
-}
-
-.celda-confirmado-multiple .bloques-container .bloque-item,
-.celda-confirmado-docente-multiple .bloques-container .bloque-item {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
-
-  &.bloque-propio {
-    background: rgba(76, 175, 80, 0.4);
-    border-color: rgba(76, 175, 80, 0.6);
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.4);
   }
 }
 
@@ -303,63 +251,80 @@
 }
 
 .celda-temporal-propio {
-  background: #4caf50;
+  background: var(--color-accent, #8b5cf6);
   color: white;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-  border: 2px solid #2e7d32;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  border: 2px solid #7c3aed;
 
   &:hover {
-    background: #43a047;
-    transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+    background: #7c3aed;
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
   }
 }
 
 .celda-temporal-propio-multiple {
-  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+  background: var(--color-accent, #8b5cf6);
   color: white;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-  border: 2px solid #1b5e20;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  border: 2px solid #6d28d9;
   position: relative;
 
   &:hover {
-    background: linear-gradient(135deg, #43a047 0%, #388e3c 100%);
-    transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(76, 175, 80, 0.5);
+    background: #7c3aed;
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
   }
 }
 
-.celda-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
+/* Scrollbar styling for better aesthetics */
+.tabla-wrapper::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-.celda-curso {
-  font-size: 9px;
-  font-weight: 600;
-  display: block;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  line-height: 1.1;
+.tabla-wrapper::-webkit-scrollbar-track {
+  background: var(--color-surface-2);
+  border-radius: 8px;
 }
 
-.celda-docente {
-  font-size: 10px;
-  font-weight: 600;
-  display: block;
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+.tabla-wrapper::-webkit-scrollbar-thumb {
+  background: var(--color-primary-300);
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.tabla-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-500);
+}
+
+@media (max-width: 768px) {
+  .grilla-container {
+    padding: 12px;
+  }
+
+  .leyenda {
+    gap: 6px;
+    padding: 12px;
+
+    .leyenda-item {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+  }
+
+  .tabla-wrapper {
+    max-height: 400px;
+  }
+
+  .grilla-tabla {
+    .grilla-celda {
+      width: 70px;
+      height: 44px;
+    }
+
+    .hora-header, .hora-cell {
+      width: 75px;
+    }
+  }
 }

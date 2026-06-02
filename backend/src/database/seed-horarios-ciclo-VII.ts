@@ -161,9 +161,9 @@ async function seedHorariosCicloVII() {
     { docente: "César Arellano Salazar", curso: "Redes y Comunicaciones I", dia: "Viernes", horas: "16:00-17:00", tipo: "Teoría", ambiente: "posgrado A-311", grupo: 1 },
     { docente: "César Arellano Salazar", curso: "Redes y Comunicaciones I", dia: "Viernes", horas: "17:00-18:00", tipo: "Práctica", ambiente: "posgrado A-311", grupo: 1 },
     
-    // 3. Robert Jerry Sánchez Ticona - Ingeniería de Software I (T:-, P:-, L:2, G:3)
-    { docente: "Robert Jerry Sánchez Ticona", curso: "Ingeniería de Software I", dia: "Lunes", horas: "07:00-10:00", tipo: "Laboratorio", ambiente: "Lab1", grupo: 2 },
-    { docente: "Robert Jerry Sánchez Ticona", curso: "Ingeniería de Software I", dia: "Lunes", horas: "10:00-13:00", tipo: "Laboratorio", ambiente: "Lab1", grupo: 3 },
+    // 3. Robert Jerry Sánchez Ticona - Ingeniería de Software I (T:-, P:-, L:3, G:2)
+    { docente: "Robert Jerry Sánchez Ticona", curso: "Ingeniería de Software I", dia: "Lunes", horas: "07:00-10:00", tipo: "Laboratorio", ambiente: "Lab1", grupo: 1 },
+    { docente: "Robert Jerry Sánchez Ticona", curso: "Ingeniería de Software I", dia: "Lunes", horas: "10:00-13:00", tipo: "Laboratorio", ambiente: "Lab1", grupo: 2 },
     
     // 4. Everson David Agreda Gamboa - Negocios Electrónicos (e ) (T:2, P:0, L:0, G:0)
     { docente: "Everson David Agreda Gamboa", curso: "Negocios Electrónicos (e )", dia: "Martes", horas: "16:00-18:00", tipo: "Teoría", ambiente: "posgrado A-311", grupo: 1 },

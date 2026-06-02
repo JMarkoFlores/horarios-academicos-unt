@@ -6,6 +6,8 @@ import {
   ParseIntPipe,
   Res,
   UseGuards,
+  BadRequestException,
+  NotFoundException,
 } from "@nestjs/common";
 import { Response } from "express";
 import {
@@ -17,13 +19,20 @@ import {
 } from "@nestjs/swagger";
 import { ReportesService } from "./reportes.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { Usuario } from "../entities/usuario.entity";
 
 @ApiTags("reportes")
 @Controller("reportes")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth("JWT")
 export class ReportesController {
-  constructor(private readonly reportesService: ReportesService) {}
+  constructor(
+    private readonly reportesService: ReportesService,
+  ) {}
 
   @Get("docente/:id/pdf")
   @ApiOperation({ summary: "PDF del horario de un docente" })
@@ -307,6 +316,66 @@ export class ReportesController {
     res.set({
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename=horarios-todos-ciclos-${periodo}.xlsx`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("mi-horario/pdf")
+  @ApiOperation({ summary: "PDF del horario propio del docente autenticado" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @Roles(RolUsuario.DOCENTE)
+  async miHorarioPDF(
+    @CurrentUser() usuario: Usuario,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    if (!usuario.email) {
+      throw new BadRequestException("Usuario sin correo electrónico");
+    }
+
+    const docenteId = await this.reportesService.obtenerDocenteIdPorEmail(usuario.email);
+    if (!docenteId) {
+      throw new NotFoundException("Docente no encontrado");
+    }
+
+    const buffer = await this.reportesService.generarReporteDocentePDF(
+      docenteId,
+      periodo,
+    );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=horario-docente-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("mi-horario/excel")
+  @ApiOperation({ summary: "Excel del horario propio del docente autenticado" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @Roles(RolUsuario.DOCENTE)
+  async miHorarioExcel(
+    @CurrentUser() usuario: Usuario,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    if (!usuario.email) {
+      throw new BadRequestException("Usuario sin correo electrónico");
+    }
+
+    const docenteId = await this.reportesService.obtenerDocenteIdPorEmail(usuario.email);
+    if (!docenteId) {
+      throw new NotFoundException("Docente no encontrado");
+    }
+
+    const buffer = await this.reportesService.generarReporteDocenteExcel(
+      docenteId,
+      periodo,
+    );
+    res.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename=horario-docente-${periodo}.xlsx`,
       "Content-Length": buffer.length,
     });
     res.end(buffer);

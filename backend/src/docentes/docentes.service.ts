@@ -720,24 +720,10 @@ export class DocentesService {
     });
     
     console.log('[findAmbientesCompatibles] cursoAmbienteRelations:', cursoAmbienteRelations.length, 'items');
-    let ambientes = cursoAmbienteRelations.map((ca) => ca.ambiente);
-    console.log('[findAmbientesCompatibles] ambientes before filter:', ambientes.map(a => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })));
+    const ambientes = cursoAmbienteRelations.map((ca) => ca.ambiente);
+    console.log('[findAmbientesCompatibles] ambientes:', ambientes.map(a => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })));
 
-    // Filtrar ambientes según tipo de clase
-    if (tipoClase === 'LABORATORIO') {
-      ambientes = ambientes.filter(a => a.tipo === TipoAmbiente.LABORATORIO);
-    } else if (tipoClase === 'TEORIA' || tipoClase === 'PRACTICA') {
-      ambientes = ambientes.filter(a => 
-        a.tipo === TipoAmbiente.AULA || 
-        a.tipo === TipoAmbiente.TALLER || 
-        a.tipo === TipoAmbiente.SEMINARIO || 
-        a.tipo === TipoAmbiente.SALA_COMPUTACION || 
-        a.tipo === TipoAmbiente.AUDITORIO
-      );
-    }
-    
-    console.log('[findAmbientesCompatibles] ambientes after filter:', ambientes.map(a => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })));
-
+    // Ya no filtramos por tipo de clase porque hay casos donde laboratorios se dan en aulas
     return ambientes;
   }
 

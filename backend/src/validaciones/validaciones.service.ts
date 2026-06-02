@@ -75,16 +75,53 @@ export class ValidacionesService {
     periodoId: number | string,
     excludeHorarioId?: number,
   ): Promise<ResultadoValidacion> {
-    return this.verificarCruce(
-      "grupo_id",
-      grupoId,
-      dia,
-      horaInicio,
-      horaFin,
-      periodoId,
-      excludeHorarioId,
-      "El grupo ya tiene otro horario asignado en ese intervalo.",
-    );
+    // Primero obtenemos el ciclo del grupo que estamos intentando asignar
+    const grupo = await this.horarioRepo.manager
+      .getRepository("Grupo")
+      .findOne({ where: { id: grupoId } });
+
+    if (!grupo) {
+      return {
+        valido: false,
+        motivo: "El grupo no existe.",
+      };
+    }
+
+    const periodoCodigo = await this.resolverPeriodoCodigo(periodoId);
+
+    if (!periodoCodigo) {
+      return {
+        valido: false,
+        motivo: "El período académico indicado no existe.",
+      };
+    }
+
+    if (this.aMinutos(horaInicio) >= this.aMinutos(horaFin)) {
+      return {
+        valido: false,
+        motivo: "La hora de inicio debe ser menor que la hora de fin.",
+      };
+    }
+
+    // Consulta: solo buscamos horarios de grupos en el MISMO ciclo
+    const qb = this.horarioRepo
+      .createQueryBuilder("h")
+      .innerJoin("h.grupo", "grupo")
+      .where("grupo.ciclo = :ciclo", { ciclo: grupo.ciclo })
+      .andWhere("h.dia = :dia", { dia })
+      .andWhere("h.periodo = :periodoCodigo", { periodoCodigo })
+      .andWhere("h.hora_inicio < CAST(:horaFin AS TIME)", { horaFin })
+      .andWhere("h.hora_fin > CAST(:horaInicio AS TIME)", { horaInicio });
+
+    if (excludeHorarioId !== undefined) {
+      qb.andWhere("h.id != :excludeHorarioId", { excludeHorarioId });
+    }
+
+    const existeCruce = (await qb.getCount()) > 0;
+
+    return existeCruce
+      ? { valido: false, motivo: "El grupo ya tiene otro horario asignado en ese intervalo." }
+      : { valido: true };
   }
 
   async verificarDisponibilidadDocente(

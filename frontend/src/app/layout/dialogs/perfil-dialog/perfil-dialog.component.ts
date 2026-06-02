@@ -13,7 +13,7 @@ const ROL_LABELS: Record<string, string> = {
   administradorsistema: 'Administrador del Sistema',
   directorescuela: 'Director de Escuela',
   coordinadoracademico: 'Coordinador Académico',
-  operadorhorarios: 'Operador de Horarios',
+  secretaria: 'Secretaria',
   docente: 'Docente',
   visualizador: 'Visualizador',
 };

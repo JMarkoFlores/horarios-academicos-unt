@@ -137,6 +137,49 @@ export interface VentanaAtencion {
   hora_fin: string;
   intervalo_minutos: number;
   estado: string;
+  campaña_id?: string;
+  campaña?: CampañaVentanas;
+  total_docentes?: number;
+}
+
+export interface CampañaVentanas {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  periodo_id: number;
+  periodo?: PeriodoAcademico;
+  estado: string; // EstadoCampaña enum
+  fecha_inicio: string;
+  fecha_fin: string;
+  dias_habilitados: string[];
+  bloques_horarios: Array<{
+    nombre: string;
+    hora_inicio: string;
+    hora_fin: string;
+  }>;
+  duracion_turno_minutos: number;
+  buffer_minutos: number;
+  cupos_maximos_ventana: number;
+  porcentaje_reserva: number;
+  reglas_prioridad: Array<{
+    campo: string;
+    orden: 'ASC' | 'DESC';
+  }>;
+  excluir_feriados: boolean;
+  excluir_eventos: boolean;
+  distribucion_equitativa: boolean;
+  total_ventanas_generadas: number;
+  total_docentes_asignados: number;
+  total_docentes_atendidos: number;
+  total_ausencias: number;
+  tiempo_promedio_atencion: number;
+  creado_por_id?: number;
+  actualizado_por_id?: number;
+  fecha_creacion: string;
+  fecha_actualizacion: string;
+  fecha_publicacion?: string;
+  fecha_cierre?: string;
+  ventanas?: VentanaAtencion[];
 }
 
 export interface CeldaSeleccionada {

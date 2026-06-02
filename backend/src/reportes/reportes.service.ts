@@ -35,6 +35,11 @@ export class ReportesService {
     private readonly configuracionService: ConfiguracionService,
   ) {}
 
+  async obtenerDocenteIdPorEmail(email: string): Promise<number | null> {
+    const docente = await this.docenteRepo.findOne({ where: { email } });
+    return docente?.id ?? null;
+  }
+
   private async getBase64Image(url: string): Promise<string | null> {
     return new Promise((resolve) => {
       https
@@ -206,8 +211,8 @@ export class ReportesService {
       if (!resumenMap.has(key)) {
         resumenMap.set(key, { curso: h.curso, tipo: h.tipo_clase, horas: 0, grupo: h.grupo?.codigo, ambiente: h.ambiente?.codigo });
       }
-      const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
-      const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+      const hIni = this.horaToDecimal(h.hora_inicio);
+      const hFin = this.horaToDecimal(h.hora_fin);
       resumenMap.get(key).horas += (hFin - hIni);
     });
 
@@ -292,19 +297,19 @@ export class ReportesService {
     bloquesPorDia.forEach((asigs, dia) => {
       const diaIdx = dia - 1;
       const sortedAsigs = [...asigs].sort((a, b) => {
-        const hA = parseInt(a.hora_inicio.split(':')[0], 10);
-        const hB = parseInt(b.hora_inicio.split(':')[0], 10);
+        const hA = this.horaToDecimal(a.hora_inicio);
+        const hB = this.horaToDecimal(b.hora_inicio);
         return hA - hB;
       });
 
       const carriles: HorarioAsignado[][] = [];
       sortedAsigs.forEach(asig => {
-        const hIni = parseInt(asig.hora_inicio.split(':')[0], 10);
+        const hIni = this.horaToDecimal(asig.hora_inicio);
         let carrilIndex = -1;
         for (let i = 0; i < carriles.length; i++) {
           const ultimo = carriles[i][carriles[i].length - 1];
-          const hFinUltimo = parseInt(ultimo.hora_fin.split(':')[0], 10);
-          if (hFinUltimo === hIni && ultimo.curso?.id === asig.curso?.id) {
+          const hFinUltimo = this.horaToDecimal(ultimo.hora_fin);
+          if (Math.abs(hFinUltimo - hIni) < 0.01 && ultimo.curso?.id === asig.curso?.id) {
             carrilIndex = i;
             break;
           }
@@ -312,7 +317,7 @@ export class ReportesService {
         if (carrilIndex === -1) {
           for (let i = 0; i < carriles.length; i++) {
             const ultimo = carriles[i][carriles[i].length - 1];
-            if (parseInt(ultimo.hora_fin.split(':')[0], 10) <= hIni) {
+            if (this.horaToDecimal(ultimo.hora_fin) <= hIni) {
               carrilIndex = i;
               break;
             }
@@ -325,22 +330,35 @@ export class ReportesService {
       carriles.forEach((bloquesEnCarril, carrilIdx) => {
         const fusionados: any[] = [];
         bloquesEnCarril.forEach(h => {
-          const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
-          const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+          const hIni = this.horaToDecimal(h.hora_inicio);
+          const hFin = this.horaToDecimal(h.hora_fin);
           const dur = hFin - hIni;
-          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${dur}T` : 
-                           h.tipo_clase === TipoClase.PRACTICA ? `${dur}P` : 
-                           `${dur}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${this.formatDurationValue(dur)}T` : 
+                           h.tipo_clase === TipoClase.PRACTICA ? `${this.formatDurationValue(dur)}P` : 
+                           `${this.formatDurationValue(dur)}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
 
           if (fusionados.length > 0) {
             const ultimo = fusionados[fusionados.length - 1];
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
+            const mismoCurso = ultimo.asignacion.curso?.id === h.curso?.id;
+            const mismaReglaGrupo = h.tipo_clase === TipoClase.LABORATORIO
+              ? ultimo.asignacion.grupo?.id === h.grupo?.id
+              : true;
             const esTP = (ultimo.asignacion.tipo_clase === TipoClase.TEORIA && h.tipo_clase === TipoClase.PRACTICA) ||
                          (ultimo.asignacion.tipo_clase === TipoClase.PRACTICA && h.tipo_clase === TipoClase.TEORIA);
-            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
-            if (esTP && mismoAmbiente && ultimo.asignacion.curso?.id === h.curso?.id && ultimo.horaFin === hIni) {
+            const mismoTipoTP = ultimo.asignacion.tipo_clase === h.tipo_clase &&
+                                (h.tipo_clase === TipoClase.TEORIA || h.tipo_clase === TipoClase.PRACTICA);
+            const mismoLaboratorio = ultimo.asignacion.tipo_clase === TipoClase.LABORATORIO &&
+                                     h.tipo_clase === TipoClase.LABORATORIO &&
+                                     mismaReglaGrupo;
+
+            if (mismoCurso && mismoAmbiente && Math.abs(ultimo.horaFin - hIni) < 0.01 &&
+                (esTP || mismoTipoTP || mismoLaboratorio)) {
               ultimo.horaFin = hFin;
               ultimo.totalHoraFin = h.hora_fin;
-              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
+              ultimo.asignaciones.push(h);
+              ultimo.tiposClase.push(h.tipo_clase);
+              ultimo.label = this.construirLabelBloque(ultimo.asignaciones);
               return;
             }
           }
@@ -351,6 +369,8 @@ export class ReportesService {
             totalHoraInicio: h.hora_inicio,
             totalHoraFin: h.hora_fin,
             asignacion: h,
+            asignaciones: [h],
+            tiposClase: [h.tipo_clase],
             carrilIdx,
             numCarriles: carriles.length,
             label: (h.curso?.nombre || '') + ` (${labelPart})`
@@ -392,7 +412,7 @@ export class ReportesService {
     return Buffer.from(doc.output('arraybuffer'));
   }
 
-  async generarReporteDiaPDF(dia: number, periodo: string): Promise<Buffer> {
+  async generarReporteDiaPDF(dia: number, periodo: string, ciclo?: number, tipo?: string, search?: string): Promise<Buffer> {
     const config = await this.configuracionService.getConfiguracionGeneral();
     const logoUrl =
       config?.logo_url ||
@@ -408,7 +428,7 @@ export class ReportesService {
     };
     const primaryRGB = hexToRgb(primaryColor);
 
-    const horarios = await this.horarioRepo
+    let queryBuilder = this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.docente", "docente")
       .leftJoinAndSelect("docente.departamento", "departamento")
@@ -416,7 +436,25 @@ export class ReportesService {
       .leftJoinAndSelect("horario.ambiente", "ambiente")
       .leftJoinAndSelect("horario.grupo", "grupo")
       .where("horario.dia = :dia", { dia })
-      .andWhere("horario.periodo = :periodo", { periodo })
+      .andWhere("horario.periodo = :periodo", { periodo });
+
+    if (ciclo) {
+      queryBuilder = queryBuilder.andWhere("curso.ciclo = :ciclo", { ciclo });
+    }
+
+    if (tipo) {
+      queryBuilder = queryBuilder.andWhere("horario.tipo_clase = :tipo", { tipo });
+    }
+
+    if (search) {
+      const searchLower = `%${search.toLowerCase()}%`;
+      queryBuilder = queryBuilder.andWhere(
+        "(LOWER(docente.apellidos) LIKE :search OR LOWER(docente.nombres) LIKE :search OR LOWER(curso.nombre) LIKE :search OR LOWER(ambiente.nombre) LIKE :search OR LOWER(grupo.codigo) LIKE :search)",
+        { search: searchLower }
+      );
+    }
+
+    const horarios = await queryBuilder
       .orderBy("horario.hora_inicio", "ASC")
       .getMany();
 
@@ -601,6 +639,31 @@ export class ReportesService {
     return colors[index];
   }
 
+  private horaToDecimal(hora?: string): number {
+    if (!hora) return 0;
+    const [h, m] = hora.split(':').map(Number);
+    return h + ((m || 0) / 60);
+  }
+
+  private formatDurationValue(duration: number): string {
+    if (Number.isInteger(duration)) return String(duration);
+    return duration.toFixed(2).replace(/\.0+$/, '').replace(/(\.\d)0$/, '$1');
+  }
+
+  private construirLabelBloque(asignaciones: HorarioAsignado[]): string {
+    const cursoNombre = asignaciones[0]?.curso?.nombre || '';
+    const duraciones: Record<string, number> = {};
+    asignaciones.forEach(a => {
+      const dur = this.horaToDecimal(a.hora_fin) - this.horaToDecimal(a.hora_inicio);
+      const key = a.tipo_clase === TipoClase.LABORATORIO
+        ? `L-G${a.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`
+        : a.tipo_clase === TipoClase.TEORIA ? 'T' : 'P';
+      duraciones[key] = (duraciones[key] ?? 0) + dur;
+    });
+    const partes = Object.entries(duraciones).map(([key, dur]) => `${this.formatDurationValue(dur)}${key}`);
+    return `${cursoNombre} (${partes.join('+')})`;
+  }
+
   private async dibujarPaginaAmbiente(doc: jsPDF, ambienteId: number, periodo: string, logoBase64: string | null, primaryRGB: [number, number, number]): Promise<void> {
     const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
     if (!ambiente) return;
@@ -652,8 +715,8 @@ export class ReportesService {
       if (!resumenMap.has(key)) {
         resumenMap.set(key, { curso: h.curso, docente: h.docente, horas: 0 });
       }
-      const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
-      const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+      const hIni = this.horaToDecimal(h.hora_inicio);
+      const hFin = this.horaToDecimal(h.hora_fin);
       resumenMap.get(key).horas += (hFin - hIni);
     });
 
@@ -719,19 +782,19 @@ export class ReportesService {
     bloquesPorDia.forEach((asigs, dia) => {
       const diaIdx = dia - 1;
       const sortedAsigs = [...asigs].sort((a, b) => {
-        const hA = parseInt(a.hora_inicio.split(':')[0], 10);
-        const hB = parseInt(b.hora_inicio.split(':')[0], 10);
+        const hA = this.horaToDecimal(a.hora_inicio);
+        const hB = this.horaToDecimal(b.hora_inicio);
         return hA - hB;
       });
 
       const carriles: HorarioAsignado[][] = [];
       sortedAsigs.forEach(asig => {
-        const hIni = parseInt(asig.hora_inicio.split(':')[0], 10);
+        const hIni = this.horaToDecimal(asig.hora_inicio);
         let carrilIndex = -1;
         for (let i = 0; i < carriles.length; i++) {
           const ultimo = carriles[i][carriles[i].length - 1];
-          const hFinUltimo = parseInt(ultimo.hora_fin.split(':')[0], 10);
-          if (hFinUltimo === hIni && ultimo.curso?.id === asig.curso?.id && ultimo.docente?.id === asig.docente?.id) {
+          const hFinUltimo = this.horaToDecimal(ultimo.hora_fin);
+          if (Math.abs(hFinUltimo - hIni) < 0.01 && ultimo.curso?.id === asig.curso?.id && ultimo.docente?.id === asig.docente?.id) {
             carrilIndex = i;
             break;
           }
@@ -739,7 +802,7 @@ export class ReportesService {
         if (carrilIndex === -1) {
           for (let i = 0; i < carriles.length; i++) {
             const ultimo = carriles[i][carriles[i].length - 1];
-            if (parseInt(ultimo.hora_fin.split(':')[0], 10) <= hIni) {
+            if (this.horaToDecimal(ultimo.hora_fin) <= hIni) {
               carrilIndex = i;
               break;
             }
@@ -749,24 +812,69 @@ export class ReportesService {
         else carriles[carrilIndex].push(asig);
       });
 
+      const todosLosBloquesDelDia: any[] = [];
+      carriles.forEach((bloquesEnCarril, carrilIdx) => {
+        bloquesEnCarril.forEach(asig => {
+          todosLosBloquesDelDia.push({
+            asig,
+            carrilIdx,
+            hIni: this.horaToDecimal(asig.hora_inicio),
+            hFin: this.horaToDecimal(asig.hora_fin)
+          });
+        });
+      });
+
       carriles.forEach((bloquesEnCarril, carrilIdx) => {
         const fusionados: any[] = [];
         bloquesEnCarril.forEach(h => {
-          const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
-          const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+          const hIni = this.horaToDecimal(h.hora_inicio);
+          const hFin = this.horaToDecimal(h.hora_fin);
           const dur = hFin - hIni;
-          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${dur}T` : 
-                           h.tipo_clase === TipoClase.PRACTICA ? `${dur}P` : 
-                           `${dur}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${this.formatDurationValue(dur)}T` : 
+                           h.tipo_clase === TipoClase.PRACTICA ? `${this.formatDurationValue(dur)}P` : 
+                           `${this.formatDurationValue(dur)}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+
+          // Calcular el número máximo de carriles ocupados durante este bloque específico
+          let maxCarrilIdxEnIntervalo = 0;
+          todosLosBloquesDelDia.forEach(otro => {
+            if (hIni < otro.hFin && otro.hIni < hFin) {
+              if (otro.carrilIdx > maxCarrilIdxEnIntervalo) {
+                maxCarrilIdxEnIntervalo = otro.carrilIdx;
+              }
+            }
+          });
+          
+          const numCarrilesLocales = maxCarrilIdxEnIntervalo + 1;
+          const widthPorBloqueLocal = (cellWidth - 1) / numCarrilesLocales;
 
           if (fusionados.length > 0) {
             const ultimo = fusionados[fusionados.length - 1];
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
+            const mismoCurso = ultimo.asignacion.curso?.id === h.curso?.id;
+            const mismaReglaGrupo = h.tipo_clase === TipoClase.LABORATORIO
+              ? ultimo.asignacion.grupo?.id === h.grupo?.id
+              : true;
             const esTP = (ultimo.asignacion.tipo_clase === TipoClase.TEORIA && h.tipo_clase === TipoClase.PRACTICA) ||
                          (ultimo.asignacion.tipo_clase === TipoClase.PRACTICA && h.tipo_clase === TipoClase.TEORIA);
-            if (esTP && ultimo.asignacion.curso?.id === h.curso?.id && ultimo.asignacion.docente?.id === h.docente?.id && ultimo.horaFin === hIni) {
+            const mismoTipoTP = ultimo.asignacion.tipo_clase === h.tipo_clase &&
+                                (h.tipo_clase === TipoClase.TEORIA || h.tipo_clase === TipoClase.PRACTICA);
+            const mismoLaboratorio = ultimo.asignacion.tipo_clase === TipoClase.LABORATORIO &&
+                                     h.tipo_clase === TipoClase.LABORATORIO &&
+                                     mismaReglaGrupo;
+
+            if (mismoCurso && mismoAmbiente && Math.abs(ultimo.horaFin - hIni) < 0.01 &&
+                (esTP || mismoTipoTP || mismoLaboratorio)) {
               ultimo.horaFin = hFin;
               ultimo.totalHoraFin = h.hora_fin;
-              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
+              ultimo.asignaciones.push(h);
+              ultimo.tiposClase.push(h.tipo_clase);
+              ultimo.label = this.construirLabelBloque(ultimo.asignaciones);
+              
+              // Actualizar el ancho y posición si el nuevo bloque fusionado tiene más colisiones
+              if (numCarrilesLocales > Math.round((cellWidth - 1) / ultimo.width)) {
+                ultimo.width = (cellWidth - 1) / numCarrilesLocales;
+                ultimo.left = carrilIdx * ultimo.width;
+              }
               return;
             }
           }
@@ -777,8 +885,10 @@ export class ReportesService {
             totalHoraInicio: h.hora_inicio,
             totalHoraFin: h.hora_fin,
             asignacion: h,
-            carrilIdx,
-            numCarriles: carriles.length,
+            asignaciones: [h],
+            tiposClase: [h.tipo_clase],
+            left: carrilIdx * widthPorBloqueLocal,
+            width: widthPorBloqueLocal,
             label: (h.curso?.nombre || '') + ` (${labelPart})`
           });
         });
@@ -1713,8 +1823,8 @@ export class ReportesService {
       
       // Ordenar bloques por hora de inicio
       const bloquesOrdenados = [...bloques].sort((a, b) => {
-        const hIniA = parseInt(a.hora_inicio.split(':')[0], 10);
-        const hIniB = parseInt(b.hora_inicio.split(':')[0], 10);
+        const hIniA = this.horaToDecimal(a.hora_inicio);
+        const hIniB = this.horaToDecimal(b.hora_inicio);
         if (hIniA !== hIniB) return hIniA - hIniB;
         return a.id - b.id;
       });
@@ -1723,7 +1833,7 @@ export class ReportesService {
       const carriles: any[][] = [];
       
       bloquesOrdenados.forEach(bloque => {
-        const hIni = parseInt(bloque.hora_inicio.split(':')[0], 10);
+        const hIni = this.horaToDecimal(bloque.hora_inicio);
         
         // Buscar primer carril libre
         let carrilIndex = -1;
@@ -1731,8 +1841,8 @@ export class ReportesService {
         // 1. Prioridad: Mismo curso consecutivo
         for (let i = 0; i < carriles.length; i++) {
           const ultimoBloque = carriles[i][carriles[i].length - 1];
-          const hFinUltimo = parseInt(ultimoBloque.hora_fin.split(':')[0], 10);
-          if (hFinUltimo === hIni && ultimoBloque.curso?.id === bloque.curso?.id) {
+          const hFinUltimo = this.horaToDecimal(ultimoBloque.hora_fin);
+          if (Math.abs(hFinUltimo - hIni) < 0.01 && ultimoBloque.curso?.id === bloque.curso?.id) {
             carrilIndex = i;
             break;
           }
@@ -1742,7 +1852,7 @@ export class ReportesService {
         if (carrilIndex === -1) {
           for (let i = 0; i < carriles.length; i++) {
             const ultimoBloque = carriles[i][carriles[i].length - 1];
-            const hFinUltimo = parseInt(ultimoBloque.hora_fin.split(':')[0], 10);
+            const hFinUltimo = this.horaToDecimal(ultimoBloque.hora_fin);
             if (hFinUltimo <= hIni) {
               carrilIndex = i;
               break;
@@ -1766,8 +1876,8 @@ export class ReportesService {
           todosLosBloquesDelDia.push({
             asig,
             carrilIdx,
-            hIni: parseInt(asig.hora_inicio.split(':')[0], 10),
-            hFin: parseInt(asig.hora_fin.split(':')[0], 10)
+            hIni: this.horaToDecimal(asig.hora_inicio),
+            hFin: this.horaToDecimal(asig.hora_fin)
           });
         });
       });
@@ -1775,12 +1885,12 @@ export class ReportesService {
       carriles.forEach((bloquesEnCarril, carrilIdx) => {
         const fusionados: any[] = [];
         bloquesEnCarril.forEach(h => {
-          const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
-          const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+          const hIni = this.horaToDecimal(h.hora_inicio);
+          const hFin = this.horaToDecimal(h.hora_fin);
           const dur = hFin - hIni;
-          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${dur}T` : 
-                           h.tipo_clase === TipoClase.PRACTICA ? `${dur}P` : 
-                           `${dur}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${this.formatDurationValue(dur)}T` : 
+                           h.tipo_clase === TipoClase.PRACTICA ? `${this.formatDurationValue(dur)}P` : 
+                           `${this.formatDurationValue(dur)}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
 
           // Calcular el número máximo de carriles ocupados durante este bloque específico
           let maxCarrilIdxEnIntervalo = 0;
@@ -1797,15 +1907,26 @@ export class ReportesService {
 
           if (fusionados.length > 0) {
             const ultimo = fusionados[fusionados.length - 1];
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
+            const mismoCurso = ultimo.asignacion.curso?.id === h.curso?.id;
+            const mismaReglaGrupo = h.tipo_clase === TipoClase.LABORATORIO
+              ? ultimo.asignacion.grupo?.id === h.grupo?.id
+              : true;
             const esTP = (ultimo.asignacion.tipo_clase === TipoClase.TEORIA && h.tipo_clase === TipoClase.PRACTICA) ||
                          (ultimo.asignacion.tipo_clase === TipoClase.PRACTICA && h.tipo_clase === TipoClase.TEORIA);
-            
-            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
+            const mismoTipoTP = ultimo.asignacion.tipo_clase === h.tipo_clase &&
+                                (h.tipo_clase === TipoClase.TEORIA || h.tipo_clase === TipoClase.PRACTICA);
+            const mismoLaboratorio = ultimo.asignacion.tipo_clase === TipoClase.LABORATORIO &&
+                                     h.tipo_clase === TipoClase.LABORATORIO &&
+                                     mismaReglaGrupo;
 
-            if (esTP && mismoAmbiente && ultimo.asignacion.curso?.id === h.curso?.id && ultimo.horaFin === hIni) {
+            if (mismoCurso && mismoAmbiente && Math.abs(ultimo.horaFin - hIni) < 0.01 &&
+                (esTP || mismoTipoTP || mismoLaboratorio)) {
               ultimo.horaFin = hFin;
               ultimo.totalHoraFin = h.hora_fin;
-              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
+              ultimo.asignaciones.push(h);
+              ultimo.tiposClase.push(h.tipo_clase);
+              ultimo.label = this.construirLabelBloque(ultimo.asignaciones);
               
               // Actualizar el ancho y posición si el nuevo bloque fusionado tiene más colisiones
               if (numCarrilesLocales > Math.round((cellWidth - 1) / ultimo.width)) {
@@ -1823,6 +1944,8 @@ export class ReportesService {
             totalHoraInicio: h.hora_inicio,
             totalHoraFin: h.hora_fin,
             asignacion: h,
+            asignaciones: [h],
+            tiposClase: [h.tipo_clase],
             left: carrilIdx * widthPorBloqueLocal,
             width: widthPorBloqueLocal,
             label: (h.curso?.nombre || '') + ` (${labelPart})`
@@ -2180,21 +2303,33 @@ export class ReportesService {
       carriles.forEach((bloquesEnCarril, carrilIdx) => {
         const fusionados: any[] = [];
         bloquesEnCarril.forEach(h => {
-          const hIni = parseInt(h.hora_inicio.split(':')[0], 10);
-          const hFin = parseInt(h.hora_fin.split(':')[0], 10);
+          const hIni = this.horaToDecimal(h.hora_inicio);
+          const hFin = this.horaToDecimal(h.hora_fin);
           const dur = hFin - hIni;
-          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${dur}T` : 
-                           h.tipo_clase === TipoClase.PRACTICA ? `${dur}P` : 
-                           `${dur}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
+          const labelPart = h.tipo_clase === TipoClase.TEORIA ? `${this.formatDurationValue(dur)}T` : 
+                           h.tipo_clase === TipoClase.PRACTICA ? `${this.formatDurationValue(dur)}P` : 
+                           `${this.formatDurationValue(dur)}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ''}`;
 
           if (fusionados.length > 0) {
             const ultimo = fusionados[fusionados.length - 1];
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
+            const mismoCurso = ultimo.asignacion.curso?.id === h.curso?.id;
+            const mismaReglaGrupo = h.tipo_clase === TipoClase.LABORATORIO
+              ? ultimo.asignacion.grupo?.id === h.grupo?.id
+              : true;
             const esTP = (ultimo.asignacion.tipo_clase === TipoClase.TEORIA && h.tipo_clase === TipoClase.PRACTICA) ||
                          (ultimo.asignacion.tipo_clase === TipoClase.PRACTICA && h.tipo_clase === TipoClase.TEORIA);
-            const mismoAmbiente = ultimo.asignacion.ambiente?.id === h.ambiente?.id;
-            if (esTP && mismoAmbiente && ultimo.asignacion.curso?.id === h.curso?.id && ultimo.horaFin === hIni) {
+            const mismoTipoTP = ultimo.asignacion.tipo_clase === h.tipo_clase &&
+                                (h.tipo_clase === TipoClase.TEORIA || h.tipo_clase === TipoClase.PRACTICA);
+            const mismoLaboratorio = ultimo.asignacion.tipo_clase === TipoClase.LABORATORIO &&
+                                     h.tipo_clase === TipoClase.LABORATORIO &&
+                                     mismaReglaGrupo;
+            if (mismoCurso && mismoAmbiente && Math.abs(ultimo.horaFin - hIni) < 0.01 &&
+                (esTP || mismoTipoTP || mismoLaboratorio)) {
               ultimo.horaFin = hFin;
-              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
+              ultimo.label = this.construirLabelBloque(ultimo.asignaciones);
+              ultimo.asignaciones.push(h);
+              ultimo.tiposClase.push(h.tipo_clase);
               return;
             }
           }
@@ -2203,6 +2338,8 @@ export class ReportesService {
             horaInicio: hIni,
             horaFin: hFin,
             asignacion: h,
+            asignaciones: [h],
+            tiposClase: [h.tipo_clase],
             carrilIdx,
             label: `${h.curso?.nombre} (${labelPart})`
           });

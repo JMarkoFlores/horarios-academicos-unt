@@ -1,37 +1,37 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { ApiService } from './api.service';
+import { PeriodoAcademico } from '../interfaces/entities';
 
 @Injectable({ providedIn: 'root' })
 export class PeriodoService {
   private _periodo = new BehaviorSubject<string>('2026-I');
-  private _periodosList = new BehaviorSubject<string[]>(['2025-II', '2026-I', '2026-II', '2027-I']);
-  private _periodoActivo = new BehaviorSubject<any>(null);
+  private _periodosList = new BehaviorSubject<PeriodoAcademico[]>([]);
+  private _periodoActivo = new BehaviorSubject<PeriodoAcademico | null>(null);
 
   constructor(private api: ApiService) {}
 
   cargarPeriodos(): void {
     this.api.get<any>('/periodos/todos').subscribe({
       next: (res) => {
-        const list = res?.data ?? [];
+        const list: PeriodoAcademico[] = res?.data ?? [];
         if (list.length > 0) {
-          const codigos = list.map((p: any) => p.codigo);
-          this._periodosList.next(codigos);
+          this._periodosList.next(list);
 
           const guardado = localStorage.getItem('periodo_seleccionado');
-          const activo = list.find((p: any) => p.activo);
+          const activo = list.find((p) => p.activo);
 
-          if (guardado && codigos.includes(guardado)) {
+          if (guardado && list.some(p => p.codigo === guardado)) {
             this._periodo.next(guardado);
-            this._periodoActivo.next(list.find((p: any) => p.codigo === guardado) ?? activo ?? list[0]);
+            this._periodoActivo.next(list.find((p) => p.codigo === guardado) ?? activo ?? list[0]);
           } else if (activo) {
             this._periodo.next(activo.codigo);
             this._periodoActivo.next(activo);
             localStorage.setItem('periodo_seleccionado', activo.codigo);
           } else {
-            this._periodo.next(codigos[0]);
+            this._periodo.next(list[0].codigo);
             this._periodoActivo.next(list[0]);
-            localStorage.setItem('periodo_seleccionado', codigos[0]);
+            localStorage.setItem('periodo_seleccionado', list[0].codigo);
           }
         }
       },
@@ -42,13 +42,15 @@ export class PeriodoService {
   }
 
   cambiarPeriodo(codigo: string): void {
-    if (this._periodosList.getValue().includes(codigo)) {
+    const periodos = this._periodosList.getValue();
+    if (periodos.some(p => p.codigo === codigo)) {
       localStorage.setItem('periodo_seleccionado', codigo);
       this._periodo.next(codigo);
+      this._periodoActivo.next(periodos.find(p => p.codigo === codigo) ?? null);
     }
   }
 
-  get periodos(): string[] {
+  get periodos(): PeriodoAcademico[] {
     return this._periodosList.getValue();
   }
 
@@ -68,7 +70,7 @@ export class PeriodoService {
     return this._periodo.asObservable();
   }
 
-  get periodoActivo(): any {
+  get periodoActivo(): PeriodoAcademico | null {
     return this._periodoActivo.getValue();
   }
 

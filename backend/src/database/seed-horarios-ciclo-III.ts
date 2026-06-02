@@ -180,7 +180,7 @@ async function seedHorariosCicloIII() {
     { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 2 },
     { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Jueves", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 3 },
     
-    // 3. Juan Carlos obando Roldán - Ing. Gráfica (T:1, P:1, L:2, G:3)
+    // 3. Juan Carlos obando Roldán - Ing. Gráfica (T:1, P:1, L:3, G:2)
     { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Miércoles", horas: "07:00-08:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
     { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Miércoles", horas: "08:00-09:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
     { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Jueves", horas: "07:00-10:00", tipo: "Laboratorio", ambiente: "Lab. 1", grupo: 1 },
@@ -204,7 +204,7 @@ async function seedHorariosCicloIII() {
     { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Martes", horas: "07:00-08:00", tipo: "Teoría", ambiente: "I I - 2 (Pabellon Ing. Industrial)", grupo: 1 },
     { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Martes", horas: "08:00-09:00", tipo: "Práctica", ambiente: "I I - 2 (Pabellon Ing. Industrial)", grupo: 1 },
     
-    // 7. Vilma Mendez Gil - Física Electrónica (T:1, P:2, L:2, G:1)
+    // 7. Vilma Mendez Gil - Física Electrónica (T:1, P:2, L:2, G:4)
     { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Lunes", horas: "15:00-16:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
     { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Lunes", horas: "16:00-18:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
     { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 1 },

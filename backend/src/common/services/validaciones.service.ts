@@ -206,25 +206,57 @@ export class ValidacionesService {
     duracion: number,
     periodo: string,
   ): Promise<boolean> {
+    // Buscar todas las restricciones del período para debug
+    const todasRestricciones = await this.restriccionRepo.find({
+      where: {
+        periodo_academico: periodo,
+        activo: true,
+      },
+    });
+    console.log('[verificarMaxHorasDocente] Todas las restricciones del período:', todasRestricciones.map(r => ({ tipo: r.tipo_restriccion, valor: r.valor })));
+
     const restriccion = await this.restriccionRepo.findOne({
       where: {
-        tipo_restriccion: "MAX_HORAS_DIA",
+        tipo_restriccion: "MAX_HORAS_DIARIAS",
         periodo_academico: periodo,
         activo: true,
       },
     });
 
+    // Si no encuentra con MAX_HORAS_DIARIAS, buscar con nombre alternativo
+    let restriccionFinal = restriccion;
+    if (!restriccion) {
+      restriccionFinal = await this.restriccionRepo.findOne({
+        where: {
+          tipo_restriccion: "MAX_HORAS_DIA",
+          periodo_academico: periodo,
+          activo: true,
+        },
+      });
+    }
+    if (!restriccionFinal) {
+      restriccionFinal = await this.restriccionRepo.findOne({
+        where: {
+          tipo_restriccion: "Máx. Horas Diarias",
+          periodo_academico: periodo,
+          activo: true,
+        },
+      });
+    }
+
     let maxHoras = 8; // Fallback por defecto si no existe una restricción específica
     if (
-      restriccion &&
-      restriccion.valor &&
-      typeof restriccion.valor === "object"
+      restriccionFinal &&
+      restriccionFinal.valor &&
+      typeof restriccionFinal.valor === "object"
     ) {
-      const valor = restriccion.valor as Record<string, any>;
+      const valor = restriccionFinal.valor as Record<string, any>;
       if (typeof valor.max_horas === "number") {
         maxHoras = valor.max_horas;
       }
     }
+
+    console.log('[verificarMaxHorasDocente] maxHoras usado:', maxHoras);
 
     const horarios = await this.horarioRepo.find({
       where: {

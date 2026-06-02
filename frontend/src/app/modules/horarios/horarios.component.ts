@@ -519,6 +519,26 @@ export class HorariosComponent implements OnInit, OnDestroy {
         });
       });
 
+      const construirLabel = (asignaciones: HorarioAsignado[]) => {
+        const cursoNombre = asignaciones[0].curso?.nombre || '';
+        const duraciones: Record<string, number> = {};
+
+        asignaciones.forEach(a => {
+          const dur = this.horaToDecimal(a.hora_fin) - this.horaToDecimal(a.hora_inicio);
+          if (a.tipo_clase === 'LABORATORIO') {
+            const grupo = a.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || '';
+            const key = `L-G${grupo}`;
+            duraciones[key] = (duraciones[key] ?? 0) + dur;
+          } else {
+            const key = a.tipo_clase === 'TEORIA' ? 'T' : 'P';
+            duraciones[key] = (duraciones[key] ?? 0) + dur;
+          }
+        });
+
+        const partes = Object.entries(duraciones).map(([key, dur]) => `${dur}${key}`);
+        return `${cursoNombre} (${partes.join('+')})`;
+      };
+
       carriles.forEach((bloquesEnCarril, carrilIdx) => {
         // Fusión visual de bloques consecutivos del mismo curso
         const bloquesFusionados: any[] = [];
@@ -547,19 +567,27 @@ export class HorariosComponent implements OnInit, OnDestroy {
 
           if (bloquesFusionados.length > 0) {
             const ultimo = bloquesFusionados[bloquesFusionados.length - 1];
-            // Si son del mismo curso y son consecutivos
-            // REGLA: Solo fusionar si son TEORIA y PRACTICA (en cualquier orden) Y MISMO AMBIENTE
+            const mismoAmbiente = ultimo.asignacion.ambiente?.id === asig.ambiente?.id;
+            const mismoCurso = ultimo.asignacion.curso?.id === asig.curso?.id;
+            const mismaReglaGrupo = asig.tipo_clase === 'LABORATORIO'
+              ? ultimo.asignacion.grupo?.id === asig.grupo?.id
+              : true;
             const esTP = (ultimo.asignacion.tipo_clase === 'TEORIA' && asig.tipo_clase === 'PRACTICA') ||
                          (ultimo.asignacion.tipo_clase === 'PRACTICA' && asig.tipo_clase === 'TEORIA');
-            
-            const mismoAmbiente = ultimo.asignacion.ambiente?.id === asig.ambiente?.id;
+            const mismoTipoTP = ultimo.asignacion.tipo_clase === asig.tipo_clase &&
+                                (asig.tipo_clase === 'TEORIA' || asig.tipo_clase === 'PRACTICA');
+            const mismoLaboratorio = ultimo.asignacion.tipo_clase === 'LABORATORIO' &&
+                                     asig.tipo_clase === 'LABORATORIO' &&
+                                     mismaReglaGrupo;
 
-            if (esTP && mismoAmbiente && ultimo.asignacion.curso?.id === asig.curso?.id && Math.abs(ultimo.horaFin - hIni) < 0.01) {
+            if (mismoCurso && mismoAmbiente && Math.abs(ultimo.horaFin - hIni) < 0.01 &&
+                (esTP || mismoTipoTP || mismoLaboratorio)) {
               ultimo.horaFin = hFin;
               ultimo.totalHoraFin = asig.hora_fin.substring(0, 5);
-              ultimo.label = ultimo.label.split(' (')[0] + ' (' + ultimo.label.match(/\((.*)\)/)?.[1] + '+' + labelPart + ')';
-              ultimo.tiposClase.push(asig.tipo_clase);
               ultimo.asignaciones.push(asig);
+              ultimo.tiposClase.push(asig.tipo_clase);
+              ultimo.label = construirLabel(ultimo.asignaciones);
+
               // Actualizar el ancho si el nuevo bloque fusionado tiene más colisiones
               if (numCarrilesLocales > (100 / ultimo.width)) {
                 ultimo.width = 100 / numCarrilesLocales;

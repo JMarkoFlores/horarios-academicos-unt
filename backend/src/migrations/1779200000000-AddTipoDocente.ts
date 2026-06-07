@@ -11,11 +11,22 @@ export class AddTipoDocente1779200000000 implements MigrationInterface {
     );
     await queryRunner.commitTransaction();
 
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_type t
+          JOIN pg_namespace n ON n.oid = t.typnamespace
+          WHERE t.typname = 'docente_tipo_docente_enum' AND n.nspname = 'public'
+        ) THEN
+          CREATE TYPE "public"."docente_tipo_docente_enum" AS ENUM('ORDINARIO', 'CONTRATADO', 'JEFE_PRACTICA_CONTRATADO');
+        END IF;
+      END
+      $$;
+    `);
     await queryRunner.query(
-      `CREATE TYPE "public"."docente_tipo_docente_enum" AS ENUM('ORDINARIO', 'CONTRATADO', 'JEFE_PRACTICA_CONTRATADO')`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "docente" ADD "tipo_docente" "public"."docente_tipo_docente_enum"`,
+      `ALTER TABLE "docente" ADD COLUMN IF NOT EXISTS "tipo_docente" "public"."docente_tipo_docente_enum"`,
     );
     await queryRunner.query(
       `UPDATE "docente" SET "tipo_docente" = 'ORDINARIO' WHERE "tipo_contrato" = 'NOMBRADO'`,

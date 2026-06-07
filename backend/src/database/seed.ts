@@ -2922,6 +2922,27 @@ async function seed() {
     `✅ 13 facultades, ${escDep.length} escuelas y ${escDep.length} departamentos creados (con coordinadores)\n`,
   );
 
+  const deptoSistemas = await departamentoRepo.findOne({
+    where: { nombre: "Departamento de Ingeniería de Sistemas" },
+    relations: ["escuela", "escuela.facultad"],
+  });
+
+  if (!deptoSistemas?.escuela?.facultad) {
+    throw new Error(
+      "No se pudo resolver el departamento de Ingeniería de Sistemas para vincular docentes",
+    );
+  }
+
+  for (const docente of dbDocentes) {
+    docente.departamento_id = deptoSistemas.id;
+    docente.facultad_id = deptoSistemas.escuela.facultad.id;
+  }
+
+  await docenteRepo.save(dbDocentes);
+  console.log(
+    `✅ ${dbDocentes.length} docentes vinculados al Departamento de Ingeniería de Sistemas\n`,
+  );
+
   // Helper functions
   const getDocente = (nombreCompleto: string) => {
     return (

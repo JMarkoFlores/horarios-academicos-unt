@@ -133,8 +133,11 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.COORDINADOR_ACADEMICO,
   )
   @ApiOperation({ summary: "Guardar declaración de carga horaria" })
-  async guardarDeclaracion(@Body() dto: any): Promise<any> {
-    const data = await this.declaracionService.guardarDeclaracion(dto);
+  async guardarDeclaracion(
+    @Body() dto: any,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.guardarDeclaracion(dto, usuario);
     return { data, message: "Declaración guardada correctamente" };
   }
 

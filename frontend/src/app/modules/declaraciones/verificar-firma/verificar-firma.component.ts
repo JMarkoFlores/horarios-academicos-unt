@@ -37,6 +37,10 @@ export class VerificarFirmaComponent implements OnInit {
     private snackBar: MatSnackBar,
   ) {}
 
+  private esUrlAbsoluta(url: string): boolean {
+    return /^https?:\/\//i.test(url);
+  }
+
   ngOnInit(): void {
     this.docenteId = Number(this.route.snapshot.paramMap.get('id'));
     this.cargarDocente();
@@ -68,6 +72,12 @@ export class VerificarFirmaComponent implements OnInit {
         next: (res) => {
           const url = res.data?.firma_url || null;
           if (url) {
+            if (this.esUrlAbsoluta(url)) {
+              this.firmaExistente = url;
+              this.loading = false;
+              return;
+            }
+
             this.api.getBlob(url).subscribe({
               next: (blob) => {
                 this.firmaExistente = URL.createObjectURL(blob);

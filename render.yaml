@@ -5,7 +5,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: .
+    dockerContext: ./backend
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -53,26 +53,32 @@ services:
           type: web
           name: horarios-frontend
           property: url
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
 
   # Frontend Web Service
   - type: web
     name: horarios-frontend
     env: docker
     plan: free
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
     healthCheckPath: /health
     startCommand: nginx -g 'daemon off;'
+
+  # Redis Instance
+  - type: redis
+    name: horarios-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
 
 # PostgreSQL Database
 databases:
   - name: horarios-db
     databaseName: horarios_db
     user: horarios
-
-# Redis Instance
-- type: redis
-  name: horarios-redis
-  plan: free
-  maxmemoryPolicy: allkeys-lru
-  ipAllowList: []

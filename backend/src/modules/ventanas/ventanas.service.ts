@@ -75,46 +75,6 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     this.logger.log('Iniciando bootstrap de módulo de ventanas...');
 
     try {
-      // Crear tabla selecciones_temporales si no existe
-      const tableExists = await this.dataSource.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables
-          WHERE table_schema = 'public'
-          AND table_name = 'selecciones_temporales'
-        );
-      `);
-
-      if (!tableExists[0].exists) {
-        this.logger.log('Creando tabla selecciones_temporales...');
-        await this.dataSource.query(`
-          CREATE TABLE IF NOT EXISTS "selecciones_temporales" (
-            "id" SERIAL PRIMARY KEY,
-            "sesion_id" uuid NOT NULL,
-            "ventana_atencion_id" integer,
-            "docente_id" integer NOT NULL,
-            "curso_id" integer NOT NULL,
-            "grupo_id" integer NOT NULL,
-            "ambiente_id" integer NOT NULL,
-            "dia" integer NOT NULL,
-            "hora_inicio" TIME NOT NULL,
-            "hora_fin" TIME NOT NULL,
-            "tipo_clase" varchar NOT NULL,
-            "periodo" varchar(20) NOT NULL,
-            "estado" varchar NOT NULL DEFAULT 'PENDIENTE',
-            "contexto_validacion" jsonb,
-            "creada_en" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "actualizada_en" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "expira_en" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP + INTERVAL '30 minutes',
-            "razon_rechazo" text,
-            "sincronizada_desde_redis" boolean NOT NULL DEFAULT false,
-            CONSTRAINT "idx_selecciones_unique_celda" UNIQUE (sesion_id, ambiente_id, dia, hora_inicio, periodo)
-          );
-          CREATE INDEX IF NOT EXISTS "idx_selecciones_sesion_estado" ON "selecciones_temporales" (sesion_id, estado);
-          CREATE INDEX IF NOT EXISTS "idx_selecciones_expira_en" ON "selecciones_temporales" (expira_en);
-        `);
-        this.logger.log('✓ Tabla selecciones_temporales creada');
-      }
-
       // Recuperar selecciones desde BD
       this.logger.log('Recuperando selecciones temporales desde BD...');
     } catch (error) {

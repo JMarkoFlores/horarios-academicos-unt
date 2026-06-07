@@ -3,6 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ARG API_URL=https://horarios-backend.onrender.com
+
 # Copy package files first (layer cache optimization)
 COPY frontend/package*.json ./
 
@@ -13,7 +15,7 @@ RUN npm ci
 COPY frontend/ .
 
 # Build Angular application
-RUN npm run build
+RUN sed -i "s|https://horarios-backend.onrender.com|${API_URL}|g" src/environments/environment.prod.ts && npm run build
 
 # ─── Production stage ─────────────────────────────────────────────────────────
 FROM nginx:alpine AS production

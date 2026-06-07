@@ -997,7 +997,10 @@ export class DeclaracionCargaHorariaService {
     });
   }
 
-  async guardarDeclaracion(dto: any): Promise<DeclaracionCargaHoraria> {
+  async guardarDeclaracion(
+    dto: any,
+    usuario?: Usuario & { docenteId?: number | null },
+  ): Promise<DeclaracionCargaHoraria> {
     const {
       docente_id,
       periodo,
@@ -1027,7 +1030,12 @@ export class DeclaracionCargaHorariaService {
 
     const docente = await this.docenteRepo.findOne({
       where: { id: docente_id },
-      relations: ["departamento", "facultad"],
+      relations: [
+        "departamento",
+        "departamento.escuela",
+        "departamento.escuela.facultad",
+        "facultad",
+      ],
     });
     if (!docente) {
       throw new NotFoundException("Docente no encontrado");
@@ -1048,13 +1056,19 @@ export class DeclaracionCargaHorariaService {
     }
 
     if (!declaracion) {
+      const vinculacion = await this.resolverVinculacionInstitucional(docente);
+
       declaracion = this.declaracionRepo.create({
         docente_id,
-        departamento_id: docente.departamento?.id || 1,
-        facultad_id: docente.facultad?.id || 1,
+        departamento_id: vinculacion.departamento_id,
+        facultad_id: vinculacion.facultad_id,
         periodo_academico_id: periodoId,
         estado: EstadoDeclaracionCarga.BORRADOR,
+        sede: this.resolverSede(docente),
+        usuario_firmante_id: usuario?.id ?? null,
       });
+    } else if (usuario?.id) {
+      declaracion.usuario_firmante_id = usuario.id;
     }
 
     declaracion.carga_no_lectiva = carga_no_lectiva || null;

@@ -899,9 +899,9 @@ export class ReportesService {
           if (startRowIdx !== -1 && endRowIdx !== -1 && diaIdx >= 0 && diaIdx < 6) {
             const blockY = yPos + 8 + startRowIdx * cellHeight;
             const blockH = (endRowIdx - startRowIdx) * cellHeight;
-            const laneWidth = cellWidth / f.numCarriles;
-            const blockX = 10 + horaColWidth + diaIdx * cellWidth + (f.carrilIdx * laneWidth);
-            const blockW = laneWidth;
+            const blockW = f.width || (cellWidth / 1);
+            const blockX = 10 + horaColWidth + diaIdx * cellWidth + 0.5 + (f.left || 0);
+            const numCarriles = Math.max(1, Math.round((cellWidth - 1) / blockW));
 
             const color = this.getColorForProfesorCurso(f.asignacion.docente?.id, f.asignacion.curso?.id);
             doc.setFillColor(...color);
@@ -910,7 +910,7 @@ export class ReportesService {
             doc.rect(blockX, blockY, blockW, blockH, 'S');
 
             doc.setTextColor(51, 51, 51);
-            doc.setFontSize(f.numCarriles > 1 ? 5 : 6);
+            doc.setFontSize(numCarriles > 1 ? 5 : 6);
             doc.setFont('helvetica', 'bold');
             const cursoText = f.label;
             const docenteText = f.asignacion.docente?.apellidos || '';
@@ -919,7 +919,7 @@ export class ReportesService {
             const splitCurso = doc.splitTextToSize(cursoText, blockW - 2);
             doc.text(splitCurso.slice(0, 2), blockX + blockW / 2, blockY + 3, { align: 'center' });
             if (blockH > 6) doc.text(docenteText, blockX + blockW / 2, blockY + blockH - 4, { align: 'center' });
-            if (blockH > 9 && f.numCarriles === 1) doc.text(grupoText, blockX + blockW / 2, blockY + blockH - 1.5, { align: 'center' });
+            if (blockH > 9 && numCarriles === 1) doc.text(grupoText, blockX + blockW / 2, blockY + blockH - 1.5, { align: 'center' });
           }
         });
       });

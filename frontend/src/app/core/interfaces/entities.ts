@@ -113,6 +113,7 @@ export interface DisponibilidadDocente {
 
 export interface HorarioAsignado {
   id: number;
+  asignacionId?: number;
   dia?: number;
   dia_semana: number;
   hora_inicio: string;
@@ -149,7 +150,7 @@ export interface CampañaVentanas {
   descripcion: string;
   periodo_id: number;
   periodo?: PeriodoAcademico;
-  estado: string; // EstadoCampaña enum
+  estado: string;
   fecha_inicio: string;
   fecha_fin: string;
   dias_habilitados: string[];

@@ -81,6 +81,12 @@ export class HorarioAsignado {
   @Column({ type: 'jsonb', nullable: true })
   contexto_validacion?: any;
 
+  @Column({ nullable: true, type: 'text' })
+  modificado_por?: string;
+
+  @Column({ nullable: true, type: 'jsonb' })
+  historial_cambios?: any;
+
   @CreateDateColumn({ name: "creado_en" })
   creado_en: Date;
 

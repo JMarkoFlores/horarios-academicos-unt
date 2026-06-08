@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Matches, Max, Min } from "class-validator";
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Matches, Max, Min } from "class-validator";
 import { TipoClase } from "../../common/enums/tipo-clase.enum";
 
 export class ValidarSlotDto {
@@ -52,4 +52,24 @@ export class ValidarSlotDto {
   @ApiProperty({ description: "Fecha exacta del slot", example: "2026-06-08" })
   @IsDateString()
   fecha: string;
+
+  @ApiPropertyOptional({ description: "Indica si es una operación de edición de asignación existente" })
+  @IsOptional()
+  @IsBoolean()
+  modoEdicion?: boolean;
+
+  @ApiPropertyOptional({ description: "ID del curso original para exclusión" })
+  @IsOptional()
+  @IsInt()
+  ignorarCursoId?: number;
+
+  @ApiPropertyOptional({ description: "Tipo de clase original para exclusión" })
+  @IsOptional()
+  @IsEnum(TipoClase)
+  ignorarTipoClase?: TipoClase;
+
+  @ApiPropertyOptional({ description: "ID del grupo original para exclusión" })
+  @IsOptional()
+  @IsInt()
+  ignorarGrupoId?: number;
 }

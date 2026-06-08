@@ -25,6 +25,8 @@ import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Docente } from "../entities/docente.entity";
 import { DeteccionConflictosService } from "./deteccion-conflictos.service";
 import { TipoConflicto } from "../common/enums/tipo-conflicto.enum";
+import { Usuario } from "../entities/usuario.entity";
+import { UpdateAsignacionDto } from "./dto/update-asignacion.dto";
 
 type DocenteJerarquia = {
   id: number;
@@ -911,5 +913,83 @@ export class AsignacionService {
     // Mantiene estabilidad por período para caché y validación de días no laborables.
     void periodo;
     return `${yyyy}-${mm}-${dd}`;
+  }
+
+  async updateAsignacion(
+    asignacionId: number,
+    dto: UpdateAsignacionDto,
+    usuario: Usuario,
+  ): Promise<any> {
+    return this.dataSource.transaction(async (manager) => {
+      const asignacion = await manager.findOne(HorarioAsignado, {
+        where: { id: asignacionId },
+        relations: ["docente", "curso", "grupo"],
+      });
+
+      if (!asignacion) {
+        throw new NotFoundException(
+          `No se encontró la asignación con el ID ${asignacionId}`,
+        );
+      }
+
+      const { docente, curso, grupo } = asignacion;
+
+      // 1. Eliminar celdas
+      if (dto.celdasParaEliminar && dto.celdasParaEliminar.length > 0) {
+        await manager.delete(HorarioAsignado, {
+          id: In(dto.celdasParaEliminar),
+        });
+      }
+
+      // 2. Añadir nuevas celdas
+      if (dto.celdasParaAgregar && dto.celdasParaAgregar.length > 0) {
+        const nuevasAsignaciones = dto.celdasParaAgregar.map((celda) => {
+          return manager.create(HorarioAsignado, {
+            docente_id: asignacion.docente_id,
+            curso_id: asignacion.curso_id,
+            grupo_id: asignacion.grupo_id,
+            ambiente_id: dto.ambienteId ?? asignacion.ambiente_id,
+            periodo: asignacion.periodo,
+            dia: celda.dia_semana,
+            hora_inicio: celda.hora_inicio,
+            hora_fin: celda.hora_fin,
+            tipo_clase: asignacion.tipo_clase,
+            estado: EstadoHorario.BORRADOR,
+          });
+        });
+        await manager.save(nuevasAsignaciones);
+      }
+
+      // 3. Actualizar ambiente si ha cambiado
+      if (
+        dto.ambienteId &&
+        dto.ambienteId !== asignacion.ambiente_id
+      ) {
+        await manager.update(
+          HorarioAsignado,
+          { id: asignacionId },
+          { ambiente_id: dto.ambienteId },
+        );
+      }
+
+      // Registrar auditoría
+      await this.auditoriaService.registrar({
+        horario_id: asignacionId,
+        usuario_id: usuario.id,
+        accion: 'actualizar_asignacion',
+        datos_anteriores: {
+          ambiente_id: asignacion.ambiente_id,
+          dia: asignacion.dia,
+          hora_inicio: asignacion.hora_inicio,
+          hora_fin: asignacion.hora_fin,
+        },
+        datos_nuevos: { asignacionId, ...dto },
+        ip: 'unknown',
+      });
+
+      return manager.find(HorarioAsignado, {
+        where: { id: asignacionId },
+      });
+    });
   }
 }

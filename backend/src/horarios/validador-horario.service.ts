@@ -56,6 +56,9 @@ export class ValidadorHorarioService {
             params.dia,
             duracion,
             params.periodo,
+            params.ignorarCursoId,
+            params.ignorarTipoClase,
+            params.ignorarGrupoId,
           ),
         "El docente supera el máximo de horas permitidas en el día.",
       ),
@@ -105,6 +108,9 @@ export class ValidadorHorarioService {
             params.docente_id,
             duracion,
             params.periodo,
+            params.ignorarCursoId,
+            params.ignorarTipoClase,
+            params.ignorarGrupoId,
           );
         return res.valido;
       }, "El docente supera su carga horaria semanal máxima permitida."),
@@ -130,6 +136,9 @@ export class ValidadorHorarioService {
               params.hora_inicio,
               params.hora_fin,
               params.periodo,
+              params.ignorarCursoId,
+              params.ignorarTipoClase,
+              params.ignorarGrupoId,
             ).then((hayCruce) => !hayCruce),
           "El ambiente seleccionado ya está ocupado en ese horario.",
         ),
@@ -141,6 +150,10 @@ export class ValidadorHorarioService {
               params.hora_inicio,
               params.hora_fin,
               params.periodo,
+              undefined,
+              params.ignorarCursoId,
+              params.ignorarTipoClase,
+              params.ignorarGrupoId,
             )),
           "El docente tiene un cruce de horario.",
         ),
@@ -152,6 +165,10 @@ export class ValidadorHorarioService {
               params.hora_inicio,
               params.hora_fin,
               params.periodo,
+              undefined,
+              params.ignorarCursoId,
+              params.ignorarTipoClase,
+              params.ignorarGrupoId,
             )),
           "El grupo tiene un cruce de horario.",
         ),
@@ -231,7 +248,24 @@ export class ValidadorHorarioService {
     horaInicio: string,
     horaFin: string,
     periodo: string,
+    ignorarCursoId?: number,
+    ignorarTipoClase?: TipoClase,
+    ignorarGrupoId?: number,
   ): Promise<boolean> {
+    if (ignorarCursoId && ignorarTipoClase) {
+      return this.validacionesService.verificarCruceAmbiente(
+        ambienteId,
+        dia,
+        horaInicio,
+        horaFin,
+        periodo,
+        undefined,
+        ignorarCursoId,
+        ignorarTipoClase,
+        ignorarGrupoId,
+      );
+    }
+
     const cacheKey = this.crearClaveSlotsAmbiente(ambienteId, periodo);
     const slotsCacheados = await this.cacheManager.get<SlotOcupado[]>(cacheKey);
 

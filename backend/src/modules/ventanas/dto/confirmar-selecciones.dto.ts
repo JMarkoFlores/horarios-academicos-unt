@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsInt, IsString } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsBoolean, IsInt, IsOptional, IsString, IsObject } from "class-validator";
 
 export class ConfirmarSeleccionesDto {
   @ApiProperty()
@@ -9,4 +9,15 @@ export class ConfirmarSeleccionesDto {
   @ApiProperty()
   @IsInt()
   periodoId: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsObject()
+  edicionDto?: {
+    modoEdicion?: boolean;
+    docenteId?: number;
+    originalCursoId?: number;
+    originalTipoClase?: string;
+    originalGrupoId?: number;
+  };
 }

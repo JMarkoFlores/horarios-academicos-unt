@@ -12,6 +12,7 @@ import Redis from "ioredis";
 import { DataSource, Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 import { EstadoHorario } from "../../common/enums/estado-horario.enum";
+import { OrigenHorario } from "../../common/enums/origen-horario.enum";
 import { Grupo } from "../../entities/grupo.entity";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
 import { SeleccionTemporal } from "../../entities/seleccion-temporal.entity";
@@ -39,6 +40,8 @@ type SeleccionTemporalRedis = {
   horaInicio: string;
   horaFin: string;
   periodo: string;
+  esSubsanacion?: boolean;
+  horarioOriginalId?: number;
 };
 
 @Injectable()
@@ -270,6 +273,11 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         hora_fin: datos.horaFin,
         tipo_clase: datos.tipoClase as any,
         fecha: fechaSlot,
+        // Pasar parámetros de exclusión en modo edición
+        modoEdicion: datos.modoEdicion,
+        ignorarCursoId: datos.modoEdicion ? datos.originalCursoId : undefined,
+        ignorarTipoClase: datos.modoEdicion ? datos.originalTipoClase as any : undefined,
+        ignorarGrupoId: datos.modoEdicion ? datos.originalGrupoId : undefined,
       },
       permitirSuperposiciones,
     );
@@ -350,18 +358,22 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     }
 
     // 5. Guardar selección con persistencia (Redis + BD)
+    // Usar el grupoId mapeado (database ID) para LABORATORIO, no el UI value
+    const grupoIdParaGuardar = datos.tipoClase === "LABORATORIO" ? grupoIdParaValidacion : datos.grupoId;
     const nuevaSeleccion: SeleccionTemporalRedis = {
       ventanaId: datos.ventanaId,
       sesionId: datos.sesionId,
       docenteId: datos.docenteId,
       cursoId: datos.cursoId,
-      grupoId: datos.grupoId,
+      grupoId: grupoIdParaGuardar,
       tipoClase: datos.tipoClase,
       ambienteId: datos.ambienteId,
       dia: datos.dia,
       horaInicio: datos.horaInicio,
       horaFin: datos.horaFin,
       periodo: datos.periodo,
+      esSubsanacion: datos.esSubsanacion,
+      horarioOriginalId: datos.horarioOriginalId,
     };
 
     // Agregar la nueva selección al array
@@ -708,6 +720,13 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     sesionId: string,
     periodoId: number,
     usuarioOperadorId?: number,
+    edicionDto?: {
+      modoEdicion?: boolean;
+      docenteId?: number;
+      originalCursoId?: number;
+      originalTipoClase?: string;
+      originalGrupoId?: number;
+    },
   ): Promise<{ confirmados: number; errores: Array<Record<string, unknown>> }> {
     const periodo = await this.periodoRepo.findOne({
       where: { id: periodoId },
@@ -740,6 +759,69 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     const horariosCreados: HorarioAsignado[] = [];
 
     try {
+      // ──────────────────────────────────────────────────────────
+      // MODO EDICIÓN: Borrar asignaciones originales antes de guardar
+      // ──────────────────────────────────────────────────────────
+      if (
+        edicionDto?.modoEdicion &&
+        edicionDto.originalCursoId &&
+        edicionDto.originalTipoClase &&
+        edicionDto.docenteId &&
+        edicionDto.originalGrupoId // Require grupo_id to prevent deleting across groups
+      ) {
+        this.logger.log(
+          `[confirmarSelecciones] Modo edición: eliminando asignaciones originales ` +
+            `cursoId=${edicionDto.originalCursoId}, tipoClase=${edicionDto.originalTipoClase}, ` +
+            `grupoId=${edicionDto.originalGrupoId}, docenteId=${edicionDto.docenteId}`,
+        );
+
+        const deleteWhere: any = {
+          curso_id: edicionDto.originalCursoId,
+          tipo_clase: edicionDto.originalTipoClase as any,
+          docente_id: edicionDto.docenteId,
+          grupo_id: edicionDto.originalGrupoId, // Always include grupo_id to prevent cross-group deletion
+          periodo: periodo.codigo,
+          estado: EstadoHorario.CONFIRMADO,
+        };
+
+        // Registrar auditoría de los horarios que serán eliminados
+        const horariosABorrar = await queryRunner.manager.find(
+          HorarioAsignado,
+          { where: deleteWhere },
+        );
+
+        if (usuarioOperadorId) {
+          for (const horario of horariosABorrar) {
+            await this.auditoriaService.registrar({
+              horario_id: horario.id,
+              usuario_id: usuarioOperadorId,
+              accion: "EDICION_ELIMINAR_ORIGINAL",
+              datos_anteriores: {
+                docente_id: horario.docente_id,
+                curso_id: horario.curso_id,
+                ambiente_id: horario.ambiente_id,
+                dia: horario.dia,
+                hora_inicio: horario.hora_inicio,
+                hora_fin: horario.hora_fin,
+                tipo_clase: horario.tipo_clase,
+                periodo: horario.periodo,
+              },
+              datos_nuevos: null,
+              ip: "0.0.0.0",
+              motivo: `Edición desde sesión ${sesionId}: eliminación de asignación original`,
+            });
+          }
+        }
+
+        const deleteResult = await queryRunner.manager.delete(
+          HorarioAsignado,
+          deleteWhere,
+        );
+        this.logger.log(
+          `[confirmarSelecciones] Eliminados ${deleteResult.affected} horarios originales`,
+        );
+      }
+
       // Ya no necesitamos resolverGruposPorCurso, usaremos el grupoId de Redis
       // const gruposMap = await this.resolverGruposPorCurso(
       //   periodoId,
@@ -833,6 +915,11 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
             periodo.fecha_inicio,
             seleccion.dia,
           ),
+          // Propagar parámetros de exclusión en modo edición
+          modoEdicion: edicionDto?.modoEdicion,
+          ignorarCursoId: edicionDto?.modoEdicion ? edicionDto.originalCursoId : undefined,
+          ignorarTipoClase: edicionDto?.modoEdicion ? edicionDto.originalTipoClase as any : undefined,
+          ignorarGrupoId: edicionDto?.modoEdicion ? edicionDto.originalGrupoId : undefined,
         });
 
         if (!validacion.valido) {
@@ -865,47 +952,22 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         let grupoFinal: number | undefined;
 
         if (seleccion.tipoClase === "LABORATORIO" && grupoId) {
-          // Para LABORATORIO con grupoId especificado, buscar el grupo con ese número
-          // Los grupos tienen formato ${curso.codigo}-G1, ${curso.codigo}-G2, etc.
-          const curso = await queryRunner.manager.findOne(Curso, {
-            where: { id: seleccion.cursoId },
+          // Para LABORATORIO, el grupoId ya es el database ID (mapeado durante selección)
+          // Validar que el grupo existe
+          const grupoExistente = await queryRunner.manager.findOne(Grupo, {
+            where: { id: grupoId, curso_id: seleccion.cursoId },
           });
-          const codigoGrupoEsperado = `${curso?.codigo}-G${grupoId}`;
-          this.logger.debug(
-            `Buscando grupo para LABORATORIO: cursoId=${seleccion.cursoId}, grupoId=${grupoId}, codigoEsperado=${codigoGrupoEsperado}`,
-          );
-          const grupoConNumero = await queryRunner.manager.findOne(Grupo, {
-            where: {
-              curso_id: seleccion.cursoId,
-              codigo: codigoGrupoEsperado,
-            },
-          });
-          if (!grupoConNumero) {
-            // Si no existe el grupo específico, buscar cualquier grupo del curso
-            this.logger.debug(
-              `Grupo ${codigoGrupoEsperado} no encontrado, buscando cualquier grupo del curso`,
-            );
-            const grupoExistente = await queryRunner.manager.findOne(Grupo, {
-              where: { curso_id: seleccion.cursoId },
-              order: { id: "ASC" },
+          if (!grupoExistente) {
+            errores.push({
+              cursoId: seleccion.cursoId,
+              motivo: `No existe grupo con ID ${grupoId} para el curso.`,
             });
-            if (!grupoExistente) {
-              errores.push({
-                cursoId: seleccion.cursoId,
-                motivo: `No existe grupo ${grupoId} para el curso.`,
-              });
-              continue;
-            }
-            grupoFinal = grupoExistente.id;
-            this.logger.debug(
-              `Usando grupo existente: id=${grupoExistente.id}, codigo=${grupoExistente.codigo}`,
-            );
-          } else {
-            grupoFinal = grupoConNumero.id;
-            this.logger.debug(
-              `Grupo encontrado: id=${grupoConNumero.id}, codigo=${grupoConNumero.codigo}`,
-            );
+            continue;
           }
+          grupoFinal = grupoId;
+          this.logger.debug(
+            `LABORATORIO: usando grupo ID=${grupoId}, codigo=${grupoExistente.codigo}`,
+          );
         } else {
           // Para TEORIA y PRACTICA, obtener un grupo válido existente
           const grupoExistente = await queryRunner.manager.findOne(Grupo, {
@@ -933,7 +995,27 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           hora_fin: seleccion.horaFin,
           tipo_clase: seleccion.tipoClase as any,
           estado: EstadoHorario.CONFIRMADO,
+          ventana_atencion_id: seleccion.ventanaId,
+          sesion_operador_id: seleccion.sesionId,
+          origen: seleccion.esSubsanacion ? OrigenHorario.SUBSANACION : OrigenHorario.AJUSTE_MANUAL,
         });
+
+        // Si es subsanación, agregar trazabilidad
+        if (seleccion.esSubsanacion && seleccion.horarioOriginalId) {
+          horario.modificado_por = `sesion_${seleccion.sesionId}`;
+          horario.historial_cambios = {
+            tipo: 'SUBSANACION',
+            horario_original_id: seleccion.horarioOriginalId,
+            fecha_cambio: new Date().toISOString(),
+            cambios: {
+              tipo_clase: seleccion.tipoClase,
+              ambiente_id: seleccion.ambienteId,
+              dia: seleccion.dia,
+              hora_inicio: seleccion.horaInicio,
+              hora_fin: seleccion.horaFin,
+            }
+          };
+        }
 
         const saved = await queryRunner.manager.save(HorarioAsignado, horario);
         horariosCreados.push(saved);
@@ -1423,6 +1505,22 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
     let horasConfirmadas = 0;
     for (const horario of horariosConfirmados) {
+      // En modo edición, excluir las horas de la asignación original
+      // ya que esas se reemplazarán al confirmar
+      if (
+        datos.modoEdicion &&
+        datos.originalCursoId &&
+        datos.originalTipoClase &&
+        horario.curso_id === datos.originalCursoId &&
+        horario.tipo_clase === datos.originalTipoClase &&
+        horario.docente_id === datos.docenteId &&
+        (!datos.originalGrupoId || horario.grupo_id === datos.originalGrupoId)
+      ) {
+        this.logger.debug(
+          `[validarHorasRequeridas] Excluyendo horario original id=${horario.id} (modo edición)`,
+        );
+        continue;
+      }
       horasConfirmadas += this.calcularDuracionHoras(
         horario.hora_inicio,
         horario.hora_fin,

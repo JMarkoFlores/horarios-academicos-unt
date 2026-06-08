@@ -293,6 +293,7 @@ export class VentanasController {
       dto.sesionId,
       dto.periodoId,
       user?.id,
+      dto.edicionDto,
     );
     this.gateway.emitirHorarioConfirmado(id, dto);
     return {

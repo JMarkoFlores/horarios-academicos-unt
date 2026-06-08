@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsInt, IsOptional, IsString, Matches } from "class-validator";
+import { IsBoolean, IsInt, IsOptional, IsString, Matches } from "class-validator";
 import { TipoClase } from "../../../common/enums/tipo-clase.enum";
 
 export class SeleccionarCeldaDto {
@@ -53,4 +53,33 @@ export class SeleccionarCeldaDto {
   @ApiPropertyOptional({ default: false, description: "Permitir superposiciones de horario" })
   @IsOptional()
   permitirSuperposiciones?: boolean;
+
+  @ApiPropertyOptional({ default: false, description: "Indica si es una operación de subsanación" })
+  @IsOptional()
+  esSubsanacion?: boolean;
+
+  @ApiPropertyOptional({ description: "ID del horario original a modificar (para subsanación)" })
+  @IsOptional()
+  @IsInt()
+  horarioOriginalId?: number;
+
+  @ApiPropertyOptional({ description: "Indica si es una operación de edición de asignación existente" })
+  @IsOptional()
+  @IsBoolean()
+  modoEdicion?: boolean;
+
+  @ApiPropertyOptional({ description: "ID del curso original para exclusión" })
+  @IsOptional()
+  @IsInt()
+  originalCursoId?: number;
+
+  @ApiPropertyOptional({ description: "Tipo de clase original para exclusión" })
+  @IsOptional()
+  @IsString()
+  originalTipoClase?: string;
+
+  @ApiPropertyOptional({ description: "ID del grupo original para exclusión" })
+  @IsOptional()
+  @IsInt()
+  originalGrupoId?: number;
 }

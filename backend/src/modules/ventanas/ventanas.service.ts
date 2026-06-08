@@ -218,6 +218,10 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
       throw new BadRequestException('❌ No se puede eliminar una ventana que está en curso. Finalícela primero.');
     }
 
+    // Eliminar selecciones temporales primero (foreign key constraint)
+    await this.ventanaRepo.query('DELETE FROM selecciones_temporales WHERE "ventana_atencion_id" = $1', [ventanaId]);
+    this.logger.log(`[eliminarVentana] Selecciones temporales eliminadas para ventana ${ventanaId}`);
+
     // Eliminar docentes de la cola primero
     await this.colaRepo.delete({ ventana_id: ventanaId });
     
@@ -989,8 +993,7 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
   ): Promise<Docente[]> {
     this.logger.log(`[buscarDocentesElegibles] Buscando docentes: propósito=${proposito}, modalidad=${modalidad}, periodo=${periodo}`);
     
-    const qb = this.docenteRepo.createQueryBuilder("docente")
-      .leftJoinAndSelect("docente.parametrosCarga", "parametros");
+    const qb = this.docenteRepo.createQueryBuilder("docente");
 
     // Si el propósito es uno de los tipos operativos (DECLARACION, SUBSANACION, CAMBIO, CONTINGENCIA),
     // la lógica depende de si el docente ya tiene horario o no en el período dado.

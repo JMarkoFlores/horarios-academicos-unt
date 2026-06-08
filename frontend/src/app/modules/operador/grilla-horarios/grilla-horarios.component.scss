@@ -1,131 +1,241 @@
+// Paleta de colores base
+$primary: #6366f1;       // Indigo
+$success: #10b981;       // Emerald
+$warning: #f59e0b;       // Amber
+$danger: #ef4444;        // Rose/Red
+$accent: #8b5cf6;        // Violet
+
+// Semánticos por tipo de clase (Tailwind matching)
+$color-teoria: #10b981;       // Emerald/Green
+$color-practica: #f59e0b;     // Amber/Orange
+$color-laboratorio: #4f46e5;  // Indigo/Blue
+
 .grilla-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  background: var(--color-surface);
+  gap: 20px;
+  background: var(--color-surface, #ffffff);
   border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid var(--color-border);
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--color-border, #e2e8f0);
 }
 
 .grilla-header {
-  h4 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .header-title-container {
     display: flex;
     align-items: center;
-    gap: 10px;
-    letter-spacing: -0.5px;
+    gap: 14px;
+
+    .pulse-icon {
+      color: $primary;
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+      animation: pulse-slow 2s infinite ease-in-out;
+    }
+
+    h4 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--color-text, #1e293b);
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      margin: 2px 0 0 0;
+      font-size: 12px;
+      color: var(--color-text-muted, #64748b);
+    }
+  }
+
+  mat-progress-bar {
+    border-radius: 4px;
+    height: 4px;
   }
 }
 
-.leyenda {
+/* ─── LEYENDA PREMIUM ────────────────────────────────────────────── */
+.leyenda-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  font-size: 13px;
-  padding: 16px;
-  background: var(--color-surface-2);
+  gap: 24px;
+  padding: 16px 20px;
+  background: var(--color-surface-2, #f8fafc);
   border-radius: 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.leyenda-seccion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .seccion-titulo {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted, #64748b);
+  }
+
+  .leyenda-items {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 }
 
 .leyenda-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--color-text);
+  gap: 6px;
+  color: var(--color-text, #334155);
   font-weight: 600;
-  padding: 6px 12px;
-  background: var(--color-surface);
+  font-size: 12px;
+  padding: 4px 10px;
+  background: var(--color-surface, #ffffff);
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--color-border, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
-  }
-
-  span {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border-color: rgba($primary, 0.3);
   }
 }
 
-.color-libre {
-  background: var(--color-surface);
-  border: 2px dashed var(--color-success);
+.color-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+
+  &.libre {
+    background: transparent;
+    border: 2px dashed $success;
+  }
+
+  &.bloqueado {
+    background: repeating-linear-gradient(
+      45deg,
+      #e2e8f0,
+      #e2e8f0 3px,
+      #f1f5f9 3px,
+      #f1f5f9 6px
+    );
+    border: 1px solid #cbd5e1;
+  }
+
+  &.temporal-otro {
+    background: $warning;
+  }
+
+  // Clases
+  &.clase-teoria {
+    background: $color-teoria;
+  }
+
+  &.clase-practica {
+    background: $color-practica;
+  }
+
+  &.clase-laboratorio {
+    background: $color-laboratorio;
+  }
+
+  // Indicadores
+  &.bloque-propio-swatch {
+    background: $primary;
+    border: 2px solid darken($primary, 15%);
+  }
+
+  &.bloque-ajeno-swatch {
+    background: rgba($primary, 0.2);
+    border: 1.5px solid rgba($primary, 0.5);
+  }
 }
 
-.color-bloqueado {
-  background: repeating-linear-gradient(45deg, var(--color-surface-3), var(--color-surface-3) 5px, var(--color-surface) 5px, var(--color-surface) 10px);
-}
-
-.color-confirmado {
-  background: var(--color-primary);
-}
-
-.color-confirmado-docente {
-  background: var(--color-success);
-}
-
-.color-temporal-otro {
-  background: var(--color-warning);
-}
-
-.color-temporal-propio {
-  background: var(--color-accent, #8b5cf6);
-}
-
+/* ─── TABLA / GRILLA ─────────────────────────────────────────────── */
 .tabla-wrapper {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 500px;
+  max-height: 550px;
   border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--color-border, #e2e8f0);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--color-surface-2, #f8fafc);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba($primary, 0.2);
+    border-radius: 4px;
+    &:hover { background: rgba($primary, 0.4); }
+  }
 }
 
 .grilla-tabla {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
-  background: var(--color-surface);
+  background: var(--color-surface, #ffffff);
 
   th, td {
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-border, #e2e8f0);
     text-align: center;
+    padding: 0;
   }
 
   th {
-    background: var(--color-primary);
+    background: linear-gradient(135deg, $primary, darken($primary, 8%));
     color: white;
-    padding: 14px 10px;
+    padding: 12px 10px;
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: 0.5px;
-    border-bottom: 2px solid var(--color-border);
+    border-bottom: 2px solid darken($primary, 15%);
     position: sticky;
     top: 0;
     z-index: 20;
   }
 
+  .dia-header {
+    min-width: 120px;
+  }
+
   .hora-header, .hora-cell {
-    background: var(--color-surface-2);
+    background: var(--color-surface-2, #f8fafc);
     font-weight: 700;
-    padding: 12px 10px;
+    padding: 10px;
     width: 90px;
-    color: var(--color-text);
-    border-right: 2px solid var(--color-border);
-    font-size: 12px;
+    min-width: 90px;
+    color: var(--color-text, #1e293b);
+    border-right: 2px solid var(--color-border, #e2e8f0);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
     position: sticky;
     left: 0;
     z-index: 10;
@@ -135,80 +245,69 @@
     z-index: 30;
   }
 
-  .grilla-celda {
-    height: 50px;
-    width: 80px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    border-radius: 4px;
-    margin: 2px;
-
-    &:hover:not(.celda-bloqueada):not(.celda-confirmada):not(.celda-confirmada-docente):not(.celda-temporal-otro) {
-      transform: scale(1.08);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-      z-index: 10;
-    }
+  .row-alt .hora-cell {
+    background: color-mix(in srgb, var(--color-surface-2, #f8fafc), var(--color-border, #e2e8f0) 10%);
   }
 }
 
+/* ─── CELDAS ─────────────────────────────────────────────────────── */
+.grilla-celda {
+  height: 56px;
+  min-width: 120px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  user-select: none;
+
+  &:hover:not(.celda-bloqueada) {
+    background: rgba($primary, 0.04);
+  }
+}
+
+// ── Celda Libre ──
 .celda-libre {
-  background: var(--color-surface);
-  border: 2px dashed var(--color-success);
+  background: var(--color-surface, #ffffff);
 
   &:hover {
-    background: var(--color-success-light);
-    border-color: var(--color-success) !important;
+    background: rgba($success, 0.06) !important;
+    box-shadow: inset 0 0 0 2px rgba($success, 0.2);
   }
 }
 
+// ── Celda Bloqueada ──
 .celda-bloqueada {
-  background: repeating-linear-gradient(45deg, var(--color-surface-3), var(--color-surface-3) 5px, var(--color-surface) 5px, var(--color-surface) 10px);
+  background: repeating-linear-gradient(
+    45deg,
+    #f8fafc,
+    #f8fafc 4px,
+    #f1f5f9 4px,
+    #f1f5f9 8px
+  );
   cursor: not-allowed;
-  opacity: 0.6;
-  border: 2px solid var(--color-border);
+  opacity: 0.7;
+  border-color: #e2e8f0 !important;
 }
 
-.celda-confirmada {
-  background: var(--color-primary);
-  cursor: not-allowed;
-  color: white;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
-  border: 2px solid var(--color-primary-700);
+// ── Celdas Ocupadas (Contenedor general neutro y elegante) ──
+.celda-confirmada,
+.celda-confirmada-docente,
+.celda-confirmada-multiple,
+.celda-confirmada-docente-multiple,
+.celda-temporal-otro,
+.celda-temporal-propio,
+.celda-temporal-propio-multiple {
+  background: rgba(#f8fafc, 0.8);
+  border-color: #cbd5e1 !important;
 }
 
-.celda-confirmada-docente {
-  background: var(--color-success);
-  cursor: not-allowed;
-  color: white;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
-  border: 2px solid var(--color-success-700);
-}
-
-.celda-confirmada-multiple {
-  background: var(--color-primary);
-  cursor: not-allowed;
-  color: white;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
-  border: 2px solid var(--color-primary-700);
-  position: relative;
-}
-
-.celda-confirmada-docente-multiple {
-  background: var(--color-success);
-  cursor: not-allowed;
-  color: white;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
-  border: 2px solid var(--color-success-700);
-  position: relative;
-}
-
+/* ─── BLOQUES INTERNOS CON COLORES SEMÁNTICOS ──────────────────────── */
 .bloques-container {
   display: flex;
   width: 100%;
   height: 100%;
   gap: 4px;
   padding: 4px;
+  box-sizing: border-box;
 }
 
 .bloque-item {
@@ -216,115 +315,202 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.4);
-  border: 2px solid rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 28px;
-  flex-shrink: 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+  overflow: hidden;
+  height: 100%;
+  position: relative;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.6);
-    transform: scale(1.03);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  .bloque-indicador {
+    font-size: 11px;
+    font-weight: 800;
+    color: inherit;
   }
 
+  // 1. Bloques Ajenos (Semi-transparentes, borde fino)
+  &.bloque-teoria {
+    background: rgba($color-teoria, 0.12);
+    border: 1px solid rgba($color-teoria, 0.4);
+    color: darken($color-teoria, 15%);
+  }
+
+  &.bloque-practica {
+    background: rgba($color-practica, 0.12);
+    border: 1px solid rgba($color-practica, 0.4);
+    color: darken($color-practica, 15%);
+  }
+
+  &.bloque-laboratorio {
+    background: rgba($color-laboratorio, 0.12);
+    border: 1px solid rgba($color-laboratorio, 0.4);
+    color: darken($color-laboratorio, 15%);
+  }
+
+  // 2. Bloques Propios (Fondo sólido, borde grueso, sombra)
   &.bloque-propio {
-    background: rgba(255, 255, 255, 0.6);
-    border-color: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    color: white !important;
+
+    &.bloque-teoria {
+      background: linear-gradient(135deg, $color-teoria, darken($color-teoria, 5%));
+      border: 2px solid darken($color-teoria, 12%);
+    }
+
+    &.bloque-practica {
+      background: linear-gradient(135deg, $color-practica, darken($color-practica, 5%));
+      border: 2px solid darken($color-practica, 12%);
+    }
+
+    &.bloque-laboratorio {
+      background: linear-gradient(135deg, $color-laboratorio, darken($color-laboratorio, 5%));
+      border: 2px solid darken($color-laboratorio, 12%);
+    }
 
     &:hover {
-      background: rgba(255, 255, 255, 0.8);
-      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+      transform: scale(1.04);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    }
+  }
+
+  &:hover:not(.bloque-propio) {
+    background: rgba($primary, 0.08);
+  }
+}
+
+/* ─── ESTADOS DE MODO EDICIÓN ───────────────────────────────────────── */
+.celda-original-eliminada {
+  background: rgba($danger, 0.15) !important;
+  border-color: $danger !important;
+  position: relative;
+
+  &::after {
+    content: '×';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: 800;
+    color: $danger;
+    opacity: 0.6;
+  }
+
+  &:hover {
+    background: rgba($danger, 0.25) !important;
+  }
+}
+
+.celda-nueva {
+  background: rgba($success, 0.15) !important;
+  border-color: $success !important;
+  position: relative;
+
+  &::before {
+    content: '+';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: 800;
+    color: $success;
+    opacity: 0.6;
+  }
+
+  &:hover {
+    background: rgba($success, 0.25) !important;
+  }
+}
+
+.celda-editada {
+  background: rgba($warning, 0.15) !important;
+  border-color: $warning !important;
+  position: relative;
+
+  &::before {
+    content: '✎';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    font-weight: 800;
+    color: $warning;
+    opacity: 0.6;
+  }
+
+  &:hover {
+    background: rgba($warning, 0.25) !important;
+  }
+}
+
+/* ─── FOOTER TIPS ────────────────────────────────────────────────── */
+.grilla-footer {
+  .footer-tip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba($primary, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba($primary, 0.1);
+    font-size: 12px;
+    color: var(--color-text-muted, #64748b);
+
+    mat-icon {
+      color: $primary;
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+
+    strong {
+      color: $primary;
+      font-weight: 700;
     }
   }
 }
 
-.celda-temporal-otro {
-  background: #ff9800;
-  cursor: not-allowed;
-  color: white;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-  border: 2px solid #e65100;
-}
-
-.celda-temporal-propio {
-  background: var(--color-accent, #8b5cf6);
-  color: white;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
-  border: 2px solid #7c3aed;
-
-  &:hover {
-    background: #7c3aed;
+/* ─── ANIMACIONES ────────────────────────────────────────────────── */
+@keyframes pulse-slow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
     transform: scale(1.08);
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
+    opacity: 0.8;
   }
 }
 
-.celda-temporal-propio-multiple {
-  background: var(--color-accent, #8b5cf6);
-  color: white;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
-  border: 2px solid #6d28d9;
-  position: relative;
-
-  &:hover {
-    background: #7c3aed;
-    transform: scale(1.08);
-    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
+/* ─── RESPONSIVE ─────────────────────────────────────────────────── */
+@media (max-width: 992px) {
+  .leyenda-container {
+    flex-direction: column;
+    gap: 14px;
   }
-}
-
-/* Scrollbar styling for better aesthetics */
-.tabla-wrapper::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-.tabla-wrapper::-webkit-scrollbar-track {
-  background: var(--color-surface-2);
-  border-radius: 8px;
-}
-
-.tabla-wrapper::-webkit-scrollbar-thumb {
-  background: var(--color-primary-300);
-  border-radius: 8px;
-  transition: background 0.2s ease;
-}
-
-.tabla-wrapper::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary-500);
 }
 
 @media (max-width: 768px) {
   .grilla-container {
-    padding: 12px;
-  }
-
-  .leyenda {
-    gap: 6px;
-    padding: 12px;
-
-    .leyenda-item {
-      padding: 4px 8px;
-      font-size: 11px;
-    }
+    padding: 16px;
   }
 
   .tabla-wrapper {
-    max-height: 400px;
+    max-height: 420px;
   }
 
   .grilla-tabla {
+    font-size: 12px;
+
     .grilla-celda {
-      width: 70px;
-      height: 44px;
+      min-width: 100px;
+      height: 48px;
     }
 
     .hora-header, .hora-cell {
-      width: 75px;
+      width: 80px;
+      min-width: 80px;
     }
   }
 }

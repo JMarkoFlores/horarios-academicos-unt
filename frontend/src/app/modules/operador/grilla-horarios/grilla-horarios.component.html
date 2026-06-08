@@ -1,16 +1,58 @@
 <div class="grilla-container">
   <div class="grilla-header">
-    <h4>Grilla de Disponibilidad</h4>
+    <div class="header-title-container">
+      <mat-icon class="pulse-icon">grid_on</mat-icon>
+      <div>
+        <h4>Grilla de Disponibilidad</h4>
+        <p class="subtitle">Visualiza y programa la distribución horaria del ambiente seleccionado</p>
+      </div>
+    </div>
     <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
   </div>
 
-  <div class="leyenda">
-    <span class="leyenda-item"><span class="color-libre"></span> Libre</span>
-    <span class="leyenda-item"><span class="color-bloqueado"></span> Restricción</span>
-    <span class="leyenda-item"><span class="color-confirmado-docente"></span> Tu horario confirmado</span>
-    <span class="leyenda-item"><span class="color-confirmado"></span> Ocupado (otro)</span>
-    <span class="leyenda-item"><span class="color-temporal-otro"></span> Reservado (otro)</span>
-    <span class="leyenda-item"><span class="color-temporal-propio"></span> Mi selección</span>
+  <!-- Leyenda Visual Premium -->
+  <div class="leyenda-container">
+    <div class="leyenda-seccion">
+      <span class="seccion-titulo">Estados:</span>
+      <div class="leyenda-items">
+        <span class="leyenda-item" matTooltip="Celda disponible para programar">
+          <span class="color-swatch libre"></span> Libre
+        </span>
+        <span class="leyenda-item" matTooltip="Celda fuera de franja institucional o bloqueada">
+          <span class="color-swatch bloqueado"></span> Restricción
+        </span>
+        <span class="leyenda-item" matTooltip="Reservado temporalmente por otro coordinador">
+          <span class="color-swatch temporal-otro"></span> Reservado (otro)
+        </span>
+      </div>
+    </div>
+
+    <div class="leyenda-seccion">
+      <span class="seccion-titulo">Clases:</span>
+      <div class="leyenda-items">
+        <span class="leyenda-item" matTooltip="Clase teórica (Esmeralda)">
+          <span class="color-swatch clase-teoria">T</span> Teoría
+        </span>
+        <span class="leyenda-item" matTooltip="Clase práctica (Ámbar)">
+          <span class="color-swatch clase-practica">P</span> Práctica
+        </span>
+        <span class="leyenda-item" matTooltip="Sesión de laboratorio (Índigo)">
+          <span class="color-swatch clase-laboratorio">L</span> Laboratorio
+        </span>
+      </div>
+    </div>
+
+    <div class="leyenda-seccion">
+      <span class="seccion-titulo">Indicadores:</span>
+      <div class="leyenda-items">
+        <span class="leyenda-item" matTooltip="Bloque con borde grueso / color sólido es tuyo">
+          <span class="color-swatch bloque-propio-swatch"></span> Propio
+        </span>
+        <span class="leyenda-item" matTooltip="Bloque semi-transparente / borde fino es de otro docente">
+          <span class="color-swatch bloque-ajeno-swatch"></span> Externo
+        </span>
+      </div>
+    </div>
   </div>
 
   <div class="tabla-wrapper">
@@ -18,18 +60,19 @@
       <thead>
         <tr>
           <th class="hora-header">Hora</th>
-          <th *ngFor="let d of dias">{{ d.label }}</th>
+          <th *ngFor="let d of dias" class="dia-header">{{ d.label }}</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let hora of horas">
+        <tr *ngFor="let hora of horas; let odd = odd" [class.row-alt]="odd">
           <td class="hora-cell">{{ hora }}-{{ getHoraFin(hora) }}</td>
           <td
             *ngFor="let d of dias"
             class="grilla-celda"
-            [ngClass]="getClaseCelda(getCelda(d.valor, hora))"
+            [ngClass]="[getClaseCelda(getCelda(d.valor, hora)), getClaseCeldaEdicion(d.valor, hora)]"
             [matTooltip]="getTooltipCelda(getCelda(d.valor, hora))"
             [matTooltipDisabled]="!getCelda(d.valor, hora)"
+            matTooltipPosition="above"
             (click)="onCeldaClick(d.valor, hora)"
             (contextmenu)="onCeldaRightClick(d.valor, hora, $event)"
             (dblclick)="onCeldaDoubleClick(d.valor, hora)"
@@ -39,25 +82,47 @@
               <div *ngIf="celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE'" class="bloques-container">
                 <div *ngFor="let ocupacion of getOcupacionesArray(celda); let i = index"
                      class="bloque-item"
-                     [ngClass]="{'bloque-propio': true}"
+                     [ngClass]="{
+                       'bloque-propio': true,
+                       'bloque-teoria': ocupacion.tipoClase === 'TEORIA',
+                       'bloque-practica': ocupacion.tipoClase === 'PRACTICA',
+                       'bloque-laboratorio': ocupacion.tipoClase === 'LABORATORIO'
+                     }"
                      [style.width.%]="100 / getBloqueCount(celda)"
                      (contextmenu)="onBloqueRightClick($event, d.valor, hora, ocupacion)">
+                  <span class="bloque-indicador">{{ ocupacion.tipoClase ? ocupacion.tipoClase[0] : 'T' }}</span>
                 </div>
               </div>
+              
               <!-- Bloques individuales para ocupaciones confirmadas (simples y múltiples) -->
               <div *ngIf="celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' || 
                        celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE'" class="bloques-container">
                 <div *ngFor="let ocupacion of getOcupacionesArray(celda); let i = index"
                      class="bloque-item"
-                     [ngClass]="{'bloque-propio': ocupacion.docenteId === docenteId}"
+                     [ngClass]="{
+                       'bloque-propio': ocupacion.docenteId === docenteId,
+                       'bloque-teoria': ocupacion.tipoClase === 'TEORIA',
+                       'bloque-practica': ocupacion.tipoClase === 'PRACTICA',
+                       'bloque-laboratorio': ocupacion.tipoClase === 'LABORATORIO'
+                     }"
                      [style.width.%]="100 / getBloqueCount(celda)">
+                  <span class="bloque-indicador">
+                    {{ ocupacion.tipoClase ? ocupacion.tipoClase[0] : (ocupacion.docenteId === docenteId ? 'M' : 'O') }}
+                  </span>
                 </div>
               </div>
-              <!-- Celda libre o bloqueada - sin bloques visibles -->
             </ng-container>
           </td>
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Panel de interacción -->
+  <div class="grilla-footer">
+    <div class="footer-tip">
+      <mat-icon>mouse</mat-icon>
+      <span><strong>Clic Izquierdo</strong> = Programar bloque &nbsp;·&nbsp; <strong>Clic Derecho</strong> = Eliminar bloque propio / Ver detalles &nbsp;·&nbsp; <strong>Doble Clic</strong> = Info Completa</span>
+    </div>
   </div>
 </div>

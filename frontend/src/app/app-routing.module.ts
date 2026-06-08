@@ -173,11 +173,28 @@ const routes: Routes = [
         data: {
           roles: [
             'administradorsistema',
-            'directorescuela',
             'coordinadoracademico',
             'operadorhorarios',
           ],
         },
+      },
+      {
+        path: 'docente-facultad',
+        loadChildren: () =>
+          import('./modules/docente-facultad/docente-facultad.module').then(
+            (m) => m.DocenteFacultadModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+      },
+      {
+        path: 'documentaciones',
+        loadChildren: () =>
+          import('./modules/documentaciones/documentaciones.module').then(
+            (m) => m.DocumentacionesModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['directorescuela'] },
       },
       {
         path: 'facultades',

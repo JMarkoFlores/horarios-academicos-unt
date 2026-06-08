@@ -1,0 +1,79 @@
+<div class="page-shell">
+  <div class="page-header">
+    <button mat-icon-button (click)="cancelar()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div>
+      <h1>Asignar Facultad y Departamento</h1>
+      <p *ngIf="necesitaAsignacion">
+        Este docente no tiene facultad o departamento declarados. Complete la asignación.
+      </p>
+      <p *ngIf="!necesitaAsignacion">
+        Actualice la facultad y el departamento asignados al docente.
+      </p>
+    </div>
+  </div>
+
+  <mat-card *ngIf="docente" class="info-card">
+    <mat-card-title>Datos del docente</mat-card-title>
+    <mat-card-content>
+      <div class="info-grid">
+        <div>
+          <span class="label">Docente</span>
+          <strong>{{ nombreCompleto }}</strong>
+        </div>
+        <div>
+          <span class="label">IBM</span>
+          <strong>{{ docente.ibm || '—' }}</strong>
+        </div>
+        <div>
+          <span class="label">Email</span>
+          <strong>{{ docente.email }}</strong>
+        </div>
+        <div>
+          <span class="label">Asignación actual</span>
+          <strong>
+            {{ docente.facultad?.nombre || 'Sin facultad' }} / {{ docente.departamento?.nombre || 'Sin departamento' }}
+          </strong>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="form-card">
+    <mat-card-title>Asignación institucional</mat-card-title>
+    <mat-card-content>
+      <form [formGroup]="form" class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Facultad</mat-label>
+          <mat-select formControlName="facultad_id" (selectionChange)="onFacultadChange($event.value)">
+            <mat-option *ngFor="let facultad of facultades" [value]="facultad.id">
+              {{ facultad.nombre }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('facultad_id')?.hasError('required')">
+            La facultad es obligatoria
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Departamento</mat-label>
+          <mat-select formControlName="departamento_id">
+            <mat-option *ngFor="let departamento of departamentos" [value]="departamento.id">
+              {{ departamento.nombre }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('departamento_id')?.hasError('required')">
+            El departamento es obligatorio
+          </mat-error>
+        </mat-form-field>
+      </form>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <button mat-stroked-button (click)="cancelar()">Cancelar</button>
+      <button mat-raised-button color="primary" (click)="guardar()" [disabled]="saving || loading">
+        Guardar
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>

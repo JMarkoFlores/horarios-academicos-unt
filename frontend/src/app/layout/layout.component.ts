@@ -123,6 +123,12 @@ export class LayoutComponent implements OnInit, OnDestroy {
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
+          icon: 'school',
+          label: 'Docente-Facultad',
+          route: '/app/docente-facultad',
+          roles: ['administradorsistema', 'coordinadoracademico'],
+        },
+        {
           icon: 'event_available',
           label: 'Disponibilidad',
           route: '/app/disponibilidad',
@@ -154,11 +160,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
           icon: 'support_agent',
           label: 'Secretaria',
           route: '/app/secretaria',
-          roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'secretaria',
-          ],
+          roles: ['administradorsistema', 'coordinadoracademico', 'secretaria'],
         },
       ],
     },
@@ -202,10 +204,15 @@ export class LayoutComponent implements OnInit, OnDestroy {
           route: '/app/declaraciones',
           roles: [
             'administradorsistema',
-            'directorescuela',
             'coordinadoracademico',
             'operadorhorarios',
           ],
+        },
+        {
+          icon: 'fact_check',
+          label: 'Documentaciones',
+          route: '/app/documentaciones',
+          roles: ['directorescuela'],
         },
       ],
     },
@@ -288,6 +295,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
     configuracion: 'Configuración del Sistema',
     notificaciones: 'Notificaciones y Preferencias',
     declaraciones: 'Gestión de Declaraciones Normativas',
+    documentaciones: 'Revisión de Documentaciones',
+    'docente-facultad': 'Asignación Docente-Facultad',
   };
 
   private _rutasSinPeriodo = new Set([
@@ -301,6 +310,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
     'notificaciones',
     'analisis-carga',
     'declaraciones',
+    'documentaciones',
+    'docente-facultad',
   ]);
   showPeriodoSelector = true;
   notificacionesCount = 3; // Simulación de notificaciones no leídas

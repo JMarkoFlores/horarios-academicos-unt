@@ -1,0 +1,83 @@
+<div class="approval-page">
+  <div class="page-header">
+    <button mat-icon-button (click)="volver()">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div>
+      <h1>Verificar Aprobacion</h1>
+      <p>Estado actual de la declaracion del docente.</p>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <mat-card *ngIf="!loading && docente" class="approval-card">
+    <mat-card-title>Informacion del docente</mat-card-title>
+    <mat-card-content>
+      <table class="info-table">
+        <tbody>
+          <tr>
+            <td>Periodo</td>
+            <td>{{ periodo }}</td>
+          </tr>
+          <tr>
+            <td>Docente</td>
+            <td>{{ docente.apellidos }}, {{ docente.nombres }}</td>
+          </tr>
+          <tr>
+            <td>IBM</td>
+            <td>{{ docente.ibm || '—' }}</td>
+          </tr>
+          <tr>
+            <td>Estado de declaracion</td>
+            <td><strong>{{ estadoLabel }}</strong></td>
+          </tr>
+          <tr>
+            <td>Director que valido</td>
+            <td>{{ directorValidador }}</td>
+          </tr>
+          <tr>
+            <td>Fecha de validacion</td>
+            <td>{{ fechaValidacion }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card *ngIf="!loading && docente && mostrarDocumentosConferir" class="approval-card">
+    <mat-card-title>Documentos a Conferir</mat-card-title>
+    <mat-card-content>
+      <table mat-table [dataSource]="documentos" class="docs-table">
+        <ng-container matColumnDef="nombre">
+          <th mat-header-cell *matHeaderCellDef>Formato</th>
+          <td mat-cell *matCellDef="let item">{{ item.nombre }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="sede">
+          <th mat-header-cell *matHeaderCellDef>Sede</th>
+          <td mat-cell *matCellDef="let item">{{ item.sede }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="estado">
+          <th mat-header-cell *matHeaderCellDef>Estado</th>
+          <td mat-cell *matCellDef="let item">{{ item.estado }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="conferir">
+          <th mat-header-cell *matHeaderCellDef>Conferir</th>
+          <td mat-cell *matCellDef="let item">
+            <button mat-stroked-button color="primary" (click)="conferirDocumento(item)">
+              {{ descargandoDocumento === item.tipo ? 'Generando...' : 'Conferir' }}
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="documentosColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: documentosColumns"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+</div>

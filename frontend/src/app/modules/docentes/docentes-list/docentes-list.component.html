@@ -27,6 +27,14 @@
         <mat-icon *ngIf="!exportando">download</mat-icon>
         <span>{{ exportando ? "Exportando…" : "Exportar Excel" }}</span>
       </button>
+      <a
+        mat-stroked-button
+        class="btn-export"
+        routerLink="/app/docente-facultad"
+      >
+        <mat-icon>school</mat-icon>
+        <span>Docente-Facultad</span>
+      </a>
       <a mat-raised-button class="btn-new" routerLink="/app/docentes/nuevo">
         <mat-icon>person_add</mat-icon>
         <span>Nuevo Docente</span>

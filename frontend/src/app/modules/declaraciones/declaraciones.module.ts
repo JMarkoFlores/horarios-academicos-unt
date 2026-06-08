@@ -6,11 +6,16 @@ import { SharedModule } from '../../shared/shared.module';
 import { DeclaracionesComponent } from './declaraciones.component';
 import { VerificarDeclaracionComponent } from './verificar-declaracion/verificar-declaracion.component';
 import { VerificarFirmaComponent } from './verificar-firma/verificar-firma.component';
+import { VerificarAprobacionComponent } from './verificar-aprobacion/verificar-aprobacion.component';
 
 const routes: Routes = [
   { path: '', component: DeclaracionesComponent },
   { path: 'verificar/:id', component: VerificarDeclaracionComponent },
   { path: 'verificar-firma/:id', component: VerificarFirmaComponent },
+  {
+    path: 'verificar-aprobacion/:id',
+    component: VerificarAprobacionComponent,
+  },
 ];
 
 @NgModule({
@@ -18,6 +23,7 @@ const routes: Routes = [
     DeclaracionesComponent,
     VerificarDeclaracionComponent,
     VerificarFirmaComponent,
+    VerificarAprobacionComponent,
   ],
   imports: [
     CommonModule,

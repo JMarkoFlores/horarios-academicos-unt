@@ -196,7 +196,7 @@ export class DocentesController {
   }
 
   @Delete(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Desactivar un docente (soft delete)" })
   @ApiParam({ name: "id", type: Number })

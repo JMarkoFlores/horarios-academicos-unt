@@ -157,6 +157,22 @@ export class DeclaracionCargaHorariaController {
     return { data, message: "Declaración enviada correctamente" };
   }
 
+  @Get("documentaciones")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_ESCUELA)
+  @ApiOperation({
+    summary: "Obtener documentaciones enviadas por docentes para revisión",
+  })
+  async obtenerDocumentaciones(
+    @CurrentUser() usuario: Usuario,
+    @Query("periodo") periodo?: string,
+  ): Promise<any> {
+    const data = await this.declaracionService.obtenerDocumentaciones(
+      usuario,
+      periodo,
+    );
+    return { data, message: "Documentaciones obtenidas correctamente" };
+  }
+
   @Get(":id")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
@@ -169,8 +185,11 @@ export class DeclaracionCargaHorariaController {
   @ApiOperation({ summary: "Obtener una declaración por ID" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Declaración encontrada" })
-  async obtenerPorId(@Param("id", ParseIntPipe) id: number): Promise<any> {
-    const data = await this.declaracionService.obtenerPorId(id);
+  async obtenerPorId(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.obtenerPorId(id, usuario);
     return { data, message: "Declaración obtenida correctamente" };
   }
 
@@ -287,6 +306,7 @@ export class DeclaracionCargaHorariaController {
   @Patch(":id/observar")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
   )
@@ -302,7 +322,11 @@ export class DeclaracionCargaHorariaController {
   }
 
   @Patch(":id/validar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Validar una declaración a nivel departamental" })
   @ApiParam({ name: "id", type: Number })
   async validar(

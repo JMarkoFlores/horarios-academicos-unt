@@ -99,6 +99,18 @@
             <mat-icon>verified</mat-icon>
             Verificar Firma
           </button>
+          <button
+            mat-raised-button
+            color="primary"
+            class="action-btn"
+            [routerLink]="[
+              '/app/declaraciones/verificar-aprobacion',
+              selectedDocente.id,
+            ]"
+          >
+            <mat-icon>fact_check</mat-icon>
+            Verificar Aprobacion
+          </button>
         </div>
       </mat-card-content>
     </mat-card>

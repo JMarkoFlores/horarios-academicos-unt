@@ -69,4 +69,12 @@ export class QueryDocenteDto {
   @IsOptional()
   @IsString()
   activo?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Filtrar docentes sin facultad o departamento asignado. Use 'true' o 'false'",
+  })
+  @IsOptional()
+  @IsString()
+  sin_vinculacion?: string;
 }

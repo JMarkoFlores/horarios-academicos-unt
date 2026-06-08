@@ -32,6 +32,7 @@ export interface Docente {
   fecha_ingreso: string;
   activo: boolean;
   puntaje_jerarquia?: number;
+  facultad_id?: number;
   departamento_id?: number;
   departamento?: Departamento;
   antiguedad?: {
@@ -246,6 +247,80 @@ export interface ConflictoAsignacion {
   resuelto: boolean;
   docente?: Docente;
   ambiente?: Ambiente;
+}
+
+export interface DocumentacionResumen {
+  id: number;
+  docente_id: number;
+  docente_nombre: string;
+  docente_ibm: number | null;
+  estado: string;
+  periodo: string;
+  fecha_envio: string | null;
+}
+
+export interface CargaLectivaRegistro {
+  horarioAsignadoId: number;
+  cursoId: number;
+  codigoCurso: string;
+  nombreCurso: string;
+  grupoId: number;
+  seccion: string;
+  ciclo: number;
+  tipoClase: string;
+  horasTeoria: number;
+  horasPractica: number;
+  horasLaboratorio: number;
+  horasBloque: number;
+  ambiente: string;
+  dia: number;
+  horaInicio: string;
+  horaFin: string;
+}
+
+export interface CargaLectivaResumen {
+  totalHoras: number;
+  totalCursos: number;
+  totalSecciones: number;
+  totalBloques: number;
+}
+
+export interface CargaLectivaGenerada {
+  docenteId: number;
+  periodoId: number;
+  periodoCodigo: string;
+  registros: CargaLectivaRegistro[];
+  resumen: CargaLectivaResumen;
+  generadoEn: string;
+}
+
+export interface DeclaracionVista {
+  declaracion: {
+    id: number;
+    docente_id: number;
+    estado: string;
+    observaciones?: string | null;
+    carga_no_lectiva?: {
+      actividades?: Array<{
+        id: number;
+        codigo: string;
+        descripcion: string;
+        detalle?: string;
+        horas: number;
+      }>;
+      total_horas?: number;
+    } | null;
+    fecha_firma_docente?: string | null;
+    fecha_firma_director?: string | null;
+    fecha_firma_decano?: string | null;
+  } | null;
+  estado: string;
+  docente: Docente;
+  departamento?: Departamento | null;
+  facultad?: { id: number; nombre: string } | null;
+  periodo: PeriodoAcademico;
+  cargaLectiva: CargaLectivaGenerada;
+  snapshotGuardado?: CargaLectivaGenerada | null;
 }
 
 export type EstadoPeriodo =

@@ -101,9 +101,14 @@ export class DocentesService {
       sortBy,
       sortDir,
       activo,
+      sin_vinculacion,
     } = query;
-    const qb = this.docenteRepo.createQueryBuilder("docente")
-      .leftJoinAndSelect("docente.departamento", "departamento");
+    const qb = this.docenteRepo
+      .createQueryBuilder("docente")
+      .leftJoinAndSelect("docente.departamento", "departamento")
+      .leftJoinAndSelect("departamento.escuela", "escuela")
+      .leftJoinAndSelect("escuela.facultad", "facultadDesdeDepartamento")
+      .leftJoinAndSelect("docente.facultad", "facultad");
     
     qb.where("1 = 1");
 
@@ -111,6 +116,16 @@ export class DocentesService {
       qb.andWhere("docente.activo = true");
     } else if (activo === "false") {
       qb.andWhere("docente.activo = false");
+    }
+
+    if (sin_vinculacion === "true") {
+      qb.andWhere(
+        "(docente.facultad_id IS NULL OR docente.departamento_id IS NULL)",
+      );
+    } else if (sin_vinculacion === "false") {
+      qb.andWhere(
+        "(docente.facultad_id IS NOT NULL AND docente.departamento_id IS NOT NULL)",
+      );
     }
 
 
@@ -171,6 +186,9 @@ export class DocentesService {
     const qb = this.docenteRepo
       .createQueryBuilder("docente")
       .leftJoinAndSelect("docente.departamento", "departamento")
+      .leftJoinAndSelect("departamento.escuela", "escuela")
+      .leftJoinAndSelect("escuela.facultad", "facultadDesdeDepartamento")
+      .leftJoinAndSelect("docente.facultad", "facultad")
       .where("docente.activo = :activo", { activo: true });
 
     if (filters.categoria) {

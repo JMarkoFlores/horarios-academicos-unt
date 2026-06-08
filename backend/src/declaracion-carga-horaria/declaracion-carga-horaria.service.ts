@@ -96,6 +96,16 @@ interface DeclaracionVista {
   snapshotGuardado: CargaLectivaGenerada | null;
 }
 
+interface DocumentacionResumen {
+  id: number;
+  docente_id: number;
+  docente_nombre: string;
+  docente_ibm: number | null;
+  estado: EstadoDeclaracionCarga;
+  periodo: string;
+  fecha_envio: Date | null;
+}
+
 @Injectable()
 export class DeclaracionCargaHorariaService {
   constructor(
@@ -166,7 +176,10 @@ export class DeclaracionCargaHorariaService {
     };
   }
 
-  async obtenerPorId(id: number): Promise<DeclaracionVista> {
+  async obtenerPorId(
+    id: number,
+    usuario?: Usuario & { docenteId?: number | null },
+  ): Promise<DeclaracionVista> {
     const declaracion = await this.declaracionRepo.findOne({
       where: { id },
       relations: [
@@ -186,6 +199,10 @@ export class DeclaracionCargaHorariaService {
       throw new NotFoundException(`Declaración ${id} no encontrada`);
     }
 
+    if (usuario) {
+      this.verificarAccesoDeclaracion(usuario, declaracion);
+    }
+
     const cargaLectiva = await this.generarCargaLectivaDesdeHorarios(
       declaracion.docente_id,
       declaracion.periodo_academico_id,
@@ -203,6 +220,60 @@ export class DeclaracionCargaHorariaService {
         declaracion.carga_no_lectiva,
       ),
     };
+  }
+
+  async obtenerDocumentaciones(
+    usuario: Usuario & { docenteId?: number | null },
+    periodo?: string,
+  ): Promise<DocumentacionResumen[]> {
+    this.verificarRol(usuario.rol, [
+      RolUsuario.ADMINISTRADOR_SISTEMA,
+      RolUsuario.DIRECTOR_ESCUELA,
+    ]);
+
+    const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
+    const estadosVisibles = [
+      EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+      EstadoDeclaracionCarga.OBSERVADO_DPTO,
+      EstadoDeclaracionCarga.SUBSANADO,
+      EstadoDeclaracionCarga.VALIDADO_DPTO,
+      EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+      EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      EstadoDeclaracionCarga.CERRADO,
+    ];
+
+    const qb = this.declaracionRepo
+      .createQueryBuilder("declaracion")
+      .innerJoinAndSelect("declaracion.docente", "docente")
+      .innerJoinAndSelect("declaracion.periodo_academico", "periodo")
+      .leftJoinAndSelect("declaracion.departamento", "departamento")
+      .leftJoinAndSelect("departamento.escuela", "escuela")
+      .where("declaracion.periodo_academico_id = :periodoId", {
+        periodoId: periodoActivo.id,
+      })
+      .andWhere("declaracion.estado IN (:...estados)", {
+        estados: estadosVisibles,
+      })
+      .orderBy("docente.apellidos", "ASC")
+      .addOrderBy("docente.nombres", "ASC");
+
+    if (usuario.rol === RolUsuario.DIRECTOR_ESCUELA) {
+      qb.andWhere("escuela.coordinador_id = :usuarioId", {
+        usuarioId: usuario.id,
+      });
+    }
+
+    const declaraciones = await qb.getMany();
+
+    return declaraciones.map((declaracion) => ({
+      id: declaracion.id,
+      docente_id: declaracion.docente_id,
+      docente_nombre: `${declaracion.docente.apellidos}, ${declaracion.docente.nombres}`,
+      docente_ibm: declaracion.docente.ibm ?? null,
+      estado: declaracion.estado,
+      periodo: declaracion.periodo_academico.codigo,
+      fecha_envio: declaracion.fecha_firma_docente,
+    }));
   }
 
   async crear(
@@ -292,12 +363,16 @@ export class DeclaracionCargaHorariaService {
     dto: AccionDeclaracionCargaHorariaDto,
   ): Promise<DeclaracionVista> {
     const declaracion = await this.obtenerEntidadEditable(id);
+    this.verificarAccesoDeclaracion(usuario, declaracion);
     const estadoObjetivo = this.resolverEstadoObservacion(usuario.rol);
     this.validarTransicionEstado(declaracion.estado, estadoObjetivo);
 
     declaracion.estado = estadoObjetivo;
     declaracion.observaciones = dto.observaciones ?? declaracion.observaciones;
     declaracion.usuario_firmante_id = usuario.id;
+    if (estadoObjetivo === EstadoDeclaracionCarga.OBSERVADO_DPTO) {
+      declaracion.fecha_firma_director = new Date();
+    }
 
     const saved = await this.declaracionRepo.save(declaracion);
     return this.obtenerPorId(saved.id);
@@ -310,10 +385,12 @@ export class DeclaracionCargaHorariaService {
   ): Promise<DeclaracionVista> {
     this.verificarRol(usuario.rol, [
       RolUsuario.DIRECTOR_DEPARTAMENTO,
+      RolUsuario.DIRECTOR_ESCUELA,
       RolUsuario.ADMINISTRADOR_SISTEMA,
     ]);
 
     const declaracion = await this.obtenerEntidadEditable(id);
+    this.verificarAccesoDeclaracion(usuario, declaracion);
     this.validarTransicionEstado(
       declaracion.estado,
       EstadoDeclaracionCarga.VALIDADO_DPTO,
@@ -391,6 +468,7 @@ export class DeclaracionCargaHorariaService {
       ],
       [EstadoDeclaracionCarga.OBSERVADO_DPTO]: [
         EstadoDeclaracionCarga.SUBSANADO,
+        EstadoDeclaracionCarga.VALIDADO_DPTO,
         EstadoDeclaracionCarga.ANULADO,
       ],
       [EstadoDeclaracionCarga.SUBSANADO]: [
@@ -580,6 +658,7 @@ export class DeclaracionCargaHorariaService {
 
   private resolverEstadoObservacion(rol: RolUsuario): EstadoDeclaracionCarga {
     if (
+      rol === RolUsuario.DIRECTOR_ESCUELA ||
       rol === RolUsuario.DIRECTOR_DEPARTAMENTO ||
       rol === RolUsuario.ADMINISTRADOR_SISTEMA
     ) {
@@ -904,6 +983,19 @@ export class DeclaracionCargaHorariaService {
       return;
     }
 
+    if (usuario.rol === RolUsuario.DIRECTOR_ESCUELA) {
+      const coordinadorId =
+        declaracion.docente?.departamento?.escuela?.coordinador_id ??
+        declaracion.departamento?.escuela?.coordinador_id ??
+        null;
+      if (coordinadorId !== usuario.id) {
+        throw new ForbiddenException(
+          "No puede acceder a documentaciones fuera de su escuela",
+        );
+      }
+      return;
+    }
+
     if (
       usuario.rol === RolUsuario.DOCENTE &&
       usuario.docenteId !== declaracion.docente_id
@@ -994,6 +1086,7 @@ export class DeclaracionCargaHorariaService {
 
     return this.declaracionRepo.findOne({
       where: { docente_id: docenteId, periodo_academico_id: periodoId },
+      relations: ["usuario_firmante"],
     });
   }
 
@@ -1123,5 +1216,20 @@ export class DeclaracionCargaHorariaService {
   private toMinutes(hora: string): number {
     const [horas, minutos] = hora.split(":").map(Number);
     return (horas || 0) * 60 + (minutos || 0);
+  }
+
+  private async resolverPeriodoPorCodigo(
+    periodo?: string,
+  ): Promise<PeriodoAcademico> {
+    if (periodo) {
+      const periodoEncontrado = await this.periodoRepo.findOne({
+        where: { codigo: periodo },
+      });
+      if (periodoEncontrado) {
+        return periodoEncontrado;
+      }
+    }
+
+    return this.obtenerPeriodoActivo();
   }
 }

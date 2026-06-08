@@ -3,4 +3,5 @@ export enum CategoriaDocente {
   ASOCIADO = "ASOCIADO",
   AUXILIAR = "AUXILIAR",
   SIN_CATEGORIA = "SIN_CATEGORIA",
+  JEFE_PRACTICA = "JEFE_PRACTICA",
 }

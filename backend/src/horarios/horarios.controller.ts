@@ -16,6 +16,7 @@ import {
   Res,
   Headers,
   NotFoundException,
+  Logger,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -49,12 +50,15 @@ import { GenerarAutomaticoDto } from "./dto/generar-automatico.dto";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
 import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
+import { UpdateAsignacionDto } from "./dto/update-asignacion.dto";
 import { HorariosService } from "./horarios.service";
 
 @ApiTags("horarios")
 @Controller("horarios")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class HorariosController {
+  private readonly logger = new Logger(HorariosController.name);
+  
   constructor(
     private readonly asignacionService: AsignacionService,
     private readonly horariosService: HorariosService,
@@ -362,6 +366,79 @@ export class HorariosController {
     });
     return { data, message: "Horario reasignado", statusCode: HttpStatus.OK };
   }
+
+  @Patch(':id/actualizar')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Actualizar una asignación de horario existente' })
+  @ApiResponse({ status: 200, description: 'Asignación actualizada correctamente' })
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.SECRETARIA)
+  async updateAsignacion(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAsignacionDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const data = await this.asignacionService.updateAsignacion(id, dto, usuario);
+    return { data, message: 'Asignación actualizada', statusCode: HttpStatus.OK };
+  }
+
+  @Delete(':id')
+  @ApiBearerAuth('JWT')
+  @ApiOperation({ summary: 'Eliminar una asignación de horario existente' })
+  @ApiResponse({ status: 200, description: 'Asignación eliminada correctamente' })
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.SECRETARIA)
+  async deleteAsignacion(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() usuario: Usuario,
+    @Req() request: Request,
+  ) {
+    try {
+      this.logger.log(`[deleteAsignacion] Intentando eliminar horario ID: ${id}`);
+      
+      const horario = await this.horarioRepo.findOne({ where: { id } });
+      if (!horario) {
+        this.logger.warn(`[deleteAsignacion] Horario ${id} no encontrado`);
+        throw new NotFoundException(`Horario ${id} no encontrado`);
+      }
+
+      const datosAnteriores = {
+        estado: horario.estado,
+        dia: horario.dia,
+        hora_inicio: horario.hora_inicio,
+        hora_fin: horario.hora_fin,
+        ambiente_id: horario.ambiente_id,
+        docente_id: horario.docente_id,
+        curso_id: horario.curso_id,
+        tipo_clase: horario.tipo_clase,
+        grupo_id: horario.grupo_id,
+      };
+
+      this.logger.log(`[deleteAsignacion] Datos anteriores: ${JSON.stringify(datosAnteriores)}`);
+      
+      // Save audit record before deletion to avoid foreign key constraint violation
+      await this.auditoriaRepo.save(
+        this.auditoriaRepo.create({
+          horario_id: id,
+          usuario_id: usuario?.id ?? 1,
+          accion: "eliminar_asignacion",
+          datos_anteriores: datosAnteriores,
+          datos_nuevos: null,
+          ip: request.ip ?? "desconocida",
+          motivo: "Eliminación desde modo edición",
+        }),
+      );
+      this.logger.log(`[deleteAsignacion] Auditoría guardada exitosamente`);
+
+      await this.horarioRepo.delete(id);
+      this.logger.log(`[deleteAsignacion] Horario ${id} eliminado de la base de datos`);
+
+      return { data: null, message: 'Asignación eliminada', statusCode: HttpStatus.OK };
+    } catch (error) {
+      this.logger.error(`[deleteAsignacion] Error al eliminar horario ${id}: ${error.message}`);
+      this.logger.error(`[deleteAsignacion] Stack trace: ${error.stack}`);
+      throw error;
+    }
+  }
+
 
   @Get("conflictos/:periodo")
   @ApiBearerAuth("JWT")

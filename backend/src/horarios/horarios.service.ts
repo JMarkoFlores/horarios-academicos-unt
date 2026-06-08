@@ -120,6 +120,29 @@ export class HorariosService {
     return { items, total, page, limit };
   }
 
+  async findByDia(
+    dia: number,
+    periodo: string,
+    page = 1,
+    limit = 50,
+  ) {
+    const [items, total] = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.docente", "docente")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("horario.dia = :dia", { dia })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.hora_inicio", "ASC")
+      .addOrderBy("horario.hora_fin", "ASC")
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return { items, total, page, limit };
+  }
+
   async findConflictos(periodo: string, page = 1, limit = 20) {
     const [items, total] = await this.conflictoRepo
       .createQueryBuilder("conflicto")
@@ -156,7 +179,18 @@ export class HorariosService {
     const docente = await this.docenteRepo.findOne({ where: { email } });
     if (!docente) throw new NotFoundException("Docente no encontrado");
 
-    return this.findHorariosByDocenteId(docente.id, periodo);
+    const horarios = await this.findHorariosByDocenteId(docente.id, periodo);
+
+    return {
+      horarios,
+      docente: {
+        id: docente.id,
+        nombres: docente.nombres,
+        apellidos: docente.apellidos,
+        codigo: docente.codigo,
+        email: docente.email,
+      },
+    };
   }
 
   async findHorariosByDocenteId(docenteId: number, periodo: string) {

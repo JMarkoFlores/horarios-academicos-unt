@@ -249,9 +249,97 @@ async function seed() {
   }
   console.log("✅ Períodos académicos creados (2026-I Activo)\n");
 
-  // ── 3. DOCENTES Y SUS USUARIOS ASOCIADOS (DE LOS DATOS DEL PDF) ───────────
-  console.log("👨‍🏫 Creando docentes de los datos del PDF...");
-  const docentesData = [
+  // ── 2.1 CAMPAÑA DE VENTANAS DE ATENCIÓN ───────────────────────────────────
+  console.log("📅 Creando campaña de ventanas de atención para el semestre...");
+  const campañaRepo = AppDataSource.getRepository(CampañaVentanas);
+  const ventanaRepo = AppDataSource.getRepository(VentanaAtencion);
+
+  const campaña = await campañaRepo.save(campañaRepo.create({
+    nombre: "Campaña de Asignación de Horarios 2026-I",
+    descripcion: "Campaña principal para la declaración y asignación de horarios del primer semestre de 2026",
+    periodo_id: periodoActivo.id,
+    periodo: periodoActivo,
+    estado: EstadoCampaña.PUBLICADO,
+    fecha_inicio: new Date("2026-03-16"),
+    fecha_fin: new Date("2026-07-31"),
+    dias_habilitados: ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"],
+    bloques_horarios: [
+      { nombre: "Mañana", hora_inicio: "07:00", hora_fin: "14:00" },
+      { nombre: "Tarde", hora_inicio: "14:00", hora_fin: "21:00" }
+    ],
+    duracion_turno_minutos: 60,
+    buffer_minutos: 10,
+    cupos_maximos_ventana: 10,
+    porcentaje_reserva: 20,
+    reglas_prioridad: [
+      { campo: "tipo_docente", orden: "DESC" },
+      { campo: "categoria", orden: "DESC" },
+      { campo: "modalidad", orden: "DESC" },
+      { campo: "fecha_ingreso", orden: "ASC" }
+    ],
+    excluir_feriados: true,
+    excluir_eventos: false,
+    distribucion_equitativa: true,
+    total_ventanas_generadas: 0,
+    total_docentes_asignados: 0,
+    total_docentes_atendidos: 0,
+    total_ausencias: 0,
+    tiempo_promedio_atencion: 0,
+    creado_por_id: dbUsuariosSistemas[0].id,
+  }));
+
+  console.log("✅ Campaña creada exitosamente!\n");
+
+  // ── 2.2 VENTANAS DE ATENCIÓN ASOCIADAS ────────────────────────────────────
+  console.log("📋 Creando ventanas de atención para la campaña...");
+  
+  // Ventana de Declaración Inicial
+  const ventanaDeclaracion = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-03-20"),
+    proposito: "DECLARACION",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
+
+  // Ventana de Subsanación
+  const ventanaSubsanacion = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-04-01"),
+    proposito: "SUBSANACION",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
+
+  // Ventana de Cambio de Horario
+  const ventanaCambio = await ventanaRepo.save(ventanaRepo.create({
+    periodo: periodoActivo.codigo,
+    fecha: new Date("2026-04-15"),
+    proposito: "CAMBIO",
+    modalidad: null,
+    hora_inicio: "09:00",
+    hora_fin: "17:00",
+    intervalo_minutos: 30,
+    estado: EstadoVentanaAtencion.PROGRAMADA,
+    campaña_id: campaña.id,
+    campaña: campaña,
+  }));
+
+  console.log("✅ Ventanas de atención creadas exitosamente!\n");
+
+  // ── 3. AMBIENTES (AULAS Y LABORATORIOS) ──────────────────────────────────
+  console.log("🏢 Creando ambientes de estudio...");
+  const ambientesData = [
     {
       nombres: "Marcelino",
       apellidos: "Torres Villanueva",

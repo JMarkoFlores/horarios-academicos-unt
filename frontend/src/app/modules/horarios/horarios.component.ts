@@ -112,6 +112,13 @@ export class HorariosComponent implements OnInit, OnDestroy {
   ];
   private colorIndex = 0;
 
+  // Modo de edición
+  modoEdicion = false;
+  asignacionEnEdicion: HorarioAsignado | null = null;
+  celdasOriginales: HorarioAsignado[] = [];
+  celdasParaAgregar: HorarioAsignado[] = [];
+  celdasParaEliminar: HorarioAsignado[] = [];
+
   constructor(
     private api: ApiService,
     public periodoService: PeriodoService,
@@ -238,8 +245,75 @@ export class HorariosComponent implements OnInit, OnDestroy {
   clsDoc(dia: number, hora: number): string {
     const a = this.getAsigDoc(dia, hora);
     if (!a) return 'celda-vacia';
+
+    if (this.modoEdicion) {
+      if (this.celdasParaEliminar.some(c => c.id === a.id)) {
+        return 'celda-eliminada';
+      }
+      if (this.celdasParaAgregar.some(c => c.dia_semana === dia && this.horaToDecimal(c.hora_inicio) <= hora && this.horaToDecimal(c.hora_fin) > hora)) {
+        return 'celda-nueva';
+      }
+      if (this.asignacionEnEdicion?.asignacionId === a.asignacionId) {
+        return 'celda-en-edicion';
+      }
+    }
+
     return a.tipo_clase === 'LABORATORIO' ? 'celda-lab' : 'celda-teoria';
   }
+
+  // ─── MODO DE EDICIÓN ──────────────────────────────────────────────────
+
+  onAsignacionClick(asignacion: HorarioAsignado): void {
+    if (this.modoEdicion && this.asignacionEnEdicion?.asignacionId === asignacion.asignacionId) {
+      // Si se hace clic de nuevo en la misma asignación, se cancela la edición
+      this.cancelarEdicion();
+      return;
+    }
+
+    this.modoEdicion = true;
+    this.asignacionEnEdicion = asignacion;
+
+    // Encuentra todas las celdas que pertenecen a esta asignación
+    this.celdasOriginales = this.asignacionesDocente.filter(
+      (a) => a.asignacionId === asignacion.asignacionId
+    );
+
+    // Limpiar listas de cambios
+    this.celdasParaAgregar = [];
+    this.celdasParaEliminar = [];
+
+    // Aquí puedes cargar la información en los selectores del formulario de edición
+    // Por ejemplo:
+    // this.docenteSeleccionado = asignacion.docente;
+    // this.ambienteSeleccionado = asignacion.ambiente;
+    // ...etc.
+  }
+
+  guardarCambios(): void {
+    // Lógica para enviar al backend:
+    // - this.asignacionEnEdicion (para el ID y los datos principales)
+    // - this.celdasParaAgregar (nuevas celdas a crear)
+    // - this.celdasParaEliminar (celdas a eliminar)
+    console.log('Guardando cambios:', {
+      asignacion: this.asignacionEnEdicion,
+      agregar: this.celdasParaAgregar,
+      eliminar: this.celdasParaEliminar,
+    });
+
+    // Aquí iría la llamada a la API
+
+    // Al finalizar, salir del modo edición
+    this.cancelarEdicion();
+  }
+
+  cancelarEdicion(): void {
+    this.modoEdicion = false;
+    this.asignacionEnEdicion = null;
+    this.celdasOriginales = [];
+    this.celdasParaAgregar = [];
+    this.celdasParaEliminar = [];
+  }
+
 
   clsAmb(dia: number, hora: number): string {
     const a = this.getAsigAmb(dia, hora);

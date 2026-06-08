@@ -4,6 +4,7 @@ import { takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../../../core/services/api.service';
 import { SocketService } from '../../../../core/services/socket.service';
 import { NotifToastService } from '../../../../core/services/notif-toast.service';
+import { HorarioAsignado } from '../../../../core/interfaces/entities';
 
 export interface CeldaSeleccionada {
   dia: number;
@@ -49,6 +50,7 @@ export class MatrizHorariosComponent implements OnInit, OnDestroy {
   @Output() cellSelected = new EventEmitter<CeldaSeleccionada>();
   @Output() cellDeselected = new EventEmitter<{ dia: number; horaInicio: string }>();
   @Output() validationStatusChanged = new EventEmitter<ValidationFeedback>();
+  @Output() asignacionClicked = new EventEmitter<HorarioAsignado>();
 
   horas: string[] = [];
   diasSemana = [
@@ -130,7 +132,13 @@ export class MatrizHorariosComponent implements OnInit, OnDestroy {
 
     if (!celda) return;
 
-    if (celda.estado === 'OCUPADO' || celda.estado === 'BLOQUEADO' || celda.estado === 'TEMPORAL_OTRO') {
+    if (celda.estado === 'OCUPADO') {
+      // Si la celda está ocupada, emitimos el evento para entrar en modo edición
+      this.asignacionClicked.emit(celda.metadata as any); // Asumimos que metadata tiene la info
+      return;
+    }
+
+    if (celda.estado === 'BLOQUEADO' || celda.estado === 'TEMPORAL_OTRO') {
       return;
     }
 

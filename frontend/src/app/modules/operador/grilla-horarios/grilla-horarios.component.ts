@@ -42,6 +42,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   }
   
   @Output() seleccionCambiada = new EventEmitter<void>();
+  @Output() asignacionSeleccionada = new EventEmitter<any>();
 
   matriz: CeldaMatriz[] = [];
   horas: string[] = [];
@@ -54,6 +55,11 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     { valor: 6, label: 'Sáb' },
   ];
   loading = false;
+
+  // Estado de modo edición
+  modoEdicion = false;
+  horarioEnEdicion: any = null;
+  celdasOriginalesEliminadas: Set<string> = new Set();
 
   private celdaSeleccionadaSub?: Subscription;
   private celdaLiberadaSub?: Subscription;
@@ -133,9 +139,15 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
 
     const horaFin = `${(parseInt(hora.split(':')[0], 10) + 1).toString().padStart(2, '0')}:00`;
 
+    // Calcular horas efectivas: confirmadas + temporales propias del usuario
+    const horasTemporales = this.matriz
+      .filter(c => c.estado === 'TEMPORAL_PROPIO' || c.estado === 'TEMPORAL_PROPIO_MULTIPLE')
+      .reduce((sum, c) => sum + (c.metadata?.ocupaciones?.length || 1), 0);
+    const horasEfectivas = this.horasAsignadas + horasTemporales;
+
     // Verificar si ya se cubrieron las horas requeridas antes de agregar más bloques
     const esNuevoBloque = celda.estado === 'LIBRE';
-    if (esNuevoBloque && this.horasRequeridas > 0 && this.horasAsignadas >= this.horasRequeridas) {
+    if (esNuevoBloque && this.horasRequeridas > 0 && horasEfectivas >= this.horasRequeridas) {
       this.snack.open(
         `Ya se cubrieron las ${this.horasRequeridas}h requeridas para este curso. No se pueden agregar más bloques.`,
         'Cerrar',
@@ -164,7 +176,8 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
 
       // Agregar bloque
       console.log('[GrillaHorarios] Enviando selección con grupoSeleccionado:', this._grupoSeleccionado);
-      this.api.post<any>(`/ventanas/${this.ventanaId}/celda`, {
+      
+      const body: any = {
         ventanaId: this.ventanaId,
         sesionId: this.sesionId,
         docenteId: this.docenteId,
@@ -176,7 +189,17 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
         horaInicio: hora,
         horaFin: horaFin,
         periodo: this.periodo
-      }).subscribe({
+      };
+
+      // Si estamos en modo edición, agregar parámetros de edición
+      if (this.modoEdicion && this.horarioEnEdicion) {
+        body.modoEdicion = true;
+        body.originalCursoId = this.horarioEnEdicion.curso_id;
+        body.originalTipoClase = this.horarioEnEdicion.tipo_clase;
+        body.originalGrupoId = this.horarioEnEdicion.grupo_id;
+      }
+
+      this.api.post<any>(`/ventanas/${this.ventanaId}/celda`, body).subscribe({
         next: (r) => {
           if (r.data?.exito) {
             this.snack.open('Bloque agregado', 'OK', { duration: 2000 });
@@ -223,6 +246,40 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
           this.snack.open(err.error?.message || 'Error al eliminar bloque', 'Error', { duration: 3000 });
         }
       });
+    } else if (this.esCeldaOriginalEliminada(dia, hora)) {
+      // En modo edición, eliminar la asignación confirmada de la base de datos
+      const clave = `${dia}-${hora}`;
+      
+      // Encontrar la asignación correspondiente a esta celda
+      const asignacionAEliminar = this.horarioEnEdicion?.asignacionesRelacionadas?.find((a: any) => {
+        const horaNormalizada = a.hora_inicio.substring(0, 5);
+        return a.dia === dia && horaNormalizada === hora;
+      });
+
+      if (asignacionAEliminar?.id) {
+        console.log('[GrillaHorarios] Eliminando asignación confirmada ID:', asignacionAEliminar.id);
+        
+        this.api.delete<any>(`/horarios/${asignacionAEliminar.id}`).subscribe({
+          next: () => {
+            // Remover de las marcadas para eliminación
+            this.celdasOriginalesEliminadas.delete(clave);
+            console.log('[GrillaHorarios] Celda removida de celdasOriginalesEliminadas:', clave);
+            console.log('[GrillaHorarios] Celdas originales marcadas para eliminación:', this.celdasOriginalesEliminadas);
+            this.snack.open('Asignación eliminada correctamente', 'OK', { duration: 2000 });
+            this.seleccionCambiada.emit();
+            this.cargarMatriz();
+          },
+          error: (err) => {
+            this.snack.open(err.error?.message || 'Error al eliminar asignación', 'Error', { duration: 3000 });
+          }
+        });
+      } else {
+        // Si no se encuentra la asignación, solo remover de la lista visual
+        this.celdasOriginalesEliminadas.delete(clave);
+        console.log('[GrillaHorarios] Celda removida de celdasOriginalesEliminadas:', clave);
+        this.snack.open('Bloque original removido de eliminación', 'OK', { duration: 2000 });
+        this.cargarMatriz();
+      }
     } else if (celda.estado === 'TEMPORAL_OTRO' || celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' || 
                celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') {
       // Mostrar detalles de otros
@@ -253,7 +310,11 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   getOcupacionesArray(celda: CeldaMatriz): any[] {
     if (celda.estado === 'TEMPORAL_PROPIO') {
       // Para selección temporal simple, crear array con una ocupación
-      return [{ docenteId: this.docenteId }];
+      return [{ 
+        docenteId: this.docenteId,
+        tipoClase: this.tipoClase,
+        grupoId: this.grupoSeleccionado
+      }];
     }
     if (celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' && celda.metadata?.ocupaciones) {
       return celda.metadata.ocupaciones;
@@ -263,13 +324,13 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       if (celda.metadata.ocupaciones) {
         return celda.metadata.ocupaciones;
       }
-      return [{ docenteId: celda.metadata.docenteId, cursoId: celda.metadata.cursoId }];
+      return [{ ...celda.metadata }];
     }
     if (celda.estado === 'CONFIRMADO_DOCENTE' && celda.metadata) {
       if (celda.metadata.ocupaciones) {
         return celda.metadata.ocupaciones;
       }
-      return [{ docenteId: celda.metadata.docenteId, cursoId: celda.metadata.cursoId }];
+      return [{ ...celda.metadata }];
     }
     if ((celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') && celda.metadata?.ocupaciones) {
       return celda.metadata.ocupaciones;
@@ -384,5 +445,56 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
           : 'Tu selección + más bloques';
       default: return '';
     }
+  }
+
+  setModoEdicion(activo: boolean, horario: any | null, asignacionesRelacionadas?: any[]): void {
+    console.log('[GrillaHorarios] setModoEdicion llamado con activo:', activo, 'horario:', horario);
+    console.log('[GrillaHorarios] asignacionesRelacionadas:', asignacionesRelacionadas);
+    
+    this.modoEdicion = activo;
+    this.horarioEnEdicion = horario;
+    // Store asignacionesRelacionadas in horarioEnEdicion for right-click handler access
+    if (horario && asignacionesRelacionadas) {
+      this.horarioEnEdicion.asignacionesRelacionadas = asignacionesRelacionadas;
+    }
+    this.celdasOriginalesEliminadas.clear();
+    
+    if (activo && horario && asignacionesRelacionadas) {
+      // Marcar las celdas originales del horario como "para eliminar"
+      asignacionesRelacionadas.forEach(asignacion => {
+        // La hora en la asignación viene como "07:00:00" pero en la grilla es "07:00"
+        // Necesitamos normalizar el formato
+        const horaNormalizada = asignacion.hora_inicio.substring(0, 5); // "07:00"
+        const clave = `${asignacion.dia}-${horaNormalizada}`;
+        this.celdasOriginalesEliminadas.add(clave);
+        console.log('[GrillaHorarios] Marcando celda original para eliminación:', clave, '(hora original:', asignacion.hora_inicio, ')');
+      });
+      
+      console.log('[GrillaHorarios] Modo edición activado para horario:', horario);
+      console.log('[GrillaHorarios] Celdas originales marcadas para eliminación:', this.celdasOriginalesEliminadas);
+      this.cargarMatriz();
+    } else {
+      console.log('[GrillaHorarios] Modo edición desactivado');
+      this.cargarMatriz();
+    }
+  }
+
+  esCeldaOriginalEliminada(dia: number, hora: string): boolean {
+    if (!this.modoEdicion || !this.horarioEnEdicion) return false;
+    const clave = `${dia}-${hora}`;
+    return this.celdasOriginalesEliminadas.has(clave);
+  }
+
+  getClaseCeldaEdicion(dia: number, hora: string): string {
+    if (!this.modoEdicion || !this.horarioEnEdicion) return '';
+    
+    const clave = `${dia}-${hora}`;
+    
+    // Si esta celda está marcada como original para eliminación
+    if (this.celdasOriginalesEliminadas.has(clave)) {
+      return 'celda-original-eliminada';
+    }
+    
+    return '';
   }
 }

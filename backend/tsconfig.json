@@ -26,5 +26,6 @@
       "@entities/*": ["src/entities/*"],
       "@auth/*": ["src/auth/*"]
     }
-  }
+  },
+  "exclude": ["node_modules", "dist", "scripts"]
 }

@@ -1,55 +1,63 @@
 <div class="cola-container">
   <div class="cola-header">
     <h3>Cola de Docentes</h3>
-    <button mat-raised-button color="primary" (click)="llamarSiguiente()" [disabled]="loading">
-      <mat-icon>play_arrow</mat-icon> Llamar siguiente docente
+    <button mat-raised-button color="primary" class="btn-llamar pulse-btn" (click)="llamarSiguiente()" [disabled]="loading">
+      <mat-icon>play_arrow</mat-icon> Llamar siguiente
     </button>
   </div>
 
   <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
 
   <!-- En Atención -->
-  <mat-card class="atencion-card" *ngIf="estadoCola?.en_atencion">
-    <mat-card-header>
-      <mat-icon mat-card-avatar class="atencion-icon">record_voice_over</mat-icon>
-      <mat-card-title>En Atención</mat-card-title>
-      <mat-card-subtitle>
-        {{ estadoCola.en_atencion.docente.apellidos }}, {{ estadoCola.en_atencion.docente.nombres }}
-      </mat-card-subtitle>
-    </mat-card-header>
-    <mat-card-content>
-      <p><strong>Código:</strong> {{ estadoCola.en_atencion.docente.codigo }}</p>
-      <p><strong>Categoría:</strong> {{ estadoCola.en_atencion.docente.categoria }}</p>
-      
-      <!-- Temporizador -->
-      <div class="temporizador-container">
-        <mat-icon class="temporizador-icon">timer</mat-icon>
-        <div class="temporizador-content">
-          <span class="temporizador-label">Tiempo restante:</span>
-          <span class="temporizador-valor">{{ formatearTiempo }}</span>
+  <div class="atencion-section">
+    <div class="section-title">En Atención</div>
+    
+    <div class="atencion-card" *ngIf="estadoCola?.en_atencion" class="fade-in">
+      <div class="atencion-card-inner">
+        <div class="atencion-header">
+          <div class="avatar-pulse">
+            <mat-icon>record_voice_over</mat-icon>
+          </div>
+          <div class="atencion-info">
+            <div class="atencion-nombre">{{ estadoCola.en_atencion.docente.apellidos }}, {{ estadoCola.en_atencion.docente.nombres }}</div>
+            <div class="atencion-meta">
+              <span class="badge">{{ estadoCola.en_atencion.docente.categoria }}</span>
+              <span class="code">{{ estadoCola.en_atencion.docente.codigo }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Temporizador -->
+        <div class="temporizador-container" [class.warning]="segundosRestantes < 300" [class.danger]="segundosRestantes < 60">
+          <mat-icon>timer</mat-icon>
+          <div class="temporizador-content">
+            <span class="temporizador-label">Tiempo restante</span>
+            <span class="temporizador-valor">{{ formatearTiempo }}</span>
+          </div>
+        </div>
+
+        <div class="atencion-actions">
+          <button mat-stroked-button color="warn" (click)="marcarAusente(estadoCola.en_atencion.docente.id)">
+            <mat-icon>person_off</mat-icon> Marcar ausente
+          </button>
         </div>
       </div>
-    </mat-card-content>
-    <mat-card-actions align="end">
-      <button mat-button color="warn" (click)="marcarAusente(estadoCola.en_atencion.docente.id)">
-        <mat-icon>person_off</mat-icon> Marcar ausente
-      </button>
-    </mat-card-actions>
-  </mat-card>
+    </div>
 
-  <div class="estado-vacio" *ngIf="!estadoCola?.en_atencion">
-    <mat-icon>pending_actions</mat-icon>
-    <p>Ningún docente en atención. Presione "Llamar siguiente docente".</p>
+    <div class="estado-vacio-atencion" *ngIf="!estadoCola?.en_atencion">
+      <mat-icon>pending_actions</mat-icon>
+      <p>Nadie en atención</p>
+    </div>
   </div>
 
   <!-- Esperando -->
   <div class="seccion-cola" *ngIf="estadoCola?.esperando?.length > 0">
-    <h4>En Espera ({{ estadoCola.esperando.length }})</h4>
+    <div class="section-title">En Espera ({{ estadoCola.esperando.length }})</div>
     <div class="cola-lista">
       <div class="cola-item" *ngFor="let d of estadoCola.esperando; let i = index">
-        <mat-icon class="cola-item-icon">schedule</mat-icon>
+        <div class="cola-item-number">{{ i + 1 }}</div>
         <div class="cola-item-content">
-          <div class="cola-item-nombre">{{ i + 1 }}. {{ d.docente.apellidos }}, {{ d.docente.nombres }}</div>
+          <div class="cola-item-nombre">{{ d.docente.apellidos }}, {{ d.docente.nombres }}</div>
           <div class="cola-item-meta">{{ d.docente.categoria }} — {{ d.docente.codigo }}</div>
         </div>
       </div>
@@ -58,9 +66,19 @@
 
   <!-- Resumen -->
   <div class="resumen-cola" *ngIf="estadoCola">
-    <mat-chip-set>
-      <mat-chip color="primary" highlighted>Completados: {{ estadoCola.completados || 0 }}</mat-chip>
-      <mat-chip color="warn" highlighted>Ausentes: {{ estadoCola.ausentes || 0 }}</mat-chip>
-    </mat-chip-set>
+    <div class="resumen-item success">
+      <mat-icon>check_circle</mat-icon>
+      <div class="resumen-text">
+        <span class="label">Completados</span>
+        <span class="value">{{ estadoCola.completados || 0 }}</span>
+      </div>
+    </div>
+    <div class="resumen-item warn">
+      <mat-icon>cancel</mat-icon>
+      <div class="resumen-text">
+        <span class="label">Ausentes</span>
+        <span class="value">{{ estadoCola.ausentes || 0 }}</span>
+      </div>
+    </div>
   </div>
 </div>

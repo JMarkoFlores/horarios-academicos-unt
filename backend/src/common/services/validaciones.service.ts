@@ -42,6 +42,9 @@ export class ValidacionesService {
     horaFin: string,
     periodo: string,
     excluirId?: number,
+    ignorarCursoId?: number,
+    ignorarTipoClase?: string,
+    ignorarGrupoId?: number,
   ): Promise<boolean> {
     const qb = this.horarioRepo
       .createQueryBuilder("h")
@@ -56,6 +59,21 @@ export class ValidacionesService {
       qb.andWhere("h.id != :excluirId", { excluirId });
     }
 
+    if (ignorarCursoId && ignorarTipoClase) {
+      if (ignorarGrupoId) {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
+          ignorarCursoId,
+          ignorarTipoClase,
+          ignorarGrupoId
+        });
+      } else {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
+          ignorarCursoId,
+          ignorarTipoClase
+        });
+      }
+    }
+
     const count = await qb.getCount();
     return count > 0;
   }
@@ -67,6 +85,9 @@ export class ValidacionesService {
     horaFin: string,
     periodo: string,
     excluirId?: number,
+    ignorarCursoId?: number,
+    ignorarTipoClase?: string,
+    ignorarGrupoId?: number,
   ): Promise<boolean> {
     const qb = this.horarioRepo
       .createQueryBuilder("h")
@@ -81,6 +102,21 @@ export class ValidacionesService {
       qb.andWhere("h.id != :excluirId", { excluirId });
     }
 
+    if (ignorarCursoId && ignorarTipoClase) {
+      if (ignorarGrupoId) {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
+          ignorarCursoId,
+          ignorarTipoClase,
+          ignorarGrupoId
+        });
+      } else {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
+          ignorarCursoId,
+          ignorarTipoClase
+        });
+      }
+    }
+
     const count = await qb.getCount();
     return count > 0;
   }
@@ -92,6 +128,9 @@ export class ValidacionesService {
     horaFin: string,
     periodo: string,
     excluirId?: number,
+    ignorarCursoId?: number,
+    ignorarTipoClase?: string,
+    ignorarGrupoId?: number,
   ): Promise<boolean> {
     const qb = this.horarioRepo
       .createQueryBuilder("h")
@@ -104,6 +143,21 @@ export class ValidacionesService {
 
     if (excluirId) {
       qb.andWhere("h.id != :excluirId", { excluirId });
+    }
+
+    if (ignorarCursoId && ignorarTipoClase) {
+      if (ignorarGrupoId) {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
+          ignorarCursoId,
+          ignorarTipoClase,
+          ignorarGrupoId
+        });
+      } else {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
+          ignorarCursoId,
+          ignorarTipoClase
+        });
+      }
     }
 
     const count = await qb.getCount();
@@ -205,6 +259,9 @@ export class ValidacionesService {
     dia: number,
     duracion: number,
     periodo: string,
+    ignorarCursoId?: number,
+    ignorarTipoClase?: string,
+    ignorarGrupoId?: number,
   ): Promise<boolean> {
     // Buscar todas las restricciones del período para debug
     const todasRestricciones = await this.restriccionRepo.find({
@@ -258,13 +315,27 @@ export class ValidacionesService {
 
     console.log('[verificarMaxHorasDocente] maxHoras usado:', maxHoras);
 
-    const horarios = await this.horarioRepo.find({
-      where: {
-        docente_id: docenteId,
-        dia,
-        periodo,
-      },
-    });
+    const qb = this.horarioRepo.createQueryBuilder("h")
+      .where("h.docente_id = :docenteId", { docenteId })
+      .andWhere("h.dia = :dia", { dia })
+      .andWhere("h.periodo = :periodo", { periodo });
+
+    if (ignorarCursoId && ignorarTipoClase) {
+      if (ignorarGrupoId) {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
+          ignorarCursoId,
+          ignorarTipoClase,
+          ignorarGrupoId
+        });
+      } else {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
+          ignorarCursoId,
+          ignorarTipoClase
+        });
+      }
+    }
+
+    const horarios = await qb.getMany();
 
     let totalHoras = 0;
     const toMinutes = (t: string): number => {
@@ -420,13 +491,16 @@ export class ValidacionesService {
     docenteId: number,
     duracionHoras: number,
     periodo: string,
+    ignorarCursoId?: number,
+    ignorarTipoClase?: string,
+    ignorarGrupoId?: number,
   ): Promise<{ valido: boolean; horasSemana: number; maxSemanal: number }> {
     const docente = await this.docenteRepo.findOne({
       where: { id: docenteId },
     });
     if (!docente) return { valido: false, horasSemana: 0, maxSemanal: 0 };
 
-    const parametro = await this.parametrosCargaRepo.findOne({
+    const apiParametro = await this.parametrosCargaRepo.findOne({
       where: {
         periodo_academico: periodo,
         tipo_docente: docente.tipo_docente,
@@ -436,12 +510,29 @@ export class ValidacionesService {
     });
 
     // Si no hay parámetro definido, permitir sin restricción
-    const maxSemanal = parametro?.horas_max_semanal ?? 999;
-    const minSemanal = parametro?.horas_min_semanal ?? 0;
+    const maxSemanal = apiParametro?.horas_max_semanal ?? 999;
+    const minSemanal = apiParametro?.horas_min_semanal ?? 0;
 
-    const horarios = await this.horarioRepo.find({
-      where: { docente_id: docenteId, periodo },
-    });
+    const qb = this.horarioRepo.createQueryBuilder("h")
+      .where("h.docente_id = :docenteId", { docenteId })
+      .andWhere("h.periodo = :periodo", { periodo });
+
+    if (ignorarCursoId && ignorarTipoClase) {
+      if (ignorarGrupoId) {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
+          ignorarCursoId,
+          ignorarTipoClase,
+          ignorarGrupoId
+        });
+      } else {
+        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
+          ignorarCursoId,
+          ignorarTipoClase
+        });
+      }
+    }
+
+    const horarios = await qb.getMany();
 
     let horasSemana = 0;
     const toMin = (t: string): number => {

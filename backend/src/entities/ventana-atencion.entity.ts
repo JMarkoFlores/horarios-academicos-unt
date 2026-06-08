@@ -21,7 +21,7 @@ export enum EstadoVentanaAtencion {
 @Entity("ventana_atencion")
 @Index("idx_ventana_periodo", ["periodo"])
 @Index("idx_ventana_fecha", ["fecha"])
-@Index("idx_ventana_categoria", ["categoria"])
+@Index("idx_ventana_proposito", ["proposito"])
 export class VentanaAtencion {
   @PrimaryGeneratedColumn("uuid")
   id: string;
@@ -32,8 +32,11 @@ export class VentanaAtencion {
   @Column({ type: "date" })
   fecha: Date;
 
-  @Column({ length: 120 })
-  categoria: string;
+  @Column({ name: "categoria", length: 120 })
+  proposito: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  filtro_categorias_docente: string[] | null;
 
   @Column({ nullable: true, length: 120 })
   modalidad: string | null;

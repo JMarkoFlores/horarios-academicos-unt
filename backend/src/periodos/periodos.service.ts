@@ -317,7 +317,7 @@ export class PeriodosService {
     const ventana = this.ventanaRepo.create({
       periodo: periodo.codigo,
       fecha: hoy,
-      categoria: "PENDIENTES", // Categoría especial para docentes pendientes
+      proposito: "CONTINGENCIA", // Ventana especial para docentes pendientes
       hora_inicio: "08:00",
       hora_fin: "18:00",
       intervalo_minutos: 30,

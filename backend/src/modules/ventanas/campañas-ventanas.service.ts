@@ -304,7 +304,7 @@ export class CampañasVentanasService {
         const ventana = this.ventanaRepo.create({
           periodo: campaña.periodo.codigo,
           fecha: fecha,
-          categoria: esContingencia ? 'CONTINGENCIA' : 'PRINCIPAL',
+          proposito: 'DECLARACION',
           modalidad: null,
           hora_inicio: bloque.hora_inicio,
           hora_fin: bloque.hora_fin,
@@ -527,7 +527,7 @@ export class CampañasVentanasService {
     const ventana = this.ventanaRepo.create({
       periodo: campaña.periodo.codigo,
       fecha: fecha,
-      categoria: esContingencia ? 'CONTINGENCIA' : 'PRINCIPAL',
+      proposito: 'DECLARACION',
       modalidad: null,
       hora_inicio: bloque.hora_inicio,
       hora_fin: bloque.hora_fin,
@@ -591,7 +591,7 @@ export class CampañasVentanasService {
     const ventana = this.ventanaRepo.create({
       periodo: campaña.periodo.codigo,
       fecha: fecha,
-      categoria: 'PRINCIPAL',
+      proposito: 'DECLARACION',
       modalidad: null,
       hora_inicio: bloque.hora_inicio,
       hora_fin: bloque.hora_fin,

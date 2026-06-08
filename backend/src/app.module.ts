@@ -49,9 +49,7 @@ import { DeclaracionesModule } from "./modules/declaraciones/declaraciones.modul
         username: config.get<string>("DATABASE_USER", "unt_user"),
         password: config.get<string>("DATABASE_PASSWORD", "unt_pass123"),
         autoLoadEntities: true,
-        synchronize:
-          config.get<string>("NODE_ENV") !== "production" ||
-          config.get<string>("DB_SYNC") === "true",
+        synchronize: true,
         logging: config.get<string>("DATABASE_LOGGING") === "true",
         ssl:
           config.get<string>("DATABASE_SSL") === "true"

@@ -67,11 +67,13 @@ services:
       REDIS_PORT: 6379
       REDIS_TTL: ${REDIS_TTL}
       NODE_ENV: ${NODE_ENV}
+      DB_SYNC: "true"
       PORT: 3000
       FRONTEND_URL: ${FRONTEND_URL}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      AUTO_SEED: "true"
     ports:
       - "${BACKEND_PORT}:3000"
     depends_on:

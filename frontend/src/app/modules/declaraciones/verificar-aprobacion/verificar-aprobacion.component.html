@@ -1,11 +1,11 @@
 <div class="approval-page">
   <div class="page-header">
-    <button mat-icon-button (click)="volver()">
+    <button mat-icon-button (click)="volver()" class="btn-back">
       <mat-icon>arrow_back</mat-icon>
     </button>
     <div>
-      <h1>Verificar Aprobacion</h1>
-      <p>Estado actual de la declaracion del docente.</p>
+      <h1 class="page-title">Verificar Aprobación</h1>
+      <p class="page-subtitle">Estado actual de la declaración del docente</p>
     </div>
   </div>
 
@@ -13,71 +13,106 @@
     <mat-spinner diameter="40"></mat-spinner>
   </div>
 
-  <mat-card *ngIf="!loading && docente" class="approval-card">
-    <mat-card-title>Informacion del docente</mat-card-title>
-    <mat-card-content>
-      <table class="info-table">
-        <tbody>
-          <tr>
-            <td>Periodo</td>
-            <td>{{ periodo }}</td>
-          </tr>
-          <tr>
-            <td>Docente</td>
-            <td>{{ docente.apellidos }}, {{ docente.nombres }}</td>
-          </tr>
-          <tr>
-            <td>IBM</td>
-            <td>{{ docente.ibm || '—' }}</td>
-          </tr>
-          <tr>
-            <td>Estado de declaracion</td>
-            <td><strong>{{ estadoLabel }}</strong></td>
-          </tr>
-          <tr>
-            <td>Director que valido</td>
-            <td>{{ directorValidador }}</td>
-          </tr>
-          <tr>
-            <td>Fecha de validacion</td>
-            <td>{{ fechaValidacion }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </mat-card-content>
-  </mat-card>
+  <!-- Estado -->
+  <div class="estado-bar" *ngIf="!loading && docente">
+    <span class="estado-label">Estado Actual:</span>
+    <span class="estado-valor {{ estadoColor }}">{{ estadoLabel }}</span>
+  </div>
 
-  <mat-card *ngIf="!loading && docente && mostrarDocumentosConferir" class="approval-card">
-    <mat-card-title>Documentos a Conferir</mat-card-title>
-    <mat-card-content>
-      <table mat-table [dataSource]="documentos" class="docs-table">
-        <ng-container matColumnDef="nombre">
-          <th mat-header-cell *matHeaderCellDef>Formato</th>
-          <td mat-cell *matCellDef="let item">{{ item.nombre }}</td>
-        </ng-container>
+  <div class="content-grid" *ngIf="!loading && docente">
+    <!-- Docente info card -->
+    <mat-card class="docente-card">
+      <mat-card-header>
+        <mat-card-title>Información del Docente</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <table class="info-table">
+          <tbody>
+            <tr>
+              <td class="info-label">Periodo:</td>
+              <td class="info-value">{{ periodo }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Docente:</td>
+              <td class="info-value">
+                {{ docente.apellidos }}, {{ docente.nombres }}
+              </td>
+            </tr>
+            <tr>
+              <td class="info-label">IBM:</td>
+              <td class="info-value">{{ docente.ibm || "—" }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Estado de declaración:</td>
+              <td class="info-value">
+                <span class="estado-badge {{ estadoColor }}">{{
+                  estadoLabel
+                }}</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="info-label">Director que validó:</td>
+              <td class="info-value">{{ directorValidador }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Fecha de validación:</td>
+              <td class="info-value">{{ fechaValidacion }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </mat-card-content>
+    </mat-card>
 
-        <ng-container matColumnDef="sede">
-          <th mat-header-cell *matHeaderCellDef>Sede</th>
-          <td mat-cell *matCellDef="let item">{{ item.sede }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="estado">
-          <th mat-header-cell *matHeaderCellDef>Estado</th>
-          <td mat-cell *matCellDef="let item">{{ item.estado }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="conferir">
-          <th mat-header-cell *matHeaderCellDef>Conferir</th>
-          <td mat-cell *matCellDef="let item">
-            <button mat-stroked-button color="primary" (click)="conferirDocumento(item)">
-              {{ descargandoDocumento === item.tipo ? 'Generando...' : 'Conferir' }}
+    <!-- Documentos a Conferir -->
+    <mat-card *ngIf="mostrarDocumentosConferir" class="docs-card">
+      <mat-card-header class="docs-header">
+        <mat-card-title>
+          <mat-icon>description</mat-icon>
+          Documentos a Conferir
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="docs-list">
+          <div class="doc-item" *ngFor="let item of documentos">
+            <div class="doc-info">
+              <div class="doc-icon">
+                <mat-icon>picture_as_pdf</mat-icon>
+              </div>
+              <div class="doc-details">
+                <h3 class="doc-name">{{ item.nombre }}</h3>
+                <div class="doc-meta">
+                  <span class="doc-sede">
+                    <mat-icon>location_on</mat-icon>
+                    {{ item.sede }}
+                  </span>
+                  <span class="doc-status">
+                    <mat-icon>check_circle</mat-icon>
+                    {{ item.estado }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              mat-raised-button
+              color="primary"
+              class="btn-conferir"
+              (click)="conferirDocumento(item)"
+              [disabled]="descargandoDocumento === item.tipo"
+            >
+              <mat-icon *ngIf="descargandoDocumento !== item.tipo"
+                >download</mat-icon
+              >
+              <mat-spinner
+                *ngIf="descargandoDocumento === item.tipo"
+                diameter="20"
+              ></mat-spinner>
+              {{
+                descargandoDocumento === item.tipo ? "Generando..." : "Conferir"
+              }}
             </button>
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="documentosColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: documentosColumns"></tr>
-      </table>
-    </mat-card-content>
-  </mat-card>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
 </div>

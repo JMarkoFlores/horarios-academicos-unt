@@ -1,115 +1,201 @@
 <div class="declaraciones-container">
   <div class="header-section">
-    <h1 class="page-title">Declaraciones</h1>
+    <div class="header-icon">
+      <mat-icon>assignment</mat-icon>
+    </div>
+    <h1 class="page-title">Gestión de Declaraciones Normativas</h1>
     <p class="page-description">
-      Seleccione un docente para generar su declaración
+      Seleccione un docente para verificar sus declaraciones
     </p>
   </div>
 
   <div class="content-section">
+    <!-- Tarjeta de selección -->
     <mat-card class="selection-card">
-      <mat-card-header>
-        <mat-card-title class="card-title">Selección de Docente</mat-card-title>
+      <mat-card-header class="card-header">
+        <div class="header-icon-small">
+          <mat-icon>person_search</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title class="card-title"
+            >Selección de Docente</mat-card-title
+          >
+          <mat-card-subtitle class="card-subtitle"
+            >Busque y seleccione un docente de la lista</mat-card-subtitle
+          >
+        </div>
       </mat-card-header>
-      <mat-card-content>
+      <mat-card-content class="card-content">
         <form [formGroup]="declaracionesForm" class="selection-form">
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Seleccione un docente</mat-label>
+            <mat-label class="select-label">
+              <mat-icon>people</mat-icon>
+              Seleccione un docente
+            </mat-label>
             <mat-select
               formControlName="docenteSeleccionado"
               (selectionChange)="onDocenteSeleccionado($event.value)"
+              class="custom-select"
+              panelClass="docentes-dropdown-panel"
             >
-              <mat-option value="">-- Seleccione un docente --</mat-option>
-              <mat-option *ngFor="let docente of docentes" [value]="docente.id">
-                {{ docente.apellidos }}, {{ docente.nombres }} ({{
-                  docente.codigo
-                }})
+              <mat-option value="">
+                <span class="placeholder-option">
+                  <mat-icon>search</mat-icon>
+                  -- Seleccione un docente --
+                </span>
+              </mat-option>
+              <mat-option
+                *ngFor="let docente of docentes"
+                [value]="docente.id"
+                class="docente-option"
+              >
+                <div class="docente-option-content">
+                  <span class="docente-avatar"
+                    >{{ docente.apellidos.charAt(0)
+                    }}{{ docente.nombres.charAt(0) }}</span
+                  >
+                  <span class="docente-fullname"
+                    >{{ docente.apellidos }}, {{ docente.nombres }} ({{
+                      docente.codigo
+                    }})</span
+                  >
+                </div>
               </mat-option>
             </mat-select>
-            <mat-spinner *ngIf="loading" diameter="20" class="loading-spinner">
+            <mat-spinner
+              *ngIf="loading"
+              diameter="24"
+              class="loading-spinner"
+              color="primary"
+            >
             </mat-spinner>
           </mat-form-field>
         </form>
       </mat-card-content>
     </mat-card>
 
-    <mat-card *ngIf="selectedDocente" class="info-card" appearance="outlined">
-      <mat-card-header>
-        <mat-card-title class="card-title"
-          >Información del Docente</mat-card-title
-        >
+    <!-- Tarjeta de información del docente -->
+    <mat-card *ngIf="selectedDocente" class="info-card">
+      <mat-card-header class="card-header info-header">
+        <div class="header-icon-small info-icon">
+          <mat-icon>badge</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title class="card-title"
+            >Información del Docente</mat-card-title
+          >
+          <mat-card-subtitle class="card-subtitle"
+            >Datos completos del docente seleccionado</mat-card-subtitle
+          >
+        </div>
       </mat-card-header>
-      <mat-card-content>
-        <table class="info-table">
-          <tbody>
-            <tr>
-              <td class="info-label">Semestre Académico :</td>
-              <td class="info-value">{{ periodoActivo }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Docente :</td>
-              <td class="info-value">{{ nombreCompletoDocente }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">IBM completo:</td>
-              <td class="info-value">{{ selectedDocente.ibm }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Departamento Académico :</td>
-              <td class="info-value">{{ departamentoDocente }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Facultad :</td>
-              <td class="info-value">{{ facultadDocente }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Condición :</td>
-              <td class="info-value">{{ condicionDocente }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Categoría :</td>
-              <td class="info-value">{{ categoriaDocente }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Dedicación :</td>
-              <td class="info-value">{{ dedicacionDocente }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <mat-card-content class="card-content">
+        <!-- Encabezado del docente -->
+        <div class="docente-header">
+          <div class="docente-avatar-large">
+            {{ selectedDocente.apellidos.charAt(0)
+            }}{{ selectedDocente.nombres.charAt(0) }}
+          </div>
+          <div class="docente-header-info">
+            <h2 class="docente-nombre-large">{{ nombreCompletoDocente }}</h2>
+            <p class="docente-ibm">IBM: {{ selectedDocente.ibm }}</p>
+          </div>
+        </div>
 
+        <!-- Grid de información -->
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-item-icon">
+              <mat-icon>calendar_today</mat-icon>
+            </div>
+            <div class="info-item-content">
+              <div class="info-item-label">Semestre Académico</div>
+              <div class="info-item-value">{{ periodoActivo }}</div>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-item-icon">
+              <mat-icon>business</mat-icon>
+            </div>
+            <div class="info-item-content">
+              <div class="info-item-label">Departamento</div>
+              <div class="info-item-value">{{ departamentoDocente }}</div>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-item-icon">
+              <mat-icon>school</mat-icon>
+            </div>
+            <div class="info-item-content">
+              <div class="info-item-label">Facultad</div>
+              <div class="info-item-value">{{ facultadDocente }}</div>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-item-icon">
+              <mat-icon>work</mat-icon>
+            </div>
+            <div class="info-item-content">
+              <div class="info-item-label">Condición</div>
+              <div class="info-item-value">{{ condicionDocente }}</div>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-item-icon">
+              <mat-icon>star</mat-icon>
+            </div>
+            <div class="info-item-content">
+              <div class="info-item-label">Categoría</div>
+              <div class="info-item-value">{{ categoriaDocente }}</div>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <div class="info-item-icon">
+              <mat-icon>schedule</mat-icon>
+            </div>
+            <div class="info-item-content">
+              <div class="info-item-label">Dedicación</div>
+              <div class="info-item-value">{{ dedicacionDocente }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
         <div class="action-buttons">
           <button
             mat-raised-button
-            color="primary"
-            class="action-btn"
+            class="action-btn btn-verificar"
             [routerLink]="['/app/declaraciones/verificar', selectedDocente.id]"
           >
             <mat-icon>description</mat-icon>
-            Verificar Declaración
+            <span>Verificar Declaración</span>
           </button>
           <button
             mat-raised-button
-            color="accent"
-            class="action-btn"
+            class="action-btn btn-firma"
             [routerLink]="[
               '/app/declaraciones/verificar-firma',
               selectedDocente.id,
             ]"
           >
             <mat-icon>verified</mat-icon>
-            Verificar Firma
+            <span>Verificar Firma</span>
           </button>
           <button
             mat-raised-button
-            color="primary"
-            class="action-btn"
+            class="action-btn btn-aprobacion"
             [routerLink]="[
               '/app/declaraciones/verificar-aprobacion',
               selectedDocente.id,
             ]"
           >
             <mat-icon>fact_check</mat-icon>
-            Verificar Aprobacion
+            <span>Verificar Aprobación</span>
           </button>
         </div>
       </mat-card-content>

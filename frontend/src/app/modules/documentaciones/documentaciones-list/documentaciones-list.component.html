@@ -1,56 +1,98 @@
-<div class="page-shell">
+<div class="documentaciones-page">
   <div class="page-header">
+    <div class="header-icon">
+      <mat-icon>folder</mat-icon>
+    </div>
     <div>
       <h1>Documentaciones</h1>
-      <p>Declaraciones enviadas por docentes para revision del director de escuela.</p>
+      <p>
+        Declaraciones enviadas por docentes para revisión del director de
+        escuela.
+      </p>
     </div>
   </div>
 
-  <mat-card class="table-card">
-    <div *ngIf="loading" class="loading-state">
-      <mat-spinner diameter="40"></mat-spinner>
-    </div>
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
 
-    <table mat-table [dataSource]="items" class="full-table" *ngIf="!loading">
-      <ng-container matColumnDef="docente">
-        <th mat-header-cell *matHeaderCellDef>Docente</th>
-        <td mat-cell *matCellDef="let item">{{ item.docente_nombre }}</td>
-      </ng-container>
+  <mat-card class="table-card" *ngIf="!loading">
+    <mat-card-header class="card-header">
+      <div class="header-icon-small">
+        <mat-icon>list</mat-icon>
+      </div>
+      <div class="header-text">
+        <mat-card-title>Lista de Declaraciones</mat-card-title>
+        <mat-card-subtitle
+          >Declaraciones recibidas para revisión</mat-card-subtitle
+        >
+      </div>
+    </mat-card-header>
+    <mat-card-content class="card-content">
+      <div class="table-container" *ngIf="items.length > 0">
+        <table mat-table [dataSource]="items" class="full-table">
+          <ng-container matColumnDef="docente">
+            <th mat-header-cell *matHeaderCellDef>Docente</th>
+            <td mat-cell *matCellDef="let item">
+              <div class="docente-cell">
+                <div class="docente-avatar">
+                  {{ getInitials(item.docente_nombre) }}
+                </div>
+                <div class="docente-info">
+                  <span class="docente-nombre">{{ item.docente_nombre }}</span>
+                </div>
+              </div>
+            </td>
+          </ng-container>
 
-      <ng-container matColumnDef="ibm">
-        <th mat-header-cell *matHeaderCellDef>IBM</th>
-        <td mat-cell *matCellDef="let item">{{ item.docente_ibm || '—' }}</td>
-      </ng-container>
+          <ng-container matColumnDef="ibm">
+            <th mat-header-cell *matHeaderCellDef>IBM</th>
+            <td mat-cell *matCellDef="let item">
+              <span class="ibm-badge">{{ item.docente_ibm || "—" }}</span>
+            </td>
+          </ng-container>
 
-      <ng-container matColumnDef="periodo">
-        <th mat-header-cell *matHeaderCellDef>Periodo</th>
-        <td mat-cell *matCellDef="let item">{{ item.periodo }}</td>
-      </ng-container>
+          <ng-container matColumnDef="periodo">
+            <th mat-header-cell *matHeaderCellDef>Periodo</th>
+            <td mat-cell *matCellDef="let item">
+              <span class="periodo-badge">{{ item.periodo }}</span>
+            </td>
+          </ng-container>
 
-      <ng-container matColumnDef="estado">
-        <th mat-header-cell *matHeaderCellDef>Estado</th>
-        <td mat-cell *matCellDef="let item">{{ getEstadoLabel(item.estado) }}</td>
-      </ng-container>
+          <ng-container matColumnDef="estado">
+            <th mat-header-cell *matHeaderCellDef>Estado</th>
+            <td mat-cell *matCellDef="let item">
+              <span class="estado-badge {{ getEstadoColorClass(item.estado) }}">
+                {{ getEstadoLabel(item.estado) }}
+              </span>
+            </td>
+          </ng-container>
 
-      <ng-container matColumnDef="acciones">
-        <th mat-header-cell *matHeaderCellDef>Acciones</th>
-        <td mat-cell *matCellDef="let item">
-          <button
-            mat-raised-button
-            color="primary"
-            (click)="verificarDeclaracion(item)"
-          >
-            Verificar Declaracion
-          </button>
-        </td>
-      </ng-container>
+          <ng-container matColumnDef="acciones">
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <td mat-cell *matCellDef="let item">
+              <button
+                mat-raised-button
+                class="btn-verificar"
+                (click)="verificarDeclaracion(item)"
+              >
+                <mat-icon>visibility</mat-icon>
+                Verificar Declaración
+              </button>
+            </td>
+          </ng-container>
 
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-    </table>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+      </div>
 
-    <div class="empty-state" *ngIf="!loading && items.length === 0">
-      No hay documentaciones enviadas para este periodo.
-    </div>
+      <div class="empty-state" *ngIf="items.length === 0">
+        <div class="empty-icon">
+          <mat-icon>inbox</mat-icon>
+        </div>
+        <p>No hay documentaciones enviadas para este periodo.</p>
+      </div>
+    </mat-card-content>
   </mat-card>
 </div>

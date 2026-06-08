@@ -1,44 +1,61 @@
 <div class="verificar-firma-container">
   <!-- Header -->
   <div class="header">
+    <div class="header-icon">
+      <mat-icon>edit_signature</mat-icon>
+    </div>
     <button mat-icon-button (click)="volver()" class="back-btn">
       <mat-icon>arrow_back</mat-icon>
     </button>
     <div class="header-title">
-      <h2>Verificaci&oacute;n de Firma</h2>
+      <h1>Verificación de Firma</h1>
       <p class="subtitle">Subir imagen de la firma del docente</p>
     </div>
   </div>
 
-  <mat-spinner *ngIf="loading" class="loading-spinner"></mat-spinner>
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
 
   <div *ngIf="!loading && docente" class="content">
     <!-- Docente info card -->
     <mat-card class="docente-card">
-      <mat-card-content>
-        <div class="docente-info">
-          <h3>Informaci&oacute;n del Docente</h3>
-          <table class="info-table">
-            <tbody>
-              <tr>
-                <td class="info-label">Docente :</td>
-                <td class="info-value">
-                  {{ docente.apellidos.toUpperCase() }},
-                  {{ docente.nombres.toUpperCase() }}
-                </td>
-              </tr>
-              <tr>
-                <td class="info-label">C&oacute;digo :</td>
-                <td class="info-value">{{ docente.codigo }}</td>
-              </tr>
-              <tr>
-                <td class="info-label">Departamento :</td>
-                <td class="info-value">
-                  {{ docente.departamento?.nombre || "No asignado" }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <mat-card-header class="card-header">
+        <div class="header-icon-small">
+          <mat-icon>badge</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title>Información del Docente</mat-card-title>
+          <mat-card-subtitle>Datos del docente seleccionado</mat-card-subtitle>
+        </div>
+      </mat-card-header>
+      <mat-card-content class="card-content">
+        <!-- Docente header -->
+        <div class="docente-header">
+          <div class="docente-avatar-large">
+            {{ docente.apellidos.charAt(0) }}{{ docente.nombres.charAt(0) }}
+          </div>
+          <div class="docente-header-info">
+            <h2 class="docente-nombre-large">
+              {{ docente.apellidos.toUpperCase() }},
+              {{ docente.nombres.toUpperCase() }}
+            </h2>
+            <p class="docente-code">Código: {{ docente.codigo }}</p>
+          </div>
+        </div>
+        <!-- Info grid -->
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-item-icon">
+              <mat-icon>business</mat-icon>
+            </div>
+            <div class="info-item-content">
+              <div class="info-item-label">Departamento</div>
+              <div class="info-item-value">
+                {{ docente.departamento?.nombre || "No asignado" }}
+              </div>
+            </div>
+          </div>
         </div>
       </mat-card-content>
     </mat-card>
@@ -48,12 +65,19 @@
       *ngIf="firmaExistente && !mostrarFormularioSubida"
       class="upload-card"
     >
-      <mat-card-content>
-        <h3>Firma Registrada</h3>
-        <p class="upload-hint">
-          Este docente ya tiene una firma registrada en el sistema.
-        </p>
-
+      <mat-card-header class="card-header firma-header">
+        <div class="header-icon-small">
+          <mat-icon>verified_user</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title>Firma Registrada</mat-card-title>
+          <mat-card-subtitle
+            >Este docente ya tiene una firma registrada en el
+            sistema</mat-card-subtitle
+          >
+        </div>
+      </mat-card-header>
+      <mat-card-content class="card-content">
         <div class="firma-actual-preview">
           <img
             [src]="firmaExistente"
@@ -62,19 +86,14 @@
           />
         </div>
 
-        <div class="actions-bar" style="margin-top: 16px">
-          <button
-            mat-raised-button
-            color="basic"
-            class="btn-volver"
-            (click)="volver()"
-          >
+        <div class="actions-bar">
+          <button mat-raised-button class="btn-volver" (click)="volver()">
             <mat-icon>arrow_back</mat-icon>
             Volver
           </button>
           <button
             mat-raised-button
-            color="primary"
+            class="btn-update"
             (click)="mostrarActualizar()"
           >
             <mat-icon>refresh</mat-icon>
@@ -89,14 +108,21 @@
       *ngIf="!firmaExistente || mostrarFormularioSubida"
       class="upload-card"
     >
-      <mat-card-content>
-        <h3>
-          {{ mostrarFormularioSubida ? "Actualizar Firma" : "Subir Firma" }}
-        </h3>
-        <p class="upload-hint">
-          Seleccione una imagen de la firma del docente (JPG, PNG, etc.)
-        </p>
-
+      <mat-card-header class="card-header upload-header">
+        <div class="header-icon-small">
+          <mat-icon>cloud_upload</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title>{{
+            mostrarFormularioSubida ? "Actualizar Firma" : "Subir Firma"
+          }}</mat-card-title>
+          <mat-card-subtitle
+            >Seleccione una imagen de la firma del docente (JPG, PNG,
+            etc.)</mat-card-subtitle
+          >
+        </div>
+      </mat-card-header>
+      <mat-card-content class="card-content">
         <div class="upload-area">
           <input
             type="file"
@@ -107,11 +133,10 @@
           />
           <button
             mat-raised-button
-            color="primary"
-            (click)="fileInput.click()"
             class="upload-btn"
+            (click)="fileInput.click()"
           >
-            <mat-icon>upload</mat-icon>
+            <mat-icon>upload_file</mat-icon>
             Seleccionar Archivo
           </button>
         </div>
@@ -119,26 +144,33 @@
         <!-- File info when selected -->
         <div *ngIf="firma.nombre" class="file-info">
           <div class="file-details">
-            <mat-icon class="file-icon">insert_drive_file</mat-icon>
+            <div class="file-icon-wrapper">
+              <mat-icon class="file-icon">insert_drive_file</mat-icon>
+            </div>
             <div class="file-meta">
               <p class="file-name">{{ firma.nombre }}</p>
               <p class="file-extension">
-                <strong>Extensi&oacute;n:</strong> {{ firma.extension }}
+                <span class="meta-label">Extensión:</span> {{ firma.extension }}
               </p>
               <p *ngIf="firma.fechaSubida" class="file-date">
-                <strong>Fecha de subida:</strong> {{ firma.fechaSubida }}
+                <span class="meta-label">Fecha de subida:</span>
+                {{ firma.fechaSubida }}
               </p>
             </div>
           </div>
 
           <!-- Preview -->
           <div *ngIf="firma.urlPreview" class="preview-container">
-            <p class="preview-label">Vista previa:</p>
-            <img
-              [src]="firma.urlPreview"
-              alt="Preview de firma"
-              class="firma-preview"
-            />
+            <p class="preview-label">
+              <mat-icon>visibility</mat-icon> Vista previa:
+            </p>
+            <div class="preview-wrapper">
+              <img
+                [src]="firma.urlPreview"
+                alt="Preview de firma"
+                class="firma-preview"
+              />
+            </div>
           </div>
         </div>
       </mat-card-content>
@@ -148,7 +180,6 @@
     <div *ngIf="!firmaExistente || mostrarFormularioSubida" class="actions-bar">
       <button
         mat-raised-button
-        color="basic"
         class="btn-volver"
         (click)="mostrarFormularioSubida ? cancelarActualizar() : volver()"
       >
@@ -157,7 +188,6 @@
       </button>
       <button
         mat-raised-button
-        color="accent"
         class="btn-enviar"
         (click)="enviar()"
         [disabled]="enviando || !firma.archivo"

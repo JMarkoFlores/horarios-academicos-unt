@@ -193,7 +193,7 @@ export class VerificarAprobacionComponent implements OnInit {
   get estadoLabel(): string {
     const labels: Record<string, string> = {
       BORRADOR: 'Borrador',
-      PENDIENTE_ENVIO: 'Pendiente de envio',
+      PENDIENTE_ENVIO: 'Pendiente de envío',
       ENVIADO_DOCENTE: 'Enviado por docente',
       OBSERVADO_DPTO: 'Observado por departamento',
       SUBSANADO: 'Subsanado',
@@ -202,9 +202,26 @@ export class VerificarAprobacionComponent implements OnInit {
       APROBADO_FACULTAD: 'Aprobado por facultad',
       CERRADO: 'Cerrado',
       ANULADO: 'Anulado',
-      SIN_DECLARACION: 'Sin declaracion registrada',
+      SIN_DECLARACION: 'Sin declaración registrada',
     };
     return labels[this.estado] || this.estado;
+  }
+
+  get estadoColor(): string {
+    const colors: Record<string, string> = {
+      BORRADOR: 'estado-borrador',
+      PENDIENTE_ENVIO: 'estado-enviado',
+      ENVIADO_DOCENTE: 'estado-enviado',
+      OBSERVADO_DPTO: 'estado-observado',
+      SUBSANADO: 'estado-enviado',
+      VALIDADO_DPTO: 'estado-validado',
+      OBSERVADO_FACULTAD: 'estado-observado',
+      APROBADO_FACULTAD: 'estado-aprobado',
+      CERRADO: 'estado-cerrado',
+      ANULADO: 'estado-cerrado',
+      SIN_DECLARACION: 'estado-cerrado',
+    };
+    return colors[this.estado] || 'estado-cerrado';
   }
 
   private resolverDirectorValidador(

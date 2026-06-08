@@ -1,42 +1,129 @@
 .declaraciones-container {
-  padding: 24px;
-  max-width: 1200px;
+  padding: 32px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
+::ng-deep .docentes-dropdown-panel {
+  .mat-select-panel {
+    min-width: 100% !important;
+  }
+
+  .mat-option {
+    padding: 0 16px !important;
+    line-height: 1.5;
+  }
+}
+
 .header-section {
-  margin-bottom: 32px;
+  margin-bottom: 40px;
   text-align: center;
 
+  .header-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #1a237e, #3949ab);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(26, 35, 126, 0.3);
+
+    mat-icon {
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
+      color: white;
+    }
+  }
+
   .page-title {
-    font-size: 32px;
-    font-weight: 600;
+    font-size: 36px;
+    font-weight: 700;
     color: #1a237e;
-    margin: 0 0 8px 0;
+    margin: 0 0 12px 0;
+    letter-spacing: -0.5px;
   }
 
   .page-description {
-    font-size: 16px;
+    font-size: 18px;
     color: #666;
     margin: 0;
+    font-weight: 400;
   }
 }
 
 .content-section {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
 }
 
 .selection-card,
 .info-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
 
-  .card-title {
-    font-size: 20px;
-    font-weight: 500;
-    color: #333;
+  .card-header {
+    background: linear-gradient(135deg, #1a237e, #283593);
+    color: white;
+    padding: 24px 28px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .header-icon-small {
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+
+      mat-icon {
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+        color: white;
+      }
+    }
+
+    .header-text {
+      flex: 1;
+
+      .card-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: white;
+        margin: 0 0 4px 0;
+      }
+
+      .card-subtitle {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.85);
+        margin: 0;
+      }
+    }
+  }
+
+  .card-content {
+    padding: 32px 28px;
+  }
+}
+
+.info-card {
+  .card-header.info-header {
+    background: linear-gradient(135deg, #1565c0, #1976d2);
+
+    .header-icon-small.info-icon {
+      background: rgba(255, 255, 255, 0.15);
+    }
   }
 }
 
@@ -47,65 +134,269 @@
 
   .loading-spinner {
     position: absolute;
-    right: 10px;
+    right: 16px;
     top: 50%;
     transform: translateY(-50%);
   }
+
+  .select-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: #1a237e;
+    }
+  }
+
+  .custom-select {
+    ::ng-deep .mat-select-trigger {
+      min-height: 56px;
+    }
+  }
+
+  .placeholder-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #999;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  .docente-option {
+    width: 100%;
+
+    .docente-option-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      width: 100%;
+
+      .docente-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #1a237e, #3949ab);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+
+      .docente-fullname {
+        flex: 1;
+        font-size: 15px;
+        font-weight: 500;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
 }
 
-.info-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 24px;
+.docente-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f7fa, #e8f0f7);
+  border-radius: 12px;
+  margin-bottom: 28px;
 
-  td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #e0e0e0;
-    font-size: 14px;
+  .docente-avatar-large {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(135deg, #1a237e, #3949ab);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 32px;
+    box-shadow: 0 6px 20px rgba(26, 35, 126, 0.25);
+    flex-shrink: 0;
   }
 
-  tr:last-child td {
-    border-bottom: none;
-  }
+  .docente-header-info {
+    flex: 1;
 
-  .info-label {
-    width: 40%;
-    font-weight: 500;
-    color: #555;
-    text-align: left;
-    vertical-align: top;
-  }
+    .docente-nombre-large {
+      font-size: 26px;
+      font-weight: 700;
+      color: #1a237e;
+      margin: 0 0 6px 0;
+    }
 
-  .info-value {
-    width: 60%;
-    color: #333;
-    font-weight: 400;
-    text-align: left;
+    .docente-ibm {
+      font-size: 16px;
+      color: #666;
+      margin: 0;
+      font-weight: 500;
+    }
+  }
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: #f5f7fa;
+      border-color: #e0e0e0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .info-item-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #1a237e, #3949ab);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+        color: white;
+      }
+    }
+
+    .info-item-content {
+      flex: 1;
+
+      .info-item-label {
+        font-size: 13px;
+        color: #888;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+
+      .info-item-value {
+        font-size: 16px;
+        color: #333;
+        font-weight: 600;
+      }
+    }
   }
 }
 
 .action-buttons {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   justify-content: center;
   flex-wrap: wrap;
 
   .action-btn {
-    min-width: 180px;
+    min-width: 220px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
 
     mat-icon {
-      margin-right: 4px;
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
     }
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    &.btn-verificar {
+      background: linear-gradient(135deg, #1a237e, #283593);
+      color: white;
+
+      &:hover {
+        background: linear-gradient(135deg, #0d1a5c, #1a237e);
+      }
+    }
+
+    &.btn-firma {
+      background: linear-gradient(135deg, #1565c0, #1976d2);
+      color: white;
+
+      &:hover {
+        background: linear-gradient(135deg, #0d47a1, #1565c0);
+      }
+    }
+
+    &.btn-aprobacion {
+      background: linear-gradient(135deg, #2e7d32, #388e3c);
+      color: white;
+
+      &:hover {
+        background: linear-gradient(135deg, #1b5e20, #2e7d32);
+      }
+    }
+  }
+}
+
+@media (max-width: 968px) {
+  .info-grid {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
   .declaraciones-container {
-    padding: 16px;
+    padding: 20px;
+  }
+
+  .header-section {
+    .page-title {
+      font-size: 28px;
+    }
+
+    .page-description {
+      font-size: 16px;
+    }
+  }
+
+  .docente-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
   }
 
   .action-buttons {
@@ -114,15 +405,6 @@
 
     .action-btn {
       min-width: auto;
-    }
-  }
-
-  .info-table {
-    .info-label {
-      width: 50%;
-    }
-    .info-value {
-      width: 50%;
     }
   }
 }

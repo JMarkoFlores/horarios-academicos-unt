@@ -1,10 +1,13 @@
-<div class="detail-page">
+<div class="detalle-page">
   <div class="page-header">
-    <button mat-icon-button (click)="volver()">
+    <div class="header-icon">
+      <mat-icon>fact_check</mat-icon>
+    </div>
+    <button mat-icon-button (click)="volver()" class="btn-back">
       <mat-icon>arrow_back</mat-icon>
     </button>
     <div>
-      <h1>Verificar Aprobacion</h1>
+      <h1>Verificar Aprobación</h1>
       <p>Revise la carga horaria declarada por el docente.</p>
     </div>
   </div>
@@ -14,204 +17,376 @@
   </div>
 
   <ng-container *ngIf="!loading && data">
+    <!-- Estado Bar -->
+    <div class="estado-bar">
+      <div class="estado-label">
+        <mat-icon>info</mat-icon>
+        <span>Estado Actual:</span>
+      </div>
+      <span class="estado-valor {{ estadoColorClass }}">{{ estadoLabel }}</span>
+    </div>
+
+    <!-- Summary Card -->
     <mat-card class="summary-card">
-      <mat-card-content>
+      <mat-card-header class="card-header">
+        <div class="header-icon-small">
+          <mat-icon>badge</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title>Información del Docente</mat-card-title>
+          <mat-card-subtitle>Datos del docente y declaración</mat-card-subtitle>
+        </div>
+      </mat-card-header>
+      <mat-card-content class="card-content">
+        <div class="docente-header">
+          <div class="docente-avatar-large">
+            {{ data.docente.apellidos.charAt(0)
+            }}{{ data.docente.nombres.charAt(0) }}
+          </div>
+          <div class="docente-header-info">
+            <h2 class="docente-nombre-large">
+              {{ data.docente.apellidos }}, {{ data.docente.nombres }}
+            </h2>
+            <p class="docente-ibm">IBM: {{ data.docente.ibm || "—" }}</p>
+          </div>
+        </div>
         <div class="summary-grid">
-          <div>
-            <span class="label">Docente</span>
-            <strong>{{ data.docente.apellidos }}, {{ data.docente.nombres }}</strong>
+          <div class="summary-item">
+            <div class="summary-icon">
+              <mat-icon>person</mat-icon>
+            </div>
+            <div class="summary-content">
+              <span class="label">Docente</span>
+              <strong
+                >{{ data.docente.apellidos }},
+                {{ data.docente.nombres }}</strong
+              >
+            </div>
           </div>
-          <div>
-            <span class="label">IBM</span>
-            <strong>{{ data.docente.ibm || '—' }}</strong>
+          <div class="summary-item">
+            <div class="summary-icon">
+              <mat-icon>tag</mat-icon>
+            </div>
+            <div class="summary-content">
+              <span class="label">IBM</span>
+              <strong>{{ data.docente.ibm || "—" }}</strong>
+            </div>
           </div>
-          <div>
-            <span class="label">Periodo</span>
-            <strong>{{ data.periodo.codigo }}</strong>
+          <div class="summary-item">
+            <div class="summary-icon">
+              <mat-icon>date_range</mat-icon>
+            </div>
+            <div class="summary-content">
+              <span class="label">Periodo</span>
+              <strong>{{ data.periodo.codigo }}</strong>
+            </div>
           </div>
-          <div>
-            <span class="label">Estado</span>
-            <strong>{{ estadoLabel }}</strong>
+          <div class="summary-item">
+            <div class="summary-icon">
+              <mat-icon>task_alt</mat-icon>
+            </div>
+            <div class="summary-content">
+              <span class="label">Estado</span>
+              <strong class="estado-text">{{ estadoLabel }}</strong>
+            </div>
           </div>
         </div>
       </mat-card-content>
     </mat-card>
 
+    <!-- Carga Horaria Lectiva -->
     <mat-card class="table-card">
-      <mat-card-title>Carga horaria lectiva declarada</mat-card-title>
-      <mat-card-content>
-        <table
-          mat-table
-          [dataSource]="registros"
-          class="full-table"
-          *ngIf="tieneLectivaConHorario"
+      <mat-card-header class="card-header lectivo-header">
+        <div class="header-icon-small">
+          <mat-icon>class</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title>Carga Horaria Lectiva Declarada</mat-card-title>
+          <mat-card-subtitle
+            >Horas de teoría, práctica y laboratorio</mat-card-subtitle
+          >
+        </div>
+      </mat-card-header>
+      <mat-card-content class="card-content">
+        <div class="table-container" *ngIf="tieneLectivaConHorario">
+          <table mat-table [dataSource]="registros" class="full-table">
+            <ng-container matColumnDef="curso">
+              <th mat-header-cell *matHeaderCellDef>Curso</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="curso-codigo">
+                  {{ item.codigoCurso }}
+                </span>
+                <span class="curso-nombre">
+                  {{ item.nombreCurso }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="ciclo">
+              <th mat-header-cell *matHeaderCellDef>Año o Ciclo</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="ciclo-badge">{{ item.ciclo }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="alumnos">
+              <th mat-header-cell *matHeaderCellDef>Nro. Alumnos</th>
+              <td mat-cell *matCellDef="let item">0</td>
+            </ng-container>
+
+            <ng-container matColumnDef="hrsTeo">
+              <th mat-header-cell *matHeaderCellDef>Horas Teoría</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge teo">
+                  {{ item.horasTeoria }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="hrsPra">
+              <th mat-header-cell *matHeaderCellDef>Horas Práctica</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge pra">
+                  {{ item.horasPractica }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="hrsLab">
+              <th mat-header-cell *matHeaderCellDef>Horas Lab.</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge lab">
+                  {{ item.horasLaboratorio }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="horas">
+              <th mat-header-cell *matHeaderCellDef>Total Horas</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge total">
+                  {{ item.horasBloque }}
+                </span>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          </table>
+        </div>
+
+        <div class="table-container" *ngIf="tieneLectivaFallback">
+          <table mat-table [dataSource]="cursosFallback" class="full-table">
+            <ng-container matColumnDef="curso">
+              <th mat-header-cell *matHeaderCellDef>Curso</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="curso-codigo">
+                  {{ item.codigo }}
+                </span>
+                <span class="curso-nombre">
+                  {{ item.nombre }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="ciclo">
+              <th mat-header-cell *matHeaderCellDef>Año o Ciclo</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="ciclo-badge">{{ item.ciclo }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="alumnos">
+              <th mat-header-cell *matHeaderCellDef>Nro. Alumnos</th>
+              <td mat-cell *matCellDef="let item">
+                {{ item.nroAlumnos }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="hrsTeo">
+              <th mat-header-cell *matHeaderCellDef>Horas Teoría</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge teo">
+                  {{ item.hrsTeo }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="hrsPra">
+              <th mat-header-cell *matHeaderCellDef>Horas Práctica</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge pra">
+                  {{ item.hrsPra }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="hrsLab">
+              <th mat-header-cell *matHeaderCellDef>Horas Lab.</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge lab">
+                  {{ item.hrsLab }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="horas">
+              <th mat-header-cell *matHeaderCellDef>Total Horas</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge total">
+                  {{ item.totalHrs }}
+                </span>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          </table>
+        </div>
+
+        <div
+          class="empty-state"
+          *ngIf="!tieneLectivaConHorario && !tieneLectivaFallback"
         >
-          <ng-container matColumnDef="curso">
-            <th mat-header-cell *matHeaderCellDef>Curso</th>
-            <td mat-cell *matCellDef="let item">
-              {{ item.codigoCurso }} - {{ item.nombreCurso }}
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="ciclo">
-            <th mat-header-cell *matHeaderCellDef>Ano o Ciclo</th>
-            <td mat-cell *matCellDef="let item">{{ item.ciclo }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="alumnos">
-            <th mat-header-cell *matHeaderCellDef>Nro. Tot. Alumnos</th>
-            <td mat-cell *matCellDef="let item">0</td>
-          </ng-container>
-
-          <ng-container matColumnDef="hrsTeo">
-            <th mat-header-cell *matHeaderCellDef>HrsTeo/Grupos</th>
-            <td mat-cell *matCellDef="let item">{{ item.horasTeoria }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="hrsPra">
-            <th mat-header-cell *matHeaderCellDef>HrsPra/Grupos</th>
-            <td mat-cell *matCellDef="let item">{{ item.horasPractica }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="hrsLab">
-            <th mat-header-cell *matHeaderCellDef>HrsLab/Grupos</th>
-            <td mat-cell *matCellDef="let item">{{ item.horasLaboratorio }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="horas">
-            <th mat-header-cell *matHeaderCellDef>Horas</th>
-            <td mat-cell *matCellDef="let item">{{ item.horasBloque }}</td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-        </table>
-
-        <table
-          mat-table
-          [dataSource]="cursosFallback"
-          class="full-table"
-          *ngIf="tieneLectivaFallback"
-        >
-          <ng-container matColumnDef="curso">
-            <th mat-header-cell *matHeaderCellDef>Curso</th>
-            <td mat-cell *matCellDef="let item">
-              {{ item.codigo }} - {{ item.nombre }}
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="ciclo">
-            <th mat-header-cell *matHeaderCellDef>Ano o Ciclo</th>
-            <td mat-cell *matCellDef="let item">{{ item.ciclo }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="alumnos">
-            <th mat-header-cell *matHeaderCellDef>Nro. Tot. Alumnos</th>
-            <td mat-cell *matCellDef="let item">{{ item.nroAlumnos }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="hrsTeo">
-            <th mat-header-cell *matHeaderCellDef>HrsTeo/Grupos</th>
-            <td mat-cell *matCellDef="let item">{{ item.hrsTeo }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="hrsPra">
-            <th mat-header-cell *matHeaderCellDef>HrsPra/Grupos</th>
-            <td mat-cell *matCellDef="let item">{{ item.hrsPra }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="hrsLab">
-            <th mat-header-cell *matHeaderCellDef>HrsLab/Grupos</th>
-            <td mat-cell *matCellDef="let item">{{ item.hrsLab }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="horas">
-            <th mat-header-cell *matHeaderCellDef>Horas</th>
-            <td mat-cell *matCellDef="let item">{{ item.totalHrs }}</td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-        </table>
-
-        <div class="empty-state" *ngIf="!tieneLectivaConHorario && !tieneLectivaFallback">
-          No hay carga horaria declarada para esta documentacion.
+          <div class="empty-icon">
+            <mat-icon>event_busy</mat-icon>
+          </div>
+          <p>No hay carga horaria declarada para esta documentación.</p>
         </div>
       </mat-card-content>
     </mat-card>
 
+    <!-- Carga Horaria No Lectiva -->
     <mat-card class="table-card">
-      <mat-card-title>
-        Carga horaria no lectiva declarada
-        <span class="card-subtitle" *ngIf="actividadesNoLectivas.length > 0">
-          Total horas: {{ totalHorasNoLectivas }}
-        </span>
-      </mat-card-title>
-      <mat-card-content>
-        <table
-          mat-table
-          [dataSource]="actividadesNoLectivas"
-          class="full-table"
-          *ngIf="actividadesNoLectivas.length > 0"
-        >
-          <ng-container matColumnDef="codigo">
-            <th mat-header-cell *matHeaderCellDef>Cod.</th>
-            <td mat-cell *matCellDef="let item">{{ item.codigo }}</td>
-          </ng-container>
+      <mat-card-header class="card-header no-lectivo-header">
+        <div class="header-icon-small">
+          <mat-icon>assignment_ind</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title>Carga Horaria No Lectiva Declarada</mat-card-title>
+          <mat-card-subtitle *ngIf="actividadesNoLectivas.length > 0">
+            Total horas:
+            <span class="total-horas">{{ totalHorasNoLectivas }}</span>
+          </mat-card-subtitle>
+          <mat-card-subtitle *ngIf="actividadesNoLectivas.length === 0">
+            Actividades no lectivas declaradas
+          </mat-card-subtitle>
+        </div>
+      </mat-card-header>
+      <mat-card-content class="card-content">
+        <div class="table-container" *ngIf="actividadesNoLectivas.length > 0">
+          <table
+            mat-table
+            [dataSource]="actividadesNoLectivas"
+            class="full-table"
+          >
+            <ng-container matColumnDef="codigo">
+              <th mat-header-cell *matHeaderCellDef>Código</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="codigo-badge">{{ item.codigo }}</span>
+              </td>
+            </ng-container>
 
-          <ng-container matColumnDef="actividad">
-            <th mat-header-cell *matHeaderCellDef>Actividad</th>
-            <td mat-cell *matCellDef="let item">{{ item.descripcion }}</td>
-          </ng-container>
+            <ng-container matColumnDef="actividad">
+              <th mat-header-cell *matHeaderCellDef>Actividad</th>
+              <td mat-cell *matCellDef="let item">{{ item.descripcion }}</td>
+            </ng-container>
 
-          <ng-container matColumnDef="detalle">
-            <th mat-header-cell *matHeaderCellDef>Descripcion / Detalle</th>
-            <td mat-cell *matCellDef="let item">{{ item.detalle || '—' }}</td>
-          </ng-container>
+            <ng-container matColumnDef="detalle">
+              <th mat-header-cell *matHeaderCellDef>Detalle</th>
+              <td mat-cell *matCellDef="let item">{{ item.detalle || "—" }}</td>
+            </ng-container>
 
-          <ng-container matColumnDef="horas">
-            <th mat-header-cell *matHeaderCellDef>Horas</th>
-            <td mat-cell *matCellDef="let item">{{ item.horas }}</td>
-          </ng-container>
+            <ng-container matColumnDef="horas">
+              <th mat-header-cell *matHeaderCellDef>Horas</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="hora-badge actividad">{{ item.horas }}</span>
+              </td>
+            </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="displayedColumnsNoLectivas"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumnsNoLectivas"></tr>
-        </table>
+            <tr
+              mat-header-row
+              *matHeaderRowDef="displayedColumnsNoLectivas"
+            ></tr>
+            <tr
+              mat-row
+              *matRowDef="let row; columns: displayedColumnsNoLectivas"
+            ></tr>
+          </table>
+        </div>
 
         <div class="empty-state" *ngIf="actividadesNoLectivas.length === 0">
-          El docente no declaro carga horaria no lectiva.
+          <div class="empty-icon">
+            <mat-icon>assignment_late</mat-icon>
+          </div>
+          <p>El docente no declaró carga horaria no lectiva.</p>
         </div>
       </mat-card-content>
     </mat-card>
 
+    <!-- Totales Card -->
     <mat-card class="totals-card">
-      <mat-card-content>
+      <mat-card-header class="card-header totales-header">
+        <div class="header-icon-small">
+          <mat-icon>calculate</mat-icon>
+        </div>
+        <div class="header-text">
+          <mat-card-title>Resumen de Horas</mat-card-title>
+          <mat-card-subtitle>Totales de horas declaradas</mat-card-subtitle>
+        </div>
+      </mat-card-header>
+      <mat-card-content class="card-content">
         <div class="totals-grid">
-          <div>
-            <span class="label">Total horas lectivas</span>
-            <strong>{{ totalHorasLectivas }}</strong>
+          <div class="total-item lectivo">
+            <div class="total-icon">
+              <mat-icon>class</mat-icon>
+            </div>
+            <div class="total-info">
+              <span class="label">Total Horas Lectivas</span>
+              <strong>{{ totalHorasLectivas }}</strong>
+            </div>
           </div>
-          <div>
-            <span class="label">Total horas no lectivas</span>
-            <strong>{{ totalHorasNoLectivas }}</strong>
+          <div class="total-item no-lectivo">
+            <div class="total-icon">
+              <mat-icon>assignment_ind</mat-icon>
+            </div>
+            <div class="total-info">
+              <span class="label">Total Horas No Lectivas</span>
+              <strong>{{ totalHorasNoLectivas }}</strong>
+            </div>
           </div>
-          <div>
-            <span class="label">Sumatoria total</span>
-            <strong>{{ totalHorasDeclaradas }}</strong>
+          <div class="total-item total">
+            <div class="total-icon">
+              <mat-icon>sum</mat-icon>
+            </div>
+            <div class="total-info">
+              <span class="label">Sumatoria Total</span>
+              <strong>{{ totalHorasDeclaradas }}</strong>
+            </div>
           </div>
         </div>
       </mat-card-content>
     </mat-card>
 
+    <!-- Action Bar -->
     <div class="action-bar">
-      <button mat-stroked-button (click)="volver()">Volver</button>
+      <button mat-raised-button class="btn-volver" (click)="volver()">
+        <mat-icon>arrow_back</mat-icon>
+        Volver
+      </button>
       <button
         mat-raised-button
-        color="primary"
+        class="btn-validar"
         (click)="validarAprobacion()"
         [disabled]="saving || !puedeValidar()"
       >
-        Validar aprobacion
+        <mat-icon *ngIf="!saving">check_circle</mat-icon>
+        <mat-spinner
+          *ngIf="saving"
+          diameter="20"
+          class="btn-spinner"
+        ></mat-spinner>
+        {{ saving ? "Validando..." : "Validar Aprobación" }}
       </button>
     </div>
   </ng-container>

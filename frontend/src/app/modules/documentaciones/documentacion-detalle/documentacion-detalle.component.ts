@@ -196,6 +196,21 @@ export class DocumentacionDetalleComponent implements OnInit {
     return labels[this.estado] || this.estado;
   }
 
+  get estadoColorClass(): string {
+    const colors: Record<string, string> = {
+      ENVIADO_DOCENTE: 'estado-enviado',
+      OBSERVADO_DPTO: 'estado-observado',
+      SUBSANADO: 'estado-enviado',
+      VALIDADO_DPTO: 'estado-validado',
+      OBSERVADO_FACULTAD: 'estado-observado',
+      APROBADO_FACULTAD: 'estado-aprobado',
+      CERRADO: 'estado-cerrado',
+      BORRADOR: 'estado-borrador',
+      SIN_DECLARACION: 'estado-cerrado',
+    };
+    return colors[this.estado] || 'estado-cerrado';
+  }
+
   getDiaLabel(dia: number): string {
     return ['','Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'][dia] || String(dia);
   }

@@ -63,6 +63,33 @@ export class DocumentacionesListComponent implements OnInit {
     return labels[estado] || estado;
   }
 
+  getEstadoColorClass(estado: string): string {
+    const colors: Record<string, string> = {
+      ENVIADO_DOCENTE: 'estado-enviado',
+      OBSERVADO_DPTO: 'estado-observado',
+      SUBSANADO: 'estado-enviado',
+      VALIDADO_DPTO: 'estado-validado',
+      OBSERVADO_FACULTAD: 'estado-observado',
+      APROBADO_FACULTAD: 'estado-aprobado',
+      CERRADO: 'estado-cerrado',
+    };
+    return colors[estado] || 'estado-cerrado';
+  }
+
+  getInitials(nombre: string): string {
+    if (!nombre) return 'NN';
+    const parts = nombre.split(',');
+    if (parts.length >= 2) {
+      const apellidos = parts[0].trim().split(' ');
+      const nombres = parts[1].trim().split(' ');
+      return (
+        (apellidos[0]?.[0] || '') + (nombres[0]?.[0] || '')
+      ).toUpperCase();
+    }
+    const words = nombre.split(' ');
+    return (words[0]?.[0] || '') + (words[1]?.[0] || '').toUpperCase();
+  }
+
   verificarDeclaracion(item: DocumentacionResumen): void {
     if (item.estado !== 'ENVIADO_DOCENTE') {
       this.router.navigate(['/app/documentaciones', item.id]);

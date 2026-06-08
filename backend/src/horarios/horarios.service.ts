@@ -158,23 +158,6 @@ export class HorariosService {
     return { items, total, page, limit };
   }
 
-  async findByDia(dia: number, periodo: string, page = 1, limit = 50) {
-    const [items, total] = await this.horarioRepo
-      .createQueryBuilder("horario")
-      .leftJoinAndSelect("horario.docente", "docente")
-      .leftJoinAndSelect("horario.curso", "curso")
-      .leftJoinAndSelect("horario.ambiente", "ambiente")
-      .leftJoinAndSelect("horario.grupo", "grupo")
-      .where("horario.dia = :dia", { dia })
-      .andWhere("horario.periodo = :periodo", { periodo })
-      .orderBy("horario.hora_inicio", "ASC")
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-
-    return { items, total, page, limit };
-  }
-
   async findHorariosByDocenteEmail(email: string, periodo: string) {
     const docente = await this.docenteRepo.findOne({ where: { email } });
     if (!docente) throw new NotFoundException("Docente no encontrado");

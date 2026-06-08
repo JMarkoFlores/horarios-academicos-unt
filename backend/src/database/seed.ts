@@ -37,6 +37,8 @@ import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { EstadoCampaña } from "../common/enums/estado-campaña.enum";
+import { EstadoVentanaAtencion } from "../entities/ventana-atencion.entity";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
 
@@ -72,7 +74,8 @@ const AppDataSource = new DataSource({
     Escuela,
     Departamento,
   ],
-  synchronize: false,
+  synchronize: true,
+  dropSchema: true,
   logging: false,
   ssl:
     process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
@@ -200,8 +203,10 @@ async function seed() {
     },
   ];
 
+  const dbUsuariosSistemas: Usuario[] = [];
   for (const u of usuariosSistemas) {
-    await usuarioRepo.save(usuarioRepo.create(u));
+    const saved = await usuarioRepo.save(usuarioRepo.create(u));
+    dbUsuariosSistemas.push(saved);
   }
   console.log(
     "✅ Usuarios del sistema creados (Contraseña por defecto: Admin123!)\n",
@@ -341,225 +346,8 @@ async function seed() {
   console.log("🏢 Creando ambientes de estudio...");
   const ambientesData = [
     {
-      nombres: "Marcelino",
-      apellidos: "Torres Villanueva",
-      codigo: "DOC001",
-      ibm: 1001,
-    },
-    {
-      nombres: "Alberto",
-      apellidos: "Mendoza de los Santos",
-      codigo: "DOC002",
-      ibm: 1002,
-    },
-    {
-      nombres: "Paul",
-      apellidos: "Cotrina Castellanos",
-      codigo: "DOC003",
-      ibm: 1003,
-    },
-    {
-      nombres: "Bertha",
-      apellidos: "Urtecho Zavaleta",
-      codigo: "DOC004",
-      ibm: 1004,
-    },
-    {
-      nombres: "Jose Luis",
-      apellidos: "Ponte Bejarano",
-      codigo: "DOC005",
-      ibm: 1005,
-    },
-    {
-      nombres: "Jorge Luis",
-      apellidos: "Rios Gonzales",
-      codigo: "DOC006",
-      ibm: 1006,
-    },
-    {
-      nombres: "Segundo",
-      apellidos: "Guibar Obeso",
-      codigo: "DOC007",
-      ibm: 1007,
-    },
-    {
-      nombres: "Miguel",
-      apellidos: "Ipanaque Zapata",
-      codigo: "DOC008",
-      ibm: 1008,
-    },
-    { nombres: "Martha", apellidos: "Cardoso", codigo: "DOC009", ibm: 1009 },
-    {
-      nombres: "Zoraida",
-      apellidos: "Vidal Melgarejo",
-      codigo: "DOC010",
-      ibm: 1010,
-    },
-    {
-      nombres: "Everson David",
-      apellidos: "Agreda Gamboa",
-      codigo: "DOC011",
-      ibm: 1011,
-    },
-    {
-      nombres: "Juan Carlos",
-      apellidos: "Obando Roldán",
-      codigo: "DOC012",
-      ibm: 1012,
-    },
-    {
-      nombres: "Marcos",
-      apellidos: "Ferrer Reyna",
-      codigo: "DOC013",
-      ibm: 1013,
-    },
-    {
-      nombres: "Teresita",
-      apellidos: "Rojas Garcia",
-      codigo: "DOC014",
-      ibm: 1014,
-    },
-    {
-      nombres: "Juan",
-      apellidos: "Carrascal Cabanillas",
-      codigo: "DOC015",
-      ibm: 1015,
-    },
-    { nombres: "Vilma", apellidos: "Mendez Gil", codigo: "DOC016", ibm: 1016 },
-    {
-      nombres: "Sheyla Laura",
-      apellidos: "Escobedo Rodriguez",
-      codigo: "DOC017",
-      ibm: 1017,
-    },
-    { nombres: "Luis", apellidos: "Boy Chavil", codigo: "DOC018", ibm: 1018 },
-    {
-      nombres: "Robert Jerry",
-      apellidos: "Sánchez Ticona",
-      codigo: "DOC019",
-      ibm: 1019,
-    },
-    {
-      nombres: "Cesar",
-      apellidos: "Arellano Salazar",
-      codigo: "DOC020",
-      ibm: 1020,
-    },
-    {
-      nombres: "Camilo",
-      apellidos: "Suárez Rebaza",
-      codigo: "DOC021",
-      ibm: 1021,
-    },
-    { nombres: "Marcos", apellidos: "Baca Lopez", codigo: "DOC022", ibm: 1022 },
-    {
-      nombres: "Ana",
-      apellidos: "Cuadra Mitzugaray",
-      codigo: "DOC023",
-      ibm: 1023,
-    },
-    {
-      nombres: "Juan Pedro",
-      apellidos: "Santos Fernández",
-      codigo: "DOC024",
-      ibm: 4247,
-    },
-    {
-      nombres: "Ricardo",
-      apellidos: "Mendoza Rivera",
-      codigo: "DOC025",
-      ibm: 1025,
-    },
-    {
-      nombres: "Oscar Romel",
-      apellidos: "Alcántara Moreno",
-      codigo: "DOC026",
-      ibm: 1026,
-    },
-    { nombres: "José", apellidos: "Gómez Ávila", codigo: "DOC027", ibm: 1027 },
-    {
-      nombres: "Jhoe",
-      apellidos: "Gonzalez Vasquez",
-      codigo: "DOC028",
-      ibm: 1028,
-    },
-  ];
-
-  const dbDocentes: Docente[] = [];
-  const modalidadesPool = [
-    ModalidadDocente.DEDICACION_EXCLUSIVA,
-    ModalidadDocente.TIEMPO_COMPLETO_40,
-    ModalidadDocente.TIEMPO_PARCIAL_20,
-    ModalidadDocente.TIEMPO_PARCIAL_12,
-    ModalidadDocente.TIEMPO_PARCIAL_10,
-    ModalidadDocente.TIEMPO_PARCIAL_8,
-  ];
-
-  for (let i = 0; i < docentesData.length; i++) {
-    const docData = docentesData[i];
-    let tipoDocente: TipoDocente;
-    let categoria: CategoriaDocente;
-    if (i < 5) {
-      tipoDocente = TipoDocente.ORDINARIO;
-      categoria = CategoriaDocente.PRINCIPAL;
-    } else if (i < 10) {
-      tipoDocente = TipoDocente.ORDINARIO;
-      categoria = CategoriaDocente.ASOCIADO;
-    } else if (i < 18) {
-      tipoDocente = TipoDocente.ORDINARIO;
-      categoria = CategoriaDocente.AUXILIAR;
-    } else if (i < 23) {
-      tipoDocente = TipoDocente.CONTRATADO;
-      categoria = CategoriaDocente.SIN_CATEGORIA;
-    } else {
-      tipoDocente = TipoDocente.JEFE_PRACTICA_CONTRATADO;
-      categoria = CategoriaDocente.SIN_CATEGORIA;
-    }
-    const tipoContrato =
-      tipoDocente === TipoDocente.ORDINARIO
-        ? TipoContrato.NOMBRADO
-        : TipoContrato.CONTRATADO;
-
-    const d = await docenteRepo.save(
-      docenteRepo.create({
-        codigo: docData.codigo,
-        ibm: docData.ibm,
-        nombres: docData.nombres,
-        apellidos: docData.apellidos,
-        email: `${docData.nombres.toLowerCase().replace(/\s+/g, ".")}.${docData.apellidos.toLowerCase().replace(/\s+/g, ".")}@unt.edu.pe`,
-        categoria,
-        tipo_docente: tipoDocente,
-        tipo_contrato: tipoContrato,
-        modalidad: modalidadesPool[i % modalidadesPool.length],
-        fecha_ingreso: new Date(2000 + (i % 20), 0, 1),
-        activo: true,
-      }),
-    );
-    dbDocentes.push(d);
-
-    await usuarioRepo.save(
-      usuarioRepo.create({
-        nombre: `${d.nombres} ${d.apellidos}`,
-        email: d.email,
-        password_hash: passwordHash,
-        rol: RolUsuario.DOCENTE,
-        activo: true,
-      }),
-    );
-  }
-  console.log(
-    `✅ ${dbDocentes.length} docentes y sus usuarios de acceso creados correctamente\n`,
-  );
-
-  // ── 4. AMBIENTES (Aulas de Posgrado y Laboratorios) ──────────────────────────────
-  console.log(
-    "🏢 Creando ambientes de estudio (posgrado aulas y laboratorios)...",
-  );
-  const ambientesData = [
-    // Aulas de Posgrado
-    {
-      codigo: "A-301",
-      nombre: "Posgrado A-301",
+      codigo: "A-307",
+      nombre: "Posgrado A-307",
       tipo: TipoAmbiente.AULA,
       capacidad: 30,
       piso: 3,
@@ -570,16 +358,7 @@ async function seed() {
       codigo: "A-303",
       nombre: "Posgrado A-303",
       tipo: TipoAmbiente.AULA,
-      capacidad: 30,
-      piso: 3,
-      pabellon: "A",
-      activo: true,
-    },
-    {
-      codigo: "A-307",
-      nombre: "Posgrado A-307",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 30,
+      capacidad: 35,
       piso: 3,
       pabellon: "A",
       activo: true,
@@ -588,12 +367,38 @@ async function seed() {
       codigo: "A-311",
       nombre: "Posgrado A-311",
       tipo: TipoAmbiente.AULA,
-      capacidad: 30,
-      piso: 3,
+      capacidad: 40,
+      piso: 1,
       pabellon: "A",
       activo: true,
     },
-    // Laboratorios
+    {
+      codigo: "I-4",
+      nombre: "I-4",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 30,
+      piso: 1,
+      pabellon: "A",
+      activo: true,
+    },
+    {
+      codigo: "II-2",
+      nombre: "II-2 (Pabellon Ing. Industrial)",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 30,
+      piso: 2,
+      pabellon: "Industrial",
+      activo: true,
+    },
+    {
+      codigo: "TALLER-CONFECCIONES",
+      nombre: "Taller de Confecciones - Ing. Industrial",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 40,
+      piso: 2,
+      pabellon: "C",
+      activo: true,
+    },
     {
       codigo: "LAB-1",
       nombre: "Lab. 1",
@@ -640,39 +445,12 @@ async function seed() {
       activo: true,
     },
     {
-      codigo: "TALLER-CONFECCIONES",
-      nombre: "Taller de Confecciones - Ing. Industrial",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 40,
-      piso: 2,
-      pabellon: "C",
-      activo: true,
-    },
-    {
-      codigo: "I-4",
-      nombre: "I-4",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 30,
-      piso: 1,
-      pabellon: "A",
-      activo: true,
-    },
-    {
-      codigo: "II-2",
-      nombre: "II-2 (Pabellon Ing. Industrial)",
-      tipo: TipoAmbiente.AULA,
-      capacidad: 30,
-      piso: 2,
-      pabellon: "Industrial",
-      activo: true,
-    },
-    {
       codigo: "AUDIOVISUALES",
-      nombre: "Audiovisuales",
+      nombre: "Sala de Audiovisuales",
       tipo: TipoAmbiente.AULA,
-      capacidad: 40,
+      capacidad: 50,
       piso: 1,
-      pabellon: "A",
+      pabellon: "B",
       activo: true,
     },
   ];
@@ -682,7 +460,126 @@ async function seed() {
     const ambiente = await ambienteRepo.save(ambienteRepo.create(a));
     dbAmbientes.push(ambiente);
   }
-  console.log("✅ 6 aulas y 4 laboratorios creados exitosamente\n");
+  console.log("✅ Ambientes creados exitosamente\n");
+
+  // ── 4. DOCENTES Y SUS USUARIOS ASOCIADOS ───────────
+  console.log("👨‍🏫 Creando docentes de los datos proporcionados...");
+  const docentesData = [
+    { nombres: "Marcelino", apellidos: "Torres Villanueva", codigo: "DOC001" },
+    {
+      nombres: "Alberto",
+      apellidos: "Mendoza de los Santos",
+      codigo: "DOC002",
+    },
+    { nombres: "Paul", apellidos: "Cotrina Castellanos", codigo: "DOC003" },
+    { nombres: "Bertha", apellidos: "Urtecho Zavaleta", codigo: "DOC004" },
+    { nombres: "Jose Luis", apellidos: "Ponte Bejarano", codigo: "DOC005" },
+    { nombres: "Jorge Luis", apellidos: "Rios Gonzales", codigo: "DOC006" },
+    { nombres: "Segundo", apellidos: "Guibar Obeso", codigo: "DOC007" },
+    { nombres: "Miguel", apellidos: "Ipanaque Zapata", codigo: "DOC008" },
+    { nombres: "Martha", apellidos: "Cardoso", codigo: "DOC009" },
+    { nombres: "Zoraida", apellidos: "Vidal Melgarejo", codigo: "DOC010" },
+    { nombres: "Everson David", apellidos: "Agreda Gamboa", codigo: "DOC011" },
+    { nombres: "Juan Carlos", apellidos: "Obando Roldán", codigo: "DOC012" },
+    { nombres: "Marcos", apellidos: "Ferrer Reyna", codigo: "DOC013" },
+    { nombres: "Teresita", apellidos: "Rojas Garcia", codigo: "DOC014" },
+    { nombres: "Juan", apellidos: "Carrascal Cabanillas", codigo: "DOC015" },
+    { nombres: "Vilma", apellidos: "Mendez Gil", codigo: "DOC016" },
+    {
+      nombres: "Sheyla Laura",
+      apellidos: "Escobedo Rodriguez",
+      codigo: "DOC017",
+    },
+    { nombres: "Luis", apellidos: "Boy Chavil", codigo: "DOC018" },
+    { nombres: "Robert Jerry", apellidos: "Sánchez Ticona", codigo: "DOC019" },
+    { nombres: "César", apellidos: "Arellano Salazar", codigo: "DOC020" },
+    { nombres: "Camilo", apellidos: "Suárez Rebaza", codigo: "DOC021" },
+    { nombres: "Marcos", apellidos: "Baca Lopez", codigo: "DOC022" },
+    { nombres: "Ana", apellidos: "Cuadra Mitzugaray", codigo: "DOC023" },
+    { nombres: "Juan Pedro", apellidos: "Santos Fernández", codigo: "DOC024" },
+    { nombres: "Ricardo", apellidos: "Mendoza Rivera", codigo: "DOC025" },
+    { nombres: "Oscar Romel", apellidos: "Alcántara Moreno", codigo: "DOC026" },
+    { nombres: "José", apellidos: "Gómez Ávila", codigo: "DOC027" },
+    { nombres: "Jhoe", apellidos: "Gonzalez Vasquez", codigo: "DOC028" },
+  ];
+
+  const dbDocentes: Docente[] = [];
+  const modalidadesPool = [
+    ModalidadDocente.DEDICACION_EXCLUSIVA,
+    ModalidadDocente.TIEMPO_COMPLETO_40,
+    ModalidadDocente.TIEMPO_PARCIAL_20,
+    ModalidadDocente.TIEMPO_PARCIAL_12,
+    ModalidadDocente.TIEMPO_PARCIAL_10,
+    ModalidadDocente.TIEMPO_PARCIAL_8,
+  ];
+
+  for (let i = 0; i < docentesData.length; i++) {
+    const docData = docentesData[i];
+    let tipoDocente: TipoDocente;
+    let categoria: CategoriaDocente;
+    let modalidad: ModalidadDocente;
+    
+    // Excepción para Juan Pedro Santos Fernández (DOC024)
+    if (docData.codigo === "DOC024") {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.PRINCIPAL;
+      modalidad = ModalidadDocente.DEDICACION_EXCLUSIVA;
+    } else if (i < 5) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.PRINCIPAL;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    } else if (i < 10) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.ASOCIADO;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    } else if (i < 18) {
+      tipoDocente = TipoDocente.ORDINARIO;
+      categoria = CategoriaDocente.AUXILIAR;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    } else if (i < 23) {
+      tipoDocente = TipoDocente.CONTRATADO;
+      categoria = CategoriaDocente.SIN_CATEGORIA;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    } else {
+      tipoDocente = TipoDocente.JEFE_PRACTICA_CONTRATADO;
+      categoria = CategoriaDocente.SIN_CATEGORIA;
+      modalidad = modalidadesPool[i % modalidadesPool.length];
+    }
+    
+    const tipoContrato =
+      tipoDocente === TipoDocente.ORDINARIO
+        ? TipoContrato.NOMBRADO
+        : TipoContrato.CONTRATADO;
+
+    const d = await docenteRepo.save(
+      docenteRepo.create({
+        codigo: docData.codigo,
+        nombres: docData.nombres,
+        apellidos: docData.apellidos,
+        email: `${docData.nombres.toLowerCase().replace(/\s+/g, ".")}.${docData.apellidos.toLowerCase().replace(/\s+/g, ".")}@unt.edu.pe`,
+        categoria,
+        tipo_docente: tipoDocente,
+        tipo_contrato: tipoContrato,
+        modalidad: modalidad,
+        fecha_ingreso: new Date(2000 + (i % 20), 0, 1),
+        activo: true,
+      }),
+    );
+    dbDocentes.push(d);
+
+    await usuarioRepo.save(
+      usuarioRepo.create({
+        nombre: `${d.nombres} ${d.apellidos}`,
+        email: d.email,
+        password_hash: passwordHash,
+        rol: RolUsuario.DOCENTE,
+        activo: true,
+      }),
+    );
+  }
+  console.log(
+    `✅ ${dbDocentes.length} docentes y sus usuarios de acceso creados correctamente\n`,
+  );
 
   // ── 5. PLAN DE ESTUDIOS COMPLETO INGENIERÍA DE SISTEMAS 2018 (82 CURSOS) ─
   console.log(

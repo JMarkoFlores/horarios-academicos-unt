@@ -286,7 +286,7 @@ export class HorariosController {
         periodo,
       );
 
-      if (!horarios || horarios.length === 0) {
+      if (!horarios || !horarios.horarios || horarios.horarios.length === 0) {
         throw new NotFoundException(
           "No se encontraron horarios para el docente",
         );

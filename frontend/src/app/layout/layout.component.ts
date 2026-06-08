@@ -132,7 +132,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
           icon: 'event_available',
           label: 'Disponibilidad',
           route: '/app/disponibilidad',
-          roles: ['administradorsistema', 'coordinadoracademico'],
+          roles: ['administradorsistema', 'coordinadoracademico', 'docente'],
         },
       ],
     },
@@ -206,6 +206,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
             'administradorsistema',
             'coordinadoracademico',
             'operadorhorarios',
+            'docente',
           ],
         },
         {

@@ -117,8 +117,8 @@ async function bootstrap() {
       const count = await dataSource.query(`SELECT COUNT(*) FROM usuario`);
       if (parseInt(count[0].count, 10) === 0) {
         logger.log("BD vacía — ejecutando seed inicial...");
-        const { seed } = await import("./database/seed-auto");
-        await seed(dataSource);
+        const { main } = await import("./database/seed");
+        await main();
         logger.log("✅ Seed inicial completado");
       }
     } catch (e) {

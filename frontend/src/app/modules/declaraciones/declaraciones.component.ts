@@ -32,7 +32,30 @@ export class DeclaracionesComponent implements OnInit {
 
   ngOnInit(): void {
     this.periodoActivo = this.periodoService.periodo;
-    this.cargarDocentes();
+    if (this.authService.hasRole('docente')) {
+      this.cargarDatosDocenteActual();
+    } else {
+      this.cargarDocentes();
+    }
+  }
+
+  cargarDatosDocenteActual(): void {
+    const user = this.authService.getUsuarioActual();
+    if (user?.docenteId) {
+      this.loading = true;
+      this.apiService
+        .get<ApiResponse<Docente>>(`/declaraciones/docentes/${user.docenteId}`)
+        .subscribe({
+          next: (response) => {
+            this.selectedDocente = response.data;
+            this.loading = false;
+          },
+          error: (error) => {
+            console.error('Error al cargar datos del docente:', error);
+            this.loading = false;
+          },
+        });
+    }
   }
 
   cargarDocentes(): void {
@@ -65,6 +88,10 @@ export class DeclaracionesComponent implements OnInit {
         { duration: 2000 },
       );
     }
+  }
+
+  get isDocente(): boolean {
+    return this.authService.hasRole('docente');
   }
 
   get nombreCompletoDocente(): string {

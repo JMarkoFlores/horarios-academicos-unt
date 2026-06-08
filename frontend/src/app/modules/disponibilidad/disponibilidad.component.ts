@@ -18,6 +18,8 @@ import {
   TurnoHorario,
 } from './disponibilidad.service';
 
+import { AuthService } from '../../core/services/auth.service';
+
 @Component({
   selector: 'app-disponibilidad',
   templateUrl: './disponibilidad.component.html',
@@ -25,6 +27,7 @@ import {
 })
 export class DisponibilidadComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  public readonly authService = inject(AuthService);
 
   readonly todosDocentes = signal<Docente[]>([]);
   readonly docenteSeleccionado = signal<Docente | null>(null);
@@ -257,27 +260,47 @@ export class DisponibilidadComponent implements OnInit {
   private cargarDatosIniciales(): void {
     this.loadingCatalogos.set(true);
 
-    forkJoin({
+    const calls: any = {
       turnos: this.disponibilidadService.obtenerTurnos(),
       diasActivos: this.disponibilidadService.obtenerDiasActivos(),
-      docentes: this.disponibilidadService.obtenerDocentes(),
       parametros: this.disponibilidadService.obtenerParametrosCarga(
         this.periodoService.periodo,
       ),
-    })
+    };
+
+    const isDocente = this.authService.hasRole('docente');
+    if (!isDocente) {
+      calls.docentes = this.disponibilidadService.obtenerDocentes();
+    } else {
+      const user = this.authService.getUsuarioActual();
+      if (user?.docenteId) {
+        calls.docenteActual = this.disponibilidadService.api
+          .get<ApiResponse<Docente>>(`/docentes/${user.docenteId}`)
+          .pipe(map((res) => res.data));
+      }
+    }
+
+    forkJoin(calls)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ turnos, diasActivos, docentes, parametros }) => {
-          this.turnos.set(turnos);
-          this.diasActivos.set(diasActivos);
-          this.todosDocentes.set(docentes);
-          this.parametrosCarga.set(parametros);
+        next: (res: any) => {
+          this.turnos.set(res.turnos);
+          this.diasActivos.set(res.diasActivos);
+          this.parametrosCarga.set(res.parametros);
+
+          if (!isDocente) {
+            this.todosDocentes.set(res.docentes);
+          } else if (res.docenteActual) {
+            this.docenteSeleccionado.set(res.docenteActual);
+            this.cargarDisponibilidad();
+          }
+
           this.resetGrilla();
           this.loadingCatalogos.set(false);
         },
         error: () => {
           this.snackBar.open(
-            'Error al cargar turnos, días activos o docentes.',
+            'Error al cargar la configuración inicial.',
             'Cerrar',
             { duration: 4000 },
           );

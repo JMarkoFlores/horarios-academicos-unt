@@ -131,6 +131,12 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DOCENTE,
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.COORDINADOR_ACADEMICO,
+  )@Post()
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
   )
   @ApiOperation({ summary: "Guardar declaración de carga horaria" })
   async guardarDeclaracion(

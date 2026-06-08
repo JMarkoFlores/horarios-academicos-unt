@@ -241,11 +241,15 @@
       <mat-card-header class="header-no-lectivas">
         <mat-card-title>2. PREPARACIÓN Y EVALUACIÓN</mat-card-title>
         <span class="subtitle">(Max 50% de Trabajo Lectivo)</span>
-        <span class="horas-label"
+        <span class="horas-label" [class.error-text]="totalHorasNoLectivas > totalHorasLectivas"
           >Horas: <strong>{{ totalHorasNoLectivas }}</strong></span
         >
       </mat-card-header>
       <mat-card-content>
+        <div class="error-message" *ngIf="totalHorasNoLectivas > totalHorasLectivas">
+          <mat-icon>warning</mat-icon>
+          <span>El total de horas no lectivas no puede exceder las horas lectivas ({{ totalHorasLectivas }} h).</span>
+        </div>
         <table class="data-table no-lectivas-table">
           <thead>
             <tr>
@@ -285,9 +289,12 @@
                 <input
                   type="number"
                   [(ngModel)]="act.horas"
-                  (ngModelChange)="onActividadChange()"
+                  (ngModelChange)="onActividadChange(act)"
                   [disabled]="!esEditable"
                   class="cell-input small"
+                  [class.input-error]="act.excede"
+                  [max]="totalHorasLectivas"
+                  min="0"
                 />
               </td>
             </tr>

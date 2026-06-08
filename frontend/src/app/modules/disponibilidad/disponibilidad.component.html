@@ -9,7 +9,7 @@
   <!-- Advanced Toolbar -->
   <mat-card class="toolbar-card-premium">
     <div class="toolbar-grid">
-      <div class="search-wrapper">
+      <div class="search-wrapper" *ngIf="!authService.hasRole('docente')">
         <mat-form-field appearance="outline" class="premium-select">
           <mat-label>Seleccionar Docente</mat-label>
           <mat-select
@@ -27,7 +27,7 @@
         </mat-form-field>
       </div>
 
-      <div class="actions-group" *ngIf="docenteSeleccionado()">
+      <div class="actions-group" *ngIf="docenteSeleccionado()" [style.grid-column]="authService.hasRole('docente') ? '1 / span 2' : 'auto'">
         <button
           mat-stroked-button
           class="btn-secondary"

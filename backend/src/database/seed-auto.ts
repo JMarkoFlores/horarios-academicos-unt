@@ -31,7 +31,8 @@ import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
 
-export async function seed(dataSource: DataSource): Promise<void> {
+export async function seedAuto(dataSource: DataSource): Promise<void> {
+  console.log("🌱 Iniciando seed AUTOMÁTICO...");
   const usuarioRepo = dataSource.getRepository(Usuario);
   const docenteRepo = dataSource.getRepository(Docente);
   const periodoRepo = dataSource.getRepository(PeriodoAcademico);

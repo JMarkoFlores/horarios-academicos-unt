@@ -60,6 +60,7 @@ export class DeclaracionesController {
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Obtener detalles de un docente específico" })
   @ApiResponse({ status: 200, description: "Docente obtenido exitosamente" })
@@ -89,6 +90,7 @@ export class DeclaracionesController {
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Obtener firma de un docente" })
   @ApiResponse({ status: 200, description: "Firma obtenida exitosamente" })

@@ -28,6 +28,7 @@ interface ActividadNoLectiva {
   descripcion: string;
   detalle: string;
   horas: number;
+  excede?: boolean; // Nueva propiedad para feedback visual
 }
 
 const ACTIVIDADES_NO_LECTIVAS: { id: number; descripcion: string }[] = [
@@ -269,7 +270,42 @@ export class VerificarDeclaracionComponent implements OnInit {
     this.calcularTotales();
   }
 
-  onActividadChange(): void {
+  onActividadChange(actividad?: ActividadNoLectiva): void {
+    if (actividad) {
+      // Calculamos el total de las OTRAS actividades (excluyendo la actual)
+      const totalOtras = this.actividadesNoLectivas
+        .filter((a) => a.id !== actividad.id)
+        .reduce((sum, a) => sum + (Number(a.horas) || 0), 0);
+
+      const maxPermitido = this.totalHorasLectivas - totalOtras;
+
+      // Si el valor ingresado es mayor a lo que queda disponible
+      if (actividad.horas > maxPermitido) {
+        actividad.excede = true; // Activamos el color rojo
+        const valorExcedido = actividad.horas;
+        
+        // Ajustamos al máximo posible
+        actividad.horas = maxPermitido > 0 ? maxPermitido : 0;
+
+        this.snackBar.open(
+          `⚠️ LÍMITE EXCEDIDO: No puedes asignar ${valorExcedido}h. El máximo disponible es ${actividad.horas}h.`,
+          'ENTENDIDO',
+          { 
+            duration: 6000,
+            panelClass: ['snackbar-error-prominent'], // Clase para hacerlo muy visible
+            horizontalPosition: 'center',
+            verticalPosition: 'top'
+          },
+        );
+
+        // Quitamos el color rojo después de un momento para que se note el cambio
+        setTimeout(() => {
+          actividad.excede = false;
+        }, 1500);
+      } else {
+        actividad.excede = false;
+      }
+    }
     this.calcularTotales();
   }
 
@@ -284,6 +320,18 @@ export class VerificarDeclaracionComponent implements OnInit {
     }
 
     this.saving = true;
+
+    // Validación local: No exceder horas lectivas
+    if (this.totalHorasNoLectivas > this.totalHorasLectivas) {
+      this.snackBar.open(
+        `Error: El total de horas de Preparación y Evaluación (${this.totalHorasNoLectivas}) no puede exceder al Trabajo Lectivo (${this.totalHorasLectivas})`,
+        'Cerrar',
+        { duration: 5000 },
+      );
+      this.saving = false;
+      return;
+    }
+
     const payload = {
       docente_id: this.docenteId,
       periodo: this.periodoActivo,

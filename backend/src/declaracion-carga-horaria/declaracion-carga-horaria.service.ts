@@ -1167,6 +1167,23 @@ export class DeclaracionCargaHorariaService {
     declaracion.carga_no_lectiva = carga_no_lectiva || null;
     declaracion.estado = estado || EstadoDeclaracionCarga.BORRADOR;
 
+    // Validación: Total Horas No Lectivas (Pestaña 2) <= Total Horas Lectivas (Tabla 1)
+    const totalLectivas = (cursos_lectivos || []).reduce(
+      (sum: number, c: any) => sum + (Number(c.total_hrs) || 0),
+      0,
+    );
+
+    const totalNoLectivas = (carga_no_lectiva?.actividades || []).reduce(
+      (sum: number, a: any) => sum + (Number(a.horas) || 0),
+      0,
+    );
+
+    if (totalNoLectivas > totalLectivas) {
+      throw new BadRequestException(
+        `El total de horas de Preparación y Evaluación (${totalNoLectivas}) no puede sobrepasar el total de Trabajo Lectivo (${totalLectivas})`,
+      );
+    }
+
     return this.declaracionRepo.save(declaracion);
   }
 

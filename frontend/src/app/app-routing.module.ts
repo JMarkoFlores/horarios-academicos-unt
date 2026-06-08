@@ -161,7 +161,7 @@ const routes: Routes = [
             (m) => m.DisponibilidadModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+        data: { roles: ['administradorsistema', 'coordinadoracademico', 'docente'] },
       },
       {
         path: 'declaraciones',
@@ -175,6 +175,7 @@ const routes: Routes = [
             'administradorsistema',
             'coordinadoracademico',
             'operadorhorarios',
+            'docente',
           ],
         },
       },

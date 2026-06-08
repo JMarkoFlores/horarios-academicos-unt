@@ -10,8 +10,8 @@
   </div>
 
   <div class="content-section">
-    <!-- Tarjeta de selección -->
-    <mat-card class="selection-card">
+    <!-- Tarjeta de selección (solo para no docentes) -->
+    <mat-card class="selection-card" *ngIf="!isDocente">
       <mat-card-header class="card-header">
         <div class="header-icon-small">
           <mat-icon>person_search</mat-icon>
@@ -73,6 +73,11 @@
         </form>
       </mat-card-content>
     </mat-card>
+
+    <div class="loading-state" *ngIf="loading && isDocente">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Cargando información de su carga horaria...</p>
+    </div>
 
     <!-- Tarjeta de información del docente -->
     <mat-card *ngIf="selectedDocente" class="info-card">

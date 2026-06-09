@@ -6,6 +6,8 @@ import { Docente } from "../entities/docente.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { Curso } from "../entities/curso.entity";
 import { Grupo } from "../entities/grupo.entity";
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ReportesService } from "./reportes.service";
 import { ReportesController } from "./reportes.controller";
 import { ConfiguracionModule } from "../configuracion/configuracion.module";
@@ -19,6 +21,8 @@ import { ConfiguracionModule } from "../configuracion/configuracion.module";
       Ambiente,
       Curso,
       Grupo,
+      DeclaracionCargaHoraria,
+      PeriodoAcademico,
     ]),
     ConfiguracionModule,
   ],

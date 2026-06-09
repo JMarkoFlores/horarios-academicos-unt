@@ -468,6 +468,7 @@ export class DeclaracionCargaHorariaService {
       ],
       [EstadoDeclaracionCarga.OBSERVADO_DPTO]: [
         EstadoDeclaracionCarga.SUBSANADO,
+        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
         EstadoDeclaracionCarga.VALIDADO_DPTO,
         EstadoDeclaracionCarga.ANULADO,
       ],
@@ -483,6 +484,7 @@ export class DeclaracionCargaHorariaService {
       ],
       [EstadoDeclaracionCarga.OBSERVADO_FACULTAD]: [
         EstadoDeclaracionCarga.SUBSANADO,
+        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
         EstadoDeclaracionCarga.ANULADO,
       ],
       [EstadoDeclaracionCarga.APROBADO_FACULTAD]: [
@@ -778,18 +780,14 @@ export class DeclaracionCargaHorariaService {
       .leftJoinAndSelect("horario.ambiente", "ambiente")
       .where("docente.id = :docenteId", { docenteId })
       .andWhere("horario.periodo = :periodo", { periodo: periodo.codigo })
-      .andWhere("horario.estado = :estado", {
-        estado: EstadoHorario.CONFIRMADO,
+      .andWhere("horario.estado IN (:...estados)", {
+        estados: [EstadoHorario.CONFIRMADO, EstadoHorario.PUBLICADO],
       })
       .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
 
-    const horariosConfirmados = horarios.filter(
-      (horario) => horario.estado === EstadoHorario.CONFIRMADO,
-    );
-
-    const registros = horariosConfirmados.map((horario) =>
+    const registros = horarios.map((horario) =>
       this.construirRegistroCargaLectiva(horario),
     );
     const resumen = this.construirResumenCargaLectiva(registros);
@@ -1030,40 +1028,79 @@ export class DeclaracionCargaHorariaService {
     periodo?: string,
   ): Promise<any[]> {
     let periodoId: number | undefined;
+    let periodoCodigo: string | undefined;
+
     if (periodo) {
       const p = await this.periodoRepo.findOne({ where: { codigo: periodo } });
-      if (p) periodoId = p.id;
+      if (p) {
+        periodoId = p.id;
+        periodoCodigo = p.codigo;
+      }
     }
+    
     if (!periodoId) {
       const p = await this.periodoRepo.findOne({
         where: { activo: true },
         order: { id: "DESC" },
       });
-      if (p) periodoId = p.id;
+      if (p) {
+        periodoId = p.id;
+        periodoCodigo = p.codigo;
+      }
     }
-    if (!periodoId) return [];
 
-    const docenteCursos = await this.docenteCursoRepo.find({
-      where: { docenteId, periodoId },
-      relations: ["curso"],
-    });
+    if (!periodoId || !periodoCodigo) {
+      console.warn(`[DEBUG] No se encontró periodo: ${periodo} -> ${periodoCodigo}`);
+      return [];
+    }
 
-    return docenteCursos.map((dc) => ({
-      id: dc.id,
-      codigo: dc.curso?.codigo || "",
-      nombre: dc.curso?.nombre || "",
-      seccion: "",
-      escuela: "",
-      ciclo: dc.curso?.ciclo || 0,
-      nroAlumnos: 0,
-      hrsTeo: dc.curso?.horas_teoria || 0,
-      hrsPra: dc.curso?.horas_practica || 0,
-      hrsLab: dc.curso?.horas_laboratorio || 0,
-      totalHrs:
-        (dc.curso?.horas_teoria || 0) +
-        (dc.curso?.horas_practica || 0) +
-        (dc.curso?.horas_laboratorio || 0),
-    }));
+    // Buscamos los horarios asignados
+    const horarios = await this.horarioRepo.createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("curso.departamento", "departamento")
+      .leftJoinAndSelect("departamento.escuela", "escuela")
+      .where("horario.docente_id = :docenteId", { docenteId })
+      .andWhere("horario.periodo = :periodo", { periodo: periodoCodigo })
+      .getMany();
+
+    console.log(`[DEBUG] Horarios para docente ${docenteId} en ${periodoCodigo}:`, horarios.length);
+
+    const cursosMap = new Map<string, any>();
+
+    for (const h of horarios) {
+      if (!h.curso || !h.grupo) continue;
+
+      const key = `${h.curso_id}-${h.grupo_id}`;
+      const horasBloque = this.calcularHorasBloque(h.hora_inicio, h.hora_fin);
+
+      if (!cursosMap.has(key)) {
+        cursosMap.set(key, {
+          id: h.curso_id,
+          codigo: h.curso.codigo,
+          nombre: h.curso.nombre,
+          seccion: h.grupo.codigo || h.grupo.nombre || "",
+          escuela: h.curso.departamento?.escuela?.nombre || "Ingeniería de Sistemas",
+          ciclo: h.curso.ciclo || 0,
+          nroAlumnos: h.grupo.cupo_maximo || 40,
+          hrsTeo: h.tipo_clase === TipoClase.TEORIA ? horasBloque : 0,
+          hrsPra: h.tipo_clase === TipoClase.PRACTICA ? horasBloque : 0,
+          hrsLab: h.tipo_clase === TipoClase.LABORATORIO ? horasBloque : 0,
+          totalHrs: horasBloque,
+        });
+      } else {
+        const entry = cursosMap.get(key);
+        if (h.tipo_clase === TipoClase.TEORIA) entry.hrsTeo += horasBloque;
+        if (h.tipo_clase === TipoClase.PRACTICA) entry.hrsPra += horasBloque;
+        if (h.tipo_clase === TipoClase.LABORATORIO) entry.hrsLab += horasBloque;
+        entry.totalHrs += horasBloque;
+      }
+    }
+
+    const resultado = Array.from(cursosMap.values());
+    console.log(`[DEBUG] Resultado final (${resultado.length} cursos):`, JSON.stringify(resultado));
+    return resultado;
   }
 
   async obtenerDeclaracionPorDocentePeriodo(
@@ -1140,8 +1177,12 @@ export class DeclaracionCargaHorariaService {
 
     if (
       declaracion &&
-      declaracion.estado !== EstadoDeclaracionCarga.BORRADOR &&
-      declaracion.estado !== EstadoDeclaracionCarga.NO_INICIADO
+      ![
+        EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.NO_INICIADO,
+        EstadoDeclaracionCarga.OBSERVADO_DPTO,
+        EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+      ].includes(declaracion.estado)
     ) {
       throw new BadRequestException(
         "La declaración no puede ser modificada en este estado",
@@ -1167,12 +1208,24 @@ export class DeclaracionCargaHorariaService {
     declaracion.carga_no_lectiva = carga_no_lectiva || null;
     declaracion.estado = estado || EstadoDeclaracionCarga.BORRADOR;
 
-    // Validación: Total Horas No Lectivas (Pestaña 2) <= Total Horas Lectivas (Tabla 1)
+    // Validación: Total Horas Lectivas (Tabla 1)
     const totalLectivas = (cursos_lectivos || []).reduce(
       (sum: number, c: any) => sum + (Number(c.total_hrs) || 0),
       0,
     );
 
+    // Regla específica para Preparación y Evaluación (id: 2): Max 50% con redondeo hacia abajo
+    const actPreparacion = (carga_no_lectiva?.actividades || []).find((a: any) => a.id === 2);
+    if (actPreparacion) {
+      const maxPrep = Math.floor(totalLectivas * 0.5);
+      if (Number(actPreparacion.horas) > maxPrep) {
+        throw new BadRequestException(
+          `Las horas de Preparación y Evaluación (${actPreparacion.horas}h) no pueden exceder el 50% del Trabajo Lectivo (${maxPrep}h).`
+        );
+      }
+    }
+
+    // Validación general: Total Horas No Lectivas <= Total Horas Lectivas
     const totalNoLectivas = (carga_no_lectiva?.actividades || []).reduce(
       (sum: number, a: any) => sum + (Number(a.horas) || 0),
       0,
@@ -1180,7 +1233,7 @@ export class DeclaracionCargaHorariaService {
 
     if (totalNoLectivas > totalLectivas) {
       throw new BadRequestException(
-        `El total de horas de Preparación y Evaluación (${totalNoLectivas}) no puede sobrepasar el total de Trabajo Lectivo (${totalLectivas})`,
+        `El total de horas no lectivas (${totalNoLectivas}h) no puede sobrepasar el total de Trabajo Lectivo (${totalLectivas}h)`,
       );
     }
 
@@ -1218,8 +1271,12 @@ export class DeclaracionCargaHorariaService {
     }
 
     if (
-      declaracion.estado !== EstadoDeclaracionCarga.BORRADOR &&
-      declaracion.estado !== EstadoDeclaracionCarga.NO_INICIADO
+      ![
+        EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.NO_INICIADO,
+        EstadoDeclaracionCarga.OBSERVADO_DPTO,
+        EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+      ].includes(declaracion.estado)
     ) {
       throw new BadRequestException(
         "La declaración ya ha sido enviada o no puede ser modificada",

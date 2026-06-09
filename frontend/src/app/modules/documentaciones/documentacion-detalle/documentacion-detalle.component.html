@@ -376,6 +376,22 @@
       </button>
       <button
         mat-raised-button
+        class="btn-rechazar"
+        color="warn"
+        (click)="observarDocumento()"
+        [disabled]="saving || !puedeObservar()"
+      >
+        <mat-icon *ngIf="!saving">cancel</mat-icon>
+        <mat-spinner
+          *ngIf="saving"
+          diameter="20"
+          class="btn-spinner"
+        ></mat-spinner>
+        {{ saving ? "Observando..." : "Observar Documento" }}
+      </button>
+
+      <button
+        mat-raised-button
         class="btn-validar"
         (click)="validarAprobacion()"
         [disabled]="saving || !puedeValidar()"

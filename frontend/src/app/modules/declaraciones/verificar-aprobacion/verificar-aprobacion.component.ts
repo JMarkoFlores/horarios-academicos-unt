@@ -310,88 +310,27 @@ export class VerificarAprobacionComponent implements OnInit {
 
   private generarPdfDeclaracion(): void {
     if (!this.docente) return;
-
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const marginX = 15;
-    let y = 20;
-
-    const centerText = (text: string, yPos: number, fontSize = 10, bold = false) => {
-      doc.setFontSize(fontSize);
-      doc.setFont('helvetica', bold ? 'bold' : 'normal');
-      const textWidth = doc.getTextWidth(text);
-      doc.text(text, (pageWidth - textWidth) / 2, yPos);
-    };
-
-    centerText('FORMATO N° 1', y, 10, true);
-    y += 5;
-    centerText('DECLARACION DE CARGA HORARIA ASIGNADA', y, 12, true);
-    y += 10;
-
-    autoTable(doc, {
-      startY: y,
-      margin: { left: marginX, right: marginX },
-      body: [
-        ['Periodo', this.periodo],
-        ['Docente', `${this.docente.apellidos}, ${this.docente.nombres}`],
-        ['IBM', String(this.docente.ibm || '—')],
-        ['Departamento', this.docente.departamento?.nombre || 'No asignado'],
-        ['Facultad', this.docente.facultad?.nombre || 'No asignada'],
-      ],
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
-      showHead: false,
-    });
-
-    y = (doc as any).lastAutoTable.finalY + 6;
-
-    autoTable(doc, {
-      startY: y,
-      margin: { left: marginX, right: marginX },
-      head: [[
-        'CODIGO',
-        'CURSO',
-        'CICLO',
-        'N° AL.',
-        'H.T.',
-        'H.P.',
-        'H.L.',
-        'TOTAL',
-      ]],
-      body: this.cursosLectivos.map((curso) => [
-        curso.codigo,
-        curso.nombre,
-        String(curso.ciclo || ''),
-        String(curso.nroAlumnos || 0),
-        String(curso.hrsTeo || 0),
-        String(curso.hrsPra || 0),
-        String(curso.hrsLab || 0),
-        String(curso.totalHrs || 0),
-      ]),
-      theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [200, 200, 200], textColor: 20 },
-    });
-
-    y = (doc as any).lastAutoTable.finalY + 6;
-
-    autoTable(doc, {
-      startY: y,
-      margin: { left: marginX, right: marginX },
-      head: [['COD.', 'ACTIVIDAD', 'DETALLE', 'HORAS']],
-      body: this.actividadesNoLectivas.map((actividad) => [
-        actividad.codigo,
-        actividad.descripcion,
-        actividad.detalle || '',
-        String(actividad.horas || 0),
-      ]),
-      theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [200, 200, 200], textColor: 20 },
-    });
-
-    doc.save(`declaracion_carga_horaria_${this.docente.apellidos}_${this.periodo}.pdf`);
+    
+    this.snackBar.open('Generando documento...', '', { duration: 2000 });
+    
+    this.api.getBlob(`/reportes/declaracion/${this.docente.id}/pdf?periodo=${this.periodo}`)
+      .subscribe({
+        next: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `declaracion_carga_horaria_${this.docente?.apellidos}_${this.periodo}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          a.remove();
+          this.snackBar.open('PDF generado con éxito', 'Cerrar', { duration: 3000 });
+        },
+        error: (err) => {
+          console.error(err);
+          this.snackBar.open('Error al generar el PDF de Declaración', 'Cerrar', { duration: 3000 });
+        }
+      });
   }
 
   private generarPdfDeclaracionJurada(): void {

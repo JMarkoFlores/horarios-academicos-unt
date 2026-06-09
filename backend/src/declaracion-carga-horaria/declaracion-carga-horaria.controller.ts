@@ -96,11 +96,12 @@ export class DeclaracionCargaHorariaController {
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo?: string,
   ): Promise<any> {
+    console.log(`[DEBUG-CTRL] Solicitando cursos para docente ID: ${id}, Periodo: ${periodo}`);
     const data = await this.declaracionService.obtenerCursosAsignadosDocente(
       id,
       periodo,
     );
-    return { data, message: "Cursos obtenidos correctamente" };
+    return { data, message: "Cursos obtenidos exitosamente" };
   }
 
   @Get("docentes/:id/declaracion")
@@ -131,10 +132,6 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DOCENTE,
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.COORDINADOR_ACADEMICO,
-  )@Post()
-  @Roles(
-    RolUsuario.ADMINISTRADOR_SISTEMA,
-    RolUsuario.DOCENTE,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
   )

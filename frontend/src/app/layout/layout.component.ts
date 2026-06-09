@@ -23,13 +23,14 @@ import { ConfiguracionGeneralService } from '../core/services/configuracion-gene
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
 import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialog/cambiar-password-dialog.component';
 import { PerfilDialogComponent } from './dialogs/perfil-dialog/perfil-dialog.component';
-import { Subscription } from 'rxjs';
+import { Subscription, fromEvent } from 'rxjs';
 
 interface NavItem {
   icon: string;
   label: string;
-  route: string;
+  route?: string;
   roles?: string[];
+  action?: () => void;
 }
 
 interface NavGroup {
@@ -72,6 +73,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   private _photoSub!: Subscription;
   private _resizeTimer: any;
   private _periodoSub!: Subscription;
+  private _chatbotSub!: Subscription;
 
   // Grupos de navegación para mejor organización visual
   navGroups: NavGroup[] = [
@@ -80,6 +82,12 @@ export class LayoutComponent implements OnInit, OnDestroy {
       expanded: true,
       items: [
         { icon: 'dashboard', label: 'Dashboard', route: '/app/dashboard' },
+        { 
+          icon: 'smart_toy', 
+          label: 'Asistente IA', 
+          action: () => this.showChatbot(),
+          roles: ['administradorsistema', 'coordinadoracademico', 'docente', 'directorescuela', 'decanofacultad', 'secretaria', 'operadorhorarios']
+        },
       ],
     },
     {
@@ -347,6 +355,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
       this.userPhoto = photo;
     });
 
+    this._chatbotSub = fromEvent(window, 'chatbotVisibilityChanged').subscribe(() => {
+      this._computeVisibleNavGroups();
+    });
+
     this._routerSub = this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe((e: any) => {
@@ -366,19 +378,36 @@ export class LayoutComponent implements OnInit, OnDestroy {
     if (this._periodoSub) {
       this._periodoSub.unsubscribe();
     }
+    if (this._chatbotSub) {
+      this._chatbotSub.unsubscribe();
+    }
     clearTimeout(this._resizeTimer);
   }
 
   private _computeVisibleNavGroups(): void {
+    const isChatbotHidden = localStorage.getItem('chatbot_visible') === 'false';
+
     this._visibleNavGroups = this.navGroups
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => {
+          // Si es el ítem del chatbot y ya es visible en la pantalla, no lo mostramos en el menú
+          if (item.label === 'Asistente IA' && !isChatbotHidden) return false;
+
           if (!item.roles || item.roles.length === 0) return true;
           return this.authService.hasRole(...item.roles);
         }),
       }))
       .filter((group) => group.items.length > 0);
+  }
+
+  showChatbot(): void {
+    localStorage.setItem('chatbot_visible', 'true');
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'chatbot_visible',
+      newValue: 'true'
+    }));
+    this._computeVisibleNavGroups();
   }
 
   get visibleNavGroups(): NavGroup[] {

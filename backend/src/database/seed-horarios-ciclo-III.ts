@@ -240,7 +240,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
             curso_id: curso.id,
             grupo_id: grupo.id,
             ambiente_id: ambiente.id,
-            periodo: "2026-I",
+            periodo: periodoActivo.codigo,
             dia: diaANumero(item.dia),
             hora_inicio: inicio,
             hora_fin: fin,

@@ -4,8 +4,11 @@ import {
   Column,
   ManyToMany,
   JoinTable,
+  ManyToOne,
+  JoinColumn,
 } from "typeorm";
 import { Ambiente } from "./ambiente.entity";
+import { Departamento } from "./departamento.entity";
 
 @Entity("curso")
 export class Curso {
@@ -41,6 +44,13 @@ export class Curso {
 
   @Column({ default: true })
   activo: boolean;
+
+  @Column({ nullable: true })
+  departamento_id: number;
+
+  @ManyToOne(() => Departamento)
+  @JoinColumn({ name: "departamento_id" })
+  departamento: Departamento;
 
   @ManyToMany(() => Ambiente, (ambiente) => ambiente.cursos)
   @JoinTable({

@@ -131,8 +131,42 @@ export class DocumentacionDetalleComponent implements OnInit {
       });
   }
 
+  observarDocumento(): void {
+    if (!this.data?.declaracion) return;
+    this.saving = true;
+    this.api
+      .patch<ApiResponse<DeclaracionVista>>(
+        `/declaraciones/${this.data.declaracion.id}/observar`,
+        { observaciones: 'Observado por director de escuela' },
+      )
+      .subscribe({
+        next: (res) => {
+          this.data = res.data;
+          this.saving = false;
+          this.snackBar.open(
+            'La declaracion cambio a OBSERVADO_DPTO',
+            'Cerrar',
+            { duration: 3000 },
+          );
+          this.router.navigate(['/app/documentaciones']);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.snackBar.open(
+            err?.error?.message || 'No se pudo observar el documento',
+            'Cerrar',
+            { duration: 3000 },
+          );
+        },
+      });
+  }
+
   puedeValidar(): boolean {
-    return this.data?.estado === 'OBSERVADO_DPTO';
+    return this.data?.estado === 'ENVIADO_DOCENTE' || this.data?.estado === 'OBSERVADO_DPTO' || this.data?.estado === 'SUBSANADO';
+  }
+
+  puedeObservar(): boolean {
+    return this.puedeValidar() && this.data?.estado !== 'OBSERVADO_DPTO' && this.data?.estado !== 'OBSERVADO_FACULTAD';
   }
 
   get registros(): CargaLectivaRegistro[] {

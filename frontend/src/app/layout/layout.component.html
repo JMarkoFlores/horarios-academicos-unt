@@ -85,23 +85,42 @@
             sidebarCollapsed || group.expanded ? 'expanded' : 'collapsed'
           "
         >
-          <a
-            mat-list-item
-            *ngFor="let item of group.items"
-            [routerLink]="item.route"
-            routerLinkActive="active-link"
-            #rla="routerLinkActive"
-            [matTooltip]="sidebarCollapsed ? item.label : ''"
-            matTooltipPosition="right"
-            class="nav-item"
-          >
-            <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
-            <span matListItemTitle class="item-label">{{ item.label }}</span>
-            <div class="active-indicator" *ngIf="rla.isActive"></div>
-          </a>
+          <ng-container *ngFor="let item of group.items">
+            <!-- Link Normal -->
+            <a
+              mat-list-item
+              *ngIf="item.route"
+              [routerLink]="item.route"
+              routerLinkActive="active-link"
+              #rla="routerLinkActive"
+              [matTooltip]="sidebarCollapsed ? item.label : ''"
+              matTooltipPosition="right"
+              class="nav-item"
+            >
+              <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
+              <span matListItemTitle class="item-label">{{ item.label }}</span>
+              <div class="active-indicator" *ngIf="rla.isActive"></div>
+            </a>
+
+            <!-- Acción (Chatbot) -->
+            <button
+              mat-list-item
+              *ngIf="item.action"
+              (click)="item.action()"
+              [matTooltip]="sidebarCollapsed ? item.label : ''"
+              matTooltipPosition="right"
+              class="nav-item action-item"
+            >
+              <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
+              <span matListItemTitle class="item-label">{{ item.label }}</span>
+            </button>
+          </ng-container>
         </div>
       </div>
     </div>
+
+    <!-- Botón del Chatbot al final del layout -->
+    <app-chatbot></app-chatbot>
 
     <!-- Footer: Usuario -->
     <div class="sidenav-footer">

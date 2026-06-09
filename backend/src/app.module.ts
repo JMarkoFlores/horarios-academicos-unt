@@ -31,6 +31,7 @@ import { FacultadesModule } from "./facultades/facultades.module";
 import { DataImportModule } from "./modules/data-import/data-import.module";
 import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/declaracion-carga-horaria.module";
 import { DeclaracionesModule } from "./modules/declaraciones/declaraciones.module";
+import { ChatbotModule } from "./chatbot/chatbot.module";
 
 @Module({
   imports: [
@@ -117,6 +118,7 @@ import { DeclaracionesModule } from "./modules/declaraciones/declaraciones.modul
     DataImportModule,
     DeclaracionCargaHorariaModule,
     DeclaracionesModule,
+    ChatbotModule,
   ],
   providers: [
     {

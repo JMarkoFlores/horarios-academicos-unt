@@ -174,11 +174,59 @@ export async function main() {
 
     // ── 0.5. USUARIOS ESPECIALES ──────────────────────────────────────────
     console.log("🔑 Creando usuarios administrativos...");
-    await usuarioRepo.save(usuarioRepo.create({
+    const admin = await usuarioRepo.save(usuarioRepo.create({
       nombre: "Administrador del Sistema",
       email: "admin@unt.edu.pe",
       password_hash: passwordHash,
       rol: RolUsuario.ADMINISTRADOR_SISTEMA,
+      activo: true
+    }));
+
+    const decano = await usuarioRepo.save(usuarioRepo.create({
+      nombre: "Decano de Ingeniería",
+      email: "decano@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DECANO,
+      activo: true
+    }));
+
+    const directorEscuela = await usuarioRepo.save(usuarioRepo.create({
+      nombre: "Director de Escuela de Sistemas",
+      email: "director.escuela@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_ESCUELA,
+      activo: true
+    }));
+
+    const directorDpto = await usuarioRepo.save(usuarioRepo.create({
+      nombre: "Director de Departamento de Sistemas",
+      email: "director.departamento@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.DIRECTOR_DEPARTAMENTO,
+      activo: true
+    }));
+
+    const coordinadorAcademico = await usuarioRepo.save(usuarioRepo.create({
+      nombre: "Coordinador Académico",
+      email: "coordinador@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+      activo: true
+    }));
+
+    const secretaria = await usuarioRepo.save(usuarioRepo.create({
+      nombre: "Secretaria de Sistemas",
+      email: "secretaria@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.SECRETARIA,
+      activo: true
+    }));
+
+    const operador = await usuarioRepo.save(usuarioRepo.create({
+      nombre: "Operador de Horarios",
+      email: "operador@unt.edu.pe",
+      password_hash: passwordHash,
+      rol: RolUsuario.OPERADOR_HORARIOS,
       activo: true
     }));
 
@@ -206,9 +254,23 @@ export async function main() {
     const periodoActivo = periodos.find(p => p.codigo === "2026-I")!;
 
     console.log("🏢 Creando facultades, escuelas y departamentos...");
-    const facultad = await facultadRepo.save(facultadRepo.create({ nombre: "Facultad de Ingeniería", codigo: "FI" }));
-    const escuela = await escuelaRepo.save(escuelaRepo.create({ nombre: "Ingeniería de Sistemas", codigo: "IS", facultad_id: facultad.id }));
-    const departamento = await departamentoRepo.save(departamentoRepo.create({ nombre: "Departamento de Sistemas", codigo: "DS", escuela_id: escuela.id }));
+    const facultad = await facultadRepo.save(facultadRepo.create({ 
+      nombre: "Facultad de Ingeniería", 
+      codigo: "FI",
+      coordinador_id: decano.id 
+    }));
+    const escuela = await escuelaRepo.save(escuelaRepo.create({ 
+      nombre: "Ingeniería de Sistemas", 
+      codigo: "IS", 
+      facultad_id: facultad.id,
+      coordinador_id: directorEscuela.id 
+    }));
+    const departamento = await departamentoRepo.save(departamentoRepo.create({ 
+      nombre: "Departamento de Sistemas", 
+      codigo: "DS", 
+      escuela_id: escuela.id,
+      coordinador_id: directorDpto.id 
+    }));
 
     console.log("🏠 Creando ambientes...");
     const ambientesData = [
@@ -335,6 +397,7 @@ export async function main() {
         horas_practica: c.hp,
         horas_laboratorio: c.hl,
         tiene_laboratorio: c.hl > 0,
+        departamento_id: departamento.id,
         activo: true 
       }));
       const numGrupos = (c.codigo === "IS-707") ? 4 : 3;
@@ -365,60 +428,27 @@ export async function main() {
 
     console.log("📝 Generando declaraciones de carga horaria...");
     for (const doc of dbDocentes) {
-      const horariosDocente = await horarioRepo.find({
-        where: { docente_id: doc.id, periodo: periodoActivo.codigo },
-        relations: ["curso", "grupo"]
-      });
-
-      const cursosMap = new Map();
-      let totalHorasLectivas = 0;
-
-      for (const h of horariosDocente) {
-        const key = `${h.curso.codigo}-${h.grupo.codigo}`;
-        const { diff } = parsearRangoHoras(`${h.hora_inicio.split(":")[0]}-${h.hora_fin.split(":")[0]}`);
-        totalHorasLectivas += diff;
-
-        if (!cursosMap.has(key)) {
-          cursosMap.set(key, {
-            codigo: h.curso.codigo,
-            nombre: h.curso.nombre,
-            grupo: h.grupo.codigo,
-            horas_teoria: h.tipo_clase === TipoClase.TEORIA ? diff : 0,
-            horas_practica: h.tipo_clase === TipoClase.PRACTICA ? diff : 0,
-            horas_laboratorio: h.tipo_clase === TipoClase.LABORATORIO ? diff : 0,
-            total_hrs: diff
-          });
-        } else {
-          const entry = cursosMap.get(key);
-          if (h.tipo_clase === TipoClase.TEORIA) entry.horas_teoria += diff;
-          if (h.tipo_clase === TipoClase.PRACTICA) entry.horas_practica += diff;
-          if (h.tipo_clase === TipoClase.LABORATORIO) entry.horas_laboratorio += diff;
-          entry.total_hrs += diff;
-        }
-      }
-
       await declaracionRepo.save(declaracionRepo.create({
         docente_id: doc.id,
         periodo_academico_id: periodoActivo.id,
         departamento_id: departamento.id,
         facultad_id: facultad.id,
-        estado: EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+        estado: EstadoDeclaracionCarga.NO_INICIADO,
         sede: "Trujillo - Ciudad Universitaria",
         carga_no_lectiva: {
-          cursos_lectivos: Array.from(cursosMap.values()),
-          total_horas_lectivas: totalHorasLectivas,
-          actividades: [
-            { id: 1, codigo: "PREP", descripcion: "Preparación y Evaluación", detalle: "Revisión de materiales", horas: 4 }
-          ]
+          cursos_lectivos: [],
+          total_horas_lectivas: 0,
+          actividades: []
         }
       }));
     }
 
     await AppDataSource.getRepository(ConfiguracionGeneral).save({
-      nombre_institucion: "Universidad Nacional de Trujillo",
-      siglas: "UNT",
-      periodo_activo_id: periodoActivo.id,
-      logo_url: "https://unt.edu.pe/logo.png"
+      nombre_institucional: "Universidad Nacional de Trujillo",
+      logo_url: "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png",
+      color_primario: "#1a237e",
+      color_secundario: "#283593",
+      color_acento: "#e91e63"
     });
 
     console.log("\n✅ SEED UNIFICADO COMPLETADO EXITOSAMENTE.");

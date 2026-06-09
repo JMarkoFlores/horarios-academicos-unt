@@ -55,6 +55,27 @@ export class ReportesController {
     res.end(buffer);
   }
 
+  @Get("declaracion/:docenteId/pdf")
+  @ApiOperation({ summary: "PDF del Formato F03-CAD de Declaración Jurada" })
+  @ApiParam({ name: "docenteId", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async declaracionF03CadPDF(
+    @Param("docenteId", ParseIntPipe) docenteId: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteDeclaracionF03CADPDF(
+      docenteId,
+      periodo,
+    );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=declaracion_carga_horaria_docente_${docenteId}_${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
   @Get("aula/:id/pdf")
   @ApiOperation({ summary: "PDF del horario de un aula" })
   @ApiParam({ name: "id", type: Number })

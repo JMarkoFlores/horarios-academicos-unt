@@ -15,6 +15,9 @@ import autoTable from "jspdf-autotable";
 import { ConfiguracionService } from "../configuracion/configuracion.service";
 import * as https from "https";
 
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+
 @Injectable()
 export class ReportesService {
   private readonly logger = new Logger(ReportesService.name);
@@ -32,6 +35,10 @@ export class ReportesService {
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(Grupo)
     private readonly grupoRepo: Repository<Grupo>,
+    @InjectRepository(DeclaracionCargaHoraria)
+    private readonly declaracionRepo: Repository<DeclaracionCargaHoraria>,
+    @InjectRepository(PeriodoAcademico)
+    private readonly periodoRepo: Repository<PeriodoAcademico>,
     private readonly configuracionService: ConfiguracionService,
   ) {}
 
@@ -410,6 +417,242 @@ export class ReportesService {
     });
 
     return Buffer.from(doc.output('arraybuffer'));
+  }
+
+  async generarReporteDeclaracionF03CADPDF(docenteId: number, periodo: string): Promise<Buffer> {
+    const config = await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl = config?.logo_url || "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
+    const logoBase64 = await this.getBase64Image(logoUrl);
+
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+      relations: ["departamento", "facultad"]
+    });
+    if (!docente) throw new Error("Docente no encontrado");
+
+    const periodoObj = await this.periodoRepo.findOne({
+      where: [{ codigo: periodo }, { nombre: periodo }]
+    });
+    if (!periodoObj) throw new Error("Periodo no encontrado");
+
+    const declaracion = await this.declaracionRepo.findOne({
+      where: { docente_id: docenteId, periodo_academico_id: periodoObj.id }
+    });
+
+    const horarios = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("horario.docente_id = :docenteId", { docenteId })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
+
+    // Organizar carga lectiva
+    const cursosMap = new Map<number, any>();
+    horarios.forEach(h => {
+      if (!h.curso) return;
+      if (!cursosMap.has(h.curso.id)) {
+        cursosMap.set(h.curso.id, {
+          curso: h.curso,
+          horariosTeoria: [] as string[],
+          horariosPractica: [] as string[],
+          horariosLab: [] as string[],
+          ambientes: new Set<string>(),
+          horasTotales: 0
+        });
+      }
+      
+      const c = cursosMap.get(h.curso.id);
+      const diaStr = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA', 'DO'][(h.dia || h.dia_semana || 1) - 1];
+      const hStr = `${h.hora_inicio.substring(0, 5)}-${h.hora_fin.substring(0, 5)}`;
+      
+      if (h.tipo_clase === TipoClase.TEORIA) c.horariosTeoria.push(`${diaStr} (${hStr})`);
+      else if (h.tipo_clase === TipoClase.PRACTICA) c.horariosPractica.push(`${diaStr} (${hStr})`);
+      else if (h.tipo_clase === TipoClase.LABORATORIO) c.horariosLab.push(`${diaStr} (${hStr})`);
+
+      if (h.ambiente) {
+        c.ambientes.add(h.ambiente.codigo || h.ambiente.nombre);
+      }
+
+      const hIni = this.horaToDecimal(h.hora_inicio);
+      const hFin = this.horaToDecimal(h.hora_fin);
+      c.horasTotales += (hFin - hIni);
+    });
+
+    let trsCargaLectiva = '';
+    let totalCargaLectiva = 0;
+    
+    Array.from(cursosMap.values()).forEach(c => {
+      let horarioStrParts = [];
+      if (c.horariosTeoria.length) horarioStrParts.push(`<b>T:</b> ${c.horariosTeoria.join(', ')}`);
+      if (c.horariosPractica.length) horarioStrParts.push(`<b>P:</b> ${c.horariosPractica.join(', ')}`);
+      if (c.horariosLab.length) horarioStrParts.push(`<b>L:</b> ${c.horariosLab.join(', ')}`);
+
+      trsCargaLectiva += `
+        <tr>
+          <td>${horarioStrParts.join('<br>')}</td>
+          <td>${c.curso.nombre}<br>${c.curso.ciclo || ''}-C ${c.curso.escuela || ''}</td>
+          <td class="text-center">F11</td>
+          <td class="text-center">${Array.from(c.ambientes).join(', ')}</td>
+          <td class="text-center">${c.horasTotales}</td>
+        </tr>
+      `;
+      totalCargaLectiva += c.horasTotales;
+    });
+
+    if (trsCargaLectiva === '') {
+      trsCargaLectiva = '<tr><td colspan="5" class="text-center">No hay carga lectiva asignada</td></tr>';
+    }
+
+    // Organizar carga no lectiva
+    let trsCargaNoLectiva = '';
+    let totalCargaNoLectiva = 0;
+
+    if (declaracion && declaracion.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
+      const actividades = (declaracion.carga_no_lectiva as any).actividades;
+      actividades.forEach((a: any) => {
+        if (a.horas > 0) {
+          trsCargaNoLectiva += `
+            <tr>
+              <td></td>
+              <td>${a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].split('(')[0].trim()}</td>
+              <td class="text-center">F11</td>
+              <td class="text-center">CUBÍCULO</td>
+              <td class="text-center">${a.horas}</td>
+            </tr>
+          `;
+          totalCargaNoLectiva += Number(a.horas);
+        }
+      });
+    }
+
+    if (trsCargaNoLectiva === '') {
+      trsCargaNoLectiva = '<tr><td colspan="5" class="text-center">No hay carga no lectiva asignada</td></tr>';
+    }
+
+    const totalAcademica = totalCargaLectiva + totalCargaNoLectiva;
+
+    // AÑO y SEMESTRE a partir de periodo (ej. 2025-II)
+    const partesPeriodo = periodo.split('-');
+    const anio = partesPeriodo[0] || new Date().getFullYear();
+    const semestre = partesPeriodo[1] || 'I';
+
+    const dateIni = periodoObj.fecha_inicio ? new Date(periodoObj.fecha_inicio).toLocaleDateString('es-PE') : '';
+    const dateFin = periodoObj.fecha_fin ? new Date(periodoObj.fecha_fin).toLocaleDateString('es-PE') : '';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: 'Arial', sans-serif; font-size: 11px; color: #000; margin: 0; padding: 0; }
+          .container { width: 100%; margin: 0 auto; }
+          .header-title { font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          table, th, td { border: 1px solid #000; }
+          th, td { padding: 4px; vertical-align: middle; }
+          .bg-light-blue { background-color: #DCE6F1; font-weight: bold; text-align: center; }
+          .text-center { text-align: center; }
+          .text-bold { font-weight: bold; }
+          .info-table td { border: 1px solid #000; padding: 4px; }
+          .signatures { margin-top: 50px; width: 100%; }
+          .signature-box { width: 32%; display: inline-block; text-align: center; vertical-align: bottom; }
+          .signature-line { border-top: 1px solid #000; width: 80%; margin: 0 auto 5px auto; }
+          .footer-text { font-size: 9px; margin-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header-title">HORARIO SEMANAL DE LA CARGA ACADÉMICA DOCENTE (F03-CAD)</div>
+
+          <table class="info-table">
+            <tr>
+              <td colspan="2">Facultad / Filial: <b>${docente.facultad?.nombre || ''}</b></td>
+              <td colspan="2">Dpto. Académico: <b>${docente.departamento?.nombre || ''}</b></td>
+            </tr>
+            <tr>
+              <td>DNI</td>
+              <td class="text-bold text-center">${docente.codigo || ''}</td>
+              <td>Docente: <b>${docente.apellidos.toUpperCase()} ${docente.nombres.toUpperCase()}</b></td>
+              <td class="text-center text-bold">${docente.categoria || 'ASOCIADO'}<br>${docente.modalidad || 'TC'}</td>
+            </tr>
+            <tr>
+              <td colspan="2" class="text-center">AÑO ACADEMICO: <b>${anio}</b> SEMESTRE: <b>${semestre}</b></td>
+              <td colspan="2" class="text-center">Fecha de Inicio: <b>${dateIni}</b> Fecha de término: <b>${dateFin}</b></td>
+            </tr>
+          </table>
+
+          <table>
+            <tr class="bg-light-blue">
+              <td width="20%">HORARIO</td>
+              <td width="40%">CARGA HORARIA LECTIVA (CHL)</td>
+              <td width="10%">LUGAR</td>
+              <td width="20%">AULA</td>
+              <td width="10%">TOTAL</td>
+            </tr>
+            ${trsCargaLectiva}
+            <tr class="bg-light-blue">
+              <td>HORARIO</td>
+              <td>CARGA HORARIA NO LECTIVA (CHNL)</td>
+              <td>LUGAR</td>
+              <td>AULA</td>
+              <td>TOTAL</td>
+            </tr>
+            ${trsCargaNoLectiva}
+            <tr class="bg-light-blue">
+              <td colspan="4">TOTAL HORAS CARGA ACADÉMICA</td>
+              <td>${totalAcademica}</td>
+            </tr>
+          </table>
+
+          <div class="footer-text">
+            T: TEORIA - P: PRACTICA<br>
+            LU (LUNES); MA (MARTES); MI (MIERCOLES); JU (JUEVES); VI (VIERNES); SA (SABADO); DO (DOMINGO); TIEMPO EN FORMATO DE 24 HORAS.<br><br>
+            LUGAR: (F01: "CC. Agropecuarias", F02: "CC. Biológicas", F03: "CC. Económicas", F04: "CC. Físicas y Matemáticas", F05: "CC. Sociales", F06: "Derecho y Ciencias Políticas", F07: "Educación y Comunicación", F08: "Enfermería", F09: "Estomatología", F10: "Farmacia y Bioquímica", F11: "Ingeniería", F12: "Ingeniería Química", F13: "Medicina", F14: "Filial Valle Jequetepeque", F15: "Filial Huamachuco", F16: "Filial Santiago de Chuco", OA: "Oficina Administrativa", SC: "Salida de Campo")
+          </div>
+
+          <div class="signatures">
+            <div class="signature-box">
+              <div class="signature-line"></div>
+              <b>FIRMA DEL DOCENTE</b>
+            </div>
+            <div class="signature-box">
+              <div class="signature-line"></div>
+              <b>FIRMA Y SELLO DEL DIRECTOR DE DPTO.ACADEMICO</b>
+            </div>
+            <div class="signature-box">
+              <div class="signature-line"></div>
+              <b>V°B° DECANO</b>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const puppeteer = await import("puppeteer");
+    const browser = await puppeteer.default.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "load" });
+
+      const buffer = await page.pdf({
+        format: "A4",
+        landscape: true,
+        printBackground: true,
+        margin: { top: "15mm", bottom: "15mm", left: "15mm", right: "15mm" },
+      });
+      return Buffer.from(buffer);
+    } finally {
+      await browser.close();
+    }
   }
 
   async generarReporteDiaPDF(dia: number, periodo: string, ciclo?: number, tipo?: string, search?: string): Promise<Buffer> {

@@ -8,9 +8,9 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { forkJoin } from 'rxjs';
+import { forkJoin, map } from 'rxjs';
 import { PeriodoService } from '../../core/services/periodo.service';
-import { Docente, DisponibilidadDocente } from '../../core/interfaces/entities';
+import { Docente, DisponibilidadDocente, ApiResponse } from '../../core/interfaces/entities';
 import {
   DiaActivo,
   DisponibilidadService,
@@ -274,9 +274,9 @@ export class DisponibilidadComponent implements OnInit {
     } else {
       const user = this.authService.getUsuarioActual();
       if (user?.docenteId) {
-        calls.docenteActual = this.disponibilidadService.api
-          .get<ApiResponse<Docente>>(`/docentes/${user.docenteId}`)
-          .pipe(map((res) => res.data));
+        calls.docenteActual = this.disponibilidadService.obtenerDocenteById(
+          user.docenteId,
+        );
       }
     }
 

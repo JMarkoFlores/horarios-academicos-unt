@@ -37,7 +37,7 @@ export class PeriodosController {
   constructor(private readonly periodosService: PeriodosService) {}
 
   @Get()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DIRECTOR_DEPARTAMENTO)
   @ApiOperation({ summary: "Listar periodos académicos paginado" })
   @ApiResponse({ status: 200, description: "Lista paginada de periodos" })
   async findAll(@Query() query: QueryPeriodoDto) {
@@ -47,7 +47,7 @@ export class PeriodosController {
   }
 
   @Get("todos")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DOCENTE, RolUsuario.SECRETARIA)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DIRECTOR_DEPARTAMENTO, RolUsuario.DOCENTE, RolUsuario.SECRETARIA)
   @ApiOperation({ summary: "Listar todos los periodos sin paginación" })
   async findAllSinPaginar() {
     const result = await this.periodosService.findAllSinPaginar();
@@ -55,7 +55,7 @@ export class PeriodosController {
   }
 
   @Get(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DIRECTOR_DEPARTAMENTO)
   @ApiOperation({ summary: "Obtener un periodo por ID" })
   @ApiParam({ name: "id", type: Number })
   async findOne(@Param("id", ParseIntPipe) id: number) {

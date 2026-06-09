@@ -50,6 +50,12 @@ export interface GuardarDisponibilidadPayload {
 export class DisponibilidadService {
   constructor(private readonly api: ApiService) {}
 
+  obtenerDocenteById(id: number): Observable<Docente> {
+    return this.api
+      .get<ApiResponse<Docente>>(`/docentes/${id}`)
+      .pipe(map((res) => res.data));
+  }
+
   obtenerTurnos(): Observable<TurnoHorario[]> {
     return this.api
       .get<ApiResponse<TurnoHorario[]>>('/configuracion/turnos')

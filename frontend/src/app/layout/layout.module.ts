@@ -4,6 +4,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { LayoutComponent } from './layout.component';
 import { SharedModule } from '../shared/shared.module';
 import { SharedDialogsModule } from '../shared/shared-dialogs.module';
+import { ChatbotModule } from '../modules/chatbot/chatbot.module';
 
 @NgModule({
   declarations: [LayoutComponent],
@@ -11,6 +12,7 @@ import { SharedDialogsModule } from '../shared/shared-dialogs.module';
     BrowserAnimationsModule,
     SharedModule,
     SharedDialogsModule,
+    ChatbotModule,
     TranslateModule.forChild()
   ],
   exports: [LayoutComponent],

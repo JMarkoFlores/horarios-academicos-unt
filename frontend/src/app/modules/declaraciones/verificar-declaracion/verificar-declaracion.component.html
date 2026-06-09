@@ -322,7 +322,7 @@
       </button>
       <div class="right-buttons">
         <button
-          *ngIf="esEditable"
+          *ngIf="esEditable && !isDirector"
           mat-raised-button
           color="primary"
           class="btn-guardar"
@@ -333,7 +333,7 @@
           Guardar
         </button>
         <button
-          *ngIf="esEditable && estadoDeclaracion === 'BORRADOR'"
+          *ngIf="esEditable && (estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'OBSERVADO_DPTO' || estadoDeclaracion === 'OBSERVADO_FACULTAD') && !isDirector"
           mat-raised-button
           color="accent"
           class="btn-enviar"
@@ -342,6 +342,30 @@
         >
           <mat-icon>send</mat-icon>
           Enviar
+        </button>
+
+        <button
+          *ngIf="isDirector && estadoDeclaracion === 'ENVIADO_DOCENTE'"
+          mat-raised-button
+          color="primary"
+          class="btn-aprobar"
+          (click)="aprobarDeclaracion()"
+          [disabled]="saving"
+        >
+          <mat-icon>check_circle</mat-icon>
+          Aprobar
+        </button>
+
+        <button
+          *ngIf="isDirector && estadoDeclaracion === 'ENVIADO_DOCENTE'"
+          mat-raised-button
+          color="warn"
+          class="btn-rechazar"
+          (click)="observarDeclaracion()"
+          [disabled]="saving"
+        >
+          <mat-icon>cancel</mat-icon>
+          Observar
         </button>
         <button
           *ngIf="!esEditable"

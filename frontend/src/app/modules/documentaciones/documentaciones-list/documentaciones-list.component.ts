@@ -91,27 +91,6 @@ export class DocumentacionesListComponent implements OnInit {
   }
 
   verificarDeclaracion(item: DocumentacionResumen): void {
-    if (item.estado !== 'ENVIADO_DOCENTE') {
-      this.router.navigate(['/app/documentaciones', item.id]);
-      return;
-    }
-
-    this.api
-      .patch<ApiResponse<DeclaracionVista>>(`/declaraciones/${item.id}/observar`, {
-        observaciones: 'Verificado por director de escuela',
-      })
-      .subscribe({
-        next: () => {
-          item.estado = 'OBSERVADO_DPTO';
-          this.router.navigate(['/app/documentaciones', item.id]);
-        },
-        error: (err) => {
-          this.snackBar.open(
-            err?.error?.message || 'No se pudo verificar la declaracion',
-            'Cerrar',
-            { duration: 3000 },
-          );
-        },
-      });
+    this.router.navigate(['/app/documentaciones', item.id]);
   }
 }

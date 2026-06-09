@@ -1,0 +1,68 @@
+<div class="chatbot-container" *ngIf="isVisible">
+  <!-- Botón de la burbuja -->
+  <button mat-fab color="primary" class="chatbot-fab" (click)="toggleChat()" *ngIf="!isOpen" matTooltip="Asistente IA">
+    <mat-icon>smart_toy</mat-icon>
+  </button>
+
+  <!-- Ventana de Chat -->
+  <div class="chat-window" [class.open]="isOpen">
+    <div class="chat-header">
+      <div class="header-info">
+        <mat-icon>smart_toy</mat-icon>
+        <span>Asistente UNT</span>
+      </div>
+      <div class="header-actions">
+        <button mat-icon-button (click)="toggleChat()" title="Minimizar">
+          <mat-icon>remove</mat-icon>
+        </button>
+        <button mat-icon-button (click)="hideChatPermanently()" title="Ocultar chatbot">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="chat-messages" #scrollContainer>
+      <div class="welcome-msg" *ngIf="history.length === 0">
+        ¡Hola! Soy tu asistente de IA. ¿En qué puedo ayudarte hoy con el sistema de horarios?
+      </div>
+      
+      <div *ngFor="let msg of history" class="message-wrapper" [class.user]="msg.role === 'user'">
+        <div class="message-bubble" [innerHTML]="formatResponse(msg.parts[0].text)">
+        </div>
+      </div>
+
+      <div *ngIf="isLoading" class="message-wrapper">
+        <div class="message-bubble typing">
+          <mat-progress-spinner mode="indeterminate" diameter="20"></mat-progress-spinner>
+          <span>Pensando...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input">
+      <div *ngIf="!speechSupported" class="speech-unsupported-msg">
+        Tu navegador no soporta entrada de voz.
+      </div>
+      <mat-form-field appearance="outline">
+        <input matInput placeholder="Escribe tu consulta..." 
+               [(ngModel)]="userInput" 
+               (keyup.enter)="sendMessage()"
+               [disabled]="isLoading">
+               
+        <button mat-icon-button matSuffix 
+                *ngIf="speechSupported"
+                (click)="toggleListening()" 
+                [disabled]="isLoading || isSpeaking"
+                [class.mic-active]="isListening"
+                [class.mic-disabled]="isLoading || isSpeaking"
+                [title]="isListening ? 'Escuchando...' : 'Hablar por micrófono'">
+          <mat-icon>{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
+        </button>
+
+        <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!userInput.trim() || isLoading">
+          <mat-icon>send</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+  </div>
+</div>

@@ -29,6 +29,7 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { FindDisponiblesDto } from "./dto/find-disponibles.dto";
 
 @ApiTags("ambientes")
 @Controller("ambientes")
@@ -36,6 +37,15 @@ import { RolUsuario } from "../common/enums/rol-usuario.enum";
 @ApiBearerAuth("JWT")
 export class AmbientesController {
   constructor(private readonly ambientesService: AmbientesService) {}
+
+  @Get("disponibles")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DOCENTE)
+  @ApiOperation({ summary: "Buscar ambientes disponibles por tipo, día y rango horario" })
+  async findDisponibles(@Query() query: FindDisponiblesDto) {
+    const result = await this.ambientesService.findDisponibles(query);
+    return { data: result, message: "Ambientes disponibles obtenidos correctamente" };
+  }
+
 
   @Get()
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)

@@ -1,7 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, BeforeInsert, BeforeUpdate } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, BeforeInsert, BeforeUpdate, OneToMany } from "typeorm";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { Curso } from "./curso.entity";
+import { HorarioAsignado } from "./horario-asignado.entity";
 
 @Entity("ambiente")
 export class Ambiente {
@@ -49,6 +50,9 @@ export class Ambiente {
 
   @ManyToMany(() => Curso, (curso) => curso.ambientes)
   cursos: Curso[];
+
+  @OneToMany(() => HorarioAsignado, (horario) => horario.ambiente)
+  horariosAsignados: HorarioAsignado[];
 
   @BeforeInsert()
   @BeforeUpdate()

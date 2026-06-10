@@ -30,16 +30,17 @@ type AlertaTrasladoResult = {
   alerta: boolean;
 };
 
-const DIAS_NOMBRE = [
-  "",
-  "Lunes",
-  "Martes",
-  "Miércoles",
-  "Jueves",
-  "Viernes",
-  "Sábado",
-  "Domingo",
-];
+import { FindDisponiblesDto } from "./dto/find-disponibles.dto";
+
+const DIAS_SEMANA_MAP: { [key: string]: number } = {
+  lunes: 1,
+  martes: 2,
+  miercoles: 3,
+  jueves: 4,
+  viernes: 5,
+  sabado: 6,
+  domingo: 7,
+};
 
 @Injectable()
 export class AmbientesService {
@@ -52,6 +53,49 @@ export class AmbientesService {
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
   ) {}
+
+  async findDisponibles(query: FindDisponiblesDto): Promise<Ambiente[]> {
+    const { tipo, dia, horaInicio, horaFin, periodoId } = query;
+
+    const diaSemana = DIAS_SEMANA_MAP[dia.toLowerCase()];
+    if (!diaSemana) {
+      throw new BadRequestException(`Día inválido: '${dia}'`);
+    }
+
+    const qb = this.ambienteRepo.createQueryBuilder('ambiente');
+
+    // 1. Filtrar por tipo de ambiente
+    qb.where('ambiente.tipo = :tipo', { tipo });
+
+    // 2. Subconsulta para encontrar ambientes OCUPADOS
+    const subQuery = this.horarioRepo
+      .createQueryBuilder('horario')
+      .select('horario.ambiente_id')
+      .where('horario.dia = :diaSemana', { diaSemana })
+      // Un horario se cruza si termina después de que empieza el rango Y empieza antes de que termine el rango
+      .andWhere('horario.hora_fin > :horaInicio', { horaInicio })
+      .andWhere('horario.hora_inicio < :horaFin', { horaFin });
+
+    // Si se especifica un periodo, la subconsulta también debe filtrarlo
+    if (periodoId) {
+      const periodo = await this.resolverPeriodoCodigo(periodoId);
+      if (periodo) {
+        subQuery.andWhere('horario.periodo = :periodo', { periodo });
+      }
+    }
+
+    // 3. Excluir los ambientes ocupados de la consulta principal
+    qb.andWhere(`ambiente.id NOT IN (${subQuery.getQuery()})`);
+
+    // Pasar los parámetros de la subconsulta a la consulta principal
+    qb.setParameters(subQuery.getParameters());
+
+    // Ordenar para un resultado consistente
+    qb.orderBy('ambiente.codigo', 'ASC');
+
+    return qb.getMany();
+  }
+
 
   async findAll(query: QueryAmbienteDto) {
     const { page = 1, limit = 20, tipo, estado, activo, busqueda, pabellon, sede, capacidadMin, capacidadMax } = query;

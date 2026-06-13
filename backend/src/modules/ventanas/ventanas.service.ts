@@ -1194,6 +1194,15 @@ export class VentanasService implements OnModuleDestroy, OnApplicationBootstrap 
     await this.colaRepo.save(colas);
     this.logger.log(`✅ ${docentes.length} docentes pre-asignados a ventana ${ventanaId}`);
 
+    for (const docente of docentes) {
+      try {
+        await this.notificacionesService.enviarRecordatorio24h(docente.id, ventanaId);
+        await this.notificacionesService.enviarAlerta15min(docente.id, ventanaId);
+      } catch (err) {
+        this.logger.warn(`No se pudieron programar notificaciones para docente ${docente.id}: ${err.message}`);
+      }
+    }
+
     await this.borrarEstadoColaCache(ventanaId);
 
     return {

@@ -121,6 +121,7 @@ describe("DocentesService", () => {
     tipo_clase: TipoClase.TEORIA,
     periodoId: null,
     periodo: null,
+    grupos: 1,
     docente: mockDocente,
     curso: mockCurso,
   };

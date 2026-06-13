@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
+import { ApiService } from '../../core/services/api.service';
 
 @Component({
   selector: 'app-language-selector',
@@ -14,17 +15,18 @@ export class LanguageSelectorComponent {
     { code: 'pt', name: 'Português', flag: '🇧🇷' }
   ];
 
-  constructor(private translate: TranslateService) {
+  constructor(
+    private translate: TranslateService,
+    private api: ApiService,
+  ) {
     this.currentLang = this.translate.currentLang || 'es';
   }
 
   changeLanguage(lang: string): void {
     this.translate.use(lang);
     this.currentLang = lang;
-    // Save preference to localStorage
     localStorage.setItem('preferredLanguage', lang);
-    // Send to backend to update user preference
-    this.updateBackendLanguage(lang);
+    this.api.patch('/usuarios/mi-idioma', { idioma: lang }).subscribe();
   }
 
   getFlag(langCode: string): string {
@@ -35,10 +37,5 @@ export class LanguageSelectorComponent {
   getLanguageName(langCode: string): string {
     const lang = this.languages.find(l => l.code === langCode);
     return lang ? lang.name : langCode;
-  }
-
-  private updateBackendLanguage(lang: string): void {
-    // TODO: Call backend endpoint to update user language preference
-    // This requires the API service to be injected and the endpoint to be implemented
   }
 }

@@ -269,16 +269,28 @@
 
           <div *ngIf="!cargandoDocentes && docentesDisponibles.length > 0" class="docentes-list">
             <p class="info-text">
-              Selecciona los docentes que necesitan subsanación (se cargaron {{ docentesDisponibles.length }} docentes
-              con horario asignado en este período):
+              Selecciona los docentes que necesitan subsanación ({{ docentesDisponibles.length }} docentes con horario
+              asignado en este período):
             </p>
+            <mat-form-field appearance="outline" class="search-field">
+              <mat-icon matPrefix>search</mat-icon>
+              <input matInput placeholder="Buscar por nombre o código..." [(ngModel)]="busquedaDocentes"
+                (ngModelChange)="aplicarFiltroDocentes()">
+              <button *ngIf="busquedaDocentes" matSuffix mat-icon-button (click)="busquedaDocentes=''; aplicarFiltroDocentes()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </mat-form-field>
             <div class="docentes-checkboxes">
-              <mat-checkbox *ngFor="let doc of docentesDisponibles" [checked]="doc.selected"
+              <mat-checkbox *ngFor="let doc of docentesFiltrados" [checked]="doc.selected"
                 (change)="toggleDocente(doc)" class="docente-checkbox">
                 <span class="docente-name">{{ doc.nombre }}</span>
+                <span class="docente-categoria">{{ doc.categoria }} · {{ doc.tipo_contrato }}</span>
                 <span class="docente-status" *ngIf="doc.selected">Seleccionado</span>
               </mat-checkbox>
             </div>
+            <p *ngIf="docentesFiltrados.length === 0 && busquedaDocentes" class="empty-search">
+              No se encontraron docentes con "{{ busquedaDocentes }}"
+            </p>
           </div>
 
           <div *ngIf="!cargandoDocentes && docentesDisponibles.length === 0" class="empty-state">

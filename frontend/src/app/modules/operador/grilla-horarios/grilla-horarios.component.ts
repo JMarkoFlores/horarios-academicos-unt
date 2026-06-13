@@ -2,7 +2,9 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { ApiService } from '../../../core/services/api.service';
 import { SocketService } from '../../../core/services/socket.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { Subscription } from 'rxjs';
+import { DetallesCeldaDialogComponent, DetallesCeldaData } from './detalles-celda-dialog.component';
 
 export interface CeldaMatriz {
   dia: number;
@@ -31,7 +33,6 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   private _grupoSeleccionado?: number;
   @Input() 
   set grupoSeleccionado(value: number | undefined) {
-    console.log('[GrillaHorarios] grupoSeleccionado set a:', value);
     this._grupoSeleccionado = value;
     if (this.ambienteId) {
       this.cargarMatriz();
@@ -67,7 +68,8 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   constructor(
     private api: ApiService,
     private socketService: SocketService,
-    private snack: MatSnackBar
+    private snack: MatSnackBar,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -102,14 +104,6 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       next: (r) => {
         this.matriz = r.data || [];
         // Buscar celdas con estado temporal para depurar
-        const celdasTemporales = this.matriz.filter((c: any) => 
-          c.estado === 'TEMPORAL_PROPIO' || c.estado === 'TEMPORAL_PROPIO_MULTIPLE'
-        );
-        console.log('[GrillaHorarios] Matriz cargada:', this.matriz.length, 'celdas');
-        console.log('[GrillaHorarios] Celdas temporales encontradas:', celdasTemporales);
-        if (celdasTemporales.length > 0) {
-          console.log('[GrillaHorarios] Ejemplo de celda temporal:', celdasTemporales[0]);
-        }
         this.loading = false;
       },
       error: () => {
@@ -120,7 +114,6 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   }
 
   forzarRecargaMatriz(): void {
-    console.log('[GrillaHorarios] forzarRecargaMatriz llamado, grupoSeleccionado:', this._grupoSeleccionado);
     this.cargarMatriz();
   }
 
@@ -175,7 +168,6 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       }
 
       // Agregar bloque
-      console.log('[GrillaHorarios] Enviando selección con grupoSeleccionado:', this._grupoSeleccionado);
       
       const body: any = {
         ventanaId: this.ventanaId,
@@ -257,14 +249,10 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       });
 
       if (asignacionAEliminar?.id) {
-        console.log('[GrillaHorarios] Eliminando asignación confirmada ID:', asignacionAEliminar.id);
         
         this.api.delete<any>(`/horarios/${asignacionAEliminar.id}`).subscribe({
           next: () => {
-            // Remover de las marcadas para eliminación
             this.celdasOriginalesEliminadas.delete(clave);
-            console.log('[GrillaHorarios] Celda removida de celdasOriginalesEliminadas:', clave);
-            console.log('[GrillaHorarios] Celdas originales marcadas para eliminación:', this.celdasOriginalesEliminadas);
             this.snack.open('Asignación eliminada correctamente', 'OK', { duration: 2000 });
             this.seleccionCambiada.emit();
             this.cargarMatriz();
@@ -274,9 +262,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
           }
         });
       } else {
-        // Si no se encuentra la asignación, solo remover de la lista visual
         this.celdasOriginalesEliminadas.delete(clave);
-        console.log('[GrillaHorarios] Celda removida de celdasOriginalesEliminadas:', clave);
         this.snack.open('Bloque original removido de eliminación', 'OK', { duration: 2000 });
         this.cargarMatriz();
       }
@@ -292,10 +278,18 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     const celda = this.getCelda(dia, hora);
     if (!celda) return;
 
-    // Doble clic: mostrar modal con todos los detalles
-    const tooltip = this.getTooltipCelda(celda);
-    // TODO: Implementar modal con detalles completos
-    this.snack.open(tooltip, 'Cerrar', { duration: 8000 });
+    const data: DetallesCeldaData = {
+      dia: celda.dia,
+      horaInicio: celda.horaInicio,
+      horaFin: celda.horaFin,
+      estado: celda.estado,
+      metadata: celda.metadata,
+    };
+    this.dialog.open(DetallesCeldaDialogComponent, {
+      data,
+      width: '500px',
+      maxHeight: '80vh',
+    });
   }
 
   getBloqueCount(celda: CeldaMatriz): number {
@@ -448,8 +442,6 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   }
 
   setModoEdicion(activo: boolean, horario: any | null, asignacionesRelacionadas?: any[]): void {
-    console.log('[GrillaHorarios] setModoEdicion llamado con activo:', activo, 'horario:', horario);
-    console.log('[GrillaHorarios] asignacionesRelacionadas:', asignacionesRelacionadas);
     
     this.modoEdicion = activo;
     this.horarioEnEdicion = horario;
@@ -459,22 +451,15 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     }
     this.celdasOriginalesEliminadas.clear();
     
-    if (activo && horario && asignacionesRelacionadas) {
-      // Marcar las celdas originales del horario como "para eliminar"
+      if (activo && horario && asignacionesRelacionadas) {
       asignacionesRelacionadas.forEach(asignacion => {
-        // La hora en la asignación viene como "07:00:00" pero en la grilla es "07:00"
-        // Necesitamos normalizar el formato
-        const horaNormalizada = asignacion.hora_inicio.substring(0, 5); // "07:00"
+        const horaNormalizada = asignacion.hora_inicio.substring(0, 5);
         const clave = `${asignacion.dia}-${horaNormalizada}`;
         this.celdasOriginalesEliminadas.add(clave);
-        console.log('[GrillaHorarios] Marcando celda original para eliminación:', clave, '(hora original:', asignacion.hora_inicio, ')');
       });
       
-      console.log('[GrillaHorarios] Modo edición activado para horario:', horario);
-      console.log('[GrillaHorarios] Celdas originales marcadas para eliminación:', this.celdasOriginalesEliminadas);
       this.cargarMatriz();
     } else {
-      console.log('[GrillaHorarios] Modo edición desactivado');
       this.cargarMatriz();
     }
   }

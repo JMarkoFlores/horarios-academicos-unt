@@ -49,6 +49,7 @@ const baseDto: CreateDocenteDto = {
   nombres: "Ana",
   apellidos: "Torres",
   email: "ana.torres@unitru.edu.pe",
+  ibm: 4247,
   tipo_docente: TipoDocente.ORDINARIO,
   categoria: CategoriaDocente.PRINCIPAL,
   modalidad: ModalidadDocente.TIEMPO_COMPLETO_40,

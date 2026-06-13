@@ -5,7 +5,7 @@ import { AmbientesService } from '../ambientes/ambientes.service';
 import { FindDisponiblesDto } from '../ambientes/dto/find-disponibles.dto';
 
 // Definición de la herramienta para el LLM
-const tools: Groq.Chat.CompletionTool[] = [
+const tools: Groq.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
@@ -80,7 +80,7 @@ export class ChatbotService {
       this.groq = new Groq({ apiKey });
     }
 
-    const messages: Groq.Chat.CompletionCreateParams.Message[] = [
+    const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: 'system', content: this.systemPrompt },
       ...this.formatHistory(history),
       { role: 'user', content: message },
@@ -113,7 +113,6 @@ export class ChatbotService {
             messages.push({
               tool_call_id: toolCall.id,
               role: 'tool',
-              name: functionName,
               content: JSON.stringify(toolResult),
             });
           }
@@ -140,7 +139,7 @@ export class ChatbotService {
     }
   }
 
-  private formatHistory(history: any[]): Groq.Chat.CompletionCreateParams.Message[] {
+  private formatHistory(history: any[]): Groq.Chat.ChatCompletionMessageParam[] {
     return (history || [])
       .filter(msg => msg.role && msg.parts && msg.parts[0]?.text)
       .map(msg => ({

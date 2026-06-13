@@ -111,6 +111,8 @@ export class VentanaListComponent implements OnInit, OnDestroy {
   // Estado de pre-asignación
   mostrandoSeleccionDocentes = false;
   docentesDisponibles: any[] = [];
+  docentesFiltrados: any[] = [];
+  busquedaDocentes = '';
   docentesSeleccionados: Set<number> = new Set();
   cargandoDocentes = false;
   ventanaActualParaAsignar: VentanaAtencion | null = null;
@@ -494,9 +496,10 @@ export class VentanaListComponent implements OnInit, OnDestroy {
           nombre: `${doc.apellidos}, ${doc.nombres}`,
           categoria: doc.categoria,
           tipo_contrato: doc.tipo_contrato,
+          codigo: doc.codigo,
           selected: selectedIds.has(Number(doc.id)),
         }));
-
+        this.aplicarFiltroDocentes();
         this.cargandoDocentes = false;
 
         if (this.docentesDisponibles.length === 0) {
@@ -548,10 +551,22 @@ export class VentanaListComponent implements OnInit, OnDestroy {
     });
   }
 
+  aplicarFiltroDocentes(): void {
+    const q = this.busquedaDocentes.toLowerCase().trim();
+    this.docentesFiltrados = q
+      ? this.docentesDisponibles.filter(d =>
+          d.nombre.toLowerCase().includes(q) ||
+          (d.codigo && String(d.codigo).toLowerCase().includes(q))
+        )
+      : [...this.docentesDisponibles];
+  }
+
   cerrarSeleccionDocentes(): void {
     this.mostrandoSeleccionDocentes = false;
     this.ventanaActualParaAsignar = null;
     this.docentesDisponibles = [];
+    this.docentesFiltrados = [];
+    this.busquedaDocentes = '';
     this.docentesSeleccionados.clear();
   }
 }

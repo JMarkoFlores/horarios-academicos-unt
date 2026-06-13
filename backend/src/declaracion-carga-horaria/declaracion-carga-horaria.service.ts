@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
 } from "@nestjs/common";
@@ -108,6 +109,8 @@ interface DocumentacionResumen {
 
 @Injectable()
 export class DeclaracionCargaHorariaService {
+  private readonly logger = new Logger(DeclaracionCargaHorariaService.name);
+
   constructor(
     @InjectRepository(DeclaracionCargaHoraria)
     private readonly declaracionRepo: Repository<DeclaracionCargaHoraria>,
@@ -1050,7 +1053,7 @@ export class DeclaracionCargaHorariaService {
     }
 
     if (!periodoId || !periodoCodigo) {
-      console.warn(`[DEBUG] No se encontró periodo: ${periodo} -> ${periodoCodigo}`);
+      this.logger.warn(`No se encontró periodo: ${periodo}`);
       return [];
     }
 
@@ -1065,7 +1068,7 @@ export class DeclaracionCargaHorariaService {
       .andWhere("horario.periodo = :periodo", { periodo: periodoCodigo })
       .getMany();
 
-    console.log(`[DEBUG] Horarios para docente ${docenteId} en ${periodoCodigo}:`, horarios.length);
+    this.logger.debug(`Horarios para docente ${docenteId} en ${periodoCodigo}: ${horarios.length}`);
 
     const cursosMap = new Map<string, any>();
 
@@ -1099,7 +1102,7 @@ export class DeclaracionCargaHorariaService {
     }
 
     const resultado = Array.from(cursosMap.values());
-    console.log(`[DEBUG] Resultado final (${resultado.length} cursos):`, JSON.stringify(resultado));
+    this.logger.debug(`Resultado final: ${resultado.length} cursos`);
     return resultado;
   }
 

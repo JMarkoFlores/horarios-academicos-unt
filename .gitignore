@@ -9,3 +9,6 @@
 **/dist/
 **/coverage/
 **/*.tsbuildinfo
+.history/
+build.log
+tsc_errors*.log

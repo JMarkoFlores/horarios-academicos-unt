@@ -318,19 +318,4 @@ export class ConflictLogger extends TestLogger {
     return report;
   }
 
-  getLogs(): TestLogEntry[] {
-    return this.logger.getLogs();
-  }
-
-  clear(): void {
-    this.logger.clear();
-  }
-
-  hasErrors(): boolean {
-    return this.logger.hasErrors();
-  }
-
-  hasWarnings(): boolean {
-    return this.logger.hasWarnings();
-  }
 }

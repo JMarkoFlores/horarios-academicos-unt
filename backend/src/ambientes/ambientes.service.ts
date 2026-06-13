@@ -15,6 +15,10 @@ import { CreateAmbienteDto } from "./dto/create-ambiente.dto";
 import { UpdateAmbienteDto } from "./dto/update-ambiente.dto";
 import { QueryAmbienteDto } from "./dto/query-ambiente.dto";
 
+const DIAS_NOMBRE: Record<number, string> = {
+  1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado", 7: "Domingo"
+};
+
 type DistanciaAmbientesResult = {
   distanciaUnidades: number | null;
   mismoEdificio: boolean;

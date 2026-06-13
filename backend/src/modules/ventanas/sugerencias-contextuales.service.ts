@@ -4,6 +4,7 @@ import { Repository, LessThan, MoreThan } from 'typeorm';
 import { HorarioAsignado } from '../../entities/horario-asignado.entity';
 import { Ambiente } from '../../entities/ambiente.entity';
 import { Curso } from '../../entities/curso.entity';
+import { PeriodoAcademico } from '../../entities/periodo-academico.entity';
 import { RestriccionesValidacionService } from './restricciones-validacion.service';
 import { EstadoHorario } from '../../common/enums/estado-horario.enum';
 import { TipoClase } from '../../common/enums/tipo-clase.enum';
@@ -52,6 +53,8 @@ export class SugestionesContextualesService {
     private ambienteRepo: Repository<Ambiente>,
     @InjectRepository(Curso)
     private cursoRepo: Repository<Curso>,
+    @InjectRepository(PeriodoAcademico)
+    private periodoRepo: Repository<PeriodoAcademico>,
     private restriccionesService: RestriccionesValidacionService,
   ) {}
 
@@ -216,13 +219,15 @@ export class SugestionesContextualesService {
     }
 
     // Buscar bloques alternativos para reasignar este horario
-    const alternativas = await this.sugerirBloquesAlternos(
+    const periodoEntity = await this.periodoRepo.findOne({ where: { codigo: horarioActual.periodo } });
+    const periodoId = periodoEntity?.id;
+    const alternativas = periodoId ? await this.sugerirBloquesAlternos(
       horarioActual.docente_id,
       horarioActual.curso_id,
       horarioActual.tipo_clase,
       horarioActual.periodo,
-      1, // TODO: obtener periodoId dinámicamente
-    );
+      periodoId,
+    ) : [];
 
     // Analizar impacto de cambio
     const impacto = await this.analizarImpactoReasignacion(horarioActual, alternativas);

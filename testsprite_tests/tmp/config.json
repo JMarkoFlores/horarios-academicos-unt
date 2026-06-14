@@ -1,0 +1,19 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:4200",
+  "loginUser": "admin@unt.edu.pe",
+  "loginPassword": "Admin123!",
+  "executionArgs": {
+    "projectName": "horarios-academicos-unt",
+    "projectPath": "D:\\Proyects\\horarios-academicos-unt",
+    "testIds": [],
+    "additionalInstruction": "Test as admin user. Focus on: login flow, dashboard KPIs and charts, docentes list with skeleton loader and filters, cursos list with skeleton loader and filters, ambientes list, horarios multi-tab view with sticky columns, operador ventanas with WebSocket indicator, and disponibilidad docente grid. Skip chatbot and notification features.",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-1AzeWWekwylsqEx2eZJl2DEw_4QHmcnzo37v08DBKKc0eQNN0wV4las3AssI6fXCQ8uTuKdqPgvbuql9hj7deNA3XBM5Zsji8m9_nwE9kNYnn7wPVDK083WRCZFxdk7760k"
+    }
+  },
+  "serverPort": 50301
+}

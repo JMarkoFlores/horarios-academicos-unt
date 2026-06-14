@@ -5,6 +5,7 @@ import { LayoutComponent } from './layout.component';
 import { SharedModule } from '../shared/shared.module';
 import { SharedDialogsModule } from '../shared/shared-dialogs.module';
 import { ChatbotModule } from '../modules/chatbot/chatbot.module';
+import { BreadcrumbComponent } from './components/breadcrumb/breadcrumb.component';
 
 @NgModule({
   declarations: [LayoutComponent],
@@ -13,7 +14,8 @@ import { ChatbotModule } from '../modules/chatbot/chatbot.module';
     SharedModule,
     SharedDialogsModule,
     ChatbotModule,
-    TranslateModule.forChild()
+    TranslateModule.forChild(),
+    BreadcrumbComponent,
   ],
   exports: [LayoutComponent],
 })

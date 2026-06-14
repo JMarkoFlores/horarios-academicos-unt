@@ -12,3 +12,10 @@
 .history/
 build.log
 tsc_errors*.log
+
+testsprite_tests\tmp\config.json
+.agents/
+.opencode/
+AGENTS.md
+build.log
+opencode.json

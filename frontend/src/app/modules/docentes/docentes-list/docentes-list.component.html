@@ -110,8 +110,56 @@
     </div>
   </mat-card>
 
+  <!-- Active filter indicator -->
+  <div class="filter-indicator-bar" *ngIf="hasActiveFilters()">
+    <div class="filter-chips">
+      <span class="filter-label">Filtros activos:</span>
+      <span class="filter-chip" *ngIf="activoFilter !== null">
+        {{ activoFilter === true ? 'Activos' : 'Inactivos' }}
+        <mat-icon (click)="onActivoFilterChange('todos')">close</mat-icon>
+      </span>
+      <span class="filter-chip" *ngIf="categoriaFilter">
+        {{ getCategoriaLabel(categoriaFilter) }}
+        <mat-icon (click)="categoriaFilter = ''; onFilterChange()">close</mat-icon>
+      </span>
+      <span class="filter-chip" *ngIf="tipoDocenteFilter">
+        {{ getTipoDocenteLabel(tipoDocenteFilter) }}
+        <mat-icon (click)="tipoDocenteFilter = ''; onFilterChange()">close</mat-icon>
+      </span>
+      <span class="filter-chip" *ngIf="modalidadFilter">
+        {{ getModalidadLabel(modalidadFilter) }}
+        <mat-icon (click)="modalidadFilter = ''; onFilterChange()">close</mat-icon>
+      </span>
+      <span class="filter-chip" *ngIf="searchControl.value">
+        Búsqueda: "{{ searchControl.value }}"
+        <mat-icon (click)="searchControl.setValue('')">close</mat-icon>
+      </span>
+    </div>
+    <button mat-button class="clear-filters-btn" (click)="clearFilters()">
+      <mat-icon>filter_alt_off</mat-icon> Limpiar todos
+    </button>
+  </div>
+
+  <!-- Skeleton Loader -->
+  <mat-card class="table-container-premium skeleton-card" *ngIf="loading">
+    <div class="skeleton-list">
+      <div class="skeleton-row" *ngFor="let _ of [].constructor(5)">
+        <div class="skeleton-cell avatar"><div class="skeleton-circle"></div></div>
+        <div class="skeleton-cell name"><div class="skeleton-line w-60"></div><div class="skeleton-line w-30"></div></div>
+        <div class="skeleton-cell"><div class="skeleton-line w-40"></div></div>
+        <div class="skeleton-cell"><div class="skeleton-line w-50"></div></div>
+        <div class="skeleton-cell"><div class="skeleton-line w-35"></div></div>
+        <div class="skeleton-cell"><div class="skeleton-line w-30"></div></div>
+        <div class="skeleton-cell"><div class="skeleton-line w-45"></div></div>
+        <div class="skeleton-cell"><div class="skeleton-line w-25"></div></div>
+        <div class="skeleton-cell"><div class="skeleton-line w-20"></div></div>
+        <div class="skeleton-cell actions"><div class="skeleton-line w-60"></div></div>
+      </div>
+    </div>
+  </mat-card>
+
   <!-- Table -->
-  <mat-card class="table-container-premium">
+  <mat-card class="table-container-premium" *ngIf="!loading">
     <div *ngIf="loading" class="loading-overlay">
       <mat-spinner diameter="50" strokeWidth="3"></mat-spinner>
       <span>Cargando docentes...</span>

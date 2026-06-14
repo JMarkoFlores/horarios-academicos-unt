@@ -143,6 +143,20 @@ export class DocentesListComponent implements OnInit {
     this.loadDocentes();
   }
 
+  hasActiveFilters(): boolean {
+    return this.activoFilter !== null || !!this.categoriaFilter || !!this.tipoDocenteFilter || !!this.modalidadFilter || !!this.searchControl.value;
+  }
+
+  clearFilters(): void {
+    this.activoFilter = true;
+    this.categoriaFilter = '';
+    this.tipoDocenteFilter = '';
+    this.modalidadFilter = '';
+    this.searchControl.setValue('');
+    this.currentPage = 0;
+    this.loadDocentes();
+  }
+
   get activoFilterValue(): string {
     if (this.activoFilter === true) return 'activos';
     if (this.activoFilter === false) return 'inactivos';

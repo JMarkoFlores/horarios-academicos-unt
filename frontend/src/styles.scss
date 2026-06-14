@@ -648,3 +648,25 @@ body {
     }
   }
 }
+
+// ── HIDE MDC TOUCH TARGETS ─────────────────────────────────────────────
+.mat-mdc-button-touch-target {
+  display: none !important;
+}
+
+// ── PERIOD SELECT DROPDOWN WIDTH ───────────────────────────────────────
+.periodo-select-panel {
+  min-width: 160px !important;
+  max-width: calc(100vw - 32px) !important;
+
+  .mat-mdc-option {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .mdc-list-item__primary-text {
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+}

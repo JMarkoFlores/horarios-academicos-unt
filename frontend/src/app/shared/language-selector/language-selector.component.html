@@ -1,16 +1,11 @@
-<div class="language-selector">
-  <mat-select [value]="currentLang" (selectionChange)="changeLanguage($event.value)" class="language-select">
-    <mat-select-trigger>
-      <span class="selected-language">
-        <span class="flag">{{ getFlag(currentLang) }}</span>
-        <span class="name">{{ getLanguageName(currentLang) }}</span>
-      </span>
-    </mat-select-trigger>
-    <mat-option *ngFor="let lang of languages" [value]="lang.code">
-      <span class="language-option">
-        <span class="flag">{{ lang.flag }}</span>
-        <span class="name">{{ lang.name }}</span>
-      </span>
-    </mat-option>
-  </mat-select>
-</div>
+<button mat-icon-button class="language-btn" [matMenuTriggerFor]="languageMenu" matTooltip="Cambiar idioma">
+  <span class="flag-icon">{{ getFlag(currentLang) }}</span>
+</button>
+
+<mat-menu #languageMenu="matMenu" class="language-dropdown-menu" xPosition="before">
+  <button mat-menu-item *ngFor="let lang of languages" (click)="changeLanguage(lang.code)" [class.active-item]="lang.code === currentLang">
+    <span class="menu-flag">{{ lang.flag }}</span>
+    <span class="menu-name">{{ lang.name }}</span>
+    <mat-icon *ngIf="lang.code === currentLang" class="check-icon">check</mat-icon>
+  </button>
+</mat-menu>

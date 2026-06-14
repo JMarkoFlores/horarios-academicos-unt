@@ -1895,7 +1895,8 @@ export class ReportesService {
           horas: 0,
           hTeoria: 0,
           hPractica: 0,
-          hLaboratorio: 0
+          hLaboratorio: 0,
+          gruposIds: new Set<number>(),
         });
       }
       const entry = profesoresCursosMap.get(key);
@@ -1906,8 +1907,16 @@ export class ReportesService {
       
       if (a.tipo_clase === TipoClase.TEORIA) entry.hTeoria += duration;
       else if (a.tipo_clase === TipoClase.PRACTICA) entry.hPractica += duration;
-      else if (a.tipo_clase === TipoClase.LABORATORIO) entry.hLaboratorio += duration;
+      else if (a.tipo_clase === TipoClase.LABORATORIO) {
+        entry.hLaboratorio += duration;
+        if (a.grupo?.id) entry.gruposIds.add(a.grupo.id);
+      }
     });
+
+    for (const entry of profesoresCursosMap.values()) {
+      const ng = entry.gruposIds.size || 1;
+      entry.hLaboratorio = entry.hLaboratorio / ng;
+    }
     
     const hierarchy: { [key: string]: number } = {
       'PRINCIPAL': 1,
@@ -2318,7 +2327,8 @@ export class ReportesService {
         profesoresCursosMap.set(key, { 
           docente: a.docente, 
           curso: a.curso, 
-          horas: 0, hTeoria: 0, hPractica: 0, hLaboratorio: 0 
+          horas: 0, hTeoria: 0, hPractica: 0, hLaboratorio: 0,
+          gruposIds: new Set<number>(),
         });
       }
       const entry = profesoresCursosMap.get(key);
@@ -2328,8 +2338,16 @@ export class ReportesService {
       entry.horas += duration;
       if (a.tipo_clase === TipoClase.TEORIA) entry.hTeoria += duration;
       else if (a.tipo_clase === TipoClase.PRACTICA) entry.hPractica += duration;
-      else if (a.tipo_clase === TipoClase.LABORATORIO) entry.hLaboratorio += duration;
+      else if (a.tipo_clase === TipoClase.LABORATORIO) {
+        entry.hLaboratorio += duration;
+        if (a.grupo?.id) entry.gruposIds.add(a.grupo.id);
+      }
     });
+
+    for (const entry of profesoresCursosMap.values()) {
+      const ng = entry.gruposIds.size || 1;
+      entry.hLaboratorio = entry.hLaboratorio / ng;
+    }
 
     const hierarchy: { [key: string]: number } = { 'PRINCIPAL': 1, 'ASOCIADO': 2, 'AUXILIAR': 3, 'SIN_CATEGORIA': 4 };
     const profesoresCursos = Array.from(profesoresCursosMap.values()).sort((a, b) => {

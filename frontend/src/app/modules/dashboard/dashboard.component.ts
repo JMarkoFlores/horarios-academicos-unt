@@ -1,10 +1,12 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subscription } from 'rxjs';
 import { ChartData, ChartOptions } from 'chart.js';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PeriodoService } from '../../core/services/periodo.service';
+import { SocketService } from '../../core/services/socket.service';
+import { TranslateService } from '@ngx-translate/core';
 import { ApiResponse, KPIs, MisKPIs, ConflictoAsignacion } from '../../core/interfaces/entities';
 
 @Component({
@@ -16,10 +18,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   kpis: KPIs | null = null;
   misKpis: MisKPIs | null = null;
   conflictos: ConflictoAsignacion[] = [];
-  loading = false;
+  loading = signal(false);
+  firstLoadDone = signal(false);
+  error = false;
+  errorMessage = '';
   generando = false;
+  compactMode = signal(false);
   private sub!: Subscription;
-  private _animateTimer: any;
+  private dashSub!: Subscription;
+  private langSub!: Subscription;
   private _heatmapCache = new Map<string, { color: string; tooltip: string }>();
 
   readonly rol = this.authService.getUsuarioActual()?.rol ?? '';
@@ -36,16 +43,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   conflictosColumns = ['tipo', 'descripcion', 'periodo', 'acciones'];
   ambienteColumns = ['codigo', 'tipo', 'capacidad', 'porcentaje'];
-  diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+  diasSemana = signal<string[]>([]);
   horasRango = Array.from(
     { length: 15 },
-    (_, i) => `${String(i + 7).padStart(2, '0')}:00`,
+    (_, i) => {
+      const h = String(i + 7).padStart(2, '0');
+      const next = String(i + 8).padStart(2, '0');
+      return `${h}:00-${next}:00`;
+    },
   );
 
-  greeting = '';
-  currentDate = '';
+  greeting = signal('');
+  currentDate = signal('');
 
-  // KPI values for animation
   displayKPIs: {
     total_docentes: number;
     docentes_con_horario: number;
@@ -54,7 +64,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     total_aulas: number;
     porcentaje_ocupacion_aulas: number;
     conflictos_activos: number;
-    [key: string]: unknown;
   } = {
     total_docentes: 0,
     docentes_con_horario: 0,
@@ -70,36 +79,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: 'top',
-        align: 'end',
-        labels: {
-          usePointStyle: true,
-          pointStyle: 'circle',
-          padding: 20,
-          font: { family: "'Inter', sans-serif", size: 12, weight: 500 },
-        },
-      },
-      tooltip: {
-        backgroundColor: '#1e293b',
-        titleFont: { family: "'Inter', sans-serif", size: 13 },
-        bodyFont: { family: "'Inter', sans-serif", size: 12 },
-        padding: 12,
-        cornerRadius: 8,
-        displayColors: true,
-      },
+      legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, font: { family: "'Inter', sans-serif", size: 12, weight: 500 } } },
+      tooltip: { backgroundColor: '#1e293b', titleFont: { family: "'Inter', sans-serif", size: 13 }, bodyFont: { family: "'Inter', sans-serif", size: 12 }, padding: 12, cornerRadius: 8, displayColors: true },
     },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: { display: true, color: 'rgba(0,0,0,0.05)' },
-        ticks: { font: { family: "'Inter', sans-serif", size: 11 } },
-      },
-      x: {
-        grid: { display: false },
-        ticks: { font: { family: "'Inter', sans-serif", size: 11 } },
-      },
-    },
+    scales: { y: { beginAtZero: true, grid: { display: true, color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } }, x: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } } },
   };
 
   doughnutData: ChartData<'doughnut'> = { labels: [], datasets: [] };
@@ -107,59 +90,83 @@ export class DashboardComponent implements OnInit, OnDestroy {
     responsive: true,
     maintainAspectRatio: false,
     cutout: 0,
-    layout: {
-      padding: 10, // Reducido drásticamente para que el gráfico crezca
-    },
+    layout: { padding: 10 },
     plugins: {
-      legend: {
-        position: 'right', // Movido a la derecha para formar una columna
-        align: 'center',
-        labels: {
-          usePointStyle: true,
-          pointStyle: 'circle',
-          padding: 15,
-          font: { family: "'Inter', sans-serif", size: 11, weight: 500 },
-        },
-      },
-      tooltip: {
-        backgroundColor: '#1e293b',
-        padding: 12,
-        cornerRadius: 8,
-        titleFont: { family: "'Inter', sans-serif", size: 13, weight: 'bold' },
-        bodyFont: { family: "'Inter', sans-serif", size: 12 },
-      },
+      legend: { position: 'right', align: 'center', labels: { usePointStyle: true, pointStyle: 'circle', padding: 15, font: { family: "'Inter', sans-serif", size: 11, weight: 500 } } },
+      tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { family: "'Inter', sans-serif", size: 13, weight: 'bold' }, bodyFont: { family: "'Inter', sans-serif", size: 12 } },
     },
-    animation: {
-      animateRotate: true,
-      animateScale: true,
-      duration: 1000,
-      easing: 'easeOutQuart',
-    },
+    animation: { animateRotate: true, animateScale: true, duration: 1000, easing: 'easeOutQuart' },
   };
 
-  ngOnInit(): void {
-    this.setGreeting();
-    this.setCurrentDate();
-    this.sub = this.periodoService.periodo$.subscribe(() => this.loadAll());
+  private getLocaleCode(lang: string): string {
+    const locales: Record<string, string> = {
+      es: 'es-PE',
+      en: 'en-US',
+      pt: 'pt-BR'
+    };
+    return locales[lang] || 'es-PE';
   }
 
   private setGreeting(): void {
     const hour = new Date().getHours();
-    if (hour < 12) this.greeting = 'Buenos días';
-    else if (hour < 19) this.greeting = 'Buenas tardes';
-    else this.greeting = 'Buenas noches';
+    let key = 'dashboard.greetings.evening';
+    if (hour < 12) key = 'dashboard.greetings.morning';
+    else if (hour < 19) key = 'dashboard.greetings.afternoon';
+    this.translate.get(key).subscribe(text => this.greeting.set(text));
   }
 
   private setCurrentDate(): void {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    };
-    this.currentDate = new Intl.DateTimeFormat('es-PE', options).format(
-      new Date(),
-    );
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const locale = this.getLocaleCode(this.translate.currentLang);
+    this.currentDate.set(new Intl.DateTimeFormat(locale, options).format(new Date()));
+  }
+
+  private setDiasSemana(): void {
+    const keys = ['dashboard.days.lunes', 'dashboard.days.martes', 'dashboard.days.miercoles', 'dashboard.days.jueves', 'dashboard.days.viernes'];
+    this.translate.get(keys).subscribe(translations => {
+      this.diasSemana.set([
+        translations['dashboard.days.lunes'],
+        translations['dashboard.days.martes'],
+        translations['dashboard.days.miercoles'],
+        translations['dashboard.days.jueves'],
+        translations['dashboard.days.viernes']
+      ]);
+      this._heatmapCache.clear();
+    });
+  }
+
+  private updateChartsLabels(): void {
+    this.translate.get([
+      'dashboard.totalTeachers',
+      'dashboard.assigned',
+      'dashboard.teachersWithSchedule',
+      'dashboard.classroomOccupancy',
+      'dashboard.aulasOcupadas',
+      'dashboard.aulasLibres',
+      'dashboard.labsOcupados',
+      'dashboard.labsLibres'
+    ]).subscribe(translations => {
+      if (this.misKpis) {
+        this.buildDocenteCharts(this.misKpis);
+      }
+      if (this.kpis) {
+        this.buildCharts(this.kpis);
+      }
+    });
+  }
+
+  ngOnInit(): void {
+    this.setGreeting();
+    this.setCurrentDate();
+    this.setDiasSemana();
+    this.sub = this.periodoService.periodo$.subscribe(() => this.loadAll());
+    this.dashSub = this.socketService.dashboardKpiUpdate$.subscribe(() => this.loadKPIs());
+    this.langSub = this.translate.onLangChange.subscribe(() => {
+      this.setGreeting();
+      this.setCurrentDate();
+      this.setDiasSemana();
+      this.updateChartsLabels();
+    });
   }
 
   constructor(
@@ -167,14 +174,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     public periodoService: PeriodoService,
     private snackBar: MatSnackBar,
+    private socketService: SocketService,
+    public translate: TranslateService
   ) {}
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
-    if (this._animateTimer) clearInterval(this._animateTimer);
+    this.dashSub?.unsubscribe();
+    this.langSub?.unsubscribe();
+    this.socketService.unsubscribeDashboardPeriodo(this.periodoService.periodo);
   }
 
   loadAll(): void {
+    this.error = false;
+    this.errorMessage = '';
+    this.firstLoadDone.set(true);
+    this.socketService.connectDashboard(this.periodoService.periodo);
     if (this.isDocente()) {
       this.loadMisKPIs();
     } else {
@@ -184,225 +199,178 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadMisKPIs(): void {
-    this.loading = true;
-    this.api
-      .get<ApiResponse<MisKPIs>>('/dashboard/mis-kpis', { periodo: this.periodoService.periodo })
+    this.loading.set(true);
+    this.api.get<ApiResponse<MisKPIs>>('/dashboard/mis-kpis', { periodo: this.periodoService.periodo })
       .subscribe({
-        next: (res) => {
-          this.misKpis = res.data;
-          this.buildDocenteCharts(res.data);
-          this.loading = false;
+        next: (res) => { 
+          this.misKpis = res.data; 
+          this.buildDocenteCharts(res.data); 
+          this.loading.set(false); 
         },
-        error: () => {
-          this.loading = false;
+        error: (err) => { 
+          this.loading.set(false); 
+          this.error = true; 
+          this.translate.get('dashboard.errorLoading').subscribe(text => this.errorMessage = err?.error?.message || text); 
         },
       });
   }
 
   private buildDocenteCharts(k: MisKPIs): void {
     const barColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-    this.barChartData = {
-      labels: k.distribucion_dia.map((d) => d.dia),
-      datasets: [
-        {
-          data: k.distribucion_dia.map((d) => d.horas),
-          label: 'Horas',
+    this.translate.get('dashboard.courses').subscribe(label => {
+      this.barChartData = {
+        labels: k.distribucion_dia.map((d) => {
+          const dayKey = `dashboard.days.${d.dia.toLowerCase().replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('á', 'a')}`;
+          return this.translate.instant(dayKey);
+        }),
+        datasets: [{
+          data: k.distribucion_dia.map((d) => d.horas), 
+          label: this.translate.instant('dashboard.courses'),
           backgroundColor: k.distribucion_dia.map((_, i) => barColors[i % barColors.length] + '80'),
           hoverBackgroundColor: k.distribucion_dia.map((_, i) => barColors[i % barColors.length]),
-          borderRadius: 4,
-          borderWidth: { right: 4, top: 4 },
+          borderRadius: 4, borderWidth: { right: 4, top: 4 },
           borderColor: k.distribucion_dia.map((_, i) => barColors[i % barColors.length]),
-        },
-      ],
-    };
+        }],
+      };
+    });
   }
 
   loadKPIs(): void {
-    this.loading = true;
-    this.api
-      .get<ApiResponse<KPIs>>('/dashboard/kpis', { periodo: this.periodoService.periodo })
+    this.loading.set(true);
+    this.api.get<ApiResponse<KPIs>>('/dashboard/kpis', { periodo: this.periodoService.periodo })
       .subscribe({
         next: (res) => {
           this.kpis = res.data;
           this._heatmapCache.clear();
-          this.animateCounters(res.data);
+          this.displayKPIs = {
+            total_docentes: res.data.total_docentes,
+            docentes_con_horario: res.data.docentes_con_horario,
+            porcentaje_docentes_asignados: res.data.porcentaje_docentes_asignados,
+            aulas_ocupadas: res.data.aulas_ocupadas,
+            total_aulas: res.data.total_aulas,
+            porcentaje_ocupacion_aulas: res.data.porcentaje_ocupacion_aulas,
+            conflictos_activos: res.data.conflictos_activos,
+          };
           this.buildCharts(res.data);
-          this.loading = false;
+          this.loading.set(false);
+          this.firstLoadDone.set(true);
         },
         error: (err) => {
-          this.loading = false;
-          this.snackBar.open('Error al cargar el dashboard', 'Cerrar', { duration: 3000 });
+          this.loading.set(false);
+          this.firstLoadDone.set(true);
+          this.error = true;
+          this.translate.get('dashboard.errorLoading').subscribe(text => {
+            this.errorMessage = err?.error?.message || text;
+            this.snackBar.open(this.errorMessage, this.translate.instant('common.close'), { duration: 3000 });
+          });
         },
       });
   }
 
-  private animateCounters(data: KPIs): void {
-    if (this._animateTimer) clearInterval(this._animateTimer);
-    const duration = 1500;
-    const steps = 60;
-    const interval = duration / steps;
-    let currentStep = 0;
-
-    this._animateTimer = setInterval(() => {
-      currentStep++;
-      const progress = currentStep / steps;
-
-      this.displayKPIs.total_docentes = Math.round(data.total_docentes * progress);
-      this.displayKPIs.docentes_con_horario = Math.round(data.docentes_con_horario * progress);
-      this.displayKPIs.porcentaje_docentes_asignados = Math.round(data.porcentaje_docentes_asignados * progress);
-      this.displayKPIs.aulas_ocupadas = Math.round(data.aulas_ocupadas * progress);
-      this.displayKPIs.total_aulas = Math.round(data.total_aulas * progress);
-      this.displayKPIs.porcentaje_ocupacion_aulas = Math.round(data.porcentaje_ocupacion_aulas * progress);
-      this.displayKPIs.conflictos_activos = Math.round(data.conflictos_activos * progress);
-
-      if (currentStep >= steps) {
-        clearInterval(this._animateTimer);
-        this._animateTimer = null;
-        this.displayKPIs = { ...data };
-      }
-    }, interval);
-  }
-
   loadConflictos(): void {
-    this.api
-      .get<ApiResponse<any>>(`/horarios/conflictos/${this.periodoService.periodo}`)
+    this.api.get<ApiResponse<any>>(`/horarios/conflictos/${this.periodoService.periodo}`)
       .subscribe({
         next: (res: any) => {
           const rawData = res.data?.items ?? res.data ?? [];
-          this.conflictos = Array.isArray(rawData)
-            ? rawData.filter((c: any) => !c.resuelto)
-            : [];
+          this.conflictos = Array.isArray(rawData) ? rawData.filter((c: any) => !c.resuelto) : [];
         },
-        error: () => {
-          this.snackBar.open('Error al cargar conflictos', 'Cerrar', { duration: 3000 });
+        error: (err) => { 
+          this.error = true; 
+          this.translate.get('dashboard.errorLoading').subscribe(text => {
+            this.errorMessage = err?.error?.message || text;
+            this.snackBar.open(this.errorMessage, this.translate.instant('common.close'), { duration: 3000 });
+          }); 
         },
       });
   }
 
   buildCharts(k: KPIs): void {
-    const vibrantColors = [
-      '#f97316', // Orange
-      '#22c55e', // Green
-      '#3b82f6', // Blue
-      '#a855f7', // Purple
-      '#eab308', // Yellow
-      '#ec4899', // Pink
-      '#06b6d4', // Cyan
-    ];
+    const vibrantColors = ['#f97316', '#22c55e', '#3b82f6', '#a855f7', '#eab308', '#ec4899', '#06b6d4'];
+    const darkerColors = ['#c2410c', '#15803d', '#1d4ed8', '#7e22ce', '#a16207', '#be185d', '#0e7490'];
 
-    const darkerColors = [
-      '#c2410c',
-      '#15803d',
-      '#1d4ed8',
-      '#7e22ce',
-      '#a16207',
-      '#be185d',
-      '#0e7490',
-    ];
+    this.translate.get([
+      'dashboard.totalTeachers',
+      'dashboard.teachersWithSchedule',
+      'dashboard.aulasOcupadas',
+      'dashboard.aulasLibres',
+      'dashboard.labsOcupados',
+      'dashboard.labsLibres'
+    ]).subscribe(translations => {
+      this.barChartData = {
+        labels: k.distribucion_por_categoria.map((d) => d.categoria),
+        datasets: [
+          {
+            data: k.distribucion_por_categoria.map((d) => d.total), 
+            label: translations['dashboard.totalTeachers'],
+            backgroundColor: k.distribucion_por_categoria.map((_, i) => vibrantColors[i % vibrantColors.length] + '80'),
+            hoverBackgroundColor: k.distribucion_por_categoria.map((_, i) => vibrantColors[i % vibrantColors.length]),
+            borderRadius: 4, borderWidth: { right: 4, top: 4 },
+            borderColor: k.distribucion_por_categoria.map((_, i) => darkerColors[i % darkerColors.length]),
+          },
+          {
+            data: k.distribucion_por_categoria.map((d) => d.con_horario), 
+            label: translations['dashboard.teachersWithSchedule'],
+            backgroundColor: k.distribucion_por_categoria.map((_, i) => vibrantColors[i % vibrantColors.length]),
+            hoverBackgroundColor: k.distribucion_por_categoria.map((_, i) => darkerColors[i % darkerColors.length]),
+            borderRadius: 4, borderWidth: { right: 4, top: 4 },
+            borderColor: k.distribucion_por_categoria.map((_, i) => darkerColors[i % darkerColors.length]),
+          },
+        ],
+      };
 
-    this.barChartData = {
-      labels: k.distribucion_por_categoria.map((d) => d.categoria),
-      datasets: [
-        {
-          data: k.distribucion_por_categoria.map((d) => d.total),
-          label: 'Total',
-          backgroundColor: k.distribucion_por_categoria.map(
-            (_, i) => vibrantColors[i % vibrantColors.length] + '80',
-          ), // 50% opacity
-          hoverBackgroundColor: k.distribucion_por_categoria.map(
-            (_, i) => vibrantColors[i % vibrantColors.length],
-          ),
-          borderRadius: 4,
-          borderWidth: { right: 4, top: 4 },
-          borderColor: k.distribucion_por_categoria.map(
-            (_, i) => darkerColors[i % darkerColors.length],
-          ),
-        },
-        {
-          data: k.distribucion_por_categoria.map((d) => d.con_horario),
-          label: 'Con Horario',
-          backgroundColor: k.distribucion_por_categoria.map(
-            (_, i) => vibrantColors[i % vibrantColors.length],
-          ),
-          hoverBackgroundColor: k.distribucion_por_categoria.map(
-            (_, i) => darkerColors[i % darkerColors.length],
-          ),
-          borderRadius: 4,
-          borderWidth: { right: 4, top: 4 },
-          borderColor: k.distribucion_por_categoria.map(
-            (_, i) => darkerColors[i % darkerColors.length],
-          ),
-        },
-      ],
-    };
-
-    this.doughnutData = {
-      labels: [
-        'Aulas Ocupadas',
-        'Aulas Libres',
-        'Labs Ocupados',
-        'Labs Libres',
-      ],
-      datasets: [
-        {
-          data: [
-            k.aulas_ocupadas,
-            k.total_aulas - k.aulas_ocupadas,
-            k.laboratorios_ocupados,
-            k.total_laboratorios - k.laboratorios_ocupados,
-          ],
-          backgroundColor: [
-            '#f97316', // Naranja intenso (Ocupadas)
-            '#3b82f6', // Azul intenso (Libres)
-            '#22c55e', // Verde intenso (Labs Ocupados)
-            '#a855f7', // Púrpura intenso (Labs Libres)
-          ],
+      this.doughnutData = {
+        labels: [
+          translations['dashboard.aulasOcupadas'], 
+          translations['dashboard.aulasLibres'], 
+          translations['dashboard.labsOcupados'], 
+          translations['dashboard.labsLibres']
+        ],
+        datasets: [{
+          data: [k.aulas_ocupadas, k.total_aulas - k.aulas_ocupadas, k.laboratorios_ocupados, k.total_laboratorios - k.laboratorios_ocupados],
+          backgroundColor: ['#f97316', '#3b82f6', '#22c55e', '#a855f7'],
           hoverBackgroundColor: ['#ea580c', '#2563eb', '#16a34a', '#9333ea'],
-          borderWidth: 3,
-          borderColor: '#ffffff',
-          hoverOffset: 30, // Aumentado para efecto de "salto" sólido
-          offset: 4, // Pequeño espacio entre piezas para simular profundidad
-        },
-      ],
-    };
+          borderWidth: 3, borderColor: '#ffffff', hoverOffset: 30, offset: 4,
+        }],
+      };
+    });
   }
 
   generarHorario(): void {
-    if (
-      !confirm(
-        `¿Generar horario para el período ${this.periodoService.periodo}? Esta acción sobrescribirá asignaciones existentes.`,
-      )
-    )
-      return;
-    this.generando = true;
-    this.api
-      .post<
-        ApiResponse<any>
-      >('/horarios/generar', { periodo: this.periodoService.periodo })
-      .subscribe({
-        next: (res) => {
-          this.snackBar.open(res.message, 'OK', { duration: 4000 });
-          this.generando = false;
-          this.loadAll();
-        },
-        error: () => {
-          this.generando = false;
-          this.snackBar.open('Error al generar horario', 'Cerrar', { duration: 3000 });
-        },
+    this.translate.get('dashboard.confirmGenerateSchedule', { periodo: this.periodoService.periodo })
+      .subscribe(message => {
+        if (!confirm(message)) return;
+        this.generando = true;
+        this.api.post<ApiResponse<any>>('/horarios/generar', { periodo: this.periodoService.periodo })
+          .subscribe({
+            next: (res) => { 
+              this.snackBar.open(res.message, 'OK', { duration: 4000 }); 
+              this.generando = false; 
+              this.loadAll(); 
+            },
+            error: () => { 
+              this.generando = false; 
+              this.translate.get('dashboard.errorLoading').subscribe(msg => 
+                this.snackBar.open(msg, this.translate.instant('common.close'), { duration: 3000 })
+              ); 
+            },
+          });
       });
   }
 
   resolverConflicto(id: number): void {
-    this.api
-      .patch<ApiResponse<any>>(`/horarios/conflictos/${id}/resolver`, {})
+    this.api.patch<ApiResponse<any>>(`/horarios/conflictos/${id}/resolver`, {})
       .subscribe({
-        next: () => {
-          this.snackBar.open('Conflicto resuelto', 'OK', { duration: 2000 });
-          this.loadConflictos();
-          this.loadKPIs();
+        next: () => { 
+          this.translate.get('common.success').subscribe(msg => 
+            this.snackBar.open(msg, 'OK', { duration: 2000 })
+          ); 
+          this.loadConflictos(); 
+          this.loadKPIs(); 
         },
-        error: () => {
-          this.snackBar.open('Error al resolver conflicto', 'Cerrar', { duration: 3000 });
+        error: () => { 
+          this.translate.get('dashboard.errorLoading').subscribe(msg => 
+            this.snackBar.open(msg, this.translate.instant('common.close'), { duration: 3000 })
+          ); 
         },
       });
   }
@@ -411,37 +379,47 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!this.kpis?.mapa_calor || this._heatmapCache.size > 0) return;
     for (const cell of this.kpis.mapa_calor) {
       const key = `${cell.dia}|${cell.hora}`;
+      const dayKey = `dashboard.days.${cell.dia.toLowerCase().replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('á', 'a')}`;
+      const translatedDay = this.translate.instant(dayKey);
       if (cell.intensidad === 0) {
-        this._heatmapCache.set(key, { color: 'rgba(0,0,0,0.04)', tooltip: 'Sin clases' });
+        this._heatmapCache.set(key, { 
+          color: 'rgba(0,0,0,0.04)', 
+          tooltip: this.translate.instant('dashboard.noClasses') 
+        });
         continue;
       }
       const alpha = Math.min(0.9, cell.intensidad / 100);
       const color = cell.tipo_clase === 'LABORATORIO'
         ? `rgba(34, 197, 94, ${alpha})`
+        : cell.tipo_clase === 'MIXTO'
+        ? `rgba(168, 85, 247, ${alpha})`
         : `rgba(59, 130, 246, ${alpha})`;
-      const tooltip = `${cell.dia} ${cell.hora} — Intensidad: ${cell.intensidad}% (${cell.tipo_clase})`;
+      const cursosStr = cell.cursos?.length ? `\n${cell.cursos.join(', ')}` : '';
+      let tipoClase = this.translate.instant('dashboard.classTypes.teoria');
+      if (cell.tipo_clase === 'LABORATORIO') tipoClase = this.translate.instant('dashboard.classTypes.laboratorio');
+      if (cell.tipo_clase === 'MIXTO') tipoClase = this.translate.instant('dashboard.classTypes.mixto');
+      const tooltip = `${translatedDay} ${cell.hora} — ${tipoClase}${cursosStr}`;
       this._heatmapCache.set(key, { color, tooltip });
     }
   }
 
+  private _startHour(hora: string): string {
+    return hora.split('-')[0];
+  }
+
   getHeatmapColor(dia: string, hora: string): string {
     this._buildHeatmapCache();
-    return this._heatmapCache.get(`${dia}|${hora}`)?.color ?? 'transparent';
+    return this._heatmapCache.get(`${dia}|${this._startHour(hora)}`)?.color ?? 'transparent';
   }
 
   getHeatmapTooltip(dia: string, hora: string): string {
     this._buildHeatmapCache();
-    return this._heatmapCache.get(`${dia}|${hora}`)?.tooltip ?? '';
+    return this._heatmapCache.get(`${dia}|${this._startHour(hora)}`)?.tooltip ?? '';
   }
 
   estadoPeriodoTexto(estado: string): string {
-    const map: Record<string, string> = {
-      planificacion: 'Planificación',
-      asignacionhorarios: 'Asignación de Horarios',
-      encurso: 'En Curso',
-      finalizado: 'Finalizado',
-    };
-    return map[estado] ?? estado;
+    const key = `dashboard.periodStates.${estado}`;
+    return this.translate.instant(key);
   }
 
   progresoPeriodo(): number {
@@ -452,5 +430,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (now <= start) return 0;
     if (now >= end) return 100;
     return Math.round(((now - start) / (end - start)) * 100);
+  }
+
+  tendenciaIcon(valor?: number): string {
+    if (valor === undefined || valor === null) return 'remove';
+    if (valor > 0) return 'trending_up';
+    if (valor < 0) return 'trending_down';
+    return 'remove';
+  }
+
+  tendenciaColor(valor?: number, invert = false): string {
+    if (valor === undefined || valor === null) return 'var(--text-muted)';
+    const positivo = invert ? valor < 0 : valor > 0;
+    if (valor > 0) return positivo ? '#10b981' : '#ef4444';
+    if (valor < 0) return positivo ? '#10b981' : '#ef4444';
+    return 'var(--text-muted)';
   }
 }

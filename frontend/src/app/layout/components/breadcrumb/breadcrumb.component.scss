@@ -1,0 +1,90 @@
+:host {
+  display: flex;
+  align-items: center;
+  min-width: 60px;
+  flex: 1;
+}
+
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.breadcrumb-list {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+  padding-bottom: 2px; /* Prevent scrollbar clipping */
+  
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  flex-shrink: 0; /* Prevent items from squishing on mobile */
+}
+
+.breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  background: transparent !important;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  padding: 0 8px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--color-background) !important;
+    color: var(--color-primary-600);
+  }
+
+  &.active {
+    color: var(--color-text);
+    font-weight: 600;
+    cursor: default;
+    pointer-events: none;
+    background: transparent !important;
+  }
+}
+
+.breadcrumb-separator {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.breadcrumb-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  color: var(--color-primary-500);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

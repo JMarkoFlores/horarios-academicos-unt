@@ -52,6 +52,7 @@ import { ChatbotModule } from "./chatbot/chatbot.module";
         autoLoadEntities: true,
         synchronize: true,
         logging: config.get<string>("DATABASE_LOGGING") === "true",
+        timezone: "-05:00",
         ssl:
           config.get<string>("DATABASE_SSL") === "true"
             ? { rejectUnauthorized: false }

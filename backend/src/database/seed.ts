@@ -353,14 +353,14 @@ export async function main() {
       { codigo: "IS-105", nombre: "Lectura Crítica y Redac. Textos Acad.", ciclo: 1, ht: 2, hp: 2, hl: 0 },
       { codigo: "IS-106", nombre: "Introducción al Análisis Matemático", ciclo: 1, ht: 2, hp: 4, hl: 0 },
       { codigo: "IS-107", nombre: "Estadística General", ciclo: 1, ht: 2, hp: 2, hl: 0 },
-      { codigo: "IS-301", nombre: "Estructura de Datos", ciclo: 3, ht: 2, hp: 0, hl: 4 },
-      { codigo: "IS-302", nombre: "Lenguajes de Programación I", ciclo: 3, ht: 2, hp: 2, hl: 2 },
-      { codigo: "IS-303", nombre: "Fundamentos de Sistemas de Información", ciclo: 3, ht: 1, hp: 2, hl: 3 },
-      { codigo: "IS-304", nombre: "Organización y Arquitectura de Computadoras", ciclo: 3, ht: 2, hp: 4, hl: 2 },
-      { codigo: "IS-305", nombre: "Análisis y Diseño de Algoritmos", ciclo: 3, ht: 2, hp: 2, hl: 2 },
-      { codigo: "IS-306", nombre: "Modelamiento de Datos", ciclo: 3, ht: 2, hp: 2, hl: 0 },
       { codigo: "IS-307", nombre: "Física Electrónica", ciclo: 3, ht: 2, hp: 2, hl: 2 },
       { codigo: "IS-308", nombre: "Psicología Organizacional", ciclo: 3, ht: 1, hp: 2, hl: 0 },
+      { codigo: "IS-309", nombre: "Programación Orientada a Objetos II", ciclo: 3, ht: 2, hp: 0, hl: 4 },
+      { codigo: "IS-310", nombre: "Sistémica", ciclo: 3, ht: 2, hp: 1, hl: 2 },
+      { codigo: "IS-311", nombre: "Ingeniería Gráfica (e )", ciclo: 3, ht: 1, hp: 1, hl: 3 },
+      { codigo: "IS-312", nombre: "Matemática Aplicada", ciclo: 3, ht: 1, hp: 2, hl: 2 },
+      { codigo: "IS-313", nombre: "Estadística Aplicada", ciclo: 3, ht: 1, hp: 2, hl: 2 },
+      { codigo: "IS-314", nombre: "Administración General", ciclo: 3, ht: 2, hp: 2, hl: 0 },
       { codigo: "IS-501", nombre: "Ingeniería de Datos I", ciclo: 5, ht: 2, hp: 2, hl: 4 },
       { codigo: "IS-502", nombre: "Sistemas de Información", ciclo: 5, ht: 2, hp: 2, hl: 2 },
       { codigo: "IS-503", nombre: "Transformación digital", ciclo: 5, ht: 2, hp: 0, hl: 2 },
@@ -400,7 +400,7 @@ export async function main() {
         departamento_id: departamento.id,
         activo: true 
       }));
-      const numGrupos = (c.codigo === "IS-707") ? 4 : 3;
+      const numGrupos = (c.codigo === "IS-707" || c.codigo === "IS-307") ? 4 : 3;
       for (let i = 1; i <= numGrupos; i++) {
         const gCode = `G${i}`;
         await grupoRepo.save(grupoRepo.create({
@@ -415,11 +415,11 @@ export async function main() {
     }
 
     console.log("📅 Creando asignaciones de horarios desde archivos por ciclo...");
-    await seedHorariosCicloI(AppDataSource);
-    await seedHorariosCicloIII(AppDataSource);
-    await seedHorariosCicloV(AppDataSource);
-    await seedHorariosCicloVII(AppDataSource);
-    await seedHorariosCicloIX(AppDataSource);
+    await seedHorariosCicloI();
+    await seedHorariosCicloIII();
+    await seedHorariosCicloV();
+    await seedHorariosCicloVII();
+    await seedHorariosCicloIX();
 
     const dbDocentes = await docenteRepo.find();
     const dbCursos = await cursoRepo.find();

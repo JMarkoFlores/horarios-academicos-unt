@@ -493,7 +493,7 @@ export class HorariosService {
       .join(", ");
   }
 
-  private async invalidateHorariosCache(): Promise<void> {
+  async invalidateHorariosCache(): Promise<void> {
     const prefixes = ["http_cache:GET:/horarios", "http_cache:GET:/dashboard"];
 
     for (const prefix of prefixes) {

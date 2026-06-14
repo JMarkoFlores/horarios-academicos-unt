@@ -1,0 +1,1709 @@
+[
+  {
+    "id": "TC001",
+    "title": "Sign in and reach the dashboard",
+    "description": "This verifies that a valid user can sign in and land on the main dashboard for their role.",
+    "category": "Authentication",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify role-appropriate dashboard content is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Assign timetable cells to a teacher",
+    "description": "This verifies that an operator can select timetable cells, review validation, confirm the selection, and see the assignment applied.",
+    "category": "Operador / Ventanas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/secretaria/ventanas"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing scheduling window"
+      },
+      {
+        "type": "action",
+        "description": "Start the session"
+      },
+      {
+        "type": "action",
+        "description": "Select schedule cells for a teacher"
+      },
+      {
+        "type": "action",
+        "description": "Review the validation result"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the selection"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the assignment is applied"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Start a scheduling window session",
+    "description": "This verifies that an operator can open an existing scheduling window and start it so the queue and schedule grid become available.",
+    "category": "Operador / Ventanas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/secretaria/ventanas"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing scheduling window"
+      },
+      {
+        "type": "action",
+        "description": "Start the session"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the queue is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the schedule grid is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Reject invalid credentials",
+    "description": "This verifies that signing in with incorrect credentials shows an invalid credentials message and does not grant access.",
+    "category": "Authentication",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with invalid@example.com"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with invalid-password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an invalid credentials message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard is not displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Resolve a dashboard conflict",
+    "description": "This verifies that a user can resolve a scheduling conflict from the dashboard and see the conflict list update.",
+    "category": "Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Resolve a conflict from the conflict list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the conflict list is updated"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the resolved conflict is no longer shown as pending"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Clear schedules for a period",
+    "description": "This verifies that a user can clear all schedules for a selected period and see the period become empty afterward.",
+    "category": "Horarios",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/horarios"
+      },
+      {
+        "type": "action",
+        "description": "Choose the option to clear schedules for a period"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the clearing action"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected period no longer shows scheduled entries"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Call the next person in the queue",
+    "description": "This verifies that an operator can call the next person in the queue and see the next teacher move into attention.",
+    "category": "Operador / Ventanas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/secretaria/ventanas"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing scheduling window"
+      },
+      {
+        "type": "action",
+        "description": "Start the session"
+      },
+      {
+        "type": "action",
+        "description": "Call the next person in the queue"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the action"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the next teacher is shown as being attended"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Generate schedules from the dashboard",
+    "description": "This verifies that schedule generation can be started from the dashboard and the updated scheduling state is reflected afterward.",
+    "category": "Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Start schedule generation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify generated schedules are reflected on the dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dashboard shows updated scheduling progress"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Review dashboard indicators and conflict overview",
+    "description": "This verifies that an authenticated user can review the main dashboard indicators, charts, heatmap, and conflict list.",
+    "category": "Dashboard",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify KPI cards are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify schedule coverage and conflict visualizations are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Edit a schedule assignment",
+    "description": "This verifies that a user can open an assignment, update it, and see the revised assignment reflected in the schedule grid.",
+    "category": "Horarios",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/horarios"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing schedule assignment for editing"
+      },
+      {
+        "type": "action",
+        "description": "Update the assignment details"
+      },
+      {
+        "type": "action",
+        "description": "Save the assignment changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the revised assignment is displayed in the schedule view"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Create a scheduling window",
+    "description": "This verifies that an operator can create a new scheduling window and see it added to the window list.",
+    "category": "Operador / Ventanas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/secretaria/ventanas"
+      },
+      {
+        "type": "action",
+        "description": "Create a scheduling window"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid name for the window"
+      },
+      {
+        "type": "action",
+        "description": "Save the window"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new window appears in the list"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Finish a scheduling window session",
+    "description": "This verifies that an operator can finish a session and see the window return to a closed state.",
+    "category": "Operador / Ventanas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/secretaria/ventanas"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing scheduling window"
+      },
+      {
+        "type": "action",
+        "description": "Start the session"
+      },
+      {
+        "type": "action",
+        "description": "Finish the session"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the action"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the window is shown as closed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Delete a schedule assignment",
+    "description": "This verifies that a user can remove a schedule entry and see it disappear from the schedule view after confirmation.",
+    "category": "Horarios",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/horarios"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing schedule assignment for deletion"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the deletion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the assignment is removed from the schedule view"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Review schedules by different perspectives",
+    "description": "This verifies that a user can switch between schedule perspectives and see the corresponding schedule information update.",
+    "category": "Horarios",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/horarios"
+      },
+      {
+        "type": "action",
+        "description": "Switch to the teacher schedule view"
+      },
+      {
+        "type": "action",
+        "description": "Switch to the room schedule view"
+      },
+      {
+        "type": "action",
+        "description": "Switch to the conflict view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify schedule information is displayed for the selected perspectives"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "Preserve availability changes after slot toggling",
+    "description": "This verifies that availability changes are saved automatically when a user toggles time slots in the weekly grid.",
+    "category": "Disponibilidad Docente",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/disponibilidad"
+      },
+      {
+        "type": "action",
+        "description": "Select a teacher from the list"
+      },
+      {
+        "type": "action",
+        "description": "Toggle a valid availability slot on the weekly grid"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected slot appears as available for the teacher"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC016",
+    "title": "Create an academic period from configuration",
+    "description": "Verifies that a user can create a new academic period and see it available for use.",
+    "category": "Academic Period Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/configuracion"
+      },
+      {
+        "type": "action",
+        "description": "Access period management"
+      },
+      {
+        "type": "action",
+        "description": "Create a new academic period"
+      },
+      {
+        "type": "action",
+        "description": "Save the period"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new academic period is available for use"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC017",
+    "title": "Manage teacher availability across the weekly grid",
+    "description": "This verifies that a user can select a teacher, toggle availability slots, switch turns, and see the availability grid update and persist.",
+    "category": "Disponibilidad Docente",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/disponibilidad"
+      },
+      {
+        "type": "action",
+        "description": "Select a teacher from the list"
+      },
+      {
+        "type": "action",
+        "description": "Toggle a valid availability slot on the weekly grid"
+      },
+      {
+        "type": "action",
+        "description": "Switch to another configured turn"
+      },
+      {
+        "type": "action",
+        "description": "Toggle a previously selected slot off"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the availability grid reflects the saved slot changes for the selected teacher"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC018",
+    "title": "Mark a person as absent",
+    "description": "This verifies that an operator can mark a queued person as absent and see the queue status update.",
+    "category": "Operador / Ventanas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/secretaria/ventanas"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing scheduling window"
+      },
+      {
+        "type": "action",
+        "description": "Start the session"
+      },
+      {
+        "type": "action",
+        "description": "Mark a person as absent"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the action"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the queue status is updated"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC019",
+    "title": "Create a new docente record",
+    "description": "This verifies that authorized staff can create a new teacher record and see it added to the list.",
+    "category": "Docente Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/docentes"
+      },
+      {
+        "type": "action",
+        "description": "Open the new teacher form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the teacher details with valid information"
+      },
+      {
+        "type": "action",
+        "description": "Save the record"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new teacher appears in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the teacher list reflects the added record"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC020",
+    "title": "Create a course",
+    "description": "Verifies that a user can add a new course and see it appear in the course list.",
+    "category": "Curso Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/cursos"
+      },
+      {
+        "type": "action",
+        "description": "Open the new course form"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid course details"
+      },
+      {
+        "type": "action",
+        "description": "Save the course"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new course appears in the course list"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC021",
+    "title": "Edit an existing docente",
+    "description": "This verifies that a docente record can be opened, updated, and shown with the new information in the list.",
+    "category": "Docente Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/docentes"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing teacher for editing"
+      },
+      {
+        "type": "action",
+        "description": "Update the teacher information with valid changes"
+      },
+      {
+        "type": "action",
+        "description": "Save the changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated teacher appears in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the teacher record reflects the changes"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC022",
+    "title": "Edit a course and its groups",
+    "description": "Verifies that a user can update an existing course and its group configuration and see the changes reflected.",
+    "category": "Curso Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/cursos"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing course for editing"
+      },
+      {
+        "type": "action",
+        "description": "Update the course details"
+      },
+      {
+        "type": "action",
+        "description": "Update the group configuration"
+      },
+      {
+        "type": "action",
+        "description": "Save the changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated course information is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated group configuration is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC023",
+    "title": "Configure scheduling settings and save changes",
+    "description": "This verifies that a user can update scheduling configuration sections and see the saved settings reflected afterward.",
+    "category": "Scheduling Configuration",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/configuracion"
+      },
+      {
+        "type": "action",
+        "description": "Review the scheduling configuration sections"
+      },
+      {
+        "type": "action",
+        "description": "Update a turn or restriction setting"
+      },
+      {
+        "type": "action",
+        "description": "Update a load parameter setting"
+      },
+      {
+        "type": "action",
+        "description": "Save the configuration"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated configuration is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC024",
+    "title": "Update an academic period state and dates",
+    "description": "Verifies that a user can edit an academic period and see the updated state reflected.",
+    "category": "Academic Period Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/periodos"
+      },
+      {
+        "type": "action",
+        "description": "Open an academic period"
+      },
+      {
+        "type": "action",
+        "description": "Update the period dates or state"
+      },
+      {
+        "type": "action",
+        "description": "Save the changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the period reflects the updated state"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC025",
+    "title": "Search and filter docentes",
+    "description": "This verifies that users can search and filter the docente list and see the results update with active filters.",
+    "category": "Docente Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/docentes"
+      },
+      {
+        "type": "action",
+        "description": "Apply a search term and at least one filter to the docente list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the docente list is filtered"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify active filter chips are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC026",
+    "title": "Create an environment",
+    "description": "Verifies that a user can add a new environment and see it appear in the environment list.",
+    "category": "Ambiente Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/ambientes"
+      },
+      {
+        "type": "action",
+        "description": "Open the new environment form"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid environment details"
+      },
+      {
+        "type": "action",
+        "description": "Save the record"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new environment appears in the list"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC027",
+    "title": "Assign compatible environments to a course",
+    "description": "Verifies that a user can map compatible environments to a course and see the assignment applied.",
+    "category": "Curso Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/cursos"
+      },
+      {
+        "type": "action",
+        "description": "Open a course for environment assignment"
+      },
+      {
+        "type": "action",
+        "description": "Select compatible environments"
+      },
+      {
+        "type": "action",
+        "description": "Save the assignment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the environment mapping is displayed for the course"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC028",
+    "title": "Update period and campaign configuration",
+    "description": "This verifies that a user can review configured periods and campaign settings, update them, and see the changes persisted in the interface.",
+    "category": "Scheduling Configuration",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/configuracion"
+      },
+      {
+        "type": "action",
+        "description": "Review the configured periods and campaign settings"
+      },
+      {
+        "type": "action",
+        "description": "Update the relevant configuration"
+      },
+      {
+        "type": "action",
+        "description": "Save the changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated period or campaign configuration is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC029",
+    "title": "Open a docente schedule preview",
+    "description": "This verifies that a teacher record can open a schedule preview and display the teacher's schedule view.",
+    "category": "Docente Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/docentes"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing teacher for schedule preview"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the teacher schedule preview is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify schedule entries are visible in the preview"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC030",
+    "title": "Search and filter courses",
+    "description": "Verifies that course search and filters narrow the list and show active filter chips.",
+    "category": "Curso Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/cursos"
+      },
+      {
+        "type": "action",
+        "description": "Apply a course search and one or more filters"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the course list updates to match the filters"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify active filter chips are displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC031",
+    "title": "Export the current schedule view",
+    "description": "This verifies that a user can generate an export from the schedule screen for the currently selected view.",
+    "category": "Horarios",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/horarios"
+      },
+      {
+        "type": "action",
+        "description": "Select the schedule view to export"
+      },
+      {
+        "type": "action",
+        "description": "Start the export for the current schedule view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an export confirmation or generated export state is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC032",
+    "title": "Filter environments and review the campus map",
+    "description": "Verifies that environment filters update the list and the campus map shows locations and occupancy indicators.",
+    "category": "Ambiente Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/ambientes"
+      },
+      {
+        "type": "action",
+        "description": "Apply a type, capacity, or search filter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the environment list updates to match the filter"
+      },
+      {
+        "type": "action",
+        "description": "Switch to the campus map view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify environment locations are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify occupancy indicators are displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC033",
+    "title": "View personal schedule",
+    "description": "A teacher can open their self-service schedule page and see their assigned classes displayed.",
+    "category": "Docente Self-Service Schedule",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the personal schedule page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the personal schedule is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify assigned classes are displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC034",
+    "title": "View teacher schedule in self-service mode",
+    "description": "This verifies that a teacher can open their schedule view and see their assigned timetable information.",
+    "category": "Mis Horarios",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/mis-horarios"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the teacher's schedule information is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC035",
+    "title": "Delete a docente record",
+    "description": "This verifies that a docente can be deleted after confirmation and is removed from the list.",
+    "category": "Docente Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/docentes"
+      },
+      {
+        "type": "action",
+        "description": "Choose a teacher for deletion"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the deletion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the teacher is removed from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the list no longer shows the deleted record"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC036",
+    "title": "Edit and delete an environment",
+    "description": "Verifies that a user can update an environment and remove it from the list.",
+    "category": "Ambiente Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/ambientes"
+      },
+      {
+        "type": "action",
+        "description": "Open an environment for editing"
+      },
+      {
+        "type": "action",
+        "description": "Update the environment details"
+      },
+      {
+        "type": "action",
+        "description": "Save the changes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the updated environment is displayed"
+      },
+      {
+        "type": "action",
+        "description": "Choose an environment for deletion"
+      },
+      {
+        "type": "action",
+        "description": "Confirm deletion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the environment is removed from the list"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC037",
+    "title": "Export teacher schedule from self-service mode",
+    "description": "This verifies that a teacher can initiate an export of their personal schedule from the self-service page.",
+    "category": "Mis Horarios",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /app/mis-horarios"
+      },
+      {
+        "type": "action",
+        "description": "Start the schedule export"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an export confirmation or generated export state is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC038",
+    "title": "Delete and reactivate a course",
+    "description": "Verifies that a removed course disappears from the list and can be restored later.",
+    "category": "Curso Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/cursos"
+      },
+      {
+        "type": "action",
+        "description": "Choose a course for deletion"
+      },
+      {
+        "type": "action",
+        "description": "Confirm deletion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the course is removed from the list"
+      },
+      {
+        "type": "action",
+        "description": "Choose the removed course"
+      },
+      {
+        "type": "action",
+        "description": "Reactivate the course"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the course returns to the list"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC039",
+    "title": "Download personal schedule as PDF",
+    "description": "A teacher can download their personal schedule in PDF format from the self-service page.",
+    "category": "Docente Self-Service Schedule",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the personal schedule page"
+      },
+      {
+        "type": "action",
+        "description": "Download the schedule as PDF"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the PDF download is initiated"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the personal schedule remains visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC040",
+    "title": "Download personal schedule as Excel",
+    "description": "A teacher can download their personal schedule in Excel format from the self-service page.",
+    "category": "Docente Self-Service Schedule",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the personal schedule page"
+      },
+      {
+        "type": "action",
+        "description": "Download the schedule as Excel"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Excel download is initiated"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the personal schedule remains visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC041",
+    "title": "Keep schedule visible after exporting",
+    "description": "A teacher can export their schedule and continue reviewing the same page without losing context.",
+    "category": "Docente Self-Service Schedule",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the personal schedule page"
+      },
+      {
+        "type": "action",
+        "description": "Download the schedule as PDF or Excel"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the personal schedule is still displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify assigned classes are still displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC042",
+    "title": "See session connection status",
+    "description": "This verifies that an operator can see the real-time connection indicator while working in a scheduling window.",
+    "category": "Operador / Ventanas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /app/secretaria/ventanas"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing scheduling window"
+      },
+      {
+        "type": "action",
+        "description": "Start the session"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the connection status indicator is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC043",
+    "title": "View an empty personal schedule state",
+    "description": "A teacher with no assigned classes sees an empty state instead of a broken schedule view.",
+    "category": "Docente Self-Service Schedule",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the personal schedule page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no assigned classes are displayed"
+      }
+    ],
+    "priority": "Low"
+  }
+]

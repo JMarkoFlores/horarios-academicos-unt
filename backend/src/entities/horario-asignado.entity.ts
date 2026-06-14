@@ -87,10 +87,10 @@ export class HorarioAsignado {
   @Column({ nullable: true, type: 'jsonb' })
   historial_cambios?: any;
 
-  @CreateDateColumn({ name: "creado_en" })
+  @CreateDateColumn({ name: "creado_en", type: "timestamptz" })
   creado_en: Date;
 
-  @UpdateDateColumn({ name: "actualizado_en" })
+  @UpdateDateColumn({ name: "actualizado_en", type: "timestamptz" })
   actualizado_en: Date;
 
   @ManyToOne(() => Docente, (docente) => docente.horarios, { nullable: false })

@@ -8,6 +8,7 @@ export interface ConfirmDialogData {
   confirmLabel?: string;
   confirmColor?: 'warn' | 'primary' | 'accent';
   icon?: string;
+  loading?: boolean;
 }
 
 @Component({
@@ -23,12 +24,14 @@ export interface ConfirmDialogData {
         <p class="detail" *ngIf="data.detail">{{ data.detail }}</p>
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-button (click)="dialogRef.close(false)" class="btn-cancel">Cancelar</button>
+        <button mat-button (click)="dialogRef.close(false)" class="btn-cancel" [disabled]="data.loading">Cancelar</button>
         <button mat-raised-button
           [color]="data.confirmColor ?? 'warn'"
           (click)="dialogRef.close(true)"
-          class="btn-confirm">
-          {{ data.confirmLabel ?? 'Confirmar' }}
+          class="btn-confirm"
+          [disabled]="data.loading">
+          <mat-spinner diameter="18" *ngIf="data.loading" class="btn-spinner"></mat-spinner>
+          <span [class.hidden]="data.loading">{{ data.confirmLabel ?? 'Confirmar' }}</span>
         </button>
       </mat-dialog-actions>
     </div>
@@ -57,7 +60,9 @@ export interface ConfirmDialogData {
     .detail { font-size: 12px; color: var(--color-text-muted); margin: 0; }
     mat-dialog-actions { padding: 16px 0 8px; gap: 8px; }
     .btn-cancel { border-radius: 8px !important; font-weight: 600 !important; }
-    .btn-confirm { border-radius: 8px !important; font-weight: 700 !important; }
+    .btn-confirm { border-radius: 8px !important; font-weight: 700 !important; position: relative; }
+    .btn-spinner { display: inline-block; margin-right: 6px; }
+    .hidden { visibility: hidden; }
   `],
 })
 export class ConfirmDialogComponent {

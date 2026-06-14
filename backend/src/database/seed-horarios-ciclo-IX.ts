@@ -32,7 +32,7 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 
-const AppDataSourceIX = new DataSource({
+const AppDataSource = new DataSource({
   type: "postgres",
   host: process.env.DATABASE_HOST ?? "localhost",
   port: parseInt(process.env.DATABASE_PORT ?? "5432", 10),
@@ -68,15 +68,18 @@ const AppDataSourceIX = new DataSource({
   logging: false,
 });
 
-export async function seedHorariosCicloIX(dataSource: DataSource) {
+export async function seedHorariosCicloIX() {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO IX...");
 
-  const docenteRepo = dataSource.getRepository(Docente);
-  const cursoRepo = dataSource.getRepository(Curso);
-  const ambienteRepo = dataSource.getRepository(Ambiente);
-  const grupoRepo = dataSource.getRepository(Grupo);
-  const horarioRepo = dataSource.getRepository(HorarioAsignado);
-  const periodoRepo = dataSource.getRepository(PeriodoAcademico);
+  await AppDataSource.initialize();
+  console.log("✅ Conexión a la base de datos establecida");
+
+  const docenteRepo = AppDataSource.getRepository(Docente);
+  const cursoRepo = AppDataSource.getRepository(Curso);
+  const ambienteRepo = AppDataSource.getRepository(Ambiente);
+  const grupoRepo = AppDataSource.getRepository(Grupo);
+  const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
+  const periodoRepo = AppDataSource.getRepository(PeriodoAcademico);
 
   // ── 1. OBTENER DATOS EXISTENTES ───────────────────────────────────────────
   console.log("📋 Obteniendo datos existentes de la base de datos...");
@@ -109,13 +112,13 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     }
 
     const [h1, h2] = rango.split("-").map(s => parseInt(s.trim(), 10));
-    
+
     let horaInicio = h1;
     if (h1 <= 6) horaInicio += 12;
-    
+
     let horaFin = h2;
     if (h2 <= 6 || h2 < h1) horaFin += 12;
-    
+
     // Caso especial: si el rango es algo como "7-10" o "9-1", h2=1 debe ser 13
     if (h1 >= 7 && h1 <= 12 && h2 < 7) {
       horaFin = h2 + 12;
@@ -153,79 +156,66 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     return TipoClase.TEORIA;
   };
 
-  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-
-  const getDocente = (nombre: string) => {
-    return dbDocentes.find(d => normalize(`${d.nombres} ${d.apellidos}`).includes(normalize(nombre)));
+  const getGrupo = (curso: Curso, g: number): Grupo | undefined => {
+    return dbGrupos.find(gr => gr.curso?.id === curso.id && gr.codigo.endsWith(`-G${g}`));
   };
 
-  const getCurso = (nombre: string) => {
-    return dbCursos.find(c => normalize(c.nombre).includes(normalize(nombre).split("(")[0].trim()));
-  };
-
-  const getAmbiente = (codigo: string) => {
-    const code = mapAmbiente(codigo);
-    return dbAmbientes.find(a => a.codigo === code || a.nombre === codigo);
-  };
-
-  const getGrupo = (curso: Curso, g: number) => {
-    return dbGrupos.find(gr => (gr.curso_id === curso.id || gr.curso?.id === curso.id) && gr.codigo.endsWith(`-G${g}`));
-  };
+  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   // ── 3. DATOS DE LOS HORARIOS DEL CICLO IX ───────────────────────────────
   console.log("📋 Datos de horarios del ciclo IX cargados");
-  const data = [
+  const horariosCicloIXData = [
     // 1. Juan Pedro Santos Fernández - Tesis I (T:2, P:2, L:2, G:1)
-    { doc: "Juan Pedro Santos Fernández", curso: "Tesis I", dia: "Jueves", horas: "07:00-09:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "Juan Pedro Santos Fernández", curso: "Tesis I", dia: "Jueves", horas: "09:00-11:00", tipo: "Práctica", amb: "posgrado A-303", g: 1 },
-    { doc: "Juan Pedro Santos Fernández", curso: "Tesis I", dia: "Jueves", horas: "11:00-13:00", tipo: "Laboratorio", amb: "Lab 2", g: 1 },
-    
+    { docente: "Juan Pedro Santos Fernández", curso: "Tesis I", dia: "Jueves", horas: "07:00-09:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Juan Pedro Santos Fernández", curso: "Tesis I", dia: "Jueves", horas: "09:00-11:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Juan Pedro Santos Fernández", curso: "Tesis I", dia: "Jueves", horas: "11:00-13:00", tipo: "Laboratorio", ambiente: "Lab 2", grupo: 1 },
+
     // 2. Ricardo Mendoza Rivera - Tesis I (T:2, P:2, L:2, G:1)
-    { doc: "Ricardo Mendoza Rivera", curso: "Tesis I", dia: "Jueves", horas: "14:00-16:00", tipo: "Teoría", amb: "posgrado A-311", g: 1 },
-    { doc: "Ricardo Mendoza Rivera", curso: "Tesis I", dia: "Jueves", horas: "16:00-18:00", tipo: "Práctica", amb: "posgrado A-311", g: 1 },
-    { doc: "Ricardo Mendoza Rivera", curso: "Tesis I", dia: "Viernes", horas: "16:00-18:00", tipo: "Laboratorio", amb: "Lab 4", g: 1 },
-    
+    { docente: "Ricardo Mendoza Rivera", curso: "Tesis I", dia: "Jueves", horas: "14:00-16:00", tipo: "Teoría", ambiente: "posgrado A-311", grupo: 1 },
+    { docente: "Ricardo Mendoza Rivera", curso: "Tesis I", dia: "Jueves", horas: "16:00-18:00", tipo: "Práctica", ambiente: "posgrado A-311", grupo: 1 },
+    { docente: "Ricardo Mendoza Rivera", curso: "Tesis I", dia: "Viernes", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab 4", grupo: 1 },
+
     // 3. Ricardo Mendoza Rivera - Analítica de Negocios (T:1, P:2, L:2, G:1)
-    { doc: "Ricardo Mendoza Rivera", curso: "Analítica de Negocios", dia: "Viernes", horas: "10:00-11:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "Ricardo Mendoza Rivera", curso: "Analítica de Negocios", dia: "Viernes", horas: "11:00-13:00", tipo: "Práctica", amb: "posgrado A-303", g: 1 },
-    { doc: "Ricardo Mendoza Rivera", curso: "Analítica de Negocios", dia: "Viernes", horas: "14:00-16:00", tipo: "Laboratorio", amb: "Lab 4", g: 1 },
-    
+    { docente: "Ricardo Mendoza Rivera", curso: "Analítica de Negocios", dia: "Viernes", horas: "10:00-11:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Ricardo Mendoza Rivera", curso: "Analítica de Negocios", dia: "Viernes", horas: "11:00-13:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Ricardo Mendoza Rivera", curso: "Analítica de Negocios", dia: "Viernes", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab 4", grupo: 1 },
+
     // 4. Alberto Mendoza de los Santos - Auditoría Informática (T:1, P:2, L:2, G:2)
-    { doc: "Alberto Mendoza de los Santos", curso: "Auditoría Informática", dia: "Lunes", horas: "10:00-11:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "Alberto Mendoza de los Santos", curso: "Auditoría Informática", dia: "Lunes", horas: "11:00-13:00", tipo: "Práctica", amb: "posgrado A-303", g: 1 },
-    { doc: "Alberto Mendoza de los Santos", curso: "Auditoría Informática", dia: "Martes", horas: "10:00-12:00", tipo: "Laboratorio", amb: "Lab 3", g: 1 },
-    { doc: "Alberto Mendoza de los Santos", curso: "Auditoría Informática", dia: "Martes", horas: "12:00-14:00", tipo: "Laboratorio", amb: "Lab 3", g: 2 },
-    
+    { docente: "Alberto Mendoza de los Santos", curso: "Auditoría Informática", dia: "Lunes", horas: "10:00-11:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Alberto Mendoza de los Santos", curso: "Auditoría Informática", dia: "Lunes", horas: "11:00-13:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Alberto Mendoza de los Santos", curso: "Auditoría Informática", dia: "Martes", horas: "10:00-12:00", tipo: "Laboratorio", ambiente: "Lab 3", grupo: 1 },
+    { docente: "Alberto Mendoza de los Santos", curso: "Auditoría Informática", dia: "Martes", horas: "12:00-14:00", tipo: "Laboratorio", ambiente: "Lab 3", grupo: 2 },
+
     // 5. José Gómez Ávila - Gestión de Proyectos de TI (T:1, P:2, L:2, G:3)
-    { doc: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Lunes", horas: "14:00-15:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Lunes", horas: "15:00-17:00", tipo: "Práctica", amb: "posgrado A-303", g: 1 },
-    { doc: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Martes", horas: "10:00-12:00", tipo: "Laboratorio", amb: "Audiovisuales", g: 1 },
-    { doc: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Martes", horas: "13:00-15:00", tipo: "Laboratorio", amb: "Lab 1", g: 2 },
-    { doc: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Martes", horas: "19:00-21:00", tipo: "Laboratorio", amb: "Lab 1", g: 3 },
-    
+    { docente: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Lunes", horas: "14:00-15:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Lunes", horas: "15:00-17:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Martes", horas: "10:00-12:00", tipo: "Laboratorio", ambiente: "Audiovisuales", grupo: 1 },
+    { docente: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Martes", horas: "13:00-15:00", tipo: "Laboratorio", ambiente: "Lab 1", grupo: 2 },
+    { docente: "José Gómez Ávila", curso: "Gestión de Proyectos de TI", dia: "Martes", horas: "19:00-21:00", tipo: "Laboratorio", ambiente: "Lab 1", grupo: 3 },
+
     // 6. Oscar Romel Alcántara Moreno - Emprendimiento Tecnológico (T:2, P:0, L:2, G:2)
-    { doc: "Oscar Romel Alcántara Moreno", curso: "Emprendimiento Tecnológico", dia: "Viernes", horas: "14:00-16:00", tipo: "Laboratorio", amb: "Lab 2", g: 1 },
-    { doc: "Oscar Romel Alcántara Moreno", curso: "Emprendimiento Tecnológico", dia: "Viernes", horas: "16:00-18:00", tipo: "Laboratorio", amb: "Lab 2", g: 2 },
-    { doc: "Oscar Romel Alcántara Moreno", curso: "Emprendimiento Tecnológico", dia: "Viernes", horas: "18:00-20:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    
+    { docente: "Oscar Romel Alcántara Moreno", curso: "Emprendimiento Tecnológico", dia: "Viernes", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab 2", grupo: 1 },
+    { docente: "Oscar Romel Alcántara Moreno", curso: "Emprendimiento Tecnológico", dia: "Viernes", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab 2", grupo: 2 },
+    { docente: "Oscar Romel Alcántara Moreno", curso: "Emprendimiento Tecnológico", dia: "Viernes", horas: "18:00-20:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+
     // 7. Marcelino Torres Villanueva - Ingeniería Web (T:1, P:1, L:3, G:3)
-    { doc: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Lunes", horas: "18:00-19:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Lunes", horas: "19:00-20:00", tipo: "Práctica", amb: "posgrado A-303", g: 1 },
-    { doc: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Martes", horas: "14:00-17:00", tipo: "Laboratorio", amb: "Lab 4", g: 1 },
-    { doc: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Martes", horas: "17:00-20:00", tipo: "Laboratorio", amb: "Lab 4", g: 2 },
-    { doc: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Miércoles", horas: "10:00-13:00", tipo: "Laboratorio", amb: "Lab 4", g: 3 },
-    
+    { docente: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Lunes", horas: "18:00-19:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Lunes", horas: "19:00-20:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Martes", horas: "14:00-17:00", tipo: "Laboratorio", ambiente: "Lab 4", grupo: 1 },
+    { docente: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Martes", horas: "17:00-20:00", tipo: "Laboratorio", ambiente: "Lab 4", grupo: 2 },
+    { docente: "Marcelino Torres Villanueva", curso: "Ingeniería Web", dia: "Miércoles", horas: "10:00-13:00", tipo: "Laboratorio", ambiente: "Lab 4", grupo: 3 },
+
     // 8. José Gómez Ávila - Computación en la Nube (T:1, P:1, L:3, G:3)
-    { doc: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Lunes", horas: "07:00-10:00", tipo: "Laboratorio", amb: "Lab 3", g: 1 },
-    { doc: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Miércoles", horas: "07:00-10:00", tipo: "Laboratorio", amb: "Lab 3", g: 2 },
-    { doc: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Miércoles", horas: "17:00-20:00", tipo: "Laboratorio", amb: "Lab 4", g: 3 },
-    { doc: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Jueves", horas: "18:00-19:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Jueves", horas: "19:00-20:00", tipo: "Práctica", amb: "posgrado A-303", g: 1 },
-    
+    { docente: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Lunes", horas: "07:00-10:00", tipo: "Laboratorio", ambiente: "Lab 3", grupo: 1 },
+    { docente: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Miércoles", horas: "07:00-10:00", tipo: "Laboratorio", ambiente: "Lab 3", grupo: 2 },
+    { docente: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Miércoles", horas: "17:00-20:00", tipo: "Laboratorio", ambiente: "Lab 4", grupo: 3 },
+    { docente: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Jueves", horas: "18:00-19:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "José Gómez Ávila", curso: "Computación en la Nube", dia: "Jueves", horas: "19:00-20:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+
     // 9. Camilo Suarez Rebaza - Hackeo Ético (e) (T:2, P:0, L:2, G:2)
-    { doc: "Camilo Suarez Rebaza", curso: "Hackeo Ético (e)", dia: "Martes", horas: "08:00-10:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "Camilo Suarez Rebaza", curso: "Hackeo Ético (e)", dia: "Martes", horas: "15:00-17:00", tipo: "Laboratorio", amb: "Lab 2", g: 1 },
-    { doc: "Camilo Suarez Rebaza", curso: "Hackeo Ético (e)", dia: "Martes", horas: "17:00-19:00", tipo: "Laboratorio", amb: "Lab 2", g: 2 },
+    { docente: "Camilo Suarez Rebaza", curso: "Hackeo Ético (e)", dia: "Martes", horas: "08:00-10:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Camilo Suarez Rebaza", curso: "Hackeo Ético (e)", dia: "Martes", horas: "15:00-17:00", tipo: "Laboratorio", ambiente: "Lab 2", grupo: 1 },
+    { docente: "Camilo Suarez Rebaza", curso: "Hackeo Ético (e)", dia: "Martes", horas: "17:00-19:00", tipo: "Laboratorio", ambiente: "Lab 2", grupo: 2 },
   ];
 
   // ── 4. CREAR LOS HORARIOS EN LA BD ───────────────────────────────────────
@@ -233,16 +223,29 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
   let creados = 0;
   let saltados = 0;
 
-  for (const item of data) {
-    const docente = getDocente(item.doc);
-    const curso = getCurso(item.curso);
-    const ambiente = getAmbiente(item.amb);
+  for (const data of horariosCicloIXData) {
+    const docente = dbDocentes.find(d => {
+      const fullNombre = normalize(`${d.nombres} ${d.apellidos}`);
+      const searchNombre = normalize(data.docente);
+      return fullNombre.includes(searchNombre) || searchNombre.includes(fullNombre);
+    });
+
+    const curso = dbCursos.find(c => {
+      const dbNombre = normalize(c.nombre);
+      const searchNombre = normalize(data.curso);
+      const searchNombreClean = searchNombre.split("(")[0].trim();
+      return dbNombre.includes(searchNombreClean) || searchNombreClean.includes(dbNombre);
+    });
+
+    const ambiente = dbAmbientes.find(a =>
+      a.codigo === mapAmbiente(data.ambiente)
+    );
 
     if (docente && curso && ambiente) {
-      const grupo = getGrupo(curso, item.g);
+      const grupo = getGrupo(curso, data.grupo);
       if (grupo) {
-        const { inicio, fin } = parsearRangoHoras(item.horas);
-        
+        const { inicio, fin } = parsearRangoHoras(data.horas);
+
         await horarioRepo.save(
           horarioRepo.create({
             docente_id: docente.id,
@@ -250,28 +253,36 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
             grupo_id: grupo.id,
             ambiente_id: ambiente.id,
             periodo: "2026-I",
-            dia: diaANumero(item.dia),
+            dia: diaANumero(data.dia),
+            dia_semana: diaANumero(data.dia),
             hora_inicio: inicio,
             hora_fin: fin,
-            tipo_clase: mapTipoClase(item.tipo),
+            tipo_clase: mapTipoClase(data.tipo),
             estado: EstadoHorario.PUBLICADO,
             origen: OrigenHorario.AJUSTE_MANUAL,
           })
         );
         creados++;
       } else {
-        console.warn(`⚠️ Grupo no encontrado para curso: ${item.curso} - G${item.g}`);
+        console.warn(`⚠️ Grupo no encontrado para curso: ${data.curso} - G${data.grupo}`);
         saltados++;
       }
     } else {
-      console.warn(`⚠️ Datos incompletos para: ${item.curso} (Docente: ${!!docente}, Curso: ${!!curso}, Ambiente: ${!!ambiente})`);
+      console.warn(`⚠️ Datos incompletos para: ${data.curso} (Docente: ${!!docente}, Curso: ${!!curso}, Ambiente: ${!!ambiente})`);
       saltados++;
     }
   }
 
-  console.log(`\n✅ Seed de Ciclo IX completado! ${creados} horarios creados, ${saltados} saltados.\n`);
+  console.log(`\n✅ Proceso terminado:`);
+  console.log(`- Horarios creados: ${creados}`);
+  console.log(`- Horarios saltados: ${saltados}`);
+
+  await AppDataSource.destroy();
 }
 
 if (require.main === module) {
-  // logic to run standalone if needed
+  seedHorariosCicloIX().catch((error) => {
+    console.error("❌ Error durante el seed de horarios Ciclo IX:", error);
+    process.exit(1);
+  });
 }

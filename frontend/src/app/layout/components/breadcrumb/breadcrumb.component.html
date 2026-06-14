@@ -1,0 +1,21 @@
+<nav aria-label="breadcrumb" class="breadcrumb-nav">
+  <div class="breadcrumb-list">
+    @for (crumb of breadcrumbService.breadcrumbs(); track crumb.url; let last = $last) {
+      <div class="breadcrumb-item">
+        <a
+          class="breadcrumb-link"
+          [class.active]="last"
+          [routerLink]="last ? null : crumb.url"
+        >
+          @if (crumb.icon && $first) {
+            <mat-icon class="breadcrumb-icon">{{ crumb.icon }}</mat-icon>
+          }
+          <span class="crumb-text">{{ crumb.translationKey ? (crumb.translationKey | translate) : crumb.label }}</span>
+        </a>
+        @if (!last) {
+          <mat-icon class="breadcrumb-separator">chevron_right</mat-icon>
+        }
+      </div>
+    }
+  </div>
+</nav>

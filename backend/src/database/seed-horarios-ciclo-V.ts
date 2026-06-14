@@ -32,7 +32,7 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 
-const AppDataSourceV = new DataSource({
+const AppDataSource = new DataSource({
   type: "postgres",
   host: process.env.DATABASE_HOST ?? "localhost",
   port: parseInt(process.env.DATABASE_PORT ?? "5432", 10),
@@ -68,15 +68,18 @@ const AppDataSourceV = new DataSource({
   logging: false,
 });
 
-export async function seedHorariosCicloV(dataSource: DataSource) {
+export async function seedHorariosCicloV() {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO V...");
 
-  const docenteRepo = dataSource.getRepository(Docente);
-  const cursoRepo = dataSource.getRepository(Curso);
-  const ambienteRepo = dataSource.getRepository(Ambiente);
-  const grupoRepo = dataSource.getRepository(Grupo);
-  const horarioRepo = dataSource.getRepository(HorarioAsignado);
-  const periodoRepo = dataSource.getRepository(PeriodoAcademico);
+  await AppDataSource.initialize();
+  console.log("✅ Conexión a la base de datos establecida");
+
+  const docenteRepo = AppDataSource.getRepository(Docente);
+  const cursoRepo = AppDataSource.getRepository(Curso);
+  const ambienteRepo = AppDataSource.getRepository(Ambiente);
+  const grupoRepo = AppDataSource.getRepository(Grupo);
+  const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
+  const periodoRepo = AppDataSource.getRepository(PeriodoAcademico);
 
   // ── 1. OBTENER DATOS EXISTENTES ───────────────────────────────────────────
   console.log("📋 Obteniendo datos existentes de la base de datos...");
@@ -109,13 +112,13 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
     }
 
     const [h1, h2] = rango.split("-").map(s => parseInt(s.trim(), 10));
-    
+
     let horaInicio = h1;
     if (h1 <= 6) horaInicio += 12;
-    
+
     let horaFin = h2;
     if (h2 <= 6 || h2 < h1) horaFin += 12;
-    
+
     // Caso especial: si el rango es algo como "7-10" o "9-1", h2=1 debe ser 13
     if (h1 >= 7 && h1 <= 12 && h2 < 7) {
       horaFin = h2 + 12;
@@ -144,86 +147,72 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
   };
 
   const mapTipoClase = (tipo: string): TipoClase => {
-    const t = tipo.toLowerCase();
-    if (t.includes("laboratorio")) return TipoClase.LABORATORIO;
-    if (t.includes("teoría") || t.includes("teoria")) return TipoClase.TEORIA;
-    if (t.includes("práctica") || t.includes("practica")) return TipoClase.PRACTICA;
-    if (t.includes("teoría/práctica")) return TipoClase.TEORIA; // Se mapeará a Teoría por defecto si es mixto
+    if (tipo.toLowerCase().includes("laboratorio")) return TipoClase.LABORATORIO;
+    if (tipo.toLowerCase().includes("teoría")) return TipoClase.TEORIA;
+    if (tipo.toLowerCase().includes("práctica")) return TipoClase.PRACTICA;
+    if (tipo.toLowerCase().includes("teoría/práctica")) return TipoClase.TEORIA; // Se mapeará a Teoría por defecto si es mixto
     return TipoClase.TEORIA;
   };
 
-  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-
-  const getDocente = (nombre: string) => {
-    return dbDocentes.find(d => normalize(`${d.nombres} ${d.apellidos}`).includes(normalize(nombre)));
+  const getGrupo = (curso: Curso, g: number): Grupo | undefined => {
+    return dbGrupos.find(gr => gr.curso?.id === curso.id && gr.codigo.endsWith(`-G${g}`));
   };
 
-  const getCurso = (nombre: string) => {
-    return dbCursos.find(c => normalize(c.nombre).includes(normalize(nombre).split("(")[0].trim()));
-  };
-
-  const getAmbiente = (codigo: string) => {
-    const code = mapAmbiente(codigo);
-    return dbAmbientes.find(a => a.codigo === code || a.nombre === codigo);
-  };
-
-  const getGrupo = (curso: Curso, g: number) => {
-    return dbGrupos.find(gr => (gr.curso_id === curso.id || gr.curso?.id === curso.id) && gr.codigo.endsWith(`-G${g}`));
-  };
+  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   // ── 3. DATOS DE LOS HORARIOS DEL CICLO V ───────────────────────────────
   console.log("📋 Datos de horarios del ciclo V cargados");
-  const data = [
+  const horariosCicloVData = [
     // 1. Luis Boy Chavil - Ing. de Datos I (T:2, P:1, L:3, G:3)
-    { doc: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Lunes", horas: "07:00-09:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Lunes", horas: "09:00-10:00", tipo: "Práctica", amb: "posgrado A-303", g: 1 },
-    { doc: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Lunes", horas: "10:00-13:00", tipo: "Laboratorio", amb: "Lab. 4", g: 1 },
-    { doc: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Martes", horas: "07:00-10:00", tipo: "Laboratorio", amb: "Lab. 4", g: 2 },
-    { doc: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Martes", horas: "10:00-13:00", tipo: "Laboratorio", amb: "Lab. 4", g: 3 },
-    
+    { docente: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Lunes", horas: "07:00-09:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Lunes", horas: "09:00-10:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Lunes", horas: "10:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 4", grupo: 1 },
+    { docente: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Martes", horas: "07:00-10:00", tipo: "Laboratorio", ambiente: "Lab. 4", grupo: 2 },
+    { docente: "Luis Boy Chavil", curso: "Ingeniería de Datos I", dia: "Martes", horas: "10:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 4", grupo: 3 },
+
     // 2. Juan Carlos Obando Roldan - Sistemas de Información (T:2, P:2, L:2, G:3)
-    { doc: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "09:00-11:00", tipo: "Teoría", amb: "posgrado A-303", g: 1 },
-    { doc: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "11:00-13:00", tipo: "Práctica", amb: "posgrado A-303", g: 1 },
-    { doc: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", amb: "Lab 1", g: 1 },
-    { doc: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", amb: "Lab 1", g: 2 },
-    { doc: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "18:00-20:00", tipo: "Laboratorio", amb: "Lab 1", g: 3 },
-    
+    { docente: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "09:00-11:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "11:00-13:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    { docente: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab 1", grupo: 1 },
+    { docente: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab 1", grupo: 2 },
+    { docente: "Juan Carlos Obando Roldan", curso: "Sistemas de Información", dia: "Miércoles", horas: "18:00-20:00", tipo: "Laboratorio", ambiente: "Lab 1", grupo: 3 },
+
     // 3. Everson David Agreda Gamboa - Transformación digital (T:2, P:0, L:2, G:2)
-    { doc: "Everson David Agreda Gamboa", curso: "Transformación digital", dia: "Jueves", horas: "07:00-09:00", tipo: "Laboratorio", amb: "Lab. 3", g: 1 },
-    { doc: "Everson David Agreda Gamboa", curso: "Transformación digital", dia: "Jueves", horas: "09:00-11:00", tipo: "Teoría", amb: "posgrado A-307", g: 1 },
-    { doc: "Everson David Agreda Gamboa", curso: "Transformación digital", dia: "Jueves", horas: "11:00-13:00", tipo: "Laboratorio", amb: "Lab. 3", g: 2 },
-    
+    { docente: "Everson David Agreda Gamboa", curso: "Transformación digital", dia: "Jueves", horas: "07:00-09:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 1 },
+    { docente: "Everson David Agreda Gamboa", curso: "Transformación digital", dia: "Jueves", horas: "09:00-11:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Everson David Agreda Gamboa", curso: "Transformación digital", dia: "Jueves", horas: "11:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 2 },
+
     // 4. Robert Jerry Sánchez Ticona - Tecnología web (T:1, P:1, L:2, G:3)
-    { doc: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Lunes", horas: "15:00-18:00", tipo: "Laboratorio", amb: "Lab1", g: 1 },
-    { doc: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Martes", horas: "15:00-18:00", tipo: "Laboratorio", amb: "Lab1", g: 2 },
-    { doc: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Miércoles", horas: "07:00-08:00", tipo: "Teoría", amb: "posgrado A-307", g: 1 },
-    { doc: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Miércoles", horas: "08:00-09:00", tipo: "Práctica", amb: "posgrado A-307", g: 1 },
-    { doc: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Jueves", horas: "15:00-18:00", tipo: "Laboratorio", amb: "Lab4", g: 3 },
-    
+    { docente: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Lunes", horas: "15:00-18:00", tipo: "Laboratorio", ambiente: "Lab1", grupo: 1 },
+    { docente: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Martes", horas: "15:00-18:00", tipo: "Laboratorio", ambiente: "Lab1", grupo: 2 },
+    { docente: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Miércoles", horas: "07:00-08:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Miércoles", horas: "08:00-09:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Robert Jerry Sánchez Ticona", curso: "Tecnología web", dia: "Jueves", horas: "15:00-18:00", tipo: "Laboratorio", ambiente: "Lab4", grupo: 3 },
+
     // 5. Cesar Arellano Salazar - Arquitectura de computadoras (T:1, P:2, L:2, G:3)
-    { doc: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Viernes", horas: "09:00-10:00", tipo: "Teoría", amb: "posgrado A-307", g: 1 },
-    { doc: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Viernes", horas: "10:00-12:00", tipo: "Práctica", amb: "posgrado A-307", g: 1 },
-    { doc: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", amb: "Lab2", g: 1 },
-    { doc: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", amb: "Lab2", g: 2 },
-    { doc: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Miércoles", horas: "18:00-20:00", tipo: "Laboratorio", amb: "Lab2", g: 3 },
-    
+    { docente: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Viernes", horas: "09:00-10:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Viernes", horas: "10:00-12:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab2", grupo: 1 },
+    { docente: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab2", grupo: 2 },
+    { docente: "Cesar Arellano Salazar", curso: "Arquitectura de computadoras", dia: "Miércoles", horas: "18:00-20:00", tipo: "Laboratorio", ambiente: "Lab2", grupo: 3 },
+
     // 6. Camilo Suárez Rebaza - Teleinformática(e) (T:1, P:2, L:2, G:2)
-    { doc: "Camilo Suárez Rebaza", curso: "Teleinformática(e)", dia: "Martes", horas: "13:00-15:00", tipo: "Laboratorio", amb: "Lab2", g: 1 },
-    { doc: "Camilo Suárez Rebaza", curso: "Teleinformática(e)", dia: "Martes", horas: "19:00-21:00", tipo: "Laboratorio", amb: "Lab2", g: 2 },
-    { doc: "Camilo Suárez Rebaza", curso: "Teleinformática(e)", dia: "Viernes", horas: "17:00-18:00", tipo: "Teoría", amb: "posgrado A-307", g: 1 },
-    { doc: "Camilo Suárez Rebaza", curso: "Teleinformática(e)", dia: "Viernes", horas: "18:00-20:00", tipo: "Práctica", amb: "posgrado A-307", g: 1 },
-    
+    { docente: "Camilo Suárez Rebaza", curso: "Teleinformática(e)", dia: "Martes", horas: "13:00-15:00", tipo: "Laboratorio", ambiente: "Lab2", grupo: 1 },
+    { docente: "Camilo Suárez Rebaza", curso: "Teleinformática(e)", dia: "Martes", horas: "19:00-21:00", tipo: "Laboratorio", ambiente: "Lab2", grupo: 2 },
+    { docente: "Camilo Suárez Rebaza", curso: "Teleinformática(e)", dia: "Viernes", horas: "17:00-18:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Camilo Suárez Rebaza", curso: "Teleinformática(e)", dia: "Viernes", horas: "18:00-20:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
+
     // 7. Marcos Baca Lopez - Investigación de Operaciones (T:1, P:2, L:2, G:3)
-    { doc: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Jueves", horas: "07:00-09:00", tipo: "Laboratorio", amb: "Lab. 2", g: 1 },
-    { doc: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Jueves", horas: "09:00-11:00", tipo: "Laboratorio", amb: "Lab. 2", g: 2 },
-    { doc: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Jueves", horas: "11:00-12:00", tipo: "Teoría", amb: "posgrado A-307", g: 1 },
-    { doc: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Jueves", horas: "12:00-14:00", tipo: "Práctica", amb: "posgrado A-307", g: 1 },
-    { doc: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Viernes", horas: "07:00-09:00", tipo: "Laboratorio", amb: "Lab. 2", g: 3 },
-    
+    { docente: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Jueves", horas: "07:00-09:00", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 1 },
+    { docente: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Jueves", horas: "09:00-11:00", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 2 },
+    { docente: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Jueves", horas: "11:00-12:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Jueves", horas: "12:00-14:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Marcos Baca Lopez", curso: "Investigación de Operaciones", dia: "Viernes", horas: "07:00-09:00", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 3 },
+
     // 8. Ana Cuadra Mitzugaray - Contabilidad Gerencial (T:1, P:2, L:2, G:1)
-    { doc: "Ana Cuadra Mitzugaray", curso: "Contabilidad Gerencial", dia: "Jueves", horas: "18:00-20:00", tipo: "Laboratorio", amb: "posgrado A-307", g: 1 },
-    { doc: "Ana Cuadra Mitzugaray", curso: "Contabilidad Gerencial", dia: "Viernes", horas: "14:00-15:00", tipo: "Teoría", amb: "posgrado A-307", g: 1 },
-    { doc: "Ana Cuadra Mitzugaray", curso: "Contabilidad Gerencial", dia: "Viernes", horas: "15:00-17:00", tipo: "Práctica", amb: "posgrado A-307", g: 1 },
+    { docente: "Ana Cuadra Mitzugaray", curso: "Contabilidad Gerencial", dia: "Jueves", horas: "18:00-20:00", tipo: "Laboratorio", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Ana Cuadra Mitzugaray", curso: "Contabilidad Gerencial", dia: "Viernes", horas: "14:00-15:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
+    { docente: "Ana Cuadra Mitzugaray", curso: "Contabilidad Gerencial", dia: "Viernes", horas: "15:00-17:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
   ];
 
   // ── 4. CREAR LOS HORARIOS EN LA BD ───────────────────────────────────────
@@ -231,16 +220,29 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
   let creados = 0;
   let saltados = 0;
 
-  for (const item of data) {
-    const docente = getDocente(item.doc);
-    const curso = getCurso(item.curso);
-    const ambiente = getAmbiente(item.amb);
+  for (const data of horariosCicloVData) {
+    const docente = dbDocentes.find(d => {
+      const fullNombre = normalize(`${d.nombres} ${d.apellidos}`);
+      const searchNombre = normalize(data.docente);
+      return fullNombre.includes(searchNombre) || searchNombre.includes(fullNombre);
+    });
+
+    const curso = dbCursos.find(c => {
+      const dbNombre = normalize(c.nombre);
+      const searchNombre = normalize(data.curso);
+      const searchNombreClean = searchNombre.split("(")[0].trim();
+      return dbNombre.includes(searchNombreClean) || searchNombreClean.includes(dbNombre);
+    });
+
+    const ambiente = dbAmbientes.find(a =>
+      a.codigo === mapAmbiente(data.ambiente)
+    );
 
     if (docente && curso && ambiente) {
-      const grupo = getGrupo(curso, item.g);
+      const grupo = getGrupo(curso, data.grupo);
       if (grupo) {
-        const { inicio, fin } = parsearRangoHoras(item.horas);
-        
+        const { inicio, fin } = parsearRangoHoras(data.horas);
+
         await horarioRepo.save(
           horarioRepo.create({
             docente_id: docente.id,
@@ -248,28 +250,36 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
             grupo_id: grupo.id,
             ambiente_id: ambiente.id,
             periodo: "2026-I",
-            dia: diaANumero(item.dia),
+            dia: diaANumero(data.dia),
+            dia_semana: diaANumero(data.dia),
             hora_inicio: inicio,
             hora_fin: fin,
-            tipo_clase: mapTipoClase(item.tipo),
+            tipo_clase: mapTipoClase(data.tipo),
             estado: EstadoHorario.PUBLICADO,
             origen: OrigenHorario.AJUSTE_MANUAL,
           })
         );
         creados++;
       } else {
-        console.warn(`⚠️ Grupo no encontrado para curso: ${item.curso} - G${item.g}`);
+        console.warn(`⚠️ Grupo no encontrado para curso: ${data.curso} - G${data.grupo}`);
         saltados++;
       }
     } else {
-      console.warn(`⚠️ Datos incompletos para: ${item.curso} (Docente: ${!!docente}, Curso: ${!!curso}, Ambiente: ${!!ambiente})`);
+      console.warn(`⚠️ Datos incompletos para: ${data.curso} (Docente: ${!!docente}, Curso: ${!!curso}, Ambiente: ${!!ambiente})`);
       saltados++;
     }
   }
 
-  console.log(`\n✅ Seed de Ciclo V completado! ${creados} horarios creados, ${saltados} saltados.\n`);
+  console.log(`\n✅ Proceso terminado:`);
+  console.log(`- Horarios creados: ${creados}`);
+  console.log(`- Horarios saltados: ${saltados}`);
+
+  await AppDataSource.destroy();
 }
 
 if (require.main === module) {
-  // logic to run standalone if needed
+  seedHorariosCicloV().catch((error) => {
+    console.error("❌ Error durante el seed de horarios Ciclo V:", error);
+    process.exit(1);
+  });
 }

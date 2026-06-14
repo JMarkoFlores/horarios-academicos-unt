@@ -15,6 +15,7 @@ export interface Usuario {
   nombre: string;
   rol: string;
   docenteId?: number;
+  idiomaPreferido?: string;
 }
 
 export interface Docente {
@@ -418,6 +419,7 @@ export interface KPIs {
     hora: string;
     intensidad: number;
     tipo_clase: string | null;
+    cursos: string[];
   }[];
   actividad_reciente: {
     timestamp: string | Date;
@@ -429,4 +431,7 @@ export interface KPIs {
   fecha_inicio_periodo: string | null;
   fecha_fin_periodo: string | null;
   ultima_generacion_horario: string | null;
+  histograma_carga: { label: string; count: number }[];
+  tiempo_promedio_resolucion_horas: number | null;
+  tendencia: { asignaciones?: number; conflictos?: number; docentes?: number };
 }

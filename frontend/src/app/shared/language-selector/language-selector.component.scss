@@ -1,35 +1,81 @@
-.language-selector {
-  display: inline-block;
+:host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
-  .language-select {
-    min-width: 140px;
-    
-    ::ng-deep .mat-mdc-select-trigger {
-      padding: 8px 12px;
-      background: var(--color-surface-2);
-      border-radius: 8px;
-      border: 1px solid var(--color-border);
-    }
+.language-btn {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% !important;
+  transition: background-color 0.2s ease;
 
-    ::ng-deep .mat-mdc-select-arrow {
-      color: var(--color-text);
-    }
+  &:hover {
+    background-color: var(--color-surface-2) !important;
   }
 
-  .selected-language,
-  .language-option {
+  .flag-icon {
+    font-size: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(1px); /* slight optical adjustment for emojis */
+  }
+}
+
+::ng-deep .language-dropdown-menu {
+  border-radius: 12px !important;
+  min-width: 150px !important;
+  padding: 6px !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+
+  button[mat-menu-item] {
     display: flex;
     align-items: center;
-    gap: 8px;
+    border-radius: 8px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    padding: 0 12px !important;
+    margin: 2px 0;
+    transition: all 0.2s ease;
 
-    .flag {
-      font-size: 18px;
-      line-height: 1;
+    .menu-flag {
+      font-size: 16px;
+      margin-right: 12px;
     }
 
-    .name {
-      font-size: 14px;
+    .menu-name {
+      font-size: 13.5px;
+      font-weight: 500;
       color: var(--color-text);
+      flex: 1;
+    }
+
+    .check-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: var(--color-primary);
+      margin-right: 0 !important;
+      margin-left: 8px !important;
+    }
+
+    &:hover {
+      background-color: var(--color-surface) !important;
+    }
+
+    &.active-item {
+      background-color: var(--color-primary-50) !important;
+      .menu-name {
+        color: var(--color-primary-700);
+        font-weight: 600;
+      }
     }
   }
 }

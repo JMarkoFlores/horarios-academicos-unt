@@ -5,7 +5,158 @@
   gap: 16px; // Reducido de 24px
 }
 
-// ── 1. DASHBOARD HEADER ──────────────────────────────────────────────────
+// ── DASHBOARD TOOLBAR ──────────────────────────────────────────────────
+.dashboard-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+
+  .greeting {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+    letter-spacing: -0.03em;
+  }
+
+  .current-date {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin: 2px 0 0 0;
+    text-transform: capitalize;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .btn-generate {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--color-primary), #6366f1);
+      color: #fff;
+      border: none;
+      padding: 0 20px;
+      height: 40px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+      overflow: hidden;
+
+      &:hover {
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+        transform: translateY(-1px);
+      }
+
+      &[disabled] {
+        opacity: 0.6;
+        transform: none;
+      }
+
+      mat-spinner {
+        display: inline-block;
+      }
+    }
+  }
+}
+
+// ── SKELETON LOADING ───────────────────────────────────────────────────
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  .skeleton-card {
+    background: var(--color-surface);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .skeleton-line {
+    background: linear-gradient(90deg, var(--color-surface-variant) 25%, rgba(255,255,255,0.1) 50%, var(--color-surface-variant) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+
+  .skeleton-title {
+    height: 14px;
+    width: 60%;
+  }
+
+  .skeleton-value {
+    height: 32px;
+    width: 40%;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// ── TREND BADGE ─────────────────────────────────────────────────────────
+.trend-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.9);
+  padding: 2px 6px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+
+  .trend-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    line-height: 14px;
+  }
+}
+
+// ── COMPACT MODE ───────────────────────────────────────────────────────
+.dashboard-page.compact {
+  gap: 8px;
+
+  .period-status-bar {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .quick-actions {
+    display: none;
+  }
+
+  .kpi-grid {
+    gap: 8px;
+  }
+
+  .kpi-card-premium {
+    padding: 12px;
+  }
+
+  .charts-grid {
+    gap: 8px;
+  }
+
+  .chart-container-premium {
+    .chart-header h3 { font-size: 13px; }
+    .chart-body { min-height: 100px; }
+  }
+}
+
+// ── DASHBOARD HEADER ──────────────────────────────────────────────────
 .dashboard-header {
   display: flex;
   justify-content: space-between;
@@ -62,6 +213,42 @@
   justify-content: center;
   align-items: center;
   padding: 100px 0;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+  text-align: center;
+  .error-icon-wrapper {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    mat-icon {
+      font-size: 36px;
+      width: 36px;
+      height: 36px;
+      color: #ef4444;
+    }
+  }
+  h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 8px;
+  }
+  p {
+    color: var(--color-text-muted);
+    margin: 0 0 24px;
+    max-width: 400px;
+  }
 }
 
 // ── 1b. PERIOD STATUS BAR ───────────────────────────────────────────────
@@ -588,7 +775,7 @@
 .heatmap-header,
 .heatmap-row {
   display: grid;
-  grid-template-columns: 48px repeat(5, 1fr);
+  grid-template-columns: 68px repeat(5, 1fr);
   gap: 3px;
 }
 
@@ -644,6 +831,9 @@
       }
       &.green {
         background: #22c55e;
+      }
+      &.purple {
+        background: #a855f7;
       }
       &.empty {
         background: rgba(0, 0, 0, 0.04);
@@ -789,17 +979,130 @@
 }
 
 @media (max-width: 768px) {
-  .dashboard-header {
+  .dashboard-toolbar {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
+    align-items: stretch;
+    gap: 12px;
 
-    .btn-generate {
-      width: 100%;
+    .welcome-section {
+      .greeting {
+        font-size: 17px;
+      }
     }
+
+    .header-actions {
+      justify-content: flex-end;
+      flex-wrap: wrap;
+
+      .btn-generate {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+
+  .chart-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .heatmap-legend {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .charts-grid {
     grid-template-columns: 1fr;
   }
+
+  .heatmap-grid {
+    min-width: 460px;
+  }
+
+  .heatmap-header,
+  .heatmap-row {
+    grid-template-columns: 58px repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-toolbar {
+    gap: 8px;
+
+    .welcome-section {
+      .greeting {
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .current-date {
+        font-size: 11px;
+      }
+    }
+
+    .header-actions {
+      gap: 4px;
+
+      button, .btn-generate {
+        height: 34px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .doughnut-chart,
+  .chart-body canvas {
+    max-height: 200px !important;
+    height: 200px !important;
+  }
+
+  .kpi-card-premium {
+    padding: 12px !important;
+
+    .kpi-value {
+      font-size: 22px;
+    }
+  }
+
+  .period-status-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+
+    .status-progress {
+      max-width: none;
+    }
+  }
+
+  .quick-actions {
+    gap: 6px;
+
+    .qa-btn {
+      font-size: 11px !important;
+      padding: 4px 10px !important;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+
+}
+
+// ── CONFLICT BADGES ────────────────────────────────────────────────────
+.conflict-badge {
+  &.cruce { background: #fef3c7; color: #92400e; }
+  &.aula { background: #fee2e2; color: #991b1b; }
+  &.cupo { background: #e0e7ff; color: #3730a3; }
+}
+
+// ── HEATMAP TOOLTIP ────────────────────────────────────────────────────
+.heatmap-tooltip {
+  white-space: pre-line;
+  font-size: 12px;
+  line-height: 1.4;
 }

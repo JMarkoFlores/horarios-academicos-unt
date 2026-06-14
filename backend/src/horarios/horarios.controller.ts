@@ -83,6 +83,7 @@ export class HorariosController {
   )
   async asignarHorario(@Body() dto: CrearAsignacionDto) {
     const data = await this.horariosService.crearAsignacion(dto);
+    await this.horariosService.invalidateHorariosCache();
     return {
       data,
       message: "Horario asignado",
@@ -97,6 +98,7 @@ export class HorariosController {
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   async generarHorario(@Body() dto: GenerarHorarioDto) {
     const resultado = await this.asignacionService.generarHorario(dto.periodo);
+    await this.horariosService.invalidateHorariosCache();
     return {
       data: resultado,
       message: "Horario generado",
@@ -115,6 +117,7 @@ export class HorariosController {
   @HttpCode(HttpStatus.OK)
   async limpiarHorario(@Query("periodo") periodo: string) {
     const resultado = await this.asignacionService.limpiarHorario(periodo);
+    await this.horariosService.invalidateHorariosCache();
     return {
       data: resultado,
       message: "Horario limpiado",
@@ -341,6 +344,7 @@ export class HorariosController {
       usuario_id: usuario?.id,
       ip: request.ip,
     });
+    await this.horariosService.invalidateHorariosCache();
     return { data, message: "Horario reasignado", statusCode: HttpStatus.OK };
   }
 
@@ -364,6 +368,7 @@ export class HorariosController {
       usuario_id: usuario?.id,
       ip: request.ip,
     });
+    await this.horariosService.invalidateHorariosCache();
     return { data, message: "Horario reasignado", statusCode: HttpStatus.OK };
   }
 
@@ -378,6 +383,7 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
   ) {
     const data = await this.asignacionService.updateAsignacion(id, dto, usuario);
+    await this.horariosService.invalidateHorariosCache();
     return { data, message: 'Asignación actualizada', statusCode: HttpStatus.OK };
   }
 
@@ -430,6 +436,8 @@ export class HorariosController {
 
       await this.horarioRepo.delete(id);
       this.logger.log(`[deleteAsignacion] Horario ${id} eliminado de la base de datos`);
+
+      await this.horariosService.invalidateHorariosCache();
 
       return { data: null, message: 'Asignación eliminada', statusCode: HttpStatus.OK };
     } catch (error) {
@@ -504,6 +512,8 @@ export class HorariosController {
       }),
     );
 
+    await this.horariosService.invalidateHorariosCache();
+
     return {
       data: actualizado,
       message: "Conflicto resuelto",
@@ -518,6 +528,7 @@ export class HorariosController {
   @ApiResponse({ status: 201, description: "Horarios generados correctamente" })
   async generarAutomatico(@Body() dto: GenerarAutomaticoDto) {
     const resultado = await this.generacionService.generarHorarios(dto.periodo);
+    await this.horariosService.invalidateHorariosCache();
     return {
       data: resultado,
       message: "Generación automática completada",
@@ -533,6 +544,7 @@ export class HorariosController {
   async publicarAutoGenerados(@Body() dto: GenerarAutomaticoDto) {
     const resultado =
       await this.generacionService.publicarHorariosAutoGenerados(dto.periodo);
+    await this.horariosService.invalidateHorariosCache();
     return {
       data: resultado,
       message: "Horarios auto-generados publicados",

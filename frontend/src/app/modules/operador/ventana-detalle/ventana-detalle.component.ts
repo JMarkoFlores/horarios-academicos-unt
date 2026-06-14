@@ -4,7 +4,9 @@ import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { VentanaAtencion, ApiResponse, Ambiente } from '../../../core/interfaces/entities';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { GrillaHorariosComponent } from '../grilla-horarios/grilla-horarios.component';
+import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/confirm-dialog.component';
 
 function generarUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -50,6 +52,7 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
     private api: ApiService,
     public periodoService: PeriodoService,
     private snack: MatSnackBar,
+    private dialog: MatDialog,
     private route: ActivatedRoute,
     private router: Router
   ) {
@@ -113,25 +116,39 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
 
   finalizarSesion(): void {
     if (!this.ventanaActiva) return;
-    this.loading = true;
-    this.api.post<ApiResponse<any>>(`/ventanas/${this.ventanaActiva.id}/finalizar`, {}).subscribe({
-      next: (r) => {
-        this.ventanaActiva = null;
-        this.docenteActual = null;
-        this.loading = false;
-        const data = r.data || {};
-        const lines = [
-          `Total docentes: ${data.total_docentes || 0}`,
-          `Atendidos: ${data.atendidos?.length || 0}`,
-          `Ausentes: ${data.ausentes?.length || 0}`
-        ];
-        this.snack.open(lines.join(' | '), 'OK', { duration: 5000 });
-        this.router.navigate(['/app/secretaria/ventanas']);
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '420px',
+      data: {
+        title: 'Finalizar Sesión',
+        message: '¿Está seguro de finalizar la sesión de atención?',
+        detail: 'Los docentes pendientes quedarán registrados como no atendidos.',
+        confirmLabel: 'Finalizar',
+        confirmColor: 'warn',
+        icon: 'logout',
       },
-      error: () => {
-        this.loading = false;
-        this.snack.open('Error al finalizar sesión', 'Error', { duration: 3000 });
-      }
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.loading = true;
+      this.api.post<ApiResponse<any>>(`/ventanas/${this.ventanaActiva!.id}/finalizar`, {}).subscribe({
+        next: (r) => {
+          this.ventanaActiva = null;
+          this.docenteActual = null;
+          this.loading = false;
+          const data = r.data || {};
+          const lines = [
+            `Total docentes: ${data.total_docentes || 0}`,
+            `Atendidos: ${data.atendidos?.length || 0}`,
+            `Ausentes: ${data.ausentes?.length || 0}`
+          ];
+          this.snack.open(lines.join(' | '), 'OK', { duration: 5000 });
+          this.router.navigate(['/app/secretaria/ventanas']);
+        },
+        error: () => {
+          this.loading = false;
+          this.snack.open('Error al finalizar sesión', 'Error', { duration: 3000 });
+        }
+      });
     });
   }
 
@@ -247,15 +264,7 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
   }
 
   buscarAsignacionExistente(): void {
-    console.log('[buscarAsignacionExistente] Iniciando búsqueda...');
-    console.log('[buscarAsignacionExistente] docenteActual:', this.docenteActual);
-    console.log('[buscarAsignacionExistente] cursoSeleccionado:', this.cursoSeleccionado);
-    console.log('[buscarAsignacionExistente] tipoClase:', this.tipoClase);
-    console.log('[buscarAsignacionExistente] grupoSeleccionado:', this.grupoSeleccionado);
-    console.log('[buscarAsignacionExistente] horariosDocente:', this.horariosDocente);
-    
     if (!this.docenteActual || !this.cursoSeleccionado || !this.tipoClase) {
-      console.log('[buscarAsignacionExistente] Faltan datos requeridos, retornando');
       return;
     }
     // Limpiar modo edición previo al buscar, para evitar que
@@ -271,62 +280,35 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
     const tipoClase = this.tipoClase;
     const grupoId = this.grupoSeleccionado;
 
-    console.log('[buscarAsignacionExistente] Buscando asignación con cursoId:', cursoId, 'tipoClase:', tipoClase, 'grupoId:', grupoId);
-    
-    // Mostrar los datos de horariosDocente para depuración
-    console.log('[buscarAsignacionExistente] Datos de horariosDocente:');
-    this.horariosDocente.forEach((h, i) => {
-      console.log(`  [${i}] curso_id: ${h.curso_id}, tipo_clase: ${h.tipo_clase}, grupo_id: ${h.grupo_id}`);
-    });
-
-    // Mapear grupo UI (1,2,3) a grupo_id de base de datos (76,77,78) para LABORATORIO
     let grupoIdBusqueda = grupoId;
     if (tipoClase === 'LABORATORIO' && grupoId) {
-      // Mapeo: grupo 1 -> 76, grupo 2 -> 77, grupo 3 -> 78
       const grupoMap: Record<number, number> = { 1: 76, 2: 77, 3: 78 };
       grupoIdBusqueda = grupoMap[grupoId] || grupoId;
-      console.log('[buscarAsignacionExistente] Mapeando grupo UI', grupoId, 'a grupo_id BD:', grupoIdBusqueda);
     }
 
-    // Para TEORIA y PRACTICA, no filtrar por grupo_id (usan grupo_id 76)
-    // Para LABORATORIO, filtrar por el grupo_id mapeado
     const asignacionExistente = this.horariosDocente.find(h => 
       h.curso_id === cursoId && 
       h.tipo_clase === tipoClase &&
       (tipoClase === 'LABORATORIO' ? h.grupo_id === grupoIdBusqueda : true)
     );
 
-    console.log('[buscarAsignacionExistente] asignacionExistente encontrada:', asignacionExistente);
-
     if (asignacionExistente) {
-      console.log('[buscarAsignacionExistente] Ambiente asignado:', asignacionExistente.ambiente);
-      
-      // Para LABORATORIO, mantener el grupo seleccionado del UI (1,2,3)
-      // Para TEORIA/PRACTICA, actualizar al grupo_id de la asignación
       if (tipoClase !== 'LABORATORIO' && asignacionExistente.grupo_id) {
         this.grupoSeleccionado = asignacionExistente.grupo_id;
-        console.log('[buscarAsignacionExistente] grupoSeleccionado actualizado a:', this.grupoSeleccionado);
       }
       
-      // Cargar el ambiente asignado
       this.ambienteSeleccionado = asignacionExistente.ambiente;
-      console.log('[buscarAsignacionExistente] ambienteSeleccionado establecido:', this.ambienteSeleccionado);
       
-      // Activar modo edición después de que la grilla se renderice
       setTimeout(() => {
-        console.log('[buscarAsignacionExistente] Activando modo edición después de timeout');
         this.entrarModoEdicion(asignacionExistente);
       }, 100);
       
-      // Hacer scroll a la grilla
       setTimeout(() => {
         const grillaElement = document.querySelector('.tabla-wrapper');
         if (grillaElement) {
           grillaElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 200);
-    } else {
-      console.log('[buscarAsignacionExistente] No se encontró asignación existente');
     }
   }
 
@@ -474,9 +456,6 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
   }
 
   entrarModoEdicion(horario: any): void {
-    console.log('[VentanaDetalle] entrarModoEdicion llamado con horario:', horario);
-    console.log('[VentanaDetalle] grillaRef:', this.grillaRef);
-    
     this.modoEdicion = true;
     this.asignacionEnEdicion = horario;
     this.horarioOriginalId = horario.id;
@@ -501,41 +480,43 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
     // Cargar ambientes compatibles
     this.cargarAmbientesCompatibles(horario.curso_id, horario.tipo_clase);
     
-    // Buscar todas las casillas relacionadas de esta asignación (mismo curso, tipo, grupo, docente)
     const asignacionesRelacionadas = this.horariosDocente.filter(h =>
       h.curso_id === horario.curso_id &&
       h.tipo_clase === horario.tipo_clase &&
       h.grupo_id === horario.grupo_id
     );
     
-    console.log('[VentanaDetalle] asignacionesRelacionadas encontradas:', asignacionesRelacionadas);
-    
-    // Notificar a la grilla que está en modo edición con las casillas originales
     if (this.grillaRef) {
-      console.log('[VentanaDetalle] Llamando a grillaRef.setModoEdicion');
       this.grillaRef.setModoEdicion(true, horario, asignacionesRelacionadas);
-    } else {
-      console.log('[VentanaDetalle] ERROR: grillaRef no está disponible');
     }
     
     this.snack.open('Modo edición activado. Las casillas originales están marcadas para eliminación.', 'OK', { duration: 4000 });
   }
 
   salirModoEdicion(): void {
-    this.modoEdicion = false;
-    this.asignacionEnEdicion = null;
-    this.horarioOriginalId = null;
-    this.cursoSeleccionado = null;
-    this.ambienteSeleccionado = null;
-    
-    // Notificar a la grilla que salió del modo edición
-    if (this.grillaRef) {
-      this.grillaRef.setModoEdicion(false, null);
-    }
-    
-    // Limpiar selecciones temporales
-    this.limpiarSeleccionesTemporales();
-    
-    this.snack.open('Modo edición desactivado', 'OK', { duration: 2000 });
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Salir de Modo Edición',
+        message: '¿Salir del modo edición?',
+        detail: 'Los cambios no guardados se perderán.',
+        confirmLabel: 'Salir',
+        confirmColor: 'warn',
+        icon: 'edit_off',
+      },
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.modoEdicion = false;
+      this.asignacionEnEdicion = null;
+      this.horarioOriginalId = null;
+      this.cursoSeleccionado = null;
+      this.ambienteSeleccionado = null;
+      if (this.grillaRef) {
+        this.grillaRef.setModoEdicion(false, null);
+      }
+      this.limpiarSeleccionesTemporales();
+      this.snack.open('Modo edición desactivado', 'OK', { duration: 2000 });
+    });
   }
 }

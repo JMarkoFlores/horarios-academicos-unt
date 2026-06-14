@@ -1,0 +1,382 @@
+version: "2"
+type: frontend
+tech_stack:
+  - language: TypeScript ~5.4.2
+  - framework: Angular ^17.3.0
+  - ui_library: Angular Material ^17.3.0
+  - other:
+      - Chart.js / ng2-charts
+      - "@ngx-translate/core (i18n)"
+      - socket.io-client (WebSocket)
+      - jsPDF + xlsx (PDF/Excel export)
+      - Angular CDK ^17.3.0
+      - SCSS custom design system (variables, glassmorphism, skeleton, dark/light themes)
+      - Karma + Jasmine + Playwright (testing)
+
+routes:
+  - path: /
+    file: src/app/auth/landing/landing.component.ts
+    auth_required: false
+    description: Landing / welcome page
+
+  - path: /login
+    file: src/app/auth/login/login.component.ts
+    auth_required: false
+    description: User login with email and password, JWT token storage
+
+  - path: /app/dashboard
+    file: src/app/modules/dashboard/dashboard.component.ts
+    auth_required: true
+    description: Main dashboard with KPIs, charts, conflict list, heatmap, auto-generate schedules
+
+  - path: /app/usuarios
+    file: src/app/modules/usuarios/
+    auth_required: true
+    description: User CRUD (admin only)
+
+  - path: /app/configuracion
+    file: src/app/modules/configuracion/
+    auth_required: true
+    description: System configuration, turnos, restricciones, parametros carga, period/campaign management
+
+  - path: /app/docentes
+    file: src/app/modules/docentes/
+    auth_required: true
+    description: Docente CRUD with pagination, filters, search, edit, delete, schedule preview
+
+  - path: /app/cursos
+    file: src/app/modules/cursos/
+    auth_required: true
+    description: Curso CRUD with pagination, filters, group management, ambiente assignment
+
+  - path: /app/ambientes
+    file: src/app/modules/ambientes/
+    auth_required: true
+    description: Ambiente CRUD with map campus view, type/capacity filters, occupancy indicators
+
+  - path: /app/periodos
+    file: src/app/modules/periodos/
+    auth_required: true
+    description: Academic period CRUD with state machine
+
+  - path: /app/campaigns
+    file: src/app/modules/campaigns/
+    auth_required: true
+    description: Scheduling campaign CRUD with block configuration and priority rules
+
+  - path: /app/secretaria
+    file: src/app/modules/operador/
+    auth_required: true
+    description: Window-based scheduling system (queue, grid, session management)
+
+  - path: /app/horarios
+    file: src/app/modules/horarios/
+    auth_required: true
+    description: Schedule views (by docente, ambiente, ciclo, dia, conflictos, gestion), PDF/Excel export
+
+  - path: /app/disponibilidad
+    file: src/app/modules/disponibilidad/
+    auth_required: true
+    description: Docente availability weekly grid with slot management and auto-save
+
+  - path: /app/declaraciones
+    file: src/app/modules/declaraciones/
+    auth_required: true
+    description: Teaching load declarations with verification, signing, and approval chain
+
+  - path: /app/reportes
+    file: src/app/modules/reportes/
+    auth_required: true
+    description: PDF report generation for docente, ambiente, operacional, gestion
+
+  - path: /app/analytics
+    file: src/app/modules/analytics/
+    auth_required: true
+    description: KPI analytics, saturation, utilization, AI suggestions
+
+  - path: /app/mis-horarios
+    file: src/app/modules/docente-horario/
+    auth_required: true
+    description: Docente self-service schedule view and PDF/Excel download
+
+features:
+  - name: Authentication (Login)
+    description: JWT-based login with role-based redirect, password change, token refresh
+    files:
+      - src/app/auth/login/login.component.ts
+      - src/app/core/services/auth.service.ts
+      - src/app/core/guards/auth.guard.ts
+      - src/app/core/guards/roles.guard.ts
+    entry_route: /login
+    user_interactions:
+      - Enter email and password
+      - Click "Iniciar Sesión" to submit
+      - See error message on invalid credentials
+      - Redirect to /app/dashboard on success
+    api_calls:
+      - method: POST
+        endpoint: /auth/login
+      - method: POST
+        endpoint: /auth/cambiar-password
+    auth_required: false
+
+  - name: Dashboard
+    description: KPI cards, doughnut/bar charts, conflict list, heatmap, period progress, auto-generate
+    files:
+      - src/app/modules/dashboard/dashboard.component.ts
+      - src/app/modules/dashboard/dashboard.component.html
+    entry_route: /app/dashboard
+    user_interactions:
+      - View KPI cards (docentes, cursos, ambientes, horarios)
+      - View doughnut chart (cobertura)
+      - View bar chart (conflictos por tipo)
+      - View heatmap (horarios por dia/hora)
+      - See conflict list with resolution actions
+      - Click "Generar Horarios" button
+      - Click retry button on error state
+    api_calls:
+      - method: GET
+        endpoint: /dashboard/kpis
+      - method: GET
+        endpoint: /dashboard/mis-kpis
+      - method: GET
+        endpoint: /horarios/conflictos/:periodo
+      - method: PATCH
+        endpoint: /horarios/conflictos/:id/resolver
+      - method: POST
+        endpoint: /horarios/generar
+    auth_required: true
+
+  - name: Docente CRUD
+    description: Paginated list with search/filter, create/edit form, delete confirmation, schedule preview
+    files:
+      - src/app/modules/docentes/docentes-list/
+      - src/app/modules/docentes/docente-form/
+    entry_route: /app/docentes
+    user_interactions:
+      - View paginated list with skeleton shimmer loader
+      - Filter by facultad, departamento, estado, search by nombre/apellido
+      - See active filter indicator chips with "Clear filters" button
+      - Click "Nuevo Docente" to open form
+      - Click edit icon to open form with pre-filled data
+      - Click delete icon to see confirmation dialog
+      - Click "Ver Horario" to preview schedule
+    api_calls:
+      - method: GET
+        endpoint: /docentes
+      - method: POST
+        endpoint: /docentes
+      - method: PATCH
+        endpoint: /docentes/:id
+      - method: DELETE
+        endpoint: /docentes/:id
+    auth_required: true
+
+  - name: Curso CRUD
+    description: Paginated list with search/filter, create/edit with grupo management and ambiente assignment
+    files:
+      - src/app/modules/cursos/cursos-list/
+      - src/app/modules/cursos/curso-form/
+      - src/app/modules/cursos/gestionar-grupos-dialog/
+    entry_route: /app/cursos
+    user_interactions:
+      - View paginated list with skeleton shimmer loader
+      - Filter by nivel, ciclo, search by nombre/codigo
+      - See active filter indicator chips with "Clear filters" button
+      - Click "Nuevo Curso" to open form
+      - Click edit icon to open form with grupos and ambientes
+      - Click delete/reactivate curso
+      - Manage grupos (add/edit/delete) via dialog
+      - Assign ambientes to curso by tipo_clase (TEORIA/LABORATORIO)
+    api_calls:
+      - method: GET
+        endpoint: /cursos
+      - method: POST
+        endpoint: /cursos
+      - method: PATCH
+        endpoint: /cursos/:id
+      - method: DELETE
+        endpoint: /cursos/:id
+      - method: PATCH
+        endpoint: /cursos/:id/reactivar
+      - method: POST
+        endpoint: /cursos/:id/ambientes
+      - method: POST
+        endpoint: /grupos
+      - method: PATCH
+        endpoint: /grupos/:id
+      - method: DELETE
+        endpoint: /grupos/:id
+    auth_required: true
+
+  - name: Ambiente CRUD
+    description: Paginated list with type/capacity filters, map campus view, occupancy indicators
+    files:
+      - src/app/modules/ambientes/ambientes-list/
+      - src/app/modules/ambientes/ambiente-form/
+    entry_route: /app/ambientes
+    user_interactions:
+      - View list with filters by tipo, capacidad, search
+      - Toggle to "Mapa Campus" view
+      - Click "Nuevo Ambiente" to open form
+      - Click edit icon to modify
+      - Click delete icon with confirmation
+    api_calls:
+      - method: GET
+        endpoint: /ambientes
+      - method: GET
+        endpoint: /ambientes/mapa
+      - method: POST
+        endpoint: /ambientes
+      - method: PATCH
+        endpoint: /ambientes/:id
+      - method: DELETE
+        endpoint: /ambientes/:id
+    auth_required: true
+
+  - name: Operador / Ventanas
+    description: Window-based scheduling system with queue, real-time grid, session management, WebSocket
+    files:
+      - src/app/modules/operador/ventana-list/
+      - src/app/modules/operador/ventana-detalle/
+      - src/app/modules/operador/cola-atencion/
+      - src/app/modules/operador/grilla-horarios/
+    entry_route: /app/secretaria/ventanas
+    user_interactions:
+      - Create, edit, delete scheduling windows
+      - Start/finalize session in window detail
+      - Call next person in queue ("Llamar Siguiente" with confirmation)
+      - Mark person as absent ("Marcar Ausente" with confirmation)
+      - Select/deselect cells in schedule grid for a docente
+      - Validate selection against conflicts
+      - Finalizar sesión / Salir modo edición with confirmation dialogs
+      - See real-time WebSocket connection indicator (green/red)
+    api_calls:
+      - method: GET
+        endpoint: /ventanas
+      - method: POST
+        endpoint: /ventanas
+      - method: DELETE
+        endpoint: /ventanas/:id
+      - method: POST
+        endpoint: /ventanas/:id/iniciar
+      - method: POST
+        endpoint: /ventanas/:id/finalizar
+      - method: POST
+        endpoint: /ventanas/:id/siguiente
+      - method: POST
+        endpoint: /ventanas/:id/ausente
+      - method: POST
+        endpoint: /ventanas/:id/celda
+      - method: POST
+        endpoint: /ventanas/:id/confirmar
+    auth_required: true
+
+  - name: Horarios (Schedule Views)
+    description: Multi-tab schedule views (docente, ambiente, ciclo, dia, conflictos, gestion), export
+    files:
+      - src/app/modules/horarios/horarios.component.ts
+      - src/app/modules/horarios/grilla-horarios/
+    entry_route: /app/horarios
+    user_interactions:
+      - Switch tabs: Por Docente, Por Ambiente, Por Ciclo, Por Día, Conflictos, Gestión
+      - View schedule grid with sticky first column (hora)
+      - Export to PDF/Excel from various views
+      - Edit mode on schedule assignments
+      - Delete individual schedule entries
+      - Limpiar (clear) all schedules for a period
+    api_calls:
+      - method: GET
+        endpoint: /horarios
+      - method: DELETE
+        endpoint: /horarios/:id
+      - method: DELETE
+        endpoint: /horarios/limpiar
+      - method: GET
+        endpoint: /reportes/docente/:id/pdf
+      - method: GET
+        endpoint: /reportes/ambiente/:id/pdf
+      - method: GET
+        endpoint: /reportes/ciclo/:ciclo/pdf
+      - method: GET
+        endpoint: /reportes/todos-ciclos/pdf
+    auth_required: true
+
+  - name: Disponibilidad Docente
+    description: Weekly availability grid for docentes with drag/click slot management
+    files:
+      - src/app/modules/disponibilidad/
+    entry_route: /app/disponibilidad
+    user_interactions:
+      - Select a docente from dropdown
+      - View weekly grid (Lun-Sáb) with time slots
+      - Click to toggle availability on/off
+      - Auto-save on changes
+      - Switch between available/configured turnos
+    api_calls:
+      - method: GET
+        endpoint: /disponibilidad/docente/:id
+      - method: POST
+        endpoint: /disponibilidad/docente/:id
+      - method: DELETE
+        endpoint: /disponibilidad/docente/:id
+      - method: GET
+        endpoint: /docentes
+      - method: GET
+        endpoint: /configuracion/turnos
+      - method: GET
+        endpoint: /configuracion/parametros-carga
+    auth_required: true
+
+  - name: Reportes PDF
+    description: PDF and Excel report generation for schedules and management
+    files:
+      - src/app/modules/reportes/
+    entry_route: /app/reportes
+    user_interactions:
+      - Select report type (docente, ambiente, operacional, gestion)
+      - Select parameters (docente, ambiente, fecha)
+      - Click download PDF or Excel
+    api_calls:
+      - method: GET
+        endpoint: /reportes/docente/:id/pdf
+      - method: GET
+        endpoint: /reportes/ambiente/:id/pdf
+      - method: GET
+        endpoint: /reportes/operacional/pdf
+      - method: GET
+        endpoint: /reportes/gestion/pdf
+    auth_required: true
+
+known_limitations:
+  - issue: Duplicate route for /app/notificaciones (two loadChildren entries, second overrides first)
+    location: src/app/app-routing.module.ts (lines 122 and 272)
+    impact: The second definition wins — may cause confusion if first is expected to apply
+
+  - issue: PreasignacionesModule and AuditoriaModule are lazy modules with their own routes but NOT referenced in app-routing.module.ts
+    location: src/app/modules/preasignaciones/, src/app/modules/auditoria/
+    impact: These modules are unreachable via navigation
+
+  - issue: MatrizSeleccionService references this.socket.validacionFallida$ but SocketService does not expose it
+    location: src/app/modules/operador/ventana-detalle/matriz-seleccion.service.ts
+    impact: Runtime error when validation webhook fires
+
+  - issue: Hardcoded API URL in importador.service.ts
+    location: src/app/modules/configuracion/importador.service.ts
+    impact: Uses '/api/data-import' instead of environment.apiUrl
+
+  - issue: Hardcoded notification badge count (notificacionesCount = 3)
+    location: src/app/layout/layout.component.ts
+    impact: Badge shows static 3 instead of real count from API
+
+  - issue: Very low test coverage — only 4 spec files found for 20+ modules
+    location: entire frontend
+    impact: Most components have zero automated test coverage
+
+  - issue: ChatbotModule is eagerly loaded in LayoutModule instead of lazy
+    location: src/app/layout/layout.module.ts
+    impact: Chatbot code included in initial bundle, increasing load time
+
+  - issue: BrowserAnimationsModule imported in AppModule, AuthModule, and LayoutModule
+    location: multiple modules
+    impact: Should only be imported once in root module

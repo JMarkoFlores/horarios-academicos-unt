@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap, BehaviorSubject } from 'rxjs';
+import { TranslateService } from '@ngx-translate/core';
 import { environment } from '../../../environments/environment';
 import { Usuario } from '../interfaces/entities';
 
@@ -12,16 +13,26 @@ export class AuthService {
 
   private profilePhotoSubject = new BehaviorSubject<string | null>(null);
   profilePhoto$ = this.profilePhotoSubject.asObservable();
+  private _translate: TranslateService | null = null;
 
   constructor(
     private http: HttpClient,
     private router: Router,
+    private injector: Injector,
   ) {
     const user = this.getUsuarioActual();
     if (user) {
       const stored = localStorage.getItem(`unt_user_photo_${user.id}`);
       this.profilePhotoSubject.next(stored);
     }
+  }
+  
+  // Lazy getter for TranslateService to avoid circular dependency
+  private get translate(): TranslateService {
+    if (!this._translate) {
+      this._translate = this.injector.get(TranslateService);
+    }
+    return this._translate;
   }
 
   getProfilePhoto(userId: number): string | null {
@@ -57,6 +68,11 @@ export class AuthService {
             `unt_user_photo_${res.data.usuario.id}`,
           );
           this.profilePhotoSubject.next(storedPhoto);
+          
+          // Set the language to user's preferred language
+          const preferredLang = res.data.usuario.idiomaPreferido || 'es';
+          this.translate.use(preferredLang);
+          localStorage.setItem('preferredLanguage', preferredLang);
         }),
       );
   }

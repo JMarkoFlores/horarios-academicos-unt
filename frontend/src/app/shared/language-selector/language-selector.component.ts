@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-language-selector',
@@ -18,6 +19,7 @@ export class LanguageSelectorComponent {
   constructor(
     private translate: TranslateService,
     private api: ApiService,
+    private authService: AuthService,
   ) {
     this.currentLang = this.translate.currentLang || 'es';
   }
@@ -26,6 +28,14 @@ export class LanguageSelectorComponent {
     this.translate.use(lang);
     this.currentLang = lang;
     localStorage.setItem('preferredLanguage', lang);
+    
+    // Update the stored user with new preferred language
+    const currentUser = this.authService.getUsuarioActual();
+    if (currentUser) {
+      currentUser.idiomaPreferido = lang;
+      localStorage.setItem('unt_user', JSON.stringify(currentUser));
+    }
+    
     this.api.patch('/usuarios/mi-idioma', { idioma: lang }).subscribe();
   }
 

@@ -72,15 +72,18 @@ const AppDataSource = new DataSource({
   logging: false,
 });
 
-export async function seedHorariosCicloI(dataSource: DataSource) {
+export async function seedHorariosCicloI() {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO I (Actualizado)...");
 
-  const docenteRepo = dataSource.getRepository(Docente);
-  const cursoRepo = dataSource.getRepository(Curso);
-  const ambienteRepo = dataSource.getRepository(Ambiente);
-  const grupoRepo = dataSource.getRepository(Grupo);
-  const horarioRepo = dataSource.getRepository(HorarioAsignado);
-  const periodoRepo = dataSource.getRepository(PeriodoAcademico);
+  await AppDataSource.initialize();
+  console.log("✅ Conexión a la base de datos establecida");
+
+  const docenteRepo = AppDataSource.getRepository(Docente);
+  const cursoRepo = AppDataSource.getRepository(Curso);
+  const ambienteRepo = AppDataSource.getRepository(Ambiente);
+  const grupoRepo = AppDataSource.getRepository(Grupo);
+  const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
+  const periodoRepo = AppDataSource.getRepository(PeriodoAcademico);
 
   const periodo = "2026-I";
   const dbPeriodo = await periodoRepo.findOne({ where: { codigo: periodo } });
@@ -102,25 +105,32 @@ export async function seedHorariosCicloI(dataSource: DataSource) {
   const dbDocentes = await docenteRepo.find();
   const dbCursos = await cursoRepo.find({ where: { ciclo: 1 } });
   const dbAmbientes = await ambienteRepo.find();
-  const dbGrupos = await grupoRepo.find();
-
-  const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
   const getDocente = (nombre: string) => {
-    return dbDocentes.find(d => normalize(`${d.nombres} ${d.apellidos}`).includes(normalize(nombre)));
+    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return dbDocentes.find(d => norm(`${d.nombres} ${d.apellidos}`).includes(norm(nombre)));
   };
 
   const getCurso = (nombre: string) => {
-    return dbCursos.find(c => normalize(c.nombre).includes(normalize(nombre).split("(")[0].trim()));
+    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return dbCursos.find(c => norm(c.nombre).includes(norm(nombre)));
   };
 
-  const getAmbiente = (codigo: string) => {
-    return dbAmbientes.find(a => a.codigo === codigo || a.nombre === codigo);
-  };
+  const getAmbiente = (codigo: string) => dbAmbientes.find(a => a.codigo === codigo);
 
-  const getGrupo = (curso: Curso, gCode: string) => {
-    const searchCode = gCode.startsWith(curso.codigo) ? gCode : `${curso.codigo}-${gCode}`;
-    return dbGrupos.find(gr => (gr.curso_id === curso.id || gr.curso?.id === curso.id) && gr.codigo === searchCode);
+  const asegurarGrupo = async (curso: Curso, codigoGrupo: string) => {
+    let grupo = await grupoRepo.findOne({ where: { curso: { id: curso.id }, codigo: codigoGrupo, periodo_academico: { id: dbPeriodo.id } } });
+    if (!grupo) {
+      grupo = await grupoRepo.save(grupoRepo.create({
+        codigo: codigoGrupo,
+        nombre: `Grupo ${codigoGrupo.split('-G')[1]}`,
+        ciclo: curso.ciclo,
+        cupo_maximo: 30,
+        curso,
+        periodo_academico: dbPeriodo
+      }));
+    }
+    return grupo;
   };
 
   const data = [
@@ -128,7 +138,7 @@ export async function seedHorariosCicloI(dataSource: DataSource) {
     { doc: "Marcelino Torres Villanueva", curso: "Introducción a la Programación", dia: 1, inicio: "07:00", fin: "09:00", tipo: TipoClase.TEORIA, amb: "A-307", g: "G1" },
     { doc: "Marcelino Torres Villanueva", curso: "Introducción a la Programación", dia: 1, inicio: "14:00", fin: "16:00", tipo: TipoClase.LABORATORIO, amb: "LAB-3", g: "G1" },
     { doc: "Marcelino Torres Villanueva", curso: "Introducción a la Programación", dia: 1, inicio: "16:00", fin: "18:00", tipo: TipoClase.LABORATORIO, amb: "LAB-3", g: "G2" },
-    
+
     // 2. Alberto Mendoza de los Santos - Intro Ing Sist
     { doc: "Alberto Mendoza de los Santos", curso: "Introducción a la Ing. de Sistemas", dia: 2, inicio: "07:00", fin: "08:00", tipo: TipoClase.TEORIA, amb: "A-307", g: "G1" },
     { doc: "Alberto Mendoza de los Santos", curso: "Introducción a la Ing. de Sistemas", dia: 2, inicio: "08:00", fin: "10:00", tipo: TipoClase.PRACTICA, amb: "A-307", g: "G1" },
@@ -164,49 +174,40 @@ export async function seedHorariosCicloI(dataSource: DataSource) {
   ];
 
   console.log("📅 Creando asignaciones...");
-  let creados = 0;
-  let saltados = 0;
-
   for (const item of data) {
     const doc = getDocente(item.doc);
     const curso = getCurso(item.curso);
     const amb = getAmbiente(item.amb);
 
-    if (doc && curso && amb) {
-      const grupo = getGrupo(curso, item.g);
-      if (grupo) {
-        await horarioRepo.save(horarioRepo.create({
-          docente_id: doc.id,
-          curso_id: curso.id,
-          ambiente_id: amb.id,
-          grupo_id: grupo.id,
-          periodo: periodo,
-          dia: item.dia,
-          hora_inicio: item.inicio.includes(":") ? (item.inicio.split(":").length === 2 ? `${item.inicio}:00` : item.inicio) : `${item.inicio}:00:00`,
-          hora_fin: item.fin.includes(":") ? (item.fin.split(":").length === 2 ? `${item.fin}:00` : item.fin) : `${item.fin}:00:00`,
-          tipo_clase: item.tipo,
-          estado: EstadoHorario.PUBLICADO,
-          origen: OrigenHorario.AJUSTE_MANUAL
-        }));
-        creados++;
-      } else {
-        console.warn(`⚠️ Grupo no encontrado para curso: ${item.curso} - ${item.g}`);
-        saltados++;
-      }
-    } else {
-      console.warn(`⚠️ Datos incompletos para: ${item.curso} (Docente: ${!!doc}, Curso: ${!!curso}, Ambiente: ${!!amb})`);
-      saltados++;
-    }
+    if (!doc) { console.warn(`⚠️ Docente no encontrado: ${item.doc}`); continue; }
+    if (!curso) { console.warn(`⚠️ Curso no encontrado: ${item.curso}`); continue; }
+    if (!amb) { console.warn(`⚠️ Ambiente no encontrado: ${item.amb}`); continue; }
+
+    const grupoCode = `${curso.codigo}-${item.g}`;
+    const grupo = await asegurarGrupo(curso, grupoCode);
+
+    await horarioRepo.save(horarioRepo.create({
+      docente_id: doc.id,
+      curso_id: curso.id,
+      ambiente_id: amb.id,
+      grupo_id: grupo.id,
+      periodo: periodo,
+      dia: item.dia,
+      hora_inicio: `${item.inicio}:00`,
+      hora_fin: `${item.fin}:00`,
+      tipo_clase: item.tipo,
+      estado: EstadoHorario.PUBLICADO,
+      origen: OrigenHorario.AJUSTE_MANUAL
+    }));
   }
 
-  console.log(`✅ Seed de Ciclo I completado: ${creados} creados, ${saltados} saltados`);
+  console.log("✅ Seed de Ciclo I completado.");
+  await AppDataSource.destroy();
 }
 
 if (require.main === module) {
-  AppDataSource.initialize()
-    .then(async (ds) => {
-      await seedHorariosCicloI(ds);
-      await ds.destroy();
-    })
-    .catch((err) => console.error("❌ Error durante el seed:", err));
+  seedHorariosCicloI().catch(err => {
+    console.error("❌ Error:", err);
+    process.exit(1);
+  });
 }

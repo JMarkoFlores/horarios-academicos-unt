@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Next,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -53,6 +54,15 @@ export class UsuariosController {
     return { data: result, message: "Usuarios obtenidos" };
   }
 
+  @Patch("mi-idioma")
+  @ApiOperation({ summary: "Actualizar idioma preferido del usuario actual" })
+  @ApiResponse({ status: 200, description: "Idioma actualizado correctamente" })
+  async actualizarMiIdioma(@Body() dto: { idioma: string }, @Req() req: any) {
+    const usuarioId = req.user?.id;
+    const result = await this.usuariosService.actualizarMiIdioma(usuarioId, dto.idioma);
+    return { data: result, message: "Idioma actualizado correctamente" };
+  }
+
   @Patch(":id")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
   @ApiOperation({ summary: "Actualizar usuario del sistema" })
@@ -71,14 +81,5 @@ export class UsuariosController {
   @ApiOperation({ summary: "Eliminar usuario del sistema" })
   async eliminar(@Param("id", ParseIntPipe) id: number) {
     await this.usuariosService.eliminar(id);
-  }
-
-  @Patch("mi-idioma")
-  @ApiOperation({ summary: "Actualizar idioma preferido del usuario actual" })
-  @ApiResponse({ status: 200, description: "Idioma actualizado correctamente" })
-  async actualizarMiIdioma(@Body() dto: { idioma: string }, @Req() req: any) {
-    const usuarioId = req.user?.id;
-    const result = await this.usuariosService.actualizarMiIdioma(usuarioId, dto.idioma);
-    return { data: result, message: "Idioma actualizado correctamente" };
   }
 }

@@ -1,10 +1,13 @@
 import {
   Component,
   OnInit,
-  OnDestroy,
   ViewChild,
   HostListener,
+  signal,
+  DestroyRef,
+  inject,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSelectChange } from '@angular/material/select';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MatDialog } from '@angular/material/dialog';
@@ -20,10 +23,12 @@ import {
 import { AuthService } from '../core/services/auth.service';
 import { PeriodoService } from '../core/services/periodo.service';
 import { ConfiguracionGeneralService } from '../core/services/configuracion-general.service';
+import { ApiService } from '../core/services/api.service';
+import { SocketService } from '../core/services/socket.service';
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
 import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialog/cambiar-password-dialog.component';
 import { PerfilDialogComponent } from './dialogs/perfil-dialog/perfil-dialog.component';
-import { Subscription, fromEvent } from 'rxjs';
+import { fromEvent } from 'rxjs';
 
 interface NavItem {
   icon: string;
@@ -57,100 +62,95 @@ interface NavGroup {
     ]),
   ],
 })
-export class LayoutComponent implements OnInit, OnDestroy {
+export class LayoutComponent implements OnInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
-  isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
-  isDark = false;
-  sectionTitle = 'Dashboard';
-  sidebarCollapsed = false;
-  selectedPeriodoCodigo: string = '';
+  isMobile = signal(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+  isDark = signal(false);
+  sidebarCollapsed = signal(false);
+  selectedPeriodoCodigo = signal('');
 
-  // Cachear usuario y navGroups para evitar recálculos en change detection
   usuario = this.authService.getUsuarioActual();
-  userPhoto: string | null = null;
+  userPhoto = signal<string | null>(null);
   private _visibleNavGroups: NavGroup[] = [];
-  private _routerSub!: Subscription;
-  private _photoSub!: Subscription;
   private _resizeTimer: any;
-  private _periodoSub!: Subscription;
-  private _chatbotSub!: Subscription;
+  private destroyRef = inject(DestroyRef);
 
-  // Grupos de navegación para mejor organización visual
+  // Grupos de navegación para mejor organización visual (con keys de traducción)
   navGroups: NavGroup[] = [
     {
-      label: 'Principal',
+      label: 'nav.groups.main',
       expanded: true,
       items: [
-        { icon: 'dashboard', label: 'Dashboard', route: '/app/dashboard' },
+        { icon: 'dashboard', label: 'sidebar.dashboard', route: '/app/dashboard' },
         { 
           icon: 'smart_toy', 
-          label: 'Asistente IA', 
+          label: 'sidebar.aiAssistant', 
           action: () => this.showChatbot(),
           roles: ['administradorsistema', 'coordinadoracademico', 'docente', 'directorescuela', 'decanofacultad', 'secretaria', 'operadorhorarios']
         },
       ],
     },
     {
-      label: 'Gestión Académica',
+      label: 'nav.groups.academic',
       expanded: true,
       items: [
         {
           icon: 'people',
-          label: 'Docentes',
+          label: 'sidebar.teachers',
           route: '/app/docentes',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'menu_book',
-          label: 'Cursos',
+          label: 'sidebar.courses',
           route: '/app/cursos',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'meeting_room',
-          label: 'Ambientes',
+          label: 'sidebar.environments',
           route: '/app/ambientes',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'assignment_ind',
-          label: 'Asignaciones',
+          label: 'sidebar.assignments',
           route: '/app/asignaciones',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'link',
-          label: 'Docente-Curso',
+          label: 'sidebar.teacherCourses',
           route: '/app/docente-cursos',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'link',
-          label: 'Curso-Ambiente',
+          label: 'sidebar.courseEnvironments',
           route: '/app/curso-ambientes',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'school',
-          label: 'Docente-Facultad',
+          label: 'sidebar.teacherFaculty',
           route: '/app/docente-facultad',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'event_available',
-          label: 'Disponibilidad',
+          label: 'sidebar.availability',
           route: '/app/disponibilidad',
           roles: ['administradorsistema', 'coordinadoracademico', 'docente'],
         },
       ],
     },
     {
-      label: 'Operaciones',
+      label: 'nav.groups.operations',
       expanded: true,
       items: [
         {
           icon: 'schedule',
-          label: 'Horarios',
+          label: 'sidebar.schedules',
           route: '/app/horarios',
           roles: [
             'administradorsistema',
@@ -160,25 +160,25 @@ export class LayoutComponent implements OnInit, OnDestroy {
         },
         {
           icon: 'schedule',
-          label: 'Mis Horarios',
+          label: 'sidebar.mySchedules',
           route: '/app/mis-horarios',
           roles: ['docente'],
         },
         {
           icon: 'support_agent',
-          label: 'Secretaria',
+          label: 'sidebar.secretary',
           route: '/app/secretaria',
           roles: ['administradorsistema', 'coordinadoracademico', 'secretaria'],
         },
       ],
     },
     {
-      label: 'Reportes y Análisis',
+      label: 'nav.groups.reports',
       expanded: true,
       items: [
         {
           icon: 'table_chart',
-          label: 'Reportes',
+          label: 'sidebar.reports',
           route: '/app/reportes',
           roles: [
             'administradorsistema',
@@ -188,7 +188,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
         },
         {
           icon: 'analytics',
-          label: 'Analytics',
+          label: 'sidebar.analytics',
           route: '/app/analytics',
           roles: [
             'administradorsistema',
@@ -198,7 +198,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
         },
         {
           icon: 'insights',
-          label: 'Análisis de Carga',
+          label: 'sidebar.loadAnalysis',
           route: '/app/analisis-carga',
           roles: [
             'administradorsistema',
@@ -208,7 +208,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
         },
         {
           icon: 'description',
-          label: 'Declaraciones',
+          label: 'sidebar.declarations',
           route: '/app/declaraciones',
           roles: [
             'administradorsistema',
@@ -219,43 +219,43 @@ export class LayoutComponent implements OnInit, OnDestroy {
         },
         {
           icon: 'fact_check',
-          label: 'Documentaciones',
+          label: 'sidebar.documentations',
           route: '/app/documentaciones',
           roles: ['directorescuela'],
         },
       ],
     },
     {
-      label: 'Sistema',
+      label: 'nav.groups.system',
       expanded: true,
       items: [
         {
           icon: 'manage_accounts',
-          label: 'Usuarios',
+          label: 'sidebar.users',
           route: '/app/usuarios',
           roles: ['administradorsistema'],
         },
         {
           icon: 'event_note',
-          label: 'Periodos',
+          label: 'sidebar.periods',
           route: '/app/periodos',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'campaign',
-          label: 'Campañas',
+          label: 'sidebar.campaigns',
           route: '/app/campaigns',
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
           icon: 'notifications',
-          label: 'Notificaciones',
+          label: 'sidebar.notifications',
           route: '/app/notificaciones',
           roles: ['docente', 'administradorsistema'],
         },
         {
           icon: 'account_balance',
-          label: 'Facultades',
+          label: 'sidebar.faculties',
           route: '/app/facultades',
           roles: [
             'administradorsistema',
@@ -265,7 +265,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
         },
         {
           icon: 'settings',
-          label: 'Configuración',
+          label: 'sidebar.settings',
           route: '/app/configuracion',
           roles: ['administradorsistema'],
         },
@@ -277,53 +277,21 @@ export class LayoutComponent implements OnInit, OnDestroy {
   onResize(): void {
     clearTimeout(this._resizeTimer);
     this._resizeTimer = setTimeout(() => {
-      const wasMobile = this.isMobile;
-      this.isMobile = window.innerWidth < 768;
-      if (!wasMobile && this.isMobile) this.sidenav?.close();
-      if (wasMobile && !this.isMobile) this.sidenav?.open();
+      const wasMobile = this.isMobile();
+      this.isMobile.set(window.innerWidth < 768);
+      if (!wasMobile && this.isMobile()) this.sidenav?.close();
+      if (wasMobile && !this.isMobile()) this.sidenav?.open();
     }, 150);
   }
 
-  private titleMap: Record<string, string> = {
-    dashboard: 'Dashboard',
-    docentes: 'Gestión de Docentes',
-    cursos: 'Gestión de Cursos',
-    ambientes: 'Gestión de Ambientes',
-    disponibilidad: 'Disponibilidad Docente',
-    reportes: 'Reportes',
-    horarios: 'Horarios — Vista de Asignaciones',
-    asignaciones: 'Gestión de Asignaciones',
-    analytics: 'Análisis Inteligente',
-    'analisis-carga': 'Análisis de Carga Docente',
-    secretaria: 'Secretaria — Sistema de Turnos',
-    preasignaciones: 'Preasignaciones de Cursos',
-    auditoria: 'Auditoría de Horarios',
-    periodos: 'Períodos Académicos',
-    campaigns: 'Campañas de Ventanas',
-    usuarios: 'Usuarios del Sistema',
-    configuracion: 'Configuración del Sistema',
-    notificaciones: 'Notificaciones y Preferencias',
-    declaraciones: 'Gestión de Declaraciones Normativas',
-    documentaciones: 'Revisión de Documentaciones',
-    'docente-facultad': 'Asignación Docente-Facultad',
-  };
-
   private _rutasSinPeriodo = new Set([
-    'docentes',
-    'cursos',
-    'ambientes',
-    'configuracion',
-    'periodos',
-    'campaigns',
-    'usuarios',
-    'notificaciones',
-    'analisis-carga',
-    'declaraciones',
-    'documentaciones',
-    'docente-facultad',
+    'docentes', 'cursos', 'ambientes',
+    'configuracion', 'periodos', 'campaigns',
+    'usuarios', 'notificaciones', 'analisis-carga',
+    'declaraciones', 'documentaciones', 'docente-facultad',
   ]);
-  showPeriodoSelector = true;
-  notificacionesCount = 3; // Simulación de notificaciones no leídas
+  showPeriodoSelector = signal(true);
+  notificacionesCount = signal(0);
 
   constructor(
     public authService: AuthService,
@@ -331,57 +299,56 @@ export class LayoutComponent implements OnInit, OnDestroy {
     private router: Router,
     private dialog: MatDialog,
     public configService: ConfiguracionGeneralService,
-  ) {}
+    public socketService: SocketService,
+    private api: ApiService,
+  ) {
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((e) => {
+      const seg = e.urlAfterRedirects.split('/')[2] ?? '';
+      this.showPeriodoSelector.set(!this._rutasSinPeriodo.has(seg));
+    });
+
+    this.periodoService.periodo$.pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((codigo) => this.selectedPeriodoCodigo.set(codigo));
+
+    this.authService.profilePhoto$.pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((photo) => this.userPhoto.set(photo));
+
+    fromEvent(window, 'chatbotVisibilityChanged').pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => this._computeVisibleNavGroups());
+  }
 
   ngOnInit(): void {
     this.configService.cargar();
-    // Forzar modo claro al iniciar
-    this.isDark = false;
+    this.isDark.set(false);
     document.body.classList.remove('dark-theme');
     document.body.classList.add('light-theme');
-
-    // Cachear grupos de navegación filtrados por rol (solo una vez)
     this._computeVisibleNavGroups();
-
-    // Cargar periodos desde la base de datos (no bloqueante)
     this.periodoService.cargarPeriodos();
-
-    // Suscribirse a cambios en el período seleccionado
-    this._periodoSub = this.periodoService.periodo$.subscribe((codigo) => {
-      this.selectedPeriodoCodigo = codigo;
-    });
-
-    this._photoSub = this.authService.profilePhoto$.subscribe((photo) => {
-      this.userPhoto = photo;
-    });
-
-    this._chatbotSub = fromEvent(window, 'chatbotVisibilityChanged').subscribe(() => {
-      this._computeVisibleNavGroups();
-    });
-
-    this._routerSub = this.router.events
-      .pipe(filter((e) => e instanceof NavigationEnd))
-      .subscribe((e: any) => {
-        const seg = (e.urlAfterRedirects as string).split('/')[2] ?? '';
-        this.sectionTitle = this.titleMap[seg] ?? 'Sistema de Horarios UNT';
-        this.showPeriodoSelector = !this._rutasSinPeriodo.has(seg);
-      });
+    this._loadNotificacionesCount();
   }
 
-  ngOnDestroy(): void {
-    if (this._routerSub) {
-      this._routerSub.unsubscribe();
-    }
-    if (this._photoSub) {
-      this._photoSub.unsubscribe();
-    }
-    if (this._periodoSub) {
-      this._periodoSub.unsubscribe();
-    }
-    if (this._chatbotSub) {
-      this._chatbotSub.unsubscribe();
-    }
-    clearTimeout(this._resizeTimer);
+  private _loadNotificacionesCount(): void {
+    const fetchCount = () => {
+      this.api.get<any>('/dashboard/alerts', { periodo: this.periodoService.periodo })
+        .subscribe({
+          next: (res) => {
+            const alerts = res.data ?? res;
+            const total = (alerts.conflictos_activos ?? 0) + (alerts.docentes_pendientes ?? 0) + (alerts.cursos_sin_asignar ?? 0);
+            this.notificacionesCount.set(Math.min(total, 9));
+          },
+          error: () => { this.notificacionesCount.set(0); },
+        });
+    };
+
+    fetchCount();
+    this.periodoService.periodo$.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => fetchCount());
   }
 
   private _computeVisibleNavGroups(): void {
@@ -415,8 +382,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   toggleGroup(group: NavGroup): void {
-    if (this.sidebarCollapsed) {
-      this.sidebarCollapsed = false;
+    if (this.sidebarCollapsed()) {
+      this.sidebarCollapsed.set(false);
       group.expanded = true;
       return;
     }
@@ -424,7 +391,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   toggleSidebarCollapsed(): void {
-    this.sidebarCollapsed = !this.sidebarCollapsed;
+    this.sidebarCollapsed.update(v => !v);
   }
 
   toggleSidenav(): void {
@@ -436,8 +403,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   toggleDarkMode(): void {
-    this.isDark = !this.isDark;
-    if (this.isDark) {
+    this.isDark.update(v => !v);
+    if (this.isDark()) {
       document.body.classList.add('dark-theme');
       document.body.classList.remove('light-theme');
     } else {
@@ -478,5 +445,12 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.authService.logout();
+  }
+
+  getSelectedPeriodoNombre(): string {
+    const periodos = this.periodoService.periodos;
+    const codigo = this.selectedPeriodoCodigo();
+    const found = periodos.find(p => p.codigo === codigo);
+    return found?.nombre || codigo || 'Seleccionar Período';
   }
 }

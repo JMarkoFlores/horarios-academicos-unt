@@ -83,6 +83,19 @@ export class CursosListComponent implements OnInit {
 
   onFilterChange(): void { this.currentPage = 0; this.loadCursos(); }
 
+  hasActiveFilters(): boolean {
+    return !!this.cicloFilter || this.labFilter !== '' || this.activoFilter !== 'true' || !!this.searchControl.value;
+  }
+
+  clearFilters(): void {
+    this.cicloFilter = '';
+    this.labFilter = '';
+    this.activoFilter = 'true';
+    this.searchControl.setValue('');
+    this.currentPage = 0;
+    this.loadCursos();
+  }
+
   onSort(s: Sort): void {
     this.sortBy  = s.active || 'ciclo';
     this.sortDir = s.direction === 'desc' ? 'DESC' : 'ASC';

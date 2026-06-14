@@ -32,6 +32,7 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { TranslateModule } from '@ngx-translate/core';
 
 const MATERIAL = [
   MatButtonModule,
@@ -74,6 +75,7 @@ const MATERIAL = [
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
+    TranslateModule,
     ...MATERIAL,
   ],
   exports: [
@@ -81,6 +83,7 @@ const MATERIAL = [
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
+    TranslateModule,
     ...MATERIAL,
     ConfirmDialogComponent,
     LanguageSelectorComponent,

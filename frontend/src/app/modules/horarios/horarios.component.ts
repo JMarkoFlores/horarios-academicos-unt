@@ -1080,6 +1080,11 @@ export class HorariosComponent implements OnInit, OnDestroy {
       }
     });
 
+    for (const entry of map.values()) {
+      const ng = entry.gruposIds.size || 1;
+      entry.hLaboratorio = entry.hLaboratorio / ng;
+    }
+
     const hierarchy: { [key: string]: number } = {
       'PRINCIPAL': 1,
       'ASOCIADO': 2,

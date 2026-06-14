@@ -1,7 +1,10 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../../core/services/api.service';
 import { SocketService } from '../../../core/services/socket.service';
 import { Subscription, interval } from 'rxjs';
+import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-cola-atencion',
@@ -22,7 +25,9 @@ export class ColaAtencionComponent implements OnChanges, OnDestroy, OnInit {
 
   constructor(
     private api: ApiService,
-    private socketService: SocketService
+    private socketService: SocketService,
+    private snack: MatSnackBar,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -118,40 +123,70 @@ export class ColaAtencionComponent implements OnChanges, OnDestroy, OnInit {
 
   llamarSiguiente(): void {
     if (!this.ventanaId) return;
-    this.loading = true;
-    this.detenerTemporizador();
-    this.api.post<any>(`/ventanas/${this.ventanaId}/siguiente`, {}).subscribe({
-      next: (r) => {
-        this.estadoCola = r.data;
-        this.loading = false;
-        if (this.estadoCola?.en_atencion) {
-          this.docenteEnAtencion.emit(this.estadoCola.en_atencion.docente);
-          this.iniciarTemporizador();
-        }
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Llamar Siguiente',
+        message: '¿Llamar al siguiente docente en la cola?',
+        detail: 'El docente actual pasará al final de la cola si no ha sido atendido.',
+        confirmLabel: 'Llamar',
+        confirmColor: 'primary',
+        icon: 'skip_next',
       },
-      error: () => {
-        this.loading = false;
-      }
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.loading = true;
+      this.detenerTemporizador();
+      this.api.post<any>(`/ventanas/${this.ventanaId}/siguiente`, {}).subscribe({
+        next: (r) => {
+          this.estadoCola = r.data;
+          this.loading = false;
+          if (this.estadoCola?.en_atencion) {
+            this.docenteEnAtencion.emit(this.estadoCola.en_atencion.docente);
+            this.iniciarTemporizador();
+          }
+        },
+        error: (err) => {
+          this.loading = false;
+          this.snack.open(err?.error?.message || 'Error al llamar al siguiente docente', 'Cerrar', { duration: 3000 });
+        }
+      });
     });
   }
 
   marcarAusente(docenteId: number): void {
     if (!this.ventanaId) return;
-    this.loading = true;
-    this.detenerTemporizador();
-    this.api.post<any>(`/ventanas/${this.ventanaId}/ausente`, { docente_id: docenteId }).subscribe({
-      next: (r) => {
-        this.estadoCola = r.data;
-        this.loading = false;
-        if (!this.estadoCola?.en_atencion) {
-          this.docenteEnAtencion.emit(null);
-        } else {
-          this.iniciarTemporizador();
-        }
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Marcar como Ausente',
+        message: '¿Marcar a este docente como ausente?',
+        detail: 'Se registrará la inasistencia y se llamará al siguiente en la cola.',
+        confirmLabel: 'Ausente',
+        confirmColor: 'warn',
+        icon: 'person_off',
       },
-      error: () => {
-        this.loading = false;
-      }
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.loading = true;
+      this.detenerTemporizador();
+      this.api.post<any>(`/ventanas/${this.ventanaId}/ausente`, { docente_id: docenteId }).subscribe({
+        next: (r) => {
+          this.estadoCola = r.data;
+          this.loading = false;
+          if (!this.estadoCola?.en_atencion) {
+            this.docenteEnAtencion.emit(null);
+          } else {
+            this.iniciarTemporizador();
+          }
+        },
+        error: (err) => {
+          this.loading = false;
+          this.snack.open(err?.error?.message || 'Error al marcar ausente', 'Cerrar', { duration: 3000 });
+        }
+      });
     });
   }
 }

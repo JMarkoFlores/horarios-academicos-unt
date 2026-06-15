@@ -1,0 +1,104 @@
+<div class="aprobacion-page">
+  <div class="page-header">
+    <button mat-icon-button (click)="volver()" class="btn-back">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="header-icon">
+      <mat-icon>approval</mat-icon>
+    </div>
+    <div>
+      <h1>Aprobación de Facultad</h1>
+      <p>Declaraciones validadas por departamento pendientes de aprobación del Decano</p>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <mat-card class="table-card" *ngIf="!loading">
+    <mat-card-header class="card-header">
+      <div class="header-icon-small">
+        <mat-icon>verified</mat-icon>
+      </div>
+      <div class="header-text">
+        <mat-card-title>Declaraciones en VALIDADO_DPTO</mat-card-title>
+        <mat-card-subtitle>{{ filteredItems.length }} declaraciones listas para aprobación final</mat-card-subtitle>
+      </div>
+    </mat-card-header>
+    <mat-card-content class="card-content">
+      <div class="table-container" *ngIf="filteredItems.length > 0">
+        <table mat-table [dataSource]="filteredItems" class="full-table">
+          <ng-container matColumnDef="docente">
+            <th mat-header-cell *matHeaderCellDef>Docente</th>
+            <td mat-cell *matCellDef="let item">
+              <div class="docente-cell">
+                <div class="docente-avatar">{{ getInitials(item.docente_nombre) }}</div>
+                <div class="docente-info">
+                  <span class="docente-nombre">{{ item.docente_nombre }}</span>
+                  <span class="docente-ibm">IBM: {{ item.docente_ibm || "—" }}</span>
+                </div>
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="departamento">
+            <th mat-header-cell *matHeaderCellDef>Departamento</th>
+            <td mat-cell *matCellDef="let item">
+              <span class="depto-badge">{{ item.departamento_nombre || "—" }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="periodo">
+            <th mat-header-cell *matHeaderCellDef>Periodo</th>
+            <td mat-cell *matCellDef="let item">
+              <span class="periodo-badge">{{ item.periodo }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="fecha_validacion">
+            <th mat-header-cell *matHeaderCellDef>Fecha validación</th>
+            <td mat-cell *matCellDef="let item">
+              {{ item.fecha_envio ? (item.fecha_envio | date:'dd/MM/yyyy HH:mm') : '—' }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="acciones">
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
+            <td mat-cell *matCellDef="let item">
+              <div class="acciones-cell">
+                <button mat-raised-button color="primary" class="btn-aprobar" (click)="aprobar(item)" [disabled]="saving === item.id">
+                  <mat-icon>check_circle</mat-icon>
+                  Aprobar
+                </button>
+                <button mat-raised-button color="warn" class="btn-observar" (click)="toggleObservar(item.id)" [disabled]="saving === item.id">
+                  <mat-icon>cancel</mat-icon>
+                  Observar
+                </button>
+              </div>
+              <div class="observar-form" *ngIf="observandoId === item.id">
+                <mat-form-field appearance="outline" class="observacion-field">
+                  <mat-label>Texto de la observación (mín. 10 caracteres)</mat-label>
+                  <textarea matInput [(ngModel)]="textoObservacion" rows="2" placeholder="Describa la observación..."></textarea>
+                </mat-form-field>
+                <button mat-raised-button color="warn" (click)="observar(item)" [disabled]="saving === item.id || textoObservacion.trim().length < 10">
+                  Confirmar Observación
+                </button>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        </table>
+      </div>
+
+      <div class="empty-state" *ngIf="filteredItems.length === 0">
+        <div class="empty-icon">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <p>No hay declaraciones pendientes de aprobación de facultad.</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

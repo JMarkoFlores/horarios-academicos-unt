@@ -29,6 +29,8 @@ import { CreateDeclaracionCargaHorariaDto } from "./dto/create-declaracion-carga
 import { UpdateDeclaracionCargaHorariaDto } from "./dto/update-declaracion-carga-horaria.dto";
 import { AccionDeclaracionCargaHorariaDto } from "./dto/accion-declaracion-carga-horaria.dto";
 import { CargaLectivaDeclaracionDto } from "./dto/carga-lectiva.dto";
+import { ObservarDeclaracionDto } from "./dto/observar-declaracion.dto";
+import { SubsanarDeclaracionDto } from "./dto/subsanar-declaracion.dto";
 
 @ApiTags("declaraciones")
 @Controller("declaraciones")
@@ -99,7 +101,9 @@ export class DeclaracionCargaHorariaController {
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo?: string,
   ): Promise<any> {
-    this.logger.log(`Solicitando cursos para docente ID: ${id}, Periodo: ${periodo}`);
+    this.logger.log(
+      `Solicitando cursos para docente ID: ${id}, Periodo: ${periodo}`,
+    );
     const data = await this.declaracionService.obtenerCursosAsignadosDocente(
       id,
       periodo,
@@ -355,5 +359,63 @@ export class DeclaracionCargaHorariaController {
   ): Promise<any> {
     const data = await this.declaracionService.aprobar(id, usuario, dto);
     return { data, message: "Declaración aprobada correctamente" };
+  }
+
+  @Get(":id/observaciones")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+  )
+  @ApiOperation({ summary: "Obtener historial de observaciones de una declaración" })
+  @ApiParam({ name: "id", type: Number })
+  async obtenerObservaciones(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<any> {
+    const data = await this.declaracionService.obtenerObservaciones(id);
+    return { data, message: "Observaciones obtenidas correctamente" };
+  }
+
+  @Patch(":id/subsanar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @ApiOperation({ summary: "Docente subsana observaciones y reenvía" })
+  @ApiParam({ name: "id", type: Number })
+  async subsanar(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: SubsanarDeclaracionDto,
+    @CurrentUser() usuario: Usuario,
+  ): Promise<any> {
+    const data = await this.declaracionService.subsanar(id, usuario, dto);
+    return { data, message: "Declaración subsanada correctamente" };
+  }
+
+  @Get("pendientes/departamento")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @ApiOperation({ summary: "Obtener declaraciones pendientes del departamento (Director)" })
+  async pendientesDepartamento(
+    @CurrentUser() usuario: Usuario,
+    @Query("periodo") periodo?: string,
+  ): Promise<any> {
+    const data = await this.declaracionService.pendientesDepartamento(
+      usuario,
+      periodo,
+    );
+    return { data, message: "Pendientes del departamento obtenidos correctamente" };
+  }
+
+  @Get("pendientes/facultad")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
+  @ApiOperation({ summary: "Obtener declaraciones pendientes de facultad (Decano)" })
+  async pendientesFacultad(
+    @CurrentUser() usuario: Usuario,
+    @Query("periodo") periodo?: string,
+  ): Promise<any> {
+    const data = await this.declaracionService.pendientesFacultad(
+      usuario,
+      periodo,
+    );
+    return { data, message: "Pendientes de facultad obtenidos correctamente" };
   }
 }

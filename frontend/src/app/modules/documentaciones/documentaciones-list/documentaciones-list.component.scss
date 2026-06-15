@@ -261,8 +261,86 @@
   }
 }
 
+.alert-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #fff3e0;
+  border: 1px solid #ffe0b2;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e65100;
+
+  mat-icon {
+    color: #f57c00;
+  }
+}
+
+.filtros-bar {
+  display: flex;
+  gap: 16px;
+  padding: 16px 24px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+
+  .filtro-busqueda {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .filtro-estado {
+    min-width: 200px;
+  }
+}
+
+.estado-badge {
+  &.estado-subsanado {
+    background: #fff9c4;
+    color: #f9a825;
+  }
+
+  &.estado-observado-facultad {
+    background: #b71c1c;
+    color: white;
+  }
+}
+
+.depto-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #555;
+  font-size: 13px;
+}
+
+.docente-ibm {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.docente-info {
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 768px) {
   .documentaciones-page {
     padding: 20px;
+  }
+
+  .filtros-bar {
+    flex-direction: column;
+
+    .filtro-busqueda,
+    .filtro-estado {
+      min-width: 100%;
+    }
   }
 }

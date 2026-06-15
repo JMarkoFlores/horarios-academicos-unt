@@ -52,7 +52,7 @@ export class DocentesListComponent implements OnInit {
 
   categorias = ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR', 'SIN_CATEGORIA'];
   tiposDocente = [
-    { value: 'ORDINARIO', label: 'Ordinario' },
+    { value: 'ORDINARIO', label: 'Nombrado' },
     { value: 'CONTRATADO', label: 'Contratado' },
     { value: 'JEFE_PRACTICA_CONTRATADO', label: 'Jefe de práctica contratado' },
   ];
@@ -281,11 +281,12 @@ export class DocentesListComponent implements OnInit {
 
           const headers = [
             'Cód.',
+            'IBM',
             'Apellidos',
             'Nombres',
             'Email',
             'Teléfono',
-            'Tipo de docente',
+            'Condición',
             'Categoría',
             'Modalidad',
             'Estado',
@@ -296,6 +297,7 @@ export class DocentesListComponent implements OnInit {
 
           const dataRows = res.data.map((d) => [
             d.codigo,
+            d.ibm ?? '',
             d.apellidos,
             d.nombres,
             d.email,
@@ -313,6 +315,7 @@ export class DocentesListComponent implements OnInit {
 
           ws['!cols'] = [
             { wch: 10 },
+            { wch: 8 },
             { wch: 26 },
             { wch: 22 },
             { wch: 34 },
@@ -325,9 +328,9 @@ export class DocentesListComponent implements OnInit {
             { wch: 8 },
           ];
           ws['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
-            { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } },
-            { s: { r: 2, c: 0 }, e: { r: 2, c: 10 } },
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+            { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } },
           ];
 
           const titleStyle = {
@@ -353,65 +356,33 @@ export class DocentesListComponent implements OnInit {
           };
 
           [
-            'A1',
-            'B1',
-            'C1',
-            'D1',
-            'E1',
-            'F1',
-            'G1',
-            'H1',
-            'I1',
-            'J1',
-            'K1',
+            'A1', 'B1', 'C1', 'D1', 'E1',
+            'F1', 'G1', 'H1', 'I1', 'J1',
+            'K1', 'L1',
           ].forEach((c) => {
             if (!ws[c]) ws[c] = {};
             ws[c].s = titleStyle;
           });
           [
-            'A2',
-            'B2',
-            'C2',
-            'D2',
-            'E2',
-            'F2',
-            'G2',
-            'H2',
-            'I2',
-            'J2',
-            'K2',
+            'A2', 'B2', 'C2', 'D2', 'E2',
+            'F2', 'G2', 'H2', 'I2', 'J2',
+            'K2', 'L2',
           ].forEach((c) => {
             if (!ws[c]) ws[c] = {};
             ws[c].s = subStyle;
           });
           [
-            'A3',
-            'B3',
-            'C3',
-            'D3',
-            'E3',
-            'F3',
-            'G3',
-            'H3',
-            'I3',
-            'J3',
-            'K3',
+            'A3', 'B3', 'C3', 'D3', 'E3',
+            'F3', 'G3', 'H3', 'I3', 'J3',
+            'K3', 'L3',
           ].forEach((c) => {
             if (!ws[c]) ws[c] = {};
             ws[c].s = infoStyle;
           });
           [
-            'A5',
-            'B5',
-            'C5',
-            'D5',
-            'E5',
-            'F5',
-            'G5',
-            'H5',
-            'I5',
-            'J5',
-            'K5',
+            'A5', 'B5', 'C5', 'D5', 'E5',
+            'F5', 'G5', 'H5', 'I5', 'J5',
+            'K5', 'L5',
           ].forEach((c) => {
             if (!ws[c]) ws[c] = {};
             ws[c].s = hdrStyle;
@@ -420,7 +391,7 @@ export class DocentesListComponent implements OnInit {
           for (let i = 6; i < 6 + dataRows.length; i++) {
             const evenRow = i % 2 === 0;
             const fillRgb = evenRow ? 'F0EDFE' : 'FFFFFF';
-            ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].forEach(
+            ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'].forEach(
               (col) => {
                 const cell = `${col}${i}`;
                 if (!ws[cell]) ws[cell] = { v: '', t: 's' };
@@ -437,7 +408,7 @@ export class DocentesListComponent implements OnInit {
                 };
               },
             );
-            const estadoCell = `H${i}`;
+            const estadoCell = `J${i}`;
             if (ws[estadoCell]) {
               const isActivo = ws[estadoCell].v === 'Activo';
               ws[estadoCell].s = {

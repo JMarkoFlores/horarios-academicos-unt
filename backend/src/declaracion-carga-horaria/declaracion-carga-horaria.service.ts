@@ -16,10 +16,15 @@ import { Facultad } from "../entities/facultad.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Usuario } from "../entities/usuario.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
+import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { DeclaracionObservacion } from "../entities/declaracion-observacion.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
 import { CreateDeclaracionCargaHorariaDto } from "./dto/create-declaracion-carga-horaria.dto";
 import { UpdateDeclaracionCargaHorariaDto } from "./dto/update-declaracion-carga-horaria.dto";
 import { AccionDeclaracionCargaHorariaDto } from "./dto/accion-declaracion-carga-horaria.dto";
@@ -29,9 +34,12 @@ interface CargaLectivaDetalle {
   cursoId: number;
   codigoCurso: string;
   nombreCurso: string;
+  tipoCurso: string;
+  escuela: string;
   grupoId: number;
   seccion: string;
   ciclo: number;
+  nroAlumnos: number;
   tipoClase: TipoClase;
   horasTeoria: number;
   horasPractica: number;
@@ -105,6 +113,8 @@ interface DocumentacionResumen {
   estado: EstadoDeclaracionCarga;
   periodo: string;
   fecha_envio: Date | null;
+  departamento_nombre?: string | null;
+  facultad_nombre?: string | null;
 }
 
 @Injectable()
@@ -126,6 +136,12 @@ export class DeclaracionCargaHorariaService {
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(DocenteCurso)
     private readonly docenteCursoRepo: Repository<DocenteCurso>,
+    @InjectRepository(AsignacionLectiva)
+    private readonly asignacionLectivaRepo: Repository<AsignacionLectiva>,
+    @InjectRepository(ParametrosCarga)
+    private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
+    @InjectRepository(DeclaracionObservacion)
+    private readonly observacionRepo: Repository<DeclaracionObservacion>,
   ) {}
 
   async obtenerMia(
@@ -133,10 +149,7 @@ export class DeclaracionCargaHorariaService {
   ): Promise<DeclaracionVista> {
     const docente = await this.resolverDocente(usuario);
     const periodo = await this.obtenerPeriodoActivo();
-    const cargaLectiva = await this.generarCargaLectivaDesdeHorarios(
-      docente.id,
-      periodo.id,
-    );
+    const cargaLectiva = await this.cargarCargaLectiva(docente.id, periodo.id);
     const declaracion = await this.declaracionRepo.findOne({
       where: {
         docente_id: docente.id,
@@ -174,7 +187,7 @@ export class DeclaracionCargaHorariaService {
       periodo,
       cargaLectiva,
       snapshotGuardado: this.normalizarSnapshotCargaLectiva(
-        declaracion.carga_no_lectiva,
+        declaracion.carga_lectiva_json,
       ),
     };
   }
@@ -206,7 +219,7 @@ export class DeclaracionCargaHorariaService {
       this.verificarAccesoDeclaracion(usuario, declaracion);
     }
 
-    const cargaLectiva = await this.generarCargaLectivaDesdeHorarios(
+    const cargaLectiva = await this.cargarCargaLectiva(
       declaracion.docente_id,
       declaracion.periodo_academico_id,
     );
@@ -220,7 +233,7 @@ export class DeclaracionCargaHorariaService {
       periodo: declaracion.periodo_academico,
       cargaLectiva,
       snapshotGuardado: this.normalizarSnapshotCargaLectiva(
-        declaracion.carga_no_lectiva,
+        declaracion.carga_lectiva_json,
       ),
     };
   }
@@ -250,6 +263,7 @@ export class DeclaracionCargaHorariaService {
       .innerJoinAndSelect("declaracion.docente", "docente")
       .innerJoinAndSelect("declaracion.periodo_academico", "periodo")
       .leftJoinAndSelect("declaracion.departamento", "departamento")
+      .leftJoinAndSelect("declaracion.facultad", "facultad")
       .leftJoinAndSelect("departamento.escuela", "escuela")
       .where("declaracion.periodo_academico_id = :periodoId", {
         periodoId: periodoActivo.id,
@@ -276,6 +290,8 @@ export class DeclaracionCargaHorariaService {
       estado: declaracion.estado,
       periodo: declaracion.periodo_academico.codigo,
       fecha_envio: declaracion.fecha_firma_docente,
+      departamento_nombre: declaracion.departamento?.nombre ?? null,
+      facultad_nombre: declaracion.facultad?.nombre ?? null,
     }));
   }
 
@@ -349,6 +365,41 @@ export class DeclaracionCargaHorariaService {
       EstadoDeclaracionCarga.ENVIADO_DOCENTE,
     );
 
+    // CL-V4: validar que todos los rubros con horas tengan detalle al enviar
+    const actividades =
+      (declaracion.carga_no_lectiva as any)?.actividades ?? [];
+    for (const act of actividades) {
+      const horas = Number(act.horas) || 0;
+      if (horas > 0 && act.id !== 1) {
+        if (!act.detalle || act.detalle.trim().length < 10) {
+          throw new BadRequestException(
+            `No puede enviar la declaración. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
+          );
+        }
+        if (!act.horarios || !Array.isArray(act.horarios) || act.horarios.length === 0) {
+          throw new BadRequestException(
+            `No puede enviar la declaración. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
+          );
+        }
+      }
+    }
+
+    // Validar que no haya conflictos de horario entre actividades
+    this.validarConflictosHorarios(actividades);
+
+    // V6: Horas totales <= horas de modalidad
+    const totalLectivas = declaracion.total_horas_lectivas;
+    const totalNoLectivas = declaracion.total_horas_no_lectivas;
+    const horasModalidad = await this.obtenerHorasModalidad(
+      declaracion.docente?.modalidad ?? "",
+      declaracion.periodo_academico_id,
+    );
+    if (totalLectivas + totalNoLectivas > horasModalidad) {
+      throw new BadRequestException(
+        `El total de horas (${totalLectivas}h lectivas + ${totalNoLectivas}h no lectivas = ${totalLectivas + totalNoLectivas}h) excede las ${horasModalidad}h permitidas para la modalidad.`,
+      );
+    }
+
     declaracion.estado = EstadoDeclaracionCarga.ENVIADO_DOCENTE;
     declaracion.fecha_firma_docente = new Date();
     declaracion.usuario_firmante_id = usuario.id;
@@ -367,17 +418,41 @@ export class DeclaracionCargaHorariaService {
   ): Promise<DeclaracionVista> {
     const declaracion = await this.obtenerEntidadEditable(id);
     this.verificarAccesoDeclaracion(usuario, declaracion);
+    const estadoOrigen = declaracion.estado;
     const estadoObjetivo = this.resolverEstadoObservacion(usuario.rol);
-    this.validarTransicionEstado(declaracion.estado, estadoObjetivo);
+    this.validarTransicionEstado(estadoOrigen, estadoObjetivo);
+
+    // V23: No se puede observar sin texto de observación
+    if (!dto.observaciones || dto.observaciones.trim().length < 10) {
+      throw new BadRequestException(
+        "La observación debe tener al menos 10 caracteres",
+      );
+    }
 
     declaracion.estado = estadoObjetivo;
-    declaracion.observaciones = dto.observaciones ?? declaracion.observaciones;
+    declaracion.observaciones = dto.observaciones;
     declaracion.usuario_firmante_id = usuario.id;
     if (estadoObjetivo === EstadoDeclaracionCarga.OBSERVADO_DPTO) {
       declaracion.fecha_firma_director = new Date();
     }
 
     const saved = await this.declaracionRepo.save(declaracion);
+
+    // Crear registro de observación con trazabilidad
+    const observacion = this.observacionRepo.create({
+      declaracion_id: saved.id,
+      usuario_id: usuario.id,
+      observacion: dto.observaciones,
+      estado_origen: estadoOrigen,
+      estado_destino: estadoObjetivo,
+      tipo:
+        estadoObjetivo === EstadoDeclaracionCarga.OBSERVADO_DPTO
+          ? "OBSERVACION_DPTO"
+          : "OBSERVACION_FACULTAD",
+      subsanada: false,
+    });
+    await this.observacionRepo.save(observacion);
+
     return this.obtenerPorId(saved.id);
   }
 
@@ -398,6 +473,19 @@ export class DeclaracionCargaHorariaService {
       declaracion.estado,
       EstadoDeclaracionCarga.VALIDADO_DPTO,
     );
+
+    // V24: No se puede aprobar si hay observaciones sin subsanar
+    const observacionesPendientes = await this.observacionRepo.count({
+      where: {
+        declaracion_id: id,
+        subsanada: false,
+      },
+    });
+    if (observacionesPendientes > 0) {
+      throw new BadRequestException(
+        "No se puede validar mientras haya observaciones pendientes de subsanar",
+      );
+    }
 
     declaracion.estado = EstadoDeclaracionCarga.VALIDADO_DPTO;
     declaracion.fecha_firma_director = new Date();
@@ -426,6 +514,19 @@ export class DeclaracionCargaHorariaService {
       EstadoDeclaracionCarga.APROBADO_FACULTAD,
     );
 
+    // V24: No se puede aprobar si hay observaciones sin subsanar
+    const observacionesPendientes = await this.observacionRepo.count({
+      where: {
+        declaracion_id: id,
+        subsanada: false,
+      },
+    });
+    if (observacionesPendientes > 0) {
+      throw new BadRequestException(
+        "No se puede aprobar mientras haya observaciones pendientes de subsanar",
+      );
+    }
+
     declaracion.estado = EstadoDeclaracionCarga.APROBADO_FACULTAD;
     declaracion.fecha_firma_decano = new Date();
     declaracion.usuario_firmante_id = usuario.id;
@@ -435,6 +536,184 @@ export class DeclaracionCargaHorariaService {
 
     const saved = await this.declaracionRepo.save(declaracion);
     return this.obtenerPorId(saved.id);
+  }
+
+  async obtenerObservaciones(
+    declaracionId: number,
+  ): Promise<DeclaracionObservacion[]> {
+    return this.observacionRepo.find({
+      where: { declaracion_id: declaracionId },
+      relations: ["usuario"],
+      order: { created_at: "DESC" },
+    });
+  }
+
+  async subsanar(
+    id: number,
+    usuario: Usuario & { docenteId?: number | null },
+    dto: AccionDeclaracionCargaHorariaDto,
+  ): Promise<DeclaracionVista> {
+    const declaracion = await this.obtenerEntidadEditable(id);
+    this.verificarPermisoDocente(usuario, declaracion.docente_id);
+
+    // V27: Solo subsana si estado = OBSERVADO_DPTO o OBSERVADO_FACULTAD
+    if (
+      declaracion.estado !== EstadoDeclaracionCarga.OBSERVADO_DPTO &&
+      declaracion.estado !== EstadoDeclaracionCarga.OBSERVADO_FACULTAD
+    ) {
+      throw new BadRequestException(
+        "Solo puede subsanar declaraciones observadas",
+      );
+    }
+
+    this.validarTransicionEstado(
+      declaracion.estado,
+      EstadoDeclaracionCarga.SUBSANADO,
+    );
+
+    declaracion.estado = EstadoDeclaracionCarga.SUBSANADO;
+    declaracion.usuario_firmante_id = usuario.id;
+    if (dto.observaciones !== undefined) {
+      declaracion.observaciones = dto.observaciones;
+    }
+
+    const saved = await this.declaracionRepo.save(declaracion);
+
+    // Marcar observaciones como subsanadas
+    await this.observacionRepo.update(
+      {
+        declaracion_id: id,
+        subsanada: false,
+      },
+      {
+        subsanada: true,
+        subsanada_en: new Date(),
+      },
+    );
+
+    return this.obtenerPorId(saved.id);
+  }
+
+  async pendientesDepartamento(
+    usuario: Usuario & { docenteId?: number | null },
+    periodo?: string,
+  ): Promise<DocumentacionResumen[]> {
+    this.verificarRol(usuario.rol, [
+      RolUsuario.DIRECTOR_DEPARTAMENTO,
+      RolUsuario.ADMINISTRADOR_SISTEMA,
+    ]);
+
+    const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
+    const estadosVisibles = [
+      EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+      EstadoDeclaracionCarga.OBSERVADO_DPTO,
+      EstadoDeclaracionCarga.SUBSANADO,
+    ];
+
+    const qb = this.declaracionRepo
+      .createQueryBuilder("declaracion")
+      .innerJoinAndSelect("declaracion.docente", "docente")
+      .innerJoinAndSelect("declaracion.periodo_academico", "periodo")
+      .leftJoinAndSelect("declaracion.departamento", "departamento")
+      .leftJoinAndSelect("declaracion.facultad", "facultad")
+      .leftJoin("departamento.escuela", "escuela")
+      .where("declaracion.periodo_academico_id = :periodoId", {
+        periodoId: periodoActivo.id,
+      })
+      .andWhere("declaracion.estado IN (:...estados)", {
+        estados: estadosVisibles,
+      })
+      .orderBy("docente.apellidos", "ASC")
+      .addOrderBy("docente.nombres", "ASC");
+
+    // V25: Director solo ve docentes de su departamento
+    if (usuario.rol === RolUsuario.DIRECTOR_DEPARTAMENTO) {
+      const docente = await this.docenteRepo.findOne({
+        where: { usuario_id: usuario.id },
+        relations: ["departamento"],
+      });
+      if (docente?.departamento_id) {
+        qb.andWhere("declaracion.departamento_id = :deptoId", {
+          deptoId: docente.departamento_id,
+        });
+      } else {
+        throw new ForbiddenException(
+          "No tiene un departamento asignado",
+        );
+      }
+    }
+
+    const declaraciones = await qb.getMany();
+
+    return declaraciones.map((d) => ({
+      id: d.id,
+      docente_id: d.docente_id,
+      docente_nombre: `${d.docente.apellidos}, ${d.docente.nombres}`,
+      docente_ibm: d.docente.ibm ?? null,
+      estado: d.estado,
+      periodo: d.periodo_academico.codigo,
+      fecha_envio: d.fecha_firma_docente,
+      departamento_nombre: d.departamento?.nombre ?? null,
+      facultad_nombre: d.facultad?.nombre ?? null,
+    }));
+  }
+
+  async pendientesFacultad(
+    usuario: Usuario & { docenteId?: number | null },
+    periodo?: string,
+  ): Promise<DocumentacionResumen[]> {
+    this.verificarRol(usuario.rol, [
+      RolUsuario.DECANO,
+      RolUsuario.ADMINISTRADOR_SISTEMA,
+    ]);
+
+    const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
+
+    const qb = this.declaracionRepo
+      .createQueryBuilder("declaracion")
+      .innerJoinAndSelect("declaracion.docente", "docente")
+      .innerJoinAndSelect("declaracion.periodo_academico", "periodo")
+      .leftJoinAndSelect("declaracion.facultad", "facultad")
+      .leftJoinAndSelect("declaracion.departamento", "departamento")
+      .where("declaracion.periodo_academico_id = :periodoId", {
+        periodoId: periodoActivo.id,
+      })
+      .andWhere("declaracion.estado = :estado", {
+        estado: EstadoDeclaracionCarga.VALIDADO_DPTO,
+      })
+      .orderBy("facultad.nombre", "ASC")
+      .addOrderBy("docente.apellidos", "ASC");
+
+    // V26: Decano solo ve su facultad
+    if (usuario.rol === RolUsuario.DECANO) {
+      const docente = await this.docenteRepo.findOne({
+        where: { usuario_id: usuario.id },
+        relations: ["facultad"],
+      });
+      if (docente?.facultad_id) {
+        qb.andWhere("declaracion.facultad_id = :facultadId", {
+          facultadId: docente.facultad_id,
+        });
+      } else {
+        throw new ForbiddenException(
+          "No tiene una facultad asignada",
+        );
+      }
+    }
+
+    const declaraciones = await qb.getMany();
+
+    return declaraciones.map((d) => ({
+      id: d.id,
+      docente_id: d.docente_id,
+      docente_nombre: `${d.docente.apellidos}, ${d.docente.nombres}`,
+      docente_ibm: d.docente.ibm ?? null,
+      estado: d.estado,
+      periodo: d.periodo_academico.codigo,
+      fecha_envio: d.fecha_firma_director,
+      departamento_nombre: d.departamento?.nombre ?? null,
+      facultad_nombre: d.facultad?.nombre ?? null,
+    }));
   }
 
   validarTransicionEstado(
@@ -453,6 +732,7 @@ export class DeclaracionCargaHorariaService {
     > = {
       [EstadoDeclaracionCarga.NO_INICIADO]: [
         EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
         EstadoDeclaracionCarga.ANULADO,
       ],
       [EstadoDeclaracionCarga.BORRADOR]: [
@@ -805,6 +1085,82 @@ export class DeclaracionCargaHorariaService {
     };
   }
 
+  async generarCargaLectivaDesdeAsignaciones(
+    docenteId: number,
+    periodoId: number,
+  ): Promise<CargaLectivaGenerada> {
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+    if (!periodo) {
+      throw new NotFoundException(`Periodo ${periodoId} no encontrado`);
+    }
+
+    const asignaciones = await this.asignacionLectivaRepo.find({
+      where: { docente_id: docenteId, periodo_id: periodoId },
+      relations: [
+        "curso_plan",
+        "curso_plan.curso",
+        "curso_plan.curso.departamento",
+        "curso_plan.curso.departamento.escuela",
+        "grupo",
+      ],
+    });
+
+    const registros: CargaLectivaDetalle[] = [];
+    for (const a of asignaciones) {
+      if (!a.curso_plan) continue;
+      const curso = a.curso_plan.curso;
+      registros.push({
+        horarioAsignadoId: a.id,
+        cursoId: curso?.id ?? 0,
+        codigoCurso: curso?.codigo ?? "",
+        nombreCurso: curso?.nombre ?? "",
+        tipoCurso: a.curso_plan.tipo_curso || "OBLIGATORIO",
+        escuela: curso?.departamento?.escuela?.nombre ?? "",
+        grupoId: a.grupo_id ?? 0,
+        seccion: a.grupo?.codigo ?? a.seccion ?? "",
+        ciclo: a.curso_plan.ciclo,
+        nroAlumnos: a.nro_alumnos,
+        tipoClase: a.tipo_clase as TipoClase,
+        horasTeoria: a.tipo_clase === "TEORIA" ? Number(a.horas_asignadas) : 0,
+        horasPractica:
+          a.tipo_clase === "PRACTICA" ? Number(a.horas_asignadas) : 0,
+        horasLaboratorio:
+          a.tipo_clase === "LABORATORIO" ? Number(a.horas_asignadas) : 0,
+        horasBloque: Number(a.horas_asignadas),
+        ambiente: "",
+        dia: 0,
+        horaInicio: "",
+        horaFin: "",
+      });
+    }
+
+    const resumen = this.construirResumenCargaLectiva(registros);
+    return {
+      docenteId,
+      periodoId,
+      periodoCodigo: periodo.codigo,
+      registros,
+      resumen,
+      generadoEn: new Date().toISOString(),
+    };
+  }
+
+  private async cargarCargaLectiva(
+    docenteId: number,
+    periodoId: number,
+  ): Promise<CargaLectivaGenerada> {
+    const asignaciones = await this.asignacionLectivaRepo.find({
+      where: { docente_id: docenteId, periodo_id: periodoId },
+      take: 1,
+    });
+    if (asignaciones.length > 0) {
+      return this.generarCargaLectivaDesdeAsignaciones(docenteId, periodoId);
+    }
+    return this.generarCargaLectivaDesdeHorarios(docenteId, periodoId);
+  }
+
   async obtenerCargaLectivaDeclaracion(
     declaracionId: number,
     usuario: Usuario & { docenteId?: number | null },
@@ -813,7 +1169,7 @@ export class DeclaracionCargaHorariaService {
       await this.obtenerDeclaracionConRelaciones(declaracionId);
     this.verificarAccesoDeclaracion(usuario, declaracion);
 
-    const cargaLectiva = await this.generarCargaLectivaDesdeHorarios(
+    const cargaLectiva = await this.cargarCargaLectiva(
       declaracion.docente_id,
       declaracion.periodo_academico_id,
     );
@@ -822,7 +1178,7 @@ export class DeclaracionCargaHorariaService {
       declaracionId: declaracion.id,
       cargaLectiva,
       snapshotGuardado: this.normalizarSnapshotCargaLectiva(
-        declaracion.carga_no_lectiva,
+        declaracion.carga_lectiva_json,
       ),
     };
   }
@@ -837,12 +1193,12 @@ export class DeclaracionCargaHorariaService {
 
     this.asegurarRegeneracionPermitida(declaracion.estado);
 
-    const cargaLectiva = await this.generarCargaLectivaDesdeHorarios(
+    const cargaLectiva = await this.cargarCargaLectiva(
       declaracion.docente_id,
       declaracion.periodo_academico_id,
     );
 
-    declaracion.carga_no_lectiva = cargaLectiva as unknown as Record<
+    declaracion.carga_lectiva_json = cargaLectiva as unknown as Record<
       string,
       unknown
     >;
@@ -858,7 +1214,7 @@ export class DeclaracionCargaHorariaService {
       declaracionId: saved.id,
       cargaLectiva,
       snapshotGuardado: this.normalizarSnapshotCargaLectiva(
-        saved.carga_no_lectiva,
+        saved.carga_lectiva_json,
       ),
     };
   }
@@ -875,9 +1231,12 @@ export class DeclaracionCargaHorariaService {
       cursoId: horario.curso_id,
       codigoCurso: horario.curso?.codigo ?? "",
       nombreCurso: horario.curso?.nombre ?? "",
+      tipoCurso: "",
+      escuela: horario.curso?.departamento?.escuela?.nombre ?? "",
       grupoId: horario.grupo_id,
       seccion: horario.grupo?.codigo ?? horario.grupo?.nombre ?? "",
       ciclo: horario.curso?.ciclo ?? 0,
+      nroAlumnos: horario.grupo?.cupo_maximo ?? 0,
       tipoClase: horario.tipo_clase,
       horasTeoria,
       horasPractica,
@@ -997,6 +1356,26 @@ export class DeclaracionCargaHorariaService {
       return;
     }
 
+    if (usuario.rol === RolUsuario.DIRECTOR_DEPARTAMENTO) {
+      if (declaracion.departamento_id !== declaracion.docente?.departamento_id) {
+        return;
+      }
+      const docenteVinculado = declaracion.docente;
+      if (
+        docenteVinculado?.departamento_id &&
+        declaracion.departamento_id !== docenteVinculado.departamento_id
+      ) {
+        throw new ForbiddenException(
+          "No puede acceder a declaraciones fuera de su departamento",
+        );
+      }
+      return;
+    }
+
+    if (usuario.rol === RolUsuario.DECANO) {
+      return;
+    }
+
     if (
       usuario.rol === RolUsuario.DOCENTE &&
       usuario.docenteId !== declaracion.docente_id
@@ -1040,7 +1419,7 @@ export class DeclaracionCargaHorariaService {
         periodoCodigo = p.codigo;
       }
     }
-    
+
     if (!periodoId) {
       const p = await this.periodoRepo.findOne({
         where: { activo: true },
@@ -1057,8 +1436,75 @@ export class DeclaracionCargaHorariaService {
       return [];
     }
 
-    // Buscamos los horarios asignados
-    const horarios = await this.horarioRepo.createQueryBuilder("horario")
+    // Intentar cargar desde AsignacionLectiva (plan hours, read-only)
+    const asignaciones = await this.asignacionLectivaRepo.find({
+      where: { docente_id: docenteId, periodo_id: periodoId },
+      relations: [
+        "curso_plan",
+        "curso_plan.curso",
+        "curso_plan.curso.departamento",
+        "curso_plan.curso.departamento.escuela",
+        "grupo",
+      ],
+    });
+
+    if (asignaciones.length > 0) {
+      this.logger.debug(
+        `Asignaciones para docente ${docenteId} en ${periodoCodigo}: ${asignaciones.length}`,
+      );
+      const cursosMap = new Map<string, any>();
+      for (const a of asignaciones) {
+        if (!a.curso_plan?.curso) continue;
+        const curso = a.curso_plan.curso;
+        const key = `${curso.id}`;
+        // Usar nro_alumnos de la asignacion o fallback a cupo_maximo del grupo
+        const alumnos = a.nro_alumnos || a.grupo?.cupo_maximo || 0;
+        if (!cursosMap.has(key)) {
+          cursosMap.set(key, {
+            id: curso.id,
+            codigo: curso.codigo,
+            nombre: curso.nombre,
+            tipoCurso: a.curso_plan.tipo_curso || "OBLIGATORIO",
+            secciones: new Set([a.seccion || ""]),
+            escuela:
+              curso.departamento?.escuela?.nombre ?? "Ingeniería de Sistemas",
+            ciclo: a.curso_plan.ciclo,
+            nroAlumnos: alumnos,
+            hrsTeo: a.tipo_clase === "TEORIA" ? Number(a.horas_asignadas) : 0,
+            hrsPra: a.tipo_clase === "PRACTICA" ? Number(a.horas_asignadas) : 0,
+            hrsLab:
+              a.tipo_clase === "LABORATORIO" ? Number(a.horas_asignadas) : 0,
+            totalHrs: Number(a.horas_asignadas),
+            plan_hours: true,
+          });
+        } else {
+          const entry = cursosMap.get(key);
+          if (a.seccion) entry.secciones.add(a.seccion);
+          if (a.tipo_clase === "TEORIA")
+            entry.hrsTeo += Number(a.horas_asignadas);
+          if (a.tipo_clase === "PRACTICA")
+            entry.hrsPra += Number(a.horas_asignadas);
+          if (a.tipo_clase === "LABORATORIO")
+            entry.hrsLab += Number(a.horas_asignadas);
+          entry.totalHrs += Number(a.horas_asignadas);
+          entry.nroAlumnos = Math.max(entry.nroAlumnos, alumnos);
+        }
+      }
+      // Convertir Set de secciones a string plano para el frontend
+      const resultado = Array.from(cursosMap.values());
+      for (const entry of resultado) {
+        entry.seccion = Array.from(entry.secciones).filter(Boolean).join(", ");
+        delete entry.secciones;
+      }
+      this.logger.debug(
+        `Resultado desde asignaciones: ${resultado.length} cursos`,
+      );
+      return resultado;
+    }
+
+    // Fallback: cargar desde horarios (datos de schedule)
+    const horarios = await this.horarioRepo
+      .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.curso", "curso")
       .leftJoinAndSelect("horario.grupo", "grupo")
       .leftJoinAndSelect("horario.ambiente", "ambiente")
@@ -1068,7 +1514,9 @@ export class DeclaracionCargaHorariaService {
       .andWhere("horario.periodo = :periodo", { periodo: periodoCodigo })
       .getMany();
 
-    this.logger.debug(`Horarios para docente ${docenteId} en ${periodoCodigo}: ${horarios.length}`);
+    this.logger.debug(
+      `Horarios para docente ${docenteId} en ${periodoCodigo}: ${horarios.length}`,
+    );
 
     const cursosMap = new Map<string, any>();
 
@@ -1083,8 +1531,10 @@ export class DeclaracionCargaHorariaService {
           id: h.curso_id,
           codigo: h.curso.codigo,
           nombre: h.curso.nombre,
+          tipoCurso: "",
           seccion: h.grupo.codigo || h.grupo.nombre || "",
-          escuela: h.curso.departamento?.escuela?.nombre || "Ingeniería de Sistemas",
+          escuela:
+            h.curso.departamento?.escuela?.nombre || "Ingeniería de Sistemas",
           ciclo: h.curso.ciclo || 0,
           nroAlumnos: h.grupo.cupo_maximo || 40,
           hrsTeo: h.tipo_clase === TipoClase.TEORIA ? horasBloque : 0,
@@ -1126,7 +1576,7 @@ export class DeclaracionCargaHorariaService {
 
     return this.declaracionRepo.findOne({
       where: { docente_id: docenteId, periodo_academico_id: periodoId },
-      relations: ["usuario_firmante"],
+      relations: ["usuario_firmante", "periodo_academico"],
     });
   }
 
@@ -1134,14 +1584,7 @@ export class DeclaracionCargaHorariaService {
     dto: any,
     usuario?: Usuario & { docenteId?: number | null },
   ): Promise<DeclaracionCargaHoraria> {
-    const {
-      docente_id,
-      periodo,
-      estado,
-      cursos_lectivos,
-      carga_no_lectiva,
-      total_horas,
-    } = dto;
+    const { docente_id, periodo, estado, carga_no_lectiva } = dto;
 
     let periodoId: number | undefined;
     if (periodo) {
@@ -1174,6 +1617,13 @@ export class DeclaracionCargaHorariaService {
       throw new NotFoundException("Docente no encontrado");
     }
 
+    // V12: docente debe tener modalidad asignada
+    if (!docente.modalidad) {
+      throw new BadRequestException(
+        "El docente no tiene una modalidad asignada. Complete la ficha del docente antes de declarar.",
+      );
+    }
+
     let declaracion = await this.declaracionRepo.findOne({
       where: { docente_id, periodo_academico_id: periodoId },
     });
@@ -1194,7 +1644,6 @@ export class DeclaracionCargaHorariaService {
 
     if (!declaracion) {
       const vinculacion = await this.resolverVinculacionInstitucional(docente);
-
       declaracion = this.declaracionRepo.create({
         docente_id,
         departamento_id: vinculacion.departamento_id,
@@ -1208,39 +1657,103 @@ export class DeclaracionCargaHorariaService {
       declaracion.usuario_firmante_id = usuario.id;
     }
 
-    declaracion.carga_no_lectiva = carga_no_lectiva || null;
-    declaracion.estado = estado || EstadoDeclaracionCarga.BORRADOR;
-
-    // Validación: Total Horas Lectivas (Tabla 1)
-    const totalLectivas = (cursos_lectivos || []).reduce(
-      (sum: number, c: any) => sum + (Number(c.total_hrs) || 0),
+    // CL-V1: Carga lectiva SIEMPRE desde AsignacionLectiva (source of truth)
+    const asignaciones = await this.asignacionLectivaRepo.find({
+      where: { docente_id, periodo_id: periodoId },
+    });
+    const totalLectivas = asignaciones.reduce(
+      (sum, a) => sum + Number(a.horas_asignadas),
       0,
     );
+    const totalCursosAsignados =
+      asignaciones.length > 0
+        ? new Set(asignaciones.map((a) => a.curso_plan_id)).size
+        : 0;
 
-    // Regla específica para Preparación y Evaluación (id: 2): Max 50% con redondeo hacia abajo
-    const actPreparacion = (carga_no_lectiva?.actividades || []).find((a: any) => a.id === 2);
-    if (actPreparacion) {
-      const maxPrep = Math.floor(totalLectivas * 0.5);
-      if (Number(actPreparacion.horas) > maxPrep) {
-        throw new BadRequestException(
-          `Las horas de Preparación y Evaluación (${actPreparacion.horas}h) no pueden exceder el 50% del Trabajo Lectivo (${maxPrep}h).`
-        );
-      }
+    // V10: carga lectiva no puede ser 0 si hay cursos
+    if (totalLectivas === 0 && totalCursosAsignados > 0) {
+      throw new BadRequestException(
+        "La carga lectiva no puede ser 0 si hay cursos asignados en el plan de estudios.",
+      );
     }
 
-    // Validación general: Total Horas No Lectivas <= Total Horas Lectivas
-    const totalNoLectivas = (carga_no_lectiva?.actividades || []).reduce(
+    // Persistir snapshot de carga lectiva
+    const cargaLectivaSnapshot = {
+      totalHoras: totalLectivas,
+      totalCursos: totalCursosAsignados,
+      totalAsignaciones: asignaciones.length,
+      detalle: asignaciones.map((a) => ({
+        cursoPlanId: a.curso_plan_id,
+        grupoId: a.grupo_id,
+        seccion: a.seccion,
+        tipoClase: a.tipo_clase,
+        horasAsignadas: Number(a.horas_asignadas),
+        nroAlumnos: a.nro_alumnos,
+      })),
+    };
+
+    declaracion.carga_lectiva_json = cargaLectivaSnapshot;
+    declaracion.total_horas_lectivas = totalLectivas;
+
+    // CL-V2 + CL-V4: validar rubros no lectivos
+    const actividades = carga_no_lectiva?.actividades ?? [];
+    const totalNoLectivas = actividades.reduce(
       (sum: number, a: any) => sum + (Number(a.horas) || 0),
       0,
     );
 
-    if (totalNoLectivas > totalLectivas) {
+    for (const act of actividades) {
+      const horas = Number(act.horas) || 0;
+      if (horas > 0 && act.id !== 1 && (!act.detalle || act.detalle.trim().length < 10)) {
+        throw new BadRequestException(
+          `El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
+        );
+      }
+    }
+
+    declaracion.carga_no_lectiva = carga_no_lectiva || null;
+    declaracion.total_horas_no_lectivas = totalNoLectivas;
+
+    // V6: Horas totales (lectivas + no lectivas) <= horas de modalidad
+    const horasModalidad = await this.obtenerHorasModalidad(
+      docente.modalidad,
+      periodoId,
+    );
+    if (totalLectivas + totalNoLectivas > horasModalidad) {
       throw new BadRequestException(
-        `El total de horas no lectivas (${totalNoLectivas}h) no puede sobrepasar el total de Trabajo Lectivo (${totalLectivas}h)`,
+        `El total de horas (${totalLectivas}h lectivas + ${totalNoLectivas}h no lectivas = ${totalLectivas + totalNoLectivas}h) excede las ${horasModalidad}h permitidas para la modalidad ${docente.modalidad}.`,
       );
     }
 
+    // Regla Preparación y Evaluación <= 50% de lectivas
+    const actPreparacion = actividades.find((a: any) => a.id === 2);
+    if (actPreparacion) {
+      const maxPrep = Math.floor(totalLectivas * 0.5);
+      if (Number(actPreparacion.horas) > maxPrep) {
+        throw new BadRequestException(
+          `Las horas de Preparación y Evaluación (${actPreparacion.horas}h) no pueden exceder el 50% del Trabajo Lectivo (${maxPrep}h).`,
+        );
+      }
+    }
+
+    declaracion.total_horas_general = totalLectivas + totalNoLectivas;
+    declaracion.estado = estado || EstadoDeclaracionCarga.BORRADOR;
+
     return this.declaracionRepo.save(declaracion);
+  }
+
+  private async obtenerHorasModalidad(
+    modalidad: string,
+    periodoId: number,
+  ): Promise<number> {
+    const params = await this.parametrosCargaRepo.findOne({
+      where: { modalidad, periodo_academico: String(periodoId) },
+    });
+    if (params?.horas_max_semanal) return params.horas_max_semanal;
+    const match = modalidad.match(/(\d+)$/);
+    if (match) return parseInt(match[1], 10);
+    if (modalidad === "DEDICACION_EXCLUSIVA") return 40;
+    return 40;
   }
 
   async enviarDeclaracionDocente(
@@ -1286,6 +1799,28 @@ export class DeclaracionCargaHorariaService {
       );
     }
 
+    // CL-V4: validar que todos los rubros con horas tengan detalle al enviar
+    const actividades =
+      (declaracion.carga_no_lectiva as any)?.actividades ?? [];
+    for (const act of actividades) {
+      const horas = Number(act.horas) || 0;
+      if (horas > 0 && act.id !== 1) {
+        if (!act.detalle || act.detalle.trim().length < 10) {
+          throw new BadRequestException(
+            `No puede enviar la declaración. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
+          );
+        }
+        if (!act.horarios || !Array.isArray(act.horarios) || act.horarios.length === 0) {
+          throw new BadRequestException(
+            `No puede enviar la declaración. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
+          );
+        }
+      }
+    }
+
+    // Validar que no haya conflictos de horario entre actividades
+    this.validarConflictosHorarios(actividades);
+
     declaracion.estado = EstadoDeclaracionCarga.ENVIADO_DOCENTE;
     return this.declaracionRepo.save(declaracion);
   }
@@ -1293,6 +1828,33 @@ export class DeclaracionCargaHorariaService {
   private toMinutes(hora: string): number {
     const [horas, minutos] = hora.split(":").map(Number);
     return (horas || 0) * 60 + (minutos || 0);
+  }
+
+  private validarConflictosHorarios(actividades: any[]): void {
+    const conflictos: string[] = [];
+    for (let i = 0; i < actividades.length; i++) {
+      const a = actividades[i];
+      if (!a.horarios || !Array.isArray(a.horarios)) continue;
+      for (let j = i + 1; j < actividades.length; j++) {
+        const b = actividades[j];
+        if (!b.horarios || !Array.isArray(b.horarios)) continue;
+        for (const h1 of a.horarios) {
+          for (const h2 of b.horarios) {
+            if (h1.dia !== h2.dia) continue;
+            if (h1.hora_inicio < h2.hora_fin && h2.hora_inicio < h1.hora_fin) {
+              conflictos.push(
+                `Rubro ${a.id} (${h1.dia} ${h1.hora_inicio}-${h1.hora_fin}) y rubro ${b.id} (${h2.dia} ${h2.hora_inicio}-${h2.hora_fin})`,
+              );
+            }
+          }
+        }
+      }
+    }
+    if (conflictos.length > 0) {
+      throw new BadRequestException(
+        `Conflictos de horario detectados entre actividades: ${conflictos.join("; ")}`,
+      );
+    }
   }
 
   private async resolverPeriodoPorCodigo(

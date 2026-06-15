@@ -70,6 +70,24 @@ const routes: Routes = [
         data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
+        path: 'plan-estudios',
+        loadChildren: () =>
+          import('./modules/plan-estudios/plan-estudios.module').then(
+            (m) => m.PlanEstudiosModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
+      },
+      {
+        path: 'asignacion-lectiva',
+        loadChildren: () =>
+          import('./modules/asignacion-lectiva/asignacion-lectiva.module').then(
+            (m) => m.AsignacionLectivaModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema', 'coordinadoracademico', 'secretaria'] },
+      },
+      {
             path: 'periodos',
             loadChildren: () =>
               import('./modules/periodos/periodos.module').then(
@@ -78,8 +96,17 @@ const routes: Routes = [
             canActivate: [RolesGuard],
             data: { roles: ['administradorsistema', 'coordinadoracademico'] },
           },
-          {
-            path: 'campaigns',
+      {
+        path: 'parametros-carga',
+        loadChildren: () =>
+          import('./modules/parametros-carga/parametros-carga.module').then(
+            (m) => m.ParametrosCargaModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: ['administradorsistema'] },
+      },
+      {
+        path: 'campaigns',
             loadChildren: () =>
               import('./modules/campaigns/campaigns.module').then(
                 (m) => m.CampaignsModule,
@@ -128,24 +155,6 @@ const routes: Routes = [
         data: { roles: ['docente', 'administradorsistema'] },
       },
       {
-        path: 'asignaciones',
-        loadChildren: () =>
-          import('./modules/asignaciones/asignaciones.module').then(
-            (m) => m.AsignacionesModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
-      },
-      {
-        path: 'docente-cursos',
-        loadChildren: () =>
-          import('./modules/docente-cursos-config/docente-cursos-config.module').then(
-            (m) => m.DocenteCursosConfigModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
-      },
-      {
         path: 'curso-ambientes',
         loadChildren: () =>
           import('./modules/curso-ambientes-config/curso-ambientes-config.module').then(
@@ -176,6 +185,9 @@ const routes: Routes = [
             'coordinadoracademico',
             'operadorhorarios',
             'docente',
+            'decano',
+            'directordepartamento',
+            'directorescuela',
           ],
         },
       },
@@ -195,7 +207,7 @@ const routes: Routes = [
             (m) => m.DocumentacionesModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['directorescuela'] },
+        data: { roles: ['directorescuela', 'directordepartamento'] },
       },
       {
         path: 'facultades',

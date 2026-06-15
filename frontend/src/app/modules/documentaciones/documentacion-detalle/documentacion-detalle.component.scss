@@ -572,6 +572,59 @@
       margin-right: 8px;
     }
   }
+
+  .observacion-field {
+    width: 100%;
+  }
+}
+
+/* Estado badge large */
+.estado-badge-large {
+  display: inline-block;
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+
+  &.estado-enviado { background: #e3f2fd; color: #1565c0; }
+  &.estado-observado { background: #ffebee; color: #c62828; }
+  &.estado-subsanado { background: #fff9c4; color: #f9a825; }
+  &.estado-validado { background: #e8f5e9; color: #2e7d32; }
+  &.estado-observado-facultad { background: #b71c1c; color: white; }
+  &.estado-aprobado { background: #f3e5f5; color: #6a1b9a; }
+  &.estado-cerrado { background: #eceff1; color: #455a64; }
+  &.estado-borrador { background: #fff3e0; color: #ef6c00; }
+}
+
+.estado-valor-mini {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.subsanado-si {
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+.subsanado-no {
+  color: #c62828;
+  font-weight: 700;
+}
+
+.observacion-header {
+  background: linear-gradient(135deg, #37474f, #455a64) !important;
+}
+
+.nuevo-observacion-header {
+  background: linear-gradient(135deg, #c62828, #d32f2f) !important;
+}
+
+.text-left {
+  text-align: left !important;
 }
 
 @media (max-width: 768px) {

@@ -46,6 +46,7 @@ type CargaPorDia = {
 type DocenteCargaDesequilibrada = {
   docenteId: number;
   nombre: string;
+  modalidad: string;
   distribucion: CargaPorDia;
   desequilibrio: number;
 };
@@ -109,7 +110,7 @@ export class DocentesService {
       .leftJoinAndSelect("departamento.escuela", "escuela")
       .leftJoinAndSelect("escuela.facultad", "facultadDesdeDepartamento")
       .leftJoinAndSelect("docente.facultad", "facultad");
-    
+
     qb.where("1 = 1");
 
     if (activo === "true") {
@@ -127,7 +128,6 @@ export class DocentesService {
         "(docente.facultad_id IS NOT NULL AND docente.departamento_id IS NOT NULL)",
       );
     }
-
 
     if (categoria) {
       qb.andWhere("docente.categoria = :categoria", { categoria });
@@ -332,8 +332,6 @@ export class DocentesService {
       horariosPorDocente.set(horario.docente_id, bucket);
     }
 
-    const umbral = this.getUmbralDesequilibrio();
-
     return docentes
       .map((docente) => {
         const distribucion = this.construirCargaPorDia(
@@ -344,11 +342,11 @@ export class DocentesService {
         return {
           docenteId: docente.id,
           nombre: `${docente.nombres} ${docente.apellidos}`,
+          modalidad: docente.modalidad,
           distribucion,
           desequilibrio,
         };
       })
-      .filter((item) => item.desequilibrio > umbral)
       .sort((a, b) => {
         if (b.desequilibrio !== a.desequilibrio) {
           return b.desequilibrio - a.desequilibrio;
@@ -376,7 +374,9 @@ export class DocentesService {
     usuarioId: number,
     docenteIdExcluir?: number,
   ): Promise<void> {
-    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId } });
+    const usuario = await this.usuarioRepo.findOne({
+      where: { id: usuarioId },
+    });
     if (!usuario) {
       throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado`);
     }
@@ -399,7 +399,7 @@ export class DocentesService {
     departamentoActualId: number | null = null,
   ): Promise<{ facultad_id: number | null; departamento_id: number | null }> {
     let facultad_id = facultadId ?? facultadActualId ?? null;
-    let departamento_id = departamentoId ?? departamentoActualId ?? null;
+    const departamento_id = departamentoId ?? departamentoActualId ?? null;
 
     let facultad: Facultad | null = null;
     let departamento: Departamento | null = null;
@@ -422,14 +422,19 @@ export class DocentesService {
     }
 
     if (facultad_id) {
-      facultad = await this.facultadRepo.findOne({ where: { id: facultad_id } });
+      facultad = await this.facultadRepo.findOne({
+        where: { id: facultad_id },
+      });
       if (!facultad) {
-        throw new NotFoundException(`Facultad con ID ${facultad_id} no encontrada`);
+        throw new NotFoundException(
+          `Facultad con ID ${facultad_id} no encontrada`,
+        );
       }
     }
 
     if (departamento && facultad) {
-      const facultadDelDepartamento = departamento.escuela?.facultad?.id ?? null;
+      const facultadDelDepartamento =
+        departamento.escuela?.facultad?.id ?? null;
       if (
         facultadDelDepartamento !== null &&
         facultadDelDepartamento !== facultad.id
@@ -451,7 +456,9 @@ export class DocentesService {
     horasSolicitadas: number,
     modalidad: string,
   ): Promise<void> {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
     if (!docente) {
       throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
     }
@@ -566,11 +573,7 @@ export class DocentesService {
     );
 
     if (dto.modalidad && dto.horas_asignadas !== undefined) {
-      await this.validarCargaModalidad(
-        id,
-        dto.horas_asignadas,
-        dto.modalidad,
-      );
+      await this.validarCargaModalidad(id, dto.horas_asignadas, dto.modalidad);
     }
 
     if (dto.email && dto.email !== docente.email) {
@@ -692,9 +695,9 @@ export class DocentesService {
         const isPeriodoImpar = this.esPeriodoImpar(periodoCodigo);
         const cursoCicloImpar = curso.ciclo % 2 !== 0;
         if (isPeriodoImpar !== cursoCicloImpar) {
-          const cicloRequerido = isPeriodoImpar ? 'impar' : 'par';
+          const cicloRequerido = isPeriodoImpar ? "impar" : "par";
           throw new BadRequestException(
-            `Para el período ${periodoCodigo} solo se pueden asignar cursos de ciclo ${cicloRequerido}. El curso ${curso.codigo} es de ciclo ${curso.ciclo}.`
+            `Para el período ${periodoCodigo} solo se pueden asignar cursos de ciclo ${cicloRequerido}. El curso ${curso.codigo} es de ciclo ${curso.ciclo}.`,
           );
         }
       }
@@ -728,8 +731,8 @@ export class DocentesService {
   }
 
   private esPeriodoImpar(periodoCodigo: string): boolean {
-    const parts = periodoCodigo.split('-');
-    if (parts.length === 2 && parts[1] === 'I') {
+    const parts = periodoCodigo.split("-");
+    if (parts.length === 2 && parts[1] === "I") {
       return true;
     }
     return false;
@@ -770,17 +773,16 @@ export class DocentesService {
     let filteredItems = items;
     if (periodoCodigo) {
       const isPeriodoImpar = this.esPeriodoImpar(periodoCodigo);
-      filteredItems = items.filter(item => {
-        return isPeriodoImpar 
-          ? (item.curso.ciclo % 2 !== 0) 
-          : (item.curso.ciclo % 2 === 0);
+      filteredItems = items.filter((item) => {
+        return isPeriodoImpar
+          ? item.curso.ciclo % 2 !== 0
+          : item.curso.ciclo % 2 === 0;
       });
     }
 
     return filteredItems.map((item) => {
-      const gruposReales = item.tipo_clase === TipoClase.LABORATORIO
-        ? (item.grupos || 1)
-        : 1;
+      const gruposReales =
+        item.tipo_clase === TipoClase.LABORATORIO ? item.grupos || 1 : 1;
       const result = {
         id: item.id,
         cursoId: item.cursoId,
@@ -840,18 +842,30 @@ export class DocentesService {
     cursoId: number,
     tipoClase: string,
   ): Promise<Ambiente[]> {
-    console.log('[findAmbientesCompatibles] cursoId:', cursoId, 'tipoClase:', tipoClase);
-    
+    console.log(
+      "[findAmbientesCompatibles] cursoId:",
+      cursoId,
+      "tipoClase:",
+      tipoClase,
+    );
+
     const cursoAmbienteRelations = await this.cursoAmbienteRepo.find({
       where: {
         cursoId,
       },
       relations: ["ambiente"],
     });
-    
-    console.log('[findAmbientesCompatibles] cursoAmbienteRelations:', cursoAmbienteRelations.length, 'items');
+
+    console.log(
+      "[findAmbientesCompatibles] cursoAmbienteRelations:",
+      cursoAmbienteRelations.length,
+      "items",
+    );
     const ambientes = cursoAmbienteRelations.map((ca) => ca.ambiente);
-    console.log('[findAmbientesCompatibles] ambientes:', ambientes.map(a => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })));
+    console.log(
+      "[findAmbientesCompatibles] ambientes:",
+      ambientes.map((a) => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })),
+    );
 
     // Ya no filtramos por tipo de clase porque hay casos donde laboratorios se dan en aulas
     return ambientes;
@@ -887,7 +901,9 @@ export class DocentesService {
   }
 
   private async ensureDocenteExists(docenteId: number): Promise<void> {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
     if (!docente) {
       throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
     }
@@ -938,9 +954,7 @@ export class DocentesService {
 
     base.totalHoras = totalHoras;
     base.promedioHorasPorDia =
-      diasConCarga > 0
-        ? this.redondearHoras(totalHoras / diasConCarga)
-        : 0;
+      diasConCarga > 0 ? this.redondearHoras(totalHoras / diasConCarga) : 0;
 
     return base;
   }

@@ -7,6 +7,9 @@ import { Departamento } from "../entities/departamento.entity";
 import { Facultad } from "../entities/facultad.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { DeclaracionObservacion } from "../entities/declaracion-observacion.entity";
 import { DeclaracionCargaHorariaService } from "./declaracion-carga-horaria.service";
 import { DeclaracionCargaHorariaController } from "./declaracion-carga-horaria.controller";
 
@@ -20,6 +23,9 @@ import { DeclaracionCargaHorariaController } from "./declaracion-carga-horaria.c
       Facultad,
       PeriodoAcademico,
       HorarioAsignado,
+      AsignacionLectiva,
+      ParametrosCarga,
+      DeclaracionObservacion,
     ]),
   ],
   controllers: [DeclaracionCargaHorariaController],

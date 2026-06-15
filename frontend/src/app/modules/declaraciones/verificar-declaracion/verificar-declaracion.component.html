@@ -9,51 +9,74 @@
     </div>
   </div>
 
+  <!-- Stepper de progreso -->
+  <div class="stepper-bar" *ngIf="!loading">
+    <div class="stepper-step" *ngFor="let etapa of stepperEtapas; let i = index; let last = last">
+      <div class="step-indicator" [class.completada]="getEtapaEstado(etapa.key) === 'completada'" [class.actual]="getEtapaEstado(etapa.key) === 'actual'" [class.pendiente]="getEtapaEstado(etapa.key) === 'pendiente'">
+        <mat-icon *ngIf="getEtapaEstado(etapa.key) === 'completada'">check</mat-icon>
+        <span *ngIf="getEtapaEstado(etapa.key) !== 'completada'">{{ i + 1 }}</span>
+      </div>
+      <span class="step-label">{{ etapa.label }}</span>
+      <div class="step-connector" *ngIf="!last" [class.connector-completada]="getEtapaEstado(etapa.key) === 'completada'"></div>
+    </div>
+  </div>
+
   <!-- Estado -->
   <div class="estado-bar" *ngIf="!loading">
     <span class="estado-label">Estado Actual:</span>
     <span class="estado-valor {{ estadoColor }}">
       {{ estadoLabel }}
-      <span *ngIf="estadoDeclaracion === 'BORRADOR'" class="estado-sufijo"
-        >(Docente)</span
-      >
-      <span *ngIf="estadoDeclaracion === 'OBSERVADO_DPTO'" class="estado-sufijo"
-        >(Director)</span
-      >
-      <span *ngIf="estadoDeclaracion === 'VALIDADO_DPTO'" class="estado-sufijo"
-        >(Director)</span
-      >
-      <span
-        *ngIf="estadoDeclaracion === 'APROBADO_FACULTAD'"
-        class="estado-sufijo"
-        >(Decano)</span
-      >
+      <span *ngIf="estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'NO_INICIADO'" class="estado-sufijo">(Docente)</span>
+      <span *ngIf="estadoDeclaracion === 'OBSERVADO_DPTO'" class="estado-sufijo">(Director)</span>
+      <span *ngIf="estadoDeclaracion === 'VALIDADO_DPTO'" class="estado-sufijo">(Director)</span>
+      <span *ngIf="estadoDeclaracion === 'APROBADO_FACULTAD'" class="estado-sufijo">(Decano)</span>
+      <span *ngIf="estadoDeclaracion === 'OBSERVADO_FACULTAD'" class="estado-sufijo">(Decano)</span>
     </span>
   </div>
 
-  <!-- Aviso si es borrador -->
-  <div
-    class="aviso-borrador"
-    *ngIf="estadoDeclaracion === 'BORRADOR' && esEditable"
-  >
+  <!-- Aviso si es editable -->
+  <div class="aviso-borrador" *ngIf="(estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'NO_INICIADO') && esEditable">
     <mat-icon>info</mat-icon>
-    <span
-      >Complete su declaración de carga horaria. Una vez enviada, no podrá
-      realizar modificaciones.</span
-    >
+    <span>Complete su declaración de carga horaria. Una vez enviada, no podrá realizar modificaciones.</span>
+  </div>
+
+  <!-- Aviso si está observado -->
+  <div class="aviso-observado" *ngIf="estadoDeclaracion === 'OBSERVADO_DPTO' || estadoDeclaracion === 'OBSERVADO_FACULTAD'">
+    <mat-icon>warning</mat-icon>
+    <span>La declaración ha sido observada. Revise las observaciones, corrija los datos y presione "Corregir y reenviar".</span>
   </div>
 
   <!-- Aviso si no es editable -->
-  <div class="aviso-no-editable" *ngIf="!esEditable">
+  <div class="aviso-no-editable" *ngIf="!esEditable && estadoDeclaracion !== 'OBSERVADO_DPTO' && estadoDeclaracion !== 'OBSERVADO_FACULTAD'">
     <mat-icon>lock</mat-icon>
     <span>La declaración ha sido enviada y no puede ser modificada.</span>
   </div>
 
-  <mat-spinner
-    *ngIf="loading"
-    diameter="40"
-    class="loading-center"
-  ></mat-spinner>
+  <!-- Gauge y auto-save -->
+  <div class="gauge-row" *ngIf="!loading">
+    <div class="gauge-wrapper">
+      <div class="gauge-label">Carga horaria:</div>
+      <div class="gauge-bar-bg">
+        <div class="gauge-bar-fill" [style.width.%]="gaugePercent" [class.gauge-warn]="gaugePercent > 100"></div>
+      </div>
+      <div class="gauge-text">Usas {{ totalHoras }}h de {{ horasModalidad }}h disponibles ({{ gaugePercent }}%)</div>
+    </div>
+    <div class="progress-wrapper">
+      <div class="progress-label">Rubros completos:</div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" [style.width.%]="progresoPorcentaje" [class.progress-ok]="progresoPorcentaje >= 100"></div>
+      </div>
+      <div class="progress-text">Completaste {{ rubrosCompletos }} de {{ rubrosVisibles }} rubros</div>
+    </div>
+    <div class="autosave-wrapper">
+      <mat-icon *ngIf="autoSaving" class="autosave-icon saving" fontSet="material-icons-outlined">sync</mat-icon>
+      <mat-icon *ngIf="!autoSaving && autoSaveStatus === 'Guardado'" class="autosave-icon saved">check_circle</mat-icon>
+      <span class="autosave-text" *ngIf="autoSaveStatus">{{ autoSaveStatus }}</span>
+      <span class="autosave-time" *ngIf="lastSaved">Último guardado: {{ lastSaved | date:'HH:mm:ss' }}</span>
+    </div>
+  </div>
+
+  <mat-spinner *ngIf="loading" diameter="40" class="loading-center"></mat-spinner>
 
   <div class="content-grid" *ngIf="!loading && docente">
     <!-- Docente info card -->
@@ -65,83 +88,48 @@
         <table class="info-table">
           <tbody>
             <tr>
-              <td class="info-label">Semestre Académico :</td>
-              <td class="info-value">{{ periodoActivo }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Docente :</td>
-              <td class="info-value">
-                {{ docente.apellidos.toUpperCase() }},
-                {{ docente.nombres.toUpperCase() }}
-              </td>
-            </tr>
-            <tr>
-              <td class="info-label">IBM completo:</td>
-              <td class="info-value">{{ docente.ibm }}</td>
+              <td class="info-label">Facultad :</td>
+              <td class="info-value">{{ docente.facultad?.nombre || 'No asignada' }}</td>
             </tr>
             <tr>
               <td class="info-label">Departamento Académico :</td>
-              <td class="info-value">
-                {{
-                  docente.departamento?.nombre
-                    ? "Dpto. de " + docente.departamento?.nombre
-                    : "No asignado"
-                }}
-              </td>
+              <td class="info-value">{{ docente.departamento?.nombre ? 'Dpto. de ' + docente.departamento?.nombre : 'No asignado' }}</td>
             </tr>
             <tr>
-              <td class="info-label">Facultad :</td>
-              <td class="info-value">
-                {{ docente.facultad?.nombre || "No asignada" }}
-              </td>
+              <td class="info-label">DNI / IBM :</td>
+              <td class="info-value">{{ docente.ibm }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Docente :</td>
+              <td class="info-value">{{ docente.apellidos.toUpperCase() }}, {{ docente.nombres.toUpperCase() }}</td>
             </tr>
             <tr>
               <td class="info-label">Condición :</td>
-              <td class="info-value">
-                {{
-                  docente.tipo_contrato === "NOMBRADO"
-                    ? "Nombrado"
-                    : docente.tipo_contrato === "CONTRATADO"
-                      ? "Contratado"
-                      : docente.tipo_contrato
-                }}
-              </td>
+              <td class="info-value">{{ docente.tipo_contrato === 'NOMBRADO' ? 'Nombrado' : docente.tipo_contrato === 'CONTRATADO' ? 'Contratado' : docente.tipo_contrato }}</td>
             </tr>
             <tr>
               <td class="info-label">Categoría :</td>
-              <td class="info-value">
-                {{
-                  docente.categoria === "PRINCIPAL"
-                    ? "Principal"
-                    : docente.categoria === "ASOCIADO"
-                      ? "Asociado"
-                      : docente.categoria === "AUXILIAR"
-                        ? "Auxiliar"
-                        : docente.categoria === "SIN_CATEGORIA"
-                          ? "Sin categoría"
-                          : docente.categoria
-                }}
-              </td>
+              <td class="info-value">{{ docente.categoria === 'PRINCIPAL' ? 'Principal' : docente.categoria === 'ASOCIADO' ? 'Asociado' : docente.categoria === 'AUXILIAR' ? 'Auxiliar' : docente.categoria === 'SIN_CATEGORIA' ? 'Sin categoría' : docente.categoria }}</td>
             </tr>
             <tr>
               <td class="info-label">Dedicación :</td>
-              <td class="info-value">
-                {{
-                  docente.modalidad === "DEDICACION_EXCLUSIVA"
-                    ? "Dedicación Exclusiva"
-                    : docente.modalidad === "TIEMPO_COMPLETO_40"
-                      ? "Tiempo Completo 40 H"
-                      : docente.modalidad === "TIEMPO_PARCIAL_20"
-                        ? "Tiempo Parcial 20 H"
-                        : docente.modalidad === "TIEMPO_PARCIAL_12"
-                          ? "Tiempo Parcial 12 H"
-                          : docente.modalidad === "TIEMPO_PARCIAL_10"
-                            ? "Tiempo Parcial 10 H"
-                            : docente.modalidad === "TIEMPO_PARCIAL_8"
-                              ? "Tiempo Parcial 8 H"
-                              : docente.modalidad
-                }}
-              </td>
+              <td class="info-value">{{ docente.modalidad === 'DEDICACION_EXCLUSIVA' ? 'Dedicación Exclusiva' : docente.modalidad === 'TIEMPO_COMPLETO_40' ? 'Tiempo Completo 40 H' : docente.modalidad === 'TIEMPO_PARCIAL_20' ? 'Tiempo Parcial 20 H' : docente.modalidad === 'TIEMPO_PARCIAL_12' ? 'Tiempo Parcial 12 H' : docente.modalidad === 'TIEMPO_PARCIAL_10' ? 'Tiempo Parcial 10 H' : docente.modalidad === 'TIEMPO_PARCIAL_8' ? 'Tiempo Parcial 8 H' : docente.modalidad }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Año Académico :</td>
+              <td class="info-value">{{ periodoInfo?.anio || periodoActivo }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Semestre :</td>
+              <td class="info-value">{{ periodoInfo?.semestre || '' }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Fecha de Inicio :</td>
+              <td class="info-value">{{ periodoInfo?.fecha_inicio || '' }}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Fecha de Término :</td>
+              <td class="info-value">{{ periodoInfo?.fecha_fin || '' }}</td>
             </tr>
           </tbody>
         </table>
@@ -155,80 +143,44 @@
         <span class="subtitle">Datos completos y con claridad</span>
       </mat-card-header>
       <mat-card-content>
+        <p class="plan-notice">Las horas lectivas se precargan desde las asignaciones del plan de estudios y no son editables.</p>
         <table class="data-table lectivas-table">
           <thead>
             <tr>
               <th>Código</th>
-              <th>Nombre del Curso</th>
+              <th>Denominación</th>
               <th>Sección</th>
-              <th>Curso</th>
+              <th>Tipo Curso</th>
               <th>Escuela Prof.</th>
-              <th>Año o Ciclo</th>
-              <th>Nro.Tot. Alumnos</th>
-              <th>HrsTeo/Grupos</th>
-              <th>HrsPra/Grupos</th>
-              <th>HrsLab/Grupos</th>
-              <th>Total Hrs.</th>
+              <th>Semestre/Ciclo</th>
+              <th>N° Alumnos</th>
+              <th>Hrs Teoría</th>
+              <th>Hrs Práctica</th>
+              <th>Hrs Laboratorio</th>
+              <th>Total Hrs</th>
             </tr>
           </thead>
           <tbody>
-            <tr
-              *ngFor="let curso of cursosLectivos; let i = index"
-              [class.even-row]="i % 2 === 0"
-            >
+            <tr *ngFor="let curso of cursosLectivos; let i = index" [class.even-row]="i % 2 === 0">
               <td>{{ curso.codigo }}</td>
-              <td>{{ curso.nombre }}</td>
+              <td class="text-left">{{ curso.nombre }}</td>
               <td>{{ curso.seccion }}</td>
-              <td></td>
+              <td>{{ curso.tipoCurso }}</td>
               <td>{{ curso.escuela }}</td>
-              <td>{{ curso.ciclo }}</td>
-              <td>
-                <input
-                  type="number"
-                  [(ngModel)]="curso.nroAlumnos"
-                  (ngModelChange)="onCursoChange(curso)"
-                  [disabled]="!esEditable"
-                  class="cell-input small"
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  [(ngModel)]="curso.hrsTeo"
-                  (ngModelChange)="onCursoChange(curso)"
-                  [disabled]="!esEditable"
-                  class="cell-input small"
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  [(ngModel)]="curso.hrsPra"
-                  (ngModelChange)="onCursoChange(curso)"
-                  [disabled]="!esEditable"
-                  class="cell-input small"
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  [(ngModel)]="curso.hrsLab"
-                  (ngModelChange)="onCursoChange(curso)"
-                  [disabled]="!esEditable"
-                  class="cell-input small"
-                />
-              </td>
+              <td>{{ periodoInfo?.anio || '' }}-{{ periodoInfo?.semestre || '' }} / Ciclo {{ curso.ciclo }}</td>
+              <td><span class="readonly-value">{{ curso.nroAlumnos }}</span></td>
+              <td><span class="readonly-value">{{ curso.hrsTeo }}</span></td>
+              <td><span class="readonly-value">{{ curso.hrsPra }}</span></td>
+              <td><span class="readonly-value">{{ curso.hrsLab }}</span></td>
               <td class="total-cell">{{ curso.totalHrs }}</td>
             </tr>
             <tr *ngIf="cursosLectivos.length === 0">
-              <td colspan="11" class="no-data">
-                No hay cursos asignados para este período
-              </td>
+              <td colspan="11" class="no-data">No hay cursos asignados para este período</td>
             </tr>
           </tbody>
           <tfoot>
             <tr class="subtotal-row">
-              <td colspan="10" class="subtotal-label">Equipo Docente</td>
+              <td colspan="10" class="subtotal-label">Total Horas Lectivas</td>
               <td class="subtotal-value">{{ totalHorasLectivas }}</td>
             </tr>
           </tfoot>
@@ -239,64 +191,65 @@
     <!-- HORAS NO LECTIVAS -->
     <mat-card class="seccion-card">
       <mat-card-header class="header-no-lectivas">
-        <mat-card-title>2. PREPARACIÓN Y EVALUACIÓN</mat-card-title>
-        <span class="subtitle">(Max 50% de Trabajo Lectivo)</span>
-        <span class="horas-label" [class.error-text]="totalHorasNoLectivas > totalHorasLectivas"
-          >Horas: <strong>{{ totalHorasNoLectivas }}</strong></span
-        >
+        <mat-card-title>2. CARGA NO LECTIVA</mat-card-title>
+        <span class="subtitle">Rubros del F01-CAD</span>
+        <span class="horas-label">Horas: <strong>{{ totalHorasNoLectivas }}</strong></span>
       </mat-card-header>
       <mat-card-content>
-        <div class="error-message" *ngIf="totalHorasNoLectivas > totalHorasLectivas">
-          <mat-icon>warning</mat-icon>
-          <span>El total de horas no lectivas no puede exceder las horas lectivas ({{ totalHorasLectivas }} h).</span>
-        </div>
         <table class="data-table no-lectivas-table">
           <thead>
             <tr>
-              <th style="width: 5%">Nro</th>
-              <th style="width: 35%">Actividad</th>
-              <th style="width: 10%">Cod.</th>
-              <th style="width: 40%">Descripción / Detalle</th>
+              <th style="width: 4%">Nro</th>
+              <th style="width: 27%">Actividad</th>
+              <th style="width: 7%">Cod.</th>
+              <th style="width: 25%">Descripción / Detalle</th>
+              <th style="width: 22%">Horario</th>
               <th style="width: 10%">Horas</th>
+              <th style="width: 5%"></th>
             </tr>
           </thead>
           <tbody>
-            <tr
-              *ngFor="let act of actividadesNoLectivas; let i = index"
-              [class.even-row]="i % 2 === 0"
-            >
+            <tr *ngFor="let act of actividadesNoLectivas; let i = index" [class.even-row]="i % 2 === 0">
               <td>{{ act.id }}</td>
               <td class="act-descripcion">{{ act.descripcion }}</td>
               <td>
-                <input
-                  type="text"
-                  [(ngModel)]="act.codigo"
-                  [disabled]="!esEditable"
-                  class="cell-input code-input"
-                />
+                <input type="text" [(ngModel)]="act.codigo" [disabled]="!puedeEditar" class="cell-input code-input" />
               </td>
               <td>
-                <textarea
-                  [(ngModel)]="act.detalle"
-                  (ngModelChange)="onActividadChange()"
-                  [disabled]="!esEditable"
-                  class="cell-textarea"
-                  rows="2"
-                  placeholder="Ingrese detalle de la actividad..."
-                ></textarea>
+                <textarea [(ngModel)]="act.detalle" (ngModelChange)="onActividadChange(act)" [disabled]="!puedeEditar" class="cell-textarea" rows="2" placeholder="Ingrese detalle de la actividad..."></textarea>
               </td>
               <td>
-                <input
-                  type="number"
-                  [(ngModel)]="act.horas"
-                  (ngModelChange)="onActividadChange(act)"
-                  [disabled]="!esEditable"
-                  class="cell-input small"
-                  [class.input-error]="act.excede"
-                  [max]="totalHorasLectivas"
-                  min="0"
-                />
+                <div class="horario-cell">
+                  <span class="horario-summary" [class.horario-empty]="!act.horarios || act.horarios.length === 0">
+                    {{ act.horarios && act.horarios.length > 0 ? getHorarioSummary(act.horarios) : 'Sin horario' }}
+                  </span>
+                  <button mat-icon-button (click)="abrirGestionHorario(act)" [disabled]="!puedeEditar" class="btn-horario-edit" matTooltip="Gestionar horario">
+                    <mat-icon>schedule</mat-icon>
+                  </button>
+                </div>
               </td>
+              <td>
+                <input type="number" [(ngModel)]="act.horas" (ngModelChange)="onActividadChange(act)" (keydown)="preventNegative($event)" (blur)="onActividadChange(act)" [disabled]="!puedeEditar" class="cell-input small" [class.input-error]="act.excede" [max]="totalHorasLectivas" min="0" />
+              </td>
+              <td>
+                <mat-icon *ngIf="act.horarios && act.horarios.length > 0" class="check-icon" matTooltip="{{ getHorarioSummary(act.horarios) }}">schedule</mat-icon>
+                <mat-icon *ngIf="act.horas > 0 && (!act.horarios || act.horarios.length === 0)" class="warning-icon" matTooltip="Sin horario">warning</mat-icon>
+              </td>
+            </tr>
+            <tr class="subtotal-row">
+              <td colspan="5" class="subtotal-label">Subtotal — Preparación</td>
+              <td class="subtotal-value">{{ subtotalPreparacion }}</td>
+              <td></td>
+            </tr>
+            <tr class="subtotal-row">
+              <td colspan="5" class="subtotal-label">Subtotal — Investigación (rubros 3-5)</td>
+              <td class="subtotal-value">{{ subtotalInvestigacion }}</td>
+              <td></td>
+            </tr>
+            <tr class="subtotal-row">
+              <td colspan="5" class="subtotal-label">Subtotal — Gestión (rubros 6-10)</td>
+              <td class="subtotal-value">{{ subtotalGestion }}</td>
+              <td></td>
             </tr>
           </tbody>
         </table>
@@ -304,76 +257,98 @@
     </mat-card>
 
     <!-- TOTAL HORAS -->
-    <div class="total-horas-bar">
-      <span class="total-label">Total Horas:</span>
-      <span class="total-value">{{ totalHoras }}</span>
+    <div class="total-horas-bar" [class.total-excede]="totalHoras > horasModalidad">
+      <span class="total-label">Total General (Lectivas + No Lectivas):</span>
+      <span class="total-value">{{ totalHoras }}h</span>
+      <span class="total-modalidad">de {{ horasModalidad }}h disponibles ({{ gaugePercent }}%)</span>
+      <mat-icon *ngIf="totalHoras > horasModalidad" class="total-warn-icon">warning</mat-icon>
+      <span *ngIf="totalHoras > horasModalidad" class="total-warn-text">Excede la modalidad del docente</span>
     </div>
+
+    <!-- OBSERVACIONES -->
+    <mat-card class="observaciones-card" *ngIf="observaciones.length > 0">
+      <mat-card-header class="header-observaciones">
+        <mat-card-title>Historial de Observaciones</mat-card-title>
+        <span class="subtitle">Trazabilidad de revisiones</span>
+      </mat-card-header>
+      <mat-card-content>
+        <table class="data-table observaciones-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Observado por</th>
+              <th>Observación</th>
+              <th>Estado origen</th>
+              <th>Estado destino</th>
+              <th>Subsanado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let obs of observaciones; let i = index" [class.even-row]="i % 2 === 0">
+              <td>{{ obs.created_at | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ obs.usuario.nombre || '—' }}</td>
+              <td class="text-left">{{ obs.observacion }}</td>
+              <td>{{ obs.estado_origen }}</td>
+              <td><span class="estado-valor-mini" [ngClass]="obs.estado_destino === 'OBSERVADO_DPTO' ? 'estado-observado' : 'estado-observado-facultad'">{{ obs.estado_destino }}</span></td>
+              <td>
+                <span *ngIf="obs.subsanada" class="subsanado-si">Sí</span>
+                <span *ngIf="!obs.subsanada" class="subsanado-no">No</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Campo de nueva observación (Director/Decano) -->
+    <mat-card class="observacion-nueva-card" *ngIf="puedeObservar">
+      <mat-card-header class="header-nueva-observacion">
+        <mat-card-title>Nueva Observación</mat-card-title>
+        <span class="subtitle">Ingrese el detalle de la observación</span>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-form-field appearance="outline" class="observacion-field">
+          <mat-label>Texto de la observación (mín. 10 caracteres)</mat-label>
+          <textarea matInput [(ngModel)]="textoObservacion" rows="3" placeholder="Describa la observación..."></textarea>
+          <mat-hint>{{ textoObservacion.length }}/10 caracteres mínimo</mat-hint>
+        </mat-form-field>
+        <div class="observacion-actions">
+          <button mat-raised-button color="warn" (click)="observarDeclaracion()" [disabled]="saving || textoObservacion.trim().length < 10">
+            <mat-icon>cancel</mat-icon>
+            {{ isDecano ? 'Observar (Decano)' : 'Observar (Director)' }}
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
 
     <!-- BOTONES -->
     <div class="action-bar">
-      <button
-        mat-stroked-button
-        color="warn"
-        class="btn-volver"
-        (click)="volver()"
-      >
+      <button mat-stroked-button color="warn" class="btn-volver" (click)="volver()">
         <mat-icon>arrow_back</mat-icon>
         Volver
       </button>
       <div class="right-buttons">
-        <button
-          *ngIf="esEditable && !isDirector"
-          mat-raised-button
-          color="primary"
-          class="btn-guardar"
-          (click)="guardar()"
-          [disabled]="saving"
-        >
+        <button *ngIf="puedeEditar" mat-raised-button color="primary" class="btn-guardar" (click)="guardar()" [disabled]="saving">
           <mat-icon>save</mat-icon>
           Guardar
         </button>
-        <button
-          *ngIf="esEditable && (estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'OBSERVADO_DPTO' || estadoDeclaracion === 'OBSERVADO_FACULTAD') && !isDirector"
-          mat-raised-button
-          color="accent"
-          class="btn-enviar"
-          (click)="enviar()"
-          [disabled]="saving"
-        >
+
+        <button *ngIf="puedeEditar && (estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'NO_INICIADO')" mat-raised-button color="accent" class="btn-enviar" (click)="enviar()" [disabled]="saving">
           <mat-icon>send</mat-icon>
           Enviar
         </button>
 
-        <button
-          *ngIf="isDirector && estadoDeclaracion === 'ENVIADO_DOCENTE'"
-          mat-raised-button
-          color="primary"
-          class="btn-aprobar"
-          (click)="aprobarDeclaracion()"
-          [disabled]="saving"
-        >
-          <mat-icon>check_circle</mat-icon>
-          Aprobar
+        <button *ngIf="puedeSubsanar" mat-raised-button color="accent" class="btn-subsanar" (click)="subsanar()" [disabled]="saving">
+          <mat-icon>refresh</mat-icon>
+          Corregir y reenviar
         </button>
 
-        <button
-          *ngIf="isDirector && estadoDeclaracion === 'ENVIADO_DOCENTE'"
-          mat-raised-button
-          color="warn"
-          class="btn-rechazar"
-          (click)="observarDeclaracion()"
-          [disabled]="saving"
-        >
-          <mat-icon>cancel</mat-icon>
-          Observar
+        <button *ngIf="puedeValidarOAprobar" mat-raised-button color="primary" class="btn-aprobar" (click)="validarOAprobar()" [disabled]="saving">
+          <mat-icon>check_circle</mat-icon>
+          {{ isDecano ? 'Aprobar (Decano)' : 'Validar (Director)' }}
         </button>
-        <button
-          *ngIf="!esEditable"
-          mat-raised-button
-          color="warn"
-          class="btn-pdf"
-          (click)="generarPDF()"
-        >
+
+        <button *ngIf="estadoDeclaracion !== 'NO_INICIADO' && estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="warn" class="btn-pdf" (click)="generarPDF()">
           <mat-icon>picture_as_pdf</mat-icon>
           Generar PDF
         </button>

@@ -7,6 +7,7 @@ import {
   ApiResponse,
   DeclaracionVista,
   CargaLectivaRegistro,
+  DeclaracionObservacion,
 } from '../../../core/interfaces/entities';
 
 interface CursoLectivoFallback {
@@ -42,6 +43,8 @@ export class DocumentacionDetalleComponent implements OnInit {
   loading = true;
   saving = false;
   cursosFallback: CursoLectivoFallback[] = [];
+  observaciones: DeclaracionObservacion[] = [];
+  textoObservacion = '';
   displayedColumns = [
     'curso',
     'ciclo',
@@ -51,7 +54,8 @@ export class DocumentacionDetalleComponent implements OnInit {
     'hrsLab',
     'horas',
   ];
-  displayedColumnsNoLectivas = ['codigo', 'actividad', 'detalle', 'horas'];
+  displayedColumnsNoLectivas = ['codigo', 'actividad', 'detalle', 'horario', 'horas'];
+  displayedColumnsObs = ['fecha', 'usuario', 'observacion', 'estado', 'subsanado'];
 
   constructor(
     private route: ActivatedRoute,
@@ -80,13 +84,18 @@ export class DocumentacionDetalleComponent implements OnInit {
               `/declaraciones/docentes/${docenteId}/cursos`,
               { periodo },
             ),
+            observaciones: this.api.get<ApiResponse<DeclaracionObservacion[]>>(
+              `/declaraciones/${this.declaracionId}/observaciones`,
+            ),
           }).subscribe({
-            next: ({ cursos }) => {
+            next: ({ cursos, observaciones }) => {
               this.cursosFallback = cursos.data || [];
+              this.observaciones = observaciones.data || [];
               this.loading = false;
             },
             error: () => {
               this.cursosFallback = [];
+              this.observaciones = [];
               this.loading = false;
             },
           });
@@ -133,11 +142,15 @@ export class DocumentacionDetalleComponent implements OnInit {
 
   observarDocumento(): void {
     if (!this.data?.declaracion) return;
+    if (!this.textoObservacion || this.textoObservacion.trim().length < 10) {
+      this.snackBar.open('La observación debe tener al menos 10 caracteres', 'Cerrar', { duration: 3000 });
+      return;
+    }
     this.saving = true;
     this.api
       .patch<ApiResponse<DeclaracionVista>>(
         `/declaraciones/${this.data.declaracion.id}/observar`,
-        { observaciones: 'Observado por director de escuela' },
+        { observaciones: this.textoObservacion },
       )
       .subscribe({
         next: (res) => {
@@ -148,7 +161,7 @@ export class DocumentacionDetalleComponent implements OnInit {
             'Cerrar',
             { duration: 3000 },
           );
-          this.router.navigate(['/app/documentaciones']);
+          this.cargar();
         },
         error: (err) => {
           this.saving = false;
@@ -192,7 +205,6 @@ export class DocumentacionDetalleComponent implements OnInit {
         0,
       );
     }
-
     return this.registros.reduce(
       (total, registro) => total + Number(registro.horasBloque || 0),
       0,
@@ -217,6 +229,9 @@ export class DocumentacionDetalleComponent implements OnInit {
 
   get estadoLabel(): string {
     const labels: Record<string, string> = {
+      NO_INICIADO: 'No iniciado',
+      BORRADOR: 'Borrador',
+      PENDIENTE_ENVIO: 'Pendiente de envío',
       ENVIADO_DOCENTE: 'Enviado por docente',
       OBSERVADO_DPTO: 'Observado por departamento',
       SUBSANADO: 'Subsanado',
@@ -224,7 +239,7 @@ export class DocumentacionDetalleComponent implements OnInit {
       OBSERVADO_FACULTAD: 'Observado por facultad',
       APROBADO_FACULTAD: 'Aprobado por facultad',
       CERRADO: 'Cerrado',
-      BORRADOR: 'Borrador',
+      ANULADO: 'Anulado',
       SIN_DECLARACION: 'Sin declaracion',
     };
     return labels[this.estado] || this.estado;
@@ -234,9 +249,9 @@ export class DocumentacionDetalleComponent implements OnInit {
     const colors: Record<string, string> = {
       ENVIADO_DOCENTE: 'estado-enviado',
       OBSERVADO_DPTO: 'estado-observado',
-      SUBSANADO: 'estado-enviado',
+      SUBSANADO: 'estado-subsanado',
       VALIDADO_DPTO: 'estado-validado',
-      OBSERVADO_FACULTAD: 'estado-observado',
+      OBSERVADO_FACULTAD: 'estado-observado-facultad',
       APROBADO_FACULTAD: 'estado-aprobado',
       CERRADO: 'estado-cerrado',
       BORRADOR: 'estado-borrador',
@@ -247,6 +262,16 @@ export class DocumentacionDetalleComponent implements OnInit {
 
   getDiaLabel(dia: number): string {
     return ['','Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'][dia] || String(dia);
+  }
+
+  getHorarioStr(item: any): string {
+    if (Array.isArray(item.horarios) && item.horarios.length > 0) {
+      return item.horarios.map((h: any) =>
+        `${h.dia} ${(h.hora_inicio || '').substring(0, 5)}-${(h.hora_fin || '').substring(0, 5)}`
+      ).join(', ');
+    }
+    if (item.horario) return item.horario;
+    return '—';
   }
 
   volver(): void {

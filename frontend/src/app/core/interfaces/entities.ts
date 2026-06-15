@@ -9,6 +9,31 @@ export interface PaginatedData<T> {
   total: number;
 }
 
+export interface PlanEstudios {
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion?: string;
+  resolucion?: string;
+  anio: number;
+  activo: boolean;
+  escuela_id: number;
+}
+
+export interface CursoPlanEstudios {
+  id: number;
+  curso_id: number;
+  plan_estudios_id: number;
+  ciclo: number;
+  tipo_curso: string;
+  horas_teoria: number;
+  horas_practica: number;
+  horas_laboratorio: number;
+  creditos: number;
+  prerequisitos?: number[];
+  curso?: Curso;
+}
+
 export interface Usuario {
   id: number;
   email: string;
@@ -59,17 +84,22 @@ export interface Curso {
   creditos: number;
   horas_teoria: number;
   horas_laboratorio?: number;
+  horas_practica?: number;
   tiene_laboratorio: boolean;
   activo: boolean;
   ambientes_teoria?: Ambiente[];
   ambientes_laboratorio?: Ambiente[];
   ambientes?: Ambiente[];
+  departamento_id?: number;
+  departamento?: Departamento;
+  prerequisitos?: string | null;
 }
 
 export interface Grupo {
   id: number;
   codigo: string;
   nombre: string;
+  tipo: 'TEORIA' | 'PRACTICA' | 'LABORATORIO';
   ciclo: number;
   cupo_maximo: number;
 }
@@ -260,6 +290,22 @@ export interface DocumentacionResumen {
   estado: string;
   periodo: string;
   fecha_envio: string | null;
+  departamento_nombre?: string;
+  facultad_nombre?: string;
+}
+
+export interface DeclaracionObservacion {
+  id: number;
+  declaracion_id: number;
+  usuario_id: number;
+  usuario: { nombre: string };
+  observacion: string;
+  estado_origen: string;
+  estado_destino: string;
+  tipo: string;
+  subsanada: boolean;
+  subsanada_en: string | null;
+  created_at: string;
 }
 
 export interface CargaLectivaRegistro {

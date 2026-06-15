@@ -113,16 +113,16 @@ export class LayoutComponent implements OnInit {
           roles: ['administradorsistema', 'coordinadoracademico'],
         },
         {
-          icon: 'assignment_ind',
-          label: 'sidebar.assignments',
-          route: '/app/asignaciones',
-          roles: ['administradorsistema', 'coordinadoracademico'],
+          icon: 'auto_stories',
+          label: 'sidebar.planEstudios',
+          route: '/app/plan-estudios',
+          roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'],
         },
         {
-          icon: 'link',
-          label: 'sidebar.teacherCourses',
-          route: '/app/docente-cursos',
-          roles: ['administradorsistema', 'coordinadoracademico'],
+          icon: 'assignment',
+          label: 'sidebar.asignacionLectiva',
+          route: '/app/asignacion-lectiva',
+          roles: ['administradorsistema', 'coordinadoracademico', 'secretaria'],
         },
         {
           icon: 'link',
@@ -215,13 +215,16 @@ export class LayoutComponent implements OnInit {
             'coordinadoracademico',
             'operadorhorarios',
             'docente',
+            'decano',
+            'directordepartamento',
+            'directorescuela',
           ],
         },
         {
           icon: 'fact_check',
           label: 'sidebar.documentations',
           route: '/app/documentaciones',
-          roles: ['directorescuela'],
+          roles: ['directorescuela', 'directordepartamento'],
         },
       ],
     },
@@ -240,6 +243,12 @@ export class LayoutComponent implements OnInit {
           label: 'sidebar.periods',
           route: '/app/periodos',
           roles: ['administradorsistema', 'coordinadoracademico'],
+        },
+        {
+          icon: 'tune',
+          label: 'sidebar.loadParams',
+          route: '/app/parametros-carga',
+          roles: ['administradorsistema'],
         },
         {
           icon: 'campaign',
@@ -285,13 +294,14 @@ export class LayoutComponent implements OnInit {
   }
 
   private _rutasSinPeriodo = new Set([
-    'docentes', 'cursos', 'ambientes',
+    'docentes', 'cursos', 'ambientes', 'plan-estudios', 'asignacion-lectiva',
     'configuracion', 'periodos', 'campaigns',
     'usuarios', 'notificaciones', 'analisis-carga',
     'declaraciones', 'documentaciones', 'docente-facultad',
   ]);
   showPeriodoSelector = signal(true);
   notificacionesCount = signal(0);
+  alertasData = signal<any>(null);
 
   constructor(
     public authService: AuthService,
@@ -341,14 +351,28 @@ export class LayoutComponent implements OnInit {
             const alerts = res.data ?? res;
             const total = (alerts.conflictos_activos ?? 0) + (alerts.docentes_pendientes ?? 0) + (alerts.cursos_sin_asignar ?? 0);
             this.notificacionesCount.set(Math.min(total, 9));
+            this.alertasData.set(alerts);
           },
-          error: () => { this.notificacionesCount.set(0); },
+          error: () => {
+            this.notificacionesCount.set(0);
+            this.alertasData.set(null);
+          },
         });
     };
 
     fetchCount();
     this.periodoService.periodo$.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => fetchCount());
+  }
+
+  irA(section: string): void {
+    const routes: Record<string, string> = {
+      horarios: '/app/horarios',
+      docentes: '/app/docentes',
+      cursos: '/app/cursos',
+      dashboard: '/app/dashboard',
+    };
+    this.router.navigate([routes[section]]);
   }
 
   private _computeVisibleNavGroups(): void {

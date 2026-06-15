@@ -3,9 +3,9 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
+import { AuthService } from '../../../core/services/auth.service';
 import {
   ApiResponse,
-  DeclaracionVista,
   DocumentacionResumen,
 } from '../../../core/interfaces/entities';
 
@@ -15,14 +15,29 @@ import {
   styleUrls: ['./documentaciones-list.component.scss'],
 })
 export class DocumentacionesListComponent implements OnInit {
-  displayedColumns = ['docente', 'ibm', 'periodo', 'estado', 'acciones'];
+  displayedColumns = ['docente', 'departamento', 'periodo', 'estado', 'fecha_envio', 'acciones'];
   items: DocumentacionResumen[] = [];
+  filteredItems: DocumentacionResumen[] = [];
   loading = false;
   periodo = '';
+
+  filtroEstado = '';
+  filtroBusqueda = '';
+
+  estadosVisibles = [
+    'ENVIADO_DOCENTE',
+    'OBSERVADO_DPTO',
+    'SUBSANADO',
+    'VALIDADO_DPTO',
+    'OBSERVADO_FACULTAD',
+    'APROBADO_FACULTAD',
+    'CERRADO',
+  ];
 
   constructor(
     private api: ApiService,
     private periodoService: PeriodoService,
+    private authService: AuthService,
     private router: Router,
     private snackBar: MatSnackBar,
   ) {}
@@ -30,6 +45,22 @@ export class DocumentacionesListComponent implements OnInit {
   ngOnInit(): void {
     this.periodo = this.periodoService.periodo;
     this.cargar();
+  }
+
+  get esDirector(): boolean {
+    return this.authService.hasRole('directorescuela') || this.authService.hasRole('directordepartamento');
+  }
+
+  get esDecano(): boolean {
+    return this.authService.hasRole('decano');
+  }
+
+  get pendientesDepartamento(): number {
+    return this.items.filter(i => i.estado === 'ENVIADO_DOCENTE' || i.estado === 'SUBSANADO').length;
+  }
+
+  get observacionesPendientes(): number {
+    return this.items.filter(i => i.estado === 'OBSERVADO_DPTO' || i.estado === 'OBSERVADO_FACULTAD').length;
   }
 
   cargar(): void {
@@ -41,17 +72,35 @@ export class DocumentacionesListComponent implements OnInit {
       .subscribe({
         next: (res) => {
           this.items = res.data || [];
+          this.aplicarFiltros();
           this.loading = false;
         },
         error: () => {
           this.items = [];
+          this.filteredItems = [];
           this.loading = false;
         },
       });
   }
 
+  aplicarFiltros(): void {
+    this.filteredItems = this.items.filter((item) => {
+      if (this.filtroEstado && item.estado !== this.filtroEstado) return false;
+      if (this.filtroBusqueda) {
+        const busqueda = this.filtroBusqueda.toLowerCase();
+        const nombre = (item.docente_nombre || '').toLowerCase();
+        const ibm = String(item.docente_ibm || '');
+        if (!nombre.includes(busqueda) && !ibm.includes(busqueda)) return false;
+      }
+      return true;
+    });
+  }
+
   getEstadoLabel(estado: string): string {
     const labels: Record<string, string> = {
+      NO_INICIADO: 'No iniciado',
+      BORRADOR: 'Borrador',
+      PENDIENTE_ENVIO: 'Pendiente de envío',
       ENVIADO_DOCENTE: 'Enviado por docente',
       OBSERVADO_DPTO: 'Observado por departamento',
       SUBSANADO: 'Subsanado',
@@ -59,6 +108,7 @@ export class DocumentacionesListComponent implements OnInit {
       OBSERVADO_FACULTAD: 'Observado por facultad',
       APROBADO_FACULTAD: 'Aprobado por facultad',
       CERRADO: 'Cerrado',
+      ANULADO: 'Anulado',
     };
     return labels[estado] || estado;
   }
@@ -67,11 +117,12 @@ export class DocumentacionesListComponent implements OnInit {
     const colors: Record<string, string> = {
       ENVIADO_DOCENTE: 'estado-enviado',
       OBSERVADO_DPTO: 'estado-observado',
-      SUBSANADO: 'estado-enviado',
+      SUBSANADO: 'estado-subsanado',
       VALIDADO_DPTO: 'estado-validado',
-      OBSERVADO_FACULTAD: 'estado-observado',
+      OBSERVADO_FACULTAD: 'estado-observado-facultad',
       APROBADO_FACULTAD: 'estado-aprobado',
       CERRADO: 'estado-cerrado',
+      BORRADOR: 'estado-borrador',
     };
     return colors[estado] || 'estado-cerrado';
   }

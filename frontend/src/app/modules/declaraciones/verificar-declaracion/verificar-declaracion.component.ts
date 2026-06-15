@@ -1,18 +1,19 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, FormArray } from '@angular/forms';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { Subject, Subscription, debounceTime, switchMap } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
-import { Docente, ApiResponse } from '../../../core/interfaces/entities';
+import { Docente, ApiResponse, DeclaracionObservacion } from '../../../core/interfaces/entities';
+import { GestionarHorarioDialogComponent, GestionarHorarioData, HorarioEntry as HorarioEntryType } from '../dialogs/gestionar-horario-dialog.component';
 
 interface CursoLectivo {
   id: number;
   codigo: string;
   nombre: string;
+  tipoCurso: string;
   seccion: string;
   escuela: string;
   ciclo: number;
@@ -21,6 +22,13 @@ interface CursoLectivo {
   hrsPra: number;
   hrsLab: number;
   totalHrs: number;
+  plan_hours?: boolean;
+}
+
+interface HorarioNoLectiva {
+  dia: string;
+  hora_inicio: string;
+  hora_fin: string;
 }
 
 interface ActividadNoLectiva {
@@ -29,53 +37,59 @@ interface ActividadNoLectiva {
   descripcion: string;
   detalle: string;
   horas: number;
-  excede?: boolean; // Nueva propiedad para feedback visual
+  horarios: HorarioNoLectiva[];
+  horasManual: boolean;
+  excede?: boolean;
+}
+
+interface EstadoConfig {
+  label: string;
+  color: string;
+  editable: boolean;
+  etapa: number;
 }
 
 const ACTIVIDADES_NO_LECTIVAS: { id: number; descripcion: string }[] = [
-  { id: 1, descripcion: '1. TRABAJO LECTIVO: Datos completos y con claridad' },
-  {
-    id: 2,
-    descripcion: '2. PREPARACIÓN Y EVALUACIÓN (Max 50% de Trabajo Lectivo)',
-  },
-  {
-    id: 3,
-    descripcion:
-      '3. CONSEJERÍA Y TUTORÍA: señalar número de alumnos y ciclo académico',
-  },
-  {
-    id: 4,
-    descripcion:
-      '4. INVESTIGACIÓN: Consignar el nro de inscripción, código, nombre y duración del proyecto',
-  },
-  {
-    id: 5,
-    descripcion:
-      '5. CAPACITACIÓN: Señalar lo referente a este rubro en el marco de los planes de cada Facultad',
-  },
-  {
-    id: 6,
-    descripcion: '6. ACTIVIDADES DE GOBIERNO: Se desempeña cargo indique',
-  },
-  {
-    id: 7,
-    descripcion: '7. ACTIVIDADES DE ADMINISTRACIÓN: Si desempeña cargo indique',
-  },
-  {
-    id: 8,
-    descripcion:
-      '8. ASESORÍA DE TESIS, EXÁMENES PROFESIONALES Y EXPERIENCIA PROFESIONAL',
-  },
-  {
-    id: 9,
-    descripcion:
-      '9. RESPONSABILIDAD SOCIAL UNIVERSITARIA: Señalar actividad, proyecto a ejecutarse',
-  },
-  {
-    id: 10,
-    descripcion:
-      '10. COMITÉS TÉCNICOS Y COMISIONES: Consignar el número de Resolución autorizativa',
-  },
+  { id: 2, descripcion: '2. PREPARACIÓN Y EVALUACIÓN (Max 50% de Trabajo Lectivo)' },
+  { id: 3, descripcion: '3. CONSEJERÍA Y TUTORÍA: señalar número de alumnos y ciclo académico' },
+  { id: 4, descripcion: '4. INVESTIGACIÓN: Consignar el nro de inscripción, código, nombre y duración del proyecto' },
+  { id: 5, descripcion: '5. CAPACITACIÓN: Señalar lo referente a este rubro en el marco de los planes de cada Facultad' },
+  { id: 6, descripcion: '6. ACTIVIDADES DE GOBIERNO: Se desempeña cargo indique' },
+  { id: 7, descripcion: '7. ACTIVIDADES DE ADMINISTRACIÓN: Si desempeña cargo indique' },
+  { id: 8, descripcion: '8. ASESORÍA DE TESIS, EXÁMENES PROFESIONALES Y EXPERIENCIA PROFESIONAL' },
+  { id: 9, descripcion: '9. RESPONSABILIDAD SOCIAL UNIVERSITARIA: Señalar actividad, proyecto a ejecutarse' },
+  { id: 10, descripcion: '10. COMITÉS TÉCNICOS Y COMISIONES: Consignar el número de Resolución autorizativa' },
+];
+
+const MINIMO_NORMATIVO: Record<string, number> = {
+  DEDICACION_EXCLUSIVA: 40,
+  TIEMPO_COMPLETO_40: 40,
+  TIEMPO_PARCIAL_20: 20,
+  TIEMPO_PARCIAL_12: 12,
+  TIEMPO_PARCIAL_10: 10,
+  TIEMPO_PARCIAL_8: 8,
+};
+
+const ESTADOS_CONFIG: Record<string, EstadoConfig> = {
+  NO_INICIADO: { label: 'No Iniciado', color: 'estado-no-iniciado', editable: true, etapa: 0 },
+  BORRADOR: { label: 'Borrador', color: 'estado-borrador', editable: true, etapa: 1 },
+  PENDIENTE_ENVIO: { label: 'Pendiente de Envío', color: 'estado-pendiente', editable: true, etapa: 1 },
+  ENVIADO_DOCENTE: { label: 'Enviado por Docente', color: 'estado-enviado', editable: false, etapa: 2 },
+  OBSERVADO_DPTO: { label: 'Observado por Departamento', color: 'estado-observado', editable: true, etapa: 2 },
+  SUBSANADO: { label: 'Subsanado', color: 'estado-subsanado', editable: true, etapa: 2 },
+  VALIDADO_DPTO: { label: 'Validado por Departamento', color: 'estado-validado', editable: false, etapa: 3 },
+  OBSERVADO_FACULTAD: { label: 'Observado por Facultad', color: 'estado-observado-facultad', editable: true, etapa: 3 },
+  APROBADO_FACULTAD: { label: 'Aprobado por Facultad', color: 'estado-aprobado', editable: false, etapa: 4 },
+  CERRADO: { label: 'Cerrado', color: 'estado-cerrado', editable: false, etapa: 5 },
+  ANULADO: { label: 'Anulado', color: 'estado-anulado', editable: false, etapa: -1 },
+};
+
+const STEPPER_ETAPAS = [
+  { key: 'BORRADOR', label: 'Borrador', icon: 'edit_note' },
+  { key: 'ENVIADO_DOCENTE', label: 'Enviado', icon: 'send' },
+  { key: 'VALIDADO_DPTO', label: 'Departamento', icon: 'verified' },
+  { key: 'APROBADO_FACULTAD', label: 'Facultad', icon: 'approval' },
+  { key: 'CERRADO', label: 'Cerrado', icon: 'lock' },
 ];
 
 @Component({
@@ -83,7 +97,7 @@ const ACTIVIDADES_NO_LECTIVAS: { id: number; descripcion: string }[] = [
   templateUrl: './verificar-declaracion.component.html',
   styleUrls: ['./verificar-declaracion.component.scss'],
 })
-export class VerificarDeclaracionComponent implements OnInit {
+export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   docenteId = 0;
   docente: Docente | null = null;
   declaracionId: number | null = null;
@@ -91,23 +105,41 @@ export class VerificarDeclaracionComponent implements OnInit {
   saving = false;
   periodoActivo = '';
 
-  estadoDeclaracion: string = 'BORRADOR';
-  estadoLabel = '';
-  estadoColor = '';
+  estadoDeclaracion: string = 'NO_INICIADO';
 
-  // Horas lectivas
   cursosLectivos: CursoLectivo[] = [];
   totalHorasLectivas = 0;
 
-  // Horas no lectivas
   actividadesNoLectivas: ActividadNoLectiva[] = [];
   totalHorasNoLectivas = 0;
+  subtotalPreparacion = 0;
+  subtotalInvestigacion = 0;
+  subtotalGestion = 0;
 
-  // Total general
   totalHoras = 0;
-
-  // Para control de edición
   esEditable = true;
+
+  horasModalidad = 0;
+  gaugePercent = 0;
+
+  autoSaving = false;
+  autoSaveStatus = '';
+  lastSaved: Date | null = null;
+
+  periodoInfo: { codigo: string; nombre: string; fecha_inicio: string; fecha_fin: string; semestre: string; anio: string } | null = null;
+
+  Math = Math;
+  progresoPorcentaje = 0;
+  rubrosCompletos = 0;
+  rubrosVisibles = 0;
+
+  observaciones: DeclaracionObservacion[] = [];
+  textoObservacion = '';
+
+  stepperEtapas = STEPPER_ETAPAS;
+
+  private autoSaveSubject = new Subject<void>();
+  private autoSaveSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -116,6 +148,7 @@ export class VerificarDeclaracionComponent implements OnInit {
     private authService: AuthService,
     private periodoService: PeriodoService,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit(): void {
@@ -125,6 +158,85 @@ export class VerificarDeclaracionComponent implements OnInit {
     this.cargarDocente();
     this.cargarCursosAsignados();
     this.cargarDeclaracion();
+
+    this.autoSaveSub = this.autoSaveSubject.pipe(
+      debounceTime(30000),
+      switchMap(() => this.ejecutarAutoSave()),
+    ).subscribe();
+  }
+
+  ngOnDestroy(): void {
+    this.autoSaveSub?.unsubscribe();
+  }
+
+  get estadoConfig(): EstadoConfig {
+    return ESTADOS_CONFIG[this.estadoDeclaracion] || ESTADOS_CONFIG['NO_INICIADO'];
+  }
+
+  get estadoLabel(): string {
+    return this.estadoConfig.label;
+  }
+
+  get estadoColor(): string {
+    return this.estadoConfig.color;
+  }
+
+  get etapaActual(): number {
+    return this.estadoConfig.etapa;
+  }
+
+  get isDirector(): boolean {
+    return this.authService.hasRole('directorescuela') || this.authService.hasRole('directordepartamento');
+  }
+
+  get isDecano(): boolean {
+    return this.authService.hasRole('decano');
+  }
+
+  get isDocente(): boolean {
+    return this.authService.hasRole('docente');
+  }
+
+  get isAdmin(): boolean {
+    return this.authService.hasRole('administradorsistema');
+  }
+
+  get puedeObservar(): boolean {
+    if (!this.declaracionId) return false;
+    if (this.isDirector && this.estadoDeclaracion === 'ENVIADO_DOCENTE') return true;
+    if (this.isDecano && this.estadoDeclaracion === 'VALIDADO_DPTO') return true;
+    return false;
+  }
+
+  get puedeValidarOAprobar(): boolean {
+    if (!this.declaracionId) return false;
+    if (this.isDirector && this.estadoDeclaracion === 'ENVIADO_DOCENTE') return true;
+    if (this.isDecano && this.estadoDeclaracion === 'VALIDADO_DPTO') return true;
+    return false;
+  }
+
+  get puedeSubsanar(): boolean {
+    if (!this.declaracionId) return false;
+    if (!this.isDocente) return false;
+    return this.estadoDeclaracion === 'OBSERVADO_DPTO' || this.estadoDeclaracion === 'OBSERVADO_FACULTAD';
+  }
+
+  get puedeEditar(): boolean {
+    return this.esEditable && (this.isDocente || this.isAdmin);
+  }
+
+  private asignarPeriodoInfoFallback(): void {
+    const p = this.periodoService.periodoActivo;
+    const codigo = p?.codigo || this.periodoActivo;
+    const partes = codigo.split('-');
+    this.periodoInfo = {
+      codigo,
+      nombre: p?.nombre || '',
+      fecha_inicio: p?.fecha_inicio || '',
+      fecha_fin: p?.fecha_fin || '',
+      semestre: partes.length > 1 ? partes[1] : '',
+      anio: partes.length > 0 ? partes[0] : codigo,
+    };
   }
 
   inicializarActividadesNoLectivas(): void {
@@ -134,35 +246,33 @@ export class VerificarDeclaracionComponent implements OnInit {
       descripcion: a.descripcion,
       detalle: '',
       horas: 0,
+      horarios: [],
+      horasManual: false,
     }));
   }
 
   cargarDocente(): void {
-    this.api
-      .get<ApiResponse<Docente>>(`/docentes/${this.docenteId}`)
-      .subscribe({
-        next: (res) => {
-          this.docente = res.data;
-        },
-        error: () => {
-          this.snackBar.open('Error al cargar datos del docente', 'Cerrar', {
-            duration: 3000,
-          });
-        },
-      });
+    this.api.get<ApiResponse<Docente>>(`/docentes/${this.docenteId}`).subscribe({
+      next: (res) => {
+        this.docente = res.data;
+        this.horasModalidad = MINIMO_NORMATIVO[res.data.modalidad] || 40;
+        this.actualizarGauge();
+      },
+      error: () => {
+        this.snackBar.open('Error al cargar datos del docente', 'Cerrar', { duration: 3000 });
+      },
+    });
   }
 
   cargarCursosAsignados(): void {
-    this.api
-      .get<
-        ApiResponse<any[]>
-      >(`/declaraciones/docentes/${this.docenteId}/cursos?periodo=${this.periodoActivo}`)
+    this.api.get<ApiResponse<any[]>>(`/declaraciones/docentes/${this.docenteId}/cursos?periodo=${this.periodoActivo}`)
       .subscribe({
         next: (res) => {
           this.cursosLectivos = (res.data || []).map((c: any) => ({
             id: c.id,
             codigo: c.codigo || '',
             nombre: c.nombre || '',
+            tipoCurso: c.tipoCurso || '',
             seccion: c.seccion || '',
             escuela: c.escuela || '',
             ciclo: c.ciclo || 0,
@@ -171,6 +281,7 @@ export class VerificarDeclaracionComponent implements OnInit {
             hrsPra: c.hrsPra || 0,
             hrsLab: c.hrsLab || 0,
             totalHrs: c.totalHrs || 0,
+            plan_hours: true,
           }));
           this.calcularTotales();
           this.loading = false;
@@ -182,27 +293,52 @@ export class VerificarDeclaracionComponent implements OnInit {
   }
 
   cargarDeclaracion(): void {
-    this.api
-      .get<
-        ApiResponse<any>
-      >(`/declaraciones/docentes/${this.docenteId}/declaracion?periodo=${this.periodoActivo}`)
+    this.api.get<ApiResponse<any>>(`/declaraciones/docentes/${this.docenteId}/declaracion?periodo=${this.periodoActivo}`)
       .subscribe({
         next: (res) => {
           if (res.data) {
             this.declaracionId = res.data.id;
-            this.estadoDeclaracion = res.data.estado || 'BORRADOR';
-            this.actualizarEstadoVisual();
+            this.estadoDeclaracion = res.data.estado || 'NO_INICIADO';
+            if (res.data.periodo_academico) {
+              const p = res.data.periodo_academico;
+              const codigo = p.codigo || this.periodoActivo;
+              const partes = codigo.split('-');
+              this.periodoInfo = {
+                codigo,
+                nombre: p.nombre || '',
+                fecha_inicio: p.fecha_inicio || '',
+                fecha_fin: p.fecha_fin || '',
+                semestre: partes.length > 1 ? partes[1] : '',
+                anio: partes.length > 0 ? partes[0] : codigo,
+              };
+            }
             if (res.data.carga_no_lectiva) {
               this.cargarCargaNoLectiva(res.data.carga_no_lectiva);
             }
+            this.cargarObservaciones();
           } else {
-            this.estadoDeclaracion = 'BORRADOR';
-            this.actualizarEstadoVisual();
+            this.estadoDeclaracion = 'NO_INICIADO';
+          }
+          if (!this.periodoInfo) {
+            this.asignarPeriodoInfoFallback();
           }
         },
         error: () => {
-          this.estadoDeclaracion = 'BORRADOR';
-          this.actualizarEstadoVisual();
+          this.estadoDeclaracion = 'NO_INICIADO';
+          if (!this.periodoInfo) this.asignarPeriodoInfoFallback();
+        },
+      });
+  }
+
+  cargarObservaciones(): void {
+    if (!this.declaracionId) return;
+    this.api.get<ApiResponse<DeclaracionObservacion[]>>(`/declaraciones/${this.declaracionId}/observaciones`)
+      .subscribe({
+        next: (res) => {
+          this.observaciones = res.data || [];
+        },
+        error: () => {
+          this.observaciones = [];
         },
       });
   }
@@ -214,145 +350,219 @@ export class VerificarDeclaracionComponent implements OnInit {
         if (act) {
           act.detalle = a.detalle || '';
           act.horas = a.horas || 0;
+          act.horasManual = a.horasManual === true;
+          if (Array.isArray(a.horarios)) {
+            act.horarios = a.horarios.map((h: any) => ({
+              dia: h.dia || 'LU',
+              hora_inicio: h.hora_inicio || '08:00',
+              hora_fin: h.hora_fin || '10:00',
+            }));
+          } else if (a.horario) {
+            // backward compatibility: parse old string format
+            act.horarios = this.parseHorarioString(a.horario);
+          }
         }
       });
       this.calcularTotales();
     }
   }
 
-  actualizarEstadoVisual(): void {
-    const mapa: Record<
-      string,
-      { label: string; color: string; editable: boolean }
-    > = {
-      BORRADOR: { label: 'BORRADOR', color: 'estado-borrador', editable: true },
-      ENVIADO_DOCENTE: {
-        label: 'ENVIADO POR DOCENTE',
-        color: 'estado-enviado',
-        editable: false,
-      },
-      OBSERVADO_DPTO: {
-        label: 'OBSERVADO POR DPTO',
-        color: 'estado-observado',
-        editable: true,
-      },
-      VALIDADO_DPTO: {
-        label: 'VALIDADO POR DPTO',
-        color: 'estado-validado',
-        editable: false,
-      },
-      APROBADO_FACULTAD: {
-        label: 'APROBADO POR FACULTAD',
-        color: 'estado-aprobado',
-        editable: false,
-      },
-      CERRADO: { label: 'CERRADO', color: 'estado-cerrado', editable: false },
+  private parseHorarioString(horario: string): HorarioEntryType[] {
+    if (!horario || !horario.trim()) return [];
+    const dias: Record<string, string> = {
+      lun: 'LU', mar: 'MA', mié: 'MI', mie: 'MI', jue: 'JU', juv: 'JU', vie: 'VI', sáb: 'SA', sab: 'SA',
     };
-    const config = mapa[this.estadoDeclaracion] || mapa['BORRADOR'];
-    this.estadoLabel = config.label;
-    this.estadoColor = config.color;
-    this.esEditable = config.editable;
+    const partes = horario.split(',').map(p => p.trim()).filter(Boolean);
+    const result: HorarioEntryType[] = [];
+    for (const parte of partes) {
+      const match = parte.match(/([A-Za-záéíóú]+)\s+(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?/);
+      if (match) {
+        const diaKey = match[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const dia = dias[diaKey] || match[1].toUpperCase().substring(0, 2);
+        const h1 = match[2].padStart(2, '0');
+        const m1 = match[3] || '00';
+        const h2 = match[4].padStart(2, '0');
+        const m2 = match[5] || '00';
+        result.push({ dia, hora_inicio: `${h1}:${m1}`, hora_fin: `${h2}:${m2}` });
+      }
+    }
+    return result;
+  }
+
+  getEtapaEstado(etapaKey: string): 'completada' | 'actual' | 'pendiente' {
+    const etapaIdx = this.stepperEtapas.findIndex(e => e.key === etapaKey);
+    if (etapaIdx === -1) return 'pendiente';
+    const estadosMap: Record<string, number> = {
+      BORRADOR: 0, NO_INICIADO: 0, PENDIENTE_ENVIO: 0,
+      ENVIADO_DOCENTE: 1, OBSERVADO_DPTO: 1, SUBSANADO: 1,
+      VALIDADO_DPTO: 2, OBSERVADO_FACULTAD: 2,
+      APROBADO_FACULTAD: 3,
+      CERRADO: 4, ANULADO: -1,
+    };
+    const current = estadosMap[this.estadoDeclaracion] ?? 0;
+    if (current > etapaIdx) return 'completada';
+    if (current === etapaIdx) return 'actual';
+    return 'pendiente';
   }
 
   calcularTotales(): void {
-    this.totalHorasLectivas = this.cursosLectivos.reduce(
-      (sum, c) => sum + (c.totalHrs || 0),
-      0,
-    );
-    this.totalHorasNoLectivas = this.actividadesNoLectivas.reduce(
-      (sum, a) => sum + (Number(a.horas) || 0),
-      0,
-    );
+    this.totalHorasLectivas = this.cursosLectivos.reduce((sum, c) => sum + (c.totalHrs || 0), 0);
+
+    for (const act of this.actividadesNoLectivas) {
+      if (!act.horasManual) {
+        const calc = this.calcularHorasDesdeHorarios(act.horarios);
+        if (calc > 0) act.horas = calc;
+      }
+    }
+
+    this.totalHorasNoLectivas = this.actividadesNoLectivas
+      .reduce((sum, a) => sum + (Number(a.horas) || 0), 0);
     this.totalHoras = this.totalHorasLectivas + this.totalHorasNoLectivas;
+
+    this.subtotalPreparacion = this.actividadesNoLectivas.filter(a => a.id === 2).reduce((s, a) => s + (Number(a.horas) || 0), 0);
+    this.subtotalInvestigacion = this.actividadesNoLectivas.filter(a => a.id >= 3 && a.id <= 5).reduce((s, a) => s + (Number(a.horas) || 0), 0);
+    this.subtotalGestion = this.actividadesNoLectivas.filter(a => a.id >= 6 && a.id <= 10).reduce((s, a) => s + (Number(a.horas) || 0), 0);
+
+    this.actualizarGauge();
+    this.actualizarProgreso();
   }
 
-  onCursoChange(curso: CursoLectivo): void {
-    curso.totalHrs =
-      (Number(curso.hrsTeo) || 0) +
-      (Number(curso.hrsPra) || 0) +
-      (Number(curso.hrsLab) || 0);
+  private calcularHorasDesdeHorarios(horarios: HorarioEntryType[]): number {
+    return horarios.reduce((sum, h) => {
+      if (!h.hora_inicio || !h.hora_fin) return sum;
+      const [h1, m1] = h.hora_inicio.split(':').map(Number);
+      const [h2, m2] = h.hora_fin.split(':').map(Number);
+      if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return sum;
+      return sum + Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
+    }, 0);
+  }
+
+  getHorarioSummary(horarios: HorarioEntryType[]): string {
+    if (!horarios || horarios.length === 0) return 'Sin horario';
+    const diasSpan: Record<string, string> = { LU: 'Lun', MA: 'Mar', MI: 'Mié', JU: 'Jue', VI: 'Vie', SA: 'Sáb' };
+    return horarios.map(h =>
+      `${diasSpan[h.dia] || h.dia} ${h.hora_inicio?.substring(0, 5)}-${h.hora_fin?.substring(0, 5)}`
+    ).join(', ');
+  }
+
+  actualizarGauge(): void {
+    if (this.horasModalidad > 0) {
+      this.gaugePercent = Math.min(100, Math.round((this.totalHoras / this.horasModalidad) * 100));
+    }
+  }
+
+  actualizarProgreso(): void {
+    this.rubrosVisibles = this.actividadesNoLectivas.length;
+    this.rubrosCompletos = this.actividadesNoLectivas.filter((a) => {
+      const horas = Number(a.horas) || 0;
+      if (horas === 0) return true;
+      const tieneDetalle = a.detalle && a.detalle.trim().length >= 10;
+      const tieneHorario = a.horarios && a.horarios.length > 0;
+      return tieneDetalle && tieneHorario;
+    }).length;
+    this.progresoPorcentaje = this.rubrosVisibles > 0
+      ? Math.round((this.rubrosCompletos / this.rubrosVisibles) * 100)
+      : 0;
+  }
+
+  preventNegative(event: KeyboardEvent): void {
+    if (event.key === '-' || event.key === 'e' || event.key === 'E') {
+      event.preventDefault();
+    }
+  }
+
+  sanitizeNumero(valor: any): number {
+    return Math.max(0, Number(valor) || 0);
+  }
+
+  onCursoChange(): void {
+    this.cursosLectivos.forEach(curso => {
+      curso.nroAlumnos = this.sanitizeNumero(curso.nroAlumnos);
+    });
     this.calcularTotales();
   }
 
   onActividadChange(actividad?: ActividadNoLectiva): void {
-    if (actividad) {
-      let maxPermitido = 0;
-      let mensajeError = '';
+    if (!actividad) return;
+    actividad.horas = this.sanitizeNumero(actividad.horas);
 
-      if (actividad.id === 2) {
-        // Regla específica: Max 50% de Trabajo Lectivo, redondeo hacia abajo
-        maxPermitido = Math.floor(this.totalHorasLectivas * 0.5);
-        mensajeError = `⚠️ LÍMITE DE PREPARACIÓN: No puedes exceder el 50% del Trabajo Lectivo (${maxPermitido}h).`;
-      } else {
-        // Regla general: El total de no lectivas no debe exceder las lectivas
-        const totalOtras = this.actividadesNoLectivas
-          .filter((a) => a.id !== actividad.id)
-          .reduce((sum, a) => sum + (Number(a.horas) || 0), 0);
-        maxPermitido = Math.max(0, this.totalHorasLectivas - totalOtras);
-        mensajeError = `⚠️ LÍMITE EXCEDIDO: El total de horas no lectivas no puede superar las lectivas (${this.totalHorasLectivas}h).`;
-      }
-
+    if (actividad.id === 2) {
+      const maxPermitido = Math.floor(this.totalHorasLectivas * 0.5);
       if (actividad.horas > maxPermitido) {
         actividad.excede = true;
-        const valorExcedido = actividad.horas;
         actividad.horas = maxPermitido;
-
         this.snackBar.open(
-          mensajeError,
+          `LÍMITE DE PREPARACIÓN: No puede exceder el 50% del Trabajo Lectivo (${maxPermitido}h).`,
           'ENTENDIDO',
-          { 
+          {
             duration: 6000,
             panelClass: ['snackbar-error-prominent'],
             horizontalPosition: 'center',
-            verticalPosition: 'top'
+            verticalPosition: 'top',
           },
         );
-
-        setTimeout(() => {
-          actividad.excede = false;
-        }, 1500);
+        setTimeout(() => { actividad.excede = false; }, 1500);
       } else {
         actividad.excede = false;
       }
     }
+
+    if (actividad.horas > 0 && (!actividad.horarios || actividad.horarios.length === 0)) {
+      this.snackBar.open(
+        `El rubro ${actividad.id} tiene ${actividad.horas}h pero no tiene horario registrado.`,
+        'OK',
+        { duration: 4000, panelClass: ['snackbar-warning'] },
+      );
+    }
     this.calcularTotales();
+    this.triggerAutoSave();
   }
 
-  guardar(): void {
-    if (!this.esEditable) {
-      this.snackBar.open(
-        'La declaración no se puede modificar en este estado',
-        'Cerrar',
-        { duration: 3000 },
-      );
-      return;
-    }
+  abrirGestionHorario(actividad: ActividadNoLectiva): void {
+    const allHorarios = this.actividadesNoLectivas
+      .filter(a => a.id !== actividad.id && a.horarios && a.horarios.length > 0)
+      .map(a => ({ actividadId: a.id, horarios: [...a.horarios] }));
 
-    this.saving = true;
+    const data: GestionarHorarioData = {
+      actividadId: actividad.id,
+      actividadNombre: actividad.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
+      horarios: actividad.horarios.map(h => ({ ...h })),
+      horas: actividad.horas,
+      horasManual: actividad.horasManual,
+      allHorarios,
+    };
 
-    // Validación local: No exceder horas lectivas
-    if (this.totalHorasNoLectivas > this.totalHorasLectivas) {
-      this.snackBar.open(
-        `Error: El total de horas de Preparación y Evaluación (${this.totalHorasNoLectivas}) no puede exceder al Trabajo Lectivo (${this.totalHorasLectivas})`,
-        'Cerrar',
-        { duration: 5000 },
-      );
-      this.saving = false;
-      return;
+    const ref = this.dialog.open(GestionarHorarioDialogComponent, {
+      width: '600px',
+      data,
+      disableClose: true,
+    });
+
+    ref.afterClosed().subscribe((result: GestionarHorarioData | null) => {
+      if (!result) return;
+      actividad.horarios = result.horarios;
+      actividad.horasManual = result.horasManual;
+      actividad.horas = result.horas;
+      this.calcularTotales();
+      this.triggerAutoSave();
+    });
+  }
+
+  triggerAutoSave(): void {
+    if (this.esEditable) {
+      this.autoSaveSubject.next();
     }
+  }
+
+  private ejecutarAutoSave(): Promise<void> {
+    if (!this.esEditable || this.saving) return Promise.resolve();
+    this.autoSaving = true;
+    this.autoSaveStatus = 'Guardando...';
 
     const payload = {
       docente_id: this.docenteId,
       periodo: this.periodoActivo,
       estado: this.estadoDeclaracion,
-      cursos_lectivos: this.cursosLectivos.map((c) => ({
-        curso_id: c.id,
-        nro_alumnos: c.nroAlumnos,
-        hrs_teo: c.hrsTeo,
-        hrs_pra: c.hrsPra,
-        hrs_lab: c.hrsLab,
-        total_hrs: c.totalHrs,
-      })),
       carga_no_lectiva: {
         actividades: this.actividadesNoLectivas.map((a) => ({
           id: a.id,
@@ -360,68 +570,176 @@ export class VerificarDeclaracionComponent implements OnInit {
           descripcion: a.descripcion,
           detalle: a.detalle,
           horas: Number(a.horas) || 0,
+          horarios: a.horarios.map(h => ({ dia: h.dia, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin })),
+          horasManual: a.horasManual,
         })),
         total_horas: this.totalHorasNoLectivas,
       },
       total_horas: this.totalHoras,
     };
 
-    this.api
-      .post<ApiResponse<any>>('/declaraciones/guardar', payload)
-      .subscribe({
+    return new Promise((resolve) => {
+      this.api.post<ApiResponse<any>>('/declaraciones/guardar', payload).subscribe({
         next: () => {
-          this.snackBar.open('Declaración guardada correctamente', 'Cerrar', {
-            duration: 3000,
-          });
-          this.saving = false;
-          // Se recarga el estado para actualizar los flags internos si es necesario
-          this.cargarDeclaracion();
+          this.lastSaved = new Date();
+          this.autoSaveStatus = 'Guardado';
+          this.autoSaving = false;
+          resolve();
         },
-        error: (err) => {
-          this.snackBar.open(
-            err.error?.message || 'Error al guardar la declaración',
-            'Cerrar',
-            { duration: 3000 },
-          );
-          this.saving = false;
+        error: () => {
+          this.autoSaveStatus = 'Error al guardar';
+          this.autoSaving = false;
+          resolve();
         },
       });
+    });
+  }
+
+  guardar(): void {
+    if (!this.esEditable) {
+      this.snackBar.open('La declaración no se puede modificar en este estado', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    this.saving = true;
+    const payload = {
+      docente_id: this.docenteId,
+      periodo: this.periodoActivo,
+      estado: this.estadoDeclaracion,
+      carga_no_lectiva: {
+        actividades: this.actividadesNoLectivas.map((a) => ({
+          id: a.id,
+          codigo: a.codigo,
+          descripcion: a.descripcion,
+          detalle: a.detalle,
+          horas: Number(a.horas) || 0,
+          horarios: a.horarios.map(h => ({ dia: h.dia, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin })),
+          horasManual: a.horasManual,
+        })),
+        total_horas: this.totalHorasNoLectivas,
+      },
+      total_horas: this.totalHoras,
+    };
+
+    this.api.post<ApiResponse<any>>('/declaraciones/guardar', payload).subscribe({
+      next: () => {
+        this.lastSaved = new Date();
+        this.snackBar.open('Declaración guardada correctamente', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+        this.cargarDeclaracion();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al guardar la declaración', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
   }
 
   enviar(): void {
-    this.saving = true;
-    this.api
-      .post<ApiResponse<any>>(
-        `/declaraciones/docentes/${this.docenteId}/enviar`,
-        {
-          periodo: this.periodoActivo,
-        },
-      )
-      .subscribe({
+    if (this.declaracionId) {
+      this.saving = true;
+      this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/enviar`, {}).subscribe({
         next: () => {
           this.estadoDeclaracion = 'ENVIADO_DOCENTE';
-          this.actualizarEstadoVisual();
-          this.snackBar.open('Declaración enviada correctamente', 'Cerrar', {
-            duration: 3000,
-          });
+          this.snackBar.open('Declaración enviada correctamente', 'Cerrar', { duration: 3000 });
           this.saving = false;
+          this.cargarDeclaracion();
         },
         error: (err) => {
-          this.snackBar.open(
-            err.error?.message || 'Error al enviar la declaración',
-            'Cerrar',
-            { duration: 3000 },
-          );
+          this.snackBar.open(err.error?.message || 'Error al enviar la declaración', 'Cerrar', { duration: 3000 });
           this.saving = false;
         },
       });
+    } else {
+      this.saving = true;
+      this.api.post<ApiResponse<any>>(`/declaraciones/docentes/${this.docenteId}/enviar`, { periodo: this.periodoActivo })
+        .subscribe({
+          next: () => {
+            this.estadoDeclaracion = 'ENVIADO_DOCENTE';
+            this.snackBar.open('Declaración enviada correctamente', 'Cerrar', { duration: 3000 });
+            this.saving = false;
+            this.cargarDeclaracion();
+          },
+          error: (err) => {
+            this.snackBar.open(err.error?.message || 'Error al enviar la declaración', 'Cerrar', { duration: 3000 });
+            this.saving = false;
+          },
+        });
+    }
+  }
+
+  subsanar(): void {
+    if (!this.declaracionId) return;
+    this.saving = true;
+    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/subsanar`, {}).subscribe({
+      next: () => {
+        this.snackBar.open('Declaración subsanada y reenviada correctamente', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+        this.cargarDeclaracion();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al subsanar la declaración', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
+  }
+
+  validarOAprobar(): void {
+    if (!this.declaracionId) return;
+    this.saving = true;
+    if (this.isDirector) {
+      this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/validar`, {}).subscribe({
+        next: (res) => {
+          this.snackBar.open('Declaración validada correctamente', 'Cerrar', { duration: 3000 });
+          this.saving = false;
+          this.cargarDeclaracion();
+        },
+        error: (err) => {
+          this.snackBar.open(err.error?.message || 'Error al validar la declaración', 'Cerrar', { duration: 3000 });
+          this.saving = false;
+        },
+      });
+    } else if (this.isDecano) {
+      this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/aprobar`, {}).subscribe({
+        next: (res) => {
+          this.snackBar.open('Declaración aprobada correctamente', 'Cerrar', { duration: 3000 });
+          this.saving = false;
+          this.cargarDeclaracion();
+        },
+        error: (err) => {
+          this.snackBar.open(err.error?.message || 'Error al aprobar la declaración', 'Cerrar', { duration: 3000 });
+          this.saving = false;
+        },
+      });
+    }
+  }
+
+  observarDeclaracion(): void {
+    if (!this.declaracionId) return;
+    if (!this.textoObservacion || this.textoObservacion.trim().length < 10) {
+      this.snackBar.open('La observación debe tener al menos 10 caracteres', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    this.saving = true;
+    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/observar`, {
+      observaciones: this.textoObservacion,
+    }).subscribe({
+      next: () => {
+        this.snackBar.open('Declaración observada correctamente', 'Cerrar', { duration: 3000 });
+        this.textoObservacion = '';
+        this.saving = false;
+        this.cargarDeclaracion();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al observar la declaración', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
   }
 
   generarPDF(): void {
     if (!this.docente) return;
-    
     this.snackBar.open('Generando documento...', '', { duration: 2000 });
-    
     this.api.getBlob(`/reportes/declaracion/${this.docenteId}/pdf?periodo=${this.periodoActivo}`)
       .subscribe({
         next: (blob) => {
@@ -435,47 +753,10 @@ export class VerificarDeclaracionComponent implements OnInit {
           a.remove();
           this.snackBar.open('PDF generado con éxito', 'Cerrar', { duration: 3000 });
         },
-        error: (err) => {
-          console.error(err);
+        error: () => {
           this.snackBar.open('Error al generar el PDF de Declaración', 'Cerrar', { duration: 3000 });
         }
       });
-  }
-
-  get isDirector(): boolean {
-    return this.authService.hasRole('directorescuela');
-  }
-
-  aprobarDeclaracion(): void {
-    if (!this.declaracionId) return;
-    this.saving = true;
-    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/validar`, {}).subscribe({
-      next: () => {
-        this.snackBar.open('Declaración aprobada correctamente', 'Cerrar', { duration: 3000 });
-        this.saving = false;
-        this.cargarDeclaracion();
-      },
-      error: (err) => {
-        this.snackBar.open(err.error?.message || 'Error al aprobar la declaración', 'Cerrar', { duration: 3000 });
-        this.saving = false;
-      }
-    });
-  }
-
-  observarDeclaracion(): void {
-    if (!this.declaracionId) return;
-    this.saving = true;
-    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/observar`, {}).subscribe({
-      next: () => {
-        this.snackBar.open('Declaración observada correctamente', 'Cerrar', { duration: 3000 });
-        this.saving = false;
-        this.cargarDeclaracion();
-      },
-      error: (err) => {
-        this.snackBar.open(err.error?.message || 'Error al observar la declaración', 'Cerrar', { duration: 3000 });
-        this.saving = false;
-      }
-    });
   }
 
   volver(): void {

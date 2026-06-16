@@ -1,35 +1,11 @@
-import "reflect-metadata";
 import { DataSource } from "typeorm";
-import { config } from "dotenv";
-import { join } from "path";
 
-config({ path: join(__dirname, "..", "..", ".env") });
-
-import { Usuario } from "../entities/usuario.entity";
 import { Docente } from "../entities/docente.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { Grupo } from "../entities/grupo.entity";
-import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
-import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
-import { VentanaAtencion } from "../entities/ventana-atencion.entity";
-import { CampañaVentanas } from "../entities/campaña-ventanas.entity";
-import { ColaDocentes } from "../entities/cola-docentes.entity";
-import { NotificacionDocente } from "../entities/notificacion-docente.entity";
-import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.entity";
-import { Preasignacion } from "../entities/preasignacion.entity";
-import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
-import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
-import { DiaActivo } from "../entities/dia-activo.entity";
-import { TurnoHorario } from "../entities/turno-horario.entity";
-import { DocenteCurso } from "../entities/docente-curso.entity";
-import { ParametrosCarga } from "../entities/parametros-carga.entity";
-import { Facultad } from "../entities/facultad.entity";
-import { Escuela } from "../entities/escuela.entity";
-import { Departamento } from "../entities/departamento.entity";
-import { ConfiguracionGeneral } from "../entities/configuracion-general.entity";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
@@ -40,30 +16,15 @@ const mapTipoClase = (tipo: TipoClase) => {
   return "T";
 };
 
-const AppDataSource = new DataSource({
-  type: "postgres",
-  host: process.env.DATABASE_HOST ?? "localhost",
-  port: parseInt(process.env.DATABASE_PORT ?? "5432", 10),
-  database: process.env.DATABASE_NAME ?? "horarios_unt",
-  username: process.env.DATABASE_USER ?? "unt_user",
-  password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
-  entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
-  synchronize: false,
-  logging: false,
-});
-
-export async function seedHorariosCicloI() {
+export async function seedHorariosCicloI(dataSource: DataSource) {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO I (Actualizado)...");
 
-  await AppDataSource.initialize();
-  console.log("✅ Conexión a la base de datos establecida");
-
-  const docenteRepo = AppDataSource.getRepository(Docente);
-  const cursoRepo = AppDataSource.getRepository(Curso);
-  const ambienteRepo = AppDataSource.getRepository(Ambiente);
-  const grupoRepo = AppDataSource.getRepository(Grupo);
-  const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
-  const periodoRepo = AppDataSource.getRepository(PeriodoAcademico);
+  const docenteRepo = dataSource.getRepository(Docente);
+  const cursoRepo = dataSource.getRepository(Curso);
+  const ambienteRepo = dataSource.getRepository(Ambiente);
+  const grupoRepo = dataSource.getRepository(Grupo);
+  const horarioRepo = dataSource.getRepository(HorarioAsignado);
+  const periodoRepo = dataSource.getRepository(PeriodoAcademico);
 
   const periodo = "2026-I";
   const dbPeriodo = await periodoRepo.findOne({ where: { codigo: periodo } });
@@ -425,12 +386,4 @@ export async function seedHorariosCicloI() {
   }
 
   console.log("✅ Seed de Ciclo I completado.");
-  await AppDataSource.destroy();
-}
-
-if (require.main === module) {
-  seedHorariosCicloI().catch((err) => {
-    console.error("❌ Error:", err);
-    process.exit(1);
-  });
 }

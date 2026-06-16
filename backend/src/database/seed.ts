@@ -77,8 +77,12 @@ const AppDataSource = new DataSource({
   username: process.env.DATABASE_USER ?? "unt_user",
   password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
   entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
-  synchronize: false,
+  synchronize: true,
   logging: false,
+  ssl:
+    process.env.DATABASE_SSL === "true"
+      ? { rejectUnauthorized: false }
+      : false,
 });
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -2129,11 +2133,11 @@ export async function main() {
     console.log(
       "📅 Creando asignaciones de horarios desde archivos por ciclo...",
     );
-    await seedHorariosCicloI();
-    await seedHorariosCicloIII();
-    await seedHorariosCicloV();
-    await seedHorariosCicloVII();
-    await seedHorariosCicloIX();
+    await seedHorariosCicloI(AppDataSource);
+    await seedHorariosCicloIII(AppDataSource);
+    await seedHorariosCicloV(AppDataSource);
+    await seedHorariosCicloVII(AppDataSource);
+    await seedHorariosCicloIX(AppDataSource);
 
     console.log("🔗 Poblando relaciones curso-ambiente...");
     const horariosCursoAmbiente = await horarioRepo.find({

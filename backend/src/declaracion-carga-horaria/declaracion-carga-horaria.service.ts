@@ -267,6 +267,9 @@ export class DeclaracionCargaHorariaService {
     this.verificarRol(usuario.rol, [
       RolUsuario.ADMINISTRADOR_SISTEMA,
       RolUsuario.DIRECTOR_ESCUELA,
+      RolUsuario.DIRECTOR_DEPARTAMENTO,
+      RolUsuario.DECANO,
+      RolUsuario.COORDINADOR_ACADEMICO,
     ]);
 
     const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
@@ -296,7 +299,7 @@ export class DeclaracionCargaHorariaService {
       .orderBy("docente.apellidos", "ASC")
       .addOrderBy("docente.nombres", "ASC");
 
-    if (usuario.rol === RolUsuario.DIRECTOR_ESCUELA) {
+    if (usuario.rol !== RolUsuario.ADMINISTRADOR_SISTEMA) {
       const contexto =
         usuario.contextoAcademico ??
         (await this.contextoAcademicoService.resolverContexto(usuario));

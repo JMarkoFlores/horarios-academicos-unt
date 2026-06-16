@@ -216,14 +216,26 @@
                 <input type="text" [(ngModel)]="act.codigo" [disabled]="!puedeEditar" class="cell-input code-input" />
               </td>
               <td>
-                <textarea [(ngModel)]="act.detalle" (ngModelChange)="onActividadChange(act)" [disabled]="!puedeEditar" class="cell-textarea" rows="2" placeholder="Ingrese detalle de la actividad..."></textarea>
+                <textarea [(ngModel)]="act.detalle" (ngModelChange)="onActividadChange(act)" [disabled]="!puedeEditar" class="cell-textarea" [class.input-warning]="actividadDetalleInvalido(act)" rows="2" placeholder="Ingrese detalle de la actividad..."></textarea>
               </td>
-              <td>
+              <td class="col-horario">
                 <div class="horario-cell">
-                  <span class="horario-summary" [class.horario-empty]="!act.horarios || act.horarios.length === 0">
+                  <span
+                    class="horario-summary"
+                    [class.horario-empty]="!act.horarios || act.horarios.length === 0"
+                    [class.horario-conflicto]="actividadTieneConflictoInterno(act) || actividadTieneConflictoLectiva(act)"
+                    [matTooltip]="getTooltipConflictoHorario(act)"
+                  >
                     {{ act.horarios && act.horarios.length > 0 ? getHorarioSummary(act.horarios) : 'Sin horario' }}
                   </span>
-                  <button mat-icon-button (click)="abrirGestionHorario(act)" [disabled]="!puedeEditar" class="btn-horario-edit" matTooltip="Gestionar horario">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    (click)="abrirGestionHorario(act)"
+                    [disabled]="!puedeEditar"
+                    class="btn-horario-edit"
+                    matTooltip="Gestionar horario"
+                  >
                     <mat-icon>schedule</mat-icon>
                   </button>
                 </div>
@@ -231,9 +243,32 @@
               <td>
                 <input type="number" [(ngModel)]="act.horas" (ngModelChange)="onActividadChange(act)" (keydown)="preventNegative($event)" (blur)="onActividadChange(act)" [disabled]="!puedeEditar" class="cell-input small" [class.input-error]="act.excede" [max]="totalHorasLectivas" min="0" />
               </td>
-              <td>
-                <mat-icon *ngIf="act.horarios && act.horarios.length > 0" class="check-icon" matTooltip="{{ getHorarioSummary(act.horarios) }}">schedule</mat-icon>
-                <mat-icon *ngIf="act.horas > 0 && (!act.horarios || act.horarios.length === 0)" class="warning-icon" matTooltip="Sin horario">warning</mat-icon>
+              <td class="col-estado-horario">
+                <mat-icon
+                  *ngIf="actividadTieneConflictoInterno(act)"
+                  class="conflict-icon"
+                  matTooltip="Horarios duplicados o solapados en esta actividad"
+                >error</mat-icon>
+                <mat-icon
+                  *ngIf="!actividadTieneConflictoInterno(act) && actividadTieneConflictoLectiva(act)"
+                  class="lectiva-conflict-icon"
+                  matTooltip="El horario se solapa con la carga lectiva"
+                >school</mat-icon>
+                <mat-icon
+                  *ngIf="!actividadTieneConflictoInterno(act) && !actividadTieneConflictoLectiva(act) && actividadDetalleInvalido(act)"
+                  class="warning-icon"
+                  matTooltip="El detalle debe tener al menos 10 caracteres"
+                >text_snippet</mat-icon>
+                <mat-icon
+                  *ngIf="!actividadTieneConflictoInterno(act) && !actividadTieneConflictoLectiva(act) && !actividadDetalleInvalido(act) && act.horarios && act.horarios.length > 0"
+                  class="check-icon"
+                  [matTooltip]="getHorarioSummary(act.horarios)"
+                >check_circle</mat-icon>
+                <mat-icon
+                  *ngIf="act.horas > 0 && (!act.horarios || act.horarios.length === 0)"
+                  class="warning-icon"
+                  matTooltip="Sin horario"
+                >warning</mat-icon>
               </td>
             </tr>
             <tr class="subtotal-row">
@@ -437,12 +472,12 @@
         Volver
       </button>
       <div class="right-buttons">
-        <button *ngIf="puedeEditar" mat-raised-button color="primary" class="btn-guardar" (click)="guardar()" [disabled]="saving">
+        <button *ngIf="puedeEditar" mat-raised-button color="primary" class="btn-guardar" (click)="guardar()" [disabled]="saving || tieneErroresDetalle()">
           <mat-icon>save</mat-icon>
           Guardar
         </button>
 
-        <button *ngIf="puedeEditar && (estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'NO_INICIADO')" mat-raised-button color="accent" class="btn-enviar" (click)="enviar()" [disabled]="saving">
+        <button *ngIf="puedeEditar && (estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'NO_INICIADO')" mat-raised-button color="accent" class="btn-enviar" (click)="enviar()" [disabled]="saving || tieneErroresEnviar()">
           <mat-icon>send</mat-icon>
           Enviar
         </button>

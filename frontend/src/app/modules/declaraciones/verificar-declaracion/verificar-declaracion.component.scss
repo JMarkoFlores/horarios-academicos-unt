@@ -170,12 +170,35 @@
   }
 }
 
-.estado-borrador { background: #fff3e0; color: #e65100; }
-.estado-enviado { background: #e3f2fd; color: #1565c0; }
-.estado-observado { background: #ffebee; color: #c62828; }
-.estado-validado { background: #e8f5e9; color: #2e7d32; }
-.estado-aprobado { background: #f3e5f5; color: #6a1b9a; }
-.estado-cerrado { background: #eceff1; color: #455a64; }
+.estado-borrador {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.estado-enviado {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.estado-observado {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.estado-validado {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.estado-aprobado {
+  background: #f3e5f5;
+  color: #6a1b9a;
+}
+
+.estado-cerrado {
+  background: #eceff1;
+  color: #455a64;
+}
 
 .aviso-borrador,
 .aviso-no-editable {
@@ -241,10 +264,27 @@
 }
 
 @keyframes shake {
-  10%, 90% { transform: translate3d(-1px, 0, 0); }
-  20%, 80% { transform: translate3d(2px, 0, 0); }
-  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-  40%, 60% { transform: translate3d(4px, 0, 0); }
+
+  10%,
+  90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+
+  20%,
+  80% {
+    transform: translate3d(2px, 0, 0);
+  }
+
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+
+  40%,
+  60% {
+    transform: translate3d(4px, 0, 0);
+  }
 }
 
 ::ng-deep .snackbar-error-prominent {
@@ -253,9 +293,9 @@
   font-weight: bold !important;
   font-size: 16px !important;
   border: 2px solid white !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
   border-radius: 8px !important;
-  
+
   .mat-simple-snackbar-action {
     color: #ffeb3b !important;
     font-weight: 900 !important;
@@ -267,7 +307,7 @@
   color: white !important;
   font-weight: 500 !important;
   border: 2px solid #ffcc80 !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
   border-radius: 8px !important;
 }
 
@@ -278,7 +318,7 @@
 }
 
 .docente-card {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
   .info-table {
     width: 100%;
@@ -308,7 +348,7 @@
 }
 
 .seccion-card {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
   .header-lectivas,
   .header-no-lectivas {
@@ -395,11 +435,17 @@
 }
 
 .lectivas-table {
-  th { background: #1565c0; color: white; }
+  th {
+    background: #1565c0;
+    color: white;
+  }
 }
 
 .no-lectivas-table {
-  th { background: #6a1b9a; color: white; }
+  th {
+    background: #6a1b9a;
+    color: white;
+  }
 
   .act-descripcion {
     text-align: left;
@@ -448,6 +494,11 @@
   resize: vertical;
   min-height: 40px;
   background: #fffde7;
+
+  &.input-warning {
+    border-color: #e65100;
+    background: #fff3e0;
+  }
 
   &:disabled {
     background: #f5f5f5;
@@ -530,7 +581,8 @@
   .data-table {
     font-size: 11px;
 
-    th, td {
+    th,
+    td {
       padding: 4px;
     }
   }
@@ -686,8 +738,13 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .autosave-time {
@@ -821,15 +878,34 @@
 }
 
 /* Estados extendidos */
-.estado-no-iniciado { background: #eceff1; color: #546e7a; }
-.estado-pendiente { background: #fff8e1; color: #f57f17; }
-.estado-subsanado { background: #fff9c4; color: #f9a825; }
-.estado-observado-facultad { background: #b71c1c; color: white; }
-.estado-anulado { background: #212121; color: white; }
+.estado-no-iniciado {
+  background: #eceff1;
+  color: #546e7a;
+}
+
+.estado-pendiente {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.estado-subsanado {
+  background: #fff9c4;
+  color: #f9a825;
+}
+
+.estado-observado-facultad {
+  background: #b71c1c;
+  color: white;
+}
+
+.estado-anulado {
+  background: #212121;
+  color: white;
+}
 
 /* Observaciones */
 .observaciones-card {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .header-observaciones {
@@ -885,7 +961,7 @@
 
 /* Nueva observacion */
 .observacion-nueva-card {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .header-nueva-observacion {
@@ -967,17 +1043,29 @@
 .horario-cell {
   display: flex;
   align-items: center;
-  gap: 4px;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 2px;
+  min-height: 32px;
+}
+
+.no-lectivas-table .col-horario {
+  vertical-align: middle;
+}
+
+.no-lectivas-table .col-estado-horario {
+  vertical-align: middle;
+  text-align: center;
 }
 
 .horario-summary {
   font-size: 11px;
   color: #333;
-  max-width: 140px;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
 .horario-summary.horario-empty {
@@ -985,22 +1073,48 @@
   font-style: italic;
 }
 
+.horario-summary.horario-conflicto {
+  color: #c62828;
+  font-weight: 600;
+}
+
 .btn-horario-edit {
-  width: 28px;
-  height: 28px;
-  line-height: 28px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  line-height: 32px;
 
   mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    line-height: 16px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
     color: #6a1b9a;
   }
 
   &:disabled mat-icon {
     color: #ccc;
   }
+}
+
+.conflict-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #c62828;
+  vertical-align: middle;
+}
+
+.lectiva-conflict-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #1565c0;
+  vertical-align: middle;
 }
 
 /* Declaración Jurada F02-CAD */

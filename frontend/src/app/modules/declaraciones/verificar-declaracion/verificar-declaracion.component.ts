@@ -9,6 +9,14 @@ import { PeriodoService } from '../../../core/services/periodo.service';
 import { CargaAdicionalService, CargaAdicional } from '../../../core/services/carga-adicional.service';
 import { Docente, ApiResponse, DeclaracionObservacion } from '../../../core/interfaces/entities';
 import { GestionarHorarioDialogComponent, GestionarHorarioData, HorarioEntry as HorarioEntryType } from '../dialogs/gestionar-horario-dialog.component';
+import {
+  DIA_CODIGO_A_CORTO,
+  diaNumericoACodigo,
+  esHorarioIdentico,
+  HorarioLectivoRef,
+  normalizarHora,
+  seSuperponen,
+} from '../horario.utils';
 
 interface CursoLectivo {
   id: number;
@@ -109,6 +117,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   estadoDeclaracion: string = 'NO_INICIADO';
 
   cursosLectivos: CursoLectivo[] = [];
+  horariosLectivos: HorarioLectivoRef[] = [];
   totalHorasLectivas = 0;
 
   actividadesNoLectivas: ActividadNoLectiva[] = [];
@@ -116,6 +125,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   subtotalPreparacion = 0;
   subtotalInvestigacion = 0;
   subtotalGestion = 0;
+  cargandoHorariosLectivos = false;
 
   totalHoras = 0;
   esEditable = true;
@@ -161,7 +171,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
     private cargaAdicionalService: CargaAdicionalService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.docenteId = Number(this.route.snapshot.paramMap.get('id'));
@@ -334,8 +344,10 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
               this.totalHorasCargaAdicional = this.cargaAdicional.reduce((sum: number, c: CargaAdicional) => sum + (c.total_horas || 0), 0);
             }
             this.cargarObservaciones();
+            this.cargarHorariosLectivos();
           } else {
             this.estadoDeclaracion = 'NO_INICIADO';
+            this.cargarHorariosLectivos();
           }
           if (!this.periodoInfo) {
             this.asignarPeriodoInfoFallback();
@@ -458,10 +470,145 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
   getHorarioSummary(horarios: HorarioEntryType[]): string {
     if (!horarios || horarios.length === 0) return 'Sin horario';
-    const diasSpan: Record<string, string> = { LU: 'Lun', MA: 'Mar', MI: 'Mié', JU: 'Jue', VI: 'Vie', SA: 'Sáb' };
     return horarios.map(h =>
-      `${diasSpan[h.dia] || h.dia} ${h.hora_inicio?.substring(0, 5)}-${h.hora_fin?.substring(0, 5)}`
+      `${DIA_CODIGO_A_CORTO[h.dia] || h.dia} ${normalizarHora(h.hora_inicio)}-${normalizarHora(h.hora_fin)}`
     ).join(', ');
+  }
+
+  cargarHorariosLectivos(): void {
+    this.obtenerHorariosLectivos().catch(() => {
+      this.horariosLectivos = [];
+    });
+  }
+
+  private obtenerHorariosLectivos(): Promise<HorarioLectivoRef[]> {
+    const mapRegistro = (r: any): HorarioLectivoRef => {
+      const rDia = r.dia ?? r.dia_semana ?? r.diaSemana ?? r.DIA ?? r.day;
+      const rInicio = r.horaInicio ?? r.hora_inicio ?? r.HORA_INICIO ?? r.hora_inicio_real;
+      const rFin = r.horaFin ?? r.hora_fin ?? r.HORA_FIN ?? r.hora_fin_real;
+      const rCursoCodigo = r.codigoCurso ?? r.curso?.codigo ?? r.codigo_curso ?? '';
+      const rCursoNombre = r.nombreCurso ?? r.curso?.nombre ?? r.nombre_curso ?? '';
+      const rTipoClase = r.tipoClase ?? r.tipo_clase ?? r.TIPO_CLASE ?? '';
+      const rSeccion = r.seccion ?? r.grupo?.codigo ?? r.grupo?.nombre ?? '';
+      
+      let mappedDia = diaNumericoACodigo(rDia);
+      if (!['LU', 'MA', 'MI', 'JU', 'VI', 'SA'].includes(mappedDia)) {
+        mappedDia = diaNumericoACodigo(String(rDia).trim());
+      }
+
+      return {
+        dia: mappedDia,
+        hora_inicio: normalizarHora(rInicio),
+        hora_fin: normalizarHora(rFin),
+        codigoCurso: rCursoCodigo,
+        nombreCurso: rCursoNombre,
+        tipoClase: rTipoClase,
+        seccion: rSeccion,
+      };
+    };
+
+    // Usar directamente los horarios vivos para la validación de superposición,
+    // ya que la carga lectiva base o el snapshot pueden tener dia=0 u hora_inicio=null
+    // si se asignaron cursos pero aún no se publicaron los horarios.
+    return new Promise((resolve) => {
+      this.cargarHorariosLectivosDesdeHorarios(mapRegistro).then(resolve);
+    });
+  }
+
+  private cargarHorariosLectivosDesdeHorarios(
+    mapRegistro: (r: any) => HorarioLectivoRef,
+  ): Promise<HorarioLectivoRef[]> {
+    return new Promise((resolve) => {
+      this.api
+        .get<ApiResponse<any>>(`/horarios/docente/${this.docenteId}?periodo=${this.periodoActivo}&limit=200`)
+        .subscribe({
+          next: (res) => {
+            const items = res.data?.items ?? [];
+            this.horariosLectivos = items.map((h: any) =>
+              mapRegistro({
+                dia: h.dia,
+                hora_inicio: h.hora_inicio,
+                hora_fin: h.hora_fin,
+                curso: h.curso,
+                tipo_clase: h.tipo_clase,
+                grupo: h.grupo,
+              }),
+            );
+            resolve(this.horariosLectivos);
+          },
+          error: () => {
+            this.horariosLectivos = [];
+            resolve(this.horariosLectivos);
+          },
+        });
+    });
+  }
+
+  actividadTieneConflictoInterno(act: ActividadNoLectiva): boolean {
+    if (!act.horarios?.length) return false;
+    for (let i = 0; i < act.horarios.length; i++) {
+      for (let j = i + 1; j < act.horarios.length; j++) {
+        if (act.horarios[i].dia !== act.horarios[j].dia) continue;
+        if (
+          esHorarioIdentico(act.horarios[i], act.horarios[j]) ||
+          seSuperponen(
+            act.horarios[i].hora_inicio,
+            act.horarios[i].hora_fin,
+            act.horarios[j].hora_inicio,
+            act.horarios[j].hora_fin,
+          )
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  actividadTieneConflictoLectiva(act: ActividadNoLectiva): boolean {
+    if (!act.horarios?.length || !this.horariosLectivos.length) return false;
+    return act.horarios.some((h) =>
+      this.horariosLectivos.some(
+        (lec) =>
+          h.dia === lec.dia &&
+          seSuperponen(h.hora_inicio, h.hora_fin, lec.hora_inicio, lec.hora_fin),
+      ),
+    );
+  }
+
+  actividadNecesitaDetalle(act: ActividadNoLectiva): boolean {
+    const horas = Number(act.horas) || 0;
+    return horas > 0 && act.id !== 1;
+  }
+
+  actividadDetalleInvalido(act: ActividadNoLectiva): boolean {
+    return this.actividadNecesitaDetalle(act) && (!act.detalle || act.detalle.trim().length < 10);
+  }
+
+  actividadSinHorario(act: ActividadNoLectiva): boolean {
+    const horas = Number(act.horas) || 0;
+    return horas > 0 && (!act.horarios || act.horarios.length === 0);
+  }
+
+  tieneErroresDetalle(): boolean {
+    return this.actividadesNoLectivas.some((act) => this.actividadDetalleInvalido(act));
+  }
+
+  tieneErroresEnviar(): boolean {
+    return this.tieneErroresDetalle() || this.actividadesNoLectivas.some((act) => this.actividadSinHorario(act));
+  }
+
+  getTooltipConflictoHorario(act: ActividadNoLectiva): string {
+    if (this.actividadTieneConflictoInterno(act)) {
+      return 'Hay horarios duplicados o solapados en esta actividad';
+    }
+    if (this.actividadTieneConflictoLectiva(act)) {
+      return 'El horario se solapa con la carga lectiva del docente';
+    }
+    if (this.actividadDetalleInvalido(act)) {
+      return 'Complete el detalle con al menos 10 caracteres para esta actividad';
+    }
+    return this.getHorarioSummary(act.horarios);
   }
 
   actualizarGauge(): void {
@@ -537,10 +684,20 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     this.triggerAutoSave();
   }
 
-  abrirGestionHorario(actividad: ActividadNoLectiva): void {
+  async abrirGestionHorario(actividad: ActividadNoLectiva): Promise<void> {
+    if (!this.horariosLectivos.length) {
+      this.cargandoHorariosLectivos = true;
+      await this.obtenerHorariosLectivos();
+      this.cargandoHorariosLectivos = false;
+    }
+
     const allHorarios = this.actividadesNoLectivas
       .filter(a => a.id !== actividad.id && a.horarios && a.horarios.length > 0)
-      .map(a => ({ actividadId: a.id, horarios: [...a.horarios] }));
+      .map(a => ({
+        actividadId: a.id,
+        actividadNombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
+        horarios: [...a.horarios],
+      }));
 
     const data: GestionarHorarioData = {
       actividadId: actividad.id,
@@ -549,10 +706,12 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       horas: actividad.horas,
       horasManual: actividad.horasManual,
       allHorarios,
+      horariosLectivos: this.horariosLectivos.map(h => ({ ...h })),
     };
 
     const ref = this.dialog.open(GestionarHorarioDialogComponent, {
-      width: '600px',
+      width: '720px',
+      maxWidth: '95vw',
       data,
       disableClose: true,
     });
@@ -568,13 +727,13 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   }
 
   triggerAutoSave(): void {
-    if (this.esEditable) {
+    if (this.esEditable && !this.tieneErroresDetalle()) {
       this.autoSaveSubject.next();
     }
   }
 
   private ejecutarAutoSave(): Promise<void> {
-    if (!this.esEditable || this.saving) return Promise.resolve();
+    if (!this.esEditable || this.saving || this.tieneErroresDetalle()) return Promise.resolve();
     this.autoSaving = true;
     this.autoSaveStatus = 'Guardando...';
 
@@ -640,6 +799,12 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       total_horas: this.totalHoras,
     };
 
+    if (this.tieneErroresDetalle()) {
+      this.snackBar.open('Complete el detalle de al menos 10 caracteres para cada actividad con horas.', 'Cerrar', { duration: 5000 });
+      this.saving = false;
+      return;
+    }
+
     this.api.post<ApiResponse<any>>('/declaraciones/guardar', payload).subscribe({
       next: () => {
         this.lastSaved = new Date();
@@ -655,6 +820,11 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   }
 
   enviar(): void {
+    if (this.tieneErroresDetalle()) {
+      this.snackBar.open('Complete el detalle de al menos 10 caracteres para cada actividad con horas antes de enviar.', 'Cerrar', { duration: 5000 });
+      return;
+    }
+
     if (this.declaracionId) {
       this.saving = true;
       this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/enviar`, {}).subscribe({

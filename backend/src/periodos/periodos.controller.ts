@@ -57,8 +57,10 @@ export class PeriodosController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
     RolUsuario.DOCENTE,
     RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({ summary: "Listar todos los periodos sin paginación" })
   async findAllSinPaginar() {
@@ -180,5 +182,16 @@ export class PeriodosController {
   async limpiarHorariosInconsistentes(@Param("id", ParseIntPipe) id: number) {
     const result = await this.periodosService.limpiarHorariosInconsistentes(id);
     return { data: result, message: "Horarios inconsistentes eliminados" };
+  }
+
+  @Post(":id/finalizar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @ApiOperation({
+    summary: "Finalizar periodo académico y cerrar declaraciones",
+  })
+  @ApiParam({ name: "id", type: Number })
+  async finalizarPeriodo(@Param("id", ParseIntPipe) id: number) {
+    const result = await this.periodosService.finalizar(id);
+    return { data: result, message: result.message };
   }
 }

@@ -594,8 +594,12 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     return this.actividadesNoLectivas.some((act) => this.actividadDetalleInvalido(act));
   }
 
+  tieneHorasIncompletas(): boolean {
+    return Math.abs(this.totalHoras - this.horasModalidad) > 0.01;
+  }
+
   tieneErroresEnviar(): boolean {
-    return this.tieneErroresDetalle() || this.actividadesNoLectivas.some((act) => this.actividadSinHorario(act));
+    return this.tieneErroresDetalle() || this.actividadesNoLectivas.some((act) => this.actividadSinHorario(act)) || this.tieneHorasIncompletas();
   }
 
   getTooltipConflictoHorario(act: ActividadNoLectiva): string {
@@ -931,10 +935,10 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     this.snackBar.open('Generando documento...', '', { duration: 2000 });
     const endpoint = tipo === 'f03cad'
       ? `/reportes/docente/${this.docenteId}/f03-cad?periodo=${this.periodoActivo}`
-      : `/reportes/declaracion/${this.docenteId}/pdf?periodo=${this.periodoActivo}`;
+      : `/reportes/f01-cad/${this.docenteId}/pdf?periodo=${this.periodoActivo}`;
     const filename = tipo === 'f03cad'
       ? `f03-cad_${this.docente?.apellidos}_${this.periodoActivo}.pdf`
-      : `declaracion_carga_horaria_${this.docente?.apellidos}_${this.periodoActivo}.pdf`;
+      : `f01-cad_docente_${this.docente?.apellidos}_${this.periodoActivo}.pdf`;
     this.api.getBlob(endpoint)
       .subscribe({
         next: (blob) => {

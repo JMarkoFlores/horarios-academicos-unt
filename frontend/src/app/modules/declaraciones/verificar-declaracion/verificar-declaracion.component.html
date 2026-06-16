@@ -76,6 +76,11 @@
     </div>
   </div>
 
+  <div class="aviso-observado" *ngIf="tieneHorasIncompletas() && (puedeEditar || puedeSubsanar)" style="margin-top: 10px; background-color: #ffebee; color: #c62828;">
+    <mat-icon style="color: #c62828;">error</mat-icon>
+    <span>Debe completar exactamente el 100% de sus horas ({{ horasModalidad }}h) según su modalidad para poder guardar, enviar o corregir.</span>
+  </div>
+
   <mat-spinner *ngIf="loading" diameter="40" class="loading-center"></mat-spinner>
 
   <div class="content-grid" *ngIf="!loading && docente">
@@ -472,7 +477,7 @@
         Volver
       </button>
       <div class="right-buttons">
-        <button *ngIf="puedeEditar" mat-raised-button color="primary" class="btn-guardar" (click)="guardar()" [disabled]="saving || tieneErroresDetalle()">
+        <button *ngIf="puedeEditar" mat-raised-button color="primary" class="btn-guardar" (click)="guardar()" [disabled]="saving || tieneErroresDetalle() || tieneHorasIncompletas()">
           <mat-icon>save</mat-icon>
           Guardar
         </button>
@@ -482,7 +487,7 @@
           Enviar
         </button>
 
-        <button *ngIf="puedeSubsanar" mat-raised-button color="accent" class="btn-subsanar" (click)="subsanar()" [disabled]="saving">
+        <button *ngIf="puedeSubsanar" mat-raised-button color="accent" class="btn-subsanar" (click)="subsanar()" [disabled]="saving || tieneHorasIncompletas()">
           <mat-icon>refresh</mat-icon>
           Corregir y reenviar
         </button>

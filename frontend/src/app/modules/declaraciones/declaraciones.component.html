@@ -17,12 +17,8 @@
           <mat-icon>person_search</mat-icon>
         </div>
         <div class="header-text">
-          <mat-card-title class="card-title"
-            >Selección de Docente</mat-card-title
-          >
-          <mat-card-subtitle class="card-subtitle"
-            >Busque y seleccione un docente de la lista</mat-card-subtitle
-          >
+          <mat-card-title class="card-title">Selección de Docente</mat-card-title>
+          <mat-card-subtitle class="card-subtitle">Busque y seleccione un docente de la lista</mat-card-subtitle>
         </div>
       </mat-card-header>
       <mat-card-content class="card-content">
@@ -38,27 +34,34 @@
               class="custom-select"
               panelClass="docentes-dropdown-panel"
             >
+              <!-- Input de Búsqueda -->
+              <div class="dropdown-search-box" (keydown.space)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+                <mat-icon class="search-icon">search</mat-icon>
+                <input matInput [formControl]="searchCtrl" placeholder="Buscar por apellidos, nombres o código..." autocomplete="off">
+                <button mat-icon-button *ngIf="searchCtrl.value" (click)="searchCtrl.setValue('')" class="clear-btn">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+
               <mat-option value="">
                 <span class="placeholder-option">
-                  <mat-icon>search</mat-icon>
-                  -- Seleccione un docente --
+                  <mat-icon>clear_all</mat-icon>
+                  -- Limpiar selección --
                 </span>
               </mat-option>
+
+              <div class="empty-state-search" *ngIf="docentesFiltrados.length === 0">
+                No se encontraron docentes que coincidan con la búsqueda.
+              </div>
+
               <mat-option
-                *ngFor="let docente of docentes"
+                *ngFor="let docente of docentesFiltrados"
                 [value]="docente.id"
                 class="docente-option"
               >
                 <div class="docente-option-content">
-                  <span class="docente-avatar"
-                    >{{ docente.apellidos.charAt(0)
-                    }}{{ docente.nombres.charAt(0) }}</span
-                  >
-                  <span class="docente-fullname"
-                    >{{ docente.apellidos }}, {{ docente.nombres }} ({{
-                      docente.codigo
-                    }})</span
-                  >
+                  <span class="docente-avatar">{{ docente.apellidos.charAt(0) }}{{ docente.nombres.charAt(0) }}</span>
+                  <span class="docente-fullname">{{ docente.apellidos }}, {{ docente.nombres }} ({{ docente.codigo }})</span>
                 </div>
               </mat-option>
             </mat-select>
@@ -67,8 +70,7 @@
               diameter="24"
               class="loading-spinner"
               color="primary"
-            >
-            </mat-spinner>
+            ></mat-spinner>
           </mat-form-field>
         </form>
       </mat-card-content>
@@ -79,6 +81,30 @@
       <p>Cargando información de su carga horaria...</p>
     </div>
 
+    <!-- Stepper de Estados (Informativo) -->
+    <div class="stepper-wrapper" *ngIf="selectedDocente && !loadingEstado && estadoDeclaracion">
+      <div class="stepper-container">
+        <div class="stepper-track"></div>
+        <div
+          class="stepper-item"
+          *ngFor="let etapa of stepperEtapas"
+          [ngClass]="getStepClass(etapa)"
+          [title]="etapa.description"
+        >
+          <div class="step-circle" [style.background-color]="getStepClass(etapa) !== 'step-pending' ? etapa.color : ''">
+            <mat-icon>{{ etapa.icon }}</mat-icon>
+          </div>
+          <div class="step-label">{{ etapa.label }}</div>
+        </div>
+      </div>
+      <div class="estado-actual-banner">
+        <span class="label">Estado de la declaración:</span>
+        <span class="value" [ngClass]="'badge-' + estadoDeclaracion.toLowerCase()">
+          {{ estadoLabelActual }}
+        </span>
+      </div>
+    </div>
+
     <!-- Tarjeta de información del docente -->
     <mat-card *ngIf="selectedDocente" class="info-card">
       <mat-card-header class="card-header info-header">
@@ -86,20 +112,15 @@
           <mat-icon>badge</mat-icon>
         </div>
         <div class="header-text">
-          <mat-card-title class="card-title"
-            >Información del Docente</mat-card-title
-          >
-          <mat-card-subtitle class="card-subtitle"
-            >Datos completos del docente seleccionado</mat-card-subtitle
-          >
+          <mat-card-title class="card-title">Información del Docente</mat-card-title>
+          <mat-card-subtitle class="card-subtitle">Datos completos del docente seleccionado</mat-card-subtitle>
         </div>
       </mat-card-header>
       <mat-card-content class="card-content">
         <!-- Encabezado del docente -->
         <div class="docente-header">
           <div class="docente-avatar-large">
-            {{ selectedDocente.apellidos.charAt(0)
-            }}{{ selectedDocente.nombres.charAt(0) }}
+            {{ selectedDocente.apellidos.charAt(0) }}{{ selectedDocente.nombres.charAt(0) }}
           </div>
           <div class="docente-header-info">
             <h2 class="docente-nombre-large">{{ nombreCompletoDocente }}</h2>
@@ -175,29 +196,28 @@
           <button
             mat-raised-button
             class="action-btn btn-verificar"
+            *ngIf="puedeVerDeclaracion"
             [routerLink]="['/app/declaraciones/verificar', selectedDocente.id]"
           >
             <mat-icon>description</mat-icon>
             <span>Verificar Declaración</span>
           </button>
+          
           <button
             mat-raised-button
             class="action-btn btn-firma"
-            [routerLink]="[
-              '/app/declaraciones/verificar-firma',
-              selectedDocente.id,
-            ]"
+            *ngIf="puedeVerificarFirma"
+            [routerLink]="['/app/declaraciones/verificar-firma', selectedDocente.id]"
           >
             <mat-icon>verified</mat-icon>
             <span>Verificar Firma</span>
           </button>
+          
           <button
             mat-raised-button
             class="action-btn btn-aprobacion"
-            [routerLink]="[
-              '/app/declaraciones/verificar-aprobacion',
-              selectedDocente.id,
-            ]"
+            *ngIf="puedeVerificarAprobacion"
+            [routerLink]="['/app/declaraciones/verificar-aprobacion', selectedDocente.id]"
           >
             <mat-icon>fact_check</mat-icon>
             <span>Verificar Aprobación</span>

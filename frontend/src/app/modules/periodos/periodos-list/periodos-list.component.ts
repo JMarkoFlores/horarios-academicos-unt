@@ -82,4 +82,20 @@ export class PeriodosListComponent implements OnInit {
       },
     });
   }
+
+  finalizarPeriodo(p: PeriodoAcademico): void {
+    const msg = `⚠️ ¡ATENCIÓN! ⚠️\n\n¿Estás seguro de FINALIZAR el periodo "${p.nombre}"?\n\nEsta acción es IRREVERSIBLE e implica:\n1. Cerrar todas las declaraciones aprobadas.\n2. Anular las declaraciones en otros estados.\n3. Bloquear nuevas cargas horarias en este periodo.`;
+    if (!confirm(msg)) return;
+
+    this.api.post<ApiResponse<any>>(`/periodos/${p.id}/finalizar`, {}).subscribe({
+      next: (res) => {
+        this.snackBar.open(res.message || 'Periodo finalizado con éxito', 'OK', { duration: 4000 });
+        this.periodoService.cargarPeriodos();
+        this.loadPeriodos();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al finalizar el periodo', 'OK', { duration: 4000 });
+      }
+    });
+  }
 }

@@ -418,17 +418,34 @@
         </mat-card>
       </div>
 
-      <mat-card class="chart-container-premium">
-        <div class="chart-header"><h3>{{ 'dashboard.highestTeacherLoad' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.top5' | translate }}</span></div>
-        <mat-divider></mat-divider>
-        <div class="list-body">
-          <div class="rank-item" *ngFor="let d of kpis.top_docentes_mayor_carga; let i = index">
-            <div class="rank-num">{{ i + 1 }}</div>
-            <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.categoria }}</div></div>
-            <div class="rank-value">{{ d.horas.toFixed(1) }}h</div>
+      <!-- Mayor Carga / Menor Carga — misma fila -->
+      <div class="two-col-grid">
+        <mat-card class="chart-container-premium">
+          <div class="chart-header"><h3>{{ 'dashboard.highestTeacherLoad' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.top5' | translate }}</span></div>
+          <mat-divider></mat-divider>
+          <div class="list-body">
+            <div class="rank-item" *ngFor="let d of kpis.top_docentes_mayor_carga; let i = index">
+              <div class="rank-num">{{ i + 1 }}</div>
+              <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.categoria }}</div></div>
+              <div class="rank-value">{{ d.horas.toFixed(1) }}h</div>
+            </div>
           </div>
-        </div>
-      </mat-card>
+        </mat-card>
+
+        @if (kpis.top_docentes_menor_carga.length) {
+          <mat-card class="chart-container-premium">
+            <div class="chart-header"><h3>{{ 'dashboard.lowestTeacherLoad' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.top5' | translate }}</span></div>
+            <mat-divider></mat-divider>
+            <div class="list-body">
+              <div class="rank-item" *ngFor="let d of kpis?.top_docentes_menor_carga; let i = index">
+                <div class="rank-num">{{ i + 1 }}</div>
+                <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.categoria }}</div></div>
+                <div class="rank-value">{{ d.horas.toFixed(1) }}h</div>
+              </div>
+            </div>
+          </mat-card>
+        }
+      </div>
 
       <!-- Heatmap -->
       <mat-card class="chart-container-premium heatmap-card">
@@ -457,18 +474,6 @@
                 matTooltipClass="heatmap-tooltip"
               ></div>
             </div>
-          </div>
-        </div>
-      </mat-card>
-
-      <!-- Actividad Reciente -->
-      <mat-card class="chart-container-premium compact-card" *ngIf="kpis?.actividad_reciente?.length">
-        <div class="chart-header"><h3>{{ 'dashboard.recentActivity' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.last10' | translate }}</span></div>
-        <mat-divider></mat-divider>
-        <div class="list-body activity-list">
-          <div class="activity-item" *ngFor="let act of kpis!.actividad_reciente">
-            <div class="activity-dot" [class.lab]="act.tipo === 'LABORATORIO'"></div>
-            <div class="activity-info"><div class="activity-desc">{{ act.descripcion }}</div><div class="activity-time">{{ act.timestamp | date: "short" }}</div></div>
           </div>
         </div>
       </mat-card>
@@ -510,20 +515,17 @@
         </mat-card>
       }
 
-      <!-- Menor Carga -->
-      @if (kpis.top_docentes_menor_carga.length) {
-        <mat-card class="chart-container-premium compact-card">
-          <div class="chart-header"><h3>{{ 'dashboard.lowestTeacherLoad' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.top5' | translate }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="list-body">
-            <div class="rank-item" *ngFor="let d of kpis?.top_docentes_menor_carga; let i = index">
-              <div class="rank-num">{{ i + 1 }}</div>
-              <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.categoria }}</div></div>
-              <div class="rank-value">{{ d.horas.toFixed(1) }}h</div>
-            </div>
+      <!-- Actividad Reciente -->
+      <mat-card class="chart-container-premium compact-card" *ngIf="kpis?.actividad_reciente?.length">
+        <div class="chart-header"><h3>{{ 'dashboard.recentActivity' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.last10' | translate }}</span></div>
+        <mat-divider></mat-divider>
+        <div class="list-body activity-list">
+          <div class="activity-item" *ngFor="let act of kpis!.actividad_reciente">
+            <div class="activity-dot" [class.lab]="act.tipo === 'LABORATORIO'"></div>
+            <div class="activity-info"><div class="activity-desc">{{ act.descripcion }}</div><div class="activity-time">{{ act.timestamp | date: "short" }}</div></div>
           </div>
-        </mat-card>
-      }
+        </div>
+      </mat-card>
 
       <!-- Conflicts -->
       @if (conflictos.length > 0) {

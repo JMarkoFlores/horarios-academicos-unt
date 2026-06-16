@@ -434,6 +434,11 @@ export class DeclaracionCargaHorariaController {
   @Post("docentes/:id/declaracion-jurada")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.OPERADOR_HORARIOS,
     RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Generar declaración jurada de un docente" })

@@ -59,6 +59,16 @@
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let p" class="actions-cell">
             <div class="btn-group">
+              <button
+                *ngIf="p.activo"
+                mat-icon-button
+                class="btn-action"
+                (click)="finalizarPeriodo(p)"
+                matTooltip="Finalizar Periodo (Cerrar declaraciones)"
+                color="warn"
+              >
+                <mat-icon>flag</mat-icon>
+              </button>
               <a
                 mat-icon-button
                 class="btn-action edit"

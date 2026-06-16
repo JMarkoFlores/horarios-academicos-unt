@@ -500,7 +500,7 @@ export class DeclaracionCargaHorariaService {
     usuario: Usuario & { docenteId?: number | null },
     dto: AccionDeclaracionCargaHorariaDto,
   ): Promise<DeclaracionVista> {
-    const declaracion = await this.obtenerEntidadEditable(id);
+    const declaracion = await this.obtenerEntidadBase(id);
     await this.verificarAccesoDeclaracion(usuario, declaracion);
     const estadoOrigen = declaracion.estado;
     const estadoObjetivo = this.resolverEstadoObservacion(usuario.rol);
@@ -567,7 +567,7 @@ export class DeclaracionCargaHorariaService {
       RolUsuario.ADMINISTRADOR_SISTEMA,
     ]);
 
-    const declaracion = await this.obtenerEntidadEditable(id);
+    const declaracion = await this.obtenerEntidadBase(id);
     await this.verificarAccesoDeclaracion(usuario, declaracion);
     this.validarTransicionEstado(
       declaracion.estado,
@@ -626,7 +626,7 @@ export class DeclaracionCargaHorariaService {
       RolUsuario.ADMINISTRADOR_SISTEMA,
     ]);
 
-    const declaracion = await this.obtenerEntidadEditable(id);
+    const declaracion = await this.obtenerEntidadBase(id);
     this.validarTransicionEstado(
       declaracion.estado,
       EstadoDeclaracionCarga.APROBADO_FACULTAD,
@@ -887,6 +887,8 @@ export class DeclaracionCargaHorariaService {
       [EstadoDeclaracionCarga.SUBSANADO]: [
         EstadoDeclaracionCarga.PENDIENTE_ENVIO,
         EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+        EstadoDeclaracionCarga.VALIDADO_DPTO,
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
         EstadoDeclaracionCarga.ANULADO,
       ],
       [EstadoDeclaracionCarga.VALIDADO_DPTO]: [
@@ -914,9 +916,7 @@ export class DeclaracionCargaHorariaService {
     }
   }
 
-  private async obtenerEntidadEditable(
-    id: number,
-  ): Promise<DeclaracionCargaHoraria> {
+  private async obtenerEntidadBase(id: number): Promise<DeclaracionCargaHoraria> {
     const declaracion = await this.declaracionRepo.findOne({
       where: { id },
       relations: [
@@ -936,6 +936,13 @@ export class DeclaracionCargaHorariaService {
       throw new NotFoundException(`Declaración ${id} no encontrada`);
     }
 
+    return declaracion;
+  }
+
+  private async obtenerEntidadEditable(
+    id: number,
+  ): Promise<DeclaracionCargaHoraria> {
+    const declaracion = await this.obtenerEntidadBase(id);
     this.asegurarEditable(declaracion.estado);
     return declaracion;
   }

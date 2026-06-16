@@ -221,6 +221,12 @@ export class LayoutComponent implements OnInit {
           ],
         },
         {
+          icon: 'approval',
+          label: 'Aprobación de Facultad',
+          route: '/app/declaraciones/aprobacion-facultad',
+          roles: ['decano', 'administradorsistema'],
+        },
+        {
           icon: 'fact_check',
           label: 'sidebar.documentations',
           route: '/app/documentaciones',

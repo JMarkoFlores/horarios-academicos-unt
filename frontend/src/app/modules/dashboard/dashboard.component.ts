@@ -28,6 +28,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private dashSub!: Subscription;
   private langSub!: Subscription;
   private _heatmapCache = new Map<string, { color: string; tooltip: string }>();
+  private _themeObserver?: MutationObserver;
 
   // ── Carga Académica state ──
   activeTab = signal<'horarios' | 'carga'>('horarios');
@@ -210,6 +211,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.setDiasSemana();
       this.updateChartsLabels();
     });
+    // Limpiar cache del heatmap cuando cambia el tema (dark/light)
+    this._themeObserver = new MutationObserver(() => this._heatmapCache.clear());
+    this._themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
 
   constructor(
@@ -225,6 +229,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
     this.dashSub?.unsubscribe();
     this.langSub?.unsubscribe();
+    this._themeObserver?.disconnect();
     this.socketService.unsubscribeDashboardPeriodo(this.periodoService.periodo);
   }
 
@@ -518,19 +523,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const key = `${cell.dia}|${cell.hora}`;
       const dayKey = `dashboard.days.${cell.dia.toLowerCase().replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('á', 'a')}`;
       const translatedDay = this.translate.instant(dayKey);
+      const isDark = document.body.classList.contains('dark-theme');
       if (cell.intensidad === 0) {
         this._heatmapCache.set(key, { 
-          color: 'rgba(0,0,0,0.04)', 
+          color: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', 
           tooltip: this.translate.instant('dashboard.noClasses') 
         });
         continue;
       }
-      const alpha = Math.min(0.9, cell.intensidad / 100);
-      const color = cell.tipo_clase === 'LABORATORIO'
-        ? `rgba(34, 197, 94, ${alpha})`
-        : cell.tipo_clase === 'MIXTO'
-        ? `rgba(168, 85, 247, ${alpha})`
-        : `rgba(59, 130, 246, ${alpha})`;
+      // Alpha: mínimo 0.45, máximo 1.0 para máxima visibilidad
+      const alpha = 0.45 + (0.55 * Math.min(1, cell.intensidad / 100));
+      // En dark mode usamos colores más luminosos para contrastar con el fondo oscuro
+      const color = isDark
+        ? cell.tipo_clase === 'LABORATORIO'
+          ? `rgba(52, 231, 120, ${alpha})`
+          : cell.tipo_clase === 'MIXTO'
+          ? `rgba(196, 108, 255, ${alpha})`
+          : `rgba(96, 165, 250, ${alpha})`
+        : cell.tipo_clase === 'LABORATORIO'
+          ? `rgba(22, 163, 74, ${alpha})`
+          : cell.tipo_clase === 'MIXTO'
+          ? `rgba(147, 51, 234, ${alpha})`
+          : `rgba(37, 99, 235, ${alpha})`;
       const cursosStr = cell.cursos?.length ? `\n${cell.cursos.join(', ')}` : '';
       let tipoClase = this.translate.instant('dashboard.classTypes.teoria');
       if (cell.tipo_clase === 'LABORATORIO') tipoClase = this.translate.instant('dashboard.classTypes.laboratorio');

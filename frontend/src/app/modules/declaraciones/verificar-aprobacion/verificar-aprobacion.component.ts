@@ -28,6 +28,7 @@ interface ActividadNoLectiva {
 }
 
 interface DeclaracionEstadoDetalle {
+  id?: number;
   estado?: string;
   fecha_firma_director?: string | null;
   carga_no_lectiva?: {
@@ -53,6 +54,7 @@ interface DocumentoConferir {
 })
 export class VerificarAprobacionComponent implements OnInit {
   docenteId = 0;
+  declaracionId: number | null = null;
   docente: Docente | null = null;
   periodo = '';
   estado = 'SIN_DECLARACION';
@@ -65,6 +67,10 @@ export class VerificarAprobacionComponent implements OnInit {
   totalHorasNoLectivas = 0;
   documentosColumns = ['nombre', 'sede', 'estado', 'conferir'];
   descargandoDocumento: string | null = null;
+  
+  textoObservacion = '';
+  observando = false;
+  saving = false;
 
   documentos: DocumentoConferir[] = [
     {
@@ -111,6 +117,7 @@ export class VerificarAprobacionComponent implements OnInit {
           )
           .subscribe({
             next: (declaracionRes) => {
+              this.declaracionId = declaracionRes.data?.id || null;
               this.estado = declaracionRes.data?.estado || 'SIN_DECLARACION';
               this.directorValidador = this.resolverDirectorValidador(
                 declaracionRes.data,
@@ -123,6 +130,7 @@ export class VerificarAprobacionComponent implements OnInit {
               this.loading = false;
             },
             error: () => {
+              this.declaracionId = null;
               this.estado = 'SIN_DECLARACION';
               this.directorValidador = 'No validado';
               this.fechaValidacion = 'No validado';
@@ -333,29 +341,78 @@ export class VerificarAprobacionComponent implements OnInit {
     });
   }
 
-  private generarPdfDeclaracion(): void {
+  generarPdfDeclaracion(): void {
     if (!this.docente) return;
     
     this.snackBar.open('Generando documento...', '', { duration: 2000 });
     
-    this.api.getBlob(`/reportes/declaracion/${this.docente.id}/pdf?periodo=${this.periodo}`)
+    this.api.getBlob(`/reportes/f01-cad/${this.docente.id}/pdf?periodo=${this.periodo}`)
       .subscribe({
         next: (blob) => {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `declaracion_carga_horaria_${this.docente?.apellidos}_${this.periodo}.pdf`;
+          a.download = `f01-cad_${this.docente?.apellidos || 'docente'}_${this.periodo}.pdf`;
           document.body.appendChild(a);
           a.click();
           window.URL.revokeObjectURL(url);
           a.remove();
-          this.snackBar.open('PDF generado con éxito', 'Cerrar', { duration: 3000 });
+          this.snackBar.open('PDF descargado con éxito', 'Cerrar', { duration: 3000 });
         },
         error: (err) => {
           console.error(err);
           this.snackBar.open('Error al generar el PDF de Declaración', 'Cerrar', { duration: 3000 });
         }
       });
+  }
+
+  get puedeAprobar(): boolean {
+    return this.estado === 'VALIDADO_DPTO' || this.estado === 'OBSERVADO_FACULTAD';
+  }
+
+  toggleObservar(): void {
+    this.observando = !this.observando;
+    this.textoObservacion = '';
+  }
+
+  aprobar(): void {
+    if (!this.declaracionId) return;
+    this.saving = true;
+    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/aprobar`, {}).subscribe({
+      next: () => {
+        this.snackBar.open('Declaración aprobada correctamente', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+        this.cargarDatos();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al aprobar', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
+  }
+
+  observar(): void {
+    if (!this.declaracionId) return;
+    if (!this.textoObservacion || this.textoObservacion.trim().length < 10) {
+      this.snackBar.open('La observación debe tener al menos 10 caracteres', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    this.saving = true;
+    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/observar`, {
+      observaciones: this.textoObservacion,
+    }).subscribe({
+      next: () => {
+        this.snackBar.open('Declaración observada correctamente', 'Cerrar', { duration: 3000 });
+        this.textoObservacion = '';
+        this.observando = false;
+        this.saving = false;
+        this.cargarDatos();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al observar', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
   }
 
   volver(): void {

@@ -114,5 +114,42 @@
         </div>
       </mat-card-content>
     </mat-card>
+
+    <!-- Acciones Decano -->
+    <mat-card *ngIf="puedeAprobar" class="docs-card acciones-card" style="margin-top: 16px;">
+      <mat-card-header class="docs-header">
+        <mat-card-title>
+          <mat-icon>gavel</mat-icon>
+          Acciones de Facultad
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div style="display: flex; gap: 16px; margin-bottom: 16px; margin-top: 16px;">
+          <button mat-raised-button color="primary" (click)="aprobar()" [disabled]="saving">
+            <mat-icon>check_circle</mat-icon>
+            Aprobar Declaración
+          </button>
+          <button mat-raised-button color="warn" (click)="toggleObservar()" [disabled]="saving">
+            <mat-icon>cancel</mat-icon>
+            Observar Declaración
+          </button>
+        </div>
+
+        <div *ngIf="observando" style="margin-top: 16px; padding: 16px; background: #fafafa; border-radius: 8px;">
+          <mat-form-field appearance="outline" style="width: 100%;">
+            <mat-label>Detalle de la observación (mínimo 10 caracteres)</mat-label>
+            <textarea matInput [(ngModel)]="textoObservacion" rows="3" placeholder="Especifique el motivo de la observación..."></textarea>
+          </mat-form-field>
+          <div style="display: flex; gap: 12px; margin-top: 8px;">
+            <button mat-raised-button color="warn" (click)="observar()" [disabled]="saving || textoObservacion.trim().length < 10">
+              <mat-icon>send</mat-icon> Enviar Observación
+            </button>
+            <button mat-button (click)="toggleObservar()" [disabled]="saving">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
   </div>
 </div>

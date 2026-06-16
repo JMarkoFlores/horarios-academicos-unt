@@ -18,9 +18,12 @@ import {
 } from "../entities/ventana-atencion.entity";
 import { ColaDocente, EstadoCola } from "../entities/cola-docentes.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { CreatePeriodoDto } from "./dto/create-periodo.dto";
 import { UpdatePeriodoDto } from "./dto/update-periodo.dto";
 import { QueryPeriodoDto } from "./dto/query-periodo.dto";
+import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
+import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
@@ -48,6 +51,8 @@ export class PeriodosService {
     private readonly colaRepo: Repository<ColaDocente>,
     @InjectRepository(DocenteCurso)
     private readonly docenteCursoRepo: Repository<DocenteCurso>,
+    @InjectRepository(DeclaracionCargaHoraria)
+    private readonly declaracionRepo: Repository<DeclaracionCargaHoraria>,
   ) {}
 
   async findAll(query: QueryPeriodoDto) {
@@ -141,6 +146,41 @@ export class PeriodosService {
 
     Object.assign(periodo, dto);
     return this.periodoRepo.save(periodo);
+  }
+
+  async finalizar(id: number) {
+    const periodo = await this.findOne(id);
+
+    if (!periodo.activo) {
+      throw new BadRequestException("El periodo ya se encuentra inactivo o finalizado");
+    }
+
+    // 1. Marcar el periodo como inactivo y actualizar su estado a FINALIZADO
+    periodo.activo = false;
+    periodo.estado = EstadoPeriodo.FINALIZADO;
+    await this.periodoRepo.save(periodo);
+
+    // 2. Cerrar las declaraciones aprobadas
+    await this.declaracionRepo.update(
+      { periodo_academico_id: id, estado: EstadoDeclaracionCarga.APROBADO_FACULTAD },
+      { estado: EstadoDeclaracionCarga.CERRADO }
+    );
+
+    // 3. Anular las declaraciones incompletas
+    await this.declaracionRepo.createQueryBuilder()
+      .update()
+      .set({ estado: EstadoDeclaracionCarga.ANULADO })
+      .where("periodo_academico_id = :id", { id })
+      .andWhere("estado NOT IN (:...estados)", { 
+        estados: [
+          EstadoDeclaracionCarga.APROBADO_FACULTAD,
+          EstadoDeclaracionCarga.CERRADO,
+          EstadoDeclaracionCarga.ANULADO
+        ] 
+      })
+      .execute();
+
+    return { success: true, message: "Periodo finalizado, declaraciones cerradas/anuladas." };
   }
 
   async remove(id: number) {

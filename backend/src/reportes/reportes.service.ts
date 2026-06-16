@@ -641,143 +641,130 @@ export class ReportesService {
             : docente.categoria || "";
     const modalidadDisplay = modalidadLabel[docente.modalidad] || docente.modalidad || "TC";
 
-    // --- MATRIZ SEMANAL ---
-    const diasNom = ["LU", "MA", "MI", "JU", "VI", "SA"];
-    const horasSlot = [
-      "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
-      "13:00", "14:00", "15:00", "16:00", "17:00", "18:00",
-      "19:00", "20:00", "21:00", "22:00",
-    ];
+    // --- HORARIO LECTIVO: agrupar por curso, separar T y P/L ---
+    const diasNom = ["LU", "MA", "MI", "JU", "VI", "SA", "DO"];
 
-    const tipoColors: Record<string, { bg: string; text: string; label: string }> = {
-      TEORIA: { bg: "#E3F2FD", text: "#1565C0", label: "T" },
-      PRACTICA: { bg: "#E8F5E9", text: "#2E7D32", label: "P" },
-      LABORATORIO: { bg: "#FFF3E0", text: "#E65100", label: "L" },
-      NO_LECTIVA: { bg: "#F3E5F5", text: "#6A1B9A", label: "NL" },
-    };
-
-    // Build matrix: horarios indexed by (dia, hora_inicio)
-    const matrixMap = new Map<string, HorarioAsignado[]>();
+    // Map: cursoId → { teo: horarios[], pra: horarios[], lab: horarios[] }
+    const cursoHorariosMap = new Map<number, { curso: any; grupo: any; ambiente: any; teo: any[]; pra: any[]; lab: any[] }>();
     horarios.forEach((h) => {
       if (!h.curso) return;
-      const key = `${h.dia || h.dia_semana || 1}_${h.hora_inicio.substring(0, 5)}`;
-      if (!matrixMap.has(key)) matrixMap.set(key, []);
-      matrixMap.get(key)!.push(h);
-    });
-
-    let gridRows = "";
-    // Track hours per day for total
-    const horasPorDia = [0, 0, 0, 0, 0, 0];
-
-    horasSlot.forEach((horaSlot) => {
-      const slotHour = horaSlot.substring(0, 2);
-      gridRows += `<tr><td class="hora-cell">${horaSlot}</td>`;
-      for (let diaIdx = 1; diaIdx <= 6; diaIdx++) {
-        const key = `${diaIdx}_${horaSlot}`;
-        const asignaciones = matrixMap.get(key);
-        if (asignaciones && asignaciones.length > 0) {
-          const first = asignaciones[0];
-          const tColor = tipoColors[first.tipo_clase] || tipoColors.TEORIA;
-          const dur = this.horaToDecimal(first.hora_fin) - this.horaToDecimal(first.hora_inicio);
-          horasPorDia[diaIdx - 1] += dur;
-
-          const grupoCod = first.grupo?.codigo || "";
-          const ambCod = first.ambiente?.codigo || first.ambiente?.nombre || "";
-          gridRows += `<td class="grid-cell" style="background:${tColor.bg};color:${tColor.text};border-left:3px solid ${tColor.text}">
-            <div class="cell-tipo">${tColor.label}</div>
-            <div class="cell-curso">${first.curso.nombre}</div>
-            <div class="cell-meta">${grupoCod} ${ambCod}</div>
-            <div class="cell-hours">${dur}h</div>
-          </td>`;
-        } else {
-          gridRows += `<td class="grid-cell-empty"></td>`;
-        }
+      if (!cursoHorariosMap.has(h.curso.id)) {
+        cursoHorariosMap.set(h.curso.id, { curso: h.curso, grupo: h.grupo, ambiente: h.ambiente, teo: [], pra: [], lab: [] });
       }
-      gridRows += "</tr>";
+      const entry = cursoHorariosMap.get(h.curso.id)!;
+      const diaStr = diasNom[(h.dia || h.dia_semana || 1) - 1];
+      const rango = `${h.hora_inicio.substring(0,5)}-${h.hora_fin.substring(0,5)}`;
+      const slot = `${diaStr}(${rango})`;
+      if (h.tipo_clase === TipoClase.TEORIA) entry.teo.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
+      else if (h.tipo_clase === TipoClase.PRACTICA) entry.pra.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
+      else entry.lab.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
     });
 
-    // Totals row
-    gridRows += `<tr class="total-row"><td class="hora-cell total-label">TOTAL</td>`;
-    let totalSemanal = 0;
-    for (let diaIdx = 0; diaIdx < 6; diaIdx++) {
-      const h = Math.round(horasPorDia[diaIdx] * 100) / 100;
-      totalSemanal += h;
-      gridRows += `<td class="total-cell">${h > 0 ? h.toFixed(1) + "h" : ""}</td>`;
-    }
-    gridRows += "</tr>";
-
-    // --- DETAILED LECTIVA TABLE ---
+    let trsCHL = "";
     let totalCargaLectiva = 0;
-    let trsCargaLectivaDetalle = "";
-    const processedCursos = new Map<string, boolean>();
 
-    horarios.forEach((h) => {
-      if (!h.curso) return;
-      const diaIdx = h.dia || h.dia_semana || 1;
-      const diaStr = ["LU", "MA", "MI", "JU", "VI", "SA", "DO"][diaIdx - 1];
-      const hStr = `${h.hora_inicio.substring(0, 5)}-${h.hora_fin.substring(0, 5)}`;
-      const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
-      totalCargaLectiva += dur;
-      const tColor = tipoColors[h.tipo_clase] || tipoColors.TEORIA;
+    cursoHorariosMap.forEach((entry) => {
+      const teoSlots = entry.teo.map(x => x.slot).join(", ");
+      const praSlots = [...entry.pra, ...entry.lab].map(x => x.slot).join(", ");
+      const horarioCell = [
+        teoSlots ? `<b>T:</b> ${teoSlots}` : "",
+        praSlots ? `<b>P:</b> ${praSlots}` : "",
+      ].filter(Boolean).join("<br>");
 
-      const key = `${h.curso.id}_${h.tipo_clase}`;
-      const isFirst = !processedCursos.has(key);
-      processedCursos.set(key, true);
+      const totalTeo = entry.teo.reduce((s, x) => s + x.dur, 0);
+      const totalPra = [...entry.pra, ...entry.lab].reduce((s, x) => s + x.dur, 0);
+      const total = totalTeo + totalPra;
+      totalCargaLectiva += total;
 
-      trsCargaLectivaDetalle += `
-        <tr class="${isFirst ? "" : "gris-row"}">
-          <td>${isFirst ? `<span class="tipo-badge" style="background:${tColor.bg};color:${tColor.text}">${tColor.label}</span>` : ""} ${diaStr} (${hStr})</td>
-          <td>${isFirst ? `${h.curso.nombre}<br><small>Ciclo ${h.curso.ciclo || ""}</small>` : "<small>Continuación</small>"}</td>
-          <td class="text-center">${h.grupo?.codigo || ""}</td>
-          <td class="text-center">${h.ambiente?.codigo || h.ambiente?.nombre || ""}</td>
-          <td class="text-center">${dur}h</td>
+      const ambiente = entry.teo[0]?.ambiente || entry.pra[0]?.ambiente || entry.lab[0]?.ambiente || null;
+      const lugarCod = ambiente?.codigo?.substring(0, 3) || "F11";
+      const aulaNombre = ambiente?.nombre || ambiente?.codigo || "—";
+      const grupoCod = entry.grupo?.codigo || entry.teo[0]?.grupo?.codigo || entry.pra[0]?.grupo?.codigo || "";
+      const ciclo = entry.curso.ciclo ? `${entry.curso.ciclo}0-C` : "";
+      const cursoLabel = `${entry.curso.nombre}<br><small>${ciclo} ${grupoCod}</small>`;
+
+      trsCHL += `
+        <tr>
+          <td style="font-size:8px; padding: 4px;">${horarioCell}</td>
+          <td style="padding:4px;">${cursoLabel}</td>
+          <td class="text-center">${lugarCod}</td>
+          <td class="text-center" style="font-size:8px;">${aulaNombre}</td>
+          <td class="text-center fw-bold">${total.toFixed(0)}</td>
         </tr>`;
     });
 
-    if (trsCargaLectivaDetalle === "") {
-      trsCargaLectivaDetalle = '<tr><td colspan="5" class="text-center">No hay carga lectiva asignada</td></tr>';
+    // Filas vacías adicionales (como en la imagen)
+    trsCHL += `
+      <tr><td style="font-size:8px;padding:4px;"><b>T:</b><br><b>P:</b></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td style="font-size:8px;padding:4px;"><b>T:</b><br><b>P:</b></td><td></td><td></td><td></td><td></td></tr>`;
+
+    if (!cursoHorariosMap.size) {
+      trsCHL = '<tr><td colspan="5" class="text-center" style="color:#999; padding:8px;">Sin carga lectiva asignada</td></tr>';
     }
 
-    // --- CARGA NO LECTIVA ---
+    // --- HORARIO NO LECTIVO ---
+    let trsCHNL = "";
     let totalCargaNoLectiva = 0;
-    let trsCargaNoLectivaDetalle = "";
 
+    const labelsNoLectiva: Record<number, string> = {
+      2: "PREPARACION Y EVALUACION",
+      3: "TUTORIA Y CONSEJERIA",
+      4: "INVESTIGACION",
+      9: "RESPONSABILIDAD SOCIAL UNIVERSITARIA",
+      8: "ASESORÍA DE TESIS Y EXAMENES PROFESIONALES",
+      5: "FORMACION ACADÉMICA Y CAPACITACIÓN",
+      1: "AUTOEVALUACIÓN Y/O ACREDITACIÓN DE LA ESCUELA PROFESIONAL",
+      10: "COMITES O COMISIONES ESPECIALES",
+      6: "ACTIVIDADES DE GOBIERNO O AUTORIDAD",
+      7: "ACTIVIDADES DE GESTIÓN INSTITUCIONAL",
+    };
+    const ordenNoLectiva = [2, 3, 4, 9, 8, 5, 1, 10, 6, 7];
+
+    const actividadesMap = new Map<number, any>();
     if (declaracion?.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
-      const actividades = (declaracion.carga_no_lectiva as any).actividades;
-      actividades.forEach((a: any) => {
-        if (a.horas > 0) {
-          const horarioStr = Array.isArray(a.horarios)
-            ? a.horarios.map((ha: any) => `${ha.dia} ${(ha.hora_inicio || "").substring(0, 5)}-${(ha.hora_fin || "").substring(0, 5)}`).join(", ")
-            : a.horario || "";
-          const descLabel = a.descripcion
-            .replace(/^[0-9]+\.\s*/, "")
-            .split(":")[0]
-            .split("(")[0]
-            .trim();
-          totalCargaNoLectiva += Number(a.horas);
-          trsCargaNoLectivaDetalle += `
-            <tr>
-              <td>${horarioStr || "—"}</td>
-              <td>${descLabel}</td>
-              <td class="text-center">F11</td>
-              <td class="text-center">CUBÍCULO</td>
-              <td class="text-center">${a.horas}h</td>
-            </tr>`;
-        }
+      (declaracion.carga_no_lectiva as any).actividades.forEach((a: any) => {
+        actividadesMap.set(a.id, a);
       });
     }
 
-    if (trsCargaNoLectivaDetalle === "") {
-      trsCargaNoLectivaDetalle = '<tr><td colspan="5" class="text-center" style="color:#999">Sin actividades no lectivas registradas</td></tr>';
-    }
+    ordenNoLectiva.forEach((id) => {
+      const a = actividadesMap.get(id);
+      const horas = a?.horas ? Number(a.horas) : 0;
+      totalCargaNoLectiva += horas;
+
+      let horarioStr = "";
+      if (a && Array.isArray(a.horarios) && a.horarios.length > 0) {
+        horarioStr = a.horarios
+          .map((ha: any) => `${ha.dia || ""}(${(ha.hora_inicio || "").substring(0,5)}-${(ha.hora_fin || "").substring(0,5)})`)
+          .join(", ");
+      } else if (a?.horario) {
+        horarioStr = a.horario;
+      }
+
+      trsCHNL += `
+        <tr>
+          <td style="font-size:8px; padding:4px;">${horarioStr}</td>
+          <td style="padding:4px;">${labelsNoLectiva[id] || ""}</td>
+          <td class="text-center">${horas > 0 ? "F11" : ""}</td>
+          <td class="text-center">${horas > 0 ? "CUBÍCULO" : ""}</td>
+          <td class="text-center fw-bold">${horas > 0 ? horas : ""}</td>
+        </tr>`;
+    });
 
     const totalAcademica = totalCargaLectiva + totalCargaNoLectiva;
 
-    const estadoLabel: Record<string, string> = {
-      NO_INICIADO: "No Iniciado", BORRADOR: "Borrador", PENDIENTE_ENVIO: "Pendiente",
-      ENVIADO_DOCENTE: "Enviado", OBSERVADO_DPTO: "Observado Dpto", SUBSANADO: "Subsanado",
-      VALIDADO_DPTO: "Validado Dpto", OBSERVADO_FACULTAD: "Observado Facultad",
-      APROBADO_FACULTAD: "Aprobado Facultad", CERRADO: "Cerrado", ANULADO: "Anulado",
+    const categoriaDisplay = docente.categoria === "PRINCIPAL" ? "PRINCIPAL"
+      : docente.categoria === "ASOCIADO" ? "ASOCIADO"
+      : docente.categoria === "AUXILIAR" ? "AUXILIAR"
+      : docente.categoria || "";
+
+    const modalidadShort: Record<string, string> = {
+      DEDICACION_EXCLUSIVA: "DE",
+      TIEMPO_COMPLETO_40: "TC",
+      TIEMPO_PARCIAL_20: "TP20",
+      TIEMPO_PARCIAL_12: "TP12",
+      TIEMPO_PARCIAL_10: "TP10",
+      TIEMPO_PARCIAL_8: "TP8",
     };
 
     const html = `
@@ -786,206 +773,109 @@ export class ReportesService {
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Arial', sans-serif; font-size: 10px; color: #000; margin: 0; padding: 0; }
-          .container { width: 100%; margin: 0 auto; position: relative; }
-          .watermark {
-            position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 0; padding: 0; }
+          .watermark { position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
             font-size: 80px; font-weight: bold; color: rgba(0,0,0,${watermarkOpacity});
-            transform: rotate(-30deg); pointer-events: none; z-index: 1000;
-            font-family: 'Arial', sans-serif; letter-spacing: 10px;
-          }
-          .header-title { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 12px; }
-          .header-sub { font-size: 11px; text-align: center; margin-bottom: 14px; color: #555; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-          table, th, td { border: 1px solid #333; }
-          th, td { padding: 3px 5px; vertical-align: middle; }
-          .bg-header { background-color: #1a237e; color: white; font-weight: bold; text-align: center; font-size: 10px; }
+            transform: rotate(-30deg); pointer-events: none; z-index: 1000; letter-spacing: 10px; }
+          .container { padding: 20px 24px; }
+          .main-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+
+          table { width: 100%; border-collapse: collapse; margin-bottom: 0; border-radius: 4px; overflow: hidden; }
+          table, th, td { border: 1px solid #cbd5e1; }
+          th, td { padding: 6px 8px; vertical-align: middle; }
+
+          .bg-blue { background-color: #f1f5f9; color: #0f172a; font-weight: bold; }
           .text-center { text-align: center; }
-          .text-bold { font-weight: bold; }
-          .info-table td { border: 1px solid #333; padding: 4px 6px; font-size: 10px; }
-          .info-label { font-weight: 600; color: #555; width: 18%; }
-          .gris-row { background: #f5f5f5; }
+          .text-left { text-align: left; }
+          .fw-bold { font-weight: bold; }
 
-          /* Grid matrix */
-          .grid-table th { background: #1a237e; color: white; font-size: 9px; padding: 4px; text-align: center; }
-          .hora-cell { font-size: 8px; font-weight: 600; color: #333; background: #fafafa; text-align: center; width: 60px; }
-          .grid-cell { font-size: 8px; padding: 2px 4px; vertical-align: top; }
-          .grid-cell-empty { background: #fafafa; }
-          .grid-cell .cell-tipo { font-weight: bold; font-size: 7px; text-transform: uppercase; }
-          .grid-cell .cell-curso { font-weight: 600; font-size: 8px; line-height: 1.2; margin: 1px 0; }
-          .grid-cell .cell-meta { font-size: 7px; color: #666; }
-          .grid-cell .cell-hours { font-size: 7px; font-weight: 700; margin-top: 1px; }
-          .total-row td { background: #fff8e1; font-weight: bold; font-size: 9px; }
-          .total-cell { text-align: center; font-weight: 700; background: #fff8e1; color: #e65100; }
+          .cat-box { border: 2px solid #000; padding: 4px 10px; text-align: center; font-weight: bold; font-size: 10px; display: inline-block; }
 
-          /* Detail table */
-          .detail-table th { background: #283593; color: white; font-size: 9px; }
-          .tipo-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 8px; font-weight: bold; }
-          .sub-header { background: #e8eaf6; font-weight: bold; text-align: center; font-size: 10px; }
-          .total-academica { background: #1a237e; color: white; font-weight: bold; font-size: 11px; }
+          .footer-note { font-size: 7px; color: #333; margin-top: 10px; }
 
-          /* Legend */
-          .legend { display: flex; gap: 20px; justify-content: center; margin: 10px 0; font-size: 9px; }
-          .legend-item { display: flex; align-items: center; gap: 6px; }
-          .legend-color { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #999; }
-
-          /* Signatures */
-          .signatures { margin-top: 30px; width: 100%; text-align: center; }
-          .sig-block { display: inline-block; width: 30%; margin: 0 1.5%; text-align: center; vertical-align: top; }
-          .sig-line { border-top: 1px solid #000; width: 80%; margin: 0 auto 4px auto; }
-          .sig-label { font-size: 9px; font-weight: bold; }
-          .sig-sub { font-size: 8px; color: #555; }
-
-          .estado-badge { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 9px; font-weight: bold; }
-          .estado-oficial { background: #e8f5e9; color: #2e7d32; }
-          .estado-borrador { background: #fff3e0; color: #e65100; }
-
-          .footer-note { font-size: 8px; color: #666; margin-top: 10px; text-align: center; }
-
-          .page-break { page-break-before: always; }
-
-          .no-lectiva-row td { background: #f3e5f5; }
-          .no-lectiva-label { background: #6a1b9a; color: white; text-align: center; font-weight: bold; font-size: 9px; }
+          .firma-section { margin-top: 30px; display: flex; justify-content: space-around; width: 100%; }
+          .firma-box { width: 28%; text-align: center; }
+          .firma-rect { border: 2px solid #000; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; font-size: 13px; font-weight: bold; font-family: 'Times New Roman', Times, serif; flex-direction: column; }
+          .firma-label { font-size: 8px; font-weight: bold; }
 
           @media print {
             .watermark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .bg-blue { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #b3cbe6 !important; }
           }
-          .grid-cell, .tipo-badge, .estado-badge, .bg-header, .total-academica { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         </style>
       </head>
       <body>
         <div class="watermark">${watermarkText}</div>
         <div class="container">
-          <div class="header-title">UNIVERSIDAD NACIONAL DE TRUJILLO</div>
-          <div class="header-sub">HORARIO SEMANAL DE LA CARGA ACADÉMICA DOCENTE — F03-CAD</div>
+          <div class="main-title">HORARIO SEMANAL DE LA CARGA ACADÉMICA DOCENTE (F03-CAD)</div>
 
-          <table class="info-table">
+          <table style="margin-bottom: 0;">
+            <!-- Fila 1: Facultad | Dpto — total 5 cols -->
             <tr>
-              <td class="info-label">Docente:</td>
-              <td><b>${nombreCompleto}</b></td>
-              <td class="info-label">IBM / DNI:</td>
-              <td><b>${ibm}</b></td>
+              <td colspan="3" style="font-size:9px; border-right:none;">Facultad / Filial: <b>${docente.facultad?.nombre || "—"}</b></td>
+              <td colspan="2" style="font-size:9px; border-left:none;">Dpto. Académico: <b>${docente.departamento?.nombre || "—"}</b></td>
             </tr>
+            <!-- Fila 2: DNI | IBM | Docente | Categoría — total 5 cols -->
             <tr>
-              <td class="info-label">Facultad:</td>
-              <td>${docente.facultad?.nombre || "—"}</td>
-              <td class="info-label">Departamento:</td>
-              <td>${docente.departamento?.nombre || "—"}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Categoría:</td>
-              <td>${categoriaLabel}</td>
-              <td class="info-label">Modalidad:</td>
-              <td>${modalidadDisplay}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Periodo:</td>
-              <td><b>${periodo}</b> (${semestre} Semestre)</td>
-              <td class="info-label">Estado:</td>
-              <td><span class="estado-badge ${esOficial ? "estado-oficial" : "estado-borrador"}">${estadoLabel[estadoDeclaracion] || estadoDeclaracion}</span></td>
-            </tr>
-            <tr>
-              <td class="info-label">Fecha Inicio:</td>
-              <td>${dateIni}</td>
-              <td class="info-label">Fecha Término:</td>
-              <td>${dateFin}</td>
-            </tr>
-          </table>
-
-          <!-- MATRIZ SEMANAL -->
-          <table class="grid-table">
-            <thead>
-              <tr>
-                <th style="width:7%">HORA</th>
-                <th style="width:15.5%">LUNES</th>
-                <th style="width:15.5%">MARTES</th>
-                <th style="width:15.5%">MIÉRCOLES</th>
-                <th style="width:15.5%">JUEVES</th>
-                <th style="width:15.5%">VIERNES</th>
-                <th style="width:15.5%">SÁBADO</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${gridRows}
-            </tbody>
-          </table>
-
-          <!-- LEYENDA -->
-          <div class="legend">
-            <div class="legend-item"><div class="legend-color" style="background:#E3F2FD;border-color:#1565C0"></div> Teoría</div>
-            <div class="legend-item"><div class="legend-color" style="background:#E8F5E9;border-color:#2E7D32"></div> Práctica</div>
-            <div class="legend-item"><div class="legend-color" style="background:#FFF3E0;border-color:#E65100"></div> Laboratorio</div>
-            <div class="legend-item"><div class="legend-color" style="background:#F3E5F5;border-color:#6A1B9A"></div> No Lectiva</div>
-          </div>
-
-          <div class="page-break"></div>
-
-          <!-- DETALLE CARGA LECTIVA -->
-          <table class="detail-table">
-            <thead>
-              <tr>
-                <th width="22%">HORARIO</th>
-                <th width="33%">CARGA HORARIA LECTIVA (CHL)</th>
-                <th width="12%">GRUPO</th>
-                <th width="18%">AULA</th>
-                <th width="15%">TOTAL H</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${trsCargaLectivaDetalle}
-            </tbody>
-          </table>
-
-          <!-- DETALLE CARGA NO LECTIVA -->
-          <table class="detail-table">
-            <thead>
-              <tr>
-                <th width="22%">HORARIO</th>
-                <th width="33%">CARGA HORARIA NO LECTIVA (CHNL)</th>
-                <th width="12%">LUGAR</th>
-                <th width="18%">AULA</th>
-                <th width="15%">TOTAL H</th>
-              </tr>
-            </thead>
-            <tbody class="no-lectiva-row">
-              ${trsCargaNoLectivaDetalle}
-            </tbody>
-          </table>
-
-          <!-- TOTALES -->
-          <table>
-            <tr class="total-academica">
-              <td colspan="4" style="text-align:right;padding-right:16px">
-                TOTAL HORAS LECTIVAS: <b>${totalCargaLectiva.toFixed(1)}h</b> &nbsp;|&nbsp;
-                TOTAL HORAS NO LECTIVAS: <b>${totalCargaNoLectiva.toFixed(1)}h</b> &nbsp;|&nbsp;
-                TOTAL SEMANAL: <b>${totalAcademica.toFixed(1)}h</b>
+              <td style="width:8%; font-size:8px; font-weight:bold; text-align:center;">DNI</td>
+              <td style="width:14%; text-align:center; font-weight:bold;">${ibm}</td>
+              <td style="width:46%;">Docente: <b>${nombreCompleto}</b></td>
+              <td colspan="2" style="width:22%; text-align:center; vertical-align:middle;">
+                <div class="cat-box">${categoriaDisplay}<br>${modalidadShort[docente.modalidad] || ""}</div>
               </td>
-              <td style="text-align:center;font-size:12px">
-                <b>${totalAcademica.toFixed(1)}h</b>
+            </tr>
+            <!-- Fila 3: Año / Semestre / Fechas — total 5 cols -->
+            <tr>
+              <td colspan="5" class="text-center" style="font-size:9px; padding:5px;">
+                AÑO ACADEMICO: <b>${anio}</b> &nbsp;&nbsp; SEMESTRE: <b>${semestre}</b> &nbsp;&nbsp;&nbsp;&nbsp; Fecha de Inicio: <b>${dateIni}</b> &nbsp;&nbsp; Fecha de término: <b>${dateFin}</b>
               </td>
+            </tr>
+
+
+            <!-- CHL -->
+            <tr class="bg-blue">
+              <th width="22%">HORARIO</th>
+              <th width="35%">CARGA HORARIA LECTIVA (CHL)</th>
+              <th width="10%">LUGAR</th>
+              <th width="22%">AULA</th>
+              <th width="11%">TOTAL</th>
+            </tr>
+            ${trsCHL}
+
+            <!-- CHNL -->
+            <tr class="bg-blue">
+              <th>HORARIO</th>
+              <th>CARGA HORARIA NO LECTIVA (CHNL)</th>
+              <th>LUGAR</th>
+              <th>AULA</th>
+              <th>TOTAL</th>
+            </tr>
+            ${trsCHNL}
+
+            <!-- TOTAL -->
+            <tr class="bg-blue">
+              <td colspan="4" class="text-center fw-bold" style="font-size:11px; padding:8px;">TOTAL HORAS CARGA ACADÉMICA</td>
+              <td class="text-center fw-bold" style="font-size:13px;">${totalAcademica.toFixed(0)}</td>
             </tr>
           </table>
 
           <div class="footer-note">
-            T: TEORÍA &nbsp; P: PRÁCTICA &nbsp; L: LABORATORIO &nbsp; NL: NO LECTIVA<br>
-            LU (LUNES); MA (MARTES); MI (MIÉRCOLES); JU (JUEVES); VI (VIERNES); SA (SÁBADO)
+            T: TEORÍA &nbsp; P: PRÁCTICA<br>
+            LU (LUNES); MA (MARTES); MI (MIERCOLES); JU (JUEVES); VI (VIERNES); &nbsp; TIEMPO EN FORMATO DE 24 HORAS.
           </div>
 
-          <div class="signatures">
-            <div class="sig-block">
-              <div class="sig-line"></div>
-              <div class="sig-label">FIRMA DEL DOCENTE</div>
-              <div class="sig-sub">${nombreCompleto}</div>
+          <div class="firma-section">
+            <div class="firma-box">
+              <div class="firma-rect"><span>Firma</span><span>Digital</span></div>
+              <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
-            <div class="sig-block">
-              <div class="sig-line"></div>
-              <div class="sig-label">DIRECTOR DE DPTO. ACADÉMICO</div>
-              <div class="sig-sub">${docente.departamento?.nombre || ""}</div>
+            <div class="firma-box">
+              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              <div class="firma-label">FIRMA Y SELLO DEL DIRECTOR DE DPTO.ACADEMICO</div>
             </div>
-            <div class="sig-block">
-              <div class="sig-line"></div>
-              <div class="sig-label">V°B° DECANO</div>
-              <div class="sig-sub">${docente.facultad?.nombre || ""}</div>
+            <div class="firma-box">
+              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              <div class="firma-label">V°B° DECANO</div>
             </div>
           </div>
         </div>
@@ -1004,15 +894,16 @@ export class ReportesService {
 
       const buffer = await page.pdf({
         format: "A4",
-        landscape: true,
+        landscape: false,
         printBackground: true,
-        margin: { top: "12mm", bottom: "12mm", left: "10mm", right: "10mm" },
+        margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" },
       });
       return Buffer.from(buffer);
     } finally {
       await browser.close();
     }
   }
+
 
   async generarReporteDeclaracionF02CADPDF(
     docenteId: number,
@@ -1033,41 +924,6 @@ export class ReportesService {
     const departamento = docente.departamento?.nombre || "No asignado";
     const facultad = docente.facultad?.nombre || "No asignada";
     const ibm = docente.ibm || 0;
-    const codigo = docente.codigo || "";
-
-    const modalidad = docente.modalidad || "TIEMPO_COMPLETO_40";
-    let tipoDeclaracion = "COMPATIBILIDAD_TOTAL";
-    let textoSegunModalidad = "";
-
-    if (modalidad === "DEDICACION_EXCLUSIVA") {
-      tipoDeclaracion = "EXCLUSIVIDAD";
-      textoSegunModalidad =
-        "Declaro no tener otro empleo ni ejercer actividad profesional fuera de la Universidad Nacional de Trujillo, y que mi horario académico es exclusivo para la UNT, no existiendo incompatibilidad horaria con ninguna otra actividad laboral, cargo público o actividad privada durante el horario académico establecido.";
-    } else if (modalidad.startsWith("TIEMPO_COMPLETO")) {
-      tipoDeclaracion = "COMPATIBILIDAD_TOTAL";
-      textoSegunModalidad =
-        "Declaro que mi horario académico es compatible con mi actividad laboral, no existiendo superposición de horarios con otras actividades profesionales, cargos públicos o actividades privadas que pudieran generar incompatibilidad laboral.";
-    } else {
-      tipoDeclaracion = "COMPATIBILIDAD_PARCIAL";
-      textoSegunModalidad =
-        "Declaro que mi horario académico es compatible parcialmente con mi actividad laboral externa, la cual se desarrolla fuera del horario establecido por la Universidad Nacional de Trujillo, no existiendo incompatibilidad horaria.";
-    }
-
-    const modalidadLabel: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "DEDICACIÓN EXCLUSIVA",
-      TIEMPO_COMPLETO_40: "TIEMPO COMPLETO 40 H",
-      TIEMPO_PARCIAL_20: "TIEMPO PARCIAL 20 H",
-      TIEMPO_PARCIAL_12: "TIEMPO PARCIAL 12 H",
-      TIEMPO_PARCIAL_10: "TIEMPO PARCIAL 10 H",
-      TIEMPO_PARCIAL_8: "TIEMPO PARCIAL 8 H",
-    };
-    const modalidadDisplay = modalidadLabel[modalidad] || modalidad;
-
-    const config = await this.configuracionService.getConfiguracionGeneral();
-    const logoUrl =
-      config?.logo_url ||
-      "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
-    const logoBase64 = await this.getBase64Image(logoUrl);
 
     const fechaActual = new Date().toLocaleDateString("es-PE", {
       day: "numeric",
@@ -1081,72 +937,105 @@ export class ReportesService {
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Times New Roman', Times, serif; font-size: 12px; color: #000; margin: 30px 40px; }
-          .header { text-align: center; margin-bottom: 5px; }
-          .header-line { font-size: 11px; font-weight: bold; margin: 2px 0; }
-          .title { text-align: center; font-size: 14px; font-weight: bold; margin: 20px 0 5px 0; text-decoration: underline; }
-          .subtitle { text-align: center; font-size: 13px; font-weight: bold; margin: 0 0 25px 0; }
-          .content { text-align: justify; line-height: 1.6; }
-          .content p { margin: 8px 0; }
-          .salutation { margin: 15px 0; }
-          .declaration-text { margin: 15px 30px; padding: 10px; border-left: 3px solid #333; font-style: italic; }
-          .closing { margin: 20px 0; }
-          .fecha { text-align: right; margin: 30px 0 10px 0; }
-          .firma-area { text-align: center; margin-top: 50px; }
-          .firma-line { border-top: 1px solid #000; width: 250px; margin: 0 auto 5px auto; }
-          .firma-label { font-size: 11px; font-weight: bold; }
-          .firma-data { font-size: 10px; }
-          .nota { font-size: 9px; margin-top: 40px; border-top: 1px solid #ccc; padding-top: 8px; }
-          hr { border: none; border-top: 1px solid #000; margin: 8px 0; }
-          .logo-area { text-align: center; margin-bottom: 10px; }
-          .logo-area img { max-height: 70px; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11.5px; color: #1e293b; margin: 0; padding: 25px 45px; line-height: 1.6; }
+
+          .title { text-align: center; font-weight: 800; font-size: 14px; margin-bottom: 22px; color: #0f172a; }
+
+          .intro { text-align: justify; margin-bottom: 10px; }
+
+          .bold { font-weight: bold; color: #0f172a; }
+          .italic { font-style: italic; }
+          .underline { text-decoration: underline; }
+
+          .declaration-main { text-align: justify; margin-bottom: 10px; }
+
+          .clause { text-align: justify; margin-bottom: 8px; }
+
+          .sanction { text-align: justify; margin-top: 14px; margin-bottom: 20px; color: #475569; }
+
+          .fecha-firma { display: flex; align-items: flex-end; gap: 20px; margin-top: 40px; margin-bottom: 30px; }
+          .fecha-text { font-size: 11.5px; white-space: nowrap; }
+          .firma-box { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 10px 24px; text-align: center; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: bold; min-width: 120px; min-height: 55px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #64748b; }
+
+          .firma-bottom { margin-top: 10px; }
+          .firma-line { border-top: 1px solid #000; width: 280px; margin: 0 auto 4px auto; }
+          .firma-label { text-align: center; font-size: 10px; }
         </style>
       </head>
       <body>
-        <div class="logo-area">
-          ${logoBase64 ? `<img src="${logoBase64}" alt="Logo UNT">` : ""}
-        </div>
-        <div class="header">
-          <div class="header-line">UNIVERSIDAD NACIONAL DE TRUJILLO</div>
-          <div class="header-line">${facultad.toUpperCase()}</div>
-          <div class="header-line">DEPARTAMENTO ACADÉMICO DE ${departamento.toUpperCase()}</div>
+        <div class="title">
+          DECLARACION JURADA DE NO ESTAR INCURSO EN CAUSALES<br>
+          DE INCOMPATIBILIDAD O IMPEDIMENTO LABORAL (F02-CAD)
         </div>
 
-        <hr>
+        <p class="intro">
+          Yo, <b>${nombreCompleto}</b>, identificado(a) con DNI N° <b>${ibm}</b>, adscrito al Departamento Académico de
+          <b>${departamento}</b> de la Facultad de <b>${facultad}</b>; en el marco de la Ley Universitaria 30220,
+          D.S. N° 418-2017-EF, Estatuto Reformado 2021 y el reglamento de asignación de la Carga Académica de los
+          Docentes de la UNT, <b>DECLARO BAJO JURAMENTO Y EN HONOR A LA VERDAD</b>, que:
+        </p>
 
-        <div class="title">DECLARACIÓN JURADA DE INCOMPATIBILIDAD</div>
-        <div class="subtitle">F02-CAD</div>
+        <p class="declaration-main">
+          <b>NO ESTOY INCURSO</b> en causales de incompatibilidad laboral y <b>NO TENGO</b> impedimento para ejercer la
+          docencia en la Universidad Nacional de Trujillo, de conformidad con lo previsto en el Capítulo VIII de las
+          Incompatibilidades, Impedimentos y sanciones, del Título XII: de los docentes, del Estatuto Institucional
+          vigente, según la especificación siguiente:
+        </p>
 
-        <div class="content">
-          <p>Yo, <b>${nombreCompleto}</b>,</p>
-          <p>Identificado con DNI / IBM N° <b>${ibm}</b>,</p>
-          <p>Docente del Departamento Académico de <b>${departamento}</b>,</p>
-          <p>Con modalidad <b>${modalidadDisplay}</b>,</p>
+        <p class="clause">
+          1. Soy docente, ordinario a Dedicación Exclusiva y NO EJERZO cualquier otra actividad o cargo remunerado
+          en otra universidad, entidad pública o privada, fuera de la Universidad Nacional de Trujillo (De conformidad
+          con el Artículo 225° del Estatuto Institucional vigente).
+        </p>
+        <p class="clause">
+          2. Soy docente, ordinario a Tiempo Completo y NO ejerzo cualquier otra actividad o cargo remunerado en
+          otra universidad, entidad pública o privada, fuera de la Universidad Nacional de Trujillo (De conformidad con
+          el Artículo 225° del Estatuto Institucional vigente), así mismo en caso de incumplimiento, me someto a las
+          sanciones dispuestas en el Reglamento del Docente Investigador y Promoción de la Investigación, aprobado
+          por R.C.U. N°281-2021/UNT
+        </p>
+        <p class="clause">
+          3. Soy docente, ordinario a Tiempo Parcial y NO TENGO incompatibilidad horaria con mi carga académica
+          en la Universidad Nacional de Trujillo y otra institución donde laboro
+        </p>
+        <p class="clause">
+          4. Soy docente, Investigador de la UNT a …. acreditado con Resolución Vicerrectoral y NO ejerzo cualquier
+          otra actividad o cargo remunerado en otra universidad, entidad pública o privada, fuera de la Universidad
+          Nacional de Trujillo (De conformidad con el Artículo 225° del Estatuto Institucional vigente), así mismo en
+          caso de incumplimiento, me someto a las sanciones dispuestas en el Reglamento del Docente Investigador
+          y Promoción de la Investigación, aprobado por R.C.U. N°281-2021/UNT
+        </p>
+        <p class="clause">
+          5. Soy docente, contratado a Tiempo Completo y NO EJERZO la misma modalidad en otra entidad pública
+          o privada, así mismo, no tengo otra responsabilidad remunerada en alguna institución pública o privada más
+          de diez (10 horas) semanales, excepto ley expresa que lo permita
+        </p>
+        <p class="clause">
+          6. Soy docente, contratado a Tiempo Parcial y NO TENGO incompatibilidad horaria con mi carga académica
+          en la Universidad Nacional de Trujillo y otra institución donde laboro.
+        </p>
 
-          <div class="salutation"><b>DECLARO BAJO JURAMENTO:</b></div>
+        <p class="sanction">
+          EN CASO DE FALTAR A LA VERDAD ME SOMETO A LAS SANCIONES QUE SEAN APLICABLES DE
+          ACUERDO A LEY; ASIMISMO, DE ENCONTRARME INCURSO EN SITUACIÓN DE INCOMPATIBILIDAD
+          O IMPEDIMENTO PARA EJERCER LA DOCENCIA EN LA U.N.T., ME SOMETO A LAS SANCIONES
+          PREVISTAS POR SU ESTATUTO, <b><i><u>Y AUTORIZO AL FUNCIONARIO COMPETENTE DISPONGA EL
+          DESCUENTO DE MI PLANILLA DE HABERES, DEL MONTO QUE LA UNIDAD DE REMUNERACIONES
+          LIQUIDE COMO PAGOS INDEBIDOS POR EL LAPSO DE TIEMPO LABORADO ILEGALMENTE</u></i></b>.
+        </p>
 
-          <div class="declaration-text">
-            ${textoSegunModalidad}
+        <div class="fecha-firma">
+          <div class="fecha-text">Trujillo, ${fechaActual}</div>
+          <div class="firma-box">
+            <span>Firma</span>
+            <span>Digital</span>
           </div>
-
-          <p>Asimismo, declaro no estar incurso en las causales de incompatibilidad o impedimento laboral previstas en el Estatuto Institucional vigente de la Universidad Nacional de Trujillo, y en caso de faltar a la verdad me someto a las sanciones previstas por ley.</p>
-
-          <p>Autorizo al funcionario competente disponer el descuento de mi planilla de haberes, del monto que la unidad de remuneraciones liquide como pagos indebidos por el lapso de tiempo laborado ilegalmente, de encontrarme incurso en situación de incompatibilidad o impedimento para ejercer la docencia en la U.N.T.</p>
         </div>
 
-        <div class="fecha">
-          <p>Trujillo, ${fechaActual}</p>
-        </div>
-
-        <div class="firma-area">
+        <div class="firma-bottom">
           <div class="firma-line"></div>
-          <div class="firma-label">FIRMA DEL DOCENTE</div>
-          <div class="firma-data">${nombreCompleto}</div>
-          <div class="firma-data">IBM: ${ibm}</div>
-        </div>
-
-        <div class="nota">
-          Nota: Los docentes deben suscribir de forma obligatoria el presente formato en cada Semestre Académico.
+          <div class="firma-label">${nombreCompleto}</div>
+          <div class="firma-label" style="margin-top:4px;">DNI N° ${ibm}</div>
         </div>
       </body>
       </html>
@@ -1171,6 +1060,7 @@ export class ReportesService {
       await browser.close();
     }
   }
+
 
   async generarReporteF01CADPDF(
     docenteId: number,
@@ -1238,18 +1128,17 @@ export class ReportesService {
 
     horarios.forEach((h) => {
       if (!h.curso) return;
-      const key = `${h.curso.id}_${h.tipo_clase}`;
+      const key = `${h.curso.id}`;
+      const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
+      const isTeo = h.tipo_clase === TipoClase.TEORIA;
+      const isPra = h.tipo_clase === TipoClase.PRACTICA;
+      const isLab = h.tipo_clase === TipoClase.LABORATORIO;
+
       if (!cursoMap.has(key)) {
-        const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
-        const isTeo = h.tipo_clase === TipoClase.TEORIA;
-        const isPra = h.tipo_clase === TipoClase.PRACTICA;
-        const isLab = h.tipo_clase === TipoClase.LABORATORIO;
         cursoMap.set(key, {
           codigo: h.curso.codigo,
           nombre: h.curso.nombre,
-          tipo: isTeo ? "TEORÍA" : isPra ? "PRÁCTICA" : "LABORATORIO",
           seccion: h.grupo?.codigo || "",
-          escuela: "",
           ciclo: h.curso.ciclo || "",
           alumnos: h.curso.creditos || 0,
           hrsTeo: isTeo ? dur : 0,
@@ -1259,10 +1148,6 @@ export class ReportesService {
         });
       } else {
         const existing = cursoMap.get(key);
-        const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
-        const isTeo = h.tipo_clase === TipoClase.TEORIA;
-        const isPra = h.tipo_clase === TipoClase.PRACTICA;
-        const isLab = h.tipo_clase === TipoClase.LABORATORIO;
         if (isTeo) existing.hrsTeo += dur;
         if (isPra) existing.hrsPra += dur;
         if (isLab) existing.hrsLab += dur;
@@ -1277,17 +1162,17 @@ export class ReportesService {
       totalGeneral += c.total;
       trsLectiva += `
         <tr>
-          <td>${c.codigo}</td>
-          <td class="text-left">${c.nombre}</td>
-          <td class="text-center">${c.tipo}</td>
-          <td class="text-center">${c.escuela}</td>
+          <td class="text-center">${c.codigo}</td>
+          <td class="text-left" style="padding-left: 4px;">${c.nombre}</td>
+          <td class="text-center" style="font-size: 8px;">OB</td>
+          <td class="text-center" style="font-size: 8px;">${docente.facultad?.nombre || "—"}</td>
           <td class="text-center">${c.ciclo}</td>
           <td class="text-center">${c.seccion}</td>
           <td class="text-center">${c.alumnos}</td>
-          <td class="text-center">${c.hrsTeo.toFixed(1)}</td>
-          <td class="text-center">${c.hrsPra.toFixed(1)}</td>
-          <td class="text-center">${c.hrsLab.toFixed(1)}</td>
-          <td class="text-center total-h">${c.total.toFixed(1)}</td>
+          <td class="text-center">${c.hrsTeo > 0 ? c.hrsTeo.toFixed(1) : ""}</td>
+          <td class="text-center">${c.hrsPra > 0 ? c.hrsPra.toFixed(1) : ""}</td>
+          <td class="text-center">${c.hrsLab > 0 ? c.hrsLab.toFixed(1) : ""}</td>
+          <td class="text-center fw-bold">${c.total.toFixed(1)}</td>
         </tr>`;
     });
 
@@ -1296,35 +1181,53 @@ export class ReportesService {
     }
 
     // Build carga no lectiva
-    let trsNoLectiva = "";
+    let trsNoLectivaComplementaria = "";
+    let trsNoLectivaAdministrativa = "";
     let totalNoLectiva = 0;
-    const rubroLabels: Record<number, string> = {
-      1: "GESTIÓN ACADÉMICA", 2: "PREPARACIÓN Y EVALUACIÓN", 3: "CONSEJERÍA Y TUTORÍA",
-      4: "INVESTIGACIÓN", 5: "CAPACITACIÓN", 6: "ACTIVIDADES DE GOBIERNO",
-      7: "ACTIVIDADES DE ADMINISTRACIÓN", 8: "ASESORÍA DE TESIS",
-      9: "RESPONSABILIDAD SOCIAL UNIVERSITARIA", 10: "COMITÉS TÉCNICOS Y COMISIONES",
-    };
 
+    const labelsComp = [
+      { id: 2, num: "1", text: "1. PREPARACION Y EVALUACION", defaultDetail: "ACTIVIDADES DE PLANIFICACION, IMPLEMENTACION Y EVALUACION DE LAS ACTIVIDADES LECTIVAS." },
+      { id: 3, num: "2", text: "2. TUTORIA Y CONSEJERIA", defaultDetail: "PARA ALUMNOS DE LAS ASIGNATURAS CURRICULARES ASIGNADAS EN EL PRESENTE SEMESTRE." },
+      { id: 4, num: "3", text: "3. INVESTIGACION:", defaultDetail: "" },
+      { id: 9, num: "4", text: "4. RESPONSABILIDAD SOCIAL UNIVERSITARIA", defaultDetail: "" },
+      { id: 8, num: "5", text: "5. ASESORIA DE TESIS Y EXAMENES PROFESIONALES", defaultDetail: "" },
+      { id: 5, num: "6", text: "6. FORMACION ACADEMICA Y CAPACITACION", defaultDetail: "" },
+      { id: 1, num: "7", text: "7. AUTOEVALUACION Y/O ACREDITACION DE LA ESCUELA PROFESIONAL", defaultDetail: "" }
+    ];
+
+    const labelsAdmin = [
+      { id: 10, num: "8", text: "8. COMITES O COMISIONES ESPECIALES", defaultDetail: "" },
+      { id: 6, num: "9", text: "9. ACTIVIDADES DE GOBIERNO O DE AUTORIDAD", defaultDetail: "" },
+      { id: 7, num: "10", text: "10. ACTIVIDADES DE GESTION INSTITUCIONAL", defaultDetail: "" }
+    ];
+
+    const actividadesRegistradas = new Map<number, any>();
     if (declaracion?.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
       const actividades = (declaracion.carga_no_lectiva as any).actividades;
       actividades.forEach((a: any) => {
-        if (a.horas > 0) {
-          totalNoLectiva += Number(a.horas);
-          const label = rubroLabels[a.id] || a.descripcion.replace(/^[0-9]+\.\s*/, "").split(":")[0].trim();
-          trsNoLectiva += `
-            <tr>
-              <td class="text-center">${a.id}</td>
-              <td class="text-left">${label}</td>
-              <td class="text-left">${a.detalle || ""}</td>
-              <td class="text-center">${a.horas}h</td>
-            </tr>`;
-        }
+        actividadesRegistradas.set(a.id, a);
       });
     }
 
-    if (trsNoLectiva === "") {
-      trsNoLectiva = '<tr><td colspan="4" class="text-center no-data">Sin carga no lectiva registrada</td></tr>';
-    }
+    const renderNoLectiva = (labels: any[]) => {
+      let trs = "";
+      labels.forEach((item) => {
+        const a = actividadesRegistradas.get(item.id);
+        const horas = a && a.horas ? Number(a.horas) : 0;
+        totalNoLectiva += horas;
+        const detalle = a?.detalle || item.defaultDetail;
+        trs += `
+          <tr>
+            <td colspan="4" class="text-left" style="font-size: 8px; padding-left: 4px;">${item.text}</td>
+            <td colspan="6" class="text-left" style="font-size: 8px; padding-left: 4px;">${detalle}</td>
+            <td class="text-center fw-bold">${horas > 0 ? horas.toFixed(1) : ""}</td>
+          </tr>`;
+      });
+      return trs;
+    };
+
+    trsNoLectivaComplementaria = renderNoLectiva(labelsComp);
+    trsNoLectivaAdministrativa = renderNoLectiva(labelsAdmin);
 
     const totalFinal = totalGeneral + totalNoLectiva;
 
@@ -1334,133 +1237,116 @@ export class ReportesService {
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Arial', sans-serif; font-size: 10px; color: #000; margin: 0; padding: 0; }
-          .watermark { position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
-            font-size: 80px; font-weight: bold; color: rgba(0,0,0,${watermarkOpacity});
-            transform: rotate(-30deg); pointer-events: none; z-index: 1000; letter-spacing: 10px; }
-          .container { width: 100%; margin: 0 auto; position: relative; }
-          .logo-area { text-align: center; margin-bottom: 6px; }
-          .header { text-align: center; margin-bottom: 4px; }
-          .header .line1 { font-size: 14px; font-weight: bold; }
-          .header .line2 { font-size: 11px; font-weight: bold; }
-          .header .line3 { font-size: 11px; }
-          .title { text-align: center; font-size: 13px; font-weight: bold; margin: 14px 0 4px 0; text-decoration: underline; }
-          .subtitle { text-align: center; font-size: 11px; margin-bottom: 16px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-          table, th, td { border: 1px solid #333; }
-          th, td { padding: 3px 5px; vertical-align: middle; }
-          th { background: #1a237e; color: white; font-size: 8px; text-align: center; }
-          .info-table td { border: 1px solid #333; padding: 3px 6px; font-size: 10px; }
-          .info-label { font-weight: 600; color: #555; width: 16%; background: #f5f5f5; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 0; padding: 0; }
+          .container { width: 100%; margin: 0 auto; padding: 20px 24px; }
+          .main-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 0; border-radius: 4px; overflow: hidden; }
+          table, th, td { border: 1px solid #cbd5e1; }
+          th, td { padding: 6px 8px; vertical-align: middle; }
+          
+          .bg-blue { background-color: #f1f5f9; color: #0f172a; font-weight: bold; }
+          .bg-gray { background-color: #f8fafc; font-weight: bold; }
+          
           .text-center { text-align: center; }
           .text-left { text-align: left; }
-          .total-h { font-weight: bold; background: #e8f5e9; }
-          .subtotal-row td { background: #fff8e1; font-weight: bold; }
-          .grand-total td { background: #1a237e; color: white; font-weight: bold; font-size: 11px; }
-          .no-data { color: #999; padding: 12px; }
-          .firma-section { margin-top: 40px; width: 100%; text-align: center; }
-          .firma-box { display: inline-block; width: 30%; margin: 0 1.5%; text-align: center; vertical-align: top; }
-          .firma-line { border-top: 1px solid #000; width: 80%; margin: 0 auto 4px auto; }
+          .text-right { text-align: right; }
+          .fw-bold { font-weight: bold; }
+          
+          .info-label { font-size: 8px; color: #64748b; }
+          .header-row th { background-color: #ffffff; font-size: 8px; font-weight: normal; text-align: center; color: #475569; }
+          
+          .firma-section { margin-top: 40px; width: 100%; text-align: center; display: flex; justify-content: space-around; }
+          .firma-box { width: 28%; text-align: center; }
+          .firma-rect { border: 2px solid #000; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; font-size: 14px; font-weight: bold; font-family: 'Times New Roman', Times, serif; flex-direction: column;}
           .firma-label { font-size: 9px; font-weight: bold; }
-          .firma-sub { font-size: 8px; color: #555; }
-          .fecha-gen { text-align: right; font-size: 9px; color: #666; margin-top: 8px; }
-          @media print { .watermark { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+          
         </style>
       </head>
       <body>
-        <div class="watermark">${watermarkText}</div>
         <div class="container">
-          <div class="logo-area">${logoBase64 ? `<img src="${logoBase64}" style="max-height:60px">` : ""}</div>
-          <div class="header">
-            <div class="line1">UNIVERSIDAD NACIONAL DE TRUJILLO</div>
-            <div class="line2">${docente.facultad?.nombre?.toUpperCase() || "FACULTAD"}</div>
-            <div class="line3">DEPARTAMENTO ACADÉMICO DE ${(docente.departamento?.nombre || "").toUpperCase()}</div>
-          </div>
-          <div class="title">DECLARACIÓN DE CARGA ACADÉMICA DOCENTE</div>
-          <div class="subtitle">F01-CAD</div>
-
-          <table class="info-table">
-            <tr><td class="info-label">Docente:</td><td><b>${nombreCompleto}</b></td><td class="info-label">DNI / IBM:</td><td><b>${ibm}</b></td></tr>
-            <tr><td class="info-label">Condición:</td><td>${contratoLabel[docente.tipo_contrato] || docente.tipo_contrato}</td><td class="info-label">Categoría:</td><td>${categoriaLabel[docente.categoria] || docente.categoria}</td></tr>
-            <tr><td class="info-label">Dedicación:</td><td>${modalidadLabel[docente.modalidad] || docente.modalidad || "—"}</td><td class="info-label">Facultad:</td><td>${docente.facultad?.nombre || "—"}</td></tr>
-            <tr><td class="info-label">Año Académico:</td><td><b>${anio}</b></td><td class="info-label">Semestre:</td><td><b>${semestre}</b></td></tr>
-            <tr><td class="info-label">Fecha Inicio:</td><td>${dateIni}</td><td class="info-label">Fecha Término:</td><td>${dateFin}</td></tr>
-          </table>
-
+          <div class="main-title">DECLARACION DE LA CARGA ACADEMICA DOCENTE (F01-CAD)</div>
+          
           <table>
-            <thead>
-              <tr>
-                <th width="8%">CÓD.</th>
-                <th width="22%">DENOMINACIÓN</th>
-                <th width="8%">TIPO</th>
-                <th width="8%">ESCUELA</th>
-                <th width="5%">CICLO</th>
-                <th width="6%">SECC.</th>
-                <th width="5%">ALUM.</th>
-                <th width="8%">HRS TEO</th>
-                <th width="8%">HRS PRA</th>
-                <th width="8%">HRS LAB</th>
-                <th width="8%">TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${trsLectiva}
-              <tr class="subtotal-row">
-                <td colspan="7" style="text-align:right;padding-right:12px">SUBTOTAL CARGA LECTIVA</td>
-                <td class="text-center">${totalHorasTeo.toFixed(1)}</td>
-                <td class="text-center">${totalHorasPra.toFixed(1)}</td>
-                <td class="text-center">${totalHorasLab.toFixed(1)}</td>
-                <td class="text-center">${totalGeneral.toFixed(1)}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <table>
-            <thead>
-              <tr>
-                <th width="6%">N°</th>
-                <th width="44%">CARGA HORARIA NO LECTIVA (CHNL)</th>
-                <th width="35%">DETALLE</th>
-                <th width="15%">TOTAL H</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${trsNoLectiva}
-              <tr class="subtotal-row">
-                <td colspan="3" style="text-align:right;padding-right:12px">TOTAL HORAS NO LECTIVAS</td>
-                <td class="text-center">${totalNoLectiva.toFixed(1)}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <table>
-            <tr class="grand-total">
-              <td style="text-align:right;padding-right:16px">
-                TOTAL HORAS LECTIVAS: <b>${totalGeneral.toFixed(1)}h</b> &nbsp;|&nbsp;
-                TOTAL HORAS NO LECTIVAS: <b>${totalNoLectiva.toFixed(1)}h</b> &nbsp;|&nbsp;
-                <span style="font-size:13px">TOTAL GENERAL: <b>${totalFinal.toFixed(1)}h</b></span>
+            <tr>
+              <td colspan="5" class="info-label" style="border-right: none;">FACULTAD / FILIAL: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.facultad?.nombre || ""}</b></td>
+              <td colspan="6" class="info-label" style="border-left: none;">DPTO. ACADÉMICO: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.departamento?.nombre || ""}</b></td>
+            </tr>
+            <tr>
+              <th class="info-label text-center">DNI</th>
+              <th colspan="4" class="info-label text-center">NOMBRE COMPLETO</th>
+              <th colspan="2" class="info-label text-center">CONDICIÓN</th>
+              <th colspan="2" class="info-label text-center">CATEGORÍA</th>
+              <th colspan="2" class="info-label text-center">MODALIDAD</th>
+            </tr>
+            <tr>
+              <td class="text-center">${ibm}</td>
+              <td colspan="4" class="text-center fw-bold">${nombreCompleto}</td>
+              <td colspan="2" class="text-center">${contratoLabel[docente.tipo_contrato] || docente.tipo_contrato}</td>
+              <td colspan="2" class="text-center">${categoriaLabel[docente.categoria] || docente.categoria}</td>
+              <td colspan="2" class="text-center">${modalidadLabel[docente.modalidad] || docente.modalidad}</td>
+            </tr>
+            <tr>
+              <td colspan="11" class="text-center info-label" style="padding: 6px;">
+                AÑO ACADÉMICO: <b>${anio}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SEMESTRE: <b>${semestre}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Inicio: <b>${dateIni}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Término: <b>${dateFin}</b>
               </td>
-              <td width="12%" style="text-align:center;font-size:13px"><b>${totalFinal.toFixed(1)}h</b></td>
+            </tr>
+            
+            <tr class="bg-blue">
+              <td colspan="11" style="font-size: 10px; padding: 5px;">I. CARGA HORARIA LECTIVA (CHL)</td>
+            </tr>
+            <tr class="header-row">
+              <th colspan="2">CURSO O ASIGNATURA CURRICULAR</th>
+              <th rowspan="2">Tipo Curso<br>Según Plan de<br>Estudios actual</th>
+              <th rowspan="2">Programa o<br>Escuela Académico<br>Profesional</th>
+              <th rowspan="2">Año<br>o<br>Ciclo</th>
+              <th rowspan="2">Sección</th>
+              <th rowspan="2">N°<br>Alumnos</th>
+              <th colspan="3">Horas</th>
+              <th rowspan="2">Total<br>Horas</th>
+            </tr>
+            <tr class="header-row">
+              <th width="8%">CÓDIGO</th>
+              <th width="30%">DENOMINACIÓN</th>
+              <th width="5%">Teoría</th>
+              <th width="5%">Práctica</th>
+              <th width="5%">Lab.</th>
+            </tr>
+            
+            ${trsLectiva}
+            
+            <tr class="bg-blue">
+              <td colspan="11" style="font-size: 10px; padding: 5px;">II. CARGA HORARIA NO LECTIVA (CHNL)</td>
+            </tr>
+            <tr>
+              <td colspan="10" class="fw-bold" style="font-size: 8px;">CARGA HORARIA NO LECTIVA COMPLEMENTARIA (CHNLC)</td>
+              <td></td>
+            </tr>
+            ${trsNoLectivaComplementaria}
+            <tr>
+              <td colspan="10" class="fw-bold" style="font-size: 8px;">CARGA HORARIA NO LECTIVA ADMINISTRATIVA (CHNLA)</td>
+              <td></td>
+            </tr>
+            ${trsNoLectivaAdministrativa}
+            
+            <tr class="bg-blue">
+              <td colspan="10" class="text-center fw-bold" style="font-size: 11px; padding: 8px;">TOTAL HORAS CARGA ACADÉMICA</td>
+              <td class="text-center fw-bold" style="font-size: 11px;">${totalFinal.toFixed(1)}</td>
             </tr>
           </table>
 
-          <div class="fecha-gen">Generado el: ${fechaGen}</div>
-
           <div class="firma-section">
             <div class="firma-box">
-              <div class="firma-line"></div>
+              <div class="firma-rect"><span>Firma</span><span>Digital</span></div>
               <div class="firma-label">FIRMA DEL DOCENTE</div>
-              <div class="firma-sub">${nombreCompleto}</div>
             </div>
             <div class="firma-box">
-              <div class="firma-line"></div>
-              <div class="firma-label">DIRECTOR DE DEPARTAMENTO</div>
-              <div class="firma-sub">${docente.departamento?.nombre || ""}</div>
+              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              <div class="firma-label">FIRMA Y SELLO DEL DIRECTOR DE DPTO.ACADEMICO</div>
             </div>
             <div class="firma-box">
-              <div class="firma-line"></div>
+              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
               <div class="firma-label">V°B° DECANO</div>
-              <div class="firma-sub">${docente.facultad?.nombre || ""}</div>
             </div>
           </div>
         </div>
@@ -1550,16 +1436,16 @@ export class ReportesService {
     const html = `
       <!DOCTYPE html><html><head><meta charset="UTF-8">
       <style>
-        body { font-family: 'Arial', sans-serif; font-size: 9px; color: #000; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        table, th, td { border: 1px solid #333; }
-        th, td { padding: 3px 5px; vertical-align: middle; }
-        th { background: #1a237e; color: white; font-size: 8px; text-align: center; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 20px 24px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; border-radius: 4px; overflow: hidden; }
+        table, th, td { border: 1px solid #cbd5e1; }
+        th, td { padding: 6px 8px; vertical-align: middle; }
+        th { background: #1e40af; color: #ffffff; font-size: 8px; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; }
         .text-center { text-align: center; }
-        .total-h { font-weight: bold; }
-        .dept-header td { background: #e8eaf6; font-weight: bold; font-size: 10px; padding: 5px 8px; }
-        .total-row td { background: #1a237e; color: white; font-weight: bold; font-size: 10px; }
-        .title { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 16px; }
+        .total-h { font-weight: bold; color: #0f172a; }
+        .dept-header td { background: #f1f5f9; font-weight: bold; font-size: 10px; padding: 6px 10px; color: #0f172a; }
+        .total-row td { background: #1e40af; color: #ffffff; font-weight: bold; font-size: 10px; }
+        .title { text-align: center; font-size: 16px; font-weight: 800; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; }
       </style></head><body>
         <div class="title">REPORTE CONSOLIDADO DE CARGA ACADÉMICA<br><span style="font-size:11px">Período: ${periodo}</span></div>
         <table>
@@ -1642,15 +1528,15 @@ export class ReportesService {
     const html = `
       <!DOCTYPE html><html><head><meta charset="UTF-8">
       <style>
-        body { font-family: 'Arial', sans-serif; font-size: 10px; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; }
-        table, th, td { border: 1px solid #333; }
-        th, td { padding: 4px 6px; }
-        th { background: #1a237e; color: white; font-size: 9px; text-align: center; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10px; color: #1e293b; margin: 20px 24px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; border-radius: 4px; overflow: hidden; }
+        table, th, td { border: 1px solid #cbd5e1; }
+        th, td { padding: 6px 8px; vertical-align: middle; }
+        th { background: #1e40af; color: #ffffff; font-size: 9px; text-align: center; text-transform: uppercase; letter-spacing: 0.5px; }
         .text-center { text-align: center; }
-        .total-h { font-weight: bold; }
-        .title { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 16px; }
-        .total-row td { background: #1a237e; color: white; font-weight: bold; }
+        .total-h { font-weight: bold; color: #0f172a; }
+        .title { text-align: center; font-size: 16px; font-weight: 800; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; }
+        .total-row td { background: #1e40af; color: #ffffff; font-weight: bold; font-size: 10px; }
       </style></head><body>
         <div class="title">REPORTE DE CARGA POR MODALIDAD<br><span style="font-size:11px">Período: ${periodo}</span></div>
         <table>
@@ -1719,9 +1605,16 @@ export class ReportesService {
     });
     const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
 
+    headerRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" as any }, left: { style: "thin" as any },
+        bottom: { style: "thin" as any }, right: { style: "thin" as any }
+      };
+    });
+
     docentes.forEach((d) => {
       const decl = declMap.get(d.id);
-      sheet.addRow({
+      const row = sheet.addRow({
         docente: `${d.apellidos}, ${d.nombres}`,
         condicion: d.tipo_contrato === "NOMBRADO" ? "Nombrado" : "Contratado",
         modalidad: d.modalidad || "—",
@@ -1730,6 +1623,12 @@ export class ReportesService {
         hrsNoLectivas: decl?.total_horas_no_lectivas || 0,
         total: decl?.total_horas_general || 0,
         estado: decl?.estado || "SIN INICIAR",
+      });
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin" as any }, left: { style: "thin" as any },
+          bottom: { style: "thin" as any }, right: { style: "thin" as any }
+        };
       });
     });
 
@@ -2106,7 +2005,11 @@ export class ReportesService {
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 8;
-
+    if (yPos + (15 * 8) + 15 > PAGE_H) {
+      doc.addPage();
+      yPos = 15;
+    }
+    
     // Grid de Horarios
     const dias = [
       "Lunes",
@@ -2653,10 +2556,10 @@ export class ReportesService {
       ]);
 
     const declPeriodo = declaraciones.filter(
-        (d) => d.periodo_academico?.codigo === periodo,
+        (d) => d.periodo_academico?.codigo === periodo || d.periodo_academico?.nombre === periodo,
     );
     const declAnterior = declaraciones.filter(
-      (d) => d.periodo_academico?.codigo === this.periodoAnterior(periodo),
+      (d) => d.periodo_academico?.codigo === this.periodoAnterior(periodo) || d.periodo_academico?.nombre === this.periodoAnterior(periodo),
     );
 
     const enviadas = declPeriodo.filter(

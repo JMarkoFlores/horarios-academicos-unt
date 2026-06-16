@@ -481,6 +481,22 @@
       ); // Brillo (glow) del color del ícono
     }
   }
+
+  // Mapa de calor — celda vacía visible en dark mode
+  .heatmap-cell {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  // Leyenda — dot vacío visible en dark
+  .legend-dot.empty {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  // Colores de legend-dot más saturados en dark
+  .legend-dot.teal  { background: #60a5fa !important; }
+  .legend-dot.green { background: #34d399 !important; }
+  .legend-dot.purple { background: #c084fc !important; }
 }
 
 // ── 3. CHARTS GRID ───────────────────────────────────────────────────────
@@ -488,6 +504,14 @@
   display: grid;
   grid-template-columns: 1.8fr 1.2fr; // Bar chart más grande que el pie chart
   gap: 20px;
+}
+
+// Grid de dos columnas iguales (Mayor Carga | Menor Carga)
+.two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
 }
 
 .chart-container-premium {
@@ -782,8 +806,8 @@
 .heatmap-cell {
   height: 28px;
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.04);
-  transition: opacity 200ms;
+  background: rgba(0, 0, 0, 0.05);
+  transition: opacity 200ms, background-color 200ms;
   cursor: default;
 
   &.header-cell {
@@ -836,7 +860,7 @@
         background: #a855f7;
       }
       &.empty {
-        background: rgba(0, 0, 0, 0.04);
+        background: rgba(0, 0, 0, 0.05);
         border: 1px solid var(--color-border);
       }
     }
@@ -1090,6 +1114,10 @@
   }
 
   .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .two-col-grid {
     grid-template-columns: 1fr;
   }
 

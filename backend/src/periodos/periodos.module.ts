@@ -12,6 +12,8 @@ import { VentanaAtencion } from "../entities/ventana-atencion.entity";
 import { ColaDocente } from "../entities/cola-docentes.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -24,6 +26,7 @@ import { DocenteCurso } from "../entities/docente-curso.entity";
       VentanaAtencion,
       ColaDocente,
       DocenteCurso,
+      DeclaracionCargaHoraria,
     ]),
   ],
   controllers: [PeriodosController],

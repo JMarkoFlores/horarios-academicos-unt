@@ -22,8 +22,8 @@ RUN npm install -g @nestjs/cli typescript
 # Copy source code
 COPY . ./
 
-# Build the application using tsc directly (skip type checking errors)
-RUN tsc --skipLibCheck --noEmitOnError false -p tsconfig.build.json || true
+# Build the application
+RUN npm run build
 
 # Remove dev dependencies before copying to production
 RUN npm prune --omit=dev

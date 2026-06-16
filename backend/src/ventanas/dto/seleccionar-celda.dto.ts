@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsString, Min, Max, Matches } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { IsInt, IsString, Min, Max, Matches } from "class-validator";
 
 export class SeleccionarCeldaDto {
   @ApiProperty({ description: "ID del docente seleccionando" })

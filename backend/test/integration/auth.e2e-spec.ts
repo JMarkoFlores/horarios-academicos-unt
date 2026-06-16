@@ -1,10 +1,6 @@
 import { INestApplication } from "@nestjs/common";
 import * as request from "supertest";
-import {
-  createTestApp,
-  closeTestApp,
-  clearDatabase,
-} from "./test-helper";
+import { createTestApp, closeTestApp, clearDatabase } from "./test-helper";
 import { getSeededData } from "./seeders/test-data";
 import { Repository } from "typeorm";
 import { Usuario } from "../../src/entities/usuario.entity";
@@ -50,7 +46,10 @@ describe("Auth Integration Tests", () => {
       expect(response.body.usuario).toHaveProperty("id");
       expect(response.body.usuario).toHaveProperty("email", loginDto.email);
       expect(response.body.usuario).toHaveProperty("nombre", "Admin User");
-      expect(response.body.usuario).toHaveProperty("rol", "administradorsistema");
+      expect(response.body.usuario).toHaveProperty(
+        "rol",
+        "administradorsistema",
+      );
       expect(response.body.usuario).not.toHaveProperty("password_hash");
     });
 
@@ -86,7 +85,9 @@ describe("Auth Integration Tests", () => {
 
     it("debe rechazar login con usuario inactivo", async () => {
       // Buscar el usuario ya sembrado
-      const user = await usuarioRepository.findOneBy({ email: "admin@unitru.edu.pe" });
+      const user = await usuarioRepository.findOneBy({
+        email: "admin@unitru.edu.pe",
+      });
       user.activo = false;
       await usuarioRepository.save(user);
 
@@ -114,7 +115,7 @@ describe("Auth Integration Tests", () => {
       const response = await request(app.getHttpServer())
         .post("/auth/login")
         .send(loginDto);
-      
+
       expect([400, 401]).toContain(response.status);
     });
 

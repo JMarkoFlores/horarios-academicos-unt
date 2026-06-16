@@ -1,27 +1,33 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from "typeorm";
 
 export interface ReglaPrioridad {
   campo: string;
-  orden: 'ASC' | 'DESC';
+  orden: "ASC" | "DESC";
 }
 
-@Entity('reglas_prioridad_globales')
+@Entity("reglas_prioridad_globales")
 export class ReglasPrioridadGlobales {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column('json')
+  @Column("json")
   reglas: ReglaPrioridad[];
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   descripcion: string;
 
   @Column({ default: true })
   activo: boolean;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn({ type: "timestamp" })
   creado_en: Date;
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn({ type: "timestamp" })
   actualizado_en: Date;
 }

@@ -34,12 +34,24 @@ export interface CursoPlanEstudios {
   curso?: Curso;
 }
 
+export interface ContextoAcademico {
+  verTodo: boolean;
+  facultadId: number | null;
+  escuelaId: number | null;
+  departamentoIds: number[];
+  docenteId: number | null;
+  departamentoNombre?: string | null;
+  facultadNombre?: string | null;
+  escuelaNombre?: string | null;
+}
+
 export interface Usuario {
   id: number;
   email: string;
   nombre: string;
   rol: string;
   docenteId?: number;
+  contextoAcademico?: ContextoAcademico;
   idiomaPreferido?: string;
 }
 
@@ -413,6 +425,50 @@ export interface MisKPIs {
     dia: string;
     horas: number;
   }[];
+}
+
+export interface CargaResumen {
+  total_docentes: number;
+  declaraciones_enviadas: number;
+  declaraciones_aprobadas: number;
+  porcentaje_avance: number;
+  docentes_observados: number;
+  docentes_sin_declarar: number;
+  carga_lectiva_promedio: number;
+  sin_declaracion: { id: number; nombre: string; email: string; departamento_id: number }[];
+}
+
+export interface CargaDepartamento {
+  departamento_id: number;
+  departamento: string;
+  codigo: string;
+  total_docentes: number;
+  total_horas_lectivas: number;
+  total_horas_no_lectivas: number;
+  promedio_horas: number;
+}
+
+export interface CargaEstado {
+  estado: string;
+  label: string;
+  count: number;
+}
+
+export interface CargaTopDocente {
+  id: number;
+  nombre: string;
+  categoria: string;
+  departamento_id: number;
+  total_horas_lectivas: number;
+  total_horas_no_lectivas: number;
+  total_horas: number;
+  estado: string;
+}
+
+export interface CargaAvance {
+  fecha: string;
+  total: number;
+  enviadas: number;
 }
 
 export interface KPIs {

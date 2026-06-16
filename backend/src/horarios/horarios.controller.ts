@@ -58,7 +58,7 @@ import { HorariosService } from "./horarios.service";
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class HorariosController {
   private readonly logger = new Logger(HorariosController.name);
-  
+
   constructor(
     private readonly asignacionService: AsignacionService,
     private readonly horariosService: HorariosService,
@@ -372,34 +372,58 @@ export class HorariosController {
     return { data, message: "Horario reasignado", statusCode: HttpStatus.OK };
   }
 
-  @Patch(':id/actualizar')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Actualizar una asignación de horario existente' })
-  @ApiResponse({ status: 200, description: 'Asignación actualizada correctamente' })
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.SECRETARIA)
+  @Patch(":id/actualizar")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Actualizar una asignación de horario existente" })
+  @ApiResponse({
+    status: 200,
+    description: "Asignación actualizada correctamente",
+  })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+  )
   async updateAsignacion(
-    @Param('id', ParseIntPipe) id: number,
+    @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateAsignacionDto,
     @CurrentUser() usuario: Usuario,
   ) {
-    const data = await this.asignacionService.updateAsignacion(id, dto, usuario);
+    const data = await this.asignacionService.updateAsignacion(
+      id,
+      dto,
+      usuario,
+    );
     await this.horariosService.invalidateHorariosCache();
-    return { data, message: 'Asignación actualizada', statusCode: HttpStatus.OK };
+    return {
+      data,
+      message: "Asignación actualizada",
+      statusCode: HttpStatus.OK,
+    };
   }
 
-  @Delete(':id')
-  @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Eliminar una asignación de horario existente' })
-  @ApiResponse({ status: 200, description: 'Asignación eliminada correctamente' })
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.SECRETARIA)
+  @Delete(":id")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Eliminar una asignación de horario existente" })
+  @ApiResponse({
+    status: 200,
+    description: "Asignación eliminada correctamente",
+  })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+  )
   async deleteAsignacion(
-    @Param('id', ParseIntPipe) id: number,
+    @Param("id", ParseIntPipe) id: number,
     @CurrentUser() usuario: Usuario,
     @Req() request: Request,
   ) {
     try {
-      this.logger.log(`[deleteAsignacion] Intentando eliminar horario ID: ${id}`);
-      
+      this.logger.log(
+        `[deleteAsignacion] Intentando eliminar horario ID: ${id}`,
+      );
+
       const horario = await this.horarioRepo.findOne({ where: { id } });
       if (!horario) {
         this.logger.warn(`[deleteAsignacion] Horario ${id} no encontrado`);
@@ -418,8 +442,10 @@ export class HorariosController {
         grupo_id: horario.grupo_id,
       };
 
-      this.logger.log(`[deleteAsignacion] Datos anteriores: ${JSON.stringify(datosAnteriores)}`);
-      
+      this.logger.log(
+        `[deleteAsignacion] Datos anteriores: ${JSON.stringify(datosAnteriores)}`,
+      );
+
       // Save audit record before deletion to avoid foreign key constraint violation
       await this.auditoriaRepo.save(
         this.auditoriaRepo.create({
@@ -435,18 +461,25 @@ export class HorariosController {
       this.logger.log(`[deleteAsignacion] Auditoría guardada exitosamente`);
 
       await this.horarioRepo.delete(id);
-      this.logger.log(`[deleteAsignacion] Horario ${id} eliminado de la base de datos`);
+      this.logger.log(
+        `[deleteAsignacion] Horario ${id} eliminado de la base de datos`,
+      );
 
       await this.horariosService.invalidateHorariosCache();
 
-      return { data: null, message: 'Asignación eliminada', statusCode: HttpStatus.OK };
+      return {
+        data: null,
+        message: "Asignación eliminada",
+        statusCode: HttpStatus.OK,
+      };
     } catch (error) {
-      this.logger.error(`[deleteAsignacion] Error al eliminar horario ${id}: ${error.message}`);
+      this.logger.error(
+        `[deleteAsignacion] Error al eliminar horario ${id}: ${error.message}`,
+      );
       this.logger.error(`[deleteAsignacion] Stack trace: ${error.stack}`);
       throw error;
     }
   }
-
 
   @Get("conflictos/:periodo")
   @ApiBearerAuth("JWT")

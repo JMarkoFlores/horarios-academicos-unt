@@ -6,6 +6,7 @@ import { Subject, Subscription, debounceTime, switchMap } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
+import { CargaAdicionalService, CargaAdicional } from '../../../core/services/carga-adicional.service';
 import { Docente, ApiResponse, DeclaracionObservacion } from '../../../core/interfaces/entities';
 import { GestionarHorarioDialogComponent, GestionarHorarioData, HorarioEntry as HorarioEntryType } from '../dialogs/gestionar-horario-dialog.component';
 
@@ -136,7 +137,17 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   observaciones: DeclaracionObservacion[] = [];
   textoObservacion = '';
 
+  declaracionJurada: any = null;
+  cargandoDeclaracionJurada = false;
+  aceptaDeclaracionJurada = false;
+  generandoDeclaracionJurada = false;
+
   stepperEtapas = STEPPER_ETAPAS;
+
+  // Carga Adicional
+  cargaAdicional: CargaAdicional[] = [];
+  totalHorasCargaAdicional = 0;
+  mostrandoCargaAdicional = false;
 
   private autoSaveSubject = new Subject<void>();
   private autoSaveSub?: Subscription;
@@ -149,6 +160,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     private periodoService: PeriodoService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
+    private cargaAdicionalService: CargaAdicionalService,
   ) {}
 
   ngOnInit(): void {
@@ -158,6 +170,8 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     this.cargarDocente();
     this.cargarCursosAsignados();
     this.cargarDeclaracion();
+
+    this.cargarDeclaracionJurada();
 
     this.autoSaveSub = this.autoSaveSubject.pipe(
       debounceTime(30000),
@@ -315,6 +329,10 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
             if (res.data.carga_no_lectiva) {
               this.cargarCargaNoLectiva(res.data.carga_no_lectiva);
             }
+            if (res.data.cargaAdicional) {
+              this.cargaAdicional = res.data.cargaAdicional;
+              this.totalHorasCargaAdicional = this.cargaAdicional.reduce((sum: number, c: CargaAdicional) => sum + (c.total_horas || 0), 0);
+            }
             this.cargarObservaciones();
           } else {
             this.estadoDeclaracion = 'NO_INICIADO';
@@ -417,7 +435,8 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
     this.totalHorasNoLectivas = this.actividadesNoLectivas
       .reduce((sum, a) => sum + (Number(a.horas) || 0), 0);
-    this.totalHoras = this.totalHorasLectivas + this.totalHorasNoLectivas;
+    this.totalHorasCargaAdicional = this.cargaAdicional.reduce((sum, c) => sum + (c.total_horas || 0), 0);
+    this.totalHoras = this.totalHorasLectivas + this.totalHorasNoLectivas + this.totalHorasCargaAdicional;
 
     this.subtotalPreparacion = this.actividadesNoLectivas.filter(a => a.id === 2).reduce((s, a) => s + (Number(a.horas) || 0), 0);
     this.subtotalInvestigacion = this.actividadesNoLectivas.filter(a => a.id >= 3 && a.id <= 5).reduce((s, a) => s + (Number(a.horas) || 0), 0);
@@ -737,16 +756,22 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     });
   }
 
-  generarPDF(): void {
+  generarPDF(tipo: 'declaracion' | 'f03cad' = 'declaracion'): void {
     if (!this.docente) return;
     this.snackBar.open('Generando documento...', '', { duration: 2000 });
-    this.api.getBlob(`/reportes/declaracion/${this.docenteId}/pdf?periodo=${this.periodoActivo}`)
+    const endpoint = tipo === 'f03cad'
+      ? `/reportes/docente/${this.docenteId}/f03-cad?periodo=${this.periodoActivo}`
+      : `/reportes/declaracion/${this.docenteId}/pdf?periodo=${this.periodoActivo}`;
+    const filename = tipo === 'f03cad'
+      ? `f03-cad_${this.docente?.apellidos}_${this.periodoActivo}.pdf`
+      : `declaracion_carga_horaria_${this.docente?.apellidos}_${this.periodoActivo}.pdf`;
+    this.api.getBlob(endpoint)
       .subscribe({
         next: (blob) => {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `declaracion_carga_horaria_${this.docente?.apellidos}_${this.periodoActivo}.pdf`;
+          a.download = filename;
           document.body.appendChild(a);
           a.click();
           window.URL.revokeObjectURL(url);
@@ -754,12 +779,132 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
           this.snackBar.open('PDF generado con éxito', 'Cerrar', { duration: 3000 });
         },
         error: () => {
-          this.snackBar.open('Error al generar el PDF de Declaración', 'Cerrar', { duration: 3000 });
+          this.snackBar.open('Error al generar el PDF', 'Cerrar', { duration: 3000 });
         }
+      });
+  }
+
+  cargarDeclaracionJurada(): void {
+    this.cargandoDeclaracionJurada = true;
+    this.api.get<any>(`/declaraciones/docentes/${this.docenteId}/declaracion-jurada?periodo=${this.periodoActivo}`)
+      .subscribe({
+        next: (res) => {
+          this.declaracionJurada = res.data;
+          this.cargandoDeclaracionJurada = false;
+        },
+        error: () => {
+          this.declaracionJurada = null;
+          this.cargandoDeclaracionJurada = false;
+        },
+      });
+  }
+
+  get tipoDeclaracionLabel(): string {
+    if (!this.docente?.modalidad) return '';
+    const modalidad = this.docente.modalidad;
+    if (modalidad === 'DEDICACION_EXCLUSIVA') return 'EXCLUSIVIDAD';
+    if (modalidad.startsWith('TIEMPO_COMPLETO')) return 'COMPATIBILIDAD_TOTAL';
+    return 'COMPATIBILIDAD_PARCIAL';
+  }
+
+  get textoDeclaracionJurada(): string {
+    if (!this.docente) return '';
+    const nombre = `${this.docente.apellidos.toUpperCase()}, ${this.docente.nombres.toUpperCase()}`;
+    const ibm = this.docente.ibm || this.docente.codigo || '';
+    const dep = this.docente.departamento?.nombre || 'No asignado';
+    const fac = this.docente.facultad?.nombre || 'No asignada';
+    const modalidad = this.docente.modalidad || '';
+
+    const modalidadLabels: Record<string, string> = {
+      DEDICACION_EXCLUSIVA: 'DEDICACIÓN EXCLUSIVA',
+      TIEMPO_COMPLETO_40: 'TIEMPO COMPLETO 40 H',
+      TIEMPO_PARCIAL_20: 'TIEMPO PARCIAL 20 H',
+      TIEMPO_PARCIAL_12: 'TIEMPO PARCIAL 12 H',
+      TIEMPO_PARCIAL_10: 'TIEMPO PARCIAL 10 H',
+      TIEMPO_PARCIAL_8: 'TIEMPO PARCIAL 8 H',
+    };
+    const modalidadDisplay = modalidadLabels[modalidad] || modalidad;
+
+    let textoSegunModalidad = '';
+    if (modalidad === 'DEDICACION_EXCLUSIVA') {
+      textoSegunModalidad = 'Declaro no tener otro empleo ni ejercer actividad profesional fuera de la Universidad Nacional de Trujillo, y que mi horario académico es exclusivo para la UNT, no existiendo incompatibilidad horaria con ninguna otra actividad laboral, cargo público o actividad privada durante el horario académico establecido.';
+    } else if (modalidad.startsWith('TIEMPO_COMPLETO')) {
+      textoSegunModalidad = 'Declaro que mi horario académico es compatible con mi actividad laboral, no existiendo superposición de horarios con otras actividades profesionales, cargos públicos o actividades privadas que pudieran generar incompatibilidad laboral.';
+    } else {
+      textoSegunModalidad = 'Declaro que mi horario académico es compatible parcialmente con mi actividad laboral externa, la cual se desarrolla fuera del horario establecido por la Universidad Nacional de Trujillo, no existiendo incompatibilidad horaria.';
+    }
+
+    return `Yo, ${nombre}, identificado con DNI/IBM N° ${ibm}, Docente del Departamento Académico de ${dep}, con modalidad ${modalidadDisplay}, DECLARO BAJO JURAMENTO: ${textoSegunModalidad}`;
+  }
+
+  generarDeclaracionJuradaPDF(): void {
+    if (!this.docente || !this.aceptaDeclaracionJurada) return;
+    this.generandoDeclaracionJurada = true;
+
+    this.api.post<any>(`/declaraciones/docentes/${this.docenteId}/declaracion-jurada`, {
+      periodo: this.periodoActivo,
+    }).subscribe({
+      next: () => {
+        this.cargarDeclaracionJurada();
+        this.api.getBlob(`/reportes/declaracion-jurada/${this.docenteId}/pdf?periodo=${this.periodoActivo}`)
+          .subscribe({
+            next: (blob) => {
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `declaracion_jurada_incompatibilidad_${this.docente?.apellidos}_${this.periodoActivo}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              a.remove();
+              this.generandoDeclaracionJurada = false;
+              this.snackBar.open('Declaración Jurada generada con éxito', 'Cerrar', { duration: 3000 });
+            },
+            error: () => {
+              this.generandoDeclaracionJurada = false;
+              this.snackBar.open('Error al generar el PDF', 'Cerrar', { duration: 3000 });
+            },
+          });
+      },
+      error: () => {
+        this.generandoDeclaracionJurada = false;
+        this.snackBar.open('Error al registrar la declaración jurada', 'Cerrar', { duration: 3000 });
+      },
+    });
+  }
+
+  descargarDeclaracionJuradaExistente(): void {
+    if (!this.docente) return;
+    this.snackBar.open('Descargando...', '', { duration: 2000 });
+    this.api.getBlob(`/reportes/declaracion-jurada/${this.docenteId}/pdf?periodo=${this.periodoActivo}`)
+      .subscribe({
+        next: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `declaracion_jurada_incompatibilidad_${this.docente?.apellidos}_${this.periodoActivo}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          a.remove();
+          this.snackBar.open('PDF descargado con éxito', 'Cerrar', { duration: 3000 });
+        },
+        error: () => {
+          this.snackBar.open('Error al descargar el PDF', 'Cerrar', { duration: 3000 });
+        },
       });
   }
 
   volver(): void {
     this.router.navigate(['/app/declaraciones']);
+  }
+
+  formatHorarioSemanal(ca: CargaAdicional): string {
+    if (!ca.horario_semanal?.length) {
+      return 'Sin horario';
+    }
+    return ca.horario_semanal
+      .map((h) => `${h.dia} ${h.hora_inicio}-${h.hora_fin}`)
+      .join(', ');
   }
 }

@@ -7,7 +7,11 @@ import { Ambiente } from "../entities/ambiente.entity";
 import { Curso } from "../entities/curso.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
+import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { PlanEstudios } from "../entities/plan-estudios.entity";
+import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
+import { Departamento } from "../entities/departamento.entity";
 import { ReportesService } from "./reportes.service";
 import { ReportesController } from "./reportes.controller";
 import { ConfiguracionModule } from "../configuracion/configuracion.module";
@@ -22,7 +26,11 @@ import { ConfiguracionModule } from "../configuracion/configuracion.module";
       Curso,
       Grupo,
       DeclaracionCargaHoraria,
+      DeclaracionJurada,
       PeriodoAcademico,
+      PlanEstudios,
+      CursoPlanEstudios,
+      Departamento,
     ]),
     ConfiguracionModule,
   ],

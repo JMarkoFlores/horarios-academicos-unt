@@ -12,7 +12,9 @@ export class CreateDeclaracionCargaHoraria1800000000000 implements MigrationInte
         `'administradorsistema', 'directorescuela', 'directordepartamento', ` +
         `'coordinadoracademico', 'decano', 'operadorhorarios', 'docente')`,
     );
-    await queryRunner.query(`ALTER TABLE "usuario" ALTER COLUMN "rol" DROP DEFAULT`);
+    await queryRunner.query(
+      `ALTER TABLE "usuario" ALTER COLUMN "rol" DROP DEFAULT`,
+    );
     await queryRunner.query(`
       ALTER TABLE "usuario"
         ALTER COLUMN "rol" TYPE "public"."usuario_rol_enum"
@@ -115,18 +117,38 @@ export class CreateDeclaracionCargaHoraria1800000000000 implements MigrationInte
       `ALTER TABLE "declaracion_carga_horaria" DROP CONSTRAINT "FK_declaracion_docente"`,
     );
     await queryRunner.query(`DROP TABLE IF EXISTS "declaracion_carga_horaria"`);
-    await queryRunner.query(`DROP TYPE IF EXISTS "public"."estado_declaracion_carga_enum"`);
+    await queryRunner.query(
+      `DROP TYPE IF EXISTS "public"."estado_declaracion_carga_enum"`,
+    );
 
-    await queryRunner.query(`ALTER TABLE "docente" DROP CONSTRAINT IF EXISTS "FK_docente_facultad"`);
-    await queryRunner.query(`ALTER TABLE "docente" DROP CONSTRAINT IF EXISTS "FK_docente_departamento"`);
-    await queryRunner.query(`ALTER TABLE "docente" DROP CONSTRAINT IF EXISTS "FK_docente_usuario"`);
-    await queryRunner.query(`ALTER TABLE "docente" DROP COLUMN IF EXISTS "facultad_id"`);
-    await queryRunner.query(`ALTER TABLE "docente" DROP COLUMN IF EXISTS "departamento_id"`);
-    await queryRunner.query(`ALTER TABLE "docente" DROP COLUMN IF EXISTS "usuario_id"`);
+    await queryRunner.query(
+      `ALTER TABLE "docente" DROP CONSTRAINT IF EXISTS "FK_docente_facultad"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "docente" DROP CONSTRAINT IF EXISTS "FK_docente_departamento"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "docente" DROP CONSTRAINT IF EXISTS "FK_docente_usuario"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "docente" DROP COLUMN IF EXISTS "facultad_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "docente" DROP COLUMN IF EXISTS "departamento_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "docente" DROP COLUMN IF EXISTS "usuario_id"`,
+    );
 
-    await queryRunner.query(`ALTER TYPE "public"."usuario_rol_enum" RENAME TO "usuario_rol_enum_new"`);
-    await queryRunner.query(`CREATE TYPE "public"."usuario_rol_enum" AS ENUM('administradorsistema', 'directorescuela', 'coordinadoracademico', 'operadorhorarios', 'docente')`);
-    await queryRunner.query(`ALTER TABLE "usuario" ALTER COLUMN "rol" DROP DEFAULT`);
+    await queryRunner.query(
+      `ALTER TYPE "public"."usuario_rol_enum" RENAME TO "usuario_rol_enum_new"`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."usuario_rol_enum" AS ENUM('administradorsistema', 'directorescuela', 'coordinadoracademico', 'operadorhorarios', 'docente')`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "usuario" ALTER COLUMN "rol" DROP DEFAULT`,
+    );
     await queryRunner.query(`
       ALTER TABLE "usuario"
         ALTER COLUMN "rol" TYPE "public"."usuario_rol_enum"
@@ -143,7 +165,9 @@ export class CreateDeclaracionCargaHoraria1800000000000 implements MigrationInte
           END
         )
     `);
-    await queryRunner.query(`ALTER TABLE "usuario" ALTER COLUMN "rol" SET DEFAULT 'operadorhorarios'`);
+    await queryRunner.query(
+      `ALTER TABLE "usuario" ALTER COLUMN "rol" SET DEFAULT 'operadorhorarios'`,
+    );
     await queryRunner.query(`DROP TYPE "public"."usuario_rol_enum_new"`);
   }
 }

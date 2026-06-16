@@ -12,40 +12,40 @@ export class AddMissingColumnsToColaDoctentes1779800000002 implements MigrationI
           CREATE TYPE "public"."cola_docentes_razon_ausencia_enum" AS ENUM('INASISTENCIA', 'REPROGRAMACION', 'CANCELACION', 'OTRO');
         END IF;
       END
-      $$;`
+      $$;`,
     );
 
     // Add razon_ausencia column
     await queryRunner.query(
-      `ALTER TABLE "cola_docentes" ADD COLUMN IF NOT EXISTS "razon_ausencia" "public"."cola_docentes_razon_ausencia_enum"`
+      `ALTER TABLE "cola_docentes" ADD COLUMN IF NOT EXISTS "razon_ausencia" "public"."cola_docentes_razon_ausencia_enum"`,
     );
 
     // Add eventos_sesion column
     await queryRunner.query(
-      `ALTER TABLE "cola_docentes" ADD COLUMN IF NOT EXISTS "eventos_sesion" jsonb`
+      `ALTER TABLE "cola_docentes" ADD COLUMN IF NOT EXISTS "eventos_sesion" jsonb`,
     );
 
     // Add validaciones_ejecutadas column
     await queryRunner.query(
-      `ALTER TABLE "cola_docentes" ADD COLUMN IF NOT EXISTS "validaciones_ejecutadas" integer NOT NULL DEFAULT 0`
+      `ALTER TABLE "cola_docentes" ADD COLUMN IF NOT EXISTS "validaciones_ejecutadas" integer NOT NULL DEFAULT 0`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "cola_docentes" DROP COLUMN IF EXISTS "validaciones_ejecutadas"`
+      `ALTER TABLE "cola_docentes" DROP COLUMN IF EXISTS "validaciones_ejecutadas"`,
     );
 
     await queryRunner.query(
-      `ALTER TABLE "cola_docentes" DROP COLUMN IF EXISTS "eventos_sesion"`
+      `ALTER TABLE "cola_docentes" DROP COLUMN IF EXISTS "eventos_sesion"`,
     );
 
     await queryRunner.query(
-      `ALTER TABLE "cola_docentes" DROP COLUMN IF EXISTS "razon_ausencia"`
+      `ALTER TABLE "cola_docentes" DROP COLUMN IF EXISTS "razon_ausencia"`,
     );
 
     await queryRunner.query(
-      `DROP TYPE IF EXISTS "public"."cola_docentes_razon_ausencia_enum"`
+      `DROP TYPE IF EXISTS "public"."cola_docentes_razon_ausencia_enum"`,
     );
   }
 }

@@ -276,7 +276,9 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         // Pasar parámetros de exclusión en modo edición
         modoEdicion: datos.modoEdicion,
         ignorarCursoId: datos.modoEdicion ? datos.originalCursoId : undefined,
-        ignorarTipoClase: datos.modoEdicion ? datos.originalTipoClase as any : undefined,
+        ignorarTipoClase: datos.modoEdicion
+          ? (datos.originalTipoClase as any)
+          : undefined,
         ignorarGrupoId: datos.modoEdicion ? datos.originalGrupoId : undefined,
       },
       permitirSuperposiciones,
@@ -359,7 +361,8 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
     // 5. Guardar selección con persistencia (Redis + BD)
     // Usar el grupoId mapeado (database ID) para LABORATORIO, no el UI value
-    const grupoIdParaGuardar = datos.tipoClase === "LABORATORIO" ? grupoIdParaValidacion : datos.grupoId;
+    const grupoIdParaGuardar =
+      datos.tipoClase === "LABORATORIO" ? grupoIdParaValidacion : datos.grupoId;
     const nuevaSeleccion: SeleccionTemporalRedis = {
       ventanaId: datos.ventanaId,
       sesionId: datos.sesionId,
@@ -917,9 +920,15 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           ),
           // Propagar parámetros de exclusión en modo edición
           modoEdicion: edicionDto?.modoEdicion,
-          ignorarCursoId: edicionDto?.modoEdicion ? edicionDto.originalCursoId : undefined,
-          ignorarTipoClase: edicionDto?.modoEdicion ? edicionDto.originalTipoClase as any : undefined,
-          ignorarGrupoId: edicionDto?.modoEdicion ? edicionDto.originalGrupoId : undefined,
+          ignorarCursoId: edicionDto?.modoEdicion
+            ? edicionDto.originalCursoId
+            : undefined,
+          ignorarTipoClase: edicionDto?.modoEdicion
+            ? (edicionDto.originalTipoClase as any)
+            : undefined,
+          ignorarGrupoId: edicionDto?.modoEdicion
+            ? edicionDto.originalGrupoId
+            : undefined,
         });
 
         if (!validacion.valido) {
@@ -997,14 +1006,16 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           estado: EstadoHorario.CONFIRMADO,
           ventana_atencion_id: seleccion.ventanaId,
           sesion_operador_id: seleccion.sesionId,
-          origen: seleccion.esSubsanacion ? OrigenHorario.SUBSANACION : OrigenHorario.AJUSTE_MANUAL,
+          origen: seleccion.esSubsanacion
+            ? OrigenHorario.SUBSANACION
+            : OrigenHorario.AJUSTE_MANUAL,
         });
 
         // Si es subsanación, agregar trazabilidad
         if (seleccion.esSubsanacion && seleccion.horarioOriginalId) {
           horario.modificado_por = `sesion_${seleccion.sesionId}`;
           horario.historial_cambios = {
-            tipo: 'SUBSANACION',
+            tipo: "SUBSANACION",
             horario_original_id: seleccion.horarioOriginalId,
             fecha_cambio: new Date().toISOString(),
             cambios: {
@@ -1013,7 +1024,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
               dia: seleccion.dia,
               hora_inicio: seleccion.horaInicio,
               hora_fin: seleccion.horaFin,
-            }
+            },
           };
         }
 
@@ -1438,7 +1449,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     curso: Curso,
   ): Promise<{ valido: boolean; motivo?: string }> {
     // Obtener horas requeridas según tipo de clase
-    let horasRequeridas =
+    const horasRequeridas =
       datos.tipoClase === "TEORIA"
         ? curso.horas_teoria || 0
         : datos.tipoClase === "PRACTICA"
@@ -1471,7 +1482,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
 
     // Contar horas ya asignadas en la base de datos (horarios confirmados)
     // Filtrar por grupo si es laboratorio
-    let whereClause: any = {
+    const whereClause: any = {
       curso_id: datos.cursoId,
       tipo_clase: datos.tipoClase as any,
       docente_id: datos.docenteId,

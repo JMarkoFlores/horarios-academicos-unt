@@ -4,6 +4,23 @@
   gap: 20px;
 }
 
+.alcance-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #e8f4fd;
+  color: #0d47a1;
+  font-size: 0.9rem;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
 // ── HEADER PREMIUM ────────────────────────────────────────────────────────
 .page-header-premium {
   display: flex;

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CursoAmbiente } from "../entities/curso-ambiente.entity";
@@ -40,7 +44,8 @@ export class CursosAmbienteService {
   }
 
   async findAll(query: QueryCursoAmbienteDto): Promise<CursoAmbiente[]> {
-    const qb = this.repo.createQueryBuilder("ca")
+    const qb = this.repo
+      .createQueryBuilder("ca")
       .leftJoinAndSelect("ca.curso", "curso")
       .leftJoinAndSelect("ca.ambiente", "ambiente");
 
@@ -48,10 +53,15 @@ export class CursosAmbienteService {
       qb.andWhere("ca.cursoId = :cursoId", { cursoId: query.cursoId });
     }
     if (query.ambienteId) {
-      qb.andWhere("ca.ambienteId = :ambienteId", { ambienteId: query.ambienteId });
+      qb.andWhere("ca.ambienteId = :ambienteId", {
+        ambienteId: query.ambienteId,
+      });
     }
 
-    return qb.orderBy("curso.nombre", "ASC").addOrderBy("ambiente.codigo", "ASC").getMany();
+    return qb
+      .orderBy("curso.nombre", "ASC")
+      .addOrderBy("ambiente.codigo", "ASC")
+      .getMany();
   }
 
   async findOne(cursoId: number, ambienteId: number): Promise<CursoAmbiente> {
@@ -59,11 +69,18 @@ export class CursosAmbienteService {
       where: { cursoId, ambienteId },
       relations: ["curso", "ambiente"],
     });
-    if (!item) throw new NotFoundException(`CursoAmbiente (${cursoId}, ${ambienteId}) no encontrado`);
+    if (!item)
+      throw new NotFoundException(
+        `CursoAmbiente (${cursoId}, ${ambienteId}) no encontrado`,
+      );
     return item;
   }
 
-  async update(cursoId: number, ambienteId: number, dto: UpdateCursoAmbienteDto): Promise<CursoAmbiente> {
+  async update(
+    cursoId: number,
+    ambienteId: number,
+    dto: UpdateCursoAmbienteDto,
+  ): Promise<CursoAmbiente> {
     const item = await this.findOne(cursoId, ambienteId);
     if (dto.cursoId && dto.ambienteId) {
       const exists = await this.repo.findOne({
@@ -72,7 +89,10 @@ export class CursosAmbienteService {
           ambienteId: dto.ambienteId,
         },
       });
-      if (exists && (exists.cursoId !== cursoId || exists.ambienteId !== ambienteId)) {
+      if (
+        exists &&
+        (exists.cursoId !== cursoId || exists.ambienteId !== ambienteId)
+      ) {
         throw new BadRequestException("Ya existe esta relación curso-ambiente");
       }
     }
@@ -100,7 +120,9 @@ export class CursosAmbienteService {
       throw new NotFoundException(`Curso ${cursoId} no encontrado`);
     }
 
-    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: ambienteId },
+    });
     if (!ambiente) {
       throw new NotFoundException(`Ambiente ${ambienteId} no encontrado`);
     }

@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class UpdateReglasPrioridadTipoDocente1779200000006 implements MigrationInterface {
-  name = 'UpdateReglasPrioridadTipoDocente1779200000006';
+  name = "UpdateReglasPrioridadTipoDocente1779200000006";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Actualizar reglas existentes para usar tipo_docente en lugar de tipo_contrato

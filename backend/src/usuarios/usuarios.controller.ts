@@ -59,7 +59,10 @@ export class UsuariosController {
   @ApiResponse({ status: 200, description: "Idioma actualizado correctamente" })
   async actualizarMiIdioma(@Body() dto: { idioma: string }, @Req() req: any) {
     const usuarioId = req.user?.id;
-    const result = await this.usuariosService.actualizarMiIdioma(usuarioId, dto.idioma);
+    const result = await this.usuariosService.actualizarMiIdioma(
+      usuarioId,
+      dto.idioma,
+    );
     return { data: result, message: "Idioma actualizado correctamente" };
   }
 

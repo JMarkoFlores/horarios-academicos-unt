@@ -109,7 +109,10 @@ export class DeclaracionesService {
     return { firma_url: docente?.firma_url || null };
   }
 
-  async guardarFirma(docenteId: number, file: UploadedSignatureFile): Promise<string> {
+  async guardarFirma(
+    docenteId: number,
+    file: UploadedSignatureFile,
+  ): Promise<string> {
     const docente = await this.docenteRepo.findOne({
       where: { id: docenteId },
     });

@@ -11,6 +11,7 @@ import { Curso } from "../entities/curso.entity";
 import { CreateGrupoDto } from "./dto/create-grupo.dto";
 import { UpdateGrupoDto } from "./dto/update-grupo.dto";
 import { QueryGrupoDto } from "./dto/query-grupo.dto";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
 
 @Injectable()
 export class GruposService {
@@ -38,13 +39,17 @@ export class GruposService {
       qb.andWhere("curso.id = :curso_id", { curso_id: query.curso_id });
     }
 
+    if (query.tipo) {
+      qb.andWhere("grupo.tipo = :tipo", { tipo: query.tipo });
+    }
+
     const [data, total] = await qb
-      .orderBy('grupo.ciclo', 'ASC')
-      .addOrderBy('grupo.codigo', 'ASC')
+      .orderBy("grupo.tipo", "ASC")
+      .addOrderBy("grupo.codigo", "ASC")
       .skip((page - 1) * limit)
       .take(limit)
       .cache(
-        `grupos_list_${query.periodo ?? 'all'}_${query.curso_id ?? 'all'}_${page}_${limit}`,
+        `grupos_list_${query.periodo ?? "all"}_${query.curso_id ?? "all"}_${query.tipo ?? "all"}_${page}_${limit}`,
         60000,
       )
       .getManyAndCount();
@@ -54,10 +59,10 @@ export class GruposService {
 
   async findOne(id: number): Promise<Grupo> {
     const grupo = await this.grupoRepo
-      .createQueryBuilder('grupo')
-      .leftJoinAndSelect('grupo.periodo_academico', 'periodo')
-      .leftJoinAndSelect('grupo.curso', 'curso')
-      .where('grupo.id = :id', { id })
+      .createQueryBuilder("grupo")
+      .leftJoinAndSelect("grupo.periodo_academico", "periodo")
+      .leftJoinAndSelect("grupo.curso", "curso")
+      .where("grupo.id = :id", { id })
       .cache(`grupo_${id}_detalle`, 60000)
       .getOne();
 
@@ -83,12 +88,15 @@ export class GruposService {
       throw new NotFoundException(`Curso con ID ${dto.curso_id} no encontrado`);
     }
 
+    const tipo = dto.tipo ?? TipoClase.TEORIA;
+
     const existe = await this.grupoRepo
       .createQueryBuilder("grupo")
-      .where("(grupo.nombre = :nombre OR grupo.codigo = :codigo)", { 
+      .where("(grupo.nombre = :nombre OR grupo.codigo = :codigo)", {
         nombre: dto.nombre,
-        codigo: dto.codigo 
+        codigo: dto.codigo,
       })
+      .andWhere("grupo.tipo = :tipo", { tipo })
       .andWhere("grupo.periodo_academico_id = :periodoId", {
         periodoId: dto.periodo_academico_id,
       })
@@ -97,13 +105,14 @@ export class GruposService {
 
     if (existe) {
       throw new ConflictException(
-        `Ya existe un grupo con el código '${dto.codigo}' o nombre '${dto.nombre}' para este curso y período`,
+        `Ya existe un grupo con el código '${dto.codigo}' o nombre '${dto.nombre}' para este tipo, curso y período`,
       );
     }
 
     const grupo = this.grupoRepo.create({
       codigo: dto.codigo,
       nombre: dto.nombre,
+      tipo,
       ciclo: dto.ciclo,
       cupo_maximo: dto.cupo_maximo,
       periodo_academico_id: periodo.id,
@@ -144,18 +153,24 @@ export class GruposService {
       grupo.curso = curso;
     }
 
-    // Check uniqueness of group name and code per course and period
+    // Check uniqueness of group name and code per course, period and tipo
     const nombreToCheck = dto.nombre !== undefined ? dto.nombre : grupo.nombre;
     const codigoToCheck = dto.codigo !== undefined ? dto.codigo : grupo.codigo;
-    const periodoIdToCheck = dto.periodo_academico_id !== undefined ? dto.periodo_academico_id : grupo.periodo_academico.id;
-    const cursoIdToCheck = dto.curso_id !== undefined ? dto.curso_id : grupo.curso.id;
+    const tipoToCheck = dto.tipo !== undefined ? dto.tipo : grupo.tipo;
+    const periodoIdToCheck =
+      dto.periodo_academico_id !== undefined
+        ? dto.periodo_academico_id
+        : grupo.periodo_academico.id;
+    const cursoIdToCheck =
+      dto.curso_id !== undefined ? dto.curso_id : grupo.curso.id;
 
     const existe = await this.grupoRepo
       .createQueryBuilder("grupo")
-      .where("(grupo.nombre = :nombre OR grupo.codigo = :codigo)", { 
+      .where("(grupo.nombre = :nombre OR grupo.codigo = :codigo)", {
         nombre: nombreToCheck,
-        codigo: codigoToCheck 
+        codigo: codigoToCheck,
       })
+      .andWhere("grupo.tipo = :tipo", { tipo: tipoToCheck })
       .andWhere("grupo.periodo_academico_id = :periodoId", {
         periodoId: periodoIdToCheck,
       })
@@ -165,7 +180,7 @@ export class GruposService {
 
     if (existe) {
       throw new ConflictException(
-        `Ya existe otro grupo con el código '${codigoToCheck}' o nombre '${nombreToCheck}' para este curso y período`,
+        `Ya existe otro grupo con el código '${codigoToCheck}' o nombre '${nombreToCheck}' para este tipo, curso y período`,
       );
     }
 
@@ -179,7 +194,8 @@ export class GruposService {
     try {
       await this.grupoRepo.remove(grupo);
     } catch (error) {
-      if ((error as any).code === "23503") { // PostgreSQL foreign key constraint violation
+      if ((error as any).code === "23503") {
+        // PostgreSQL foreign key constraint violation
         throw new ConflictException(
           `No se puede eliminar el grupo porque está siendo utilizado en otras asignaciones de horarios`,
         );
@@ -188,4 +204,3 @@ export class GruposService {
     }
   }
 }
-

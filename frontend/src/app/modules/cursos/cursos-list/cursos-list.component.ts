@@ -19,11 +19,15 @@ import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/c
 })
 export class CursosListComponent implements OnInit {
   displayedColumns = [
-    'codigo', 'nombre', 'creditos', 'horas_teoria',
+    'codigo', 'nombre', 'tipo_curso', 'ciclo', 'creditos', 'horas_teoria',
+    'horas_practica', 'horas_laboratorio', 'departamento',
     'prerequisitos', 'completitud', 'ambiente_teoria', 'ambiente_laboratorio', 'acciones',
   ];
+  
+  activePlan: any; // To store the active plan of studies
 
   dataSource: Curso[] = [];
+  allCursosMap: Record<string, string> = {}; // cod -> nombre
   total       = 0;
   pageSize    = 10;
   currentPage = 0;
@@ -36,7 +40,7 @@ export class CursosListComponent implements OnInit {
   activoFilter       = 'true';  // 'true' | 'false' | ''
   ciclos = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-  sortBy  = 'ciclo';
+  sortBy  = 'tipo_curso';
   sortDir: 'ASC' | 'DESC' = 'ASC';
 
   constructor(
@@ -46,10 +50,33 @@ export class CursosListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadAllCursos();
     this.loadCursos();
+    this.loadActivePlan();
     this.searchControl.valueChanges
       .pipe(debounceTime(400), distinctUntilChanged())
       .subscribe(() => { this.currentPage = 0; this.loadCursos(); });
+  }
+
+  loadActivePlan(): void {
+    this.api.get<ApiResponse<any>>('/plan-estudios/activo').subscribe({
+      next: (res) => {
+        this.activePlan = res.data;
+      },
+      error: () => {
+        // Ignore if no active plan is found
+      },
+    });
+  }
+
+  loadAllCursos(): void {
+    this.api.get<ApiResponse<{ items: Curso[] }>>('/cursos', { limit: 1000 }).subscribe({
+      next: (res) => {
+        for (const c of res.data.items) {
+          this.allCursosMap[c.codigo] = c.nombre;
+        }
+      },
+    });
   }
 
   loadCursos(): void {
@@ -105,7 +132,7 @@ export class CursosListComponent implements OnInit {
 
   // ── Indicadores de completitud ─────────────────────────────────────────
   ambientesTeoria(curso: Curso): Ambiente[] {
-    return (curso.ambientes ?? []).filter((a) => a.tipo === 'AULA');
+    return (curso.ambientes ?? []).filter((a) => a.tipo === 'AULA' || a.tipo === 'TALLER');
   }
 
   ambientesLaboratorio(curso: Curso): Ambiente[] {
@@ -134,11 +161,50 @@ export class CursosListComponent implements OnInit {
     return palette[(ciclo - 1) % palette.length];
   }
 
-  getPrerequisitosResumen(prerequisitos: string): string {
+  getTipoCurso(curso: any): string {
+    // Get tipo_curso from the active plan's CursoPlanEstudios entry
+    const tipoCurso = curso.planes_estudio?.[0]?.tipo_curso;
+    if (tipoCurso === 'ESPECIALIDAD') return 'S';
+    if (tipoCurso === 'OBLIGATORIO_GENERAL') return 'OB';
+    if (tipoCurso === 'OBLIGATORIO_PROFESIONAL') return 'OP';
+    if (tipoCurso === 'ELECTIVO') return 'EL';
+    return '—';
+  }
+
+  getPrerequisitosNombres(prerequisitos: string): string {
+    if (!prerequisitos) return '—';
+    const partes = prerequisitos.split(';').map((c) => c.trim());
+    const nombres: string[] = [];
+    for (const part of partes) {
+      const match = part.match(/^(\d+)/);
+      if (match) {
+        const cod = match[1];
+        if (this.allCursosMap[cod]) {
+          nombres.push(this.allCursosMap[cod]);
+        } else {
+          nombres.push(part);
+        }
+      } else {
+        nombres.push(part);
+      }
+    }
+    return nombres.join(', ');
+  }
+
+  getPrerequisitosResumen(prerequisitos: string | null | undefined): string {
     if (!prerequisitos) return '';
-    const codigos = prerequisitos.split(',').map((c) => c.trim());
-    if (codigos.length <= 2) return prerequisitos;
-    return `${codigos.slice(0, 2).join(', ')}... (+${codigos.length - 2})`;
+    const partes = prerequisitos.split(';').map((c) => c.trim());
+    const codigos: string[] = [];
+    for (const part of partes) {
+      const match = part.match(/^(\d+)/);
+      if (match) {
+        codigos.push(match[1]);
+      } else {
+        codigos.push(part);
+      }
+    }
+    if (codigos.length <= 2) return codigos.join(', ');
+    return `${codigos.slice(0, 2).join(', ')}… (+${codigos.length - 2})`;
   }
 
   // ── Dialogs ────────────────────────────────────────────────────────────
@@ -211,40 +277,41 @@ export class CursosListComponent implements OnInit {
           [],
         ];
         const ws = XLSX.utils.aoa_to_sheet(meta);
-        const hdrs = ['Código','Nombre','Ciclo','Créditos','H.Teoría','H.Lab','Laboratorio','Ambientes Teoría','Ambientes Lab','Estado'];
+        const hdrs = ['Código','Nombre','Tipo Curso','Ciclo','Créditos','H.Teoría','H.Práctica','H.Lab','Laboratorio','Ambientes Teoría','Ambientes Lab','Prerequisitos','Estado'];
         XLSX.utils.sheet_add_aoa(ws, [hdrs], { origin: 'A4' });
         const rows = items.map((c) => [
-          c.codigo, c.nombre, c.ciclo, c.creditos,
-          c.horas_teoria, c.horas_laboratorio ?? 0,
+          c.codigo, c.nombre, this.getTipoCurso(c), c.ciclo, c.creditos,
+          c.horas_teoria, c.horas_practica ?? 0, c.horas_laboratorio ?? 0,
           c.tiene_laboratorio ? 'Sí' : 'No',
-          (c.ambientes ?? []).filter(a => a.tipo === 'AULA').map(a => a.codigo).join(', '),
-          (c.ambientes ?? []).filter(a => a.tipo === 'LABORATORIO').map(a => a.codigo).join(', '),
+          (c.ambientes ?? []).filter(a => a.tipo === 'AULA' || a.tipo === 'TALLER').map(a => a.codigo).join(', '),
+            (c.ambientes ?? []).filter(a => a.tipo === 'LABORATORIO').map(a => a.codigo).join(', '),
+          this.getPrerequisitosResumen(c.prerequisitos),
           (c as any).activo !== false ? 'Activo' : 'Inactivo',
         ]);
         XLSX.utils.sheet_add_aoa(ws, rows, { origin: 'A5' });
-        ws['!cols'] = [{ wch:10 },{ wch:42 },{ wch:7 },{ wch:9 },{ wch:9 },{ wch:7 },{ wch:12 },{ wch:22 },{ wch:22 },{ wch:10 }];
+        ws['!cols'] = [{ wch:10 },{ wch:42 },{ wch:10 },{ wch:7 },{ wch:9 },{ wch:9 },{ wch:9 },{ wch:7 },{ wch:12 },{ wch:22 },{ wch:22 },{ wch:25 },{ wch:10 }];
         ws['!merges'] = [
-          { s:{r:0,c:0}, e:{r:0,c:9} },
-          { s:{r:1,c:0}, e:{r:1,c:9} },
+          { s:{r:0,c:0}, e:{r:0,c:12} },
+          { s:{r:1,c:0}, e:{r:1,c:12} },
         ];
         const P = '4F46E5', PD = '3730A3', W = 'FFFFFF', G = 'F0EDFE';
         const tS = { font:{bold:true,sz:13,color:{rgb:W}}, fill:{fgColor:{rgb:PD}}, alignment:{horizontal:'center'} };
         const sS = { font:{sz:9,italic:true,color:{rgb:W}}, fill:{fgColor:{rgb:P}}, alignment:{horizontal:'center'} };
         const hS = { font:{bold:true,sz:9,color:{rgb:W}}, fill:{fgColor:{rgb:'3730A3'}}, alignment:{horizontal:'center'} };
-        ['A1','B1','C1','D1','E1','F1','G1','H1','I1','J1'].forEach(c => { ws[c] = ws[c] ?? {}; ws[c].s = tS; });
-        ['A2','B2','C2','D2','E2','F2','G2','H2','I2','J2'].forEach(c => { ws[c] = ws[c] ?? {}; ws[c].s = sS; });
-        ['A4','B4','C4','D4','E4','F4','G4','H4','I4','J4'].forEach(c => { ws[c] = ws[c] ?? {}; ws[c].s = hS; });
+        ['A1','B1','C1','D1','E1','F1','G1','H1','I1','J1','K1','L1','M1'].forEach(c => { ws[c] = ws[c] ?? {}; ws[c].s = tS; });
+        ['A2','B2','C2','D2','E2','F2','G2','H2','I2','J2','K2','L2','M2'].forEach(c => { ws[c] = ws[c] ?? {}; ws[c].s = sS; });
+        ['A4','B4','C4','D4','E4','F4','G4','H4','I4','J4','K4','L4','M4'].forEach(c => { ws[c] = ws[c] ?? {}; ws[c].s = hS; });
         for (let i = 5; i < 5 + rows.length; i++) {
           const fill = i % 2 === 0 ? G : W;
-          ['A','B','C','D','E','F','G','H','I','J'].forEach(col => {
+          ['A','B','C','D','E','F','G','H','I','J','K','L','M'].forEach(col => {
             const cell = `${col}${i}`;
             if (!ws[cell]) ws[cell] = { v:'', t:'s' };
-            ws[cell].s = { fill:{fgColor:{rgb:fill}}, font:{sz:9}, alignment:{vertical:'center', horizontal: col === 'A' || col === 'C' || col === 'D' || col === 'E' || col === 'F' ? 'center' : 'left'} };
+            ws[cell].s = { fill:{fgColor:{rgb:fill}}, font:{sz:9}, alignment:{vertical:'center', horizontal: col === 'A' || col === 'C' || col === 'D' || col === 'E' || col === 'F' || col === 'G' || col === 'H' ? 'center' : 'left'} };
           });
-          const jCell = `J${i}`;
-          if (ws[jCell]) {
-            const isAct = ws[jCell].v === 'Activo';
-            ws[jCell].s = { fill:{fgColor:{rgb: isAct ? 'D1FAE5' : 'FEE2E2'}}, font:{sz:9,bold:true,color:{rgb: isAct ? '065F46' : '991B1B'}} };
+          const mCell = `M${i}`;
+          if (ws[mCell]) {
+            const isAct = ws[mCell].v === 'Activo';
+            ws[mCell].s = { fill:{fgColor:{rgb: isAct ? 'D1FAE5' : 'FEE2E2'}}, font:{sz:9,bold:true,color:{rgb: isAct ? '065F46' : '991B1B'}} };
           }
         }
         ws['!rows'] = [{ hpt:20 },{ hpt:14 },{},{ hpt:16 }];
@@ -254,6 +321,31 @@ export class CursosListComponent implements OnInit {
       },
       error: () => {
         this.snackBar.open('Error al exportar', 'Cerrar', { duration: 3000 });
+        this.exportando = false;
+      },
+    });
+  }
+
+  exportarPDF(): void {
+    this.exportando = true;
+    const params: Record<string, string> = {};
+    if (this.searchControl.value) params['search'] = this.searchControl.value;
+    if (this.cicloFilter) params['ciclo'] = this.cicloFilter;
+    if (this.labFilter !== '') params['lab'] = this.labFilter;
+    if (this.activoFilter !== '') params['activo'] = this.activoFilter;
+
+    this.api.getBlob('/reportes/cursos/pdf', params).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Cursos_${new Date().toISOString().slice(0,10)}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.exportando = false;
+      },
+      error: () => {
+        this.snackBar.open('Error al exportar PDF', 'Cerrar', { duration: 3000 });
         this.exportando = false;
       },
     });

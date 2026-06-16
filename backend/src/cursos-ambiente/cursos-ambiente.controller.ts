@@ -12,7 +12,12 @@ import {
   HttpCode,
   HttpStatus,
 } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from "@nestjs/swagger";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
@@ -35,7 +40,11 @@ export class CursosAmbienteController {
   @ApiResponse({ status: 201, description: "Relación creada" })
   async create(@Body() dto: CreateCursoAmbienteDto) {
     const data = await this.service.create(dto);
-    return { data, message: "Relación curso-ambiente creada", statusCode: HttpStatus.CREATED };
+    return {
+      data,
+      message: "Relación curso-ambiente creada",
+      statusCode: HttpStatus.CREATED,
+    };
   }
 
   @Get()
@@ -76,6 +85,10 @@ export class CursosAmbienteController {
     @Param("ambienteId", ParseIntPipe) ambienteId: number,
   ) {
     await this.service.remove(cursoId, ambienteId);
-    return { data: null, message: "Relación eliminada", statusCode: HttpStatus.OK };
+    return {
+      data: null,
+      message: "Relación eliminada",
+      statusCode: HttpStatus.OK,
+    };
   }
 }

@@ -33,7 +33,9 @@ export class AsignarAmbientesDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.loading = true;
-    const tipoReq = this.data.tipo_clase === 'TEORIA' ? 'AULA' : 'LABORATORIO';
+    const tiposReq = this.data.tipo_clase === 'TEORIA' 
+      ? ['AULA', 'TALLER'] 
+      : ['LABORATORIO'];
 
     this.api
       .get<ApiResponse<any>>('/ambientes', { limit: 100, activo: 'true' })
@@ -41,7 +43,7 @@ export class AsignarAmbientesDialogComponent implements OnInit {
         next: (r) => {
           const all = r.data?.items ?? r.data ?? [];
           this.ambientesDisponibles = all.filter(
-            (a: Ambiente) => a.tipo === tipoReq,
+            (a: Ambiente) => tiposReq.includes(a.tipo),
           );
           this.cargarAsignados();
         },

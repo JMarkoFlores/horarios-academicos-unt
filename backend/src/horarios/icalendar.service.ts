@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { HorarioAsignado } from '../entities/horario-asignado.entity';
-import { PeriodoAcademico } from '../entities/periodo-academico.entity';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 
 @Injectable()
 export class ICalendarService {
@@ -19,7 +19,7 @@ export class ICalendarService {
   ): Promise<string> {
     const horarios = await this.horarioRepo.find({
       where: { docente_id: docenteId, periodo },
-      relations: ['docente', 'curso', 'ambiente', 'grupo'],
+      relations: ["docente", "curso", "ambiente", "grupo"],
     });
 
     if (horarios.length === 0) {
@@ -48,14 +48,14 @@ export class ICalendarService {
     fechaFin: Date,
   ): string {
     const lines: string[] = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//UNT Sistema de Horarios//ES',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'X-WR-CALNAME:Horarios Académicos',
-      'X-WR-TIMEZONE:America/Lima',
-      'X-WR-CALDESC:Horarios de clases generados por el sistema',
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//UNT Sistema de Horarios//ES",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "X-WR-CALNAME:Horarios Académicos",
+      "X-WR-TIMEZONE:America/Lima",
+      "X-WR-CALDESC:Horarios de clases generados por el sistema",
     ];
 
     // Agregar definición de timezone
@@ -66,25 +66,25 @@ export class ICalendarService {
       lines.push(...event);
     }
 
-    lines.push('END:VCALENDAR');
-    return lines.join('\r\n');
+    lines.push("END:VCALENDAR");
+    return lines.join("\r\n");
   }
 
   private generarVTimezone(): string[] {
     return [
-      'BEGIN:VTIMEZONE',
-      'TZID:America/Lima',
-      'BEGIN:STANDARD',
-      'DTSTART:19700101T000000',
-      'TZOFFSETFROM:-0500',
-      'TZOFFSETTO:-0500',
-      'END:STANDARD',
-      'BEGIN:DAYLIGHT',
-      'DTSTART:19700101T000000',
-      'TZOFFSETFROM:-0500',
-      'TZOFFSETTO:-0500',
-      'END:DAYLIGHT',
-      'END:VTIMEZONE',
+      "BEGIN:VTIMEZONE",
+      "TZID:America/Lima",
+      "BEGIN:STANDARD",
+      "DTSTART:19700101T000000",
+      "TZOFFSETFROM:-0500",
+      "TZOFFSETTO:-0500",
+      "END:STANDARD",
+      "BEGIN:DAYLIGHT",
+      "DTSTART:19700101T000000",
+      "TZOFFSETFROM:-0500",
+      "TZOFFSETTO:-0500",
+      "END:DAYLIGHT",
+      "END:VTIMEZONE",
     ];
   }
 
@@ -100,12 +100,13 @@ export class ICalendarService {
 
     const uid = `${horario.id}@unt.edu.pe`;
     const summary = `${curso.codigo} - ${curso.nombre} (${horario.tipo_clase})`;
-    const description = `Docente: ${docente?.nombres} ${docente?.apellidos}\n` +
+    const description =
+      `Docente: ${docente?.nombres} ${docente?.apellidos}\n` +
       `Curso: ${curso.nombre}\n` +
       `Grupo: ${grupo?.nombre}\n` +
       `Ambiente: ${ambiente?.nombre}\n` +
       `Tipo: ${horario.tipo_clase}`;
-    const location = ambiente?.nombre || 'Por asignar';
+    const location = ambiente?.nombre || "Por asignar";
 
     // Calcular primera fecha del evento (primera ocurrencia del día de la semana)
     const primeraFecha = this.calcularPrimeraFecha(horario.dia, fechaInicio);
@@ -116,7 +117,7 @@ export class ICalendarService {
     const diaSemana = this.obtenerDiaSemanaICal(horario.dia);
 
     return [
-      'BEGIN:VEVENT',
+      "BEGIN:VEVENT",
       `UID:${uid}`,
       `DTSTAMP:${this.formatoICalDateTime(new Date())}`,
       `DTSTART;TZID=America/Lima:${startDate}T${startTime}`,
@@ -126,49 +127,49 @@ export class ICalendarService {
       `DESCRIPTION:${this.escapeICalText(description)}`,
       `LOCATION:${this.escapeICalText(location)}`,
       `STATUS:CONFIRMED`,
-      'END:VEVENT',
+      "END:VEVENT",
     ];
   }
 
   private obtenerDiaSemanaICal(dia: number): string {
     const dias: Record<number, string> = {
-      1: 'MO',
-      2: 'TU',
-      3: 'WE',
-      4: 'TH',
-      5: 'FR',
-      6: 'SA',
+      1: "MO",
+      2: "TU",
+      3: "WE",
+      4: "TH",
+      5: "FR",
+      6: "SA",
     };
-    return dias[dia] || 'MO';
+    return dias[dia] || "MO";
   }
 
   private formatoICalDate(date: Date): string {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     return `${year}${month}${day}`;
   }
 
   private formatoICalTime(time: string): string {
-    return time.replace(/:/g, '');
+    return time.replace(/:/g, "");
   }
 
   private formatoICalDateTime(date: Date): string {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
     return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
   }
 
   private escapeICalText(text: string): string {
     return text
-      .replace(/\\/g, '\\\\')
-      .replace(/;/g, '\\;')
-      .replace(/,/g, '\\,')
-      .replace(/\n/g, '\\n')
+      .replace(/\\/g, "\\\\")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,")
+      .replace(/\n/g, "\\n")
       .replace(/"/g, '\\"');
   }
 
@@ -191,10 +192,14 @@ export class ICalendarService {
     return fecha;
   }
 
-  private calcularPrimeraFechaUTC(dia: number, fechaInicio: Date, hora: string): Date {
+  private calcularPrimeraFechaUTC(
+    dia: number,
+    fechaInicio: Date,
+    hora: string,
+  ): Date {
     // Calcular la primera fecha en UTC considerando el offset
     const primeraFecha = this.calcularPrimeraFecha(dia, fechaInicio);
-    const [h, m] = hora.split(':').map(Number);
+    const [h, m] = hora.split(":").map(Number);
     const fechaUTC = new Date(primeraFecha);
     fechaUTC.setHours(h + 5, m, 0, 0); // Sumar 5 horas para UTC
 
@@ -210,7 +215,7 @@ export class ICalendarService {
 
   private convertirAUTC(fecha: Date, hora: string): string {
     // America/Lima es UTC-5, así que sumamos 5 horas para convertir a UTC
-    const [h, m] = hora.split(':').map(Number);
+    const [h, m] = hora.split(":").map(Number);
     const fechaUTC = new Date(fecha);
     fechaUTC.setHours(h + 5, m, 0, 0); // Sumar 5 horas para UTC
     return this.formatoICalDateTime(fechaUTC);

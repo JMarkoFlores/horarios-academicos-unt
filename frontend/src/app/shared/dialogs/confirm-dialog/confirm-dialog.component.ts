@@ -38,7 +38,7 @@ export interface ConfirmDialogData {
   `,
   styles: [`
     .confirm-dialog {
-      padding: 8px 0 0;
+      padding: 8px 24px 0;
       text-align: center;
       min-width: 320px;
     }
@@ -58,7 +58,8 @@ export interface ConfirmDialogData {
     h2 { font-size: 18px; font-weight: 700; margin: 0 0 4px; text-align: center; }
     .message { font-size: 14px; color: var(--color-text); margin: 0 0 4px; }
     .detail { font-size: 12px; color: var(--color-text-muted); margin: 0; }
-    mat-dialog-actions { padding: 16px 0 8px; gap: 8px; }
+    mat-dialog-content { padding: 8px 0; }
+    mat-dialog-actions { padding: 16px 24px 8px; gap: 8px; }
     .btn-cancel { border-radius: 8px !important; font-weight: 600 !important; }
     .btn-confirm { border-radius: 8px !important; font-weight: 700 !important; position: relative; }
     .btn-spinner { display: inline-block; margin-right: 6px; }

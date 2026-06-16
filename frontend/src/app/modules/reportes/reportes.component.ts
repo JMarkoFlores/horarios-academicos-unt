@@ -96,4 +96,52 @@ export class ReportesComponent implements OnInit {
       periodo: this.periodoService.periodo,
     });
   }
+
+  descargarF01Cad(): void {
+    if (!this.docenteSeleccionado) {
+      this.snackBar.open('Seleccione un docente', 'OK', { duration: 2000 });
+      return;
+    }
+    this.descargar(
+      'f01-cad',
+      `/reportes/f01-cad/${this.docenteSeleccionado.id}/pdf`,
+      { periodo: this.periodoService.periodo },
+    );
+  }
+
+  descargarConsolidadoCarga(): void {
+    this.descargar('consolidado-carga', '/reportes/consolidado-carga/pdf', {
+      periodo: this.periodoService.periodo,
+    });
+  }
+
+  descargarCargaPorModalidad(): void {
+    this.descargar('carga-por-modalidad', '/reportes/carga-por-modalidad/pdf', {
+      periodo: this.periodoService.periodo,
+    });
+  }
+
+  descargarConsolidadoExcel(): void {
+    this.descargar('consolidado-excel', '/reportes/consolidado-carga/excel', {
+      periodo: this.periodoService.periodo,
+    });
+  }
+
+  descargarGestionCarga(): void {
+    this.descargar('gestion-carga', '/reportes/gestion/carga/pdf', {
+      periodo: this.periodoService.periodo,
+    });
+  }
+
+  descargarCumplimiento(): void {
+    this.descargar('cumplimiento', '/reportes/gestion/cumplimiento/pdf', {
+      periodo: this.periodoService.periodo,
+    });
+  }
+
+  descargarEjecutivo(): void {
+    this.descargar('ejecutivo', '/reportes/gestion/ejecutivo/pdf', {
+      periodo: this.periodoService.periodo,
+    });
+  }
 }

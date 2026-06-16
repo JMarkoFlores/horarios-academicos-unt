@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Not } from "typeorm";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 import { Docente } from "../entities/docente.entity";
@@ -19,6 +19,8 @@ import * as https from "https";
 
 import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { Departamento } from "../entities/departamento.entity";
+import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
 
 @Injectable()
 export class ReportesService {
@@ -45,6 +47,8 @@ export class ReportesService {
     private readonly declaracionRepo: Repository<DeclaracionCargaHoraria>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
+    @InjectRepository(Departamento)
+    private readonly departamentoRepo: Repository<Departamento>,
     private readonly configuracionService: ConfiguracionService,
   ) {}
 
@@ -599,115 +603,23 @@ export class ReportesService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
 
-    // Organizar carga lectiva
-    const cursosMap = new Map<number, any>();
-    horarios.forEach((h) => {
-      if (!h.curso) return;
-      if (!cursosMap.has(h.curso.id)) {
-        cursosMap.set(h.curso.id, {
-          curso: h.curso,
-          horariosTeoria: [] as string[],
-          horariosPractica: [] as string[],
-          horariosLab: [] as string[],
-          ambientes: new Set<string>(),
-          horasTotales: 0,
-        });
-      }
+    const estadoDeclaracion = declaracion?.estado || "NO_INICIADO";
+    const estadosAprobados = ["VALIDADO_DPTO", "APROBADO_FACULTAD", "CERRADO"];
+    const esOficial = estadosAprobados.includes(estadoDeclaracion);
+    const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
+    const watermarkOpacity = esOficial ? "0.08" : "0.12";
 
-      const c = cursosMap.get(h.curso.id);
-      const diaStr = ["LU", "MA", "MI", "JU", "VI", "SA", "DO"][
-        (h.dia || h.dia_semana || 1) - 1
-      ];
-      const hStr = `${h.hora_inicio.substring(0, 5)}-${h.hora_fin.substring(0, 5)}`;
+    const modalidadLabel: Record<string, string> = {
+      DEDICACION_EXCLUSIVA: "DEDICACIÓN EXCLUSIVA",
+      TIEMPO_COMPLETO_40: "TIEMPO COMPLETO 40 H",
+      TIEMPO_PARCIAL_20: "TIEMPO PARCIAL 20 H",
+      TIEMPO_PARCIAL_12: "TIEMPO PARCIAL 12 H",
+      TIEMPO_PARCIAL_10: "TIEMPO PARCIAL 10 H",
+      TIEMPO_PARCIAL_8: "TIEMPO PARCIAL 8 H",
+    };
 
-      if (h.tipo_clase === TipoClase.TEORIA)
-        c.horariosTeoria.push(`${diaStr} (${hStr})`);
-      else if (h.tipo_clase === TipoClase.PRACTICA)
-        c.horariosPractica.push(`${diaStr} (${hStr})`);
-      else if (h.tipo_clase === TipoClase.LABORATORIO)
-        c.horariosLab.push(`${diaStr} (${hStr})`);
-
-      if (h.ambiente) {
-        c.ambientes.add(h.ambiente.codigo || h.ambiente.nombre);
-      }
-
-      const hIni = this.horaToDecimal(h.hora_inicio);
-      const hFin = this.horaToDecimal(h.hora_fin);
-      c.horasTotales += hFin - hIni;
-    });
-
-    let trsCargaLectiva = "";
-    let totalCargaLectiva = 0;
-
-    Array.from(cursosMap.values()).forEach((c) => {
-      const horarioStrParts = [];
-      if (c.horariosTeoria.length)
-        horarioStrParts.push(`<b>T:</b> ${c.horariosTeoria.join(", ")}`);
-      if (c.horariosPractica.length)
-        horarioStrParts.push(`<b>P:</b> ${c.horariosPractica.join(", ")}`);
-      if (c.horariosLab.length)
-        horarioStrParts.push(`<b>L:</b> ${c.horariosLab.join(", ")}`);
-
-      trsCargaLectiva += `
-        <tr>
-          <td>${horarioStrParts.join("<br>")}</td>
-          <td>${c.curso.nombre}<br>${c.curso.ciclo || ""}-C ${c.curso.escuela || ""}</td>
-          <td class="text-center">F11</td>
-          <td class="text-center">${Array.from(c.ambientes).join(", ")}</td>
-          <td class="text-center">${c.horasTotales}</td>
-        </tr>
-      `;
-      totalCargaLectiva += c.horasTotales;
-    });
-
-    if (trsCargaLectiva === "") {
-      trsCargaLectiva =
-        '<tr><td colspan="5" class="text-center">No hay carga lectiva asignada</td></tr>';
-    }
-
-    // Organizar carga no lectiva
-    let trsCargaNoLectiva = "";
-    let totalCargaNoLectiva = 0;
-
-    if (
-      declaracion &&
-      declaracion.carga_no_lectiva &&
-      Array.isArray((declaracion.carga_no_lectiva as any).actividades)
-    ) {
-      const actividades = (declaracion.carga_no_lectiva as any).actividades;
-      actividades.forEach((a: any) => {
-        if (a.horas > 0) {
-          const horarioStr = Array.isArray(a.horarios)
-            ? a.horarios.map((h: any) => `${h.dia} ${(h.hora_inicio || '').substring(0, 5)}-${(h.hora_fin || '').substring(0, 5)}`).join(', ')
-            : a.horario || '';
-          trsCargaNoLectiva += `
-            <tr>
-              <td>${horarioStr}</td>
-              <td>${a.descripcion
-                .replace(/^[0-9]+\.\s*/, "")
-                .split(":")[0]
-                .split("(")[0]
-                .trim()}</td>
-              <td class="text-center">F11</td>
-              <td class="text-center">CUBÍCULO</td>
-              <td class="text-center">${a.horas}</td>
-            </tr>
-          `;
-          totalCargaNoLectiva += Number(a.horas);
-        }
-      });
-    }
-
-    if (trsCargaNoLectiva === "") {
-      trsCargaNoLectiva =
-        '<tr><td colspan="5" class="text-center">No hay carga no lectiva asignada</td></tr>';
-    }
-
-    const totalAcademica = totalCargaLectiva + totalCargaNoLectiva;
-
-    // AÑO y SEMESTRE a partir de periodo (ej. 2025-II)
     const partesPeriodo = periodo.split("-");
-    const anio = partesPeriodo[0] || new Date().getFullYear();
+    const anio = partesPeriodo[0] || new Date().getFullYear().toString();
     const semestre = partesPeriodo[1] || "I";
 
     const dateIni = periodoObj.fecha_inicio
@@ -717,90 +629,363 @@ export class ReportesService {
       ? new Date(periodoObj.fecha_fin).toLocaleDateString("es-PE")
       : "";
 
+    const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
+    const ibm = docente.ibm || 0;
+    const categoriaLabel =
+      docente.categoria === "PRINCIPAL"
+        ? "Principal"
+        : docente.categoria === "ASOCIADO"
+          ? "Asociado"
+          : docente.categoria === "AUXILIAR"
+            ? "Auxiliar"
+            : docente.categoria || "";
+    const modalidadDisplay = modalidadLabel[docente.modalidad] || docente.modalidad || "TC";
+
+    // --- MATRIZ SEMANAL ---
+    const diasNom = ["LU", "MA", "MI", "JU", "VI", "SA"];
+    const horasSlot = [
+      "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
+      "13:00", "14:00", "15:00", "16:00", "17:00", "18:00",
+      "19:00", "20:00", "21:00", "22:00",
+    ];
+
+    const tipoColors: Record<string, { bg: string; text: string; label: string }> = {
+      TEORIA: { bg: "#E3F2FD", text: "#1565C0", label: "T" },
+      PRACTICA: { bg: "#E8F5E9", text: "#2E7D32", label: "P" },
+      LABORATORIO: { bg: "#FFF3E0", text: "#E65100", label: "L" },
+      NO_LECTIVA: { bg: "#F3E5F5", text: "#6A1B9A", label: "NL" },
+    };
+
+    // Build matrix: horarios indexed by (dia, hora_inicio)
+    const matrixMap = new Map<string, HorarioAsignado[]>();
+    horarios.forEach((h) => {
+      if (!h.curso) return;
+      const key = `${h.dia || h.dia_semana || 1}_${h.hora_inicio.substring(0, 5)}`;
+      if (!matrixMap.has(key)) matrixMap.set(key, []);
+      matrixMap.get(key)!.push(h);
+    });
+
+    let gridRows = "";
+    // Track hours per day for total
+    const horasPorDia = [0, 0, 0, 0, 0, 0];
+
+    horasSlot.forEach((horaSlot) => {
+      const slotHour = horaSlot.substring(0, 2);
+      gridRows += `<tr><td class="hora-cell">${horaSlot}</td>`;
+      for (let diaIdx = 1; diaIdx <= 6; diaIdx++) {
+        const key = `${diaIdx}_${horaSlot}`;
+        const asignaciones = matrixMap.get(key);
+        if (asignaciones && asignaciones.length > 0) {
+          const first = asignaciones[0];
+          const tColor = tipoColors[first.tipo_clase] || tipoColors.TEORIA;
+          const dur = this.horaToDecimal(first.hora_fin) - this.horaToDecimal(first.hora_inicio);
+          horasPorDia[diaIdx - 1] += dur;
+
+          const grupoCod = first.grupo?.codigo || "";
+          const ambCod = first.ambiente?.codigo || first.ambiente?.nombre || "";
+          gridRows += `<td class="grid-cell" style="background:${tColor.bg};color:${tColor.text};border-left:3px solid ${tColor.text}">
+            <div class="cell-tipo">${tColor.label}</div>
+            <div class="cell-curso">${first.curso.nombre}</div>
+            <div class="cell-meta">${grupoCod} ${ambCod}</div>
+            <div class="cell-hours">${dur}h</div>
+          </td>`;
+        } else {
+          gridRows += `<td class="grid-cell-empty"></td>`;
+        }
+      }
+      gridRows += "</tr>";
+    });
+
+    // Totals row
+    gridRows += `<tr class="total-row"><td class="hora-cell total-label">TOTAL</td>`;
+    let totalSemanal = 0;
+    for (let diaIdx = 0; diaIdx < 6; diaIdx++) {
+      const h = Math.round(horasPorDia[diaIdx] * 100) / 100;
+      totalSemanal += h;
+      gridRows += `<td class="total-cell">${h > 0 ? h.toFixed(1) + "h" : ""}</td>`;
+    }
+    gridRows += "</tr>";
+
+    // --- DETAILED LECTIVA TABLE ---
+    let totalCargaLectiva = 0;
+    let trsCargaLectivaDetalle = "";
+    const processedCursos = new Map<string, boolean>();
+
+    horarios.forEach((h) => {
+      if (!h.curso) return;
+      const diaIdx = h.dia || h.dia_semana || 1;
+      const diaStr = ["LU", "MA", "MI", "JU", "VI", "SA", "DO"][diaIdx - 1];
+      const hStr = `${h.hora_inicio.substring(0, 5)}-${h.hora_fin.substring(0, 5)}`;
+      const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
+      totalCargaLectiva += dur;
+      const tColor = tipoColors[h.tipo_clase] || tipoColors.TEORIA;
+
+      const key = `${h.curso.id}_${h.tipo_clase}`;
+      const isFirst = !processedCursos.has(key);
+      processedCursos.set(key, true);
+
+      trsCargaLectivaDetalle += `
+        <tr class="${isFirst ? "" : "gris-row"}">
+          <td>${isFirst ? `<span class="tipo-badge" style="background:${tColor.bg};color:${tColor.text}">${tColor.label}</span>` : ""} ${diaStr} (${hStr})</td>
+          <td>${isFirst ? `${h.curso.nombre}<br><small>Ciclo ${h.curso.ciclo || ""}</small>` : "<small>Continuación</small>"}</td>
+          <td class="text-center">${h.grupo?.codigo || ""}</td>
+          <td class="text-center">${h.ambiente?.codigo || h.ambiente?.nombre || ""}</td>
+          <td class="text-center">${dur}h</td>
+        </tr>`;
+    });
+
+    if (trsCargaLectivaDetalle === "") {
+      trsCargaLectivaDetalle = '<tr><td colspan="5" class="text-center">No hay carga lectiva asignada</td></tr>';
+    }
+
+    // --- CARGA NO LECTIVA ---
+    let totalCargaNoLectiva = 0;
+    let trsCargaNoLectivaDetalle = "";
+
+    if (declaracion?.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
+      const actividades = (declaracion.carga_no_lectiva as any).actividades;
+      actividades.forEach((a: any) => {
+        if (a.horas > 0) {
+          const horarioStr = Array.isArray(a.horarios)
+            ? a.horarios.map((ha: any) => `${ha.dia} ${(ha.hora_inicio || "").substring(0, 5)}-${(ha.hora_fin || "").substring(0, 5)}`).join(", ")
+            : a.horario || "";
+          const descLabel = a.descripcion
+            .replace(/^[0-9]+\.\s*/, "")
+            .split(":")[0]
+            .split("(")[0]
+            .trim();
+          totalCargaNoLectiva += Number(a.horas);
+          trsCargaNoLectivaDetalle += `
+            <tr>
+              <td>${horarioStr || "—"}</td>
+              <td>${descLabel}</td>
+              <td class="text-center">F11</td>
+              <td class="text-center">CUBÍCULO</td>
+              <td class="text-center">${a.horas}h</td>
+            </tr>`;
+        }
+      });
+    }
+
+    if (trsCargaNoLectivaDetalle === "") {
+      trsCargaNoLectivaDetalle = '<tr><td colspan="5" class="text-center" style="color:#999">Sin actividades no lectivas registradas</td></tr>';
+    }
+
+    const totalAcademica = totalCargaLectiva + totalCargaNoLectiva;
+
+    const estadoLabel: Record<string, string> = {
+      NO_INICIADO: "No Iniciado", BORRADOR: "Borrador", PENDIENTE_ENVIO: "Pendiente",
+      ENVIADO_DOCENTE: "Enviado", OBSERVADO_DPTO: "Observado Dpto", SUBSANADO: "Subsanado",
+      VALIDADO_DPTO: "Validado Dpto", OBSERVADO_FACULTAD: "Observado Facultad",
+      APROBADO_FACULTAD: "Aprobado Facultad", CERRADO: "Cerrado", ANULADO: "Anulado",
+    };
+
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Arial', sans-serif; font-size: 11px; color: #000; margin: 0; padding: 0; }
-          .container { width: 100%; margin: 0 auto; }
-          .header-title { font-size: 16px; font-weight: bold; text-align: center; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-          table, th, td { border: 1px solid #000; }
-          th, td { padding: 4px; vertical-align: middle; }
-          .bg-light-blue { background-color: #DCE6F1; font-weight: bold; text-align: center; }
+          body { font-family: 'Arial', sans-serif; font-size: 10px; color: #000; margin: 0; padding: 0; }
+          .container { width: 100%; margin: 0 auto; position: relative; }
+          .watermark {
+            position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
+            font-size: 80px; font-weight: bold; color: rgba(0,0,0,${watermarkOpacity});
+            transform: rotate(-30deg); pointer-events: none; z-index: 1000;
+            font-family: 'Arial', sans-serif; letter-spacing: 10px;
+          }
+          .header-title { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 12px; }
+          .header-sub { font-size: 11px; text-align: center; margin-bottom: 14px; color: #555; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+          table, th, td { border: 1px solid #333; }
+          th, td { padding: 3px 5px; vertical-align: middle; }
+          .bg-header { background-color: #1a237e; color: white; font-weight: bold; text-align: center; font-size: 10px; }
           .text-center { text-align: center; }
           .text-bold { font-weight: bold; }
-          .info-table td { border: 1px solid #000; padding: 4px; }
-          .signatures { margin-top: 50px; width: 100%; }
-          .signature-box { width: 32%; display: inline-block; text-align: center; vertical-align: bottom; }
-          .signature-line { border-top: 1px solid #000; width: 80%; margin: 0 auto 5px auto; }
-          .footer-text { font-size: 9px; margin-top: 10px; }
+          .info-table td { border: 1px solid #333; padding: 4px 6px; font-size: 10px; }
+          .info-label { font-weight: 600; color: #555; width: 18%; }
+          .gris-row { background: #f5f5f5; }
+
+          /* Grid matrix */
+          .grid-table th { background: #1a237e; color: white; font-size: 9px; padding: 4px; text-align: center; }
+          .hora-cell { font-size: 8px; font-weight: 600; color: #333; background: #fafafa; text-align: center; width: 60px; }
+          .grid-cell { font-size: 8px; padding: 2px 4px; vertical-align: top; }
+          .grid-cell-empty { background: #fafafa; }
+          .grid-cell .cell-tipo { font-weight: bold; font-size: 7px; text-transform: uppercase; }
+          .grid-cell .cell-curso { font-weight: 600; font-size: 8px; line-height: 1.2; margin: 1px 0; }
+          .grid-cell .cell-meta { font-size: 7px; color: #666; }
+          .grid-cell .cell-hours { font-size: 7px; font-weight: 700; margin-top: 1px; }
+          .total-row td { background: #fff8e1; font-weight: bold; font-size: 9px; }
+          .total-cell { text-align: center; font-weight: 700; background: #fff8e1; color: #e65100; }
+
+          /* Detail table */
+          .detail-table th { background: #283593; color: white; font-size: 9px; }
+          .tipo-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 8px; font-weight: bold; }
+          .sub-header { background: #e8eaf6; font-weight: bold; text-align: center; font-size: 10px; }
+          .total-academica { background: #1a237e; color: white; font-weight: bold; font-size: 11px; }
+
+          /* Legend */
+          .legend { display: flex; gap: 20px; justify-content: center; margin: 10px 0; font-size: 9px; }
+          .legend-item { display: flex; align-items: center; gap: 6px; }
+          .legend-color { width: 16px; height: 16px; border-radius: 3px; border: 1px solid #999; }
+
+          /* Signatures */
+          .signatures { margin-top: 30px; width: 100%; text-align: center; }
+          .sig-block { display: inline-block; width: 30%; margin: 0 1.5%; text-align: center; vertical-align: top; }
+          .sig-line { border-top: 1px solid #000; width: 80%; margin: 0 auto 4px auto; }
+          .sig-label { font-size: 9px; font-weight: bold; }
+          .sig-sub { font-size: 8px; color: #555; }
+
+          .estado-badge { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 9px; font-weight: bold; }
+          .estado-oficial { background: #e8f5e9; color: #2e7d32; }
+          .estado-borrador { background: #fff3e0; color: #e65100; }
+
+          .footer-note { font-size: 8px; color: #666; margin-top: 10px; text-align: center; }
+
+          .page-break { page-break-before: always; }
+
+          .no-lectiva-row td { background: #f3e5f5; }
+          .no-lectiva-label { background: #6a1b9a; color: white; text-align: center; font-weight: bold; font-size: 9px; }
+
+          @media print {
+            .watermark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
+          .grid-cell, .tipo-badge, .estado-badge, .bg-header, .total-academica { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         </style>
       </head>
       <body>
+        <div class="watermark">${watermarkText}</div>
         <div class="container">
-          <div class="header-title">HORARIO SEMANAL DE LA CARGA ACADÉMICA DOCENTE (F03-CAD)</div>
+          <div class="header-title">UNIVERSIDAD NACIONAL DE TRUJILLO</div>
+          <div class="header-sub">HORARIO SEMANAL DE LA CARGA ACADÉMICA DOCENTE — F03-CAD</div>
 
           <table class="info-table">
             <tr>
-              <td colspan="2">Facultad / Filial: <b>${docente.facultad?.nombre || ""}</b></td>
-              <td colspan="2">Dpto. Académico: <b>${docente.departamento?.nombre || ""}</b></td>
+              <td class="info-label">Docente:</td>
+              <td><b>${nombreCompleto}</b></td>
+              <td class="info-label">IBM / DNI:</td>
+              <td><b>${ibm}</b></td>
             </tr>
             <tr>
-              <td>DNI</td>
-              <td class="text-bold text-center">${docente.codigo || ""}</td>
-              <td>Docente: <b>${docente.apellidos.toUpperCase()} ${docente.nombres.toUpperCase()}</b></td>
-              <td class="text-center text-bold">${docente.categoria || "ASOCIADO"}<br>${docente.modalidad || "TC"}</td>
+              <td class="info-label">Facultad:</td>
+              <td>${docente.facultad?.nombre || "—"}</td>
+              <td class="info-label">Departamento:</td>
+              <td>${docente.departamento?.nombre || "—"}</td>
             </tr>
             <tr>
-              <td colspan="2" class="text-center">AÑO ACADEMICO: <b>${anio}</b> SEMESTRE: <b>${semestre}</b></td>
-              <td colspan="2" class="text-center">Fecha de Inicio: <b>${dateIni}</b> Fecha de término: <b>${dateFin}</b></td>
+              <td class="info-label">Categoría:</td>
+              <td>${categoriaLabel}</td>
+              <td class="info-label">Modalidad:</td>
+              <td>${modalidadDisplay}</td>
+            </tr>
+            <tr>
+              <td class="info-label">Periodo:</td>
+              <td><b>${periodo}</b> (${semestre} Semestre)</td>
+              <td class="info-label">Estado:</td>
+              <td><span class="estado-badge ${esOficial ? "estado-oficial" : "estado-borrador"}">${estadoLabel[estadoDeclaracion] || estadoDeclaracion}</span></td>
+            </tr>
+            <tr>
+              <td class="info-label">Fecha Inicio:</td>
+              <td>${dateIni}</td>
+              <td class="info-label">Fecha Término:</td>
+              <td>${dateFin}</td>
             </tr>
           </table>
 
+          <!-- MATRIZ SEMANAL -->
+          <table class="grid-table">
+            <thead>
+              <tr>
+                <th style="width:7%">HORA</th>
+                <th style="width:15.5%">LUNES</th>
+                <th style="width:15.5%">MARTES</th>
+                <th style="width:15.5%">MIÉRCOLES</th>
+                <th style="width:15.5%">JUEVES</th>
+                <th style="width:15.5%">VIERNES</th>
+                <th style="width:15.5%">SÁBADO</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${gridRows}
+            </tbody>
+          </table>
+
+          <!-- LEYENDA -->
+          <div class="legend">
+            <div class="legend-item"><div class="legend-color" style="background:#E3F2FD;border-color:#1565C0"></div> Teoría</div>
+            <div class="legend-item"><div class="legend-color" style="background:#E8F5E9;border-color:#2E7D32"></div> Práctica</div>
+            <div class="legend-item"><div class="legend-color" style="background:#FFF3E0;border-color:#E65100"></div> Laboratorio</div>
+            <div class="legend-item"><div class="legend-color" style="background:#F3E5F5;border-color:#6A1B9A"></div> No Lectiva</div>
+          </div>
+
+          <div class="page-break"></div>
+
+          <!-- DETALLE CARGA LECTIVA -->
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th width="22%">HORARIO</th>
+                <th width="33%">CARGA HORARIA LECTIVA (CHL)</th>
+                <th width="12%">GRUPO</th>
+                <th width="18%">AULA</th>
+                <th width="15%">TOTAL H</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${trsCargaLectivaDetalle}
+            </tbody>
+          </table>
+
+          <!-- DETALLE CARGA NO LECTIVA -->
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th width="22%">HORARIO</th>
+                <th width="33%">CARGA HORARIA NO LECTIVA (CHNL)</th>
+                <th width="12%">LUGAR</th>
+                <th width="18%">AULA</th>
+                <th width="15%">TOTAL H</th>
+              </tr>
+            </thead>
+            <tbody class="no-lectiva-row">
+              ${trsCargaNoLectivaDetalle}
+            </tbody>
+          </table>
+
+          <!-- TOTALES -->
           <table>
-            <tr class="bg-light-blue">
-              <td width="20%">HORARIO</td>
-              <td width="40%">CARGA HORARIA LECTIVA (CHL)</td>
-              <td width="10%">LUGAR</td>
-              <td width="20%">AULA</td>
-              <td width="10%">TOTAL</td>
-            </tr>
-            ${trsCargaLectiva}
-            <tr class="bg-light-blue">
-              <td>HORARIO</td>
-              <td>CARGA HORARIA NO LECTIVA (CHNL)</td>
-              <td>LUGAR</td>
-              <td>AULA</td>
-              <td>TOTAL</td>
-            </tr>
-            ${trsCargaNoLectiva}
-            <tr class="bg-light-blue">
-              <td colspan="4">TOTAL HORAS CARGA ACADÉMICA</td>
-              <td>${totalAcademica}</td>
+            <tr class="total-academica">
+              <td colspan="4" style="text-align:right;padding-right:16px">
+                TOTAL HORAS LECTIVAS: <b>${totalCargaLectiva.toFixed(1)}h</b> &nbsp;|&nbsp;
+                TOTAL HORAS NO LECTIVAS: <b>${totalCargaNoLectiva.toFixed(1)}h</b> &nbsp;|&nbsp;
+                TOTAL SEMANAL: <b>${totalAcademica.toFixed(1)}h</b>
+              </td>
+              <td style="text-align:center;font-size:12px">
+                <b>${totalAcademica.toFixed(1)}h</b>
+              </td>
             </tr>
           </table>
 
-          <div class="footer-text">
-            T: TEORIA - P: PRACTICA<br>
-            LU (LUNES); MA (MARTES); MI (MIERCOLES); JU (JUEVES); VI (VIERNES); SA (SABADO); DO (DOMINGO); TIEMPO EN FORMATO DE 24 HORAS.<br><br>
-            LUGAR: (F01: "CC. Agropecuarias", F02: "CC. Biológicas", F03: "CC. Económicas", F04: "CC. Físicas y Matemáticas", F05: "CC. Sociales", F06: "Derecho y Ciencias Políticas", F07: "Educación y Comunicación", F08: "Enfermería", F09: "Estomatología", F10: "Farmacia y Bioquímica", F11: "Ingeniería", F12: "Ingeniería Química", F13: "Medicina", F14: "Filial Valle Jequetepeque", F15: "Filial Huamachuco", F16: "Filial Santiago de Chuco", OA: "Oficina Administrativa", SC: "Salida de Campo")
+          <div class="footer-note">
+            T: TEORÍA &nbsp; P: PRÁCTICA &nbsp; L: LABORATORIO &nbsp; NL: NO LECTIVA<br>
+            LU (LUNES); MA (MARTES); MI (MIÉRCOLES); JU (JUEVES); VI (VIERNES); SA (SÁBADO)
           </div>
 
           <div class="signatures">
-            <div class="signature-box">
-              <div class="signature-line"></div>
-              <b>FIRMA DEL DOCENTE</b>
+            <div class="sig-block">
+              <div class="sig-line"></div>
+              <div class="sig-label">FIRMA DEL DOCENTE</div>
+              <div class="sig-sub">${nombreCompleto}</div>
             </div>
-            <div class="signature-box">
-              <div class="signature-line"></div>
-              <b>FIRMA Y SELLO DEL DIRECTOR DE DPTO.ACADEMICO</b>
+            <div class="sig-block">
+              <div class="sig-line"></div>
+              <div class="sig-label">DIRECTOR DE DPTO. ACADÉMICO</div>
+              <div class="sig-sub">${docente.departamento?.nombre || ""}</div>
             </div>
-            <div class="signature-box">
-              <div class="signature-line"></div>
-              <b>V°B° DECANO</b>
+            <div class="sig-block">
+              <div class="sig-line"></div>
+              <div class="sig-label">V°B° DECANO</div>
+              <div class="sig-sub">${docente.facultad?.nombre || ""}</div>
             </div>
           </div>
         </div>
@@ -821,12 +1006,735 @@ export class ReportesService {
         format: "A4",
         landscape: true,
         printBackground: true,
+        margin: { top: "12mm", bottom: "12mm", left: "10mm", right: "10mm" },
+      });
+      return Buffer.from(buffer);
+    } finally {
+      await browser.close();
+    }
+  }
+
+  async generarReporteDeclaracionF02CADPDF(
+    docenteId: number,
+    periodo: string,
+  ): Promise<Buffer> {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+      relations: ["departamento", "facultad"],
+    });
+    if (!docente) throw new Error("Docente no encontrado");
+
+    const periodoObj = await this.periodoRepo.findOne({
+      where: [{ codigo: periodo }, { nombre: periodo }],
+    });
+    if (!periodoObj) throw new Error("Periodo no encontrado");
+
+    const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
+    const departamento = docente.departamento?.nombre || "No asignado";
+    const facultad = docente.facultad?.nombre || "No asignada";
+    const ibm = docente.ibm || 0;
+    const codigo = docente.codigo || "";
+
+    const modalidad = docente.modalidad || "TIEMPO_COMPLETO_40";
+    let tipoDeclaracion = "COMPATIBILIDAD_TOTAL";
+    let textoSegunModalidad = "";
+
+    if (modalidad === "DEDICACION_EXCLUSIVA") {
+      tipoDeclaracion = "EXCLUSIVIDAD";
+      textoSegunModalidad =
+        "Declaro no tener otro empleo ni ejercer actividad profesional fuera de la Universidad Nacional de Trujillo, y que mi horario académico es exclusivo para la UNT, no existiendo incompatibilidad horaria con ninguna otra actividad laboral, cargo público o actividad privada durante el horario académico establecido.";
+    } else if (modalidad.startsWith("TIEMPO_COMPLETO")) {
+      tipoDeclaracion = "COMPATIBILIDAD_TOTAL";
+      textoSegunModalidad =
+        "Declaro que mi horario académico es compatible con mi actividad laboral, no existiendo superposición de horarios con otras actividades profesionales, cargos públicos o actividades privadas que pudieran generar incompatibilidad laboral.";
+    } else {
+      tipoDeclaracion = "COMPATIBILIDAD_PARCIAL";
+      textoSegunModalidad =
+        "Declaro que mi horario académico es compatible parcialmente con mi actividad laboral externa, la cual se desarrolla fuera del horario establecido por la Universidad Nacional de Trujillo, no existiendo incompatibilidad horaria.";
+    }
+
+    const modalidadLabel: Record<string, string> = {
+      DEDICACION_EXCLUSIVA: "DEDICACIÓN EXCLUSIVA",
+      TIEMPO_COMPLETO_40: "TIEMPO COMPLETO 40 H",
+      TIEMPO_PARCIAL_20: "TIEMPO PARCIAL 20 H",
+      TIEMPO_PARCIAL_12: "TIEMPO PARCIAL 12 H",
+      TIEMPO_PARCIAL_10: "TIEMPO PARCIAL 10 H",
+      TIEMPO_PARCIAL_8: "TIEMPO PARCIAL 8 H",
+    };
+    const modalidadDisplay = modalidadLabel[modalidad] || modalidad;
+
+    const config = await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl =
+      config?.logo_url ||
+      "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
+    const logoBase64 = await this.getBase64Image(logoUrl);
+
+    const fechaActual = new Date().toLocaleDateString("es-PE", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: 'Times New Roman', Times, serif; font-size: 12px; color: #000; margin: 30px 40px; }
+          .header { text-align: center; margin-bottom: 5px; }
+          .header-line { font-size: 11px; font-weight: bold; margin: 2px 0; }
+          .title { text-align: center; font-size: 14px; font-weight: bold; margin: 20px 0 5px 0; text-decoration: underline; }
+          .subtitle { text-align: center; font-size: 13px; font-weight: bold; margin: 0 0 25px 0; }
+          .content { text-align: justify; line-height: 1.6; }
+          .content p { margin: 8px 0; }
+          .salutation { margin: 15px 0; }
+          .declaration-text { margin: 15px 30px; padding: 10px; border-left: 3px solid #333; font-style: italic; }
+          .closing { margin: 20px 0; }
+          .fecha { text-align: right; margin: 30px 0 10px 0; }
+          .firma-area { text-align: center; margin-top: 50px; }
+          .firma-line { border-top: 1px solid #000; width: 250px; margin: 0 auto 5px auto; }
+          .firma-label { font-size: 11px; font-weight: bold; }
+          .firma-data { font-size: 10px; }
+          .nota { font-size: 9px; margin-top: 40px; border-top: 1px solid #ccc; padding-top: 8px; }
+          hr { border: none; border-top: 1px solid #000; margin: 8px 0; }
+          .logo-area { text-align: center; margin-bottom: 10px; }
+          .logo-area img { max-height: 70px; }
+        </style>
+      </head>
+      <body>
+        <div class="logo-area">
+          ${logoBase64 ? `<img src="${logoBase64}" alt="Logo UNT">` : ""}
+        </div>
+        <div class="header">
+          <div class="header-line">UNIVERSIDAD NACIONAL DE TRUJILLO</div>
+          <div class="header-line">${facultad.toUpperCase()}</div>
+          <div class="header-line">DEPARTAMENTO ACADÉMICO DE ${departamento.toUpperCase()}</div>
+        </div>
+
+        <hr>
+
+        <div class="title">DECLARACIÓN JURADA DE INCOMPATIBILIDAD</div>
+        <div class="subtitle">F02-CAD</div>
+
+        <div class="content">
+          <p>Yo, <b>${nombreCompleto}</b>,</p>
+          <p>Identificado con DNI / IBM N° <b>${ibm}</b>,</p>
+          <p>Docente del Departamento Académico de <b>${departamento}</b>,</p>
+          <p>Con modalidad <b>${modalidadDisplay}</b>,</p>
+
+          <div class="salutation"><b>DECLARO BAJO JURAMENTO:</b></div>
+
+          <div class="declaration-text">
+            ${textoSegunModalidad}
+          </div>
+
+          <p>Asimismo, declaro no estar incurso en las causales de incompatibilidad o impedimento laboral previstas en el Estatuto Institucional vigente de la Universidad Nacional de Trujillo, y en caso de faltar a la verdad me someto a las sanciones previstas por ley.</p>
+
+          <p>Autorizo al funcionario competente disponer el descuento de mi planilla de haberes, del monto que la unidad de remuneraciones liquide como pagos indebidos por el lapso de tiempo laborado ilegalmente, de encontrarme incurso en situación de incompatibilidad o impedimento para ejercer la docencia en la U.N.T.</p>
+        </div>
+
+        <div class="fecha">
+          <p>Trujillo, ${fechaActual}</p>
+        </div>
+
+        <div class="firma-area">
+          <div class="firma-line"></div>
+          <div class="firma-label">FIRMA DEL DOCENTE</div>
+          <div class="firma-data">${nombreCompleto}</div>
+          <div class="firma-data">IBM: ${ibm}</div>
+        </div>
+
+        <div class="nota">
+          Nota: Los docentes deben suscribir de forma obligatoria el presente formato en cada Semestre Académico.
+        </div>
+      </body>
+      </html>
+    `;
+
+    const puppeteer = await import("puppeteer");
+    const browser = await puppeteer.default.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "load" });
+
+      const buffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
         margin: { top: "15mm", bottom: "15mm", left: "15mm", right: "15mm" },
       });
       return Buffer.from(buffer);
     } finally {
       await browser.close();
     }
+  }
+
+  async generarReporteF01CADPDF(
+    docenteId: number,
+    periodo: string,
+  ): Promise<Buffer> {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+      relations: ["departamento", "facultad"],
+    });
+    if (!docente) throw new Error("Docente no encontrado");
+
+    const periodoObj = await this.periodoRepo.findOne({
+      where: [{ codigo: periodo }, { nombre: periodo }],
+    });
+    if (!periodoObj) throw new Error("Periodo no encontrado");
+
+    const declaracion = await this.declaracionRepo.findOne({
+      where: { docente_id: docenteId, periodo_academico_id: periodoObj.id },
+    });
+
+    const horarios = await this.horarioRepo
+      .createQueryBuilder("horario")
+      .leftJoinAndSelect("horario.curso", "curso")
+      .leftJoinAndSelect("horario.ambiente", "ambiente")
+      .leftJoinAndSelect("horario.grupo", "grupo")
+      .where("horario.docente_id = :docenteId", { docenteId })
+      .andWhere("horario.periodo = :periodo", { periodo })
+      .orderBy("horario.dia", "ASC")
+      .addOrderBy("horario.hora_inicio", "ASC")
+      .getMany();
+
+    const config = await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl = config?.logo_url ||
+      "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
+    const logoBase64 = await this.getBase64Image(logoUrl);
+
+    const estadoDeclaracion = declaracion?.estado || "NO_INICIADO";
+    const estadosAprobados = ["VALIDADO_DPTO", "APROBADO_FACULTAD", "CERRADO"];
+    const esOficial = estadosAprobados.includes(estadoDeclaracion);
+    const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
+    const watermarkOpacity = esOficial ? "0.08" : "0.12";
+
+    const partesPeriodo = periodo.split("-");
+    const anio = partesPeriodo[0] || new Date().getFullYear().toString();
+    const semestre = partesPeriodo[1] || "I";
+
+    const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
+    const ibm = docente.ibm || 0;
+    const categoriaLabel: Record<string, string> = { PRINCIPAL: "Principal", ASOCIADO: "Asociado", AUXILIAR: "Auxiliar", SIN_CATEGORIA: "Sin categoría" };
+    const contratoLabel: Record<string, string> = { NOMBRADO: "Nombrado", CONTRATADO: "Contratado" };
+    const modalidadLabel: Record<string, string> = {
+      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
+      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H", TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
+      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H", TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
+    };
+
+    const dateIni = periodoObj.fecha_inicio ? new Date(periodoObj.fecha_inicio).toLocaleDateString("es-PE") : "";
+    const dateFin = periodoObj.fecha_fin ? new Date(periodoObj.fecha_fin).toLocaleDateString("es-PE") : "";
+    const fechaGen = new Date().toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" });
+
+    // Build carga lectiva rows from horarios
+    let trsLectiva = "";
+    let totalHorasTeo = 0, totalHorasPra = 0, totalHorasLab = 0, totalGeneral = 0;
+    const cursoMap = new Map<string, any>();
+
+    horarios.forEach((h) => {
+      if (!h.curso) return;
+      const key = `${h.curso.id}_${h.tipo_clase}`;
+      if (!cursoMap.has(key)) {
+        const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
+        const isTeo = h.tipo_clase === TipoClase.TEORIA;
+        const isPra = h.tipo_clase === TipoClase.PRACTICA;
+        const isLab = h.tipo_clase === TipoClase.LABORATORIO;
+        cursoMap.set(key, {
+          codigo: h.curso.codigo,
+          nombre: h.curso.nombre,
+          tipo: isTeo ? "TEORÍA" : isPra ? "PRÁCTICA" : "LABORATORIO",
+          seccion: h.grupo?.codigo || "",
+          escuela: "",
+          ciclo: h.curso.ciclo || "",
+          alumnos: h.curso.creditos || 0,
+          hrsTeo: isTeo ? dur : 0,
+          hrsPra: isPra ? dur : 0,
+          hrsLab: isLab ? dur : 0,
+          total: dur,
+        });
+      } else {
+        const existing = cursoMap.get(key);
+        const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
+        const isTeo = h.tipo_clase === TipoClase.TEORIA;
+        const isPra = h.tipo_clase === TipoClase.PRACTICA;
+        const isLab = h.tipo_clase === TipoClase.LABORATORIO;
+        if (isTeo) existing.hrsTeo += dur;
+        if (isPra) existing.hrsPra += dur;
+        if (isLab) existing.hrsLab += dur;
+        existing.total += dur;
+      }
+    });
+
+    Array.from(cursoMap.values()).forEach((c) => {
+      totalHorasTeo += c.hrsTeo;
+      totalHorasPra += c.hrsPra;
+      totalHorasLab += c.hrsLab;
+      totalGeneral += c.total;
+      trsLectiva += `
+        <tr>
+          <td>${c.codigo}</td>
+          <td class="text-left">${c.nombre}</td>
+          <td class="text-center">${c.tipo}</td>
+          <td class="text-center">${c.escuela}</td>
+          <td class="text-center">${c.ciclo}</td>
+          <td class="text-center">${c.seccion}</td>
+          <td class="text-center">${c.alumnos}</td>
+          <td class="text-center">${c.hrsTeo.toFixed(1)}</td>
+          <td class="text-center">${c.hrsPra.toFixed(1)}</td>
+          <td class="text-center">${c.hrsLab.toFixed(1)}</td>
+          <td class="text-center total-h">${c.total.toFixed(1)}</td>
+        </tr>`;
+    });
+
+    if (trsLectiva === "") {
+      trsLectiva = '<tr><td colspan="11" class="text-center no-data">Sin carga lectiva asignada</td></tr>';
+    }
+
+    // Build carga no lectiva
+    let trsNoLectiva = "";
+    let totalNoLectiva = 0;
+    const rubroLabels: Record<number, string> = {
+      1: "GESTIÓN ACADÉMICA", 2: "PREPARACIÓN Y EVALUACIÓN", 3: "CONSEJERÍA Y TUTORÍA",
+      4: "INVESTIGACIÓN", 5: "CAPACITACIÓN", 6: "ACTIVIDADES DE GOBIERNO",
+      7: "ACTIVIDADES DE ADMINISTRACIÓN", 8: "ASESORÍA DE TESIS",
+      9: "RESPONSABILIDAD SOCIAL UNIVERSITARIA", 10: "COMITÉS TÉCNICOS Y COMISIONES",
+    };
+
+    if (declaracion?.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
+      const actividades = (declaracion.carga_no_lectiva as any).actividades;
+      actividades.forEach((a: any) => {
+        if (a.horas > 0) {
+          totalNoLectiva += Number(a.horas);
+          const label = rubroLabels[a.id] || a.descripcion.replace(/^[0-9]+\.\s*/, "").split(":")[0].trim();
+          trsNoLectiva += `
+            <tr>
+              <td class="text-center">${a.id}</td>
+              <td class="text-left">${label}</td>
+              <td class="text-left">${a.detalle || ""}</td>
+              <td class="text-center">${a.horas}h</td>
+            </tr>`;
+        }
+      });
+    }
+
+    if (trsNoLectiva === "") {
+      trsNoLectiva = '<tr><td colspan="4" class="text-center no-data">Sin carga no lectiva registrada</td></tr>';
+    }
+
+    const totalFinal = totalGeneral + totalNoLectiva;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: 'Arial', sans-serif; font-size: 10px; color: #000; margin: 0; padding: 0; }
+          .watermark { position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
+            font-size: 80px; font-weight: bold; color: rgba(0,0,0,${watermarkOpacity});
+            transform: rotate(-30deg); pointer-events: none; z-index: 1000; letter-spacing: 10px; }
+          .container { width: 100%; margin: 0 auto; position: relative; }
+          .logo-area { text-align: center; margin-bottom: 6px; }
+          .header { text-align: center; margin-bottom: 4px; }
+          .header .line1 { font-size: 14px; font-weight: bold; }
+          .header .line2 { font-size: 11px; font-weight: bold; }
+          .header .line3 { font-size: 11px; }
+          .title { text-align: center; font-size: 13px; font-weight: bold; margin: 14px 0 4px 0; text-decoration: underline; }
+          .subtitle { text-align: center; font-size: 11px; margin-bottom: 16px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+          table, th, td { border: 1px solid #333; }
+          th, td { padding: 3px 5px; vertical-align: middle; }
+          th { background: #1a237e; color: white; font-size: 8px; text-align: center; }
+          .info-table td { border: 1px solid #333; padding: 3px 6px; font-size: 10px; }
+          .info-label { font-weight: 600; color: #555; width: 16%; background: #f5f5f5; }
+          .text-center { text-align: center; }
+          .text-left { text-align: left; }
+          .total-h { font-weight: bold; background: #e8f5e9; }
+          .subtotal-row td { background: #fff8e1; font-weight: bold; }
+          .grand-total td { background: #1a237e; color: white; font-weight: bold; font-size: 11px; }
+          .no-data { color: #999; padding: 12px; }
+          .firma-section { margin-top: 40px; width: 100%; text-align: center; }
+          .firma-box { display: inline-block; width: 30%; margin: 0 1.5%; text-align: center; vertical-align: top; }
+          .firma-line { border-top: 1px solid #000; width: 80%; margin: 0 auto 4px auto; }
+          .firma-label { font-size: 9px; font-weight: bold; }
+          .firma-sub { font-size: 8px; color: #555; }
+          .fecha-gen { text-align: right; font-size: 9px; color: #666; margin-top: 8px; }
+          @media print { .watermark { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <div class="watermark">${watermarkText}</div>
+        <div class="container">
+          <div class="logo-area">${logoBase64 ? `<img src="${logoBase64}" style="max-height:60px">` : ""}</div>
+          <div class="header">
+            <div class="line1">UNIVERSIDAD NACIONAL DE TRUJILLO</div>
+            <div class="line2">${docente.facultad?.nombre?.toUpperCase() || "FACULTAD"}</div>
+            <div class="line3">DEPARTAMENTO ACADÉMICO DE ${(docente.departamento?.nombre || "").toUpperCase()}</div>
+          </div>
+          <div class="title">DECLARACIÓN DE CARGA ACADÉMICA DOCENTE</div>
+          <div class="subtitle">F01-CAD</div>
+
+          <table class="info-table">
+            <tr><td class="info-label">Docente:</td><td><b>${nombreCompleto}</b></td><td class="info-label">DNI / IBM:</td><td><b>${ibm}</b></td></tr>
+            <tr><td class="info-label">Condición:</td><td>${contratoLabel[docente.tipo_contrato] || docente.tipo_contrato}</td><td class="info-label">Categoría:</td><td>${categoriaLabel[docente.categoria] || docente.categoria}</td></tr>
+            <tr><td class="info-label">Dedicación:</td><td>${modalidadLabel[docente.modalidad] || docente.modalidad || "—"}</td><td class="info-label">Facultad:</td><td>${docente.facultad?.nombre || "—"}</td></tr>
+            <tr><td class="info-label">Año Académico:</td><td><b>${anio}</b></td><td class="info-label">Semestre:</td><td><b>${semestre}</b></td></tr>
+            <tr><td class="info-label">Fecha Inicio:</td><td>${dateIni}</td><td class="info-label">Fecha Término:</td><td>${dateFin}</td></tr>
+          </table>
+
+          <table>
+            <thead>
+              <tr>
+                <th width="8%">CÓD.</th>
+                <th width="22%">DENOMINACIÓN</th>
+                <th width="8%">TIPO</th>
+                <th width="8%">ESCUELA</th>
+                <th width="5%">CICLO</th>
+                <th width="6%">SECC.</th>
+                <th width="5%">ALUM.</th>
+                <th width="8%">HRS TEO</th>
+                <th width="8%">HRS PRA</th>
+                <th width="8%">HRS LAB</th>
+                <th width="8%">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${trsLectiva}
+              <tr class="subtotal-row">
+                <td colspan="7" style="text-align:right;padding-right:12px">SUBTOTAL CARGA LECTIVA</td>
+                <td class="text-center">${totalHorasTeo.toFixed(1)}</td>
+                <td class="text-center">${totalHorasPra.toFixed(1)}</td>
+                <td class="text-center">${totalHorasLab.toFixed(1)}</td>
+                <td class="text-center">${totalGeneral.toFixed(1)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table>
+            <thead>
+              <tr>
+                <th width="6%">N°</th>
+                <th width="44%">CARGA HORARIA NO LECTIVA (CHNL)</th>
+                <th width="35%">DETALLE</th>
+                <th width="15%">TOTAL H</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${trsNoLectiva}
+              <tr class="subtotal-row">
+                <td colspan="3" style="text-align:right;padding-right:12px">TOTAL HORAS NO LECTIVAS</td>
+                <td class="text-center">${totalNoLectiva.toFixed(1)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table>
+            <tr class="grand-total">
+              <td style="text-align:right;padding-right:16px">
+                TOTAL HORAS LECTIVAS: <b>${totalGeneral.toFixed(1)}h</b> &nbsp;|&nbsp;
+                TOTAL HORAS NO LECTIVAS: <b>${totalNoLectiva.toFixed(1)}h</b> &nbsp;|&nbsp;
+                <span style="font-size:13px">TOTAL GENERAL: <b>${totalFinal.toFixed(1)}h</b></span>
+              </td>
+              <td width="12%" style="text-align:center;font-size:13px"><b>${totalFinal.toFixed(1)}h</b></td>
+            </tr>
+          </table>
+
+          <div class="fecha-gen">Generado el: ${fechaGen}</div>
+
+          <div class="firma-section">
+            <div class="firma-box">
+              <div class="firma-line"></div>
+              <div class="firma-label">FIRMA DEL DOCENTE</div>
+              <div class="firma-sub">${nombreCompleto}</div>
+            </div>
+            <div class="firma-box">
+              <div class="firma-line"></div>
+              <div class="firma-label">DIRECTOR DE DEPARTAMENTO</div>
+              <div class="firma-sub">${docente.departamento?.nombre || ""}</div>
+            </div>
+            <div class="firma-box">
+              <div class="firma-line"></div>
+              <div class="firma-label">V°B° DECANO</div>
+              <div class="firma-sub">${docente.facultad?.nombre || ""}</div>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const puppeteer = await import("puppeteer");
+    const browser = await puppeteer.default.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "load" });
+      const buffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" },
+      });
+      return Buffer.from(buffer);
+    } finally {
+      await browser.close();
+    }
+  }
+
+  async generarReporteConsolidadoCargaPDF(
+    periodo: string,
+    departamentoId?: number,
+  ): Promise<Buffer> {
+    const periodoObj = await this.periodoRepo.findOne({
+      where: [{ codigo: periodo }, { nombre: periodo }],
+    });
+    if (!periodoObj) throw new Error("Periodo no encontrado");
+
+    const whereDecl: any = { periodo_academico_id: periodoObj.id };
+    const whereDocente: any = { activo: true };
+    if (departamentoId) whereDocente.departamento_id = departamentoId;
+
+    const docentes = await this.docenteRepo.find({
+      where: whereDocente,
+      relations: ["departamento", "facultad"],
+    });
+
+    const declaraciones = await this.declaracionRepo.find({
+      where: { periodo_academico_id: periodoObj.id },
+    });
+    const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
+
+    const modalidadLabel: Record<string, string> = {
+      DEDICACION_EXCLUSIVA: "DE", TIEMPO_COMPLETO_40: "TC40",
+      TIEMPO_PARCIAL_20: "TP20", TIEMPO_PARCIAL_12: "TP12",
+      TIEMPO_PARCIAL_10: "TP10", TIEMPO_PARCIAL_8: "TP8",
+    };
+
+    let totalLectivas = 0, totalNoLectivas = 0, totalGeneral = 0;
+    let trsBody = "";
+    let deptActual = "";
+
+    docentes.forEach((d) => {
+      const decl = declMap.get(d.id);
+      const hLect = decl?.total_horas_lectivas || 0;
+      const hNoLect = decl?.total_horas_no_lectivas || 0;
+      const hTotal = decl?.total_horas_general || 0;
+      totalLectivas += hLect;
+      totalNoLectivas += hNoLect;
+      totalGeneral += hTotal;
+
+      const dept = d.departamento?.nombre || "Sin departamento";
+      if (dept !== deptActual) {
+        deptActual = dept;
+        trsBody += `<tr class="dept-header"><td colspan="7"><b>${dept}</b></td></tr>`;
+      }
+
+      trsBody += `
+        <tr>
+          <td>${d.apellidos}, ${d.nombres}</td>
+          <td class="text-center">${d.tipo_contrato === "NOMBRADO" ? "Nomb" : "Cont"}</td>
+          <td class="text-center">${modalidadLabel[d.modalidad] || d.modalidad || "—"}</td>
+          <td class="text-center">${hLect}</td>
+          <td class="text-center">${hNoLect}</td>
+          <td class="text-center total-h">${hTotal}</td>
+          <td class="text-center">${decl?.estado || "SIN INICIAR"}</td>
+        </tr>`;
+    });
+
+    const html = `
+      <!DOCTYPE html><html><head><meta charset="UTF-8">
+      <style>
+        body { font-family: 'Arial', sans-serif; font-size: 9px; color: #000; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        table, th, td { border: 1px solid #333; }
+        th, td { padding: 3px 5px; vertical-align: middle; }
+        th { background: #1a237e; color: white; font-size: 8px; text-align: center; }
+        .text-center { text-align: center; }
+        .total-h { font-weight: bold; }
+        .dept-header td { background: #e8eaf6; font-weight: bold; font-size: 10px; padding: 5px 8px; }
+        .total-row td { background: #1a237e; color: white; font-weight: bold; font-size: 10px; }
+        .title { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 16px; }
+      </style></head><body>
+        <div class="title">REPORTE CONSOLIDADO DE CARGA ACADÉMICA<br><span style="font-size:11px">Período: ${periodo}</span></div>
+        <table>
+          <thead><tr>
+            <th width="26%">DOCENTE</th><th width="8%">COND.</th><th width="10%">MOD.</th>
+            <th width="12%">HRS LECT.</th><th width="12%">HRS NO LECT.</th><th width="12%">TOTAL</th><th width="20%">ESTADO</th>
+          </tr></thead>
+          <tbody>${trsBody}</tbody>
+          <tfoot><tr class="total-row">
+            <td colspan="3" style="text-align:right;padding-right:12px">TOTAL GENERAL</td>
+            <td class="text-center">${totalLectivas}</td>
+            <td class="text-center">${totalNoLectivas}</td>
+            <td class="text-center">${totalGeneral}</td>
+            <td class="text-center">${docentes.length} docentes</td>
+          </tr></tfoot>
+        </table>
+      </body></html>`;
+
+    const puppeteer = await import("puppeteer");
+    const browser = await puppeteer.default.launch({
+      headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "load" });
+      const buffer = await page.pdf({ format: "A4", landscape: true, printBackground: true, margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" } });
+      return Buffer.from(buffer);
+    } finally { await browser.close(); }
+  }
+
+  async generarReporteCargaPorModalidadPDF(
+    periodo: string,
+  ): Promise<Buffer> {
+    const periodoObj = await this.periodoRepo.findOne({
+      where: [{ codigo: periodo }, { nombre: periodo }],
+    });
+    if (!periodoObj) throw new Error("Periodo no encontrado");
+
+    const docentes = await this.docenteRepo.find({ where: { activo: true } });
+    const declaraciones = await this.declaracionRepo.find({
+      where: { periodo_academico_id: periodoObj.id },
+    });
+    const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
+
+    const modalidadLabels: Record<string, string> = {
+      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
+      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H", TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
+      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H", TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
+    };
+
+    const modalidadData = new Map<string, { count: number; sumLect: number; sumNoLect: number; sumTotal: number }>();
+    docentes.forEach((d) => {
+      const mod = d.modalidad || "SIN_MODALIDAD";
+      if (!modalidadData.has(mod)) modalidadData.set(mod, { count: 0, sumLect: 0, sumNoLect: 0, sumTotal: 0 });
+      const data = modalidadData.get(mod)!;
+      data.count++;
+      const decl = declMap.get(d.id);
+      data.sumLect += decl?.total_horas_lectivas || 0;
+      data.sumNoLect += decl?.total_horas_no_lectivas || 0;
+      data.sumTotal += decl?.total_horas_general || 0;
+    });
+
+    let trsBody = "";
+    let totalDocs = 0, totalSum = 0;
+    modalidadData.forEach((data, mod) => {
+      totalDocs += data.count;
+      totalSum += data.sumTotal;
+      const avg = data.count > 0 ? (data.sumTotal / data.count).toFixed(1) : "0";
+      trsBody += `
+        <tr>
+          <td>${modalidadLabels[mod] || mod}</td>
+          <td class="text-center">${data.count}</td>
+          <td class="text-center">${data.sumLect.toFixed(1)}</td>
+          <td class="text-center">${data.sumNoLect.toFixed(1)}</td>
+          <td class="text-center total-h">${data.sumTotal.toFixed(1)}</td>
+          <td class="text-center">${avg}</td>
+        </tr>`;
+    });
+
+    const html = `
+      <!DOCTYPE html><html><head><meta charset="UTF-8">
+      <style>
+        body { font-family: 'Arial', sans-serif; font-size: 10px; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        table, th, td { border: 1px solid #333; }
+        th, td { padding: 4px 6px; }
+        th { background: #1a237e; color: white; font-size: 9px; text-align: center; }
+        .text-center { text-align: center; }
+        .total-h { font-weight: bold; }
+        .title { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 16px; }
+        .total-row td { background: #1a237e; color: white; font-weight: bold; }
+      </style></head><body>
+        <div class="title">REPORTE DE CARGA POR MODALIDAD<br><span style="font-size:11px">Período: ${periodo}</span></div>
+        <table>
+          <thead><tr>
+            <th width="30%">MODALIDAD</th><th width="12%">DOCENTES</th><th width="15%">HRS LECTIVAS</th>
+            <th width="15%">HRS NO LECT.</th><th width="15%">TOTAL</th><th width="13%">PROMEDIO</th>
+          </tr></thead>
+          <tbody>${trsBody}</tbody>
+          <tfoot><tr class="total-row">
+            <td style="text-align:right;padding-right:12px">TOTAL</td>
+            <td class="text-center">${totalDocs}</td>
+            <td class="text-center" colspan="3">${totalSum.toFixed(1)}</td>
+            <td class="text-center">${totalDocs > 0 ? (totalSum / totalDocs).toFixed(1) : "0"}</td>
+          </tr></tfoot>
+        </table>
+      </body></html>`;
+
+    const puppeteer = await import("puppeteer");
+    const browser = await puppeteer.default.launch({
+      headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: "load" });
+      const buffer = await page.pdf({ format: "A4", printBackground: true, margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" } });
+      return Buffer.from(buffer);
+    } finally { await browser.close(); }
+  }
+
+  async generarReporteConsolidadoCargaExcel(
+    periodo: string,
+    departamentoId?: number,
+  ): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Consolidado Carga");
+
+    sheet.columns = [
+      { header: "Docente", key: "docente", width: 35 },
+      { header: "Condición", key: "condicion", width: 12 },
+      { header: "Modalidad", key: "modalidad", width: 22 },
+      { header: "Departamento", key: "departamento", width: 30 },
+      { header: "Hrs Lectivas", key: "hrsLectivas", width: 14 },
+      { header: "Hrs No Lectivas", key: "hrsNoLectivas", width: 14 },
+      { header: "Total", key: "total", width: 12 },
+      { header: "Estado", key: "estado", width: 20 },
+    ];
+
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1A237E" } };
+
+    const periodoObj = await this.periodoRepo.findOne({
+      where: [{ codigo: periodo }, { nombre: periodo }],
+    });
+    if (!periodoObj) throw new Error("Periodo no encontrado");
+
+    const whereDocente: any = { activo: true };
+    if (departamentoId) whereDocente.departamento_id = departamentoId;
+
+    const docentes = await this.docenteRepo.find({
+      where: whereDocente,
+      relations: ["departamento"],
+    });
+    const declaraciones = await this.declaracionRepo.find({
+      where: { periodo_academico_id: periodoObj.id },
+    });
+    const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
+
+    docentes.forEach((d) => {
+      const decl = declMap.get(d.id);
+      sheet.addRow({
+        docente: `${d.apellidos}, ${d.nombres}`,
+        condicion: d.tipo_contrato === "NOMBRADO" ? "Nombrado" : "Contratado",
+        modalidad: d.modalidad || "—",
+        departamento: d.departamento?.nombre || "—",
+        hrsLectivas: decl?.total_horas_lectivas || 0,
+        hrsNoLectivas: decl?.total_horas_no_lectivas || 0,
+        total: decl?.total_horas_general || 0,
+        estado: decl?.estado || "SIN INICIAR",
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 
   async generarReporteDiaPDF(
@@ -1724,6 +2632,496 @@ export class ReportesService {
     `);
 
     return this.generarPDF(html);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FASE 8 — Reportes de Gestión (Carga Académica)
+  // ═══════════════════════════════════════════════════════════════════
+
+  async generarReporteGestionCargaPDF(periodo: string): Promise<Buffer> {
+    const [totalDocentes, declaraciones, periodoAnterior, periodoActual] =
+      await Promise.all([
+        this.docenteRepo.count({ where: { activo: true } }),
+        this.declaracionRepo.find({
+          where: { periodo_academico_id: Not(null) },
+          relations: ["periodo_academico", "docente"],
+        }),
+        this.periodoRepo.findOne({
+          where: { codigo: this.periodoAnterior(periodo) },
+        }),
+        this.periodoRepo.findOne({ where: { codigo: periodo } }),
+      ]);
+
+    const declPeriodo = declaraciones.filter(
+        (d) => d.periodo_academico?.codigo === periodo,
+    );
+    const declAnterior = declaraciones.filter(
+      (d) => d.periodo_academico?.codigo === this.periodoAnterior(periodo),
+    );
+
+    const enviadas = declPeriodo.filter(
+      (d) =>
+        this.estadoValor(d.estado) >=
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+    );
+    const aprobadas = declPeriodo.filter(
+      (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+    );
+    const observadas = declPeriodo.filter(
+      (d) =>
+        d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
+        d.estado === EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+    );
+
+    const horasArr = declPeriodo.map((d) => d.total_horas_lectivas);
+    const cargaPromedio =
+      horasArr.length > 0
+        ? horasArr.reduce((a, b) => a + b, 0) / horasArr.length
+        : 0;
+
+    const categorias = this.agruparPorCategoria(declPeriodo);
+
+    // Tiempo promedio
+    let tiempoPromedioHoras = 0;
+    const conFechas = declPeriodo.filter(
+      (d) => d.fecha_firma_docente && d.fecha_firma_decano,
+    );
+    if (conFechas.length > 0) {
+      const totalDias = conFechas.reduce((s, d) => {
+        const diff =
+          d.fecha_firma_decano.getTime() - d.fecha_firma_docente.getTime();
+        return s + diff;
+      }, 0);
+      tiempoPromedioHoras = Math.round(
+        totalDias / conFechas.length / (1000 * 3600),
+      );
+    }
+
+    // Comparativa
+    const envAnterior = declAnterior.filter(
+      (d) =>
+        this.estadoValor(d.estado) >=
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+    ).length;
+    const pctAnterior =
+      declAnterior.length > 0
+        ? Math.round((envAnterior / declAnterior.length) * 100)
+        : 0;
+    const variacion = pctAnterior > 0
+      ? Math.round(
+          ((enviadas.length / Math.max(declPeriodo.length, 1)) * 100 -
+            pctAnterior) /
+            pctAnterior *
+            100,
+        )
+      : 0;
+
+    const html = this.htmlWrapper(`
+      <div class="content-header">
+        <h1>REPORTE DE GESTIÓN DE CARGA ACADÉMICA</h1>
+        <p>Período: ${periodo}</p>
+      </div>
+
+      <div class="section">
+        <h2>1. Indicadores Clave (KPIs) — Carga Académica</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card"><span>Total Docentes</span><strong>${totalDocentes}</strong></div>
+          <div class="kpi-card"><span>Declaraciones Enviadas</span><strong>${enviadas.length}</strong></div>
+          <div class="kpi-card"><span>% Enviadas</span><strong>${totalDocentes > 0 ? ((enviadas.length / totalDocentes) * 100).toFixed(1) : 0}%</strong></div>
+          <div class="kpi-card"><span>% Aprobadas</span><strong>${totalDocentes > 0 ? ((aprobadas.length / totalDocentes) * 100).toFixed(1) : 0}%</strong></div>
+          <div class="kpi-card"><span>Docentes con Observaciones</span><strong>${observadas.length}</strong></div>
+          <div class="kpi-card"><span>Carga Lectiva Promedio</span><strong>${cargaPromedio.toFixed(1)}h</strong></div>
+          <div class="kpi-card"><span>Tiempo Promedio Proceso</span><strong>${tiempoPromedioHoras}h</strong></div>
+          <div class="kpi-card"><span>Variación vs Período Anterior</span><strong style="color: ${variacion >= 0 ? '#10b981' : '#ef4444'}">${variacion >= 0 ? '+' : ''}${variacion}%</strong></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>2. Distribución de Carga Lectiva por Categoría</h2>
+        <table>
+          <thead><tr><th>Categoría</th><th>Docentes</th><th>Total Horas Lectivas</th><th>Promedio</th></tr></thead>
+          <tbody>
+            ${categorias.map((c) => `<tr><td>${c.categoria}</td><td>${c.docentes}</td><td>${c.horas.toFixed(1)}</td><td>${c.promedio.toFixed(1)}h</td></tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>3. Estados de Declaración</h2>
+        <table>
+          <thead><tr><th>Estado</th><th>Cantidad</th><th>% del Total</th></tr></thead>
+          <tbody>
+            ${this.estadosConLabels(declPeriodo).map((e) => `<tr><td>${e.label}</td><td>${e.count}</td><td>${e.porcentaje.toFixed(1)}%</td></tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>4. Docentes Pendientes de Declarar</h2>
+        <p>Docentes activos sin declaración registrada en el período.</p>
+      </div>
+
+      <div class="section">
+        <h2>5. Resumen</h2>
+        <p>Total de docentes: <strong>${totalDocentes}</strong></p>
+        <p>Declaraciones enviadas: <strong>${enviadas.length}</strong> (${totalDocentes > 0 ? ((enviadas.length / totalDocentes) * 100).toFixed(1) : 0}%)</p>
+        <p>Declaraciones aprobadas: <strong>${aprobadas.length}</strong> (${totalDocentes > 0 ? ((aprobadas.length / totalDocentes) * 100).toFixed(1) : 0}%)</p>
+        <p>Docentes con observaciones: <strong>${observadas.length}</strong></p>
+      </div>
+
+      <div class="signature-section">
+        <div class="signature-box">
+          <div class="line"></div>
+          <p>Director de Departamento</p>
+        </div>
+      </div>
+    `);
+
+    return this.generarPDF(html);
+  }
+
+  async generarReporteCumplimientoPDF(periodo: string): Promise<Buffer> {
+    const periodoId = await this.obtenerIdPeriodo(periodo);
+    const [deptos, todasDecl] = await Promise.all([
+      this.departamentoRepo.find({ where: { activo: true } }),
+      this.declaracionRepo.find({
+        where: periodoId
+          ? { periodo_academico_id: periodoId }
+          : { periodo_academico_id: Not(null) },
+        relations: ["periodo_academico"],
+      }),
+    ]);
+
+    const declPeriodo = periodoId
+      ? todasDecl
+      : todasDecl.filter((d) => d.periodo_academico?.codigo === periodo);
+
+    const filas = deptos.map((dept) => {
+      const dDept = declPeriodo.filter((d) => d.departamento_id === dept.id);
+      const total = dDept.length;
+      const enviados = dDept.filter(
+        (d) =>
+          this.estadoValor(d.estado) >=
+          this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+      ).length;
+      const validados = dDept.filter(
+        (d) =>
+          this.estadoValor(d.estado) >=
+          this.estadoValor(EstadoDeclaracionCarga.VALIDADO_DPTO),
+      ).length;
+      const aprobados = dDept.filter(
+        (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      ).length;
+      const pct = total > 0 ? Math.round((enviados / total) * 100) : 0;
+      const semaforo =
+        pct >= 80 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444";
+      return {
+        departamento: dept.nombre,
+        codigo: dept.codigo,
+        total,
+        enviados,
+        validados,
+        aprobados,
+        porcentaje: pct,
+        semaforo,
+      };
+    });
+
+    const html = this.htmlWrapper(`
+      <div class="content-header">
+        <h1>REPORTE DE CUMPLIMIENTO POR DEPARTAMENTO</h1>
+        <p>Período: ${periodo}</p>
+      </div>
+
+      <div class="section">
+        <h2>Cumplimiento de Declaraciones por Departamento</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Departamento</th>
+              <th>Docentes</th>
+              <th>Declarados</th>
+              <th>Validados</th>
+              <th>Aprobados</th>
+              <th>% Avance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filas
+              .map(
+                (f) => `
+            <tr>
+              <td><strong>${f.departamento}</strong></td>
+              <td>${f.total}</td>
+              <td>${f.enviados}</td>
+              <td>${f.validados}</td>
+              <td>${f.aprobados}</td>
+              <td style="color: ${f.semaforo}; font-weight: bold;">${f.porcentaje}%</td>
+            </tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>Leyenda de Semáforo</h3>
+        <p><span style="color: #10b981; font-weight: bold;">Verde</span> ≥ 80% — Buen avance</p>
+        <p><span style="color: #f59e0b; font-weight: bold;">Amarillo</span> ≥ 50% — En proceso</p>
+        <p><span style="color: #ef4444; font-weight: bold;">Rojo</span> &lt; 50% — Requiere atención</p>
+      </div>
+
+      <div class="signature-section">
+        <div class="signature-box">
+          <div class="line"></div>
+          <p>Dirección Académica</p>
+        </div>
+      </div>
+    `);
+
+    return this.generarPDF(html);
+  }
+
+  async generarReporteEjecutivoPDF(periodo: string): Promise<Buffer> {
+    const totalDocentes = await this.docenteRepo.count({
+      where: { activo: true },
+    });
+    const declaraciones = await this.declaracionRepo.find({
+      relations: ["periodo_academico", "docente"],
+    });
+    const declPeriodo = declaraciones.filter(
+      (d) => d.periodo_academico?.codigo === periodo,
+    );
+
+    const enviadas = declPeriodo.filter(
+      (d) =>
+        this.estadoValor(d.estado) >=
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+    );
+    const aprobadas = declPeriodo.filter(
+      (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+    );
+    const observadas = declPeriodo.filter(
+      (d) =>
+        d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
+        d.estado === EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+    );
+    const sinDeclarar = totalDocentes - declPeriodo.length;
+
+    const horasTotales = declPeriodo.reduce(
+      (s, d) => s + d.total_horas_general,
+      0,
+    );
+    const horasPromedio =
+      declPeriodo.length > 0
+        ? Math.round((horasTotales / declPeriodo.length) * 10) / 10
+        : 0;
+
+    const deptos = await this.departamentoRepo.find({
+      where: { activo: true },
+    });
+    const tablaDeptos = deptos
+      .map((d) => {
+        const dd = declPeriodo.filter((dec) => dec.departamento_id === d.id);
+        const total = dd.length;
+        const declarados = dd.filter(
+          (dec) =>
+            this.estadoValor(dec.estado) >=
+            this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+        ).length;
+        const pct = total > 0 ? Math.round((declarados / total) * 100) : 0;
+        const semaforo =
+          pct >= 80 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444";
+        return {
+          departamento: d.nombre,
+          total,
+          declarados,
+          porcentaje: pct,
+          semaforo,
+        };
+      })
+      .filter((d) => d.total > 0);
+
+    const html = this.htmlWrapper(`
+      <div class="content-header">
+        <h1>REPORTE EJECUTIVO — DECANATURA</h1>
+        <p>Resumen de Carga Académica · Período ${periodo}</p>
+      </div>
+
+      <div class="section">
+        <h2>Resumen General de la Facultad</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card"><span>Total Docentes</span><strong>${totalDocentes}</strong></div>
+          <div class="kpi-card"><span>Declaraciones Recibidas</span><strong>${enviadas.length}</strong></div>
+          <div class="kpi-card"><span>Aprobadas</span><strong>${aprobadas.length}</strong></div>
+          <div class="kpi-card"><span>Con Observaciones</span><strong>${observadas.length}</strong></div>
+          <div class="kpi-card"><span>Sin Declarar</span><strong>${sinDeclarar}</strong></div>
+          <div class="kpi-card"><span>Horas Totales</span><strong>${horasTotales}h</strong></div>
+          <div class="kpi-card"><span>Promedio x Docente</span><strong>${horasPromedio}h</strong></div>
+          <div class="kpi-card"><span>Cumplimiento Global</span><strong>${totalDocentes > 0 ? ((enviadas.length / totalDocentes) * 100).toFixed(1) : 0}%</strong></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Tabla de Departamentos con Semáforo</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Departamento</th>
+              <th>Docentes</th>
+              <th>Declarados</th>
+              <th>% Avance</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tablaDeptos
+              .map(
+                (d) => `
+            <tr>
+              <td><strong>${d.departamento}</strong></td>
+              <td>${d.total}</td>
+              <td>${d.declarados}</td>
+              <td style="color: ${d.semaforo}; font-weight: bold;">${d.porcentaje}%</td>
+              <td style="background: ${d.semaforo}; color: white; text-align: center; font-weight: bold;">
+                ${d.porcentaje >= 80 ? "✓ BUENO" : d.porcentaje >= 50 ? "⚠ MEDIO" : "✗ CRÍTICO"}
+              </td>
+            </tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h3>Leyenda</h3>
+        <p style="color: #10b981; font-weight: bold;">Verde — Buen avance (≥ 80%)</p>
+        <p style="color: #f59e0b; font-weight: bold;">Amarillo — En proceso (≥ 50%)</p>
+        <p style="color: #ef4444; font-weight: bold;">Rojo — Requiere atención (&lt; 50%)</p>
+      </div>
+
+      <div class="signature-section">
+        <div class="signature-box">
+          <div class="line"></div>
+          <p>Decano / Director de Escuela</p>
+        </div>
+        <div style="width: 40px;"></div>
+        <div class="signature-box">
+          <div class="line"></div>
+          <p>Secretario Académico</p>
+        </div>
+      </div>
+    `);
+
+    return this.generarPDF(html);
+  }
+
+  // ── Helpers Fase 8 ──
+
+  private periodoAnterior(periodo: string): string {
+    const [anio, ciclo] = periodo.split("-");
+    return ciclo === "I" ? `${Number(anio) - 1}-II` : `${anio}-I`;
+  }
+
+  private estadoValor(estado: EstadoDeclaracionCarga): number {
+    const orden: Record<string, number> = {
+      NO_INICIADO: 0,
+      BORRADOR: 1,
+      PENDIENTE_ENVIO: 2,
+      ENVIADO_DOCENTE: 3,
+      OBSERVADO_DPTO: 4,
+      SUBSANADO: 5,
+      VALIDADO_DPTO: 6,
+      OBSERVADO_FACULTAD: 7,
+      APROBADO_FACULTAD: 8,
+      CERRADO: 9,
+      ANULADO: -1,
+    };
+    return orden[estado] ?? 0;
+  }
+
+  private agruparPorCategoria(
+    declaraciones: DeclaracionCargaHoraria[],
+  ): { categoria: string; docentes: number; horas: number; promedio: number }[] {
+    const map = new Map<
+      string,
+      { docentes: Set<number>; horas: number }
+    >();
+    for (const d of declaraciones) {
+      if (!d.docente) continue;
+      const cat = d.docente.categoria || "Sin categoría";
+      if (!map.has(cat))
+        map.set(cat, { docentes: new Set(), horas: 0 });
+      const grupo = map.get(cat);
+      grupo.docentes.add(d.docente_id);
+      grupo.horas += d.total_horas_lectivas;
+    }
+    return [...map.entries()]
+      .map(([categoria, data]) => ({
+        categoria,
+        docentes: data.docentes.size,
+        horas: data.horas,
+        promedio:
+          data.docentes.size > 0
+            ? Math.round((data.horas / data.docentes.size) * 10) / 10
+            : 0,
+      }))
+      .sort((a, b) => b.horas - a.horas);
+  }
+
+  private estadosConLabels(
+    declaraciones: DeclaracionCargaHoraria[],
+  ): { estado: string; label: string; count: number; porcentaje: number }[] {
+    const labels: Record<string, string> = {
+      NO_INICIADO: "No iniciado",
+      BORRADOR: "Borrador",
+      PENDIENTE_ENVIO: "Pendiente envío",
+      ENVIADO_DOCENTE: "Enviado",
+      OBSERVADO_DPTO: "Observado (dpto)",
+      SUBSANADO: "Subsanado",
+      VALIDADO_DPTO: "Validado (dpto)",
+      OBSERVADO_FACULTAD: "Observado (facultad)",
+      APROBADO_FACULTAD: "Aprobado",
+      CERRADO: "Cerrado",
+    };
+    const orden = [
+      "NO_INICIADO",
+      "BORRADOR",
+      "PENDIENTE_ENVIO",
+      "ENVIADO_DOCENTE",
+      "OBSERVADO_DPTO",
+      "SUBSANADO",
+      "VALIDADO_DPTO",
+      "OBSERVADO_FACULTAD",
+      "APROBADO_FACULTAD",
+      "CERRADO",
+    ];
+    const total = declaraciones.length || 1;
+    return orden
+      .map((est) => {
+        const count = declaraciones.filter((d) => d.estado === est).length;
+        return {
+          estado: est,
+          label: labels[est] || est,
+          count,
+          porcentaje: (count / total) * 100,
+        };
+      })
+      .filter((e) => e.count > 0);
+  }
+
+  private async obtenerIdPeriodo(
+    periodo: string,
+  ): Promise<number | null> {
+    try {
+      const p = await this.periodoRepo.findOne({
+        where: { codigo: periodo },
+        select: ["id"],
+      });
+      return p?.id ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async generarReporteDocenteExcel(

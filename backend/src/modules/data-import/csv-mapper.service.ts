@@ -1,15 +1,24 @@
-import { Injectable } from '@nestjs/common';
-import { plainToClass } from 'class-transformer';
-import { CreateCursoDto } from '../../cursos/dto/create-curso.dto';
-import { CreateAmbienteDto } from '../../ambientes/dto/create-ambiente.dto';
-import { CreateDocenteDto } from '../../docentes/dto/create-docente.dto';
-import { CreateGrupoDto } from '../../grupos/dto/create-grupo.dto';
+import { Injectable } from "@nestjs/common";
+import { plainToClass } from "class-transformer";
+import { CreateCursoDto } from "../../cursos/dto/create-curso.dto";
+import { CreateAmbienteDto } from "../../ambientes/dto/create-ambiente.dto";
+import { CreateDocenteDto } from "../../docentes/dto/create-docente.dto";
+import { CreateGrupoDto } from "../../grupos/dto/create-grupo.dto";
 
-export type EntityType = 'cursos' | 'ambientes' | 'docentes' | 'grupos' | 'docente_curso' | 'curso_ambiente';
+export type EntityType =
+  | "cursos"
+  | "ambientes"
+  | "docentes"
+  | "grupos"
+  | "docente_curso"
+  | "curso_ambiente";
 
 type ImportError = { row: number; field: string; error: string };
 type MappedRow = { index: number; data: any };
-type MappingResult = { valid: MappedRow[]; invalid: (MappedRow & { errors: ImportError[] })[] };
+type MappingResult = {
+  valid: MappedRow[];
+  invalid: (MappedRow & { errors: ImportError[] })[];
+};
 
 @Injectable()
 export class CsvMapperService {
@@ -22,7 +31,9 @@ export class CsvMapperService {
         horas_teoria: parseInt(record.horas_teoria, 10),
         horas_laboratorio: parseInt(record.horas_laboratorio, 10) || 0,
         ciclo: parseInt(record.ciclo, 10),
-        tiene_laboratorio: record.tiene_laboratorio?.toLowerCase() === 'true' || record.horas_laboratorio > 0,
+        tiene_laboratorio:
+          record.tiene_laboratorio?.toLowerCase() === "true" ||
+          record.horas_laboratorio > 0,
         activo: true,
       });
       return dto;
@@ -36,7 +47,7 @@ export class CsvMapperService {
         nombre: record.nombre,
         tipo: record.tipo?.toUpperCase(),
         capacidad: parseInt(record.capacidad, 10),
-        estado: record.estado?.toUpperCase() || 'ACTIVO',
+        estado: record.estado?.toUpperCase() || "ACTIVO",
         activo: true,
       });
       return dto;
@@ -55,7 +66,7 @@ export class CsvMapperService {
         categoria: record.categoria?.toUpperCase(),
         modalidad: record.modalidad?.toUpperCase(),
         fecha_ingreso: record.fecha_ingreso,
-        horas_asignadas: parseInt(record.horas_asignadas || '0', 10),
+        horas_asignadas: parseInt(record.horas_asignadas || "0", 10),
       });
       return dto;
     });
@@ -106,7 +117,9 @@ export class CsvMapperService {
         invalid.push({
           index,
           data: record,
-          errors: [{ row: index + 2, field: 'mapping', error: (error as any).message }],
+          errors: [
+            { row: index + 2, field: "mapping", error: (error as any).message },
+          ],
         });
       }
     });

@@ -20,6 +20,8 @@ import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { DeclaracionObservacion } from "../entities/declaracion-observacion.entity";
+import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
+import { CargaAdicional } from "../entities/carga-adicional.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
@@ -28,6 +30,11 @@ import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
 import { CreateDeclaracionCargaHorariaDto } from "./dto/create-declaracion-carga-horaria.dto";
 import { UpdateDeclaracionCargaHorariaDto } from "./dto/update-declaracion-carga-horaria.dto";
 import { AccionDeclaracionCargaHorariaDto } from "./dto/accion-declaracion-carga-horaria.dto";
+import { AuditoriaService } from "../modules/auditoria/auditoria.service";
+import { EntidadAuditoriaCarga, AccionAuditoriaCarga } from "../entities/auditoria-carga.entity";
+import { CargaAdicionalService } from "./carga-adicional.service";
+import { ContextoAcademicoService } from "../common/services/contexto-academico.service";
+import { UsuarioAutenticado } from "../common/interfaces/contexto-academico.interface";
 
 interface CargaLectivaDetalle {
   horarioAsignadoId: number;
@@ -102,6 +109,7 @@ interface DeclaracionVista {
   facultad: Facultad | null;
   periodo: PeriodoAcademico;
   cargaLectiva: CargaLectivaGenerada;
+  cargaAdicional: CargaAdicional[];
   snapshotGuardado: CargaLectivaGenerada | null;
 }
 
@@ -142,6 +150,13 @@ export class DeclaracionCargaHorariaService {
     private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
     @InjectRepository(DeclaracionObservacion)
     private readonly observacionRepo: Repository<DeclaracionObservacion>,
+    @InjectRepository(DeclaracionJurada)
+    private readonly declaracionJuradaRepo: Repository<DeclaracionJurada>,
+    @InjectRepository(CargaAdicional)
+    private readonly cargaAdicionalRepo: Repository<CargaAdicional>,
+    private readonly auditoriaService: AuditoriaService,
+    private readonly cargaAdicionalService: CargaAdicionalService,
+    private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
 
   async obtenerMia(
@@ -174,9 +189,12 @@ export class DeclaracionCargaHorariaService {
           docente.facultad ?? docente.departamento?.escuela?.facultad ?? null,
         periodo,
         cargaLectiva,
+        cargaAdicional: [],
         snapshotGuardado: null,
       };
     }
+
+    const cargaAdicional = await this.cargaAdicionalService.findAll(declaracion.id);
 
     return {
       declaracion,
@@ -186,6 +204,7 @@ export class DeclaracionCargaHorariaService {
       facultad: declaracion.facultad,
       periodo,
       cargaLectiva,
+      cargaAdicional,
       snapshotGuardado: this.normalizarSnapshotCargaLectiva(
         declaracion.carga_lectiva_json,
       ),
@@ -216,13 +235,15 @@ export class DeclaracionCargaHorariaService {
     }
 
     if (usuario) {
-      this.verificarAccesoDeclaracion(usuario, declaracion);
+      await this.verificarAccesoDeclaracion(usuario, declaracion);
     }
 
     const cargaLectiva = await this.cargarCargaLectiva(
       declaracion.docente_id,
       declaracion.periodo_academico_id,
     );
+
+    const cargaAdicional = await this.cargaAdicionalService.findAll(declaracion.id);
 
     return {
       declaracion,
@@ -232,6 +253,7 @@ export class DeclaracionCargaHorariaService {
       facultad: declaracion.facultad,
       periodo: declaracion.periodo_academico,
       cargaLectiva,
+      cargaAdicional,
       snapshotGuardado: this.normalizarSnapshotCargaLectiva(
         declaracion.carga_lectiva_json,
       ),
@@ -239,7 +261,7 @@ export class DeclaracionCargaHorariaService {
   }
 
   async obtenerDocumentaciones(
-    usuario: Usuario & { docenteId?: number | null },
+    usuario: UsuarioAutenticado,
     periodo?: string,
   ): Promise<DocumentacionResumen[]> {
     this.verificarRol(usuario.rol, [
@@ -275,9 +297,10 @@ export class DeclaracionCargaHorariaService {
       .addOrderBy("docente.nombres", "ASC");
 
     if (usuario.rol === RolUsuario.DIRECTOR_ESCUELA) {
-      qb.andWhere("escuela.coordinador_id = :usuarioId", {
-        usuarioId: usuario.id,
-      });
+      const contexto =
+        usuario.contextoAcademico ??
+        (await this.contextoAcademicoService.resolverContexto(usuario));
+      this.contextoAcademicoService.aplicarFiltroDeclaracion(qb, contexto);
     }
 
     const declaraciones = await qb.getMany();
@@ -331,6 +354,24 @@ export class DeclaracionCargaHorariaService {
     });
 
     const saved = await this.declaracionRepo.save(declaracion);
+
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.CREAR,
+      estado_anterior: null,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: {
+        docente_id: saved.docente_id,
+        periodo_academico_id: saved.periodo_academico_id,
+        sede: saved.sede,
+      },
+      ip: "0.0.0.0",
+    });
+
     return this.obtenerPorId(saved.id);
   }
 
@@ -342,6 +383,11 @@ export class DeclaracionCargaHorariaService {
     const declaracion = await this.obtenerEntidadEditable(id);
     this.verificarAccesoEdicion(usuario, declaracion.docente_id);
 
+    const datosAnteriores = {
+      sede: declaracion.sede,
+      observaciones: declaracion.observaciones,
+    };
+
     declaracion.sede = dto.sede ?? declaracion.sede;
     declaracion.observaciones =
       dto.observaciones !== undefined
@@ -350,6 +396,23 @@ export class DeclaracionCargaHorariaService {
     declaracion.usuario_firmante_id = usuario.id;
 
     const saved = await this.declaracionRepo.save(declaracion);
+
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.ACTUALIZAR,
+      estado_anterior: null,
+      estado_nuevo: null,
+      datos_anteriores: datosAnteriores,
+      datos_nuevos: {
+        sede: saved.sede,
+        observaciones: saved.observaciones,
+      },
+      ip: "0.0.0.0",
+    });
+
     return this.obtenerPorId(saved.id);
   }
 
@@ -364,6 +427,8 @@ export class DeclaracionCargaHorariaService {
       declaracion.estado,
       EstadoDeclaracionCarga.ENVIADO_DOCENTE,
     );
+
+    const estadoAnterior = declaracion.estado;
 
     // CL-V4: validar que todos los rubros con horas tengan detalle al enviar
     const actividades =
@@ -408,6 +473,22 @@ export class DeclaracionCargaHorariaService {
     }
 
     const saved = await this.declaracionRepo.save(declaracion);
+
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.ENVIAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: {
+        observaciones: dto.observaciones,
+      },
+      ip: "0.0.0.0",
+    });
+
     return this.obtenerPorId(saved.id);
   }
 
@@ -417,7 +498,7 @@ export class DeclaracionCargaHorariaService {
     dto: AccionDeclaracionCargaHorariaDto,
   ): Promise<DeclaracionVista> {
     const declaracion = await this.obtenerEntidadEditable(id);
-    this.verificarAccesoDeclaracion(usuario, declaracion);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
     const estadoOrigen = declaracion.estado;
     const estadoObjetivo = this.resolverEstadoObservacion(usuario.rol);
     this.validarTransicionEstado(estadoOrigen, estadoObjetivo);
@@ -453,6 +534,22 @@ export class DeclaracionCargaHorariaService {
     });
     await this.observacionRepo.save(observacion);
 
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.OBSERVAR,
+      estado_anterior: estadoOrigen,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: {
+        observaciones: dto.observaciones,
+        tipo: observacion.tipo,
+      },
+      ip: "0.0.0.0",
+    });
+
     return this.obtenerPorId(saved.id);
   }
 
@@ -468,11 +565,13 @@ export class DeclaracionCargaHorariaService {
     ]);
 
     const declaracion = await this.obtenerEntidadEditable(id);
-    this.verificarAccesoDeclaracion(usuario, declaracion);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
     this.validarTransicionEstado(
       declaracion.estado,
       EstadoDeclaracionCarga.VALIDADO_DPTO,
     );
+
+    const estadoAnterior = declaracion.estado;
 
     // V24: No se puede aprobar si hay observaciones sin subsanar
     const observacionesPendientes = await this.observacionRepo.count({
@@ -495,6 +594,22 @@ export class DeclaracionCargaHorariaService {
     }
 
     const saved = await this.declaracionRepo.save(declaracion);
+
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.VALIDAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: {
+        observaciones: dto.observaciones,
+      },
+      ip: "0.0.0.0",
+    });
+
     return this.obtenerPorId(saved.id);
   }
 
@@ -513,6 +628,8 @@ export class DeclaracionCargaHorariaService {
       declaracion.estado,
       EstadoDeclaracionCarga.APROBADO_FACULTAD,
     );
+
+    const estadoAnterior = declaracion.estado;
 
     // V24: No se puede aprobar si hay observaciones sin subsanar
     const observacionesPendientes = await this.observacionRepo.count({
@@ -535,6 +652,22 @@ export class DeclaracionCargaHorariaService {
     }
 
     const saved = await this.declaracionRepo.save(declaracion);
+
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.APROBAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: {
+        observaciones: dto.observaciones,
+      },
+      ip: "0.0.0.0",
+    });
+
     return this.obtenerPorId(saved.id);
   }
 
@@ -566,6 +699,8 @@ export class DeclaracionCargaHorariaService {
       );
     }
 
+    const estadoAnterior = declaracion.estado;
+
     this.validarTransicionEstado(
       declaracion.estado,
       EstadoDeclaracionCarga.SUBSANADO,
@@ -591,11 +726,26 @@ export class DeclaracionCargaHorariaService {
       },
     );
 
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.SUBSANAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: {
+        observaciones: dto.observaciones,
+      },
+      ip: "0.0.0.0",
+    });
+
     return this.obtenerPorId(saved.id);
   }
 
   async pendientesDepartamento(
-    usuario: Usuario & { docenteId?: number | null },
+    usuario: UsuarioAutenticado,
     periodo?: string,
   ): Promise<DocumentacionResumen[]> {
     this.verificarRol(usuario.rol, [
@@ -626,22 +776,10 @@ export class DeclaracionCargaHorariaService {
       .orderBy("docente.apellidos", "ASC")
       .addOrderBy("docente.nombres", "ASC");
 
-    // V25: Director solo ve docentes de su departamento
-    if (usuario.rol === RolUsuario.DIRECTOR_DEPARTAMENTO) {
-      const docente = await this.docenteRepo.findOne({
-        where: { usuario_id: usuario.id },
-        relations: ["departamento"],
-      });
-      if (docente?.departamento_id) {
-        qb.andWhere("declaracion.departamento_id = :deptoId", {
-          deptoId: docente.departamento_id,
-        });
-      } else {
-        throw new ForbiddenException(
-          "No tiene un departamento asignado",
-        );
-      }
-    }
+    const contexto =
+      usuario.contextoAcademico ??
+      (await this.contextoAcademicoService.resolverContexto(usuario));
+    this.contextoAcademicoService.aplicarFiltroDeclaracion(qb, contexto);
 
     const declaraciones = await qb.getMany();
 
@@ -659,7 +797,7 @@ export class DeclaracionCargaHorariaService {
   }
 
   async pendientesFacultad(
-    usuario: Usuario & { docenteId?: number | null },
+    usuario: UsuarioAutenticado,
     periodo?: string,
   ): Promise<DocumentacionResumen[]> {
     this.verificarRol(usuario.rol, [
@@ -684,22 +822,10 @@ export class DeclaracionCargaHorariaService {
       .orderBy("facultad.nombre", "ASC")
       .addOrderBy("docente.apellidos", "ASC");
 
-    // V26: Decano solo ve su facultad
-    if (usuario.rol === RolUsuario.DECANO) {
-      const docente = await this.docenteRepo.findOne({
-        where: { usuario_id: usuario.id },
-        relations: ["facultad"],
-      });
-      if (docente?.facultad_id) {
-        qb.andWhere("declaracion.facultad_id = :facultadId", {
-          facultadId: docente.facultad_id,
-        });
-      } else {
-        throw new ForbiddenException(
-          "No tiene una facultad asignada",
-        );
-      }
-    }
+    const contexto =
+      usuario.contextoAcademico ??
+      (await this.contextoAcademicoService.resolverContexto(usuario));
+    this.contextoAcademicoService.aplicarFiltroDeclaracion(qb, contexto);
 
     const declaraciones = await qb.getMany();
 
@@ -1167,7 +1293,7 @@ export class DeclaracionCargaHorariaService {
   ): Promise<CargaLectivaDeclaracionResultado> {
     const declaracion =
       await this.obtenerDeclaracionConRelaciones(declaracionId);
-    this.verificarAccesoDeclaracion(usuario, declaracion);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
 
     const cargaLectiva = await this.cargarCargaLectiva(
       declaracion.docente_id,
@@ -1189,7 +1315,7 @@ export class DeclaracionCargaHorariaService {
   ): Promise<CargaLectivaDeclaracionResultado> {
     const declaracion =
       await this.obtenerDeclaracionConRelaciones(declaracionId);
-    this.verificarAccesoDeclaracion(usuario, declaracion);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
 
     this.asegurarRegeneracionPermitida(declaracion.estado);
 
@@ -1335,53 +1461,38 @@ export class DeclaracionCargaHorariaService {
     return declaracion;
   }
 
-  private verificarAccesoDeclaracion(
-    usuario: Usuario & { docenteId?: number | null },
+  private async verificarAccesoDeclaracion(
+    usuario: UsuarioAutenticado,
     declaracion: DeclaracionCargaHoraria,
-  ): void {
+  ): Promise<void> {
     if (usuario.rol === RolUsuario.ADMINISTRADOR_SISTEMA) {
       return;
     }
 
-    if (usuario.rol === RolUsuario.DIRECTOR_ESCUELA) {
-      const coordinadorId =
-        declaracion.docente?.departamento?.escuela?.coordinador_id ??
-        declaracion.departamento?.escuela?.coordinador_id ??
-        null;
-      if (coordinadorId !== usuario.id) {
-        throw new ForbiddenException(
-          "No puede acceder a documentaciones fuera de su escuela",
-        );
-      }
-      return;
-    }
+    const contexto =
+      usuario.contextoAcademico ??
+      (await this.contextoAcademicoService.resolverContexto(usuario));
 
-    if (usuario.rol === RolUsuario.DIRECTOR_DEPARTAMENTO) {
-      if (declaracion.departamento_id !== declaracion.docente?.departamento_id) {
-        return;
-      }
-      const docenteVinculado = declaracion.docente;
-      if (
-        docenteVinculado?.departamento_id &&
-        declaracion.departamento_id !== docenteVinculado.departamento_id
-      ) {
-        throw new ForbiddenException(
-          "No puede acceder a declaraciones fuera de su departamento",
-        );
-      }
-      return;
-    }
-
-    if (usuario.rol === RolUsuario.DECANO) {
+    if (contexto.verTodo) {
       return;
     }
 
     if (
-      usuario.rol === RolUsuario.DOCENTE &&
-      usuario.docenteId !== declaracion.docente_id
+      contexto.docenteId &&
+      declaracion.docente_id !== contexto.docenteId
     ) {
       throw new ForbiddenException(
         "No puede acceder a la declaración de otro docente",
+      );
+    }
+
+    if (
+      contexto.departamentoIds.length > 0 &&
+      declaracion.departamento_id &&
+      !contexto.departamentoIds.includes(declaracion.departamento_id)
+    ) {
+      throw new ForbiddenException(
+        "No puede acceder a declaraciones fuera de su unidad académica",
       );
     }
   }
@@ -1870,5 +1981,73 @@ export class DeclaracionCargaHorariaService {
     }
 
     return this.obtenerPeriodoActivo();
+  }
+
+  async obtenerDeclaracionJurada(
+    docenteId: number,
+    periodo?: string,
+  ): Promise<DeclaracionJurada | null> {
+    const periodoObj = await this.resolverPeriodoPorCodigo(periodo);
+    return this.declaracionJuradaRepo.findOne({
+      where: {
+        docente_id: docenteId,
+        periodo_id: periodoObj.id,
+      },
+      order: { generada_en: "DESC" },
+    });
+  }
+
+  async generarDeclaracionJurada(
+    docenteId: number,
+    periodo?: string,
+    usuario?: Usuario,
+  ): Promise<DeclaracionJurada> {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+      relations: ["departamento", "facultad"],
+    });
+    if (!docente) throw new NotFoundException("Docente no encontrado");
+
+    const periodoObj = await this.resolverPeriodoPorCodigo(periodo);
+
+    const declaracion = await this.declaracionRepo.findOne({
+      where: {
+        docente_id: docenteId,
+        periodo_academico_id: periodoObj.id,
+      },
+    });
+
+    const modalidad = docente.modalidad || "TIEMPO_COMPLETO_40";
+    let tipoDeclaracion = "COMPATIBILIDAD_TOTAL";
+
+    if (modalidad === "DEDICACION_EXCLUSIVA") {
+      tipoDeclaracion = "EXCLUSIVIDAD";
+    } else if (modalidad.startsWith("TIEMPO_COMPLETO")) {
+      tipoDeclaracion = "COMPATIBILIDAD_TOTAL";
+    } else {
+      tipoDeclaracion = "COMPATIBILIDAD_PARCIAL";
+    }
+
+    const contenido = {
+      docente: `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`,
+      dni: docente.ibm || docente.codigo,
+      departamento: docente.departamento?.nombre || "No asignado",
+      facultad: docente.facultad?.nombre || "No asignada",
+      modalidad: modalidad,
+      tipoDeclaracion,
+      periodo: periodoObj.codigo,
+      fechaGeneracion: new Date().toISOString(),
+    };
+
+    const jurada = this.declaracionJuradaRepo.create({
+      declaracion_id: declaracion?.id || 0,
+      docente_id: docenteId,
+      periodo_id: periodoObj.id,
+      tipo_declaracion: tipoDeclaracion,
+      contenido: contenido as unknown as Record<string, unknown>,
+      estado: "PENDIENTE",
+    });
+
+    return this.declaracionJuradaRepo.save(jurada);
   }
 }

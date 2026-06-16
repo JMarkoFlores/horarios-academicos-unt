@@ -125,12 +125,24 @@ describe("DeclaracionCargaHorariaService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DeclaracionCargaHorariaService,
-        { provide: getRepositoryToken(DeclaracionCargaHoraria), useValue: mockDeclaracionRepo },
+        {
+          provide: getRepositoryToken(DeclaracionCargaHoraria),
+          useValue: mockDeclaracionRepo,
+        },
         { provide: getRepositoryToken(Docente), useValue: mockDocenteRepo },
-        { provide: getRepositoryToken(Departamento), useValue: mockDepartamentoRepo },
+        {
+          provide: getRepositoryToken(Departamento),
+          useValue: mockDepartamentoRepo,
+        },
         { provide: getRepositoryToken(Facultad), useValue: mockFacultadRepo },
-        { provide: getRepositoryToken(PeriodoAcademico), useValue: mockPeriodoRepo },
-        { provide: getRepositoryToken(HorarioAsignado), useValue: mockHorarioRepo },
+        {
+          provide: getRepositoryToken(PeriodoAcademico),
+          useValue: mockPeriodoRepo,
+        },
+        {
+          provide: getRepositoryToken(HorarioAsignado),
+          useValue: mockHorarioRepo,
+        },
       ],
     }).compile();
 
@@ -154,7 +166,15 @@ describe("DeclaracionCargaHorariaService", () => {
         estado,
       });
       mockQueryBuilder.getMany.mockResolvedValue([
-        crearHorario(1, EstadoHorario.CONFIRMADO, "08:00", "10:00", 10, 20, TipoClase.TEORIA),
+        crearHorario(
+          1,
+          EstadoHorario.CONFIRMADO,
+          "08:00",
+          "10:00",
+          10,
+          20,
+          TipoClase.TEORIA,
+        ),
       ]);
       mockDeclaracionRepo.save.mockResolvedValue({
         ...mockDeclaracionBase,
@@ -162,7 +182,10 @@ describe("DeclaracionCargaHorariaService", () => {
         carga_no_lectiva: { generado: true },
       });
 
-      const result = await service.actualizarCargaLectivaDeclaracion(44, mockUsuario as any);
+      const result = await service.actualizarCargaLectivaDeclaracion(
+        44,
+        mockUsuario as any,
+      );
 
       expect(result.declaracionId).toBe(44);
       expect(mockDeclaracionRepo.save).toHaveBeenCalledTimes(1);
@@ -184,7 +207,9 @@ describe("DeclaracionCargaHorariaService", () => {
         service.actualizarCargaLectivaDeclaracion(44, mockUsuario as any),
       ).rejects.toThrow(BadRequestException);
 
-      expect(mockHorarioRepo.createQueryBuilder).not.toHaveBeenCalledWith("horario");
+      expect(mockHorarioRepo.createQueryBuilder).not.toHaveBeenCalledWith(
+        "horario",
+      );
       expect(mockDeclaracionRepo.save).not.toHaveBeenCalled();
     });
   });
@@ -192,39 +217,104 @@ describe("DeclaracionCargaHorariaService", () => {
   describe("máquina de estados", () => {
     it.each([
       [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.PENDIENTE_ENVIO],
-      [EstadoDeclaracionCarga.PENDIENTE_ENVIO, EstadoDeclaracionCarga.ENVIADO_DOCENTE],
-      [EstadoDeclaracionCarga.ENVIADO_DOCENTE, EstadoDeclaracionCarga.VALIDADO_DPTO],
-      [EstadoDeclaracionCarga.ENVIADO_DOCENTE, EstadoDeclaracionCarga.OBSERVADO_DPTO],
-      [EstadoDeclaracionCarga.VALIDADO_DPTO, EstadoDeclaracionCarga.APROBADO_FACULTAD],
+      [
+        EstadoDeclaracionCarga.PENDIENTE_ENVIO,
+        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+      ],
+      [
+        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+        EstadoDeclaracionCarga.VALIDADO_DPTO,
+      ],
+      [
+        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+        EstadoDeclaracionCarga.OBSERVADO_DPTO,
+      ],
+      [
+        EstadoDeclaracionCarga.VALIDADO_DPTO,
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      ],
     ])("permite la transición %s -> %s", (actual, siguiente) => {
-      expect(() => service.validarTransicionEstado(actual as EstadoDeclaracionCarga, siguiente as EstadoDeclaracionCarga)).not.toThrow();
+      expect(() =>
+        service.validarTransicionEstado(
+          actual as EstadoDeclaracionCarga,
+          siguiente as EstadoDeclaracionCarga,
+        ),
+      ).not.toThrow();
     });
 
     it.each([
       [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.VALIDADO_DPTO],
-      [EstadoDeclaracionCarga.PENDIENTE_ENVIO, EstadoDeclaracionCarga.APROBADO_FACULTAD],
-      [EstadoDeclaracionCarga.APROBADO_FACULTAD, EstadoDeclaracionCarga.BORRADOR],
+      [
+        EstadoDeclaracionCarga.PENDIENTE_ENVIO,
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      ],
+      [
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+        EstadoDeclaracionCarga.BORRADOR,
+      ],
       [EstadoDeclaracionCarga.CERRADO, EstadoDeclaracionCarga.BORRADOR],
     ])("rechaza la transición ilegal %s -> %s", (actual, siguiente) => {
-      expect(() => service.validarTransicionEstado(actual as EstadoDeclaracionCarga, siguiente as EstadoDeclaracionCarga)).toThrow(BadRequestException);
+      expect(() =>
+        service.validarTransicionEstado(
+          actual as EstadoDeclaracionCarga,
+          siguiente as EstadoDeclaracionCarga,
+        ),
+      ).toThrow(BadRequestException);
     });
   });
 
   describe("carga lectiva desde horarios", () => {
     it("usa solo horarios CONFIRMADO e ignora BORRADOR y CONFLICTO", async () => {
       mockQueryBuilder.getMany.mockResolvedValue([
-        crearHorario(1, EstadoHorario.CONFIRMADO, "08:00", "10:00", 10, 20, TipoClase.TEORIA),
-        crearHorario(2, EstadoHorario.BORRADOR, "10:00", "12:00", 11, 21, TipoClase.PRACTICA),
-        crearHorario(3, EstadoHorario.CONFLICTO, "12:00", "13:00", 12, 22, TipoClase.LABORATORIO),
-        crearHorario(4, EstadoHorario.CONFIRMADO, "14:00", "16:00", 13, 23, TipoClase.LABORATORIO),
+        crearHorario(
+          1,
+          EstadoHorario.CONFIRMADO,
+          "08:00",
+          "10:00",
+          10,
+          20,
+          TipoClase.TEORIA,
+        ),
+        crearHorario(
+          2,
+          EstadoHorario.BORRADOR,
+          "10:00",
+          "12:00",
+          11,
+          21,
+          TipoClase.PRACTICA,
+        ),
+        crearHorario(
+          3,
+          EstadoHorario.CONFLICTO,
+          "12:00",
+          "13:00",
+          12,
+          22,
+          TipoClase.LABORATORIO,
+        ),
+        crearHorario(
+          4,
+          EstadoHorario.CONFIRMADO,
+          "14:00",
+          "16:00",
+          13,
+          23,
+          TipoClase.LABORATORIO,
+        ),
       ]);
 
       const result = await service.generarCargaLectivaDesdeHorarios(7, 15);
 
-      expect(mockHorarioRepo.createQueryBuilder).toHaveBeenCalledWith("horario");
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith("horario.estado = :estado", {
-        estado: EstadoHorario.CONFIRMADO,
-      });
+      expect(mockHorarioRepo.createQueryBuilder).toHaveBeenCalledWith(
+        "horario",
+      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        "horario.estado = :estado",
+        {
+          estado: EstadoHorario.CONFIRMADO,
+        },
+      );
       expect(result.registros).toHaveLength(2);
       expect(result.resumen.totalHoras).toBe(4);
       expect(result.resumen.totalBloques).toBe(2);
@@ -233,8 +323,24 @@ describe("DeclaracionCargaHorariaService", () => {
 
     it("calcula correctamente las horas totales", async () => {
       mockQueryBuilder.getMany.mockResolvedValue([
-        crearHorario(1, EstadoHorario.CONFIRMADO, "07:00", "09:30", 10, 20, TipoClase.TEORIA),
-        crearHorario(2, EstadoHorario.CONFIRMADO, "10:00", "11:30", 11, 21, TipoClase.PRACTICA),
+        crearHorario(
+          1,
+          EstadoHorario.CONFIRMADO,
+          "07:00",
+          "09:30",
+          10,
+          20,
+          TipoClase.TEORIA,
+        ),
+        crearHorario(
+          2,
+          EstadoHorario.CONFIRMADO,
+          "10:00",
+          "11:30",
+          11,
+          21,
+          TipoClase.PRACTICA,
+        ),
       ]);
 
       const result = await service.generarCargaLectivaDesdeHorarios(7, 15);

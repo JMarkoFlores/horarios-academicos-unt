@@ -31,7 +31,7 @@ import { FirebasePushService } from "./firebase-push.service";
       defaultJobOptions: {
         attempts: 3,
         backoff: {
-          type: 'exponential',
+          type: "exponential",
           delay: 5000, // 5 segundos, luego 10, luego 20
         },
         removeOnComplete: 100, // Mantener últimos 100 jobs completados
@@ -40,7 +40,14 @@ import { FirebasePushService } from "./firebase-push.service";
     }),
   ],
   controllers: [NotificacionesController],
-  providers: [NotificacionesService, NotificacionesProcessor, NotificacionesGateway, TelegramBotService, MailService, FirebasePushService],
+  providers: [
+    NotificacionesService,
+    NotificacionesProcessor,
+    NotificacionesGateway,
+    TelegramBotService,
+    MailService,
+    FirebasePushService,
+  ],
   exports: [NotificacionesService, NotificacionesGateway, FirebasePushService],
 })
 export class NotificacionesModule {}

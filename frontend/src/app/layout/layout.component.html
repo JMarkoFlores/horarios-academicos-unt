@@ -204,12 +204,12 @@
             <mat-icon>wifi</mat-icon>
           </button>
 
-          <!-- Botón de notificaciones -->
+          <!-- Botón de alertas del sistema -->
           <button
             mat-icon-button
             class="topbar-btn"
-            [routerLink]="['/app/notificaciones']"
-            matTooltip="Notificaciones"
+            [matMenuTriggerFor]="alertsMenu"
+            matTooltip="Alertas del sistema"
           >
             <mat-icon>notifications</mat-icon>
             @if (notificacionesCount() > 0) {
@@ -276,6 +276,54 @@
             <span [class.active-text]="p.codigo === selectedPeriodoCodigo()">{{ p.nombre }}</span>
           </button>
         }
+      </mat-menu>
+
+      <!-- Menú de alertas del sistema -->
+      <mat-menu #alertsMenu="matMenu" class="alerts-dropdown-menu">
+        <div class="dropdown-header">
+          <span class="dropdown-title">Alertas del Sistema</span>
+        </div>
+        <mat-divider></mat-divider>
+
+        <button mat-menu-item (click)="irA('horarios')" class="alerts-menu-item">
+          <div class="alert-icon-wrap alert-icon-conflict">
+            <mat-icon>warning_amber</mat-icon>
+          </div>
+          <div class="alert-item-text">
+            <span class="alert-item-label">Conflictos activos</span>
+            <span class="alert-item-sub">{{ alertasData()?.conflictos_activos ?? 0 }} sin resolver</span>
+          </div>
+          <span class="alert-count-badge alert-count-conflict">{{ alertasData()?.conflictos_activos ?? 0 }}</span>
+        </button>
+
+        <button mat-menu-item (click)="irA('docentes')" class="alerts-menu-item">
+          <div class="alert-icon-wrap alert-icon-pending">
+            <mat-icon>people_outline</mat-icon>
+          </div>
+          <div class="alert-item-text">
+            <span class="alert-item-label">Docentes pendientes</span>
+            <span class="alert-item-sub">Sin horario asignado</span>
+          </div>
+          <span class="alert-count-badge alert-count-pending">{{ alertasData()?.docentes_pendientes ?? 0 }}</span>
+        </button>
+
+        <button mat-menu-item (click)="irA('cursos')" class="alerts-menu-item">
+          <div class="alert-icon-wrap alert-icon-course">
+            <mat-icon>menu_book</mat-icon>
+          </div>
+          <div class="alert-item-text">
+            <span class="alert-item-label">Cursos sin asignar</span>
+            <span class="alert-item-sub">Sin horario programado</span>
+          </div>
+          <span class="alert-count-badge alert-count-course">{{ alertasData()?.cursos_sin_asignar ?? 0 }}</span>
+        </button>
+
+        <mat-divider></mat-divider>
+
+        <button mat-menu-item (click)="irA('dashboard')">
+          <mat-icon>dashboard</mat-icon>
+          <span>Ir al Dashboard</span>
+        </button>
       </mat-menu>
     </mat-toolbar>
 

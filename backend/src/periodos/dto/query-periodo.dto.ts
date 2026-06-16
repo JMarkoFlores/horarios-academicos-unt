@@ -1,11 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import {
-  IsOptional,
-  IsBoolean,
-  IsInt,
-  IsString,
-  Min,
-} from "class-validator";
+import { IsOptional, IsBoolean, IsInt, IsString, Min } from "class-validator";
 
 export class QueryPeriodoDto {
   @ApiPropertyOptional({ default: 1 })

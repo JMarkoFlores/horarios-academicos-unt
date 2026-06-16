@@ -1,5 +1,11 @@
-import { IsInt, IsOptional, IsArray, IsString, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsInt,
+  IsOptional,
+  IsArray,
+  IsString,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 class CeldaDto {
   @IsInt()

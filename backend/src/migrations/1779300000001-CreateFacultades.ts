@@ -88,13 +88,23 @@ export class CreateFacultades1779300000001 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "departamento" DROP CONSTRAINT IF EXISTS "FK_departamento_coordinador"`);
-    await queryRunner.query(`ALTER TABLE "departamento" DROP CONSTRAINT IF EXISTS "FK_departamento_escuela"`);
+    await queryRunner.query(
+      `ALTER TABLE "departamento" DROP CONSTRAINT IF EXISTS "FK_departamento_coordinador"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "departamento" DROP CONSTRAINT IF EXISTS "FK_departamento_escuela"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "departamento"`);
-    await queryRunner.query(`ALTER TABLE "escuela" DROP CONSTRAINT IF EXISTS "FK_escuela_coordinador"`);
-    await queryRunner.query(`ALTER TABLE "escuela" DROP CONSTRAINT IF EXISTS "FK_escuela_facultad"`);
+    await queryRunner.query(
+      `ALTER TABLE "escuela" DROP CONSTRAINT IF EXISTS "FK_escuela_coordinador"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "escuela" DROP CONSTRAINT IF EXISTS "FK_escuela_facultad"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "escuela"`);
-    await queryRunner.query(`ALTER TABLE "facultad" DROP CONSTRAINT IF EXISTS "FK_facultad_coordinador"`);
+    await queryRunner.query(
+      `ALTER TABLE "facultad" DROP CONSTRAINT IF EXISTS "FK_facultad_coordinador"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "facultad"`);
   }
 }

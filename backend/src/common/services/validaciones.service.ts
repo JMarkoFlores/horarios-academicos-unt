@@ -61,16 +61,22 @@ export class ValidacionesService {
 
     if (ignorarCursoId && ignorarTipoClase) {
       if (ignorarGrupoId) {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
-          ignorarCursoId,
-          ignorarTipoClase,
-          ignorarGrupoId
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+            ignorarGrupoId,
+          },
+        );
       } else {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
-          ignorarCursoId,
-          ignorarTipoClase
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+          },
+        );
       }
     }
 
@@ -104,16 +110,22 @@ export class ValidacionesService {
 
     if (ignorarCursoId && ignorarTipoClase) {
       if (ignorarGrupoId) {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
-          ignorarCursoId,
-          ignorarTipoClase,
-          ignorarGrupoId
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+            ignorarGrupoId,
+          },
+        );
       } else {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
-          ignorarCursoId,
-          ignorarTipoClase
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+          },
+        );
       }
     }
 
@@ -147,16 +159,22 @@ export class ValidacionesService {
 
     if (ignorarCursoId && ignorarTipoClase) {
       if (ignorarGrupoId) {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
-          ignorarCursoId,
-          ignorarTipoClase,
-          ignorarGrupoId
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+            ignorarGrupoId,
+          },
+        );
       } else {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
-          ignorarCursoId,
-          ignorarTipoClase
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+          },
+        );
       }
     }
 
@@ -270,7 +288,13 @@ export class ValidacionesService {
         activo: true,
       },
     });
-    console.log('[verificarMaxHorasDocente] Todas las restricciones del período:', todasRestricciones.map(r => ({ tipo: r.tipo_restriccion, valor: r.valor })));
+    console.log(
+      "[verificarMaxHorasDocente] Todas las restricciones del período:",
+      todasRestricciones.map((r) => ({
+        tipo: r.tipo_restriccion,
+        valor: r.valor,
+      })),
+    );
 
     const restriccion = await this.restriccionRepo.findOne({
       where: {
@@ -313,25 +337,32 @@ export class ValidacionesService {
       }
     }
 
-    console.log('[verificarMaxHorasDocente] maxHoras usado:', maxHoras);
+    console.log("[verificarMaxHorasDocente] maxHoras usado:", maxHoras);
 
-    const qb = this.horarioRepo.createQueryBuilder("h")
+    const qb = this.horarioRepo
+      .createQueryBuilder("h")
       .where("h.docente_id = :docenteId", { docenteId })
       .andWhere("h.dia = :dia", { dia })
       .andWhere("h.periodo = :periodo", { periodo });
 
     if (ignorarCursoId && ignorarTipoClase) {
       if (ignorarGrupoId) {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
-          ignorarCursoId,
-          ignorarTipoClase,
-          ignorarGrupoId
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+            ignorarGrupoId,
+          },
+        );
       } else {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
-          ignorarCursoId,
-          ignorarTipoClase
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+          },
+        );
       }
     }
 
@@ -513,22 +544,29 @@ export class ValidacionesService {
     const maxSemanal = apiParametro?.horas_max_semanal ?? 999;
     const minSemanal = apiParametro?.horas_min_semanal ?? 0;
 
-    const qb = this.horarioRepo.createQueryBuilder("h")
+    const qb = this.horarioRepo
+      .createQueryBuilder("h")
       .where("h.docente_id = :docenteId", { docenteId })
       .andWhere("h.periodo = :periodo", { periodo });
 
     if (ignorarCursoId && ignorarTipoClase) {
       if (ignorarGrupoId) {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)", {
-          ignorarCursoId,
-          ignorarTipoClase,
-          ignorarGrupoId
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase AND h.grupo_id = :ignorarGrupoId)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+            ignorarGrupoId,
+          },
+        );
       } else {
-        qb.andWhere("NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)", {
-          ignorarCursoId,
-          ignorarTipoClase
-        });
+        qb.andWhere(
+          "NOT (h.curso_id = :ignorarCursoId AND h.tipo_clase = :ignorarTipoClase)",
+          {
+            ignorarCursoId,
+            ignorarTipoClase,
+          },
+        );
       }
     }
 

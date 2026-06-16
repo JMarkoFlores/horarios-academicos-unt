@@ -43,8 +43,14 @@ describe("HorariosController (e2e)", () => {
       controllers: [HorariosController],
       providers: [
         { provide: AsignacionService, useValue: mockAsignacionService },
-        { provide: getRepositoryToken(HorarioAsignado), useValue: mockHorarioRepo },
-        { provide: getRepositoryToken(AuditoriaHorario), useValue: mockAuditoriaRepo },
+        {
+          provide: getRepositoryToken(HorarioAsignado),
+          useValue: mockHorarioRepo,
+        },
+        {
+          provide: getRepositoryToken(AuditoriaHorario),
+          useValue: mockAuditoriaRepo,
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)

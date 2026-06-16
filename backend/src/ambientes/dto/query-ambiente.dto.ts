@@ -30,7 +30,9 @@ export class QueryAmbienteDto {
   @IsEnum(EstadoAmbiente)
   estado?: EstadoAmbiente;
 
-  @ApiPropertyOptional({ description: "Búsqueda por código, nombre, pabellón o equipamiento" })
+  @ApiPropertyOptional({
+    description: "Búsqueda por código, nombre, pabellón o equipamiento",
+  })
   @IsOptional()
   @IsString()
   busqueda?: string;
@@ -59,7 +61,9 @@ export class QueryAmbienteDto {
   @Min(1)
   capacidadMax?: number;
 
-  @ApiPropertyOptional({ description: "true o false (deprecated, usar estado)" })
+  @ApiPropertyOptional({
+    description: "true o false (deprecated, usar estado)",
+  })
   @IsOptional()
   @IsString()
   activo?: string;

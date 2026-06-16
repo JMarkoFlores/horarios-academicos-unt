@@ -8,7 +8,9 @@ import { FacultadesService } from "./facultades.service";
 import { FacultadesController } from "./facultades.controller";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Facultad, Escuela, Departamento, Usuario])],
+  imports: [
+    TypeOrmModule.forFeature([Facultad, Escuela, Departamento, Usuario]),
+  ],
   controllers: [FacultadesController],
   providers: [FacultadesService],
   exports: [FacultadesService],

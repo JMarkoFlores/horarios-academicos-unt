@@ -1,4 +1,8 @@
 <div class="docentes-page animate-fadein">
+  <div class="alcance-banner" *ngIf="alcanceLabel">
+    <mat-icon>filter_alt</mat-icon>
+    <span>Mostrando datos de su unidad académica: <strong>{{ alcanceLabel }}</strong></span>
+  </div>
   <div class="page-header-premium">
     <div class="title-section">
       <h1 class="gradient-text">Gestión de Docentes</h1>
@@ -82,7 +86,7 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="premium-select">
-          <mat-label>Tipo de docente</mat-label>
+          <mat-label>Condición</mat-label>
           <mat-select
             [(ngModel)]="tipoDocenteFilter"
             (ngModelChange)="onFilterChange()"
@@ -216,7 +220,7 @@
         <!-- Tipo Docente Column -->
         <ng-container matColumnDef="tipo_docente">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="tipo_docente">
-            Tipo de docente
+            Condición
           </th>
           <td mat-cell *matCellDef="let d">
             <div class="contract-cell">

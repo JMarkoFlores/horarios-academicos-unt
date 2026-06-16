@@ -49,21 +49,32 @@
               </mat-select>
               <mat-icon matPrefix>search</mat-icon>
             </mat-form-field>
+            <div class="btn-group-row">
+              <button
+                mat-flat-button
+                class="download-btn primary"
+                (click)="descargarDocente()"
+                [disabled]="descargando['docente']"
+              >
+                <mat-spinner diameter="20" *ngIf="descargando['docente']"></mat-spinner>
+                <mat-icon *ngIf="!descargando['docente']">picture_as_pdf</mat-icon>
+                <span>{{ descargando['docente'] ? 'Generando...' : 'F03-CAD' }}</span>
+                <div class="btn-shimmer"></div>
+              </button>
+              <button
+                mat-flat-button
+                class="download-btn accent"
+                (click)="descargarF01Cad()"
+                [disabled]="descargando['f01-cad']"
+                matTooltip="Declaración de Carga Académica Docente"
+              >
+                <mat-spinner diameter="20" *ngIf="descargando['f01-cad']"></mat-spinner>
+                <mat-icon *ngIf="!descargando['f01-cad']">description</mat-icon>
+                <span>{{ descargando['f01-cad'] ? 'Generando...' : 'F01-CAD' }}</span>
+                <div class="btn-shimmer"></div>
+              </button>
+            </div>
           </div>
-
-          <mat-card-actions>
-            <button
-              mat-flat-button
-              class="download-btn primary"
-              (click)="descargarDocente()"
-              [disabled]="descargando['docente']"
-            >
-              <mat-spinner diameter="20" *ngIf="descargando['docente']"></mat-spinner>
-              <mat-icon *ngIf="!descargando['docente']">picture_as_pdf</mat-icon>
-              <span>{{ descargando['docente'] ? 'Generando...' : 'Descargar PDF' }}</span>
-              <div class="btn-shimmer"></div>
-            </button>
-          </mat-card-actions>
         </mat-card-content>
       </mat-card>
 
@@ -186,6 +197,183 @@
               <mat-spinner diameter="24" *ngIf="descargando['gestion']"></mat-spinner>
               <mat-icon *ngIf="!descargando['gestion']">auto_graph</mat-icon>
               <span>{{ descargando['gestion'] ? 'Analizando...' : 'Generar Reporte de Gestión' }}</span>
+              <div class="btn-shimmer"></div>
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Reporte de Gestión de Carga Académica -->
+      <mat-card class="report-card animate-staggered" style="--index: 7">
+        <div class="card-accent success"></div>
+        <mat-card-content>
+          <div class="card-header">
+            <div class="report-icon-wrapper success">
+              <mat-icon>assignment_turned_in</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Gestión de Carga Académica</h3>
+              <p>KPIs, distribución por categoría, estados y comparativa con período anterior</p>
+            </div>
+          </div>
+          <div class="card-actions-wrapper">
+            <button
+              mat-flat-button
+              class="download-btn success"
+              (click)="descargarGestionCarga()"
+              [disabled]="descargando['gestion-carga']"
+            >
+              <mat-spinner diameter="20" *ngIf="descargando['gestion-carga']"></mat-spinner>
+              <mat-icon *ngIf="!descargando['gestion-carga']">picture_as_pdf</mat-icon>
+              <span>{{ descargando['gestion-carga'] ? 'Generando...' : 'Descargar PDF' }}</span>
+              <div class="btn-shimmer"></div>
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Reporte de Cumplimiento por Departamento -->
+      <mat-card class="report-card animate-staggered" style="--index: 8">
+        <div class="card-accent info"></div>
+        <mat-card-content>
+          <div class="card-header">
+            <div class="report-icon-wrapper info">
+              <mat-icon>apartment</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Cumplimiento por Departamento</h3>
+              <p>Docentes declarados, validados, aprobados y % de avance por departamento</p>
+            </div>
+          </div>
+          <div class="card-actions-wrapper">
+            <button
+              mat-flat-button
+              class="download-btn info"
+              (click)="descargarCumplimiento()"
+              [disabled]="descargando['cumplimiento']"
+            >
+              <mat-spinner diameter="20" *ngIf="descargando['cumplimiento']"></mat-spinner>
+              <mat-icon *ngIf="!descargando['cumplimiento']">picture_as_pdf</mat-icon>
+              <span>{{ descargando['cumplimiento'] ? 'Generando...' : 'Descargar PDF' }}</span>
+              <div class="btn-shimmer"></div>
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Reporte Ejecutivo para Decano -->
+      <mat-card class="report-card animate-staggered" style="--index: 9">
+        <div class="card-accent warn"></div>
+        <mat-card-content>
+          <div class="card-header">
+            <div class="report-icon-wrapper warn">
+              <mat-icon>workspace_premium</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Ejecutivo — Decanatura</h3>
+              <p>Resumen de facultad, tabla de departamentos con semáforo (verde/amarillo/rojo)</p>
+            </div>
+          </div>
+          <div class="card-actions-wrapper">
+            <button
+              mat-flat-button
+              class="download-btn warn"
+              (click)="descargarEjecutivo()"
+              [disabled]="descargando['ejecutivo']"
+            >
+              <mat-spinner diameter="20" *ngIf="descargando['ejecutivo']"></mat-spinner>
+              <mat-icon *ngIf="!descargando['ejecutivo']">picture_as_pdf</mat-icon>
+              <span>{{ descargando['ejecutivo'] ? 'Generando...' : 'Descargar PDF' }}</span>
+              <div class="btn-shimmer"></div>
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </section>
+
+  <!-- Reportes de Carga Académica (CAD) -->
+  <section class="report-group">
+    <div class="group-header animate-slide-up">
+      <div class="group-title">
+        <div class="icon-box success">
+          <mat-icon>school</mat-icon>
+        </div>
+        <div>
+          <h2>Reportes de Carga Académica (CAD)</h2>
+          <p>Formatos oficiales F01-CAD y consolidados del período</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="reports-grid">
+      <!-- Consolidado por Departamento -->
+      <mat-card class="report-card animate-staggered" style="--index: 5">
+        <div class="card-accent success"></div>
+        <mat-card-content>
+          <div class="card-header">
+            <div class="report-icon-wrapper success">
+              <mat-icon>apartment</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Consolidado por Departamento</h3>
+              <p>Carga académica agrupada por departamento académico</p>
+            </div>
+          </div>
+
+          <div class="card-actions-wrapper">
+            <div class="btn-group-row">
+              <button
+                mat-flat-button
+                class="download-btn success"
+                (click)="descargarConsolidadoCarga()"
+                [disabled]="descargando['consolidado-carga']"
+              >
+                <mat-spinner diameter="20" *ngIf="descargando['consolidado-carga']"></mat-spinner>
+                <mat-icon *ngIf="!descargando['consolidado-carga']">picture_as_pdf</mat-icon>
+                <span>{{ descargando['consolidado-carga'] ? 'Generando...' : 'PDF' }}</span>
+                <div class="btn-shimmer"></div>
+              </button>
+              <button
+                mat-flat-button
+                class="download-btn accent"
+                (click)="descargarConsolidadoExcel()"
+                [disabled]="descargando['consolidado-excel']"
+              >
+                <mat-spinner diameter="20" *ngIf="descargando['consolidado-excel']"></mat-spinner>
+                <mat-icon *ngIf="!descargando['consolidado-excel']">table_chart</mat-icon>
+                <span>{{ descargando['consolidado-excel'] ? 'Generando...' : 'Excel' }}</span>
+                <div class="btn-shimmer"></div>
+              </button>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Distribución por Modalidad -->
+      <mat-card class="report-card animate-staggered" style="--index: 6">
+        <div class="card-accent info"></div>
+        <mat-card-content>
+          <div class="card-header">
+            <div class="report-icon-wrapper info">
+              <mat-icon>donut_large</mat-icon>
+            </div>
+            <div class="title-area">
+              <h3>Distribución por Modalidad</h3>
+              <p>Docentes agrupados por modalidad con promedio de horas</p>
+            </div>
+          </div>
+
+          <div class="card-actions-wrapper">
+            <button
+              mat-flat-button
+              class="download-btn info"
+              (click)="descargarCargaPorModalidad()"
+              [disabled]="descargando['carga-por-modalidad']"
+            >
+              <mat-spinner diameter="20" *ngIf="descargando['carga-por-modalidad']"></mat-spinner>
+              <mat-icon *ngIf="!descargando['carga-por-modalidad']">picture_as_pdf</mat-icon>
+              <span>{{ descargando['carga-por-modalidad'] ? 'Generando...' : 'Descargar PDF' }}</span>
               <div class="btn-shimmer"></div>
             </button>
           </div>

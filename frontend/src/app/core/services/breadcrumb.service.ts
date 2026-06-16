@@ -33,8 +33,6 @@ const ROUTE_LABELS: Record<string, RouteLabel> = {
   disponibilidad: { label: 'Disponibilidad', icon: 'event_available', translationKey: 'breadcrumb.disponibilidad' },
   horarios: { label: 'Horarios', icon: 'schedule', translationKey: 'breadcrumb.horarios' },
   'mis-horarios': { label: 'Mis Horarios', icon: 'schedule', translationKey: 'breadcrumb.misHorarios' },
-  asignaciones: { label: 'Asignaciones', icon: 'assignment_ind', translationKey: 'breadcrumb.asignaciones' },
-  'docente-cursos': { label: 'Docente-Curso', icon: 'link', translationKey: 'breadcrumb.docenteCursos' },
   'curso-ambientes': { label: 'Curso-Ambiente', icon: 'link', translationKey: 'breadcrumb.cursoAmbientes' },
   'docente-facultad': { label: 'Docente-Facultad', icon: 'school', translationKey: 'breadcrumb.docenteFacultad' },
   'docente-facultad/:id/editar': { label: 'Editar', translationKey: 'breadcrumb.docenteFacultad_editar' },

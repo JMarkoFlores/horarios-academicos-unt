@@ -21,7 +21,7 @@ describe("HorariosService", () => {
     get: jest.fn(),
     set: jest.fn(),
     del: jest.fn(),
-    store: { keys: jest.fn() }
+    store: { keys: jest.fn() },
   };
 
   const mockQueryBuilder = {
@@ -98,13 +98,22 @@ describe("HorariosService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HorariosService,
-        { provide: getRepositoryToken(HorarioAsignado), useValue: mockHorarioRepo },
-        { provide: getRepositoryToken(ConflictoAsignacion), useValue: mockConflictoRepo },
+        {
+          provide: getRepositoryToken(HorarioAsignado),
+          useValue: mockHorarioRepo,
+        },
+        {
+          provide: getRepositoryToken(ConflictoAsignacion),
+          useValue: mockConflictoRepo,
+        },
         { provide: getRepositoryToken(Ambiente), useValue: mockAmbienteRepo },
         { provide: getRepositoryToken(Docente), useValue: mockDocenteRepo },
         { provide: getRepositoryToken(Curso), useValue: mockCursoRepo },
         { provide: getRepositoryToken(Grupo), useValue: mockGrupoRepo },
-        { provide: getRepositoryToken(PeriodoAcademico), useValue: mockPeriodoRepo },
+        {
+          provide: getRepositoryToken(PeriodoAcademico),
+          useValue: mockPeriodoRepo,
+        },
         {
           provide: CommonValidacionesService,
           useValue: mockCommonValidacionesService,
@@ -135,9 +144,11 @@ describe("HorariosService", () => {
   describe("reasignarManual", () => {
     it("debe reasignar exitosamente", async () => {
       mockQueryBuilder.getOne.mockResolvedValue(mockHorario);
-      mockGlobalValidacionesService.verificarFranjaInstitucional.mockResolvedValue({
-        valido: true,
-      });
+      mockGlobalValidacionesService.verificarFranjaInstitucional.mockResolvedValue(
+        {
+          valido: true,
+        },
+      );
       mockGlobalValidacionesService.verificarDisponibilidadDocente.mockResolvedValue(
         { valido: true },
       );

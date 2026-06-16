@@ -35,7 +35,7 @@ export class VentanaAtencion {
   @Column({ name: "categoria", length: 120 })
   proposito: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   filtro_categorias_docente: string[] | null;
 
   @Column({ nullable: true, length: 120 })
@@ -60,8 +60,8 @@ export class VentanaAtencion {
   @Column({ nullable: true })
   campaña_id: string;
 
-  @ManyToOne(() => CampañaVentanas, campaña => campaña.ventanas)
-  @JoinColumn({ name: 'campaña_id' })
+  @ManyToOne(() => CampañaVentanas, (campaña) => campaña.ventanas)
+  @JoinColumn({ name: "campaña_id" })
   campaña: CampañaVentanas;
 
   @CreateDateColumn({ name: "creado_en" })

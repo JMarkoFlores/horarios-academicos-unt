@@ -3,10 +3,20 @@
   <!-- HEADER -->
   <div class="page-header-premium">
     <div class="title-section">
-      <h1 class="gradient-text">Plan de Estudios</h1>
-      <p class="subtitle">Gestión de cursos y mallas curriculares</p>
+      <h1 class="gradient-text">Catálogo de Cursos</h1>
+      <p class="subtitle">Gestión del catálogo de cursos ofertados por la facultad</p>
+      <p class="plan-info" *ngIf="activePlan">
+        <mat-icon>school</mat-icon>
+        Plan de Estudios Actual: <strong>{{ activePlan.nombre }} ({{ activePlan.anio }})</strong>
+        <span *ngIf="activePlan.resolucion" class="resolucion">Resolución: {{ activePlan.resolucion }}</span>
+      </p>
     </div>
     <div class="header-actions">
+      <button mat-stroked-button class="btn-export" (click)="exportarPDF()" [disabled]="exportando">
+        <mat-spinner diameter="14" *ngIf="exportando"></mat-spinner>
+        <mat-icon *ngIf="!exportando">picture_as_pdf</mat-icon>
+        <span>{{ exportando ? 'Exportando…' : 'PDF' }}</span>
+      </button>
       <button mat-stroked-button class="btn-export" (click)="exportarExcel()" [disabled]="exportando">
         <mat-spinner diameter="14" *ngIf="exportando"></mat-spinner>
         <mat-icon *ngIf="!exportando">download</mat-icon>
@@ -123,7 +133,26 @@
           </td>
         </ng-container>
 
-        <!-- NOMBRE + ciclo badge -->
+        <!-- TIPO CURSO -->
+        <ng-container matColumnDef="tipo_curso">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="tipo_curso">Tipo</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="tipo-curso-badge">{{ getTipoCurso(c) }}</span>
+          </td>
+        </ng-container>
+
+        <!-- NOMBRE -->
+        <ng-container matColumnDef="ciclo">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="ciclo">Ciclo</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="cycle-chip" [style.background]="cicloColor(c.ciclo) + '22'"
+                  [style.color]="cicloColor(c.ciclo)" [style.border-color]="cicloColor(c.ciclo) + '55'">
+              {{ c.ciclo }}
+            </span>
+          </td>
+        </ng-container>
+
+        <!-- NOMBRE -->
         <ng-container matColumnDef="nombre">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="nombre">Nombre del Curso</th>
           <td mat-cell *matCellDef="let c">
@@ -132,10 +161,6 @@
                 <span class="course-title" [class.inactivo-title]="c.activo === false">{{ c.nombre }}</span>
                 <span class="inactivo-badge" *ngIf="c.activo === false">INACTIVO</span>
               </div>
-              <span class="cycle-chip" [style.background]="cicloColor(c.ciclo) + '22'"
-                    [style.color]="cicloColor(c.ciclo)" [style.border-color]="cicloColor(c.ciclo) + '55'">
-                Ciclo {{ c.ciclo }}
-              </span>
             </div>
           </td>
         </ng-container>
@@ -148,18 +173,43 @@
           </td>
         </ng-container>
 
-        <!-- HORAS -->
+        <!-- HORAS TEORÍA -->
         <ng-container matColumnDef="horas_teoria">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="horas_teoria">Horas</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="horas_teoria">T</th>
           <td mat-cell *matCellDef="let c">
-            <div class="hours-cell">
-              <span class="hour-tag theory" matTooltip="Horas de Teoría">
-                <mat-icon>menu_book</mat-icon> {{ c.horas_teoria }}h
-              </span>
-              <span class="hour-tag lab" *ngIf="c.horas_laboratorio" matTooltip="Horas de Laboratorio">
-                <mat-icon>biotech</mat-icon> {{ c.horas_laboratorio }}h
-              </span>
-            </div>
+            <span class="hour-tag theory" matTooltip="Horas de Teoría">
+              <mat-icon>menu_book</mat-icon> {{ c.horas_teoria }}
+            </span>
+          </td>
+        </ng-container>
+
+        <!-- HORAS PRÁCTICA -->
+        <ng-container matColumnDef="horas_practica">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="horas_practica">P</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="hour-tag practice" matTooltip="Horas de Práctica">
+              <mat-icon>build</mat-icon> {{ c.horas_practica ?? 0 }}
+            </span>
+          </td>
+        </ng-container>
+
+        <!-- HORAS LABORATORIO -->
+        <ng-container matColumnDef="horas_laboratorio">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="horas_laboratorio">L</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="hour-tag lab" matTooltip="Horas de Laboratorio">
+              <mat-icon>biotech</mat-icon> {{ c.horas_laboratorio ?? 0 }}
+            </span>
+          </td>
+        </ng-container>
+
+        <!-- DEPARTAMENTO -->
+        <ng-container matColumnDef="departamento">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="departamento">Departamento</th>
+          <td mat-cell *matCellDef="let c">
+            <span class="departamento-text" [matTooltip]="c.departamento?.nombre">
+              {{ c.departamento?.nombre || '—' }}
+            </span>
           </td>
         </ng-container>
 
@@ -168,7 +218,7 @@
           <th mat-header-cell *matHeaderCellDef>Prerequisitos</th>
           <td mat-cell *matCellDef="let c">
             <div class="prerequisitos-cell">
-              <span *ngIf="c.prerequisitos" class="prerequisitos-text" [matTooltip]="c.prerequisitos">
+              <span *ngIf="c.prerequisitos" class="prerequisitos-text" [matTooltip]="getPrerequisitosNombres(c.prerequisitos)">
                 {{ getPrerequisitosResumen(c.prerequisitos) }}
               </span>
               <span *ngIf="!c.prerequisitos" class="prerequisitos-empty">—</span>

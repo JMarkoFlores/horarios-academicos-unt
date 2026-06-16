@@ -22,12 +22,15 @@ export class ValidadorHorarioService {
     private readonly horarioRepo: Repository<HorarioAsignado>,
   ) {}
 
-  async validarSlot(params: ValidarSlotDto, permitirSuperposiciones: boolean = false): Promise<ResultadoValidacion> {
+  async validarSlot(
+    params: ValidarSlotDto,
+    permitirSuperposiciones: boolean = false,
+  ): Promise<ResultadoValidacion> {
     const duracion = this.calcularDuracionHoras(
       params.hora_inicio,
       params.hora_fin,
     );
-    
+
     // Validaciones básicas que siempre se aplican
     const validacionesBasicas = [
       this.ejecutarValidacion(
@@ -86,7 +89,10 @@ export class ValidadorHorarioService {
               duracion,
               params.periodo,
               params.docente_id,
-              (params.tipo_clase === 'LABORATORIO' || params.tipo_clase === 'PRACTICA') ? params.grupo_id : undefined,
+              params.tipo_clase === "LABORATORIO" ||
+                params.tipo_clase === "PRACTICA"
+                ? params.grupo_id
+                : undefined,
             );
             return res.valido;
           }, "El curso ya tiene asignadas todas las horas requeridas para este tipo de clase.")
@@ -231,8 +237,8 @@ export class ValidadorHorarioService {
         },
       });
 
-      const ocupacionesEnSlot = horariosEnCelda.filter(
-        h => h.hora_inicio.startsWith(params.hora_inicio)
+      const ocupacionesEnSlot = horariosEnCelda.filter((h) =>
+        h.hora_inicio.startsWith(params.hora_inicio),
       );
 
       // Permitir si hay menos de 3 ocupaciones

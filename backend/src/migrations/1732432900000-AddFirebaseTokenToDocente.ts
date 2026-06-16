@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class AddFirebaseTokenToDocente1732432900000 implements MigrationInterface {
-  name = 'AddFirebaseTokenToDocente1732432900000';
+  name = "AddFirebaseTokenToDocente1732432900000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

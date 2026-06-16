@@ -13,11 +13,7 @@ export class AddModalidadDocente1748000000001 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "docente" DROP COLUMN "modalidad"`,
-    );
-    await queryRunner.query(
-      `DROP TYPE "public"."docente_modalidad_enum"`,
-    );
+    await queryRunner.query(`ALTER TABLE "docente" DROP COLUMN "modalidad"`);
+    await queryRunner.query(`DROP TYPE "public"."docente_modalidad_enum"`);
   }
 }

@@ -31,7 +31,10 @@ import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
 
-const ADMIN_COORD = [RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO];
+const ADMIN_COORD = [
+  RolUsuario.ADMINISTRADOR_SISTEMA,
+  RolUsuario.COORDINADOR_ACADEMICO,
+];
 
 @ApiTags("facultades")
 @Controller()
@@ -61,7 +64,10 @@ export class FacultadesController {
   @ApiOperation({ summary: "Crear facultad" })
   @ApiResponse({ status: 201 })
   async createFacultad(@Body() dto: CreateFacultadDto) {
-    return { data: await this.service.createFacultad(dto), message: "Facultad creada correctamente" };
+    return {
+      data: await this.service.createFacultad(dto),
+      message: "Facultad creada correctamente",
+    };
   }
 
   @Patch("facultades/:id")
@@ -71,7 +77,10 @@ export class FacultadesController {
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateFacultadDto,
   ) {
-    return { data: await this.service.updateFacultad(id, dto), message: "Facultad actualizada" };
+    return {
+      data: await this.service.updateFacultad(id, dto),
+      message: "Facultad actualizada",
+    };
   }
 
   @Delete("facultades/:id")
@@ -90,7 +99,11 @@ export class FacultadesController {
   @ApiQuery({ name: "facultad_id", required: false, type: Number })
   @ApiOperation({ summary: "Listar escuelas, opcionalmente por facultad" })
   async findAllEscuelas(@Query("facultad_id") facultadId?: string) {
-    return { data: await this.service.findAllEscuelas(facultadId ? +facultadId : undefined) };
+    return {
+      data: await this.service.findAllEscuelas(
+        facultadId ? +facultadId : undefined,
+      ),
+    };
   }
 
   @Get("escuelas/:id")
@@ -104,7 +117,10 @@ export class FacultadesController {
   @Roles(...ADMIN_COORD)
   @ApiOperation({ summary: "Crear escuela" })
   async createEscuela(@Body() dto: CreateEscuelaDto) {
-    return { data: await this.service.createEscuela(dto), message: "Escuela creada correctamente" };
+    return {
+      data: await this.service.createEscuela(dto),
+      message: "Escuela creada correctamente",
+    };
   }
 
   @Patch("escuelas/:id")
@@ -114,7 +130,10 @@ export class FacultadesController {
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateEscuelaDto,
   ) {
-    return { data: await this.service.updateEscuela(id, dto), message: "Escuela actualizada" };
+    return {
+      data: await this.service.updateEscuela(id, dto),
+      message: "Escuela actualizada",
+    };
   }
 
   @Delete("escuelas/:id")
@@ -133,7 +152,11 @@ export class FacultadesController {
   @ApiQuery({ name: "escuela_id", required: false, type: Number })
   @ApiOperation({ summary: "Listar departamentos, opcionalmente por escuela" })
   async findAllDepartamentos(@Query("escuela_id") escuelaId?: string) {
-    return { data: await this.service.findAllDepartamentos(escuelaId ? +escuelaId : undefined) };
+    return {
+      data: await this.service.findAllDepartamentos(
+        escuelaId ? +escuelaId : undefined,
+      ),
+    };
   }
 
   @Get("departamentos/:id")
@@ -147,7 +170,10 @@ export class FacultadesController {
   @Roles(...ADMIN_COORD)
   @ApiOperation({ summary: "Crear departamento" })
   async createDepartamento(@Body() dto: CreateDepartamentoDto) {
-    return { data: await this.service.createDepartamento(dto), message: "Departamento creado correctamente" };
+    return {
+      data: await this.service.createDepartamento(dto),
+      message: "Departamento creado correctamente",
+    };
   }
 
   @Patch("departamentos/:id")
@@ -157,7 +183,10 @@ export class FacultadesController {
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateDepartamentoDto,
   ) {
-    return { data: await this.service.updateDepartamento(id, dto), message: "Departamento actualizado" };
+    return {
+      data: await this.service.updateDepartamento(id, dto),
+      message: "Departamento actualizado",
+    };
   }
 
   @Delete("departamentos/:id")

@@ -46,6 +46,7 @@ export class CursoFormComponent implements OnInit {
       creditos:                 [3,  [Validators.required, Validators.min(1), Validators.max(12)]],
       ciclo:                    [1,  [Validators.required, Validators.min(1), Validators.max(10)]],
       horas_teoria:             [2,  [Validators.required, Validators.min(1)]],
+      horas_practica:           [0,  [Validators.min(0)]],
       horas_laboratorio:        [{ value: 0, disabled: true }],
       tiene_laboratorio:        [false],
       ambientes_teoria_ids:     [[]],

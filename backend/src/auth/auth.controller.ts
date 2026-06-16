@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   UseGuards,
   HttpCode,
@@ -36,6 +37,16 @@ export class AuthController {
   @ApiResponse({ status: 401, description: "Credenciales inválidas" })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Get("perfil")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Obtener perfil y contexto académico del usuario" })
+  @ApiResponse({ status: 200, description: "Perfil del usuario autenticado" })
+  async perfil(@CurrentUser() usuario: Usuario & { docenteId?: number | null }) {
+    const data = await this.authService.obtenerPerfil(usuario);
+    return { data, message: "Perfil obtenido correctamente" };
   }
 
   @Post("refresh")

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddModalidadToParametrosCarga1748000000004
-  implements MigrationInterface
-{
+export class AddModalidadToParametrosCarga1748000000004 implements MigrationInterface {
   name = "AddModalidadToParametrosCarga1748000000004";
 
   public async up(queryRunner: QueryRunner): Promise<void> {

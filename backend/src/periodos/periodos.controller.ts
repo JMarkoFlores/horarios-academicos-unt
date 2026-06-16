@@ -37,17 +37,29 @@ export class PeriodosController {
   constructor(private readonly periodosService: PeriodosService) {}
 
   @Get()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Listar periodos académicos paginado" })
   @ApiResponse({ status: 200, description: "Lista paginada de periodos" })
   async findAll(@Query() query: QueryPeriodoDto) {
-    console.log('Received query:', query);
+    console.log("Received query:", query);
     const result = await this.periodosService.findAll(query);
     return { data: result, message: "Periodos obtenidos correctamente" };
   }
 
   @Get("todos")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DIRECTOR_DEPARTAMENTO, RolUsuario.DOCENTE, RolUsuario.SECRETARIA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DOCENTE,
+    RolUsuario.SECRETARIA,
+  )
   @ApiOperation({ summary: "Listar todos los periodos sin paginación" })
   async findAllSinPaginar() {
     const result = await this.periodosService.findAllSinPaginar();
@@ -55,7 +67,12 @@ export class PeriodosController {
   }
 
   @Get(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Obtener un periodo por ID" })
   @ApiParam({ name: "id", type: Number })
   async findOne(@Param("id", ParseIntPipe) id: number) {
@@ -113,11 +130,16 @@ export class PeriodosController {
 
   @Get(":id/docentes-pendientes")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Obtener docentes sin horario completo en el período" })
+  @ApiOperation({
+    summary: "Obtener docentes sin horario completo en el período",
+  })
   @ApiParam({ name: "id", type: Number })
   async getDocentesPendientes(@Param("id", ParseIntPipe) id: number) {
     const result = await this.periodosService.getDocentesPendientes(id);
-    return { data: result, message: "Docentes pendientes obtenidos correctamente" };
+    return {
+      data: result,
+      message: "Docentes pendientes obtenidos correctamente",
+    };
   }
 
   @Patch(":id/modo-asignacion")
@@ -126,15 +148,23 @@ export class PeriodosController {
   @ApiParam({ name: "id", type: Number })
   async actualizarModoAsignacion(
     @Param("id", ParseIntPipe) id: number,
-    @Body() dto: { modo_asignacion: ModoAsignacion }
+    @Body() dto: { modo_asignacion: ModoAsignacion },
   ) {
-    const result = await this.periodosService.actualizarModoAsignacion(id, dto.modo_asignacion);
-    return { data: result, message: "Modo de asignación actualizado correctamente" };
+    const result = await this.periodosService.actualizarModoAsignacion(
+      id,
+      dto.modo_asignacion,
+    );
+    return {
+      data: result,
+      message: "Modo de asignación actualizado correctamente",
+    };
   }
 
   @Post(":id/crear-ventanas-pendientes")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Crear ventana de atención para docentes pendientes (modo mixto)" })
+  @ApiOperation({
+    summary: "Crear ventana de atención para docentes pendientes (modo mixto)",
+  })
   @ApiParam({ name: "id", type: Number })
   async crearVentanasPendientes(@Param("id", ParseIntPipe) id: number) {
     const result = await this.periodosService.crearVentanasPendientes(id);
@@ -143,7 +173,9 @@ export class PeriodosController {
 
   @Post(":id/limpiar-inconsistentes")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Limpiar horarios inconsistentes (docentes sin curso habilitado)" })
+  @ApiOperation({
+    summary: "Limpiar horarios inconsistentes (docentes sin curso habilitado)",
+  })
   @ApiParam({ name: "id", type: Number })
   async limpiarHorariosInconsistentes(@Param("id", ParseIntPipe) id: number) {
     const result = await this.periodosService.limpiarHorariosInconsistentes(id);

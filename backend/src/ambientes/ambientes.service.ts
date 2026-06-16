@@ -16,7 +16,13 @@ import { UpdateAmbienteDto } from "./dto/update-ambiente.dto";
 import { QueryAmbienteDto } from "./dto/query-ambiente.dto";
 
 const DIAS_NOMBRE: Record<number, string> = {
-  1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado", 7: "Domingo"
+  1: "Lunes",
+  2: "Martes",
+  3: "Miércoles",
+  4: "Jueves",
+  5: "Viernes",
+  6: "Sábado",
+  7: "Domingo",
 };
 
 type DistanciaAmbientesResult = {
@@ -66,25 +72,25 @@ export class AmbientesService {
       throw new BadRequestException(`Día inválido: '${dia}'`);
     }
 
-    const qb = this.ambienteRepo.createQueryBuilder('ambiente');
+    const qb = this.ambienteRepo.createQueryBuilder("ambiente");
 
     // 1. Filtrar por tipo de ambiente
-    qb.where('ambiente.tipo = :tipo', { tipo });
+    qb.where("ambiente.tipo = :tipo", { tipo });
 
     // 2. Subconsulta para encontrar ambientes OCUPADOS
     const subQuery = this.horarioRepo
-      .createQueryBuilder('horario')
-      .select('horario.ambiente_id')
-      .where('horario.dia = :diaSemana', { diaSemana })
+      .createQueryBuilder("horario")
+      .select("horario.ambiente_id")
+      .where("horario.dia = :diaSemana", { diaSemana })
       // Un horario se cruza si termina después de que empieza el rango Y empieza antes de que termine el rango
-      .andWhere('horario.hora_fin > :horaInicio', { horaInicio })
-      .andWhere('horario.hora_inicio < :horaFin', { horaFin });
+      .andWhere("horario.hora_fin > :horaInicio", { horaInicio })
+      .andWhere("horario.hora_inicio < :horaFin", { horaFin });
 
     // Si se especifica un periodo, la subconsulta también debe filtrarlo
     if (periodoId) {
       const periodo = await this.resolverPeriodoCodigo(periodoId);
       if (periodo) {
-        subQuery.andWhere('horario.periodo = :periodo', { periodo });
+        subQuery.andWhere("horario.periodo = :periodo", { periodo });
       }
     }
 
@@ -95,14 +101,24 @@ export class AmbientesService {
     qb.setParameters(subQuery.getParameters());
 
     // Ordenar para un resultado consistente
-    qb.orderBy('ambiente.codigo', 'ASC');
+    qb.orderBy("ambiente.codigo", "ASC");
 
     return qb.getMany();
   }
 
-
   async findAll(query: QueryAmbienteDto) {
-    const { page = 1, limit = 20, tipo, estado, activo, busqueda, pabellon, sede, capacidadMin, capacidadMax } = query;
+    const {
+      page = 1,
+      limit = 20,
+      tipo,
+      estado,
+      activo,
+      busqueda,
+      pabellon,
+      sede,
+      capacidadMin,
+      capacidadMax,
+    } = query;
 
     const qb = this.ambienteRepo.createQueryBuilder("ambiente");
 
@@ -369,7 +385,9 @@ export class AmbientesService {
     origen: Ambiente,
     destino: Ambiente,
   ): DistanciaAmbientesResult {
-    const mismoEdificio = this.normalizarEdificio(origen.edificio) === this.normalizarEdificio(destino.edificio);
+    const mismoEdificio =
+      this.normalizarEdificio(origen.edificio) ===
+      this.normalizarEdificio(destino.edificio);
 
     if (!this.tieneCoordenadas(origen) || !this.tieneCoordenadas(destino)) {
       return {

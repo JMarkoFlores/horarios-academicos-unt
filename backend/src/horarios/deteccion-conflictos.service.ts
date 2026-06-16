@@ -1,11 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { HorarioAsignado } from '../entities/horario-asignado.entity';
-import { ConflictoAsignacion } from '../entities/conflicto-asignacion.entity';
-import { Docente } from '../entities/docente.entity';
-import { Ambiente } from '../entities/ambiente.entity';
-import { TipoConflicto } from '../common/enums/tipo-conflicto.enum';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
+import { Docente } from "../entities/docente.entity";
+import { Ambiente } from "../entities/ambiente.entity";
+import { TipoConflicto } from "../common/enums/tipo-conflicto.enum";
 
 export interface ResultadoDeteccion {
   tieneConflictos: boolean;
@@ -18,7 +18,7 @@ export interface ConflictoDetectado {
   horarioId?: number;
   docenteId?: number;
   ambienteId?: number;
-  gravedad: 'ALTA' | 'MEDIA' | 'BAJA';
+  gravedad: "ALTA" | "MEDIA" | "BAJA";
 }
 
 export interface ValidacionAsignacion {
@@ -62,9 +62,9 @@ export class DeteccionConflictosService {
     if (cruceDocente) {
       conflictos.push({
         tipo: TipoConflicto.CRUCE_DOCENTE,
-        descripcion: 'El docente tiene otro horario asignado en este slot',
+        descripcion: "El docente tiene otro horario asignado en este slot",
         docenteId,
-        gravedad: 'ALTA',
+        gravedad: "ALTA",
       });
     }
 
@@ -79,9 +79,9 @@ export class DeteccionConflictosService {
     if (cruceAmbiente) {
       conflictos.push({
         tipo: TipoConflicto.CRUCE_AMBIENTE,
-        descripcion: 'El ambiente ya está ocupado en este slot',
+        descripcion: "El ambiente ya está ocupado en este slot",
         ambienteId,
-        gravedad: 'ALTA',
+        gravedad: "ALTA",
       });
     }
 
@@ -96,8 +96,8 @@ export class DeteccionConflictosService {
     if (cruceGrupo) {
       conflictos.push({
         tipo: TipoConflicto.CRUCE_GRUPO,
-        descripcion: 'El grupo tiene otro horario asignado en este slot',
-        gravedad: 'ALTA',
+        descripcion: "El grupo tiene otro horario asignado en este slot",
+        gravedad: "ALTA",
       });
     }
 
@@ -123,7 +123,7 @@ export class DeteccionConflictosService {
         tipo: TipoConflicto.CARGA_INSUFICIENTE,
         descripcion: `Carga insuficiente: ${horasAsignadas}h asignadas de ${horasRequeridas}h requeridas`,
         docenteId,
-        gravedad: 'MEDIA',
+        gravedad: "MEDIA",
       });
     }
 
@@ -144,7 +144,7 @@ export class DeteccionConflictosService {
 
     const horarios = await this.horarioRepo.find({
       where: { periodo },
-      relations: ['docente', 'ambiente', 'grupo'],
+      relations: ["docente", "ambiente", "grupo"],
     });
 
     const conflictos: ConflictoDetectado[] = [];
@@ -156,7 +156,7 @@ export class DeteccionConflictosService {
         tipo: TipoConflicto.SIN_DOCENTE,
         descripcion: `Horario ${h.id} sin docente asignado`,
         horarioId: h.id,
-        gravedad: 'ALTA',
+        gravedad: "ALTA",
       });
     });
 
@@ -167,7 +167,7 @@ export class DeteccionConflictosService {
         tipo: TipoConflicto.SIN_AMBIENTE,
         descripcion: `Horario ${h.id} sin ambiente asignado`,
         horarioId: h.id,
-        gravedad: 'ALTA',
+        gravedad: "ALTA",
       });
     });
 
@@ -180,7 +180,12 @@ export class DeteccionConflictosService {
           h.docente_id === horario.docente_id &&
           h.id !== horario.id &&
           h.dia === horario.dia &&
-          this.haySolapamiento(h.hora_inicio, h.hora_fin, horario.hora_inicio, horario.hora_fin),
+          this.haySolapamiento(
+            h.hora_inicio,
+            h.hora_fin,
+            horario.hora_inicio,
+            horario.hora_fin,
+          ),
       );
 
       cruces.forEach((cruce) => {
@@ -189,7 +194,7 @@ export class DeteccionConflictosService {
           descripcion: `Docente ${horario.docente.apellidos} tiene cruce entre horarios ${horario.id} y ${cruce.id}`,
           docenteId: horario.docente_id,
           horarioId: horario.id,
-          gravedad: 'ALTA',
+          gravedad: "ALTA",
         });
       });
     }
@@ -203,7 +208,12 @@ export class DeteccionConflictosService {
           h.ambiente_id === horario.ambiente_id &&
           h.id !== horario.id &&
           h.dia === horario.dia &&
-          this.haySolapamiento(h.hora_inicio, h.hora_fin, horario.hora_inicio, horario.hora_fin),
+          this.haySolapamiento(
+            h.hora_inicio,
+            h.hora_fin,
+            horario.hora_inicio,
+            horario.hora_fin,
+          ),
       );
 
       cruces.forEach((cruce) => {
@@ -212,7 +222,7 @@ export class DeteccionConflictosService {
           descripcion: `Ambiente ${horario.ambiente.nombre} tiene cruce entre horarios ${horario.id} y ${cruce.id}`,
           ambienteId: horario.ambiente_id,
           horarioId: horario.id,
-          gravedad: 'ALTA',
+          gravedad: "ALTA",
         });
       });
     }
@@ -226,7 +236,12 @@ export class DeteccionConflictosService {
           h.grupo_id === horario.grupo_id &&
           h.id !== horario.id &&
           h.dia === horario.dia &&
-          this.haySolapamiento(h.hora_inicio, h.hora_fin, horario.hora_inicio, horario.hora_fin),
+          this.haySolapamiento(
+            h.hora_inicio,
+            h.hora_fin,
+            horario.hora_inicio,
+            horario.hora_fin,
+          ),
       );
 
       cruces.forEach((cruce) => {
@@ -234,7 +249,7 @@ export class DeteccionConflictosService {
           tipo: TipoConflicto.CRUCE_GRUPO,
           descripcion: `Grupo ${horario.grupo.nombre} tiene cruce entre horarios ${horario.id} y ${cruce.id}`,
           horarioId: horario.id,
-          gravedad: 'ALTA',
+          gravedad: "ALTA",
         });
       });
     }
@@ -242,7 +257,9 @@ export class DeteccionConflictosService {
     // Guardar conflictos detectados en base de datos
     await this.guardarConflictos(conflictos, periodo);
 
-    this.logger.log(`Análisis completado: ${conflictos.length} conflictos detectados`);
+    this.logger.log(
+      `Análisis completado: ${conflictos.length} conflictos detectados`,
+    );
 
     return {
       tieneConflictos: conflictos.length > 0,
@@ -267,8 +284,12 @@ export class DeteccionConflictosService {
         tipo_conflicto: conflicto.tipo,
         periodo_academico: periodo,
         resuelto: false,
-        docente: conflicto.docenteId ? { id: conflicto.docenteId } as Docente : null,
-        ambiente: conflicto.ambienteId ? { id: conflicto.ambienteId } as Ambiente : null,
+        docente: conflicto.docenteId
+          ? ({ id: conflicto.docenteId } as Docente)
+          : null,
+        ambiente: conflicto.ambienteId
+          ? ({ id: conflicto.ambienteId } as Ambiente)
+          : null,
       });
     }
   }
@@ -290,7 +311,12 @@ export class DeteccionConflictosService {
 
     if (!cruce) return false;
 
-    return this.haySolapamiento(cruce.hora_inicio, cruce.hora_fin, horaInicio, horaFin);
+    return this.haySolapamiento(
+      cruce.hora_inicio,
+      cruce.hora_fin,
+      horaInicio,
+      horaFin,
+    );
   }
 
   private async verificarCruceAmbiente(
@@ -310,7 +336,12 @@ export class DeteccionConflictosService {
 
     if (!cruce) return false;
 
-    return this.haySolapamiento(cruce.hora_inicio, cruce.hora_fin, horaInicio, horaFin);
+    return this.haySolapamiento(
+      cruce.hora_inicio,
+      cruce.hora_fin,
+      horaInicio,
+      horaFin,
+    );
   }
 
   private async verificarCruceGrupo(
@@ -330,7 +361,12 @@ export class DeteccionConflictosService {
 
     if (!cruce) return false;
 
-    return this.haySolapamiento(cruce.hora_inicio, cruce.hora_fin, horaInicio, horaFin);
+    return this.haySolapamiento(
+      cruce.hora_inicio,
+      cruce.hora_fin,
+      horaInicio,
+      horaFin,
+    );
   }
 
   private haySolapamiento(
@@ -348,7 +384,7 @@ export class DeteccionConflictosService {
   }
 
   private aMinutos(hora: string): number {
-    const [horas, minutos] = hora.split(':').map(Number);
+    const [horas, minutos] = hora.split(":").map(Number);
     return (horas || 0) * 60 + (minutos || 0);
   }
 }

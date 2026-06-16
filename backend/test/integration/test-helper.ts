@@ -50,7 +50,9 @@ export async function clearDatabase(app: INestApplication) {
 
   for (const table of tablesInOrder) {
     try {
-      await dataSource.query(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`);
+      await dataSource.query(
+        `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`,
+      );
     } catch (e) {
       // Ignore if table doesn't exist or other issues
       console.warn(`Could not truncate table ${table}:`, e.message);
@@ -109,10 +111,10 @@ export async function createTestApp(): Promise<INestApplication> {
   const app = moduleFixture.createNestApplication();
 
   try {
-     await app.init();
+    await app.init();
   } catch (err) {
-     console.error("Fallo al inicializar app de test:", err);
-     return null;
+    console.error("Fallo al inicializar app de test:", err);
+    return null;
   }
 
   return app;

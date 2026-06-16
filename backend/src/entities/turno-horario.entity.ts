@@ -3,9 +3,9 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-} from 'typeorm';
+} from "typeorm";
 
-@Entity('turno_horario')
+@Entity("turno_horario")
 export class TurnoHorario {
   @PrimaryGeneratedColumn()
   id: number;
@@ -13,15 +13,15 @@ export class TurnoHorario {
   @Column({ length: 50 })
   nombre: string;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_inicio: string;
 
-  @Column({ type: 'time' })
+  @Column({ type: "time" })
   hora_fin: string;
 
   @Column({ default: true })
   activo: boolean;
 
-  @CreateDateColumn({ name: 'creado_en' })
+  @CreateDateColumn({ name: "creado_en" })
   creado_en: Date;
 }

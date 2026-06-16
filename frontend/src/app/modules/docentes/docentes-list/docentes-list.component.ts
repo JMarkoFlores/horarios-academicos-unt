@@ -8,6 +8,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import * as XLSX from 'xlsx-js-style';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
+import { ContextoAcademicoHelper } from '../../../core/services/contexto-academico.helper';
 import { Docente, ApiResponse } from '../../../core/interfaces/entities';
 import { VerHorarioDocenteDialogComponent } from '../dialogs/ver-horario-docente-dialog/ver-horario-docente-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/confirm-dialog.component';
@@ -65,14 +66,18 @@ export class DocentesListComponent implements OnInit {
     { value: 'TIEMPO_PARCIAL_8', label: 'Tiempo Parcial 8 h' },
   ];
 
+  alcanceLabel: string | null = null;
+
   constructor(
     private api: ApiService,
     private snackBar: MatSnackBar,
     private periodoService: PeriodoService,
     private dialog: MatDialog,
+    private contextoHelper: ContextoAcademicoHelper,
   ) {}
 
   ngOnInit(): void {
+    this.alcanceLabel = this.contextoHelper.getEtiquetaAlcance();
     this.loadDocentes();
     this.loadCargaDocentes();
     this.searchControl.valueChanges

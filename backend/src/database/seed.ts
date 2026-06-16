@@ -41,6 +41,12 @@ import { SeleccionTemporal } from "../entities/seleccion-temporal.entity";
 import { PlanEstudios } from "../entities/plan-estudios.entity";
 import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
 import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
+import { DeclaracionObservacion } from "../entities/declaracion-observacion.entity";
+import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
+import {
+  seedDeclaracionesDemo,
+  DNIS_DOCENTES,
+} from "./seed-declaraciones-demo";
 
 // Enums
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
@@ -54,7 +60,6 @@ import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
-import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
 import { TipoCursoPlan } from "../common/enums/tipo-curso-plan.enum";
 
 // Importar funciones de seed por ciclo
@@ -160,6 +165,10 @@ export async function main() {
   try {
     console.log("🧹 Limpiando base de datos...");
     const tables = [
+      "declaracion_observacion",
+      "declaracion_jurada",
+      "carga_adicional",
+      "asignacion_lectiva",
       "notificacion_docente",
       "cola_docentes",
       "ventana_atencion",
@@ -446,12 +455,35 @@ export async function main() {
           nombre: d.nombre,
           codigo: d.codigo,
           escuela_id: escuela.id,
-          coordinador_id: directorDpto.id,
+          coordinador_id:
+            d.departamento_nombre === "INGENIERÍA DE SISTEMAS"
+              ? directorDpto.id
+              : null,
         }),
       );
       createdDepartamentos[d.departamento_nombre] = dep;
     }
     const departamento = createdDepartamentos["INGENIERÍA DE SISTEMAS"];
+
+    await usuarioRepo.update(secretaria.id, {
+      departamento_id: departamento.id,
+      escuela_id: escuela.id,
+      facultad_id: facultad.id,
+    });
+    await usuarioRepo.update(coordinadorAcademico.id, {
+      escuela_id: escuela.id,
+      facultad_id: facultad.id,
+    });
+    await usuarioRepo.update(directorDpto.id, {
+      departamento_id: departamento.id,
+      escuela_id: escuela.id,
+      facultad_id: facultad.id,
+    });
+    await usuarioRepo.update(decano.id, { facultad_id: facultad.id });
+    await usuarioRepo.update(directorEscuela.id, {
+      escuela_id: escuela.id,
+      facultad_id: facultad.id,
+    });
 
     console.log("🏠 Creando ambientes...");
     const ambientesData = [
@@ -929,7 +961,8 @@ export async function main() {
       await docenteRepo.save(
         docenteRepo.create({
           ...d,
-          codigo: `DOC-${d.ibm}`,
+          ibm: DNIS_DOCENTES[i] ?? d.ibm,
+          codigo: `DOC-${DNIS_DOCENTES[i] ?? d.ibm}`,
           usuario,
           departamento_id: departamento.id,
           facultad_id: facultad.id,
@@ -2256,29 +2289,36 @@ export async function main() {
     }
     console.log(`✅ ${countAsig} Asignaciones Lectivas creadas exitosamente!`);
 
-    const dbDocentes = await docenteRepo.find();
-    const dbCursos = await cursoRepo.find();
-    const dbAmbientes = await ambienteRepo.find();
-    const dbGrupos = await grupoRepo.find();
+    const dbDocentes = await docenteRepo.find({ order: { id: "ASC" } });
 
-    console.log("📝 Generando declaraciones de carga horaria...");
-    for (let i = 0; i < dbDocentes.length; i++) {
-      const doc = dbDocentes[i];
-      const declaracion = declaracionRepo.create({
-        docente_id: doc.id,
-        periodo_academico_id: periodoActivo.id,
-        departamento_id: departamento.id,
-        facultad_id: facultad.id,
-        estado: EstadoDeclaracionCarga.BORRADOR,
-        sede: "Trujillo - Ciudad Universitaria",
-        carga_no_lectiva: {
-          cursos_lectivos: [],
-          total_horas_lectivas: 0,
-          actividades: [],
-        },
-      });
-      await declaracionRepo.save(declaracion);
+    console.log("📝 Generando declaraciones de carga en múltiples estados...");
+    const observacionRepo = AppDataSource.getRepository(DeclaracionObservacion);
+    const juradaRepo = AppDataSource.getRepository(DeclaracionJurada);
+
+    const demoResult = await seedDeclaracionesDemo({
+      declaracionRepo,
+      observacionRepo,
+      juradaRepo,
+      docentes: dbDocentes,
+      periodoActivo,
+      departamento,
+      facultad,
+      directorDpto,
+      decano,
+    });
+
+    const resumenEstados = await AppDataSource.query(
+      `SELECT estado, COUNT(*)::int AS total
+       FROM declaracion_carga_horaria
+       GROUP BY estado ORDER BY estado`,
+    );
+    console.log("📊 Declaraciones por estado:");
+    for (const row of resumenEstados) {
+      console.log(`   • ${row.estado}: ${row.total}`);
     }
+    console.log(
+      `✅ ${demoResult.declaraciones.length} declaraciones, ${demoResult.observaciones} observaciones, ${demoResult.juradas} juradas`,
+    );
 
     await AppDataSource.getRepository(ConfiguracionGeneral).save({
       nombre_institucional: "Universidad Nacional de Trujillo",
@@ -2290,6 +2330,7 @@ export async function main() {
     });
 
     console.log("\n✅ SEED UNIFICADO COMPLETADO EXITOSAMENTE.");
+    console.log("   Ejecute: npm run seed:verify  para validar integridad.");
   } catch (error) {
     console.error("\n❌ ERROR DURANTE EL SEED:", error);
     throw error;

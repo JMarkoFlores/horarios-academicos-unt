@@ -30,9 +30,7 @@ import { Usuario } from "../entities/usuario.entity";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth("JWT")
 export class ReportesController {
-  constructor(
-    private readonly reportesService: ReportesService,
-  ) {}
+  constructor(private readonly reportesService: ReportesService) {}
 
   @Get("docente/:id/pdf")
   @ApiOperation({ summary: "PDF del horario de un docente" })
@@ -64,13 +62,138 @@ export class ReportesController {
     @Query("periodo") periodo: string,
     @Res() res: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteDeclaracionF03CADPDF(
+    const buffer =
+      await this.reportesService.generarReporteDeclaracionF03CADPDF(
+        docenteId,
+        periodo,
+      );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=declaracion_carga_horaria_docente_${docenteId}_${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("f01-cad/:docenteId/pdf")
+  @ApiOperation({ summary: "PDF del Formato F01-CAD (Declaración de Carga Académica Docente)" })
+  @ApiParam({ name: "docenteId", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async f01CadPDF(
+    @Param("docenteId", ParseIntPipe) docenteId: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteF01CADPDF(
       docenteId,
       periodo,
     );
     res.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename=declaracion_carga_horaria_docente_${docenteId}_${periodo}.pdf`,
+      "Content-Disposition": `attachment; filename=f01-cad_docente_${docenteId}_${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("consolidado-carga/pdf")
+  @ApiOperation({ summary: "PDF consolidado de carga académica por departamento" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "departamento_id", required: false, type: Number })
+  async consolidadoCargaPDF(
+    @Query("periodo") periodo: string,
+    @Query("departamento_id") departamentoId?: string,
+    @Res() res?: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteConsolidadoCargaPDF(
+      periodo,
+      departamentoId ? parseInt(departamentoId, 10) : undefined,
+    );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=consolidado-carga-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("carga-por-modalidad/pdf")
+  @ApiOperation({ summary: "PDF de distribución de carga por modalidad" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async cargaPorModalidadPDF(
+    @Query("periodo") periodo: string,
+    @Res() res?: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteCargaPorModalidadPDF(
+      periodo,
+    );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=carga-por-modalidad-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("consolidado-carga/excel")
+  @ApiOperation({ summary: "Excel consolidado de carga académica" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({ name: "departamento_id", required: false, type: Number })
+  async consolidadoCargaExcel(
+    @Query("periodo") periodo: string,
+    @Query("departamento_id") departamentoId?: string,
+    @Res() res?: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteConsolidadoCargaExcel(
+      periodo,
+      departamentoId ? parseInt(departamentoId, 10) : undefined,
+    );
+    res.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename=consolidado-carga-${periodo}.xlsx`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("docente/:id/f03-cad")
+  @ApiOperation({ summary: "PDF del Formato F03-CAD mejorado (Horario Semanal Docente)" })
+  @ApiParam({ name: "id", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async docenteF03CadPDF(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteDeclaracionF03CADPDF(
+      id,
+      periodo,
+    );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=f03-cad_docente_${id}_${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("declaracion-jurada/:docenteId/pdf")
+  @ApiOperation({ summary: "PDF del Formato F02-CAD de Declaración Jurada de Incompatibilidad" })
+  @ApiParam({ name: "docenteId", type: Number })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async declaracionF02CadPDF(
+    @Param("docenteId", ParseIntPipe) docenteId: number,
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer =
+      await this.reportesService.generarReporteDeclaracionF02CADPDF(
+        docenteId,
+        periodo,
+      );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=declaracion_jurada_incompatibilidad_${docenteId}_${periodo}.pdf`,
       "Content-Length": buffer.length,
     });
     res.end(buffer);
@@ -142,7 +265,9 @@ export class ReportesController {
   }
 
   @Get("ambiente/:id/excel")
-  @ApiOperation({ summary: "Excel del horario de un ambiente (aula/laboratorio)" })
+  @ApiOperation({
+    summary: "Excel del horario de un ambiente (aula/laboratorio)",
+  })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async ambienteExcel(
@@ -150,9 +275,13 @@ export class ReportesController {
     @Query("periodo") periodo: string,
     @Res() res: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteAmbienteExcel(id, periodo);
+    const buffer = await this.reportesService.generarReporteAmbienteExcel(
+      id,
+      periodo,
+    );
     res.set({
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename=horario-ambiente-${id}-${periodo}.xlsx`,
       "Content-Length": buffer.length,
     });
@@ -186,6 +315,45 @@ export class ReportesController {
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=reporte-gestion-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("gestion/carga/pdf")
+  @ApiOperation({ summary: "Reporte de gestión de carga académica (Fase 8)" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async gestionCargaPDF(@Query("periodo") periodo: string, @Res() res: Response) {
+    const buffer = await this.reportesService.generarReporteGestionCargaPDF(periodo);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=gestion-carga-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("gestion/cumplimiento/pdf")
+  @ApiOperation({ summary: "Reporte de cumplimiento por departamento (Fase 8)" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async cumplimientoPDF(@Query("periodo") periodo: string, @Res() res: Response) {
+    const buffer = await this.reportesService.generarReporteCumplimientoPDF(periodo);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=cumplimiento-${periodo}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("gestion/ejecutivo/pdf")
+  @ApiOperation({ summary: "Reporte ejecutivo para decano con semáforo (Fase 8)" })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  async ejecutivoPDF(@Query("periodo") periodo: string, @Res() res: Response) {
+    const buffer = await this.reportesService.generarReporteEjecutivoPDF(periodo);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=ejecutivo-${periodo}.pdf`,
       "Content-Length": buffer.length,
     });
     res.end(buffer);
@@ -317,7 +485,8 @@ export class ReportesController {
     @Query("periodo") periodo: string,
     @Res() res: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteTodosCiclosPDF(periodo);
+    const buffer =
+      await this.reportesService.generarReporteTodosCiclosPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=horarios-todos-ciclos-${periodo}.pdf`,
@@ -333,9 +502,11 @@ export class ReportesController {
     @Query("periodo") periodo: string,
     @Res() res: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteTodosCiclosExcel(periodo);
+    const buffer =
+      await this.reportesService.generarReporteTodosCiclosExcel(periodo);
     res.set({
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename=horarios-todos-ciclos-${periodo}.xlsx`,
       "Content-Length": buffer.length,
     });
@@ -355,7 +526,9 @@ export class ReportesController {
       throw new BadRequestException("Usuario sin correo electrónico");
     }
 
-    const docenteId = await this.reportesService.obtenerDocenteIdPorEmail(usuario.email);
+    const docenteId = await this.reportesService.obtenerDocenteIdPorEmail(
+      usuario.email,
+    );
     if (!docenteId) {
       throw new NotFoundException("Docente no encontrado");
     }
@@ -385,7 +558,9 @@ export class ReportesController {
       throw new BadRequestException("Usuario sin correo electrónico");
     }
 
-    const docenteId = await this.reportesService.obtenerDocenteIdPorEmail(usuario.email);
+    const docenteId = await this.reportesService.obtenerDocenteIdPorEmail(
+      usuario.email,
+    );
     if (!docenteId) {
       throw new NotFoundException("Docente no encontrado");
     }
@@ -395,8 +570,53 @@ export class ReportesController {
       periodo,
     );
     res.set({
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename=horario-docente-${periodo}.xlsx`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("cursos/pdf")
+  @ApiOperation({ summary: "PDF de la lista de cursos" })
+  @ApiQuery({ name: "search", required: false, type: String })
+  @ApiQuery({ name: "ciclo", required: false, type: Number })
+  @ApiQuery({ name: "lab", required: false, type: Boolean })
+  @ApiQuery({ name: "activo", required: false, type: Boolean })
+  async cursosPDF(
+    @Query("search") search?: string,
+    @Query("ciclo") ciclo?: string,
+    @Query("lab") lab?: string,
+    @Query("activo") activo?: string,
+    @Res() res?: Response,
+  ) {
+    const buffer = await this.reportesService.generarReporteCursosPDF(
+      search,
+      ciclo ? parseInt(ciclo, 10) : undefined,
+      lab === "true" ? true : lab === "false" ? false : undefined,
+      activo === "true" ? true : activo === "false" ? false : undefined,
+    );
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=cursos-${new Date().toISOString().slice(0, 10)}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
+  @Get("plan-estudios/:planId/pdf")
+  @ApiOperation({ summary: "PDF del plan de estudios" })
+  @ApiParam({ name: "planId", type: Number })
+  async planEstudiosPDF(
+    @Param("planId", ParseIntPipe) planId: number,
+    @Res() res: Response,
+  ) {
+    const buffer =
+      await this.reportesService.generarReportePlanEstudiosPDF(planId);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=plan-estudios-${planId}.pdf`,
       "Content-Length": buffer.length,
     });
     res.end(buffer);

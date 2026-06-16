@@ -1,10 +1,6 @@
 import { INestApplication } from "@nestjs/common";
 import * as request from "supertest";
-import {
-  createTestApp,
-  closeTestApp,
-  clearDatabase,
-} from "./test-helper";
+import { createTestApp, closeTestApp, clearDatabase } from "./test-helper";
 import { getSeededData } from "./seeders/test-data";
 import { Repository } from "typeorm";
 import { Usuario } from "../../src/entities/usuario.entity";
@@ -38,7 +34,9 @@ describe("Asignaciones Integration Tests", () => {
     grupoRepository = app.get(getRepositoryToken(Grupo));
     periodoAcademicoRepository = app.get(getRepositoryToken(PeriodoAcademico));
     horarioRepository = app.get(getRepositoryToken(HorarioAsignado));
-    disponibilidadRepository = app.get(getRepositoryToken(DisponibilidadDocente));
+    disponibilidadRepository = app.get(
+      getRepositoryToken(DisponibilidadDocente),
+    );
   });
 
   afterAll(async () => {
@@ -53,7 +51,9 @@ describe("Asignaciones Integration Tests", () => {
     const docentes = await docenteRepository.save(seededData.docentes);
     await cursoRepository.save(seededData.cursos);
     await ambienteRepository.save(seededData.ambientes);
-    const periodos = await periodoAcademicoRepository.save(seededData.periodosAcademicos);
+    const periodos = await periodoAcademicoRepository.save(
+      seededData.periodosAcademicos,
+    );
 
     const cursos = await cursoRepository.find();
 
@@ -187,7 +187,7 @@ describe("Asignaciones Integration Tests", () => {
         .set("Authorization", `Bearer ${authToken}`)
         .send({ periodo: "2026-I" });
 
-      const horarios = await horarioRepository.find({ relations: ['docente'] });
+      const horarios = await horarioRepository.find({ relations: ["docente"] });
       if (horarios.length > 0) {
         const horarioId = horarios[0].id;
 
@@ -202,7 +202,7 @@ describe("Asignaciones Integration Tests", () => {
           .patch(`/horarios/${horarioId}`)
           .set("Authorization", `Bearer ${authToken}`)
           .send(reasignarDto);
-        
+
         // El sistema puede devolver 200 si considera que es la misma asignación
         expect(response.status).toBeDefined();
       }

@@ -31,6 +31,8 @@ import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
+import { ContextoAcademicoService } from "../common/services/contexto-academico.service";
+import { ContextoAcademico } from "../common/interfaces/contexto-academico.interface";
 
 type CargaPorDia = {
   lunes: number;
@@ -89,9 +91,10 @@ export class DocentesService {
     @InjectRepository(Grupo)
     private readonly grupoRepo: Repository<Grupo>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
 
-  async findAll(query: QueryDocenteDto) {
+  async findAll(query: QueryDocenteDto, contexto?: ContextoAcademico) {
     const {
       page = 1,
       limit = 20,
@@ -148,6 +151,10 @@ export class DocentesService {
       );
     }
 
+    if (contexto) {
+      this.contextoAcademicoService.aplicarFiltroDocente(qb, contexto);
+    }
+
     const allowedSortFields: Record<string, string> = {
       apellidos: "docente.apellidos",
       nombres: "docente.nombres",
@@ -177,12 +184,15 @@ export class DocentesService {
     };
   }
 
-  async findAllParaExportar(filters: {
-    categoria?: string;
-    tipo_docente?: string;
-    modalidad?: string;
-    busqueda?: string;
-  }) {
+  async findAllParaExportar(
+    filters: {
+      categoria?: string;
+      tipo_docente?: string;
+      modalidad?: string;
+      busqueda?: string;
+    },
+    contexto?: ContextoAcademico,
+  ) {
     const qb = this.docenteRepo
       .createQueryBuilder("docente")
       .leftJoinAndSelect("docente.departamento", "departamento")
@@ -213,6 +223,10 @@ export class DocentesService {
       );
     }
 
+    if (contexto) {
+      this.contextoAcademicoService.aplicarFiltroDocente(qb, contexto);
+    }
+
     const docentes = await qb
       .orderBy("docente.apellidos", "ASC")
       .addOrderBy("docente.nombres", "ASC")
@@ -224,7 +238,7 @@ export class DocentesService {
     }));
   }
 
-  async findOne(id: number): Promise<Docente> {
+  async findOne(id: number, contexto?: ContextoAcademico): Promise<Docente> {
     const docente = await this.docenteRepo
       .createQueryBuilder("docente")
       .leftJoinAndSelect("docente.usuario", "usuario")
@@ -243,14 +257,26 @@ export class DocentesService {
       throw new NotFoundException(`Docente con ID ${id} no encontrado`);
     }
 
+    if (contexto) {
+      this.contextoAcademicoService.assertAccesoDocente(contexto, docente);
+    }
+
     return docente;
   }
 
-  async findOrdenadosPorJerarquia(periodo: string) {
+  async findOrdenadosPorJerarquia(
+    periodo: string,
+    contexto?: ContextoAcademico,
+  ) {
     const qb = this.docenteRepo
       .createQueryBuilder("docente")
-      .where("docente.activo = :activo", { activo: true })
-      .addSelect(
+      .where("docente.activo = :activo", { activo: true });
+
+    if (contexto) {
+      this.contextoAcademicoService.aplicarFiltroDocente(qb, contexto);
+    }
+
+    qb.addSelect(
         `CASE
           WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'PRINCIPAL'  THEN 1
           WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'ASOCIADO'   THEN 2
@@ -277,8 +303,10 @@ export class DocentesService {
   async getCargaPorDia(
     docenteId: number,
     periodo: string,
+    contexto?: ContextoAcademico,
   ): Promise<CargaPorDia> {
-    await this.ensureDocenteExists(docenteId);
+    const docente = await this.findOne(docenteId, contexto);
+    void docente;
 
     const periodoCodigo = await this.resolverPeriodoCodigo(periodo);
     if (!periodoCodigo) {
@@ -301,20 +329,25 @@ export class DocentesService {
 
   async getCargaDesequilibrada(
     periodo: string,
+    contexto?: ContextoAcademico,
   ): Promise<DocenteCargaDesequilibrada[]> {
     const periodoCodigo = await this.resolverPeriodoCodigo(periodo);
     if (!periodoCodigo) {
       throw new NotFoundException(`Periodo ${periodo} no encontrado`);
     }
 
+    const docentesQb = this.docenteRepo
+      .createQueryBuilder("docente")
+      .where("docente.activo = :activo", { activo: true })
+      .orderBy("docente.apellidos", "ASC")
+      .addOrderBy("docente.nombres", "ASC");
+
+    if (contexto) {
+      this.contextoAcademicoService.aplicarFiltroDocente(docentesQb, contexto);
+    }
+
     const [docentes, horarios] = await Promise.all([
-      this.docenteRepo.find({
-        where: { activo: true },
-        order: {
-          apellidos: "ASC",
-          nombres: "ASC",
-        },
-      }),
+      docentesQb.getMany(),
       this.horarioRepo.find({
         where: { periodo: periodoCodigo },
         order: {

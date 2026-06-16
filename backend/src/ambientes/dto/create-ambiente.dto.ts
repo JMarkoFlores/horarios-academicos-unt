@@ -66,7 +66,9 @@ export class CreateAmbienteDto {
   @IsEnum(EstadoAmbiente, { message: "Estado de ambiente inválido" })
   estado?: EstadoAmbiente;
 
-  @ApiPropertyOptional({ description: "Estado activo/inactivo (deprecated, usar estado)" })
+  @ApiPropertyOptional({
+    description: "Estado activo/inactivo (deprecated, usar estado)",
+  })
   @IsOptional()
   @IsBoolean()
   activo?: boolean;

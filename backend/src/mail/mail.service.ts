@@ -9,15 +9,22 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     const host = this.configService.get<string>("SMTP_HOST", "localhost");
-    const port = parseInt(this.configService.get<string>("SMTP_PORT", "1025") || "1025", 10);
+    const port = parseInt(
+      this.configService.get<string>("SMTP_PORT", "1025") || "1025",
+      10,
+    );
     const secureStr = this.configService.get<string>("SMTP_SECURE", "false");
     const secure = secureStr === "true" || secureStr === "1";
     const user = this.configService.get<string>("SMTP_USER", "");
     const pass = this.configService.get<string>("SMTP_PASS", "");
 
-    const isDev = this.configService.get<string>("NODE_ENV", "development") === "development";
+    const isDev =
+      this.configService.get<string>("NODE_ENV", "development") ===
+      "development";
 
-    this.logger.log(`Configurando SMTP: ${host}:${port} (secure: ${secure}, auth: ${user ? 'si' : 'no'})`);
+    this.logger.log(
+      `Configurando SMTP: ${host}:${port} (secure: ${secure}, auth: ${user ? "si" : "no"})`,
+    );
 
     const config: any = {
       host,
@@ -49,9 +56,11 @@ export class MailService {
       }
     } catch (error: any) {
       this.logger.error(`❌ Error enviando email a ${to}:`);
-      this.logger.error(`   Código: ${error.code || 'N/A'}`);
+      this.logger.error(`   Código: ${error.code || "N/A"}`);
       this.logger.error(`   Respuesta: ${error.response || error.message}`);
-      this.logger.error(`   Servidor: ${this.configService.get<string>("SMTP_HOST")}:${this.configService.get<string>("SMTP_PORT")}`);
+      this.logger.error(
+        `   Servidor: ${this.configService.get<string>("SMTP_HOST")}:${this.configService.get<string>("SMTP_PORT")}`,
+      );
       throw error;
     }
   }

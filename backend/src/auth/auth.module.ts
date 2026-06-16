@@ -6,12 +6,15 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./strategies/jwt.strategy";
+import { RolesGuard } from "./guards/roles.guard";
 import { Usuario } from "../entities/usuario.entity";
 import { Docente } from "../entities/docente.entity";
 import { MailService } from "../mail/mail.service";
+import { CommonModule } from "../common/common.module";
 
 @Module({
   imports: [
+    CommonModule,
     PassportModule.register({ defaultStrategy: "jwt" }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -26,7 +29,7 @@ import { MailService } from "../mail/mail.service";
     TypeOrmModule.forFeature([Usuario, Docente]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, MailService],
-  exports: [AuthService, JwtModule, PassportModule],
+  providers: [AuthService, JwtStrategy, MailService, RolesGuard],
+  exports: [AuthService, JwtModule, PassportModule, RolesGuard],
 })
 export class AuthModule {}

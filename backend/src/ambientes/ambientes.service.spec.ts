@@ -146,7 +146,9 @@ describe("AmbientesService", () => {
 
   it("Caso 3: activa alerta cuando la distancia supera el umbral por defecto", async () => {
     ambienteRepo.findOne
-      .mockResolvedValueOnce(crearAmbiente({ id: 5, edificio: "A", coordX: 0, coordY: 0 }))
+      .mockResolvedValueOnce(
+        crearAmbiente({ id: 5, edificio: "A", coordX: 0, coordY: 0 }),
+      )
       .mockResolvedValueOnce(
         crearAmbiente({
           id: 6,
@@ -170,10 +172,20 @@ describe("AmbientesService", () => {
   it("Caso 4: retorna null en distancia cuando falta coordenada", async () => {
     ambienteRepo.findOne
       .mockResolvedValueOnce(
-        crearAmbiente({ id: 1, edificio: "Edificio B", coordX: null, coordY: null }),
+        crearAmbiente({
+          id: 1,
+          edificio: "Edificio B",
+          coordX: null,
+          coordY: null,
+        }),
       )
       .mockResolvedValueOnce(
-        crearAmbiente({ id: 2, codigo: "B-102", nombre: "Aula 102", edificio: "Edificio B" }),
+        crearAmbiente({
+          id: 2,
+          codigo: "B-102",
+          nombre: "Aula 102",
+          edificio: "Edificio B",
+        }),
       );
 
     const result = await service.getDistanciaEntreAmbientes(1, 2);

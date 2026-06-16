@@ -18,6 +18,8 @@ import { RecuperarPasswordDto } from "./dto/recuperar-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { MailService } from "../mail/mail.service";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { ContextoAcademicoService } from "../common/services/contexto-academico.service";
+import { ContextoAcademico } from "../common/interfaces/contexto-academico.interface";
 
 export interface JwtPayload {
   sub: number;
@@ -28,7 +30,10 @@ export interface JwtPayload {
 
 export interface LoginResult {
   access_token: string;
-  usuario: Partial<Usuario> & { docenteId?: number | null };
+  usuario: Partial<Usuario> & {
+    docenteId?: number | null;
+    contextoAcademico?: ContextoAcademico;
+  };
 }
 
 @Injectable()
@@ -42,6 +47,7 @@ export class AuthService {
     private readonly docenteRepository: Repository<Docente>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<LoginResult> {
@@ -56,9 +62,18 @@ export class AuthService {
 
     this.logger.log(`Login exitoso: ${usuario.email}`);
 
-    const docente = await this.resolverDocentePorUsuario(usuario.id, usuario.email);
+    const docente = await this.resolverDocentePorUsuario(
+      usuario.id,
+      usuario.email,
+    );
 
     payload.docenteId = docente?.id ?? null;
+
+    const contextoAcademico =
+      await this.contextoAcademicoService.resolverContexto({
+        ...usuario,
+        docenteId: payload.docenteId,
+      });
 
     return {
       access_token: this.jwtService.sign(payload),
@@ -68,7 +83,42 @@ export class AuthService {
         email: usuario.email,
         rol: usuario.rol,
         docenteId: docente?.id ?? null,
+        contextoAcademico,
       },
+    };
+  }
+
+  async obtenerPerfil(
+    usuario: Usuario & { docenteId?: number | null },
+  ): Promise<{
+    id: number;
+    nombre: string;
+    email: string;
+    rol: RolUsuario;
+    docenteId: number | null;
+    contextoAcademico: ContextoAcademico;
+  }> {
+    const docente =
+      usuario.docenteId != null
+        ? await this.docenteRepository.findOne({
+            where: { id: usuario.docenteId },
+          })
+        : await this.resolverDocentePorUsuario(usuario.id, usuario.email);
+
+    const docenteId = docente?.id ?? null;
+    const contextoAcademico =
+      await this.contextoAcademicoService.resolverContexto({
+        ...usuario,
+        docenteId,
+      });
+
+    return {
+      id: usuario.id,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      rol: usuario.rol,
+      docenteId,
+      contextoAcademico,
     };
   }
 

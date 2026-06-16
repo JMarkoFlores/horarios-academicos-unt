@@ -24,12 +24,12 @@ export class CreateVentanaDto {
 
   @ApiProperty({ enum: CategoriaVentana })
   @Transform(({ value }) => {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       return value
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
         .toUpperCase()
-        .replace(/\s+/g, '_');
+        .replace(/\s+/g, "_");
     }
     return value;
   })
@@ -61,12 +61,20 @@ export class CreateVentanaDto {
   @Min(1)
   intervalo_minutos?: number;
 
-  @ApiPropertyOptional({ default: false, description: 'Saltar validación de capacidad (para creación automática de múltiples ventanas)' })
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      "Saltar validación de capacidad (para creación automática de múltiples ventanas)",
+  })
   @IsOptional()
   @IsBoolean()
   saltarValidacionCapacidad?: boolean;
 
-  @ApiPropertyOptional({ default: false, description: 'No asignar docentes automáticamente (para ventanas que se crean en serie)' })
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      "No asignar docentes automáticamente (para ventanas que se crean en serie)",
+  })
   @IsOptional()
   @IsBoolean()
   sinAsignarDocentes?: boolean;

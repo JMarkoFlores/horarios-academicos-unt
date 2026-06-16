@@ -32,6 +32,8 @@ import { DataImportModule } from "./modules/data-import/data-import.module";
 import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/declaracion-carga-horaria.module";
 import { DeclaracionesModule } from "./modules/declaraciones/declaraciones.module";
 import { ChatbotModule } from "./chatbot/chatbot.module";
+import { PlanEstudiosModule } from "./modules/plan-estudios/plan-estudios.module";
+import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion-lectiva.module";
 
 @Module({
   imports: [
@@ -120,6 +122,8 @@ import { ChatbotModule } from "./chatbot/chatbot.module";
     DeclaracionCargaHorariaModule,
     DeclaracionesModule,
     ChatbotModule,
+    PlanEstudiosModule,
+    AsignacionLectivaModule,
   ],
   providers: [
     {

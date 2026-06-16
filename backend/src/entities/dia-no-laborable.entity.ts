@@ -1,12 +1,7 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  Index,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index } from "typeorm";
 
-@Entity('dia_no_laborable')
-@Index('idx_dia_no_laborable_periodo', ['periodo_academico'])
+@Entity("dia_no_laborable")
+@Index("idx_dia_no_laborable_periodo", ["periodo_academico"])
 export class DiaNoLaborable {
   @PrimaryGeneratedColumn()
   id: number;

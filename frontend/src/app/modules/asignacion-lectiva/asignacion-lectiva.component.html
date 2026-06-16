@@ -1,0 +1,189 @@
+<div class="page-container">
+  <div class="alcance-banner" *ngIf="alcanceLabel">
+    <mat-icon>filter_alt</mat-icon>
+    <span>Asignación limitada a: <strong>{{ alcanceLabel }}</strong></span>
+  </div>
+  <div class="page-header">
+    <div>
+      <h1>{{ 'sidebar.asignacionLectiva' | translate }}</h1>
+      <p class="subtitle">Asignación de docentes a cursos del plan de estudios</p>
+    </div>
+  </div>
+
+  <mat-card class="filters-card">
+    <mat-card-content>
+      <div class="filters-row">
+        <mat-form-field appearance="outline" class="filter-field">
+          <mat-label>{{ 'asignacionLectiva.plan' | translate }}</mat-label>
+          <mat-select [formControl]="planControl">
+            <mat-option *ngFor="let p of planes" [value]="p.id">{{ p.nombre }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="table-card">
+    <mat-tab-group (selectedTabChange)="selectedCiclo = ciclos[$event.index]" [selectedIndex]="selectedCiclo - 1">
+      <mat-tab *ngFor="let ciclo of ciclos" [label]="'Ciclo ' + cicloLabel(ciclo)">
+        <ng-template matTabContent>
+          <div class="table-wrapper">
+            <table mat-table [dataSource]="cursosFiltrados" class="premium-table" multiTemplateDataRows>
+              <!-- Columna expandir -->
+              <ng-container matColumnDef="expand">
+                <th mat-header-cell *matHeaderCellDef aria-label="row actions">&nbsp;</th>
+                <td mat-cell *matCellDef="let element">
+                  <button mat-icon-button aria-label="expand row" (click)="expandedElement = expandedElement === element ? null : element; $event.stopPropagation()">
+                    <mat-icon *ngIf="expandedElement !== element">expand_more</mat-icon>
+                    <mat-icon *ngIf="expandedElement === element">expand_less</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="codigo">
+                <th mat-header-cell *matHeaderCellDef>Código</th>
+                <td mat-cell *matCellDef="let row">
+                  <span class="curso-codigo">{{ row.curso?.codigo || '—' }}</span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="nombre">
+                <th mat-header-cell *matHeaderCellDef>Curso</th>
+                <td mat-cell *matCellDef="let row" class="curso-nombre">
+                  {{ row.curso?.nombre || '—' }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="tipo">
+                <th mat-header-cell *matHeaderCellDef>Tipo</th>
+                <td mat-cell *matCellDef="let row">
+                  <span class="tipo-badge"
+                        [class.especialidad]="row.tipo_curso === 'ESPECIALIDAD'"
+                        [class.obligatorio_general]="row.tipo_curso === 'OBLIGATORIO_GENERAL'"
+                        [class.obligatorio_profesional]="row.tipo_curso === 'OBLIGATORIO_PROFESIONAL'"
+                        [class.electivo]="row.tipo_curso === 'ELECTIVO'">
+                    {{ row.tipo_curso === 'ESPECIALIDAD' ? 'Especialidad' : row.tipo_curso === 'OBLIGATORIO_GENERAL' ? 'Obl. General' : row.tipo_curso === 'OBLIGATORIO_PROFESIONAL' ? 'Obl. Profesional' : 'Electivo' }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="hrs_teoria">
+                <th mat-header-cell *matHeaderCellDef>Hrs Teoría</th>
+                <td mat-cell *matCellDef="let row">{{ row.horas_teoria }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="hrs_practica">
+                <th mat-header-cell *matHeaderCellDef>Hrs Práctica</th>
+                <td mat-cell *matCellDef="let row">{{ row.horas_practica }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="hrs_lab">
+                <th mat-header-cell *matHeaderCellDef>Hrs Lab</th>
+                <td mat-cell *matCellDef="let row">{{ row.horas_laboratorio }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="total_hrs">
+                <th mat-header-cell *matHeaderCellDef>Total</th>
+                <td mat-cell *matCellDef="let row" class="total-horas">{{ totalHoras(row) }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="docentes">
+                <th mat-header-cell *matHeaderCellDef>Docentes</th>
+                <td mat-cell *matCellDef="let row">
+                  <div class="docente-tags">
+                    <span class="docente-tag" *ngFor="let a of getAsignaciones(row)">
+                      {{ a.docente.nombres }} {{ a.docente.apellidos }}
+                    </span>
+                    <span *ngIf="getAsignaciones(row).length === 0" class="sin-asignar">Sin asignar</span>
+                  </div>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="estado">
+                <th mat-header-cell *matHeaderCellDef>Estado</th>
+                <td mat-cell *matCellDef="let row">
+                  <span class="estado-badge" [ngClass]="getEstado(row).class">
+                    {{ getEstado(row).label }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="acciones">
+                <th mat-header-cell *matHeaderCellDef>Acciones</th>
+                <td mat-cell *matCellDef="let row" class="acciones-cell">
+                  <button mat-icon-button class="btn-action assign" [matTooltip]="'Asignar docente'"
+                          (click)="abrirAsignar(row); $event.stopPropagation()">
+                    <mat-icon>person_add</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <!-- Fila principal -->
+              <tr mat-header-row *matHeaderRowDef="displayedColumnsWithExpand"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumnsWithExpand;"
+                  class="premium-row"
+                  [class.expanded-row]="expandedElement === row"
+                  (click)="expandedElement = expandedElement === row ? null : row"></tr>
+
+              <!-- Fila expandida -->
+              <tr mat-row *matRowDef="let row; columns: ['expandedDetail'];" class="detail-row"
+                  [@detailExpand]="row == expandedElement ? 'expanded' : 'collapsed'"></tr>
+
+              <!-- Contenido de la fila expandida -->
+              <ng-container matColumnDef="expandedDetail">
+                <td mat-cell *matCellDef="let element" [attr.colspan]="displayedColumnsWithExpand.length">
+                  <div class="detail-container" *ngIf="element == expandedElement">
+                    <div class="detail-header">
+                      <h4>Asignaciones para {{ element.curso?.nombre }}</h4>
+                    </div>
+                    <div class="asignaciones-list">
+                      <div class="asignacion-item" *ngFor="let a of getAsignaciones(element)">
+                        <div class="asignacion-info">
+                          <div class="docente-info">
+                            <span class="docente-nombre">{{ a.docente.nombres }} {{ a.docente.apellidos }}</span>
+                            <span class="docente-codigo">({{ a.docente.codigo }})</span>
+                          </div>
+                          <div class="asignacion-details">
+                            <span class="tipo-clase">{{ a.tipo_clase }}</span>
+                            <span class="seccion">{{ a.seccion }}</span>
+                            <span class="horas">{{ a.horas_asignadas }} horas</span>
+                            <span class="estado-badge" [class.pendiente]="a.estado === 'PENDIENTE'"
+                                  [class.asignado]="a.estado === 'CONFIRMADO'">
+                              {{ a.estado === 'PENDIENTE' ? 'Pendiente' : 'Confirmado' }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="asignacion-actions">
+                          <button mat-icon-button class="btn-action confirm" [matTooltip]="'Confirmar'"
+                                  (click)="confirmar(a)" [disabled]="a.estado !== 'PENDIENTE'">
+                            <mat-icon>check_circle</mat-icon>
+                          </button>
+                          <button mat-icon-button class="btn-action delete" [matTooltip]="'Eliminar'"
+                                  (click)="eliminar(a)">
+                            <mat-icon>delete</mat-icon>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="sin-asignaciones" *ngIf="getAsignaciones(element).length === 0">
+                        No hay asignaciones para este curso
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </ng-container>
+            </table>
+
+            <div *ngIf="cursosFiltrados.length === 0 && !loading" class="empty-state">
+              <mat-icon>school</mat-icon>
+              <h3>No hay cursos para este ciclo</h3>
+            </div>
+
+            <div *ngIf="loading" class="loading-overlay">
+              <mat-spinner diameter="40"></mat-spinner>
+            </div>
+          </div>
+        </ng-template>
+      </mat-tab>
+    </mat-tab-group>
+  </mat-card>
+</div>

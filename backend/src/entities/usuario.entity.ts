@@ -4,8 +4,13 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from "typeorm";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { Departamento } from "./departamento.entity";
+import { Escuela } from "./escuela.entity";
+import { Facultad } from "./facultad.entity";
 
 @Entity("usuario")
 export class Usuario {
@@ -39,6 +44,27 @@ export class Usuario {
 
   @Column({ type: "timestamp", nullable: true, default: null })
   reset_token_expira: Date | null;
+
+  @Column({ nullable: true, name: "departamento_id" })
+  departamento_id: number | null;
+
+  @ManyToOne(() => Departamento, { nullable: true, eager: false })
+  @JoinColumn({ name: "departamento_id" })
+  departamento: Departamento | null;
+
+  @Column({ nullable: true, name: "escuela_id" })
+  escuela_id: number | null;
+
+  @ManyToOne(() => Escuela, { nullable: true, eager: false })
+  @JoinColumn({ name: "escuela_id" })
+  escuela: Escuela | null;
+
+  @Column({ nullable: true, name: "facultad_id" })
+  facultad_id: number | null;
+
+  @ManyToOne(() => Facultad, { nullable: true, eager: false })
+  @JoinColumn({ name: "facultad_id" })
+  facultad: Facultad | null;
 
   @CreateDateColumn()
   created_at: Date;

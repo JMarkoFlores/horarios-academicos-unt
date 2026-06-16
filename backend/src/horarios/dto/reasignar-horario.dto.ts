@@ -1,5 +1,12 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsInt, IsString, IsOptional, Min, Matches, Max } from "class-validator";
+import {
+  IsInt,
+  IsString,
+  IsOptional,
+  Min,
+  Matches,
+  Max,
+} from "class-validator";
 
 export class ReasignarHorarioDto {
   @ApiPropertyOptional({

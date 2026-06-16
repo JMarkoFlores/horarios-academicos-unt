@@ -16,14 +16,16 @@ export class CreateCursoDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
-  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase().trim() : value))
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.toUpperCase().trim() : value,
+  )
   codigo: string;
 
   @ApiProperty({ example: "Programación I" })
   @IsString()
   @IsNotEmpty()
   @MaxLength(150)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   nombre: string;
 
   @ApiProperty({ example: 4 })
@@ -35,6 +37,12 @@ export class CreateCursoDto {
   @IsInt()
   @Min(0)
   horas_teoria: number;
+
+  @ApiPropertyOptional({ example: 2, default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  horas_practica?: number = 0;
 
   @ApiPropertyOptional({ example: 2, default: 0 })
   @IsOptional()

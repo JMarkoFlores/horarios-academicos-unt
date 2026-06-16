@@ -1,10 +1,6 @@
 import { INestApplication } from "@nestjs/common";
 import * as request from "supertest";
-import {
-  createTestApp,
-  closeTestApp,
-  clearDatabase,
-} from "./test-helper";
+import { createTestApp, closeTestApp, clearDatabase } from "./test-helper";
 import { getSeededData } from "./seeders/test-data";
 import { Repository } from "typeorm";
 import { Usuario } from "../../src/entities/usuario.entity";
@@ -161,7 +157,7 @@ describe("Horarios Integration Tests", () => {
       const response = await request(app.getHttpServer())
         .get(`/horarios/docente/${docenteId}`)
         .set("Authorization", `Bearer ${authToken}`);
-      
+
       // Aceptamos que el controlador sea flexible o devuelva error, pero validamos la estructura
       expect(response.status).toBeDefined();
     });

@@ -39,31 +39,7 @@ const AppDataSource = new DataSource({
   database: process.env.DATABASE_NAME ?? "horarios_unt",
   username: process.env.DATABASE_USER ?? "unt_user",
   password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
-  entities: [
-    Usuario,
-    Docente,
-    PeriodoAcademico,
-    Curso,
-    Ambiente,
-    Grupo,
-    DisponibilidadDocente,
-    HorarioAsignado,
-    ConflictoAsignacion,
-    VentanaAtencion,
-    CampañaVentanas,
-    ColaDocentes,
-    NotificacionDocente,
-    PreferenciasNotificacion,
-    Preasignacion,
-    RestriccionInstitucional,
-    DiaNoLaborable,
-    TurnoHorario,
-    DocenteCurso,
-    ParametrosCarga,
-    Facultad,
-    Escuela,
-    Departamento,
-  ],
+  entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
   synchronize: false,
   logging: false,
 });
@@ -84,36 +60,45 @@ export async function seedHorariosCicloIII() {
   // ── 1. OBTENER DATOS EXISTENTES ───────────────────────────────────────────
   console.log("📋 Obteniendo datos existentes de la base de datos...");
   const dbDocentes = await docenteRepo.find();
-  const dbCursos = await cursoRepo.find();
+  const dbCursos = await cursoRepo.find({ where: { ciclo: 3 } });
   const dbAmbientes = await ambienteRepo.find();
   const dbGrupos = await grupoRepo.find({
     relations: ["curso", "periodo_academico"],
   });
   const dbPeriodos = await periodoRepo.find();
-  const periodoActivo = dbPeriodos.find(p => p.codigo === "2026-I");
+  const periodoActivo = dbPeriodos.find((p) => p.codigo === "2026-I");
   if (!periodoActivo) {
     throw new Error("No se encontró el período 2026-I");
   }
-  console.log(`✅ Datos obtenidos: ${dbDocentes.length} docentes, ${dbCursos.length} cursos, ${dbAmbientes.length} ambientes\n`);
+  console.log(
+    `✅ Datos obtenidos: ${dbDocentes.length} docentes, ${dbCursos.length} cursos, ${dbAmbientes.length} ambientes\n`,
+  );
 
   // ── 2. FUNCIONES AUXILIARES ──────────────────────────────────────────────────
   const diaANumero = (dia: string): number => {
     const map: { [key: string]: number } = {
-      "Lunes": 1, "Martes": 2, "Miércoles": 3, "Jueves": 4, "Viernes": 5, "Sábado": 6
+      Lunes: 1,
+      Martes: 2,
+      Miércoles: 3,
+      Jueves: 4,
+      Viernes: 5,
+      Sábado: 6,
     };
     return map[dia] ?? 1;
   };
 
-  const parsearRangoHoras = (rango: string): { inicio: string; fin: string } => {
+  const parsearRangoHoras = (
+    rango: string,
+  ): { inicio: string; fin: string } => {
     // Si ya viene en formato HH:mm-HH:mm, lo usamos directamente
     if (rango.includes(":")) {
       const [i, f] = rango.split("-");
       return { inicio: i.trim(), fin: f.trim() };
     }
 
-    const [h1, h2] = rango.split("-").map(s => parseInt(s.trim(), 10));
+    const [h1, h2] = rango.split("-").map((s) => parseInt(s.trim(), 10));
 
-    // Heurística mejorada: 
+    // Heurística mejorada:
     // Si la hora es <= 6, asumimos tarde (12+h) excepto si es un rango que empieza temprano
     // Si la hora es >= 7 y <= 12, asumimos mañana
     // Si la hora es < 7 y es h2, y h1 >= 7, entonces h2 es tarde (12+h2)
@@ -130,8 +115,8 @@ export async function seedHorariosCicloIII() {
     }
 
     return {
-      inicio: `${String(horaInicio).padStart(2, '0')}:00`,
-      fin: `${String(horaFin).padStart(2, '0')}:00`
+      inicio: `${String(horaInicio).padStart(2, "0")}:00`,
+      fin: `${String(horaFin).padStart(2, "0")}:00`,
     };
   };
 
@@ -150,7 +135,7 @@ export async function seedHorariosCicloIII() {
       "Taller Confecciones - Ing. Indust.": "TALLER-CONFECCIONES",
       "Lab. Fisica": "LAB-FIS",
       "posgrado A-311": "A-311",
-      "Audiovisuales": "Audiovisuales",
+      Audiovisuales: "Audiovisuales",
     };
     return map[nombre] || nombre;
   };
@@ -161,63 +146,371 @@ export async function seedHorariosCicloIII() {
     return TipoClase.PRACTICA;
   };
 
-  const getGrupo = (curso: Curso, g: number): Grupo | undefined => {
-    return dbGrupos.find(gr => gr.curso?.id === curso.id && gr.codigo.endsWith(`-G${g}`));
+  const asegurarGrupo = async (
+    curso: Curso,
+    g: number,
+    tipoStr: string,
+  ): Promise<Grupo> => {
+    const tipo = mapTipoClase(tipoStr);
+    const sufijo =
+      tipo === TipoClase.TEORIA ? "T" : tipo === TipoClase.PRACTICA ? "P" : "L";
+    const codigoGrupo = `${curso.codigo}-${sufijo}${g}`;
+    let grupo = await grupoRepo.findOne({
+      where: {
+        curso: { id: curso.id },
+        codigo: codigoGrupo,
+        periodo_academico: { id: periodoActivo.id },
+      },
+    });
+    if (!grupo) {
+      grupo = await grupoRepo.save(
+        grupoRepo.create({
+          codigo: codigoGrupo,
+          nombre: `${tipo === TipoClase.TEORIA ? "Teoría" : tipo === TipoClase.PRACTICA ? "Práctica" : "Laboratorio"} ${g}`,
+          tipo,
+          ciclo: curso.ciclo,
+          cupo_maximo: tipo === TipoClase.LABORATORIO ? 30 : 40,
+          curso_id: curso.id,
+          periodo_academico_id: periodoActivo.id,
+        }),
+      );
+    }
+    return grupo;
   };
 
   // ── 3. DATOS DE LOS HORARIOS DEL CICLO III ───────────────────────────────
   console.log("📋 Datos de horarios del ciclo III cargados");
   const horariosCicloIIIData = [
     // 1. Zoraida Vidal Melgarejo - POO II (T:2, P:0, L:4, G:3)
-    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Lunes", horas: "09:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 1 },
-    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Martes", horas: "09:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 2", grupo: 2 },
-    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Martes", horas: "14:00-16:00", tipo: "Teoría", ambiente: "I-4", grupo: 1 },
-    { docente: "Zoraida Vidal Melgarejo", curso: "Programación Orientada a Objetos II", dia: "Viernes", horas: "09:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 4", grupo: 3 },
+    {
+      docente: "Zoraida Vidal Melgarejo",
+      curso: "Programación Orientada a Objetos II",
+      dia: "Lunes",
+      horas: "09:00-13:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 2",
+      grupo: 1,
+    },
+    {
+      docente: "Zoraida Vidal Melgarejo",
+      curso: "Programación Orientada a Objetos II",
+      dia: "Martes",
+      horas: "09:00-13:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 2",
+      grupo: 2,
+    },
+    {
+      docente: "Zoraida Vidal Melgarejo",
+      curso: "Programación Orientada a Objetos II",
+      dia: "Martes",
+      horas: "14:00-16:00",
+      tipo: "Teoría",
+      ambiente: "I-4",
+      grupo: 1,
+    },
+    {
+      docente: "Zoraida Vidal Melgarejo",
+      curso: "Programación Orientada a Objetos II",
+      dia: "Viernes",
+      horas: "09:00-13:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 4",
+      grupo: 3,
+    },
 
     // 2. Everson David Agreda Gamboa - Sistémica (T:2, P:1, L:2, G:3)
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "09:00-11:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "11:00-12:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 1 },
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 2 },
-    { docente: "Everson David Agreda Gamboa", curso: "Sistémica", dia: "Jueves", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab. 3", grupo: 3 },
+    {
+      docente: "Everson David Agreda Gamboa",
+      curso: "Sistémica",
+      dia: "Miércoles",
+      horas: "09:00-11:00",
+      tipo: "Teoría",
+      ambiente: "posgrado A-307",
+      grupo: 1,
+    },
+    {
+      docente: "Everson David Agreda Gamboa",
+      curso: "Sistémica",
+      dia: "Miércoles",
+      horas: "11:00-12:00",
+      tipo: "Práctica",
+      ambiente: "posgrado A-307",
+      grupo: 1,
+    },
+    {
+      docente: "Everson David Agreda Gamboa",
+      curso: "Sistémica",
+      dia: "Miércoles",
+      horas: "14:00-16:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 3",
+      grupo: 1,
+    },
+    {
+      docente: "Everson David Agreda Gamboa",
+      curso: "Sistémica",
+      dia: "Miércoles",
+      horas: "16:00-18:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 3",
+      grupo: 2,
+    },
+    {
+      docente: "Everson David Agreda Gamboa",
+      curso: "Sistémica",
+      dia: "Jueves",
+      horas: "16:00-18:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 3",
+      grupo: 3,
+    },
 
     // 3. Juan Carlos obando Roldán - Ing. Gráfica (T:1, P:1, L:3, G:2)
-    { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Miércoles", horas: "07:00-08:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
-    { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Miércoles", horas: "08:00-09:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
-    { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Jueves", horas: "07:00-10:00", tipo: "Laboratorio", ambiente: "Lab. 1", grupo: 1 },
-    { docente: "Juan Carlos obando Roldán", curso: "Ingeniería Gráfica (e )", dia: "Jueves", horas: "10:00-13:00", tipo: "Laboratorio", ambiente: "Lab. 1", grupo: 2 },
+    {
+      docente: "Juan Carlos obando Roldán",
+      curso: "Ingeniería Gráfica (e )",
+      dia: "Miércoles",
+      horas: "07:00-08:00",
+      tipo: "Teoría",
+      ambiente: "posgrado A-303",
+      grupo: 1,
+    },
+    {
+      docente: "Juan Carlos obando Roldán",
+      curso: "Ingeniería Gráfica (e )",
+      dia: "Miércoles",
+      horas: "08:00-09:00",
+      tipo: "Práctica",
+      ambiente: "posgrado A-303",
+      grupo: 1,
+    },
+    {
+      docente: "Juan Carlos obando Roldán",
+      curso: "Ingeniería Gráfica (e )",
+      dia: "Jueves",
+      horas: "07:00-10:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 1",
+      grupo: 1,
+    },
+    {
+      docente: "Juan Carlos obando Roldán",
+      curso: "Ingeniería Gráfica (e )",
+      dia: "Jueves",
+      horas: "10:00-13:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 1",
+      grupo: 2,
+    },
 
     // 4. Marcos Ferrer Reyna - Matemática Aplicada (T:1, P:2, L:2, G:1)
-    { docente: "Marcos Ferrer Reyna", curso: "Matemática Aplicada", dia: "Jueves", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Taller Confecciones - Ing. Industrial", grupo: 1 },
-    { docente: "Marcos Ferrer Reyna", curso: "Matemática Aplicada", dia: "Miércoles", horas: "18:00-19:00", tipo: "Teoría", ambiente: "posgrado A-303", grupo: 1 },
-    { docente: "Marcos Ferrer Reyna", curso: "Matemática Aplicada", dia: "Miércoles", horas: "19:00-21:00", tipo: "Práctica", ambiente: "posgrado A-303", grupo: 1 },
+    {
+      docente: "Marcos Ferrer Reyna",
+      curso: "Matemática Aplicada",
+      dia: "Jueves",
+      horas: "14:00-16:00",
+      tipo: "Laboratorio",
+      ambiente: "Taller Confecciones - Ing. Industrial",
+      grupo: 1,
+    },
+    {
+      docente: "Marcos Ferrer Reyna",
+      curso: "Matemática Aplicada",
+      dia: "Miércoles",
+      horas: "18:00-19:00",
+      tipo: "Teoría",
+      ambiente: "posgrado A-303",
+      grupo: 1,
+    },
+    {
+      docente: "Marcos Ferrer Reyna",
+      curso: "Matemática Aplicada",
+      dia: "Miércoles",
+      horas: "19:00-21:00",
+      tipo: "Práctica",
+      ambiente: "posgrado A-303",
+      grupo: 1,
+    },
 
     // 5. Teresita Rojas Garcia - Estadística Aplicada (T:1, P:2, L:2, G:3)
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Martes", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "posgrado A-303", grupo: 1 },
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Jueves", horas: "18:00-19:00", tipo: "Teoría", ambiente: "Taller Confecciones - Ing. Industrial", grupo: 1 },
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Jueves", horas: "19:00-21:00", tipo: "Práctica", ambiente: "Taller Confecciones - Ing. Industrial", grupo: 1 },
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Viernes", horas: "07:00-09:00", tipo: "Laboratorio", ambiente: "Taller Confecciones (Ing. Industrial)", grupo: 2 },
-    { docente: "Teresita Rojas Garcia", curso: "Estadística Aplicada", dia: "Viernes", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "posgrado A-303", grupo: 3 },
+    {
+      docente: "Teresita Rojas Garcia",
+      curso: "Estadística Aplicada",
+      dia: "Martes",
+      horas: "16:00-18:00",
+      tipo: "Laboratorio",
+      ambiente: "posgrado A-303",
+      grupo: 1,
+    },
+    {
+      docente: "Teresita Rojas Garcia",
+      curso: "Estadística Aplicada",
+      dia: "Jueves",
+      horas: "18:00-19:00",
+      tipo: "Teoría",
+      ambiente: "Taller Confecciones - Ing. Industrial",
+      grupo: 1,
+    },
+    {
+      docente: "Teresita Rojas Garcia",
+      curso: "Estadística Aplicada",
+      dia: "Jueves",
+      horas: "19:00-21:00",
+      tipo: "Práctica",
+      ambiente: "Taller Confecciones - Ing. Industrial",
+      grupo: 1,
+    },
+    {
+      docente: "Teresita Rojas Garcia",
+      curso: "Estadística Aplicada",
+      dia: "Viernes",
+      horas: "07:00-09:00",
+      tipo: "Laboratorio",
+      ambiente: "Taller Confecciones (Ing. Industrial)",
+      grupo: 2,
+    },
+    {
+      docente: "Teresita Rojas Garcia",
+      curso: "Estadística Aplicada",
+      dia: "Viernes",
+      horas: "16:00-18:00",
+      tipo: "Laboratorio",
+      ambiente: "posgrado A-303",
+      grupo: 3,
+    },
 
     // 6. Juan Carrascal Cabanillas - Administración General (T:2, P:2, L:0, G:1)
-    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Lunes", horas: "07:00-08:00", tipo: "Teoría", ambiente: "Taller Confecciones - Ing. Indust.", grupo: 1 },
-    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Lunes", horas: "08:00-09:00", tipo: "Práctica", ambiente: "Taller Confecciones - Ing. Indust.", grupo: 1 },
-    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Martes", horas: "07:00-08:00", tipo: "Teoría", ambiente: "I I - 2 (Pabellon Ing. Industrial)", grupo: 1 },
-    { docente: "Juan Carrascal Cabanillas", curso: "Administración General", dia: "Martes", horas: "08:00-09:00", tipo: "Práctica", ambiente: "I I - 2 (Pabellon Ing. Industrial)", grupo: 1 },
+    {
+      docente: "Juan Carrascal Cabanillas",
+      curso: "Administración General",
+      dia: "Lunes",
+      horas: "07:00-08:00",
+      tipo: "Teoría",
+      ambiente: "Taller Confecciones - Ing. Indust.",
+      grupo: 1,
+    },
+    {
+      docente: "Juan Carrascal Cabanillas",
+      curso: "Administración General",
+      dia: "Lunes",
+      horas: "08:00-09:00",
+      tipo: "Práctica",
+      ambiente: "Taller Confecciones - Ing. Indust.",
+      grupo: 1,
+    },
+    {
+      docente: "Juan Carrascal Cabanillas",
+      curso: "Administración General",
+      dia: "Martes",
+      horas: "07:00-08:00",
+      tipo: "Teoría",
+      ambiente: "I I - 2 (Pabellon Ing. Industrial)",
+      grupo: 1,
+    },
+    {
+      docente: "Juan Carrascal Cabanillas",
+      curso: "Administración General",
+      dia: "Martes",
+      horas: "08:00-09:00",
+      tipo: "Práctica",
+      ambiente: "I I - 2 (Pabellon Ing. Industrial)",
+      grupo: 1,
+    },
 
     // 7. Vilma Mendez Gil - Física Electrónica (T:1, P:2, L:2, G:4)
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Lunes", horas: "15:00-16:00", tipo: "Teoría", ambiente: "posgrado A-307", grupo: 1 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Lunes", horas: "16:00-18:00", tipo: "Práctica", ambiente: "posgrado A-307", grupo: 1 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Miércoles", horas: "14:00-16:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 1 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Miércoles", horas: "16:00-18:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 2 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Jueves", horas: "07:00-09:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 3 },
-    { docente: "Vilma Mendez Gil", curso: "Física Electrónica", dia: "Jueves", horas: "09:00-11:00", tipo: "Laboratorio", ambiente: "Lab. Fisica", grupo: 4 },
+    {
+      docente: "Vilma Mendez Gil",
+      curso: "Física Electrónica",
+      dia: "Lunes",
+      horas: "15:00-16:00",
+      tipo: "Teoría",
+      ambiente: "posgrado A-307",
+      grupo: 1,
+    },
+    {
+      docente: "Vilma Mendez Gil",
+      curso: "Física Electrónica",
+      dia: "Lunes",
+      horas: "16:00-18:00",
+      tipo: "Práctica",
+      ambiente: "posgrado A-307",
+      grupo: 1,
+    },
+    {
+      docente: "Vilma Mendez Gil",
+      curso: "Física Electrónica",
+      dia: "Miércoles",
+      horas: "14:00-16:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. Fisica",
+      grupo: 1,
+    },
+    {
+      docente: "Vilma Mendez Gil",
+      curso: "Física Electrónica",
+      dia: "Miércoles",
+      horas: "16:00-18:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. Fisica",
+      grupo: 2,
+    },
+    {
+      docente: "Vilma Mendez Gil",
+      curso: "Física Electrónica",
+      dia: "Jueves",
+      horas: "07:00-09:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. Fisica",
+      grupo: 3,
+    },
+    {
+      docente: "Vilma Mendez Gil",
+      curso: "Física Electrónica",
+      dia: "Jueves",
+      horas: "09:00-11:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. Fisica",
+      grupo: 4,
+    },
 
     // 8. Sheyla Laura Escobedo Rodriguez - Psicología Organizacional (T:2, P:2, L:0, G:1)
-    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicologia Organizacional (e )", dia: "Martes", horas: "18:00-19:00", tipo: "Teoría", ambiente: "posgrado A-311", grupo: 1 },
-    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicologia Organizacional (e )", dia: "Martes", horas: "19:00-20:00", tipo: "Práctica", ambiente: "posgrado A-311", grupo: 1 },
-    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicologia Organizacional (e )", dia: "Viernes", horas: "18:00-19:00", tipo: "Teoría", ambiente: "posgrado A-311", grupo: 1 },
-    { docente: "Sheyla Laura Escobedo Rodriguez", curso: "Psicologia Organizacional (e )", dia: "Viernes", horas: "19:00-20:00", tipo: "Práctica", ambiente: "posgrado A-311", grupo: 1 },
+    {
+      docente: "Sheyla Laura Escobedo Rodriguez",
+      curso: "Psicologia Organizacional (e )",
+      dia: "Martes",
+      horas: "18:00-19:00",
+      tipo: "Teoría",
+      ambiente: "posgrado A-311",
+      grupo: 1,
+    },
+    {
+      docente: "Sheyla Laura Escobedo Rodriguez",
+      curso: "Psicologia Organizacional (e )",
+      dia: "Martes",
+      horas: "19:00-20:00",
+      tipo: "Práctica",
+      ambiente: "posgrado A-311",
+      grupo: 1,
+    },
+    {
+      docente: "Sheyla Laura Escobedo Rodriguez",
+      curso: "Psicologia Organizacional (e )",
+      dia: "Viernes",
+      horas: "18:00-19:00",
+      tipo: "Teoría",
+      ambiente: "posgrado A-311",
+      grupo: 1,
+    },
+    {
+      docente: "Sheyla Laura Escobedo Rodriguez",
+      curso: "Psicologia Organizacional (e )",
+      dia: "Viernes",
+      horas: "19:00-20:00",
+      tipo: "Práctica",
+      ambiente: "posgrado A-311",
+      grupo: 1,
+    },
   ];
 
   // ── 4. CREAR LOS HORARIOS EN LA BD ───────────────────────────────────────
@@ -226,60 +519,77 @@ export async function seedHorariosCicloIII() {
   let saltados = 0;
 
   for (const data of horariosCicloIIIData) {
-    const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalize = (s: string) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
 
-    const docente = dbDocentes.find(d => {
+    const docente = dbDocentes.find((d) => {
       const fullNombre = normalize(`${d.nombres} ${d.apellidos}`);
       const searchNombre = normalize(data.docente);
-      return fullNombre.includes(searchNombre) || searchNombre.includes(fullNombre);
+      return (
+        fullNombre.includes(searchNombre) || searchNombre.includes(fullNombre)
+      );
     });
 
-    const curso = dbCursos.find(c => {
+    const curso = dbCursos.find((c) => {
       const dbNombre = normalize(c.nombre);
       const searchNombre = normalize(data.curso);
       const searchNombreClean = searchNombre.split("(")[0].trim();
-      return dbNombre.includes(searchNombreClean) || searchNombreClean.includes(dbNombre);
+      return (
+        dbNombre.includes(searchNombreClean) ||
+        searchNombreClean.includes(dbNombre)
+      );
     });
 
-    const ambiente = dbAmbientes.find(a =>
-      a.codigo === mapAmbiente(data.ambiente)
+    const ambiente = dbAmbientes.find(
+      (a) => a.codigo === mapAmbiente(data.ambiente),
     );
-    const grupo = curso ? getGrupo(curso, data.grupo) : undefined;
 
     if (!docente || !curso || !ambiente) {
-      console.warn(`⚠️ Saltando horario: docente=${data.docente}, curso=${data.curso}, ambiente=${data.ambiente}`);
+      console.warn(
+        `⚠️ Saltando horario: docente=${data.docente}, curso=${data.curso}, ambiente=${data.ambiente}`,
+      );
       saltados++;
       continue;
     }
 
+    const grupo = await asegurarGrupo(curso, data.grupo, data.tipo);
     const { inicio, fin } = parsearRangoHoras(data.horas);
 
-    await horarioRepo.save(horarioRepo.create({
-      docente_id: docente.id,
-      curso_id: curso.id,
-      ambiente_id: ambiente.id,
-      grupo_id: grupo?.id ?? dbGrupos[0]?.id,
-      dia: diaANumero(data.dia),
-      dia_semana: diaANumero(data.dia),
-      hora_inicio: inicio,
-      hora_fin: fin,
-      tipo_clase: mapTipoClase(data.tipo),
-      periodo: periodoActivo.codigo,
-      estado: EstadoHorario.CONFIRMADO,
-      origen: OrigenHorario.AJUSTE_MANUAL,
-    }));
+    await horarioRepo.save(
+      horarioRepo.create({
+        docente_id: docente.id,
+        curso_id: curso.id,
+        ambiente_id: ambiente.id,
+        grupo_id: grupo.id,
+        dia: diaANumero(data.dia),
+        dia_semana: diaANumero(data.dia),
+        hora_inicio: inicio,
+        hora_fin: fin,
+        tipo_clase: mapTipoClase(data.tipo),
+        periodo: periodoActivo.codigo,
+        estado: EstadoHorario.CONFIRMADO,
+        origen: OrigenHorario.AJUSTE_MANUAL,
+      }),
+    );
 
     creados++;
   }
 
-  console.log(`\n✅ Seed completado! ${creados} horarios creados, ${saltados} saltados.\n`);
-  console.log("💡 Recuerda: Para ejecutar este seed, usa: npx ts-node src/database/seed-horarios-ciclo-III.ts");
+  console.log(
+    `\n✅ Seed completado! ${creados} horarios creados, ${saltados} saltados.\n`,
+  );
+  console.log(
+    "💡 Recuerda: Para ejecutar este seed, usa: npx ts-node src/database/seed-horarios-ciclo-III.ts",
+  );
 
   await AppDataSource.destroy();
 }
 
 if (require.main === module) {
-  seedHorariosCicloIII().catch(error => {
+  seedHorariosCicloIII().catch((error) => {
     console.error("❌ Error en el seed:", error);
     process.exit(1);
   });

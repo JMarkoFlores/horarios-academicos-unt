@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class UpdateReglasPrioridadCompletas1779200000007 implements MigrationInterface {
-  name = 'UpdateReglasPrioridadCompletas1779200000007';
+  name = "UpdateReglasPrioridadCompletas1779200000007";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Actualizar reglas para incluir todos los criterios jerárquicos completos

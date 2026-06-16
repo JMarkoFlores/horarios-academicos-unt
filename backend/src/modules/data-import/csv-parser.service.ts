@@ -1,5 +1,5 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import * as csv from 'csv-parse';
+import { Injectable, BadRequestException } from "@nestjs/common";
+import * as csv from "csv-parse";
 
 @Injectable()
 export class CsvParserService {
@@ -14,22 +14,22 @@ export class CsvParserService {
         relax_quotes: true,
       });
 
-      parser.on('readable', function () {
+      parser.on("readable", function () {
         let record;
         while ((record = parser.read()) !== null) {
           records.push(record);
         }
       });
 
-      parser.on('error', (error) => {
+      parser.on("error", (error) => {
         reject(
           new BadRequestException(`Error al parsear CSV: ${error.message}`),
         );
       });
 
-      parser.on('end', () => {
+      parser.on("end", () => {
         if (records.length === 0) {
-          reject(new BadRequestException('El archivo CSV está vacío'));
+          reject(new BadRequestException("El archivo CSV está vacío"));
         }
         resolve(records);
       });
@@ -40,6 +40,6 @@ export class CsvParserService {
   }
 
   async parseCSVFromString(csvString: string): Promise<Record<string, any>[]> {
-    return this.parseCSV(Buffer.from(csvString, 'utf-8'));
+    return this.parseCSV(Buffer.from(csvString, "utf-8"));
   }
 }

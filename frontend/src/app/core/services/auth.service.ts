@@ -109,6 +109,30 @@ export class AuthService {
     return !!user && roles.includes(user.rol);
   }
 
+  actualizarContexto(contexto: Usuario['contextoAcademico']): void {
+    const user = this.getUsuarioActual();
+    if (!user) return;
+    const actualizado = { ...user, contextoAcademico: contexto };
+    localStorage.setItem(this.USER_KEY, JSON.stringify(actualizado));
+  }
+
+  cargarPerfil(): Observable<any> {
+    return this.http
+      .get<{ data: Usuario }>(`${environment.apiUrl}/auth/perfil`)
+      .pipe(
+        tap((res) => {
+          const actual = this.getUsuarioActual();
+          if (!actual) return;
+          const merged = {
+            ...actual,
+            ...res.data,
+            contextoAcademico: res.data.contextoAcademico,
+          };
+          localStorage.setItem(this.USER_KEY, JSON.stringify(merged));
+        }),
+      );
+  }
+
   cambiarPassword(payload: {
     password_actual: string;
     password_nueva: string;

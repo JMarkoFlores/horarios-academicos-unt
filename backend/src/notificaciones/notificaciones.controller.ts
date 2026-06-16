@@ -1,7 +1,21 @@
 import {
-  Controller, Get, Put, Post, Body, Param, ParseIntPipe, Query, UseGuards,
+  Controller,
+  Get,
+  Put,
+  Post,
+  Body,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+} from "@nestjs/swagger";
 import { NotificacionesService } from "./notificaciones.service";
 import { TelegramBotService } from "./telegram-bot.service";
 import { UpdatePreferenciasDto } from "./dto/update-preferencias.dto";
@@ -81,7 +95,9 @@ export class NotificacionesController {
   @ApiParam({ name: "docenteId", type: Number })
   async testCola(@Param("docenteId", ParseIntPipe) docenteId: number) {
     await this.notificacionesService.testJobCola(docenteId);
-    return { message: "Job de prueba agregado a la cola (ejecución inmediata)" };
+    return {
+      message: "Job de prueba agregado a la cola (ejecución inmediata)",
+    };
   }
 
   @Get("estadisticas")
@@ -90,7 +106,9 @@ export class NotificacionesController {
   @ApiOperation({ summary: "Resumen de envíos por periodo" })
   @ApiQuery({ name: "periodo", required: false, type: String })
   async getEstadisticas(@Query() query: QueryEstadisticasDto) {
-    const result = await this.notificacionesService.getEstadisticas(query.periodo);
+    const result = await this.notificacionesService.getEstadisticas(
+      query.periodo,
+    );
     return { data: result, message: "Estadísticas obtenidas" };
   }
 

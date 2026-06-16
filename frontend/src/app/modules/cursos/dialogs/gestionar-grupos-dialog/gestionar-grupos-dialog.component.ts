@@ -11,6 +11,14 @@ export interface GestionarGruposData {
   curso: Curso;
 }
 
+export interface GrupoPorTipo {
+  tipo: 'TEORIA' | 'PRACTICA' | 'LABORATORIO';
+  label: string;
+  icon: string;
+  color: string;
+  grupos: Grupo[];
+}
+
 @Component({
   selector: 'app-gestionar-grupos-dialog',
   templateUrl: './gestionar-grupos-dialog.component.html',
@@ -19,10 +27,17 @@ export interface GestionarGruposData {
 export class GestionarGruposDialogComponent implements OnInit {
   form!: FormGroup;
   grupos: Grupo[] = [];
+  gruposPorTipo: GrupoPorTipo[] = [];
   loading = false;
   guardando = false;
   periodoId: number | null = null;
   editingGroupId: number | null = null;
+
+  readonly tiposDisponibles = [
+    { value: 'TEORIA', label: 'Teoría', icon: 'menu_book', color: 'var(--color-primary)' },
+    { value: 'PRACTICA', label: 'Práctica', icon: 'build', color: 'var(--color-warning)' },
+    { value: 'LABORATORIO', label: 'Laboratorio', icon: 'biotech', color: 'var(--color-accent)' },
+  ];
 
   constructor(
     private dialogRef: MatDialogRef<GestionarGruposDialogComponent>,
@@ -43,8 +58,25 @@ export class GestionarGruposDialogComponent implements OnInit {
     this.form = this.fb.group({
       codigo: ['', [Validators.required, Validators.maxLength(10)]],
       nombre: ['', [Validators.required, Validators.maxLength(50)]],
+      tipo: ['TEORIA', Validators.required],
       ciclo: [this.data.curso.ciclo, [Validators.required, Validators.min(1), Validators.max(12)]],
       cupo_maximo: [40, [Validators.required, Validators.min(1), Validators.max(500)]],
+    });
+
+    this.form.get('tipo')?.valueChanges.subscribe((tipo: string) => {
+      const defaults: Record<string, { cupo: number; codigo: string; nombre: string }> = {
+        TEORIA: { cupo: 40, codigo: 'T1', nombre: 'Teoría 1' },
+        PRACTICA: { cupo: 40, codigo: 'P1', nombre: 'Práctica 1' },
+        LABORATORIO: { cupo: 30, codigo: 'L1', nombre: 'Laboratorio 1' },
+      };
+      if (!this.editingGroupId) {
+        const d = defaults[tipo];
+        this.form.patchValue({
+          cupo_maximo: d.cupo,
+          codigo: d.codigo,
+          nombre: d.nombre,
+        });
+      }
     });
   }
 
@@ -79,12 +111,31 @@ export class GestionarGruposDialogComponent implements OnInit {
       .subscribe({
         next: (r: any) => {
           this.grupos = r?.data?.items ?? r?.data ?? [];
+          this.organizarPorTipo();
           this.loading = false;
         },
         error: () => {
           this.loading = false;
         },
       });
+  }
+
+  private organizarPorTipo(): void {
+    const map = new Map<string, Grupo[]>();
+    for (const g of this.grupos) {
+      const t = g.tipo || 'TEORIA';
+      if (!map.has(t)) map.set(t, []);
+      map.get(t)!.push(g);
+    }
+    this.gruposPorTipo = this.tiposDisponibles
+      .map((td) => ({
+        tipo: td.value as 'TEORIA' | 'PRACTICA' | 'LABORATORIO',
+        label: td.label,
+        icon: td.icon,
+        color: td.color,
+        grupos: (map.get(td.value) || []).sort((a, b) => a.codigo.localeCompare(b.codigo)),
+      }))
+      .filter((s) => s.grupos.length > 0);
   }
 
   guardar(): void {
@@ -98,7 +149,6 @@ export class GestionarGruposDialogComponent implements OnInit {
     };
 
     if (this.editingGroupId) {
-      // Editar grupo existente
       this.api.patch<ApiResponse<any>>(`/grupos/${this.editingGroupId}`, body).subscribe({
         next: () => {
           this.guardando = false;
@@ -113,13 +163,13 @@ export class GestionarGruposDialogComponent implements OnInit {
         },
       });
     } else {
-      // Crear nuevo grupo
       this.api.post<ApiResponse<any>>('/grupos', body).subscribe({
         next: () => {
           this.guardando = false;
           this.notif.success('Grupo creado correctamente');
           this.form.get('codigo')?.reset();
           this.form.get('nombre')?.reset();
+          this.form.get('tipo')?.setValue('TEORIA');
           this.cargarGrupos();
         },
         error: (err) => {
@@ -136,6 +186,7 @@ export class GestionarGruposDialogComponent implements OnInit {
     this.form.patchValue({
       codigo: grupo.codigo,
       nombre: grupo.nombre,
+      tipo: grupo.tipo || 'TEORIA',
       ciclo: grupo.ciclo,
       cupo_maximo: grupo.cupo_maximo,
     });
@@ -146,6 +197,7 @@ export class GestionarGruposDialogComponent implements OnInit {
     this.form.reset({
       codigo: '',
       nombre: '',
+      tipo: 'TEORIA',
       ciclo: this.data.curso.ciclo,
       cupo_maximo: 40,
     });

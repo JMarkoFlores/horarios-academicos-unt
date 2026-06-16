@@ -5,15 +5,18 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-} from 'typeorm';
-import { PeriodoAcademico } from './periodo-academico.entity';
-import { Curso } from './curso.entity';
+} from "typeorm";
+import { PeriodoAcademico } from "./periodo-academico.entity";
+import { Curso } from "./curso.entity";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
 
-@Entity('grupo')
-@Index('idx_grupo_periodo', ['periodo_academico_id'])
-@Index('uq_grupo_curso_periodo_nombre', ['curso_id', 'periodo_academico_id', 'nombre'], {
-  unique: true,
-})
+@Entity("grupo")
+@Index("idx_grupo_periodo", ["periodo_academico_id"])
+@Index(
+  "uq_grupo_curso_periodo_tipo_nombre",
+  ["curso_id", "periodo_academico_id", "tipo", "nombre"],
+  { unique: true },
+)
 export class Grupo {
   @PrimaryGeneratedColumn()
   id: number;
@@ -23,6 +26,13 @@ export class Grupo {
 
   @Column({ length: 100 })
   nombre: string;
+
+  @Column({
+    type: "enum",
+    enum: TipoClase,
+    default: TipoClase.TEORIA,
+  })
+  tipo: TipoClase;
 
   @Column()
   ciclo: number;

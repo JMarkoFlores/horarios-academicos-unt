@@ -13,6 +13,12 @@ export class CargaLectivaRegistroDto {
   @ApiProperty({ example: "Introducción a la Ingeniería de Sistemas" })
   nombreCurso: string;
 
+  @ApiProperty({ example: "OBLIGATORIO" })
+  tipoCurso: string;
+
+  @ApiProperty({ example: "Ingeniería de Sistemas" })
+  escuela: string;
+
   @ApiProperty({ example: 4 })
   grupoId: number;
 
@@ -21,6 +27,9 @@ export class CargaLectivaRegistroDto {
 
   @ApiProperty({ example: 1 })
   ciclo: number;
+
+  @ApiProperty({ example: 30 })
+  nroAlumnos: number;
 
   @ApiProperty({ example: "TEORIA" })
   tipoClase: string;
@@ -133,6 +142,10 @@ export class CargaLectivaDeclaracionDto {
   @ApiProperty({ type: CargaLectivaGeneradaDto })
   cargaLectiva: CargaLectivaGeneradaDto;
 
-  @ApiProperty({ type: CargaLectivaGeneradaDto, required: false, nullable: true })
+  @ApiProperty({
+    type: CargaLectivaGeneradaDto,
+    required: false,
+    nullable: true,
+  })
   snapshotGuardado: CargaLectivaGeneradaDto | null;
 }

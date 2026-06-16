@@ -32,6 +32,8 @@ import { CargaLectivaDeclaracionDto } from "./dto/carga-lectiva.dto";
 import { ObservarDeclaracionDto } from "./dto/observar-declaracion.dto";
 import { SubsanarDeclaracionDto } from "./dto/subsanar-declaracion.dto";
 
+import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
+
 @ApiTags("declaraciones")
 @Controller("declaraciones")
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -66,6 +68,9 @@ export class DeclaracionCargaHorariaController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
   )
@@ -89,6 +94,9 @@ export class DeclaracionCargaHorariaController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
     RolUsuario.DOCENTE,
@@ -115,6 +123,9 @@ export class DeclaracionCargaHorariaController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
     RolUsuario.DOCENTE,
@@ -168,7 +179,13 @@ export class DeclaracionCargaHorariaController {
   }
 
   @Get("documentaciones")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.COORDINADOR_ACADEMICO,
+  )
   @ApiOperation({
     summary: "Obtener documentaciones enviadas por docentes para revisión",
   })
@@ -389,6 +406,49 @@ export class DeclaracionCargaHorariaController {
   ): Promise<any> {
     const data = await this.declaracionService.subsanar(id, usuario, dto);
     return { data, message: "Declaración subsanada correctamente" };
+  }
+
+  @Get("docentes/:id/declaracion-jurada")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({ summary: "Obtener declaración jurada de un docente" })
+  @ApiParam({ name: "id", type: Number })
+  async obtenerDeclaracionJurada(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("periodo") periodo?: string,
+  ): Promise<{ data: DeclaracionJurada | null; message: string }> {
+    const data = await this.declaracionService.obtenerDeclaracionJurada(
+      id,
+      periodo,
+    );
+    return { data, message: "Declaración jurada obtenida correctamente" };
+  }
+
+  @Post("docentes/:id/declaracion-jurada")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({ summary: "Generar declaración jurada de un docente" })
+  @ApiParam({ name: "id", type: Number })
+  async generarDeclaracionJurada(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { periodo?: string },
+    @CurrentUser() usuario: Usuario,
+  ): Promise<{ data: DeclaracionJurada; message: string }> {
+    const data = await this.declaracionService.generarDeclaracionJurada(
+      id,
+      body?.periodo,
+      usuario,
+    );
+    return { data, message: "Declaración jurada generada correctamente" };
   }
 
   @Get("pendientes/departamento")

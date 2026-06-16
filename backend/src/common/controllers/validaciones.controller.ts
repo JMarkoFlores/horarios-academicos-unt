@@ -100,16 +100,22 @@ export class ValidacionesController {
 
   @Post("disponibilidad-docente")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Verificar si un bloque de horas está dentro de la disponibilidad del docente" })
+  @ApiOperation({
+    summary:
+      "Verificar si un bloque de horas está dentro de la disponibilidad del docente",
+  })
   @ApiResponse({ status: 200, description: "Verificación realizada" })
-  async verificarDisponibilidadDocente(@Body() dto: VerificarDisponibilidadDocenteDto) {
-    const disponible = await this.validacionesService.verificarDisponibilidadDocente(
-      dto.docenteId,
-      dto.diaSemana,
-      dto.horaInicio,
-      dto.horaFin,
-      dto.periodo,
-    );
+  async verificarDisponibilidadDocente(
+    @Body() dto: VerificarDisponibilidadDocenteDto,
+  ) {
+    const disponible =
+      await this.validacionesService.verificarDisponibilidadDocente(
+        dto.docenteId,
+        dto.diaSemana,
+        dto.horaInicio,
+        dto.horaFin,
+        dto.periodo,
+      );
     return {
       data: { disponible },
       message: disponible
@@ -121,9 +127,14 @@ export class ValidacionesController {
 
   @Post("franja-institucional")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Verificar si las horas propuestas están dentro de la franja institucional (07:00 - 22:00)" })
+  @ApiOperation({
+    summary:
+      "Verificar si las horas propuestas están dentro de la franja institucional (07:00 - 22:00)",
+  })
   @ApiResponse({ status: 200, description: "Verificación realizada" })
-  async verificarFranjaInstitucional(@Body() dto: VerificarFranjaInstitucionalDto) {
+  async verificarFranjaInstitucional(
+    @Body() dto: VerificarFranjaInstitucionalDto,
+  ) {
     const valida = this.validacionesService.verificarFranjaInstitucional(
       dto.horaInicio,
       dto.horaFin,
@@ -139,13 +150,16 @@ export class ValidacionesController {
 
   @Post("dia-no-laborable")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Verificar si la fecha propuesta es un día no laborable" })
+  @ApiOperation({
+    summary: "Verificar si la fecha propuesta es un día no laborable",
+  })
   @ApiResponse({ status: 200, description: "Verificación realizada" })
   async verificarDiaNoLaborable(@Body() dto: VerificarDiaNoLaborableDto) {
-    const esNoLaborable = await this.validacionesService.verificarDiaNoLaborable(
-      dto.fecha,
-      dto.periodo,
-    );
+    const esNoLaborable =
+      await this.validacionesService.verificarDiaNoLaborable(
+        dto.fecha,
+        dto.periodo,
+      );
     return {
       data: { esNoLaborable },
       message: esNoLaborable
@@ -157,7 +171,10 @@ export class ValidacionesController {
 
   @Post("max-horas-docente")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Verificar si una asignación supera el máximo de horas diarias de un docente" })
+  @ApiOperation({
+    summary:
+      "Verificar si una asignación supera el máximo de horas diarias de un docente",
+  })
   @ApiResponse({ status: 200, description: "Verificación realizada" })
   async verificarMaxHorasDocente(@Body() dto: VerificarMaxHorasDocenteDto) {
     const permitido = await this.validacionesService.verificarMaxHorasDocente(

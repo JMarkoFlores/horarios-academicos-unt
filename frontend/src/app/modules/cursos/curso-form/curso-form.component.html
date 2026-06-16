@@ -80,6 +80,14 @@
               <mat-error *ngIf="form.get('horas_teoria')?.hasError('min')">Mínimo 1 hora</mat-error>
             </mat-form-field>
 
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Horas Práctica / semana</mat-label>
+              <input matInput type="number" formControlName="horas_practica" min="0" />
+              <mat-icon matPrefix>build</mat-icon>
+              <mat-hint>0 si no tiene práctica</mat-hint>
+              <mat-error *ngIf="form.get('horas_practica')?.hasError('min')">Mínimo 0 horas</mat-error>
+            </mat-form-field>
+
             <mat-form-field appearance="fill" class="premium-field"
               [class.field-disabled]="!tieneLab">
               <mat-label>Horas Laboratorio / semana</mat-label>

@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, BeforeInsert, BeforeUpdate, OneToMany } from "typeorm";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToMany,
+  BeforeInsert,
+  BeforeUpdate,
+  OneToMany,
+} from "typeorm";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { Curso } from "./curso.entity";
@@ -42,7 +50,11 @@ export class Ambiente {
   @Column({ type: "text", nullable: true })
   equipamiento: string;
 
-  @Column({ type: "enum", enum: EstadoAmbiente, default: EstadoAmbiente.ACTIVO })
+  @Column({
+    type: "enum",
+    enum: EstadoAmbiente,
+    default: EstadoAmbiente.ACTIVO,
+  })
   estado: EstadoAmbiente;
 
   @Column({ default: true })
@@ -58,7 +70,9 @@ export class Ambiente {
   @BeforeUpdate()
   syncActivo(): void {
     if (this.estado) {
-      this.activo = this.estado === EstadoAmbiente.ACTIVO || this.estado === EstadoAmbiente.RESERVADO;
+      this.activo =
+        this.estado === EstadoAmbiente.ACTIVO ||
+        this.estado === EstadoAmbiente.RESERVADO;
     }
   }
 }

@@ -410,13 +410,19 @@ describe("ValidacionesService", () => {
     it("debe retornar true si el día es no laborable", async () => {
       mockQueryBuilder.getCount.mockResolvedValue(1);
 
-      const result = await service.verificarDiaNoLaborable("2026-05-25", "2026-I");
+      const result = await service.verificarDiaNoLaborable(
+        "2026-05-25",
+        "2026-I",
+      );
 
       expect(result).toBe(true);
       expect(diaNoLaborableRepo.createQueryBuilder).toHaveBeenCalledWith("d");
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith("d.fecha = :fechaStr", {
-        fechaStr: "2026-05-25",
-      });
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        "d.fecha = :fechaStr",
+        {
+          fechaStr: "2026-05-25",
+        },
+      );
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         "d.periodo_academico = :periodo",
         { periodo: "2026-I" },
@@ -426,7 +432,10 @@ describe("ValidacionesService", () => {
     it("debe retornar false si el día es laborable regular", async () => {
       mockQueryBuilder.getCount.mockResolvedValue(0);
 
-      const result = await service.verificarDiaNoLaborable("2026-05-26", "2026-I");
+      const result = await service.verificarDiaNoLaborable(
+        "2026-05-26",
+        "2026-I",
+      );
 
       expect(result).toBe(false);
     });
@@ -497,8 +506,18 @@ describe("ValidacionesService", () => {
         { hora_inicio: "08:00", hora_fin: "12:00" }, // 4 horas
       ]);
 
-      const resultPermitido = await service.verificarMaxHorasDocente(1, 1, 4, "2026-I"); // +4 horas = 8 total (limite 8)
-      const resultExcedido = await service.verificarMaxHorasDocente(1, 1, 5, "2026-I"); // +5 horas = 9 total (excede limite 8)
+      const resultPermitido = await service.verificarMaxHorasDocente(
+        1,
+        1,
+        4,
+        "2026-I",
+      ); // +4 horas = 8 total (limite 8)
+      const resultExcedido = await service.verificarMaxHorasDocente(
+        1,
+        1,
+        5,
+        "2026-I",
+      ); // +5 horas = 9 total (excede limite 8)
 
       expect(resultPermitido).toBe(true);
       expect(resultExcedido).toBe(false);

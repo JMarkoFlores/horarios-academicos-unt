@@ -1,5 +1,13 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsInt, Min, MaxLength } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  Min,
+  MaxLength,
+} from "class-validator";
+import { TipoClase } from "../../common/enums/tipo-clase.enum";
 
 export class CreateGrupoDto {
   @ApiProperty({ example: "A" })
@@ -11,6 +19,11 @@ export class CreateGrupoDto {
   @IsString()
   @MaxLength(100)
   nombre: string;
+
+  @ApiPropertyOptional({ enum: TipoClase, default: TipoClase.TEORIA })
+  @IsOptional()
+  @IsEnum(TipoClase)
+  tipo?: TipoClase = TipoClase.TEORIA;
 
   @ApiProperty({ example: 1 })
   @IsInt()

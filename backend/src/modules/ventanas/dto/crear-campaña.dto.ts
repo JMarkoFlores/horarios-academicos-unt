@@ -74,12 +74,23 @@ export class CrearCampañaDto {
 
   @ApiProperty({
     example: ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"],
-    enum: ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"],
+    enum: [
+      "LUNES",
+      "MARTES",
+      "MIERCOLES",
+      "JUEVES",
+      "VIERNES",
+      "SABADO",
+      "DOMINGO",
+    ],
   })
   @IsArray()
   @ArrayMinSize(1)
   @IsString({ each: true })
-  @IsEnum(["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"], { each: true })
+  @IsEnum(
+    ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"],
+    { each: true },
+  )
   dias_habilitados: string[];
 
   @ApiProperty({ type: [BloqueHorarioDto] })
@@ -107,7 +118,12 @@ export class CrearCampañaDto {
   @IsOptional()
   cupos_maximos_ventana?: number;
 
-  @ApiProperty({ example: 15, default: 15, description: 'Porcentaje de ventanas de contingencia para reprogramaciones (10-20%)' })
+  @ApiProperty({
+    example: 15,
+    default: 15,
+    description:
+      "Porcentaje de ventanas de contingencia para reprogramaciones (10-20%)",
+  })
   @IsInt()
   @Min(0)
   @Max(50)

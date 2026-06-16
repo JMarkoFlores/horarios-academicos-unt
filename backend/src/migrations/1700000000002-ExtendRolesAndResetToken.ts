@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class ExtendRolesAndResetToken1700000000002 implements MigrationInterface {
-  name = 'ExtendRolesAndResetToken1700000000002';
+  name = "ExtendRolesAndResetToken1700000000002";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Rename old enum type

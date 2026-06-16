@@ -39,41 +39,88 @@ export class AmbientesController {
   constructor(private readonly ambientesService: AmbientesService) {}
 
   @Get("disponibles")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA, RolUsuario.DOCENTE)
-  @ApiOperation({ summary: "Buscar ambientes disponibles por tipo, día y rango horario" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({
+    summary: "Buscar ambientes disponibles por tipo, día y rango horario",
+  })
   async findDisponibles(@Query() query: FindDisponiblesDto) {
     const result = await this.ambientesService.findDisponibles(query);
-    return { data: result, message: "Ambientes disponibles obtenidos correctamente" };
+    return {
+      data: result,
+      message: "Ambientes disponibles obtenidos correctamente",
+    };
   }
 
-
   @Get()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Listar ambientes paginado con filtros" })
-  @ApiQuery({ name: "tipo", required: false, description: "AULA, LABORATORIO, AUDITORIO, TALLER, SEMINARIO, SALA_COMPUTACION" })
-  @ApiQuery({ name: "estado", required: false, description: "ACTIVO, MANTENIMIENTO, RESERVADO, INACTIVO" })
-  @ApiQuery({ name: "busqueda", required: false, description: "Búsqueda por código, nombre, pabellón o equipamiento" })
+  @ApiQuery({
+    name: "tipo",
+    required: false,
+    description:
+      "AULA, LABORATORIO, AUDITORIO, TALLER, SEMINARIO, SALA_COMPUTACION",
+  })
+  @ApiQuery({
+    name: "estado",
+    required: false,
+    description: "ACTIVO, MANTENIMIENTO, RESERVADO, INACTIVO",
+  })
+  @ApiQuery({
+    name: "busqueda",
+    required: false,
+    description: "Búsqueda por código, nombre, pabellón o equipamiento",
+  })
   @ApiQuery({ name: "pabellon", required: false })
   @ApiQuery({ name: "sede", required: false })
   @ApiQuery({ name: "capacidadMin", required: false, type: Number })
   @ApiQuery({ name: "capacidadMax", required: false, type: Number })
-  @ApiQuery({ name: "activo", required: false, description: "Deprecated, usar estado" })
+  @ApiQuery({
+    name: "activo",
+    required: false,
+    description: "Deprecated, usar estado",
+  })
   async findAll(@Query() query: QueryAmbienteDto) {
     const result = await this.ambientesService.findAll(query);
     return { data: result, message: "Ambientes obtenidos correctamente" };
   }
 
   @Get("mapa")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
-  @ApiOperation({ summary: "Listar ambientes activos con coordenadas para mapa" })
-  @ApiResponse({ status: 200, description: "Lista de ambientes con id, nombre, coordX, coordY, edificio, capacidad" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
+  @ApiOperation({
+    summary: "Listar ambientes activos con coordenadas para mapa",
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      "Lista de ambientes con id, nombre, coordX, coordY, edificio, capacidad",
+  })
   async findMapa() {
     const result = await this.ambientesService.findMapa();
-    return { data: result, message: "Ambientes para mapa obtenidos correctamente" };
+    return {
+      data: result,
+      message: "Ambientes para mapa obtenidos correctamente",
+    };
   }
 
   @Get("distancia")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Calcular distancia entre dos ambientes" })
   @ApiQuery({ name: "origenId", required: true, type: Number })
   @ApiQuery({ name: "destinoId", required: true, type: Number })
@@ -92,8 +139,15 @@ export class AmbientesController {
   }
 
   @Get("alertas-traslado")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
-  @ApiOperation({ summary: "Obtener alertas de traslado entre horarios consecutivos de un docente" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
+  @ApiOperation({
+    summary:
+      "Obtener alertas de traslado entre horarios consecutivos de un docente",
+  })
   @ApiQuery({ name: "docenteId", required: true, type: Number })
   @ApiQuery({ name: "periodoId", required: true, type: Number })
   async getAlertasTraslado(
@@ -111,7 +165,11 @@ export class AmbientesController {
   }
 
   @Get(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Obtener un ambiente por ID" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 404, description: "Ambiente no encontrado" })
@@ -121,7 +179,11 @@ export class AmbientesController {
   }
 
   @Get(":id/disponibilidad")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_ESCUELA)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Grilla semanal de ocupación de un ambiente" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -168,7 +230,11 @@ export class AmbientesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Desactivar un ambiente (soft delete)" })
   @ApiParam({ name: "id", type: Number })
-  @ApiQuery({ name: "periodo", required: false, description: "Período activo para verificar dependencias" })
+  @ApiQuery({
+    name: "periodo",
+    required: false,
+    description: "Período activo para verificar dependencias",
+  })
   async remove(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo?: string,

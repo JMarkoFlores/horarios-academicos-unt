@@ -10,7 +10,8 @@ import {
 
 export class UpsertRestriccionDto {
   @ApiProperty({
-    description: "Tipo de restricción: FRANJA_HORARIA | MAX_HORAS_DIARIAS | BLOQUE_ALMUERZO | otro",
+    description:
+      "Tipo de restricción: FRANJA_HORARIA | MAX_HORAS_DIARIAS | BLOQUE_ALMUERZO | otro",
     example: "FRANJA_HORARIA",
   })
   @IsString()
@@ -25,7 +26,10 @@ export class UpsertRestriccionDto {
   @IsObject()
   valor: Record<string, unknown>;
 
-  @ApiProperty({ example: "2026-I", description: "Período académico al que aplica" })
+  @ApiProperty({
+    example: "2026-I",
+    description: "Período académico al que aplica",
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)

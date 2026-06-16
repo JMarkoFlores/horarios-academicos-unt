@@ -68,7 +68,9 @@ describe("CursosService", () => {
 
     service = module.get<CursosService>(CursosService);
     cursoRepo = module.get<Repository<Curso>>(getRepositoryToken(Curso));
-    ambienteRepo = module.get<Repository<Ambiente>>(getRepositoryToken(Ambiente));
+    ambienteRepo = module.get<Repository<Ambiente>>(
+      getRepositoryToken(Ambiente),
+    );
 
     jest.clearAllMocks();
   });
@@ -92,10 +94,10 @@ describe("CursosService", () => {
   describe("update", () => {
     it("debe actualizar exitosamente", async () => {
       mockQueryBuilder.getOne.mockResolvedValue(mockCurso);
-      mockCursoRepo.merge.mockReturnValue({ ...mockCurso, nombre: 'Updated' });
-      mockCursoRepo.save.mockResolvedValue({ ...mockCurso, nombre: 'Updated' });
-      const result = await service.update(1, { nombre: 'Updated' });
-      expect(result.nombre).toBe('Updated');
+      mockCursoRepo.merge.mockReturnValue({ ...mockCurso, nombre: "Updated" });
+      mockCursoRepo.save.mockResolvedValue({ ...mockCurso, nombre: "Updated" });
+      const result = await service.update(1, { nombre: "Updated" });
+      expect(result.nombre).toBe("Updated");
     });
   });
 
@@ -103,7 +105,10 @@ describe("CursosService", () => {
     it("debe asignar ambientes", async () => {
       const mockAmbiente = { id: 1, tipo: TipoAmbiente.AULA, activo: true };
       mockAmbienteRepo.find.mockResolvedValue([mockAmbiente]);
-      mockQueryBuilder.getOne.mockResolvedValue({ ...mockCurso, ambientes: [] });
+      mockQueryBuilder.getOne.mockResolvedValue({
+        ...mockCurso,
+        ambientes: [],
+      });
       mockCursoRepo.save.mockResolvedValue(mockCurso);
 
       const result = await service.asignarAmbientes(1, [1], TipoClase.TEORIA);

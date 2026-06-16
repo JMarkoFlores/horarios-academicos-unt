@@ -1,7 +1,17 @@
-import { Processor, Process, OnQueueFailed, OnQueueCompleted, OnQueueActive, OnQueueWaiting } from "@nestjs/bull";
+import {
+  Processor,
+  Process,
+  OnQueueFailed,
+  OnQueueCompleted,
+  OnQueueActive,
+  OnQueueWaiting,
+} from "@nestjs/bull";
 import { Job } from "bull";
 import { Logger } from "@nestjs/common";
-import { NotificacionesService, ResultadoEnvio } from "./notificaciones.service";
+import {
+  NotificacionesService,
+  ResultadoEnvio,
+} from "./notificaciones.service";
 import { NotificacionJobData } from "./dto/notificacion-job.dto";
 
 @Processor("notificaciones")
@@ -12,7 +22,9 @@ export class NotificacionesProcessor {
 
   @Process({ name: "recordatorio-24h", concurrency: 3 })
   async handleRecordatorio24h(job: Job<NotificacionJobData>) {
-    this.logger.log(`[Recordatorio-24h] Procesando job ${job.id} - Docente ${job.data.docenteId}`);
+    this.logger.log(
+      `[Recordatorio-24h] Procesando job ${job.id} - Docente ${job.data.docenteId}`,
+    );
     try {
       await this.notificacionesService.procesarRecordatorio(
         job.data.docenteId,
@@ -28,7 +40,9 @@ export class NotificacionesProcessor {
 
   @Process({ name: "alerta-15min", concurrency: 3 })
   async handleAlerta15min(job: Job<NotificacionJobData>) {
-    this.logger.log(`[Alerta-15min] Procesando job ${job.id} - Docente ${job.data.docenteId}`);
+    this.logger.log(
+      `[Alerta-15min] Procesando job ${job.id} - Docente ${job.data.docenteId}`,
+    );
     try {
       await this.notificacionesService.procesarRecordatorio(
         job.data.docenteId,
@@ -44,7 +58,9 @@ export class NotificacionesProcessor {
 
   @Process({ name: "horario-confirmado", concurrency: 2 })
   async handleHorarioConfirmado(job: Job<NotificacionJobData>) {
-    this.logger.log(`[Horario-Confirmado] Procesando job ${job.id} - Docente ${job.data.docenteId}`);
+    this.logger.log(
+      `[Horario-Confirmado] Procesando job ${job.id} - Docente ${job.data.docenteId}`,
+    );
     try {
       await this.notificacionesService.procesarHorarioConfirmado(
         job.data.docenteId,
@@ -213,9 +229,7 @@ export class NotificacionesProcessor {
 
   @OnQueueWaiting()
   onWaiting(jobId: number | string) {
-    this.logger.log(
-      `⏳ Job ${jobId} está en espera en la cola`,
-    );
+    this.logger.log(`⏳ Job ${jobId} está en espera en la cola`);
   }
 
   @OnQueueCompleted()
@@ -233,18 +247,20 @@ export class NotificacionesProcessor {
 
     // Registrar fallo final en historial
     const data = job.data as NotificacionJobData;
-    this.notificacionesService.registrarResultado({
-      docenteId: data.docenteId,
-      tipo: data.tipo,
-      canal: data.canal === "ambos" ? "email" : data.canal,
-      exito: false,
-      error: err.message,
-      codigoError: "JOB_FAILED",
-      jobId: job.id?.toString(),
-      intento: job.attemptsMade,
-      final: true,
-    }).catch((e) => {
-      this.logger.error(`Error registrando fallo final: ${e.message}`);
-    });
+    this.notificacionesService
+      .registrarResultado({
+        docenteId: data.docenteId,
+        tipo: data.tipo,
+        canal: data.canal === "ambos" ? "email" : data.canal,
+        exito: false,
+        error: err.message,
+        codigoError: "JOB_FAILED",
+        jobId: job.id?.toString(),
+        intento: job.attemptsMade,
+        final: true,
+      })
+      .catch((e) => {
+        this.logger.error(`Error registrando fallo final: ${e.message}`);
+      });
   }
 }

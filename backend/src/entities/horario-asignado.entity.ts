@@ -7,20 +7,20 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
-} from 'typeorm';
-import { TipoClase } from '../common/enums/tipo-clase.enum';
-import { EstadoHorario } from '../common/enums/estado-horario.enum';
-import { OrigenHorario } from '../common/enums/origen-horario.enum';
-import { Docente } from './docente.entity';
-import { Curso } from './curso.entity';
-import { Grupo } from './grupo.entity';
-import { Ambiente } from './ambiente.entity';
+} from "typeorm";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { EstadoHorario } from "../common/enums/estado-horario.enum";
+import { OrigenHorario } from "../common/enums/origen-horario.enum";
+import { Docente } from "./docente.entity";
+import { Curso } from "./curso.entity";
+import { Grupo } from "./grupo.entity";
+import { Ambiente } from "./ambiente.entity";
 
-@Entity('horario_asignado')
-@Index('idx_horario_periodo', ['periodo'])
-@Index('idx_horario_docente_id', ['docente_id'])
-@Index('idx_horario_ambiente_id', ['ambiente_id'])
-@Index('idx_horario_dia', ['dia'])
+@Entity("horario_asignado")
+@Index("idx_horario_periodo", ["periodo"])
+@Index("idx_horario_docente_id", ["docente_id"])
+@Index("idx_horario_ambiente_id", ["ambiente_id"])
+@Index("idx_horario_dia", ["dia"])
 export class HorarioAsignado {
   @PrimaryGeneratedColumn()
   id: number;
@@ -72,19 +72,19 @@ export class HorarioAsignado {
   @Column({ nullable: true, length: 36 })
   sesion_operador_id?: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   validaciones_ejecutadas?: any;
 
-  @Column({ nullable: true, type: 'text' })
+  @Column({ nullable: true, type: "text" })
   razon_rechazo?: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   contexto_validacion?: any;
 
-  @Column({ nullable: true, type: 'text' })
+  @Column({ nullable: true, type: "text" })
   modificado_por?: string;
 
-  @Column({ nullable: true, type: 'jsonb' })
+  @Column({ nullable: true, type: "jsonb" })
   historial_cambios?: any;
 
   @CreateDateColumn({ name: "creado_en", type: "timestamptz" })

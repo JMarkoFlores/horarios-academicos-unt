@@ -51,15 +51,21 @@ export class ColaDocente {
   @Column({ type: "timestamp", nullable: true })
   hora_fin_atencion: Date | null;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   eventos_sesion?: Array<{
     timestamp: Date;
-    evento: 'LLAMADO' | 'ATENCION_INICIADA' | 'SELECCION' | 'VALIDACION' | 'CONFIRMACION' | 'CANCELACION';
+    evento:
+      | "LLAMADO"
+      | "ATENCION_INICIADA"
+      | "SELECCION"
+      | "VALIDACION"
+      | "CONFIRMACION"
+      | "CANCELACION";
     detalles: string;
     usuario?: string;
   }>;
 
-  @Column({ type: 'integer', default: 0 })
+  @Column({ type: "integer", default: 0 })
   validaciones_ejecutadas: number = 0;
 
   @ManyToOne(() => VentanaAtencion, (ventana) => ventana.cola, {

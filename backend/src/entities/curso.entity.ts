@@ -5,10 +5,13 @@ import {
   ManyToMany,
   JoinTable,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from "typeorm";
 import { Ambiente } from "./ambiente.entity";
 import { Departamento } from "./departamento.entity";
+import { CursoPlanEstudios } from "./curso-plan-estudios.entity";
+import { Grupo } from "./grupo.entity";
 
 @Entity("curso")
 export class Curso {
@@ -59,4 +62,10 @@ export class Curso {
     inverseJoinColumn: { name: "ambiente_id", referencedColumnName: "id" },
   })
   ambientes: Ambiente[];
+
+  @OneToMany(() => CursoPlanEstudios, (cpe) => cpe.curso)
+  planes_estudio: CursoPlanEstudios[];
+
+  @OneToMany(() => Grupo, (grupo) => grupo.curso)
+  grupos: Grupo[];
 }

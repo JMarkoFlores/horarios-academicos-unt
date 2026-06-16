@@ -1,25 +1,25 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { HorarioAsignado } from '../../entities/horario-asignado.entity';
-import { DisponibilidadDocente } from '../../entities/disponibilidad-docente.entity';
-import { Ambiente } from '../../entities/ambiente.entity';
-import { Curso } from '../../entities/curso.entity';
-import { Grupo } from '../../entities/grupo.entity';
-import { Docente } from '../../entities/docente.entity';
-import { PeriodoAcademico } from '../../entities/periodo-academico.entity';
-import { ParametrosCarga } from '../../entities/parametros-carga.entity';
-import { EstadoHorario } from '../../common/enums/estado-horario.enum';
-import { TipoClase } from '../../common/enums/tipo-clase.enum';
-import { TipoAmbiente } from '../../common/enums/tipo-ambiente.enum';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { HorarioAsignado } from "../../entities/horario-asignado.entity";
+import { DisponibilidadDocente } from "../../entities/disponibilidad-docente.entity";
+import { Ambiente } from "../../entities/ambiente.entity";
+import { Curso } from "../../entities/curso.entity";
+import { Grupo } from "../../entities/grupo.entity";
+import { Docente } from "../../entities/docente.entity";
+import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
+import { ParametrosCarga } from "../../entities/parametros-carga.entity";
+import { EstadoHorario } from "../../common/enums/estado-horario.enum";
+import { TipoClase } from "../../common/enums/tipo-clase.enum";
+import { TipoAmbiente } from "../../common/enums/tipo-ambiente.enum";
 
-export type SeveridadRegla = 'CRITICA' | 'ALTA' | 'MEDIA' | 'BAJA';
-export type TipoRegla = 'DURA' | 'BLANDA';
+export type SeveridadRegla = "CRITICA" | "ALTA" | "MEDIA" | "BAJA";
+export type TipoRegla = "DURA" | "BLANDA";
 
 export interface ReglaDura {
   codigo: string;
   nombre: string;
-  severidad: 'CRITICA' | 'ALTA';
+  severidad: "CRITICA" | "ALTA";
   descripcion: string;
   mensajeError: string;
   validar: (contexto: ContextoValidacion) => Promise<boolean>;
@@ -28,7 +28,7 @@ export interface ReglaDura {
 export interface ReglaBlanca {
   codigo: string;
   nombre: string;
-  severidad: 'MEDIA' | 'BAJA';
+  severidad: "MEDIA" | "BAJA";
   descripcion: string;
   sugerirAlternativa?: boolean;
   validar: (contexto: ContextoValidacion) => Promise<boolean>;
@@ -113,12 +113,12 @@ export class RestriccionesValidacionService {
 
   private inicializarReglasHardcodeadas(): void {
     // REGLA 1: Cruce de docente
-    this.reglasHardcodeadas.set('cruce_docente', {
-      codigo: 'cruce_docente',
-      nombre: 'Cruce de Docente',
-      severidad: 'CRITICA',
-      descripcion: 'El docente no puede estar en dos lugares simultáneamente',
-      mensajeError: 'El docente ya tiene asignación en este horario',
+    this.reglasHardcodeadas.set("cruce_docente", {
+      codigo: "cruce_docente",
+      nombre: "Cruce de Docente",
+      severidad: "CRITICA",
+      descripcion: "El docente no puede estar en dos lugares simultáneamente",
+      mensajeError: "El docente ya tiene asignación en este horario",
       validar: async (ctx: ContextoValidacion) => {
         const cruce = await this.horarioRepo.findOne({
           where: {
@@ -129,17 +129,22 @@ export class RestriccionesValidacionService {
           },
         });
         if (!cruce) return true;
-        return !this.hayTraslape(cruce.hora_inicio, cruce.hora_fin, ctx.horaInicio, ctx.horaFin);
+        return !this.hayTraslape(
+          cruce.hora_inicio,
+          cruce.hora_fin,
+          ctx.horaInicio,
+          ctx.horaFin,
+        );
       },
     });
 
     // REGLA 2: Cruce de grupo
-    this.reglasHardcodeadas.set('cruce_grupo', {
-      codigo: 'cruce_grupo',
-      nombre: 'Cruce de Grupo',
-      severidad: 'CRITICA',
-      descripcion: 'El grupo no puede tener dos clases simultáneamente',
-      mensajeError: 'El grupo ya tiene asignación en este horario',
+    this.reglasHardcodeadas.set("cruce_grupo", {
+      codigo: "cruce_grupo",
+      nombre: "Cruce de Grupo",
+      severidad: "CRITICA",
+      descripcion: "El grupo no puede tener dos clases simultáneamente",
+      mensajeError: "El grupo ya tiene asignación en este horario",
       validar: async (ctx: ContextoValidacion) => {
         const cruce = await this.horarioRepo.findOne({
           where: {
@@ -150,17 +155,22 @@ export class RestriccionesValidacionService {
           },
         });
         if (!cruce) return true;
-        return !this.hayTraslape(cruce.hora_inicio, cruce.hora_fin, ctx.horaInicio, ctx.horaFin);
+        return !this.hayTraslape(
+          cruce.hora_inicio,
+          cruce.hora_fin,
+          ctx.horaInicio,
+          ctx.horaFin,
+        );
       },
     });
 
     // REGLA 3: Ocupación de ambiente
-    this.reglasHardcodeadas.set('ocupacion_ambiente', {
-      codigo: 'ocupacion_ambiente',
-      nombre: 'Ocupación de Ambiente',
-      severidad: 'CRITICA',
-      descripcion: 'El ambiente no puede estar en dos clases a la vez',
-      mensajeError: 'El ambiente ya está ocupado en este horario',
+    this.reglasHardcodeadas.set("ocupacion_ambiente", {
+      codigo: "ocupacion_ambiente",
+      nombre: "Ocupación de Ambiente",
+      severidad: "CRITICA",
+      descripcion: "El ambiente no puede estar en dos clases a la vez",
+      mensajeError: "El ambiente ya está ocupado en este horario",
       validar: async (ctx: ContextoValidacion) => {
         const ocupado = await this.horarioRepo.findOne({
           where: {
@@ -171,23 +181,30 @@ export class RestriccionesValidacionService {
           },
         });
         if (!ocupado) return true;
-        return !this.hayTraslape(ocupado.hora_inicio, ocupado.hora_fin, ctx.horaInicio, ctx.horaFin);
+        return !this.hayTraslape(
+          ocupado.hora_inicio,
+          ocupado.hora_fin,
+          ctx.horaInicio,
+          ctx.horaFin,
+        );
       },
     });
 
     // REGLA 4: Ambiente válido para curso y tipo
-    this.reglasHardcodeadas.set('ambiente_valido_curso', {
-      codigo: 'ambiente_valido_curso',
-      nombre: 'Ambiente Válido para Curso',
-      severidad: 'CRITICA',
-      descripcion: 'El ambiente debe ser compatible con el tipo de clase y curso',
-      mensajeError: 'Este ambiente no está asociado al curso o no es válido para este tipo de clase',
+    this.reglasHardcodeadas.set("ambiente_valido_curso", {
+      codigo: "ambiente_valido_curso",
+      nombre: "Ambiente Válido para Curso",
+      severidad: "CRITICA",
+      descripcion:
+        "El ambiente debe ser compatible con el tipo de clase y curso",
+      mensajeError:
+        "Este ambiente no está asociado al curso o no es válido para este tipo de clase",
       validar: async (ctx: ContextoValidacion) => {
         const curso = await this.cursoRepo
-          .createQueryBuilder('c')
-          .leftJoinAndSelect('c.ambientes', 'a')
-          .where('c.id = :cursoId', { cursoId: ctx.cursoId })
-          .andWhere('a.id = :ambienteId', { ambienteId: ctx.ambienteId })
+          .createQueryBuilder("c")
+          .leftJoinAndSelect("c.ambientes", "a")
+          .where("c.id = :cursoId", { cursoId: ctx.cursoId })
+          .andWhere("a.id = :ambienteId", { ambienteId: ctx.ambienteId })
           .getOne();
 
         if (!curso) return false;
@@ -199,7 +216,10 @@ export class RestriccionesValidacionService {
           return ambiente.tipo === TipoAmbiente.LABORATORIO;
         }
         // Si es práctica o teoría, el ambiente debe ser aula
-        if (ctx.tipoClase === TipoClase.PRACTICA || ctx.tipoClase === TipoClase.TEORIA) {
+        if (
+          ctx.tipoClase === TipoClase.PRACTICA ||
+          ctx.tipoClase === TipoClase.TEORIA
+        ) {
           return ambiente.tipo === TipoAmbiente.AULA;
         }
         return true;
@@ -207,12 +227,13 @@ export class RestriccionesValidacionService {
     });
 
     // REGLA 5: Franja institucional válida
-    this.reglasHardcodeadas.set('franja_institucional', {
-      codigo: 'franja_institucional',
-      nombre: 'Franja Institucional',
-      severidad: 'ALTA',
-      descripcion: 'El horario debe estar dentro de la franja permitida del período',
-      mensajeError: 'Horario fuera de la franja institucional permitida',
+    this.reglasHardcodeadas.set("franja_institucional", {
+      codigo: "franja_institucional",
+      nombre: "Franja Institucional",
+      severidad: "ALTA",
+      descripcion:
+        "El horario debe estar dentro de la franja permitida del período",
+      mensajeError: "Horario fuera de la franja institucional permitida",
       validar: async (ctx: ContextoValidacion) => {
         const restricciones = await this.obtenerRestriccionesPeriodo(
           await this.obtenerPeriodoId(ctx.periodo),
@@ -227,12 +248,12 @@ export class RestriccionesValidacionService {
     });
 
     // REGLA 6: Día habilitado del período
-    this.reglasHardcodeadas.set('dia_habilitado', {
-      codigo: 'dia_habilitado',
-      nombre: 'Día Habilitado',
-      severidad: 'CRITICA',
-      descripcion: 'El día debe estar habilitado en el período académico',
-      mensajeError: 'Este día no está habilitado en el período',
+    this.reglasHardcodeadas.set("dia_habilitado", {
+      codigo: "dia_habilitado",
+      nombre: "Día Habilitado",
+      severidad: "CRITICA",
+      descripcion: "El día debe estar habilitado en el período académico",
+      mensajeError: "Este día no está habilitado en el período",
       validar: async (ctx: ContextoValidacion) => {
         const restricciones = await this.obtenerRestriccionesPeriodo(
           await this.obtenerPeriodoId(ctx.periodo),
@@ -242,12 +263,12 @@ export class RestriccionesValidacionService {
     });
 
     // REGLA 7: Horas máximas del curso
-    this.reglasHardcodeadas.set('horas_maximas_curso', {
-      codigo: 'horas_maximas_curso',
-      nombre: 'Horas Máximas del Curso',
-      severidad: 'ALTA',
-      descripcion: 'No exceder horas requeridas del curso',
-      mensajeError: 'Este bloque excedería las horas necesarias del curso',
+    this.reglasHardcodeadas.set("horas_maximas_curso", {
+      codigo: "horas_maximas_curso",
+      nombre: "Horas Máximas del Curso",
+      severidad: "ALTA",
+      descripcion: "No exceder horas requeridas del curso",
+      mensajeError: "Este bloque excedería las horas necesarias del curso",
       validar: async (ctx: ContextoValidacion) => {
         const curso = await this.cursoRepo.findOne({
           where: { id: ctx.cursoId },
@@ -255,16 +276,16 @@ export class RestriccionesValidacionService {
         if (!curso) return false;
 
         let horasRequeridas =
-          ctx.tipoClase === 'TEORIA'
+          ctx.tipoClase === "TEORIA"
             ? curso.horas_teoria
-            : ctx.tipoClase === 'PRACTICA'
+            : ctx.tipoClase === "PRACTICA"
               ? curso.horas_practica
               : curso.horas_laboratorio;
 
         // Si es laboratorio, dividir las horas requeridas por el número de grupos
-        if (ctx.tipoClase === 'LABORATORIO' && ctx.grupoId) {
+        if (ctx.tipoClase === "LABORATORIO" && ctx.grupoId) {
           const gruposCurso = await this.grupoRepo.find({
-            where: { curso_id: ctx.cursoId }
+            where: { curso_id: ctx.cursoId },
           });
           const numGrupos = gruposCurso.length || 1;
           horasRequeridas = horasRequeridas / numGrupos;
@@ -290,12 +311,15 @@ export class RestriccionesValidacionService {
 
         // Sumar las horas reales en lugar de contar bloques
         const horasAsignadas = horarios.reduce((sum, h) => {
-          const [h1, m1] = h.hora_inicio.split(':').map(Number);
-          const [h2, m2] = h.hora_fin.split(':').map(Number);
-          return sum + ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+          const [h1, m1] = h.hora_inicio.split(":").map(Number);
+          const [h2, m2] = h.hora_fin.split(":").map(Number);
+          return sum + (h2 * 60 + m2 - (h1 * 60 + m1)) / 60;
         }, 0);
 
-        const duracionBloque = this.calcularDuracion(ctx.horaInicio, ctx.horaFin);
+        const duracionBloque = this.calcularDuracion(
+          ctx.horaInicio,
+          ctx.horaFin,
+        );
         return horasAsignadas + duracionBloque / 60 <= horasRequeridas;
       },
     });
@@ -303,33 +327,34 @@ export class RestriccionesValidacionService {
 
   private inicializarReglasBlancas(): void {
     // REGLA 1: Sábado no preferente
-    this.reglasBlancas.set('sabado_no_preferente', {
-      codigo: 'sabado_no_preferente',
-      nombre: 'Sábado No Preferente',
-      severidad: 'MEDIA',
-      descripcion: 'Sábado está permitido pero no es preferente',
+    this.reglasBlancas.set("sabado_no_preferente", {
+      codigo: "sabado_no_preferente",
+      nombre: "Sábado No Preferente",
+      severidad: "MEDIA",
+      descripcion: "Sábado está permitido pero no es preferente",
       validar: async (ctx: ContextoValidacion) => {
         return ctx.dia !== 6; // 6 = Sábado
       },
       sugerirAlternativa: true,
       obtenerSugerencia: async (ctx: ContextoValidacion) => {
-        return 'Considere asignar en día de lunes a viernes si es posible';
+        return "Considere asignar en día de lunes a viernes si es posible";
       },
     });
 
     // REGLA 2: Franja tardía
-    this.reglasBlancas.set('franja_tardia', {
-      codigo: 'franja_tardia',
-      nombre: 'Franja Tardía',
-      severidad: 'BAJA',
-      descripcion: 'Asignación después de 19:00',
+    this.reglasBlancas.set("franja_tardia", {
+      codigo: "franja_tardia",
+      nombre: "Franja Tardía",
+      severidad: "BAJA",
+      descripcion: "Asignación después de 19:00",
       validar: async (ctx: ContextoValidacion) => {
         const inicio = this.stringAMinutos(ctx.horaInicio);
-        const limite = this.stringAMinutos('19:00');
+        const limite = this.stringAMinutos("19:00");
         return inicio < limite;
       },
       sugerirAlternativa: true,
-      obtenerSugerencia: async () => 'Franja tardía: considere alternativa más preferente',
+      obtenerSugerencia: async () =>
+        "Franja tardía: considere alternativa más preferente",
     });
   }
 
@@ -339,24 +364,26 @@ export class RestriccionesValidacionService {
     const reglasPasadas: ReglaDura[] = [];
     const reglasFallidas: Array<ReglaDura & { motivo: string }> = [];
 
-    const promesas = Array.from(this.reglasHardcodeadas.values()).map(async (regla) => {
-      try {
-        const resultado = await regla.validar(contexto);
-        if (resultado) {
-          reglasPasadas.push(regla);
-        } else {
+    const promesas = Array.from(this.reglasHardcodeadas.values()).map(
+      async (regla) => {
+        try {
+          const resultado = await regla.validar(contexto);
+          if (resultado) {
+            reglasPasadas.push(regla);
+          } else {
+            reglasFallidas.push({
+              ...regla,
+              motivo: regla.mensajeError,
+            });
+          }
+        } catch (error) {
           reglasFallidas.push({
             ...regla,
-            motivo: regla.mensajeError,
+            motivo: `Error al validar: ${(error as any).message}`,
           });
         }
-      } catch (error) {
-        reglasFallidas.push({
-          ...regla,
-          motivo: `Error al validar: ${(error as any).message}`,
-        });
-      }
-    });
+      },
+    );
 
     await Promise.all(promesas);
 
@@ -371,7 +398,11 @@ export class RestriccionesValidacionService {
     contexto: ContextoValidacion,
   ): Promise<ResultadoValidacionBlanda> {
     const advertencias: Array<ReglaBlanca & { advertencia: string }> = [];
-    const sugerencias: Array<{ codigo: string; sugerencia: string; tipo: string }> = [];
+    const sugerencias: Array<{
+      codigo: string;
+      sugerencia: string;
+      tipo: string;
+    }> = [];
 
     for (const regla of this.reglasBlancas.values()) {
       try {
@@ -387,7 +418,7 @@ export class RestriccionesValidacionService {
             sugerencias.push({
               codigo: regla.codigo,
               sugerencia,
-              tipo: 'ALTERNATIVA',
+              tipo: "ALTERNATIVA",
             });
           }
         }
@@ -399,7 +430,9 @@ export class RestriccionesValidacionService {
     return { advertencias, sugerencias };
   }
 
-  async obtenerRestriccionesPeriodo(periodoId: number): Promise<RestriccionesPeriodo> {
+  async obtenerRestriccionesPeriodo(
+    periodoId: number,
+  ): Promise<RestriccionesPeriodo> {
     if (this.restriccionesCache.has(periodoId)) {
       return this.restriccionesCache.get(periodoId);
     }
@@ -408,9 +441,9 @@ export class RestriccionesValidacionService {
     const restricciones: RestriccionesPeriodo = {
       periodo_id: periodoId,
       dias_habiles: [1, 2, 3, 4, 5, 6], // Lun-Sab
-      franja_inicio: '07:00',
-      franja_fin: '22:00',
-      franjas_vetadas: [{ inicio: '12:00', fin: '13:00' }],
+      franja_inicio: "07:00",
+      franja_fin: "22:00",
+      franjas_vetadas: [{ inicio: "12:00", fin: "13:00" }],
       duracion_minima_bloque: 30,
       ambientes_mantenimiento: [],
       ambientes_externos: [],
@@ -440,14 +473,14 @@ export class RestriccionesValidacionService {
   }
 
   private stringAMinutos(hora: string): number {
-    const [h, m] = hora.split(':').map(Number);
+    const [h, m] = hora.split(":").map(Number);
     return h * 60 + m;
   }
 
   private minutosAString(minutos: number): string {
     const h = Math.floor(minutos / 60);
     const m = minutos % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   }
 
   private calcularDuracion(horaInicio: string, horaFin: string): number {

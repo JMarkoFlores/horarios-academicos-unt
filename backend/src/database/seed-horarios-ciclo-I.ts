@@ -34,6 +34,12 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 
+const mapTipoClase = (tipo: TipoClase) => {
+  if (tipo === TipoClase.LABORATORIO) return "L";
+  if (tipo === TipoClase.PRACTICA) return "P";
+  return "T";
+};
+
 const AppDataSource = new DataSource({
   type: "postgres",
   host: process.env.DATABASE_HOST ?? "localhost",
@@ -41,33 +47,7 @@ const AppDataSource = new DataSource({
   database: process.env.DATABASE_NAME ?? "horarios_unt",
   username: process.env.DATABASE_USER ?? "unt_user",
   password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
-  entities: [
-    Usuario,
-    Docente,
-    PeriodoAcademico,
-    Curso,
-    Ambiente,
-    Grupo,
-    DisponibilidadDocente,
-    HorarioAsignado,
-    ConflictoAsignacion,
-    VentanaAtencion,
-    CampañaVentanas,
-    ColaDocentes,
-    NotificacionDocente,
-    PreferenciasNotificacion,
-    Preasignacion,
-    RestriccionInstitucional,
-    DiaNoLaborable,
-    DiaActivo,
-    TurnoHorario,
-    DocenteCurso,
-    ParametrosCarga,
-    Facultad,
-    Escuela,
-    Departamento,
-    ConfiguracionGeneral,
-  ],
+  entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
   synchronize: false,
   logging: false,
 });
@@ -92,9 +72,10 @@ export async function seedHorariosCicloI() {
   // Limpiar horarios previos del Ciclo I para este periodo
   console.log("🧹 Limpiando horarios previos del Ciclo I...");
   const cursosCicloI = await cursoRepo.find({ where: { ciclo: 1 } });
-  const cursosIds = cursosCicloI.map(c => c.id);
+  const cursosIds = cursosCicloI.map((c) => c.id);
   if (cursosIds.length > 0) {
-    await horarioRepo.createQueryBuilder()
+    await horarioRepo
+      .createQueryBuilder()
       .delete()
       .from(HorarioAsignado)
       .where("curso_id IN (:...ids)", { ids: cursosIds })
@@ -107,70 +88,302 @@ export async function seedHorariosCicloI() {
   const dbAmbientes = await ambienteRepo.find();
 
   const getDocente = (nombre: string) => {
-    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    return dbDocentes.find(d => norm(`${d.nombres} ${d.apellidos}`).includes(norm(nombre)));
+    const norm = (s: string) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    return dbDocentes.find((d) =>
+      norm(`${d.nombres} ${d.apellidos}`).includes(norm(nombre)),
+    );
   };
 
   const getCurso = (nombre: string) => {
-    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    return dbCursos.find(c => norm(c.nombre).includes(norm(nombre)));
+    const norm = (s: string) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    return dbCursos.find((c) => norm(c.nombre).includes(norm(nombre)));
   };
 
-  const getAmbiente = (codigo: string) => dbAmbientes.find(a => a.codigo === codigo);
+  const mapAmbiente = (nombre: string): string => {
+    const map: { [key: string]: string } = {
+      "Lab. 2": "LAB-2",
+      "I-4": "I-4",
+      "Lab. 4": "LAB-4",
+      "posgrado A-307": "A-307",
+      "Lab. 3": "LAB-3",
+      "posgrado A-303": "A-303",
+      "Lab. 1": "LAB-1",
+      "Taller Confecciones - Ing. Industrial": "TALLER-CONFECCIONES",
+      "Taller Confecciones (Ing. Industrial)": "TALLER-CONFECCIONES",
+      "I I - 2 (Pabellon Ing. Industrial)": "II-2",
+      "Taller Confecciones - Ing. Indust.": "TALLER-CONFECCIONES",
+      "Lab. Fisica": "LAB-FIS",
+      "posgrado A-311": "A-311",
+      Audiovisuales: "Audiovisuales",
+    };
+    return map[nombre] || nombre;
+  };
 
-  const asegurarGrupo = async (curso: Curso, codigoGrupo: string) => {
-    let grupo = await grupoRepo.findOne({ where: { curso: { id: curso.id }, codigo: codigoGrupo, periodo_academico: { id: dbPeriodo.id } } });
-    if (!grupo) {
-      grupo = await grupoRepo.save(grupoRepo.create({
+  const getAmbiente = (nombre: string) =>
+    dbAmbientes.find((a) => a.codigo === mapAmbiente(nombre));
+
+  const asegurarGrupo = async (
+    curso: Curso,
+    g: number,
+    tipoClase: TipoClase,
+  ) => {
+    const sufijo = mapTipoClase(tipoClase);
+    const codigoGrupo = `${curso.codigo}-${sufijo}${g}`;
+    let grupo = await grupoRepo.findOne({
+      where: {
+        curso: { id: curso.id },
         codigo: codigoGrupo,
-        nombre: `Grupo ${codigoGrupo.split('-G')[1]}`,
-        ciclo: curso.ciclo,
-        cupo_maximo: 30,
-        curso,
-        periodo_academico: dbPeriodo
-      }));
+        periodo_academico: { id: dbPeriodo.id },
+      },
+    });
+    if (!grupo) {
+      const nombreTipo =
+        tipoClase === TipoClase.TEORIA
+          ? "Teoría"
+          : tipoClase === TipoClase.PRACTICA
+            ? "Práctica"
+            : "Laboratorio";
+      grupo = await grupoRepo.save(
+        grupoRepo.create({
+          codigo: codigoGrupo,
+          nombre: `${nombreTipo} ${g}`,
+          tipo: tipoClase,
+          ciclo: curso.ciclo,
+          cupo_maximo: tipoClase === TipoClase.LABORATORIO ? 30 : 40,
+          curso,
+          periodo_academico: dbPeriodo,
+        }),
+      );
     }
     return grupo;
   };
 
   const data = [
     // 1. Marcelino Torres Villanueva - Intro Prog
-    { doc: "Marcelino Torres Villanueva", curso: "Introducción a la Programación", dia: 1, inicio: "07:00", fin: "09:00", tipo: TipoClase.TEORIA, amb: "A-307", g: "G1" },
-    { doc: "Marcelino Torres Villanueva", curso: "Introducción a la Programación", dia: 1, inicio: "14:00", fin: "16:00", tipo: TipoClase.LABORATORIO, amb: "LAB-3", g: "G1" },
-    { doc: "Marcelino Torres Villanueva", curso: "Introducción a la Programación", dia: 1, inicio: "16:00", fin: "18:00", tipo: TipoClase.LABORATORIO, amb: "LAB-3", g: "G2" },
+    {
+      doc: "Marcelino Torres Villanueva",
+      curso: "INTRODUCCIÓN A LA PROGRAMACIÓN",
+      dia: 1,
+      inicio: "07:00",
+      fin: "09:00",
+      tipo: TipoClase.TEORIA,
+      amb: "A-307",
+      g: 1,
+    },
+    {
+      doc: "Marcelino Torres Villanueva",
+      curso: "INTRODUCCIÓN A LA PROGRAMACIÓN",
+      dia: 1,
+      inicio: "14:00",
+      fin: "16:00",
+      tipo: TipoClase.LABORATORIO,
+      amb: "LAB-3",
+      g: 1,
+    },
+    {
+      doc: "Marcelino Torres Villanueva",
+      curso: "INTRODUCCIÓN A LA PROGRAMACIÓN",
+      dia: 1,
+      inicio: "16:00",
+      fin: "18:00",
+      tipo: TipoClase.LABORATORIO,
+      amb: "LAB-3",
+      g: 2,
+    },
 
     // 2. Alberto Mendoza de los Santos - Intro Ing Sist
-    { doc: "Alberto Mendoza de los Santos", curso: "Introducción a la Ing. de Sistemas", dia: 2, inicio: "07:00", fin: "08:00", tipo: TipoClase.TEORIA, amb: "A-307", g: "G1" },
-    { doc: "Alberto Mendoza de los Santos", curso: "Introducción a la Ing. de Sistemas", dia: 2, inicio: "08:00", fin: "10:00", tipo: TipoClase.PRACTICA, amb: "A-307", g: "G1" },
+    {
+      doc: "Alberto Mendoza de los Santos",
+      curso: "INTRODUCCIÓN A LA INGENIERÍA DE SISTEMAS",
+      dia: 2,
+      inicio: "07:00",
+      fin: "08:00",
+      tipo: TipoClase.TEORIA,
+      amb: "A-307",
+      g: 1,
+    },
+    {
+      doc: "Alberto Mendoza de los Santos",
+      curso: "INTRODUCCIÓN A LA INGENIERÍA DE SISTEMAS",
+      dia: 2,
+      inicio: "08:00",
+      fin: "10:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "A-307",
+      g: 1,
+    },
 
     // 3. Paul Cotrina Castellanos - Intro Prog
-    { doc: "Paul Cotrina Castellanos", curso: "Introducción a la Programación", dia: 4, inicio: "09:00", fin: "11:00", tipo: TipoClase.LABORATORIO, amb: "LAB-4", g: "G1" },
-    { doc: "Paul Cotrina Castellanos", curso: "Introducción a la Programación", dia: 4, inicio: "11:00", fin: "13:00", tipo: TipoClase.LABORATORIO, amb: "LAB-4", g: "G2" },
+    {
+      doc: "Paul Cotrina Castellanos",
+      curso: "INTRODUCCIÓN A LA PROGRAMACIÓN",
+      dia: 4,
+      inicio: "09:00",
+      fin: "11:00",
+      tipo: TipoClase.LABORATORIO,
+      amb: "LAB-4",
+      g: 1,
+    },
+    {
+      doc: "Paul Cotrina Castellanos",
+      curso: "INTRODUCCIÓN A LA PROGRAMACIÓN",
+      dia: 4,
+      inicio: "11:00",
+      fin: "13:00",
+      tipo: TipoClase.LABORATORIO,
+      amb: "LAB-4",
+      g: 2,
+    },
 
     // 4. Bertha Urtecho Zavaleta - Desarrollo Personal
-    { doc: "Bertha Urtecho Zavaleta", curso: "Desarrollo Personal", dia: 5, inicio: "09:00", fin: "11:00", tipo: TipoClase.TEORIA, amb: "TALLER-CONFECCIONES", g: "G1" },
-    { doc: "Bertha Urtecho Zavaleta", curso: "Desarrollo Personal", dia: 5, inicio: "11:00", fin: "13:00", tipo: TipoClase.PRACTICA, amb: "TALLER-CONFECCIONES", g: "G1" },
+    {
+      doc: "Bertha Urtecho Zavaleta",
+      curso: "DESARROLLO PERSONAL",
+      dia: 5,
+      inicio: "09:00",
+      fin: "11:00",
+      tipo: TipoClase.TEORIA,
+      amb: "TALLER-CONFECCIONES",
+      g: 1,
+    },
+    {
+      doc: "Bertha Urtecho Zavaleta",
+      curso: "DESARROLLO PERSONAL",
+      dia: 5,
+      inicio: "11:00",
+      fin: "13:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "TALLER-CONFECCIONES",
+      g: 1,
+    },
 
     // 5. Jose Luis Ponte Bejarano - Desarrollo del Pens. Lógico Matemát.
-    { doc: "Jose Luis Ponte Bejarano", curso: "Desarrollo del Pens", dia: 2, inicio: "10:00", fin: "11:00", tipo: TipoClase.TEORIA, amb: "A-307", g: "G1" },
-    { doc: "Jose Luis Ponte Bejarano", curso: "Desarrollo del Pens", dia: 2, inicio: "11:00", fin: "13:00", tipo: TipoClase.PRACTICA, amb: "A-307", g: "G1" },
-    { doc: "Jose Luis Ponte Bejarano", curso: "Desarrollo del Pens", dia: 5, inicio: "07:00", fin: "09:00", tipo: TipoClase.PRACTICA, amb: "A-307", g: "G1" },
+    {
+      doc: "Jose Luis Ponte Bejarano",
+      curso: "DESARROLLO DEL PENSAMIENTO LÓGICO MATEMÁTICO",
+      dia: 2,
+      inicio: "10:00",
+      fin: "11:00",
+      tipo: TipoClase.TEORIA,
+      amb: "A-307",
+      g: 1,
+    },
+    {
+      doc: "Jose Luis Ponte Bejarano",
+      curso: "DESARROLLO DEL PENSAMIENTO LÓGICO MATEMÁTICO",
+      dia: 2,
+      inicio: "11:00",
+      fin: "13:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "A-307",
+      g: 1,
+    },
+    {
+      doc: "Jose Luis Ponte Bejarano",
+      curso: "DESARROLLO DEL PENSAMIENTO LÓGICO MATEMÁTICO",
+      dia: 5,
+      inicio: "07:00",
+      fin: "09:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "A-307",
+      g: 1,
+    },
 
     // 6. Jorge Luis Rios Gonzales - Lectura Crítica
-    { doc: "Jorge Luis Rios Gonzales", curso: "Lectura Crítica", dia: 4, inicio: "14:00", fin: "16:00", tipo: TipoClase.TEORIA, amb: "A-303", g: "G1" },
-    { doc: "Jorge Luis Rios Gonzales", curso: "Lectura Crítica", dia: 4, inicio: "16:00", fin: "18:00", tipo: TipoClase.PRACTICA, amb: "A-303", g: "G1" },
+    {
+      doc: "Jorge Luis Rios Gonzales",
+      curso: "LECTURA CRÍTICA Y REDACCIÓN DE TEXTOS ACADÉMICOS",
+      dia: 4,
+      inicio: "14:00",
+      fin: "16:00",
+      tipo: TipoClase.TEORIA,
+      amb: "A-303",
+      g: 1,
+    },
+    {
+      doc: "Jorge Luis Rios Gonzales",
+      curso: "LECTURA CRÍTICA Y REDACCIÓN DE TEXTOS ACADÉMICOS",
+      dia: 4,
+      inicio: "16:00",
+      fin: "18:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "A-303",
+      g: 1,
+    },
 
     // 7. Segundo Guibar Obeso - Intro Análisis Mat
-    { doc: "Segundo Guibar Obeso", curso: "Introducción al Análisis Matemático", dia: 1, inicio: "09:00", fin: "11:00", tipo: TipoClase.TEORIA, amb: "A-307", g: "G1" },
-    { doc: "Segundo Guibar Obeso", curso: "Introducción al Análisis Matemático", dia: 1, inicio: "11:00", fin: "13:00", tipo: TipoClase.PRACTICA, amb: "A-307", g: "G1" },
-    { doc: "Segundo Guibar Obeso", curso: "Introducción al Análisis Matemático", dia: 2, inicio: "16:00", fin: "18:00", tipo: TipoClase.PRACTICA, amb: "A-307", g: "G1" },
+    {
+      doc: "Segundo Guibar Obeso",
+      curso: "INTRODUCCIÓN AL ANÁLISIS MATEMÁTICO",
+      dia: 1,
+      inicio: "09:00",
+      fin: "11:00",
+      tipo: TipoClase.TEORIA,
+      amb: "A-307",
+      g: 1,
+    },
+    {
+      doc: "Segundo Guibar Obeso",
+      curso: "INTRODUCCIÓN AL ANÁLISIS MATEMÁTICO",
+      dia: 1,
+      inicio: "11:00",
+      fin: "13:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "A-307",
+      g: 1,
+    },
+    {
+      doc: "Segundo Guibar Obeso",
+      curso: "INTRODUCCIÓN AL ANÁLISIS MATEMÁTICO",
+      dia: 2,
+      inicio: "16:00",
+      fin: "18:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "A-307",
+      g: 1,
+    },
 
     // 8. Miguel Ipanaque Zapata - Estadística Gral
-    { doc: "Miguel Ipanaque Zapata", curso: "Estadística General", dia: 4, inicio: "07:00", fin: "09:00", tipo: TipoClase.PRACTICA, amb: "TALLER-CONFECCIONES", g: "G1" },
+    {
+      doc: "Miguel Ipanaque Zapata",
+      curso: "ESTADÍSTICA GENERAL",
+      dia: 4,
+      inicio: "07:00",
+      fin: "09:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "TALLER-CONFECCIONES",
+      g: 1,
+    },
 
     // 9. Martha Cardoso - Estadística Gral
-    { doc: "Martha Cardoso", curso: "Estadística General", dia: 5, inicio: "14:00", fin: "16:00", tipo: TipoClase.TEORIA, amb: "A-303", g: "G1" },
-    { doc: "Martha Cardoso", curso: "Estadística General", dia: 5, inicio: "16:00", fin: "18:00", tipo: TipoClase.PRACTICA, amb: "TALLER-CONFECCIONES", g: "G1" },
+    {
+      doc: "Martha Cardoso",
+      curso: "ESTADÍSTICA GENERAL",
+      dia: 5,
+      inicio: "14:00",
+      fin: "16:00",
+      tipo: TipoClase.TEORIA,
+      amb: "A-303",
+      g: 1,
+    },
+    {
+      doc: "Martha Cardoso",
+      curso: "ESTADÍSTICA GENERAL",
+      dia: 5,
+      inicio: "16:00",
+      fin: "18:00",
+      tipo: TipoClase.PRACTICA,
+      amb: "TALLER-CONFECCIONES",
+      g: 1,
+    },
   ];
 
   console.log("📅 Creando asignaciones...");
@@ -179,26 +392,36 @@ export async function seedHorariosCicloI() {
     const curso = getCurso(item.curso);
     const amb = getAmbiente(item.amb);
 
-    if (!doc) { console.warn(`⚠️ Docente no encontrado: ${item.doc}`); continue; }
-    if (!curso) { console.warn(`⚠️ Curso no encontrado: ${item.curso}`); continue; }
-    if (!amb) { console.warn(`⚠️ Ambiente no encontrado: ${item.amb}`); continue; }
+    if (!doc) {
+      console.warn(`⚠️ Docente no encontrado: ${item.doc}`);
+      continue;
+    }
+    if (!curso) {
+      console.warn(`⚠️ Curso no encontrado: ${item.curso}`);
+      continue;
+    }
+    if (!amb) {
+      console.warn(`⚠️ Ambiente no encontrado: ${item.amb}`);
+      continue;
+    }
 
-    const grupoCode = `${curso.codigo}-${item.g}`;
-    const grupo = await asegurarGrupo(curso, grupoCode);
+    const grupo = await asegurarGrupo(curso, item.g, item.tipo);
 
-    await horarioRepo.save(horarioRepo.create({
-      docente_id: doc.id,
-      curso_id: curso.id,
-      ambiente_id: amb.id,
-      grupo_id: grupo.id,
-      periodo: periodo,
-      dia: item.dia,
-      hora_inicio: `${item.inicio}:00`,
-      hora_fin: `${item.fin}:00`,
-      tipo_clase: item.tipo,
-      estado: EstadoHorario.PUBLICADO,
-      origen: OrigenHorario.AJUSTE_MANUAL
-    }));
+    await horarioRepo.save(
+      horarioRepo.create({
+        docente_id: doc.id,
+        curso_id: curso.id,
+        ambiente_id: amb.id,
+        grupo_id: grupo.id,
+        periodo: periodo,
+        dia: item.dia,
+        hora_inicio: `${item.inicio}:00`,
+        hora_fin: `${item.fin}:00`,
+        tipo_clase: item.tipo,
+        estado: EstadoHorario.PUBLICADO,
+        origen: OrigenHorario.AJUSTE_MANUAL,
+      }),
+    );
   }
 
   console.log("✅ Seed de Ciclo I completado.");
@@ -206,7 +429,7 @@ export async function seedHorariosCicloI() {
 }
 
 if (require.main === module) {
-  seedHorariosCicloI().catch(err => {
+  seedHorariosCicloI().catch((err) => {
     console.error("❌ Error:", err);
     process.exit(1);
   });

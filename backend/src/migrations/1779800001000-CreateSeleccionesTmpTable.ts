@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateSeleccionesTmpTable1779800001000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -77,6 +77,6 @@ export class CreateSeleccionesTmpTable1779800001000 implements MigrationInterfac
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('selecciones_temporales');
+    await queryRunner.dropTable("selecciones_temporales");
   }
 }

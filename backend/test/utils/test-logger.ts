@@ -317,5 +317,4 @@ export class ConflictLogger extends TestLogger {
 
     return report;
   }
-
 }

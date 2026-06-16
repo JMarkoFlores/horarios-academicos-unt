@@ -10,7 +10,10 @@ import {
 } from "class-validator";
 
 export class UpsertDiaActivoDto {
-  @ApiProperty({ example: 1, description: "Día de la semana: 1=Lunes … 7=Domingo" })
+  @ApiProperty({
+    example: 1,
+    description: "Día de la semana: 1=Lunes … 7=Domingo",
+  })
   @IsInt()
   @Min(1)
   @Max(7)

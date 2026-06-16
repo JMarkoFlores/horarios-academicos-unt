@@ -6,6 +6,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Usuario } from "../../entities/usuario.entity";
 import { Docente } from "../../entities/docente.entity";
+import { ContextoAcademicoService } from "../../common/services/contexto-academico.service";
+import { UsuarioAutenticado } from "../../common/interfaces/contexto-academico.interface";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -15,6 +17,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly usuarioRepository: Repository<Usuario>,
     @InjectRepository(Docente)
     private readonly docenteRepository: Repository<Docente>,
+    private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -23,7 +26,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: number; email: string; rol: string; docenteId?: number | null }) {
+  async validate(payload: {
+    sub: number;
+    email: string;
+    rol: string;
+    docenteId?: number | null;
+  }): Promise<UsuarioAutenticado> {
     const usuario = await this.usuarioRepository.findOne({
       where: { id: payload.sub },
     });
@@ -36,17 +44,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where: { usuario_id: usuario.id },
     });
 
-    if (docente) {
-      return { ...usuario, docenteId: docente.id } as Usuario & { docenteId: number };
-    }
+    const docenteLegacy = docente
+      ? null
+      : await this.docenteRepository.findOne({
+          where: { email: usuario.email },
+        });
 
-    const docenteLegacy = await this.docenteRepository.findOne({
-      where: { email: usuario.email },
-    });
+    const docenteId =
+      docente?.id ?? docenteLegacy?.id ?? payload.docenteId ?? null;
 
-    return {
+    const usuarioConDocente = {
       ...usuario,
-      docenteId: docenteLegacy?.id ?? payload.docenteId ?? null,
-    } as Usuario & { docenteId: number | null };
+      docenteId,
+    } as UsuarioAutenticado;
+
+    usuarioConDocente.contextoAcademico =
+      await this.contextoAcademicoService.resolverContexto(usuarioConDocente);
+
+    return usuarioConDocente;
   }
 }

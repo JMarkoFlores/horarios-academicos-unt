@@ -120,12 +120,7 @@ export class HorariosService {
     return { items, total, page, limit };
   }
 
-  async findByDia(
-    dia: number,
-    periodo: string,
-    page = 1,
-    limit = 50,
-  ) {
+  async findByDia(dia: number, periodo: string, page = 1, limit = 50) {
     const [items, total] = await this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.docente", "docente")

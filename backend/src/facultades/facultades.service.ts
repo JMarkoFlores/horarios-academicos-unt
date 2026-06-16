@@ -49,11 +49,21 @@ export class FacultadesService {
   }
 
   async createFacultad(dto: CreateFacultadDto) {
-    const existe = await this.facultadRepo.findOne({ where: { codigo: dto.codigo } });
-    if (existe) throw new ConflictException(`Ya existe una facultad con el código ${dto.codigo}`);
+    const existe = await this.facultadRepo.findOne({
+      where: { codigo: dto.codigo },
+    });
+    if (existe)
+      throw new ConflictException(
+        `Ya existe una facultad con el código ${dto.codigo}`,
+      );
 
-    const nombreExiste = await this.facultadRepo.findOne({ where: { nombre: dto.nombre } });
-    if (nombreExiste) throw new ConflictException(`Ya existe una facultad con el nombre "${dto.nombre}"`);
+    const nombreExiste = await this.facultadRepo.findOne({
+      where: { nombre: dto.nombre },
+    });
+    if (nombreExiste)
+      throw new ConflictException(
+        `Ya existe una facultad con el nombre "${dto.nombre}"`,
+      );
 
     if (dto.coordinador_id) await this.validarUsuario(dto.coordinador_id);
 
@@ -66,13 +76,23 @@ export class FacultadesService {
     if (!facultad) throw new NotFoundException(`Facultad ${id} no encontrada`);
 
     if (dto.codigo && dto.codigo !== facultad.codigo) {
-      const existe = await this.facultadRepo.findOne({ where: { codigo: dto.codigo } });
-      if (existe) throw new ConflictException(`Ya existe una facultad con el código ${dto.codigo}`);
+      const existe = await this.facultadRepo.findOne({
+        where: { codigo: dto.codigo },
+      });
+      if (existe)
+        throw new ConflictException(
+          `Ya existe una facultad con el código ${dto.codigo}`,
+        );
     }
 
     if (dto.nombre && dto.nombre !== facultad.nombre) {
-      const existe = await this.facultadRepo.findOne({ where: { nombre: dto.nombre } });
-      if (existe) throw new ConflictException(`Ya existe una facultad con el nombre "${dto.nombre}"`);
+      const existe = await this.facultadRepo.findOne({
+        where: { nombre: dto.nombre },
+      });
+      if (existe)
+        throw new ConflictException(
+          `Ya existe una facultad con el nombre "${dto.nombre}"`,
+        );
     }
 
     if (dto.coordinador_id) await this.validarUsuario(dto.coordinador_id);
@@ -88,7 +108,9 @@ export class FacultadesService {
     });
     if (!facultad) throw new NotFoundException(`Facultad ${id} no encontrada`);
     if (facultad.escuelas?.length > 0) {
-      throw new BadRequestException("No se puede eliminar una facultad que tiene escuelas asociadas");
+      throw new BadRequestException(
+        "No se puede eliminar una facultad que tiene escuelas asociadas",
+      );
     }
     return this.facultadRepo.remove(facultad);
   }
@@ -117,13 +139,21 @@ export class FacultadesService {
   async createEscuela(dto: CreateEscuelaDto) {
     await this.validarFacultad(dto.facultad_id);
 
-    const existe = await this.escuelaRepo.findOne({ where: { codigo: dto.codigo } });
-    if (existe) throw new ConflictException(`Ya existe una escuela con el código ${dto.codigo}`);
+    const existe = await this.escuelaRepo.findOne({
+      where: { codigo: dto.codigo },
+    });
+    if (existe)
+      throw new ConflictException(
+        `Ya existe una escuela con el código ${dto.codigo}`,
+      );
 
     const nombreExiste = await this.escuelaRepo.findOne({
       where: { nombre: dto.nombre, facultad_id: dto.facultad_id },
     });
-    if (nombreExiste) throw new ConflictException(`Ya existe una escuela con el nombre "${dto.nombre}" en esta facultad`);
+    if (nombreExiste)
+      throw new ConflictException(
+        `Ya existe una escuela con el nombre "${dto.nombre}" en esta facultad`,
+      );
 
     if (dto.coordinador_id) await this.validarUsuario(dto.coordinador_id);
 
@@ -138,8 +168,13 @@ export class FacultadesService {
     if (dto.facultad_id) await this.validarFacultad(dto.facultad_id);
 
     if (dto.codigo && dto.codigo !== escuela.codigo) {
-      const existe = await this.escuelaRepo.findOne({ where: { codigo: dto.codigo } });
-      if (existe) throw new ConflictException(`Ya existe una escuela con el código ${dto.codigo}`);
+      const existe = await this.escuelaRepo.findOne({
+        where: { codigo: dto.codigo },
+      });
+      if (existe)
+        throw new ConflictException(
+          `Ya existe una escuela con el código ${dto.codigo}`,
+        );
     }
 
     if (dto.coordinador_id) await this.validarUsuario(dto.coordinador_id);
@@ -155,7 +190,9 @@ export class FacultadesService {
     });
     if (!escuela) throw new NotFoundException(`Escuela ${id} no encontrada`);
     if (escuela.departamentos?.length > 0) {
-      throw new BadRequestException("No se puede eliminar una escuela que tiene departamentos asociados");
+      throw new BadRequestException(
+        "No se puede eliminar una escuela que tiene departamentos asociados",
+      );
     }
     return this.escuelaRepo.remove(escuela);
   }
@@ -184,13 +221,21 @@ export class FacultadesService {
   async createDepartamento(dto: CreateDepartamentoDto) {
     await this.validarEscuela(dto.escuela_id);
 
-    const existe = await this.departamentoRepo.findOne({ where: { codigo: dto.codigo } });
-    if (existe) throw new ConflictException(`Ya existe un departamento con el código ${dto.codigo}`);
+    const existe = await this.departamentoRepo.findOne({
+      where: { codigo: dto.codigo },
+    });
+    if (existe)
+      throw new ConflictException(
+        `Ya existe un departamento con el código ${dto.codigo}`,
+      );
 
     const nombreExiste = await this.departamentoRepo.findOne({
       where: { nombre: dto.nombre, escuela_id: dto.escuela_id },
     });
-    if (nombreExiste) throw new ConflictException(`Ya existe un departamento con el nombre "${dto.nombre}" en esta escuela`);
+    if (nombreExiste)
+      throw new ConflictException(
+        `Ya existe un departamento con el nombre "${dto.nombre}" en esta escuela`,
+      );
 
     if (dto.coordinador_id) await this.validarUsuario(dto.coordinador_id);
 
@@ -205,8 +250,13 @@ export class FacultadesService {
     if (dto.escuela_id) await this.validarEscuela(dto.escuela_id);
 
     if (dto.codigo && dto.codigo !== dep.codigo) {
-      const existe = await this.departamentoRepo.findOne({ where: { codigo: dto.codigo } });
-      if (existe) throw new ConflictException(`Ya existe un departamento con el código ${dto.codigo}`);
+      const existe = await this.departamentoRepo.findOne({
+        where: { codigo: dto.codigo },
+      });
+      if (existe)
+        throw new ConflictException(
+          `Ya existe un departamento con el código ${dto.codigo}`,
+        );
     }
 
     if (dto.coordinador_id) await this.validarUsuario(dto.coordinador_id);

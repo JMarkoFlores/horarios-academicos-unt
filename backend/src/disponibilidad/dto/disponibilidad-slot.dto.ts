@@ -14,12 +14,16 @@ export class DisponibilidadSlotDto {
 
   @ApiProperty({ example: "08:00", description: "Hora inicio HH:mm" })
   @IsString()
-  @Matches(/^\d{2}:\d{2}(:\d{2})?$/, { message: "hora_inicio debe tener formato HH:mm o HH:mm:ss" })
+  @Matches(/^\d{2}:\d{2}(:\d{2})?$/, {
+    message: "hora_inicio debe tener formato HH:mm o HH:mm:ss",
+  })
   hora_inicio: string;
 
   @ApiProperty({ example: "10:00", description: "Hora fin HH:mm" })
   @IsString()
-  @Matches(/^\d{2}:\d{2}(:\d{2})?$/, { message: "hora_fin debe tener formato HH:mm o HH:mm:ss" })
+  @Matches(/^\d{2}:\d{2}(:\d{2})?$/, {
+    message: "hora_fin debe tener formato HH:mm o HH:mm:ss",
+  })
   hora_fin: string;
 
   @ApiProperty({ example: true })

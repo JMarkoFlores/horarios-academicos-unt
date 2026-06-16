@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class CreateReglasPrioridadGlobales1779200000005 implements MigrationInterface {
-  name = 'CreateReglasPrioridadGlobales1779200000005';
+  name = "CreateReglasPrioridadGlobales1779200000005";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

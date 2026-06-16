@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { RestriccionesValidacionService, ContextoValidacion } from './restricciones-validacion.service';
-import { RegistroValidacionService } from './registro-validacion.service';
-import { SugestionesContextualesService } from './sugerencias-contextuales.service';
-import { HorarioAsignado } from '../../entities/horario-asignado.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import {
+  RestriccionesValidacionService,
+  ContextoValidacion,
+} from "./restricciones-validacion.service";
+import { RegistroValidacionService } from "./registro-validacion.service";
+import { SugestionesContextualesService } from "./sugerencias-contextuales.service";
+import { HorarioAsignado } from "../../entities/horario-asignado.entity";
 
 export interface RespuestaValidacionCompleta {
   exito: boolean;
@@ -19,7 +22,7 @@ export interface RespuestaValidacionCompleta {
     sugerencias: Array<{ codigo: string; sugerencia: string }>;
   };
   alternativas?: Array<{
-    tipo: 'ambiente' | 'bloque';
+    tipo: "ambiente" | "bloque";
     id: number;
     descripcion: string;
     preferencia: string;
@@ -41,7 +44,8 @@ export class ValidadorIntegradoService {
     periodoId: number,
   ): Promise<RespuestaValidacionCompleta> {
     // 1. Ejecutar reglas duras (CRÍTICAS)
-    const validacionDura = await this.restriccionesService.validarReglaDura(contexto);
+    const validacionDura =
+      await this.restriccionesService.validarReglaDura(contexto);
 
     if (!validacionDura.valido) {
       // Registrar el rechazo
@@ -52,7 +56,7 @@ export class ValidadorIntegradoService {
           contexto.cursoId,
           contexto.grupoId,
           regla.codigo,
-          'FALLO',
+          "FALLO",
           regla.motivo,
           contexto,
         );
@@ -63,7 +67,7 @@ export class ValidadorIntegradoService {
 
       return {
         exito: false,
-        motivo: `Validación fallida: ${validacionDura.reglas_fallidas[0]?.motivo || 'Error desconocido'}`,
+        motivo: `Validación fallida: ${validacionDura.reglas_fallidas[0]?.motivo || "Error desconocido"}`,
         validaciones_duras: {
           valido: false,
           reglas_pasadas: validacionDura.reglas_pasadas.length,
@@ -81,7 +85,8 @@ export class ValidadorIntegradoService {
     }
 
     // 2. Ejecutar reglas blandas (ADVERTENCIAS)
-    const validacionBlanda = await this.restriccionesService.validarReglasBlancas(contexto);
+    const validacionBlanda =
+      await this.restriccionesService.validarReglasBlancas(contexto);
 
     // 3. Registrar validación exitosa
     for (const regla of validacionDura.reglas_pasadas) {
@@ -91,8 +96,8 @@ export class ValidadorIntegradoService {
         contexto.cursoId,
         contexto.grupoId,
         regla.codigo,
-        'EXITO',
-        'Regla pasada',
+        "EXITO",
+        "Regla pasada",
         contexto,
       );
     }
@@ -104,7 +109,7 @@ export class ValidadorIntegradoService {
         contexto.cursoId,
         contexto.grupoId,
         adv.codigo,
-        'ADVERTENCIA',
+        "ADVERTENCIA",
         adv.advertencia,
         contexto,
       );
@@ -130,9 +135,16 @@ export class ValidadorIntegradoService {
   private async obtenerAlternativas(
     contexto: ContextoValidacion,
     periodoId: number,
-  ): Promise<Array<{ tipo: 'ambiente' | 'bloque'; id: number; descripcion: string; preferencia: string }>> {
+  ): Promise<
+    Array<{
+      tipo: "ambiente" | "bloque";
+      id: number;
+      descripcion: string;
+      preferencia: string;
+    }>
+  > {
     const alternativas: Array<{
-      tipo: 'ambiente' | 'bloque';
+      tipo: "ambiente" | "bloque";
       id: number;
       descripcion: string;
       preferencia: string;
@@ -152,10 +164,10 @@ export class ValidadorIntegradoService {
       for (const amb of ambientes.slice(0, 3)) {
         if (amb.disponible) {
           alternativas.push({
-            tipo: 'ambiente',
+            tipo: "ambiente",
             id: amb.ambiente_id,
             descripcion: `${amb.ambiente_nombre} (${amb.tipo})`,
-            preferencia: 'DISPONIBLE_AHORA',
+            preferencia: "DISPONIBLE_AHORA",
           });
         }
       }
@@ -171,7 +183,7 @@ export class ValidadorIntegradoService {
 
       for (const bloque of bloques.slice(0, 3)) {
         alternativas.push({
-          tipo: 'bloque',
+          tipo: "bloque",
           id: bloque.dia,
           descripcion: `${bloque.dia_nombre} ${bloque.hora_inicio}-${bloque.hora_fin} en ${bloque.ambiente_nombre}`,
           preferencia: bloque.preferencia,
@@ -179,7 +191,7 @@ export class ValidadorIntegradoService {
       }
     } catch (error) {
       // Si fallan las sugerencias, continuar sin ellas
-      console.error('Error al obtener alternativas:', error);
+      console.error("Error al obtener alternativas:", error);
     }
 
     return alternativas;
@@ -188,7 +200,12 @@ export class ValidadorIntegradoService {
   async obtenerHistorialValidacionesDocente(
     docenteId: number,
     periodo: string,
-  ): Promise<{ total_validaciones: number; exitosas: number; fallidas: number; tasa_exito: number }> {
+  ): Promise<{
+    total_validaciones: number;
+    exitosas: number;
+    fallidas: number;
+    tasa_exito: number;
+  }> {
     return this.registroService.obtenerEstadisticasDocente(docenteId, periodo);
   }
 
@@ -202,6 +219,11 @@ export class ValidadorIntegradoService {
     usuarioId: number,
     operadorNombre: string,
   ): Promise<void> {
-    return this.registroService.persistirHistorialSesion(sesionId, horarioId, usuarioId, operadorNombre);
+    return this.registroService.persistirHistorialSesion(
+      sesionId,
+      horarioId,
+      usuarioId,
+      operadorNombre,
+    );
   }
 }

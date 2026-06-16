@@ -30,7 +30,9 @@ export class Departamento {
   @Column({ name: "escuela_id" })
   escuela_id: number;
 
-  @ManyToOne(() => Escuela, (escuela) => escuela.departamentos, { eager: false })
+  @ManyToOne(() => Escuela, (escuela) => escuela.departamentos, {
+    eager: false,
+  })
   @JoinColumn({ name: "escuela_id" })
   escuela: Escuela;
 

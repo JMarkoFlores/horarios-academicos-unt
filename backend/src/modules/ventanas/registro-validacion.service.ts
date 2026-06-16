@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { AuditoriaHorario } from '../../entities/auditoria-horario.entity';
-import { HorarioAsignado } from '../../entities/horario-asignado.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { AuditoriaHorario } from "../../entities/auditoria-horario.entity";
+import { HorarioAsignado } from "../../entities/horario-asignado.entity";
 
 export interface RegistroValidacion {
   id?: number;
@@ -12,9 +12,12 @@ export interface RegistroValidacion {
   docente_id: number;
   curso_id: number;
   grupo_id: number;
-  accion: 'VALIDACION_ATENTADA' | 'VALIDACION_EXITOSA' | 'ASIGNACION_CONFIRMADA';
+  accion:
+    | "VALIDACION_ATENTADA"
+    | "VALIDACION_EXITOSA"
+    | "ASIGNACION_CONFIRMADA";
   regla_codigo: string;
-  resultado: 'EXITO' | 'FALLO' | 'ADVERTENCIA';
+  resultado: "EXITO" | "FALLO" | "ADVERTENCIA";
   motivo?: string;
   datos_validacion?: any; // JSON con contexto
   usuario_id?: number;
@@ -39,7 +42,7 @@ export class RegistroValidacionService {
     cursoId: number,
     grupoId: number,
     reglaCodigo: string,
-    resultado: 'EXITO' | 'FALLO' | 'ADVERTENCIA',
+    resultado: "EXITO" | "FALLO" | "ADVERTENCIA",
     motivo?: string,
     datosValidacion?: any,
   ): Promise<RegistroValidacion> {
@@ -48,7 +51,7 @@ export class RegistroValidacionService {
       docente_id: docenteId,
       curso_id: cursoId,
       grupo_id: grupoId,
-      accion: 'VALIDACION_ATENTADA',
+      accion: "VALIDACION_ATENTADA",
       regla_codigo: reglaCodigo,
       resultado,
       motivo,
@@ -65,7 +68,9 @@ export class RegistroValidacionService {
     return registro;
   }
 
-  async obtenerHistorialSesion(sesionId: string): Promise<RegistroValidacion[]> {
+  async obtenerHistorialSesion(
+    sesionId: string,
+  ): Promise<RegistroValidacion[]> {
     return this.registrosEnMemoria.get(sesionId) || [];
   }
 
@@ -89,8 +94,8 @@ export class RegistroValidacionService {
           motivo: registro.motivo,
         },
         usuario_id: usuarioId,
-        ip: 'N/A',
-        motivo: `Validación: ${registro.resultado} - ${registro.motivo || 'N/A'}`,
+        ip: "N/A",
+        motivo: `Validación: ${registro.resultado} - ${registro.motivo || "N/A"}`,
         creado_en: registro.timestamp,
       });
     }
@@ -112,24 +117,33 @@ export class RegistroValidacionService {
         // Filtrar por docente - requeriría campo en auditoria
       },
       take: limit,
-      order: { creado_en: 'DESC' },
+      order: { creado_en: "DESC" },
     });
 
     return registros;
   }
 
-  async obtenerEstadisticasDocente(docenteId: number, periodo: string): Promise<{
+  async obtenerEstadisticasDocente(
+    docenteId: number,
+    periodo: string,
+  ): Promise<{
     total_validaciones: number;
     exitosas: number;
     fallidas: number;
     advertencias: number;
     tasa_exito: number;
   }> {
-    const registros = await this.obtenerHistorialDocente(docenteId, periodo, 1000);
+    const registros = await this.obtenerHistorialDocente(
+      docenteId,
+      periodo,
+      1000,
+    );
 
-    const exitosas = registros.filter((r) => r.resultado === 'EXITO').length;
-    const fallidas = registros.filter((r) => r.resultado === 'FALLO').length;
-    const advertencias = registros.filter((r) => r.resultado === 'ADVERTENCIA').length;
+    const exitosas = registros.filter((r) => r.resultado === "EXITO").length;
+    const fallidas = registros.filter((r) => r.resultado === "FALLO").length;
+    const advertencias = registros.filter(
+      (r) => r.resultado === "ADVERTENCIA",
+    ).length;
     const total = registros.length;
 
     return {
@@ -143,31 +157,39 @@ export class RegistroValidacionService {
 
   async exportarAuditoriaVentana(
     ventanaId: string,
-    formato: 'JSON' | 'CSV',
+    formato: "JSON" | "CSV",
   ): Promise<string> {
     // Buscar todos los registros de auditoría de esta ventana
     const auditorias = await this.auditoriaRepo.find({
       where: {
         // Filtrar por ventana_id - requeriría campo en auditoria
       },
-      order: { creado_en: 'ASC' },
+      order: { creado_en: "ASC" },
     });
 
-    if (formato === 'JSON') {
+    if (formato === "JSON") {
       return JSON.stringify(auditorias, null, 2);
     }
 
     // CSV
-    const headers = ['Timestamp', 'Usuario', 'Acción', 'Motivo', 'Datos Nuevos'];
+    const headers = [
+      "Timestamp",
+      "Usuario",
+      "Acción",
+      "Motivo",
+      "Datos Nuevos",
+    ];
     const rows = auditorias.map((a) => [
       a.creado_en.toISOString(),
-      a.usuario_id || 'N/A',
+      a.usuario_id || "N/A",
       a.accion,
       a.motivo,
       JSON.stringify(a.datos_nuevos),
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
     return csv;
   }
 

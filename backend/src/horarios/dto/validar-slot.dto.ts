@@ -1,5 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Matches, Max, Min } from "class-validator";
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from "class-validator";
 import { TipoClase } from "../../common/enums/tipo-clase.enum";
 
 export class ValidarSlotDto {
@@ -53,7 +63,10 @@ export class ValidarSlotDto {
   @IsDateString()
   fecha: string;
 
-  @ApiPropertyOptional({ description: "Indica si es una operación de edición de asignación existente" })
+  @ApiPropertyOptional({
+    description:
+      "Indica si es una operación de edición de asignación existente",
+  })
   @IsOptional()
   @IsBoolean()
   modoEdicion?: boolean;

@@ -1,12 +1,7 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  Index,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index } from "typeorm";
 
-@Entity('restriccion_institucional')
-@Index('idx_restriccion_periodo', ['periodo_academico'])
+@Entity("restriccion_institucional")
+@Index("idx_restriccion_periodo", ["periodo_academico"])
 export class RestriccionInstitucional {
   @PrimaryGeneratedColumn()
   id: number;

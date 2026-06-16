@@ -66,7 +66,7 @@ export class DocenteFormComponent implements OnInit {
   hoy = new Date();
 
   tiposDocente = [
-    { value: 'ORDINARIO', label: 'Ordinario' },
+    { value: 'ORDINARIO', label: 'Nombrado' },
     { value: 'CONTRATADO', label: 'Contratado' },
     { value: 'JEFE_PRACTICA_CONTRATADO', label: 'Jefe de práctica contratado' },
   ];

@@ -1,5 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsOptional, IsString, IsEnum, IsInt, Min, Max } from "class-validator";
+import { TipoClase } from "../../common/enums/tipo-clase.enum";
 
 export class QueryGrupoDto {
   @ApiPropertyOptional({ default: 1 })
@@ -15,7 +16,10 @@ export class QueryGrupoDto {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ example: '2026-I', description: 'Código del período académico' })
+  @ApiPropertyOptional({
+    example: "2026-I",
+    description: "Código del período académico",
+  })
   @IsOptional()
   @IsString()
   periodo?: string;
@@ -25,4 +29,12 @@ export class QueryGrupoDto {
   @IsInt()
   @Min(1)
   curso_id?: number;
+
+  @ApiPropertyOptional({
+    enum: TipoClase,
+    description: "Filtrar por tipo de grupo",
+  })
+  @IsOptional()
+  @IsEnum(TipoClase)
+  tipo?: TipoClase;
 }

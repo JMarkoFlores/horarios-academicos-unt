@@ -201,6 +201,18 @@
   transition: all var(--transition-fast);
 }
 
+.tipo-curso-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 40px;
+}
+
+
 .course-name-cell {
   display: flex;
   flex-direction: column;
@@ -231,34 +243,35 @@
   font-size: 12px;
 }
 
-.hours-cell {
-  display: flex;
-  gap: 8px;
+.hour-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
 
-  .hour-tag {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 4px;
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+  }
 
-    mat-icon {
-      font-size: 14px;
-      width: 14px;
-      height: 14px;
-    }
+  &.theory {
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+  }
 
-    &.theory {
-      color: var(--color-primary);
-      background: var(--color-primary-light);
-    }
+  &.practice {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+  }
 
-    &.lab {
-      color: var(--color-accent);
-      background: var(--color-accent-light);
-    }
+  &.lab {
+    color: var(--color-accent);
+    background: var(--color-accent-light);
   }
 }
 

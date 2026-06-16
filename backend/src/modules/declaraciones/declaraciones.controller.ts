@@ -30,10 +30,13 @@ import { DeclaracionesService } from "./declaraciones.service";
 export class DeclaracionesController {
   constructor(private readonly declaracionesService: DeclaracionesService) {}
 
-  @Get("docentes")
+  @Get('docentes')
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
   )
@@ -58,6 +61,9 @@ export class DeclaracionesController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
     RolUsuario.DOCENTE,
@@ -88,6 +94,9 @@ export class DeclaracionesController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
     RolUsuario.DOCENTE,
@@ -114,8 +123,12 @@ export class DeclaracionesController {
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Subir imagen de firma de un docente" })
   @ApiResponse({ status: 200, description: "Firma subida exitosamente" })

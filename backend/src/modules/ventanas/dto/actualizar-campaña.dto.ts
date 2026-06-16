@@ -22,7 +22,9 @@ export class ActualizarCampañaDto {
   @IsOptional()
   nombre?: string;
 
-  @ApiPropertyOptional({ example: "Ventanas de atención para el período 2026-I" })
+  @ApiPropertyOptional({
+    example: "Ventanas de atención para el período 2026-I",
+  })
   @IsString()
   @IsOptional()
   descripcion?: string;
@@ -39,12 +41,23 @@ export class ActualizarCampañaDto {
 
   @ApiPropertyOptional({
     example: ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"],
-    enum: ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"],
+    enum: [
+      "LUNES",
+      "MARTES",
+      "MIERCOLES",
+      "JUEVES",
+      "VIERNES",
+      "SABADO",
+      "DOMINGO",
+    ],
   })
   @IsArray()
   @ArrayMinSize(1)
   @IsString({ each: true })
-  @IsEnum(["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"], { each: true })
+  @IsEnum(
+    ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"],
+    { each: true },
+  )
   @IsOptional()
   dias_habilitados?: string[];
 
@@ -74,7 +87,12 @@ export class ActualizarCampañaDto {
   @IsOptional()
   cupos_maximos_ventana?: number;
 
-  @ApiPropertyOptional({ example: 15, default: 15, description: 'Porcentaje de ventanas de contingencia para reprogramaciones (10-20%)' })
+  @ApiPropertyOptional({
+    example: 15,
+    default: 15,
+    description:
+      "Porcentaje de ventanas de contingencia para reprogramaciones (10-20%)",
+  })
   @IsInt()
   @Min(0)
   @Max(50)

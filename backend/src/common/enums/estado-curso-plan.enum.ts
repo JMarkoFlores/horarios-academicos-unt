@@ -1,0 +1,5 @@
+export enum EstadoCursoPlan {
+  ACTIVO = "ACTIVO",
+  DESACTUALIZADO = "DESACTUALIZADO",
+  ELIMINADO = "ELIMINADO",
+}

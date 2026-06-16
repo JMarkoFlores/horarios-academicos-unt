@@ -18,6 +18,7 @@
     "migration:generate": "npm run typeorm -- migration:generate src/migrations/Migration -d data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d data-source.ts",
     "seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
+    "seed:verify": "ts-node -r tsconfig-paths/register src/database/verify-seed.ts",
     "seed:horarios-ciclo-I": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-I.ts",
     "seed:horarios-ciclo-III": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-III.ts",
     "seed:horarios-ciclo-V": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-V.ts",

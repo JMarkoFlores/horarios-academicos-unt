@@ -29,7 +29,10 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
+import { RequiereAlcance } from "../auth/decorators/requiere-alcance.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { UsuarioAutenticado } from "../common/interfaces/contexto-academico.interface";
 
 @ApiTags("docentes")
 @Controller("docentes")
@@ -45,11 +48,19 @@ export class DocentesController {
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
   )
+  @RequiereAlcance()
   @ApiOperation({ summary: "Listar docentes paginado con filtros" })
   @ApiResponse({ status: 200, description: "Lista paginada de docentes" })
-  async findAll(@Query() query: QueryDocenteDto) {
-    const result = await this.docentesService.findAll(query);
+  async findAll(
+    @Query() query: QueryDocenteDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
+    const result = await this.docentesService.findAll(
+      query,
+      usuario.contextoAcademico,
+    );
     return { data: result, message: "Docentes obtenidos correctamente" };
   }
 
@@ -67,9 +78,13 @@ export class DocentesController {
     status: 200,
     description: "Lista ordenada por antigüedad y categoría",
   })
-  async findJerarquia(@Query("periodo") periodo: string) {
+  async findJerarquia(
+    @Query("periodo") periodo: string,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
     const result = await this.docentesService.findOrdenadosPorJerarquia(
       periodo ?? "",
+      usuario.contextoAcademico,
     );
     return { data: result, message: "Docentes ordenados por jerarquía" };
   }
@@ -90,12 +105,16 @@ export class DocentesController {
     @Query("categoria") categoria?: string,
     @Query("tipo_docente") tipo_docente?: string,
     @Query("busqueda") busqueda?: string,
+    @CurrentUser() usuario?: UsuarioAutenticado,
   ) {
-    const result = await this.docentesService.findAllParaExportar({
-      categoria,
-      tipo_docente,
-      busqueda,
-    });
+    const result = await this.docentesService.findAllParaExportar(
+      {
+        categoria,
+        tipo_docente,
+        busqueda,
+      },
+      usuario?.contextoAcademico,
+    );
     return { data: result, message: "Docentes para exportar" };
   }
 
@@ -115,9 +134,13 @@ export class DocentesController {
     required: true,
     description: "ID o código del período académico",
   })
-  async getCargaDesequilibrada(@Query("periodo") periodo: string) {
+  async getCargaDesequilibrada(
+    @Query("periodo") periodo: string,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
     const result = await this.docentesService.getCargaDesequilibrada(
       periodo ?? "",
+      usuario.contextoAcademico,
     );
     return {
       data: result,
@@ -146,8 +169,13 @@ export class DocentesController {
   async getCargaPorDia(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.docentesService.getCargaPorDia(id, periodo ?? "");
+    const result = await this.docentesService.getCargaPorDia(
+      id,
+      periodo ?? "",
+      usuario.contextoAcademico,
+    );
     return {
       data: result,
       message: "Carga por día obtenida correctamente",
@@ -167,8 +195,14 @@ export class DocentesController {
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente encontrado" })
   @ApiResponse({ status: 404, description: "Docente no encontrado" })
-  async findOne(@Param("id", ParseIntPipe) id: number) {
-    const result = await this.docentesService.findOne(id);
+  async findOne(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
+    const result = await this.docentesService.findOne(
+      id,
+      usuario.contextoAcademico,
+    );
     return { data: result, message: "Docente encontrado" };
   }
 
@@ -342,7 +376,11 @@ export class DocentesController {
   @ApiOperation({ summary: "Obtener ambientes compatibles para un curso" })
   @ApiParam({ name: "id", type: Number, description: "ID del docente" })
   @ApiQuery({ name: "cursoId", type: Number, description: "ID del curso" })
-  @ApiQuery({ name: "tipoClase", type: String, description: "Tipo de clase (TEORIA/LABORATORIO)" })
+  @ApiQuery({
+    name: "tipoClase",
+    type: String,
+    description: "Tipo de clase (TEORIA/LABORATORIO)",
+  })
   @ApiResponse({
     status: 200,
     description: "Ambientes compatibles obtenidos correctamente",

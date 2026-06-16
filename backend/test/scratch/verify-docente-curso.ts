@@ -13,11 +13,13 @@ import { DocenteCurso } from "../../src/entities/docente-curso.entity";
 async function verify() {
   console.log("=== INICIANDO VERIFICACIÓN DE DOCENTE-CURSO ===");
   const app = await NestFactory.createApplicationContext(AppModule);
-  
+
   const docentesService = app.get(DocentesService);
   const docenteRepo: Repository<Docente> = app.get(getRepositoryToken(Docente));
   const cursoRepo: Repository<Curso> = app.get(getRepositoryToken(Curso));
-  const docenteCursoRepo: Repository<DocenteCurso> = app.get(getRepositoryToken(DocenteCurso));
+  const docenteCursoRepo: Repository<DocenteCurso> = app.get(
+    getRepositoryToken(DocenteCurso),
+  );
 
   // 1. Limpiar registros previos de prueba si existen
   await docenteCursoRepo.createQueryBuilder().delete().execute();
@@ -60,8 +62,8 @@ async function verify() {
   await docentesService.asignarCursos(savedDocente.id, {
     cursos: [
       { cursoId: savedCurso.id, tipo_clase: TipoClase.TEORIA },
-      { cursoId: savedCurso.id, tipo_clase: TipoClase.LABORATORIO }
-    ]
+      { cursoId: savedCurso.id, tipo_clase: TipoClase.LABORATORIO },
+    ],
   });
   console.log("-> Asignación completada.");
 
@@ -69,24 +71,47 @@ async function verify() {
   console.log("-> Consultando todos los cursos habilitados...");
   const todos = await docentesService.findCursosHabilitados(savedDocente.id);
   console.log(`-> Total habilitados: ${todos.length}`);
-  console.log(todos.map(t => ({ curso: t.curso.nombre, tipo: t.tipo_clase })));
+  console.log(
+    todos.map((t) => ({ curso: t.curso.nombre, tipo: t.tipo_clase })),
+  );
 
   console.log("-> Consultando habilitados solo para LABORATORIO...");
-  const laboratorios = await docentesService.findCursosHabilitados(savedDocente.id, TipoClase.LABORATORIO);
+  const laboratorios = await docentesService.findCursosHabilitados(
+    savedDocente.id,
+    TipoClase.LABORATORIO,
+  );
   console.log(`-> Total laboratorios: ${laboratorios.length}`);
-  expectTrue(laboratorios.length === 1, "Debe tener 1 curso de laboratorio habilitado");
-  console.log(laboratorios.map(t => ({ curso: t.curso.nombre, tipo: t.tipo_clase })));
+  expectTrue(
+    laboratorios.length === 1,
+    "Debe tener 1 curso de laboratorio habilitado",
+  );
+  console.log(
+    laboratorios.map((t) => ({ curso: t.curso.nombre, tipo: t.tipo_clase })),
+  );
 
   // 6. Test DELETE/Quitar asignación
   console.log("-> Quitando asignación de TEORIA...");
-  await docentesService.removeAsignacion(savedDocente.id, savedCurso.id, TipoClase.TEORIA);
+  await docentesService.removeAsignacion(
+    savedDocente.id,
+    savedCurso.id,
+    TipoClase.TEORIA,
+  );
   console.log("-> Asignación quitada.");
 
   console.log("-> Consultando nuevamente cursos habilitados...");
-  const despuesDelete = await docentesService.findCursosHabilitados(savedDocente.id);
-  console.log(`-> Total habilitados después de delete: ${despuesDelete.length}`);
-  expectTrue(despuesDelete.length === 1, "Debe quedar solo 1 asignación activa");
-  console.log(despuesDelete.map(t => ({ curso: t.curso.nombre, tipo: t.tipo_clase })));
+  const despuesDelete = await docentesService.findCursosHabilitados(
+    savedDocente.id,
+  );
+  console.log(
+    `-> Total habilitados después de delete: ${despuesDelete.length}`,
+  );
+  expectTrue(
+    despuesDelete.length === 1,
+    "Debe quedar solo 1 asignación activa",
+  );
+  console.log(
+    despuesDelete.map((t) => ({ curso: t.curso.nombre, tipo: t.tipo_clase })),
+  );
 
   // Limpieza final
   await docenteCursoRepo.createQueryBuilder().delete().execute();

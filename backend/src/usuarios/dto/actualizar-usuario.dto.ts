@@ -1,6 +1,12 @@
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { RolUsuario } from '../../common/enums/rol-usuario.enum';
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { RolUsuario } from "../../common/enums/rol-usuario.enum";
 
 export class ActualizarUsuarioDto {
   @ApiPropertyOptional()
@@ -23,7 +29,7 @@ export class ActualizarUsuarioDto {
   @IsBoolean()
   activo?: boolean;
 
-  @ApiPropertyOptional({ example: 'es', enum: ['es', 'en', 'pt'] })
+  @ApiPropertyOptional({ example: "es", enum: ["es", "en", "pt"] })
   @IsOptional()
   @IsString()
   idioma?: string;

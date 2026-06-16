@@ -1,12 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import {
-  IsOptional,
-  IsEnum,
-  IsString,
-  IsInt,
-  Min,
-  Max,
-} from "class-validator";
+import { IsOptional, IsEnum, IsString, IsInt, Min, Max } from "class-validator";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
 import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
@@ -22,7 +15,7 @@ export class QueryDocenteDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(9999)
   limit?: number = 20;
 
   @ApiPropertyOptional({ enum: CategoriaDocente })
@@ -64,7 +57,8 @@ export class QueryDocenteDto {
   sortDir?: "ASC" | "DESC";
 
   @ApiPropertyOptional({
-    description: "Filtrar por estado activo. Omitir para ver todos. Use 'true' o 'false'",
+    description:
+      "Filtrar por estado activo. Omitir para ver todos. Use 'true' o 'false'",
   })
   @IsOptional()
   @IsString()

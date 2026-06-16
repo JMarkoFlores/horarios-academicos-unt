@@ -1,0 +1,232 @@
+<div class="parametros-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Parámetros de Carga</h1>
+      <p class="subtitle">
+        Período: <strong>{{ periodoService.periodo }}</strong>
+      </p>
+    </div>
+  </div>
+
+  <!-- Formulario -->
+  <mat-card class="premium-form-card parametros-form-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="form-icon">tune</mat-icon>
+      <mat-card-title>
+        {{
+          editingParametroId ? "Editar Parámetro" : "Nuevo Parámetro de Carga"
+        }}
+      </mat-card-title>
+      <mat-card-subtitle>
+        Configure las horas mínimas y máximas según tipo, categoría y modalidad
+      </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <form [formGroup]="parametrosForm" class="parametros-form">
+        <div class="form-row-two">
+          <mat-form-field appearance="outline">
+            <mat-label>Condición</mat-label>
+            <mat-select
+              formControlName="tipo_docente"
+              (selectionChange)="onTipoDocenteChange($event.value)"
+            >
+              <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{
+                t.label
+              }}</mat-option>
+            </mat-select>
+            <mat-icon matSuffix>badge</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Categoría</mat-label>
+            <mat-select
+              formControlName="categoria"
+              (selectionChange)="onCategoriaChange($event.value)"
+            >
+              <mat-option
+                *ngFor="let c of categoriasDisponibles"
+                [value]="c.value"
+                >{{ c.label }}</mat-option
+              >
+            </mat-select>
+            <mat-icon matSuffix>workspace_premium</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Modalidad</mat-label>
+            <mat-select formControlName="modalidad">
+              <mat-option
+                *ngFor="let m of modalidadesDisponibles"
+                [value]="m.value"
+                >{{ m.label }}</mat-option
+              >
+            </mat-select>
+            <mat-icon matSuffix>schedule</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Horas Mín. Semanal</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="horas_min_semanal"
+              min="1"
+              max="40"
+            />
+            <mat-hint>Por docente</mat-hint>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Horas Máx. Semanal</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="horas_max_semanal"
+              min="1"
+              max="80"
+            />
+            <mat-hint>Por docente</mat-hint>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Cursos Mín. por Docente</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="cursos_min_docente"
+              min="0"
+              max="20"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Cursos Máx. por Docente</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="cursos_max_docente"
+              min="1"
+              max="20"
+            />
+          </mat-form-field>
+        </div>
+        <div class="form-actions">
+          <button
+            mat-stroked-button
+            *ngIf="editingParametroId"
+            (click)="cancelarEdicionParametro()"
+            type="button"
+          >
+            <mat-icon>cancel</mat-icon> Cancelar
+          </button>
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="guardarParametrosCarga()"
+            [disabled]="parametrosForm.invalid || guardandoParametros"
+          >
+            <mat-icon>{{ editingParametroId ? "save" : "add" }}</mat-icon>
+            {{
+              guardandoParametros
+                ? "Guardando..."
+                : editingParametroId
+                  ? "Actualizar"
+                  : "Agregar Parámetro"
+            }}
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Lista de parámetros registrados -->
+  <div class="section-title-row" style="margin-top: 24px; margin-bottom: 12px">
+    <mat-icon>list_alt</mat-icon>
+    <h3 style="margin: 0 0 0 8px">Parámetros Registrados</h3>
+  </div>
+
+  <!-- Filters -->
+  <div class="filtros-container" style="margin-bottom: 16px;">
+    <mat-form-field appearance="outline" style="min-width: 200px;">
+      <mat-label>Filtrar por Condición</mat-label>
+      <mat-select [(ngModel)]="filtrosParametros.tipo_docente" (selectionChange)="onFiltroChange()">
+        <mat-option value="">Todos</mat-option>
+        <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{ t.label }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" style="min-width: 200px;">
+      <mat-label>Filtrar por Categoría</mat-label>
+      <mat-select [(ngModel)]="filtrosParametros.categoria" (selectionChange)="onFiltroChange()">
+        <mat-option value="">Todas</mat-option>
+        <mat-option *ngFor="let c of categoriasPorTipo['ORDINARIO']" [value]="c.value">{{ c.label }}</mat-option>
+        <mat-option value="SIN_CATEGORIA">Sin categoría</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" style="min-width: 200px;">
+      <mat-label>Filtrar por Modalidad</mat-label>
+      <mat-select [(ngModel)]="filtrosParametros.modalidad" (selectionChange)="onFiltroChange()">
+        <mat-option value="">Todas</mat-option>
+        <mat-option *ngFor="let m of modalidades" [value]="m.value">{{ m.label }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </div>
+
+  <div *ngIf="loadingParametros" class="loading-state">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <div
+    *ngIf="!loadingParametros && parametrosFiltrados.length === 0"
+    class="empty-state-inline"
+  >
+    <mat-icon>info_outline</mat-icon>
+    <span>No hay parámetros que coincidan con los filtros.</span>
+  </div>
+
+  <div
+    class="parametros-cards-grid"
+    *ngIf="!loadingParametros && parametrosFiltrados.length > 0"
+  >
+    <mat-card class="parametro-card" *ngFor="let p of parametrosFiltrados">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="param-icon">person</mat-icon>
+        <mat-card-title>
+          <span class="badge-pill badge-tipo">{{
+            getTipoDocenteLabel(p.tipo_docente)
+          }}</span>
+          <span class="tc-badge">{{ getCategoriaLabel(p.categoria) }}</span>
+          <span class="mod-badge">{{ getModalidadLabel(p.modalidad) }}</span>
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="param-content">
+        <div class="param-stat">
+          <span class="param-label">Horas Semanal</span>
+          <span class="param-value"
+            >{{ p.horas_min_semanal }} – {{ p.horas_max_semanal }} h</span
+          >
+        </div>
+        <div class="param-stat">
+          <span class="param-label">Cursos</span>
+          <span class="param-value"
+            >{{ p.cursos_min_docente }} – {{ p.cursos_max_docente }}</span
+          >
+        </div>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button
+          mat-icon-button
+          color="primary"
+          matTooltip="Editar"
+          (click)="editarParametro(p)"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          color="warn"
+          matTooltip="Eliminar"
+          (click)="eliminarParametro(p.id)"
+          [disabled]="eliminandoParametroId === p.id"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+</div>

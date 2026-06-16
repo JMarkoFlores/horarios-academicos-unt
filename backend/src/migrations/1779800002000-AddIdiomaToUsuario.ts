@@ -1,7 +1,7 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class AddIdiomaToUsuario1779800002000 implements MigrationInterface {
-  name = 'AddIdiomaToUsuario1779800002000';
+  name = "AddIdiomaToUsuario1779800002000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

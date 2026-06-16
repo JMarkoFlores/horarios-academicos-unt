@@ -7,7 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { SocketService } from '../../core/services/socket.service';
 import { TranslateService } from '@ngx-translate/core';
-import { ApiResponse, KPIs, MisKPIs, ConflictoAsignacion } from '../../core/interfaces/entities';
+import { ApiResponse, KPIs, MisKPIs, ConflictoAsignacion, CargaResumen, CargaDepartamento, CargaEstado, CargaTopDocente, CargaAvance } from '../../core/interfaces/entities';
 
 @Component({
   selector: 'app-dashboard',
@@ -28,6 +28,49 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private dashSub!: Subscription;
   private langSub!: Subscription;
   private _heatmapCache = new Map<string, { color: string; tooltip: string }>();
+
+  // ── Carga Académica state ──
+  activeTab = signal<'horarios' | 'carga'>('horarios');
+  cargaResumen: CargaResumen | null = null;
+  cargaDepartamentos: CargaDepartamento[] = [];
+  cargaEstados: CargaEstado[] = [];
+  cargaTopDocentes: CargaTopDocente[] = [];
+  cargaAvance: CargaAvance[] = [];
+  cargaLoading = signal(false);
+  selectedDeptCarga: number | null = null;
+
+  funnelChartData: ChartData<'bar'> = { labels: [], datasets: [] };
+  funnelChartOptions: ChartOptions<'bar'> = {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { family: "'Inter', sans-serif", size: 13 }, bodyFont: { family: "'Inter', sans-serif", size: 12 } },
+    },
+    scales: { y: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif", size: 10 } } }, x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: "'Inter', sans-serif", size: 10 } } } },
+  };
+
+  deptBarChartData: ChartData<'bar'> = { labels: [], datasets: [] };
+  deptBarChartOptions: ChartOptions<'bar'> = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', font: { family: "'Inter', sans-serif", size: 11, weight: 500 } } },
+      tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { family: "'Inter', sans-serif", size: 13 }, bodyFont: { family: "'Inter', sans-serif", size: 12 } },
+    },
+    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } }, x: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } } },
+  };
+
+  avanceChartData: ChartData<'line'> = { labels: [], datasets: [] };
+  avanceChartOptions: ChartOptions<'line'> = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', font: { family: "'Inter', sans-serif", size: 11, weight: 500 } } },
+      tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { family: "'Inter', sans-serif", size: 13 }, bodyFont: { family: "'Inter', sans-serif", size: 12 } },
+    },
+    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } }, x: { grid: { display: false }, ticks: { maxRotation: 45, font: { family: "'Inter', sans-serif", size: 10 } } } },
+  };
+
+  topDocentesColumns = ['posicion', 'nombre', 'categoria', 'horasLectivas', 'horasNoLectivas', 'totalHoras', 'estado'];
+  deptColumns = ['departamento', 'totalDocentes', 'horasLectivas', 'promedio'];
 
   readonly rol = this.authService.getUsuarioActual()?.rol ?? '';
   readonly usuario = this.authService.getUsuarioActual();
@@ -333,6 +376,100 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }],
       };
     });
+  }
+
+  switchTab(tab: 'horarios' | 'carga'): void {
+    this.activeTab.set(tab);
+    if (tab === 'carga' && !this.cargaResumen) {
+      this.loadCargaKPIs();
+    }
+  }
+
+  loadCargaKPIs(): void {
+    this.cargaLoading.set(true);
+    const periodo = this.periodoService.periodo;
+    this.api.get<ApiResponse<CargaResumen>>('/dashboard/carga/resumen', { periodo }).subscribe({
+      next: (res) => {
+        this.cargaResumen = res.data;
+        this.cargaLoading.set(false);
+      },
+      error: () => { this.cargaLoading.set(false); },
+    });
+    this.api.get<ApiResponse<CargaDepartamento[]>>('/dashboard/carga/departamentos', { periodo }).subscribe({
+      next: (res) => { this.cargaDepartamentos = res.data; this.buildDeptChart(res.data); },
+    });
+    this.api.get<ApiResponse<CargaEstado[]>>('/dashboard/carga/estados', { periodo }).subscribe({
+      next: (res) => { this.cargaEstados = res.data; this.buildFunnelChart(res.data); },
+    });
+    this.api.get<ApiResponse<CargaTopDocente[]>>('/dashboard/carga/top-docentes', { periodo, limit: '10' }).subscribe({
+      next: (res) => { this.cargaTopDocentes = res.data; },
+    });
+    this.api.get<ApiResponse<CargaAvance[]>>('/dashboard/carga/avance', { periodo }).subscribe({
+      next: (res) => { this.cargaAvance = res.data; this.buildAvanceChart(res.data); },
+    });
+  }
+
+  get filteredTopDocentes(): CargaTopDocente[] {
+    if (!this.selectedDeptCarga) return this.cargaTopDocentes;
+    return this.cargaTopDocentes.filter((d) => d.departamento_id === this.selectedDeptCarga);
+  }
+
+  get filteredSinDeclarar(): { id: number; nombre: string; email: string; departamento_id: number }[] {
+    if (!this.cargaResumen || !this.selectedDeptCarga) return this.cargaResumen?.sin_declaracion ?? [];
+    return this.cargaResumen.sin_declaracion.filter((d) => d.departamento_id === this.selectedDeptCarga);
+  }
+
+  get departamentosSet(): { id: number; nombre: string }[] {
+    const unique = new Map<number, string>();
+    for (const d of this.cargaDepartamentos) {
+      unique.set(d.departamento_id, d.departamento);
+    }
+    return [...unique.entries()].map(([id, nombre]) => ({ id, nombre }));
+  }
+
+  private buildFunnelChart(estados: CargaEstado[]): void {
+    const colors = ['#94a3b8', '#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#a855f7', '#06b6d4', '#f97316', '#10b981', '#64748b'];
+    const labels = estados.map((e) => e.label);
+    const datos = estados.map((e) => e.count);
+    this.funnelChartData = {
+      labels,
+      datasets: [{
+        data: datos,
+        backgroundColor: datos.map((_, i) => colors[i % colors.length] + 'CC'),
+        borderColor: datos.map((_, i) => colors[i % colors.length]),
+        borderWidth: 2, borderRadius: 4,
+      }],
+    };
+  }
+
+  private buildDeptChart(deptos: CargaDepartamento[]): void {
+    const sliced = deptos.slice(0, 10);
+    this.deptBarChartData = {
+      labels: sliced.map((d) => d.codigo),
+      datasets: [
+        { label: 'Hrs lectivas', data: sliced.map((d) => d.total_horas_lectivas), backgroundColor: '#3b82f680', borderColor: '#3b82f6', borderWidth: 2, borderRadius: 4 },
+        { label: 'Hrs no lectivas', data: sliced.map((d) => d.total_horas_no_lectivas), backgroundColor: '#10b98180', borderColor: '#10b981', borderWidth: 2, borderRadius: 4 },
+      ],
+    };
+  }
+
+  private buildAvanceChart(avance: CargaAvance[]): void {
+    this.avanceChartData = {
+      labels: avance.map((a) => a.fecha),
+      datasets: [
+        { label: 'Declaraciones', data: avance.map((a) => a.total), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4, pointRadius: 4, pointHoverRadius: 6 },
+        { label: 'Enviadas', data: avance.map((a) => a.enviadas), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, pointRadius: 4, pointHoverRadius: 6 },
+      ],
+    };
+  }
+
+  get estadoDocenteColor(): Record<string, string> {
+    return {
+      NO_INICIADO: '#94a3b8', BORRADOR: '#f59e0b', PENDIENTE_ENVIO: '#f97316',
+      ENVIADO_DOCENTE: '#3b82f6', OBSERVADO_DPTO: '#ef4444', SUBSANADO: '#a855f7',
+      VALIDADO_DPTO: '#06b6d4', OBSERVADO_FACULTAD: '#ef4444', APROBADO_FACULTAD: '#10b981',
+      CERRADO: '#64748b', ANULADO: '#6b7280',
+    };
   }
 
   generarHorario(): void {

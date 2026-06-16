@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as admin from 'firebase-admin';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Docente } from '../entities/docente.entity';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as admin from "firebase-admin";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Docente } from "../entities/docente.entity";
 
 @Injectable()
 export class FirebasePushService {
@@ -17,22 +17,24 @@ export class FirebasePushService {
   ) {
     // Inicializar Firebase Admin
     const serviceAccountPath = this.configService.get<string>(
-      'FIREBASE_SERVICE_ACCOUNT_PATH',
+      "FIREBASE_SERVICE_ACCOUNT_PATH",
     );
-    
+
     if (serviceAccountPath) {
       try {
         const serviceAccount = require(serviceAccountPath);
         this.app = admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
         });
-        this.logger.log('Firebase Admin inicializado correctamente');
+        this.logger.log("Firebase Admin inicializado correctamente");
       } catch (error) {
-        this.logger.error('Error al inicializar Firebase Admin:', error);
+        this.logger.error("Error al inicializar Firebase Admin:", error);
         this.app = null as any;
       }
     } else {
-      this.logger.warn('FIREBASE_SERVICE_ACCOUNT_PATH no configurado, Firebase Push deshabilitado');
+      this.logger.warn(
+        "FIREBASE_SERVICE_ACCOUNT_PATH no configurado, Firebase Push deshabilitado",
+      );
       this.app = null as any;
     }
   }
@@ -44,7 +46,7 @@ export class FirebasePushService {
     datos?: Record<string, unknown>,
   ): Promise<{ exito: boolean; error?: string }> {
     if (!this.app) {
-      return { exito: false, error: 'Firebase no inicializado' };
+      return { exito: false, error: "Firebase no inicializado" };
     }
 
     try {
@@ -53,7 +55,7 @@ export class FirebasePushService {
       });
 
       if (!docente || !docente.firebase_token) {
-        return { exito: false, error: 'Docente no tiene token Firebase' };
+        return { exito: false, error: "Docente no tiene token Firebase" };
       }
 
       const message: admin.messaging.Message = {
@@ -64,9 +66,9 @@ export class FirebasePushService {
         token: docente.firebase_token,
         data: datos as Record<string, string>,
         android: {
-          priority: 'high',
+          priority: "high",
           notification: {
-            channelId: 'horarios_unt',
+            channelId: "horarios_unt",
           },
         },
         apns: {
@@ -76,7 +78,7 @@ export class FirebasePushService {
                 title: titulo,
                 body: cuerpo,
               },
-              sound: 'default',
+              sound: "default",
               badge: 1,
             },
           },
@@ -84,17 +86,22 @@ export class FirebasePushService {
       };
 
       const response = await admin.messaging().send(message);
-      this.logger.log(`Notificación enviada a docente ${docenteId}: ${response}`);
+      this.logger.log(
+        `Notificación enviada a docente ${docenteId}: ${response}`,
+      );
 
       return { exito: true };
     } catch (error: any) {
       // Si el token es inválido, limpiarlo
-      if (error.code === 'messaging/registration-token-not-registered') {
+      if (error.code === "messaging/registration-token-not-registered") {
         await this.docenteRepo.update(docenteId, { firebase_token: null });
         this.logger.warn(`Token inválido para docente ${docenteId}, eliminado`);
       }
 
-      this.logger.error(`Error enviando notificación a docente ${docenteId}:`, error);
+      this.logger.error(
+        `Error enviando notificación a docente ${docenteId}:`,
+        error,
+      );
       return { exito: false, error: error.message };
     }
   }
@@ -126,21 +133,24 @@ export class FirebasePushService {
       tokens: tokensValidos,
       data: datos as Record<string, string>,
       android: {
-        priority: 'high',
+        priority: "high",
         notification: {
-          channelId: 'horarios_unt',
+          channelId: "horarios_unt",
         },
       },
     };
 
     try {
       const response = await admin.messaging().sendMulticast(message);
-      
+
       // Limpiar tokens inválidos
       if (response.failureCount > 0) {
         const tokensAEliminar: string[] = [];
         response.responses.forEach((resp, idx) => {
-          if (!resp.success && resp.error?.code === 'messaging/registration-token-not-registered') {
+          if (
+            !resp.success &&
+            resp.error?.code === "messaging/registration-token-not-registered"
+          ) {
             tokensAEliminar.push(tokensValidos[idx]);
           }
         });
@@ -150,9 +160,13 @@ export class FirebasePushService {
             .createQueryBuilder()
             .update(Docente)
             .set({ firebase_token: null })
-            .where('firebase_token IN (:...tokens)', { tokens: tokensAEliminar })
+            .where("firebase_token IN (:...tokens)", {
+              tokens: tokensAEliminar,
+            })
             .execute();
-          this.logger.log(`Eliminados ${tokensAEliminar.length} tokens inválidos`);
+          this.logger.log(
+            `Eliminados ${tokensAEliminar.length} tokens inválidos`,
+          );
         }
       }
 
@@ -165,7 +179,7 @@ export class FirebasePushService {
         errores: response.failureCount,
       };
     } catch (error: any) {
-      this.logger.error('Error enviando notificación masiva:', error);
+      this.logger.error("Error enviando notificación masiva:", error);
       return { exititos: 0, errores: docenteIds.length };
     }
   }
@@ -179,7 +193,10 @@ export class FirebasePushService {
       this.logger.log(`Token registrado para docente ${docenteId}`);
       return { exito: true };
     } catch (error: any) {
-      this.logger.error(`Error registrando token para docente ${docenteId}:`, error);
+      this.logger.error(
+        `Error registrando token para docente ${docenteId}:`,
+        error,
+      );
       return { exito: false, error: error.message };
     }
   }
@@ -190,7 +207,10 @@ export class FirebasePushService {
       this.logger.log(`Token eliminado para docente ${docenteId}`);
       return { exito: true };
     } catch (error: any) {
-      this.logger.error(`Error eliminando token para docente ${docenteId}:`, error);
+      this.logger.error(
+        `Error eliminando token para docente ${docenteId}:`,
+        error,
+      );
       return { exito: false };
     }
   }

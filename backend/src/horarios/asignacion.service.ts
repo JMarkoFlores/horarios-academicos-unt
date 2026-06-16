@@ -961,10 +961,7 @@ export class AsignacionService {
       }
 
       // 3. Actualizar ambiente si ha cambiado
-      if (
-        dto.ambienteId &&
-        dto.ambienteId !== asignacion.ambiente_id
-      ) {
+      if (dto.ambienteId && dto.ambienteId !== asignacion.ambiente_id) {
         await manager.update(
           HorarioAsignado,
           { id: asignacionId },
@@ -976,7 +973,7 @@ export class AsignacionService {
       await this.auditoriaService.registrar({
         horario_id: asignacionId,
         usuario_id: usuario.id,
-        accion: 'actualizar_asignacion',
+        accion: "actualizar_asignacion",
         datos_anteriores: {
           ambiente_id: asignacion.ambiente_id,
           dia: asignacion.dia,
@@ -984,7 +981,7 @@ export class AsignacionService {
           hora_fin: asignacion.hora_fin,
         },
         datos_nuevos: { asignacionId, ...dto },
-        ip: 'unknown',
+        ip: "unknown",
       });
 
       return manager.find(HorarioAsignado, {

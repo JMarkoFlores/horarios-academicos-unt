@@ -256,14 +256,123 @@
       </mat-card-content>
     </mat-card>
 
+    <!-- CARGA ADICIONAL -->
+    <mat-card class="seccion-card carga-adicional-card">
+      <mat-card-header class="header-carga-adicional">
+        <mat-card-title>
+          <mat-icon>add_task</mat-icon>
+          Carga Lectiva Adicional
+        </mat-card-title>
+        <button mat-icon-button (click)="mostrandoCargaAdicional = !mostrandoCargaAdicional" class="btn-toggle">
+          <mat-icon>{{ mostrandoCargaAdicional ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
+      </mat-card-header>
+      <mat-card-content *ngIf="mostrandoCargaAdicional">
+        <div class="carga-adicional-info">
+          <p class="info-text">Registro de actividades adicionales fuera de la asignación regular (comisiones, proyectos especiales, cargos de gobierno).</p>
+        </div>
+        <table class="carga-adicional-table" *ngIf="cargaAdicional.length > 0">
+          <thead>
+            <tr>
+              <th>Dependencia</th>
+              <th>Actividad</th>
+              <th>Fechas</th>
+              <th>Horario</th>
+              <th>Horas</th>
+              <th>Unidad Académica</th>
+              <th>Resolución</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let ca of cargaAdicional">
+              <td>{{ ca.dependencia }}</td>
+              <td>{{ ca.actividad }}</td>
+              <td>{{ ca.fecha_inicio | date:'dd/MM/yyyy' }} - {{ ca.fecha_fin | date:'dd/MM/yyyy' }}</td>
+              <td>
+                <span *ngIf="ca.horario_semanal && ca.horario_semanal.length > 0">
+                  {{ formatHorarioSemanal(ca) }}
+                </span>
+                <span *ngIf="!ca.horario_semanal || ca.horario_semanal.length === 0">Sin horario</span>
+              </td>
+              <td>{{ ca.total_horas }}h</td>
+              <td>{{ ca.unidad_academica }}</td>
+              <td>{{ ca.resolucion || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="carga-adicional-empty" *ngIf="cargaAdicional.length === 0">
+          <mat-icon>assignment</mat-icon>
+          <p>No hay carga adicional registrada</p>
+        </div>
+        <div class="carga-adicional-subtotal">
+          <span class="subtotal-label">Subtotal Carga Adicional:</span>
+          <span class="subtotal-value">{{ totalHorasCargaAdicional }}h</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
     <!-- TOTAL HORAS -->
     <div class="total-horas-bar" [class.total-excede]="totalHoras > horasModalidad">
-      <span class="total-label">Total General (Lectivas + No Lectivas):</span>
+      <span class="total-label">Total General (Lectivas + No Lectivas + Adicional):</span>
       <span class="total-value">{{ totalHoras }}h</span>
       <span class="total-modalidad">de {{ horasModalidad }}h disponibles ({{ gaugePercent }}%)</span>
       <mat-icon *ngIf="totalHoras > horasModalidad" class="total-warn-icon">warning</mat-icon>
       <span *ngIf="totalHoras > horasModalidad" class="total-warn-text">Excede la modalidad del docente</span>
     </div>
+
+    <!-- DECLARACIÓN JURADA F02-CAD -->
+    <mat-card class="seccion-card declaracion-jurada-card" *ngIf="estadoDeclaracion !== 'NO_INICIADO' && estadoDeclaracion !== 'BORRADOR'">
+      <mat-card-header class="header-jurada">
+        <mat-card-title>
+          <mat-icon>gavel</mat-icon>
+          Declaración Jurada de Incompatibilidad (F02-CAD)
+        </mat-card-title>
+        <span class="subtitle">
+          <span *ngIf="cargandoDeclaracionJurada">
+            <mat-spinner diameter="16" style="display: inline-block; margin-right: 8px;"></mat-spinner>
+            Cargando...
+          </span>
+          <span *ngIf="!cargandoDeclaracionJurada && declaracionJurada" class="jurada-generada-badge">
+            <mat-icon>check_circle</mat-icon>
+            Generada {{ declaracionJurada.generada_en | date:'dd/MM/yyyy HH:mm' }}
+          </span>
+          <span *ngIf="!cargandoDeclaracionJurada && !declaracionJurada" class="jurada-pendiente-badge">
+            <mat-icon>pending</mat-icon>
+            Pendiente
+          </span>
+        </span>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="jurada-preview" *ngIf="!declaracionJurada">
+          <p class="jurada-texto">{{ textoDeclaracionJurada }}</p>
+
+          <mat-checkbox [(ngModel)]="aceptaDeclaracionJurada" color="primary" class="jurada-checkbox">
+            Declaro bajo juramento que los datos consignados son verdaderos y correctos
+          </mat-checkbox>
+
+          <div class="jurada-actions">
+            <button mat-raised-button color="primary" (click)="generarDeclaracionJuradaPDF()"
+              [disabled]="!aceptaDeclaracionJurada || generandoDeclaracionJurada">
+              <mat-icon *ngIf="!generandoDeclaracionJurada">picture_as_pdf</mat-icon>
+              <mat-spinner *ngIf="generandoDeclaracionJurada" diameter="20"></mat-spinner>
+              {{ generandoDeclaracionJurada ? 'Generando...' : 'Generar y Descargar PDF' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="jurada-existente" *ngIf="declaracionJurada">
+          <div class="jurada-info">
+            <p><strong>Tipo:</strong> {{ declaracionJurada.tipo_declaracion }}</p>
+            <p><strong>Generada:</strong> {{ declaracionJurada.generada_en | date:'dd/MM/yyyy HH:mm' }}</p>
+            <p><strong>Estado:</strong> {{ declaracionJurada.estado }}</p>
+          </div>
+          <button mat-raised-button color="primary" (click)="descargarDeclaracionJuradaExistente()">
+            <mat-icon>download</mat-icon>
+            Descargar PDF
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
 
     <!-- OBSERVACIONES -->
     <mat-card class="observaciones-card" *ngIf="observaciones.length > 0">
@@ -348,9 +457,13 @@
           {{ isDecano ? 'Aprobar (Decano)' : 'Validar (Director)' }}
         </button>
 
-        <button *ngIf="estadoDeclaracion !== 'NO_INICIADO' && estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="warn" class="btn-pdf" (click)="generarPDF()">
-          <mat-icon>picture_as_pdf</mat-icon>
-          Generar PDF
+        <button *ngIf="estadoDeclaracion !== 'NO_INICIADO' && estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="warn" class="btn-pdf" (click)="generarPDF('declaracion')" matTooltip="F01-CAD: Declaración de carga horaria">
+          <mat-icon>description</mat-icon>
+          F01-CAD
+        </button>
+        <button *ngIf="estadoDeclaracion !== 'NO_INICIADO' && estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="primary" class="btn-f03" (click)="generarPDF('f03cad')" matTooltip="F03-CAD: Horario semanal docente">
+          <mat-icon>calendar_month</mat-icon>
+          F03-CAD
         </button>
       </div>
     </div>

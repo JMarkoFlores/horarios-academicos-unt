@@ -1,15 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { CampañaVentanas } from '../../entities/campaña-ventanas.entity';
-import { PeriodoAcademico } from '../../entities/periodo-academico.entity';
-import { VentanaAtencion, EstadoVentanaAtencion } from '../../entities/ventana-atencion.entity';
-import { Docente } from '../../entities/docente.entity';
-import { DiaNoLaborable } from '../../entities/dia-no-laborable.entity';
-import { CrearCampañaDto } from './dto/crear-campaña.dto';
-import { EstadoCampaña } from '../../common/enums/estado-campaña.enum';
-import { EstadoCola } from '../../entities/cola-docentes.entity';
-import { ReglasPrioridadGlobalesService } from './reglas-prioridad.service';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { CampañaVentanas } from "../../entities/campaña-ventanas.entity";
+import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
+import {
+  VentanaAtencion,
+  EstadoVentanaAtencion,
+} from "../../entities/ventana-atencion.entity";
+import { Docente } from "../../entities/docente.entity";
+import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
+import { CrearCampañaDto } from "./dto/crear-campaña.dto";
+import { EstadoCampaña } from "../../common/enums/estado-campaña.enum";
+import { EstadoCola } from "../../entities/cola-docentes.entity";
+import { ReglasPrioridadGlobalesService } from "./reglas-prioridad.service";
 
 @Injectable()
 export class CampañasVentanasService {
@@ -29,19 +37,26 @@ export class CampañasVentanasService {
     private readonly reglasPrioridadService: ReglasPrioridadGlobalesService,
   ) {}
 
-  async crearCampaña(dto: CrearCampañaDto, usuarioId: number): Promise<CampañaVentanas> {
+  async crearCampaña(
+    dto: CrearCampañaDto,
+    usuarioId: number,
+  ): Promise<CampañaVentanas> {
     this.logger.log(`[crearCampaña] Creando campaña: ${dto.nombre}`);
-    this.logger.log(`[crearCampaña] dias_habilitados recibido: ${JSON.stringify(dto.dias_habilitados)}, tipo: ${typeof dto.dias_habilitados}`);
+    this.logger.log(
+      `[crearCampaña] dias_habilitados recibido: ${JSON.stringify(dto.dias_habilitados)}, tipo: ${typeof dto.dias_habilitados}`,
+    );
 
     // Validar período
-    const periodo = await this.periodoRepo.findOne({ where: { id: dto.idPeriodo } });
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: dto.idPeriodo },
+    });
     if (!periodo) {
       throw new NotFoundException(`Período ${dto.idPeriodo} no encontrado`);
     }
 
     // Validar fechas (crearlas en la zona horaria local para evitar errores
     const parsearFecha = (fechaStr: string): Date => {
-      const partes = fechaStr.split('-');
+      const partes = fechaStr.split("-");
       if (partes.length !== 3) {
         throw new BadRequestException(`Fecha inválida: ${fechaStr}`);
       }
@@ -56,26 +71,43 @@ export class CampañasVentanasService {
     const fechaInicio = parsearFecha(dto.fecha_inicio);
     const fechaFin = parsearFecha(dto.fecha_fin);
     if (fechaInicio >= fechaFin) {
-      throw new BadRequestException('La fecha de inicio debe ser anterior a la fecha fin');
+      throw new BadRequestException(
+        "La fecha de inicio debe ser anterior a la fecha fin",
+      );
     }
 
     // Validar bloques horarios
     if (!dto.bloques_horarios || dto.bloques_horarios.length === 0) {
-      throw new BadRequestException('Debe especificar al menos un bloque horario');
+      throw new BadRequestException(
+        "Debe especificar al menos un bloque horario",
+      );
     }
 
     // Validar días hábiles
-    const diasHabilitados = dto.dias_habilitados ?? ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+    const diasHabilitados = dto.dias_habilitados ?? [
+      "LUNES",
+      "MARTES",
+      "MIERCOLES",
+      "JUEVES",
+      "VIERNES",
+      "SABADO",
+    ];
     if (diasHabilitados.length === 0) {
-      throw new BadRequestException('Debe especificar al menos un día hábil');
+      throw new BadRequestException("Debe especificar al menos un día hábil");
     }
 
     // Contar docentes activos
-    const totalDocentes = await this.docenteRepo.count({ where: { activo: true } });
-    this.logger.log(`[crearCampaña] Total de docentes activos: ${totalDocentes}`);
+    const totalDocentes = await this.docenteRepo.count({
+      where: { activo: true },
+    });
+    this.logger.log(
+      `[crearCampaña] Total de docentes activos: ${totalDocentes}`,
+    );
 
     if (totalDocentes === 0) {
-      throw new BadRequestException('No hay docentes activos para generar la campaña');
+      throw new BadRequestException(
+        "No hay docentes activos para generar la campaña",
+      );
     }
 
     // Crear un objeto temporal para calcular la capacidad
@@ -96,30 +128,42 @@ export class CampañasVentanasService {
       diasHabilitados,
       dto.excluir_feriados ?? true,
     );
-    this.logger.log(`[crearCampaña] Días hábiles disponibles: ${diasHabilitadosCalculados.length}`);
+    this.logger.log(
+      `[crearCampaña] Días hábiles disponibles: ${diasHabilitadosCalculados.length}`,
+    );
 
     const capacidadTotal = capacidadPorDia * diasHabilitadosCalculados.length;
-    this.logger.log(`[crearCampaña] Capacidad por día: ${capacidadPorDia}, Capacidad total: ${capacidadTotal}`);
+    this.logger.log(
+      `[crearCampaña] Capacidad por día: ${capacidadPorDia}, Capacidad total: ${capacidadTotal}`,
+    );
 
     // Validar que la capacidad sea suficiente
     if (capacidadTotal < totalDocentes) {
       throw new BadRequestException(
         `Capacidad insuficiente: tienes ${totalDocentes} docentes activos, pero la capacidad total es de ${capacidadTotal} docentes. ` +
-        `Aumenta los días hábiles, los bloques horarios, o reduce la duración del turno + buffer.`
+          `Aumenta los días hábiles, los bloques horarios, o reduce la duración del turno + buffer.`,
       );
     }
 
     // Calcular ventanas necesarias
     const diasNecesarios = Math.ceil(totalDocentes / capacidadPorDia);
-    const ventanasNecesarias = diasNecesarios * tempCampaña.bloques_horarios.length; // días × bloques
-    const ventanasReserva = Math.ceil(ventanasNecesarias * ((dto.porcentaje_reserva ?? 15) / 100));
+    const ventanasNecesarias =
+      diasNecesarios * tempCampaña.bloques_horarios.length; // días × bloques
+    const ventanasReserva = Math.ceil(
+      ventanasNecesarias * ((dto.porcentaje_reserva ?? 15) / 100),
+    );
     const totalVentanasRecomendadas = ventanasNecesarias + ventanasReserva;
-    const totalVentanasPosibles = diasHabilitadosCalculados.length * tempCampaña.bloques_horarios.length;
-    
-    this.logger.log(`[crearCampaña] Ventanas necesarias: ${ventanasNecesarias}, reserva: ${ventanasReserva}, total recomendado: ${totalVentanasRecomendadas}, total posibles: ${totalVentanasPosibles}`);
+    const totalVentanasPosibles =
+      diasHabilitadosCalculados.length * tempCampaña.bloques_horarios.length;
+
+    this.logger.log(
+      `[crearCampaña] Ventanas necesarias: ${ventanasNecesarias}, reserva: ${ventanasReserva}, total recomendado: ${totalVentanasRecomendadas}, total posibles: ${totalVentanasPosibles}`,
+    );
 
     if (totalVentanasRecomendadas > totalVentanasPosibles) {
-      this.logger.warn(`[crearCampaña] Las ventanas recomendadas (${totalVentanasRecomendadas}) superan las posibles (${totalVentanasPosibles})`);
+      this.logger.warn(
+        `[crearCampaña] Las ventanas recomendadas (${totalVentanasRecomendadas}) superan las posibles (${totalVentanasPosibles})`,
+      );
     }
 
     // Validar que no haya una campaña activa para el mismo período
@@ -131,7 +175,9 @@ export class CampañasVentanasService {
     });
 
     if (campañaActiva) {
-      throw new BadRequestException('Ya existe una campaña en curso para este período');
+      throw new BadRequestException(
+        "Ya existe una campaña en curso para este período",
+      );
     }
 
     const campaña = this.campañaRepo.create({
@@ -149,13 +195,13 @@ export class CampañasVentanasService {
       cupos_maximos_ventana: dto.cupos_maximos_ventana ?? 20,
       porcentaje_reserva: dto.porcentaje_reserva ?? 15,
       reglas_prioridad: dto.reglas_prioridad ?? [
-        { campo: 'tipo_contrato', orden: 'DESC' },
-        { campo: 'categoria', orden: 'DESC' },
-        { campo: 'modalidad', orden: 'DESC' },
-        { campo: 'fecha_ingreso', orden: 'ASC' },
-        { campo: 'horas_asignadas', orden: 'ASC' },
-        { campo: 'codigo', orden: 'ASC' },
-        { campo: 'apellidos', orden: 'ASC' },
+        { campo: "tipo_contrato", orden: "DESC" },
+        { campo: "categoria", orden: "DESC" },
+        { campo: "modalidad", orden: "DESC" },
+        { campo: "fecha_ingreso", orden: "ASC" },
+        { campo: "horas_asignadas", orden: "ASC" },
+        { campo: "codigo", orden: "ASC" },
+        { campo: "apellidos", orden: "ASC" },
       ],
       excluir_feriados: dto.excluir_feriados ?? true,
       excluir_eventos: dto.excluir_eventos ?? true,
@@ -167,11 +213,13 @@ export class CampañasVentanasService {
   }
 
   async generarVentanas(campañaId: string): Promise<VentanaAtencion[]> {
-    this.logger.log(`[generarVentanas] Generando ventanas para campaña: ${campañaId}`);
+    this.logger.log(
+      `[generarVentanas] Generando ventanas para campaña: ${campañaId}`,
+    );
 
     const campaña = await this.campañaRepo.findOne({
       where: { id: campañaId },
-      relations: ['periodo'],
+      relations: ["periodo"],
     });
 
     if (!campaña) {
@@ -179,7 +227,9 @@ export class CampañasVentanasService {
     }
 
     if (campaña.estado !== EstadoCampaña.BORRADOR) {
-      throw new BadRequestException('Solo se pueden generar ventanas para campañas en estado BORRADOR');
+      throw new BadRequestException(
+        "Solo se pueden generar ventanas para campañas en estado BORRADOR",
+      );
     }
 
     // Función para parsear fechas robustamente
@@ -187,7 +237,7 @@ export class CampañasVentanasService {
       if (fechaStr instanceof Date) {
         return fechaStr;
       }
-      const partes = fechaStr.split('-');
+      const partes = fechaStr.split("-");
       if (partes.length !== 3) {
         throw new BadRequestException(`Fecha inválida: ${fechaStr}`);
       }
@@ -216,21 +266,31 @@ export class CampañasVentanasService {
     });
 
     // Paso 1: Contar total de docentes activos
-    const totalDocentes = await this.docenteRepo.count({ where: { activo: true } });
-    this.logger.log(`[generarVentanas] Total de docentes activos: ${totalDocentes}`);
+    const totalDocentes = await this.docenteRepo.count({
+      where: { activo: true },
+    });
+    this.logger.log(
+      `[generarVentanas] Total de docentes activos: ${totalDocentes}`,
+    );
 
     // Paso 2: Calcular capacidad total por día (suma de todos los bloques)
     const capacidadTotalPorDia = this.calcularCapacidadPorDia(campaña);
-    this.logger.log(`[generarVentanas] Capacidad total por día: ${capacidadTotalPorDia}`);
+    this.logger.log(
+      `[generarVentanas] Capacidad total por día: ${capacidadTotalPorDia}`,
+    );
 
     // Paso 3: Calcular ventanas necesarias según fórmula de capacidad
     // diasNecesarios = cuántos días hacen falta para acomodar a todos los docentes
     const diasNecesarios = Math.ceil(totalDocentes / capacidadTotalPorDia);
     // ventanasNecesarias = días × bloques (cada día genera N ventanas, una por bloque)
     const ventanasNecesarias = diasNecesarios * campaña.bloques_horarios.length;
-    const ventanasReserva = Math.ceil(ventanasNecesarias * (campaña.porcentaje_reserva / 100));
+    const ventanasReserva = Math.ceil(
+      ventanasNecesarias * (campaña.porcentaje_reserva / 100),
+    );
     const totalVentanas = ventanasNecesarias + ventanasReserva;
-    this.logger.log(`[generarVentanas] Días necesarios: ${diasNecesarios}, ventanas base: ${ventanasNecesarias}, reserva: ${ventanasReserva}, total: ${totalVentanas}`);
+    this.logger.log(
+      `[generarVentanas] Días necesarios: ${diasNecesarios}, ventanas base: ${ventanasNecesarias}, reserva: ${ventanasReserva}, total: ${totalVentanas}`,
+    );
 
     // Paso 4: Obtener días hábiles en el rango de fechas
     const diasHabilitados = this.obtenerDiasHabilitados(
@@ -239,14 +299,19 @@ export class CampañasVentanasService {
       campaña.dias_habilitados,
       campaña.excluir_feriados,
     );
-    this.logger.log(`[generarVentanas] Días hábiles disponibles: ${diasHabilitados.length}`);
+    this.logger.log(
+      `[generarVentanas] Días hábiles disponibles: ${diasHabilitados.length}`,
+    );
 
-    const totalVentanasPosibles = diasHabilitados.length * campaña.bloques_horarios.length;
-    this.logger.log(`[generarVentanas] Total de ventanas posibles: ${totalVentanasPosibles} (${diasHabilitados.length} días × ${campaña.bloques_horarios.length} bloques)`);
-    
+    const totalVentanasPosibles =
+      diasHabilitados.length * campaña.bloques_horarios.length;
+    this.logger.log(
+      `[generarVentanas] Total de ventanas posibles: ${totalVentanasPosibles} (${diasHabilitados.length} días × ${campaña.bloques_horarios.length} bloques)`,
+    );
+
     if (totalVentanas > totalVentanasPosibles) {
       throw new BadRequestException(
-        `No hay suficientes días y bloques horarios (${totalVentanasPosibles} ventanas posibles) para generar ${totalVentanas} ventanas. Extienda el rango de fechas, agregue más bloques horarios o reduzca el porcentaje de reserva.`
+        `No hay suficientes días y bloques horarios (${totalVentanasPosibles} ventanas posibles) para generar ${totalVentanas} ventanas. Extienda el rango de fechas, agregue más bloques horarios o reduzca el porcentaje de reserva.`,
       );
     }
 
@@ -255,56 +320,70 @@ export class CampañasVentanasService {
     let reglasPrioridad;
     if (campaña.reglas_prioridad && campaña.reglas_prioridad.length > 0) {
       reglasPrioridad = campaña.reglas_prioridad;
-      this.logger.log(`[generarVentanas] Usando reglas específicas de la campaña`);
+      this.logger.log(
+        `[generarVentanas] Usando reglas específicas de la campaña`,
+      );
     } else {
       try {
-        const reglasGlobales = await this.reglasPrioridadService.obtenerReglasActivas();
+        const reglasGlobales =
+          await this.reglasPrioridadService.obtenerReglasActivas();
         reglasPrioridad = reglasGlobales.reglas;
-        this.logger.log(`[generarVentanas] Usando reglas globales de la base de datos`);
+        this.logger.log(
+          `[generarVentanas] Usando reglas globales de la base de datos`,
+        );
       } catch (error) {
         // Fallback a reglas por defecto si no hay reglas globales
         reglasPrioridad = [
-          { campo: 'tipo_contrato', orden: 'DESC' as const },
-          { campo: 'categoria', orden: 'DESC' as const },
-          { campo: 'modalidad', orden: 'DESC' as const },
-          { campo: 'fecha_ingreso', orden: 'ASC' as const },
-          { campo: 'horas_asignadas', orden: 'ASC' as const },
-          { campo: 'codigo', orden: 'ASC' as const },
-          { campo: 'apellidos', orden: 'ASC' as const },
+          { campo: "tipo_contrato", orden: "DESC" as const },
+          { campo: "categoria", orden: "DESC" as const },
+          { campo: "modalidad", orden: "DESC" as const },
+          { campo: "fecha_ingreso", orden: "ASC" as const },
+          { campo: "horas_asignadas", orden: "ASC" as const },
+          { campo: "codigo", orden: "ASC" as const },
+          { campo: "apellidos", orden: "ASC" as const },
         ];
-        this.logger.log(`[generarVentanas] Usando reglas por defecto (normativa UNT)`);
+        this.logger.log(
+          `[generarVentanas] Usando reglas por defecto (normativa UNT)`,
+        );
       }
     }
     this.logger.log(`[generarVentanas] Reglas de prioridad:`, reglasPrioridad);
 
-    const docentesOrdenados = await this.obtenerDocentesOrdenados(reglasPrioridad, totalDocentes);
-    this.logger.log(`[generarVentanas] Docentes ordenados: ${docentesOrdenados.length}`);
+    const docentesOrdenados = await this.obtenerDocentesOrdenados(
+      reglasPrioridad,
+      totalDocentes,
+    );
+    this.logger.log(
+      `[generarVentanas] Docentes ordenados: ${docentesOrdenados.length}`,
+    );
 
     // Paso 6: Generar ventanas y distribuir docentes respetando orden jerárquico
     const ventanas: VentanaAtencion[] = [];
     const ventanasPorFecha = new Map<string, VentanaAtencion[]>();
-    
+
     // Primero generar todas las ventanas sin docentes
     let ventanaIndex = 0;
     for (const fecha of diasHabilitados) {
       if (ventanaIndex >= totalVentanas) {
         break;
       }
-      
-      const fechaStr = fecha.toISOString().split('T')[0];
-      
+
+      const fechaStr = fecha.toISOString().split("T")[0];
+
       for (const bloque of campaña.bloques_horarios) {
         if (ventanaIndex >= totalVentanas) {
           break;
         }
-        
+
         const esContingencia = ventanaIndex >= ventanasNecesarias;
-        this.logger.log(`[generarVentanas] Generando ventana ${ventanaIndex + 1}/${totalVentanas} para ${fechaStr} ${bloque.hora_inicio}-${bloque.hora_fin} (${esContingencia ? 'CONTINGENCIA' : 'BASE'})`);
-        
+        this.logger.log(
+          `[generarVentanas] Generando ventana ${ventanaIndex + 1}/${totalVentanas} para ${fechaStr} ${bloque.hora_inicio}-${bloque.hora_fin} (${esContingencia ? "CONTINGENCIA" : "BASE"})`,
+        );
+
         const ventana = this.ventanaRepo.create({
           periodo: campaña.periodo.codigo,
           fecha: fecha,
-          proposito: 'DECLARACION',
+          proposito: "DECLARACION",
           modalidad: null,
           hora_inicio: bloque.hora_inicio,
           hora_fin: bloque.hora_fin,
@@ -315,79 +394,93 @@ export class CampañasVentanasService {
 
         const savedVentana = await this.ventanaRepo.save(ventana);
         ventanas.push(savedVentana);
-        
+
         // Agrupar ventanas por fecha
         if (!ventanasPorFecha.has(fechaStr)) {
           ventanasPorFecha.set(fechaStr, []);
         }
         ventanasPorFecha.get(fechaStr)!.push(savedVentana);
-        
+
         ventanaIndex++;
       }
     }
-    
+
     // Distribuir docentes respetando orden jerárquico y equitativamente
     // LOS DOCENTES YA ESTÁN ORDENADOS COMPLETAMENTE por todas las reglas de prioridad
-    this.logger.log(`[generarVentanas] Distribuyendo ${docentesOrdenados.length} docentes respetando orden jerárquico y equitativamente`);
-    
+    this.logger.log(
+      `[generarVentanas] Distribuyendo ${docentesOrdenados.length} docentes respetando orden jerárquico y equitativamente`,
+    );
+
     // Creamos un array para cada ventana donde pondremos los docentes
     const docentesPorVentana: Docente[][] = [];
     ventanas.forEach(() => docentesPorVentana.push([]));
-    
-    const duracionTurno = campaña.duracion_turno_minutos + campaña.buffer_minutos;
-    this.logger.log(`[generarVentanas] Duración turno (con buffer): ${duracionTurno} min`);
-    
+
+    const duracionTurno =
+      campaña.duracion_turno_minutos + campaña.buffer_minutos;
+    this.logger.log(
+      `[generarVentanas] Duración turno (con buffer): ${duracionTurno} min`,
+    );
+
     // Calcular cuántos docentes por ventana para distribución equitativa
     const numDocentes = docentesOrdenados.length;
     const numVentanas = ventanas.length;
     const docentesPorVentanaMin = Math.floor(numDocentes / numVentanas);
     const docentesExtra = numDocentes % numVentanas;
-    
-    this.logger.log(`[generarVentanas] Distribución equitativa: ${docentesPorVentanaMin} docentes por ventana, ${docentesExtra} ventanas con 1 extra`);
-    
+
+    this.logger.log(
+      `[generarVentanas] Distribución equitativa: ${docentesPorVentanaMin} docentes por ventana, ${docentesExtra} ventanas con 1 extra`,
+    );
+
     // DIVIDIR LA LISTA COMPLETA ORDENADA DE FORMA EQUITATIVA entre todas las ventanas
     // Ejemplo: 28 docentes, 3 ventanas → 10, 9, 9
     let docenteIndex = 0;
     for (let v = 0; v < numVentanas; v++) {
-      const numDocentesEstaVentana = v < docentesExtra ? docentesPorVentanaMin + 1 : docentesPorVentanaMin;
-      
+      const numDocentesEstaVentana =
+        v < docentesExtra ? docentesPorVentanaMin + 1 : docentesPorVentanaMin;
+
       for (let i = 0; i < numDocentesEstaVentana; i++) {
         if (docenteIndex >= numDocentes) {
           break;
         }
-        
+
         const docente = docentesOrdenados[docenteIndex];
-        
+
         // Verificar si la ventana tiene espacio (solo como seguridad)
         if (docentesPorVentana[v].length < campaña.cupos_maximos_ventana) {
           docentesPorVentana[v].push(docente);
           const ventana = ventanas[v];
-          this.logger.log(`[generarVentanas] Asignando docente ${docente.nombres} ${docente.apellidos} (${docente.categoria}) a ventana ${ventana.id} (orden ${docentesPorVentana[v].length})`);
+          this.logger.log(
+            `[generarVentanas] Asignando docente ${docente.nombres} ${docente.apellidos} (${docente.categoria}) a ventana ${ventana.id} (orden ${docentesPorVentana[v].length})`,
+          );
         }
-        
+
         docenteIndex++;
       }
     }
-    
+
     // Log de distribución final
-    this.logger.log(`[generarVentanas] Distribución final de docentes por ventana:`);
+    this.logger.log(
+      `[generarVentanas] Distribución final de docentes por ventana:`,
+    );
     for (let v = 0; v < ventanas.length; v++) {
-      this.logger.log(`[generarVentanas]   Ventana ${v + 1} (${ventanas[v].fecha.toISOString().split('T')[0]} ${ventanas[v].hora_inicio}-${ventanas[v].hora_fin}): ${docentesPorVentana[v].length} docentes`);
+      this.logger.log(
+        `[generarVentanas]   Ventana ${v + 1} (${ventanas[v].fecha.toISOString().split("T")[0]} ${ventanas[v].hora_inicio}-${ventanas[v].hora_fin}): ${docentesPorVentana[v].length} docentes`,
+      );
     }
-    
+
     // Ahora, creamos las entradas en la BD con el orden correcto
     for (let v = 0; v < ventanas.length; v++) {
       const ventana = ventanas[v];
       const docentesEnEstaVentana = docentesPorVentana[v];
-      
+
       for (let o = 0; o < docentesEnEstaVentana.length; o++) {
         const docente = docentesEnEstaVentana[o];
         const orden = o + 1;
-        
+
         await this.ventanaRepo
           .createQueryBuilder()
           .insert()
-          .into('cola_docentes')
+          .into("cola_docentes")
           .values({
             ventana_id: ventana.id,
             docente_id: docente.id,
@@ -400,13 +493,13 @@ export class CampañasVentanasService {
 
     // Calcular docentes únicos asignados
     const docentesUnicos = await this.ventanaRepo
-      .createQueryBuilder('ventana')
-      .innerJoin('ventana.colas', 'cola')
-      .select('COUNT(DISTINCT cola.docente_id)', 'count')
-      .where('ventana.campaña_id = :id', { id: campañaId })
+      .createQueryBuilder("ventana")
+      .innerJoin("ventana.colas", "cola")
+      .select("COUNT(DISTINCT cola.docente_id)", "count")
+      .where("ventana.campaña_id = :id", { id: campañaId })
       .getRawOne();
 
-    const totalDocentesUnicos = parseInt(docentesUnicos?.count || '0', 10);
+    const totalDocentesUnicos = parseInt(docentesUnicos?.count || "0", 10);
 
     // Actualizar métricas de la campaña
     campaña.total_ventanas_generadas = ventanas.length;
@@ -414,7 +507,9 @@ export class CampañasVentanasService {
     campaña.estado = EstadoCampaña.GENERADO;
     await this.campañaRepo.save(campaña);
 
-    this.logger.log(`[generarVentanas] Se generaron ${ventanas.length} ventanas (${ventanasNecesarias} base + ${ventanasReserva} contingencia) con ${totalDocentesUnicos} docentes únicos`);
+    this.logger.log(
+      `[generarVentanas] Se generaron ${ventanas.length} ventanas (${ventanasNecesarias} base + ${ventanasReserva} contingencia) con ${totalDocentesUnicos} docentes únicos`,
+    );
     return ventanas;
   }
 
@@ -422,11 +517,13 @@ export class CampañasVentanasService {
     if (campaña.bloques_horarios.length === 0) {
       return 0;
     }
-    const duracionTurno = campaña.duracion_turno_minutos + campaña.buffer_minutos;
+    const duracionTurno =
+      campaña.duracion_turno_minutos + campaña.buffer_minutos;
     return campaña.bloques_horarios.reduce((total, bloque) => {
-      const [horaInicio, minInicio] = bloque.hora_inicio.split(':').map(Number);
-      const [horaFin, minFin] = bloque.hora_fin.split(':').map(Number);
-      const duracionBloque = (horaFin * 60 + minFin) - (horaInicio * 60 + minInicio);
+      const [horaInicio, minInicio] = bloque.hora_inicio.split(":").map(Number);
+      const [horaFin, minFin] = bloque.hora_fin.split(":").map(Number);
+      const duracionBloque =
+        horaFin * 60 + minFin - (horaInicio * 60 + minInicio);
       const capacidadBloque = Math.min(
         Math.floor(duracionBloque / duracionTurno),
         campaña.cupos_maximos_ventana,
@@ -440,9 +537,10 @@ export class CampañasVentanasService {
     duracionTurno: number,
     cuposMaximos: number,
   ): number {
-    const [horaInicio, minInicio] = bloque.hora_inicio.split(':').map(Number);
-    const [horaFin, minFin] = bloque.hora_fin.split(':').map(Number);
-    const duracionBloque = (horaFin * 60 + minFin) - (horaInicio * 60 + minInicio);
+    const [horaInicio, minInicio] = bloque.hora_inicio.split(":").map(Number);
+    const [horaFin, minFin] = bloque.hora_fin.split(":").map(Number);
+    const duracionBloque =
+      horaFin * 60 + minFin - (horaInicio * 60 + minInicio);
     return Math.min(Math.floor(duracionBloque / duracionTurno), cuposMaximos);
   }
 
@@ -459,7 +557,7 @@ export class CampañasVentanasService {
       if (fechaStr instanceof Date) {
         return fechaStr;
       }
-      const partes = fechaStr.split('-');
+      const partes = fechaStr.split("-");
       if (partes.length !== 3) {
         throw new BadRequestException(`Fecha inválida: ${fechaStr}`);
       }
@@ -477,7 +575,10 @@ export class CampañasVentanasService {
     const fechaFinDate = parsearFecha(fechaFin);
 
     // Si diasHabilitados contiene fechas en formato YYYY-MM-DD, usarlas directamente
-    if (diasHabilitados.length > 0 && diasHabilitados[0].match(/^\d{4}-\d{2}-\d{2}$/)) {
+    if (
+      diasHabilitados.length > 0 &&
+      diasHabilitados[0].match(/^\d{4}-\d{2}-\d{2}$/)
+    ) {
       for (const fechaStr of diasHabilitados) {
         const fecha = parsearFecha(fechaStr);
         const fechaInicioNormalizada = this.normalizarFecha(fechaInicioDate);
@@ -500,7 +601,13 @@ export class CampañasVentanasService {
     while (fechaActual <= fechaFinNormalizada) {
       const diaSemana = this.obtenerDiaSemana(fechaActual);
       if (diasHabilitados.includes(diaSemana)) {
-        dias.push(new Date(fechaActual.getFullYear(), fechaActual.getMonth(), fechaActual.getDate()));
+        dias.push(
+          new Date(
+            fechaActual.getFullYear(),
+            fechaActual.getMonth(),
+            fechaActual.getDate(),
+          ),
+        );
       }
       fechaActual = this.siguienteDia(fechaActual);
     }
@@ -527,7 +634,7 @@ export class CampañasVentanasService {
     const ventana = this.ventanaRepo.create({
       periodo: campaña.periodo.codigo,
       fecha: fecha,
-      proposito: 'DECLARACION',
+      proposito: "DECLARACION",
       modalidad: null,
       hora_inicio: bloque.hora_inicio,
       hora_fin: bloque.hora_fin,
@@ -539,12 +646,15 @@ export class CampañasVentanasService {
     const savedVentana = await this.ventanaRepo.save(ventana);
 
     // Asignar docentes a la cola
-    const docentesAsignar = docentesOrdenados.slice(docenteIndex, docenteIndex + capacidad);
+    const docentesAsignar = docentesOrdenados.slice(
+      docenteIndex,
+      docenteIndex + capacidad,
+    );
     for (let i = 0; i < docentesAsignar.length; i++) {
       await this.ventanaRepo
         .createQueryBuilder()
         .insert()
-        .into('cola_docentes')
+        .into("cola_docentes")
         .values({
           ventana_id: savedVentana.id,
           docente_id: docentesAsignar[i].id,
@@ -563,14 +673,15 @@ export class CampañasVentanasService {
     fecha: Date,
   ): Promise<VentanaAtencion | null> {
     // Calcular capacidad del bloque
-    const [horaInicio, minInicio] = bloque.hora_inicio.split(':').map(Number);
-    const [horaFin, minFin] = bloque.hora_fin.split(':').map(Number);
+    const [horaInicio, minInicio] = bloque.hora_inicio.split(":").map(Number);
+    const [horaFin, minFin] = bloque.hora_fin.split(":").map(Number);
 
     const inicioMinutos = horaInicio * 60 + minInicio;
     const finMinutos = horaFin * 60 + minFin;
     const duracionBloque = finMinutos - inicioMinutos;
 
-    const duracionTurno = campaña.duracion_turno_minutos + campaña.buffer_minutos;
+    const duracionTurno =
+      campaña.duracion_turno_minutos + campaña.buffer_minutos;
     const maxDocentes = Math.min(
       Math.floor(duracionBloque / duracionTurno),
       campaña.cupos_maximos_ventana,
@@ -581,7 +692,10 @@ export class CampañasVentanasService {
     }
 
     // Obtener docentes según reglas de prioridad
-    const docentes = await this.obtenerDocentesOrdenados(campaña.reglas_prioridad, maxDocentes);
+    const docentes = await this.obtenerDocentesOrdenados(
+      campaña.reglas_prioridad,
+      maxDocentes,
+    );
 
     if (docentes.length === 0) {
       return null;
@@ -591,7 +705,7 @@ export class CampañasVentanasService {
     const ventana = this.ventanaRepo.create({
       periodo: campaña.periodo.codigo,
       fecha: fecha,
-      proposito: 'DECLARACION',
+      proposito: "DECLARACION",
       modalidad: null,
       hora_inicio: bloque.hora_inicio,
       hora_fin: bloque.hora_fin,
@@ -607,7 +721,7 @@ export class CampañasVentanasService {
       await this.ventanaRepo
         .createQueryBuilder()
         .insert()
-        .into('cola_docentes')
+        .into("cola_docentes")
         .values({
           ventana_id: savedVentana.id,
           docente_id: docentes[i].id,
@@ -624,28 +738,30 @@ export class CampañasVentanasService {
   }
 
   private async obtenerDocentesOrdenados(
-    reglasPrioridad: { campo: string; orden: 'ASC' | 'DESC' }[],
+    reglasPrioridad: { campo: string; orden: "ASC" | "DESC" }[],
     limite: number,
   ): Promise<Docente[]> {
-    const qb = this.docenteRepo.createQueryBuilder('docente').where('docente.activo = :activo', { activo: true });
+    const qb = this.docenteRepo
+      .createQueryBuilder("docente")
+      .where("docente.activo = :activo", { activo: true });
 
     // Aplicar ordenamiento según reglas
     for (const regla of reglasPrioridad) {
-      const order = regla.orden === 'ASC' ? 'ASC' : 'DESC';
-      
+      const order = regla.orden === "ASC" ? "ASC" : "DESC";
+
       // Para tipo_contrato (condición docente: nombrado vs contratado)
-      if (regla.campo === 'tipo_contrato') {
+      if (regla.campo === "tipo_contrato") {
         qb.addOrderBy(
           `CASE docente.tipo_contrato 
             WHEN 'NOMBRADO' THEN 2
             WHEN 'CONTRATADO' THEN 1
             ELSE 0
           END`,
-          order
+          order,
         );
-      } 
+      }
       // Para categoria, usar CASE para orden jerárquico correcto
-      else if (regla.campo === 'categoria') {
+      else if (regla.campo === "categoria") {
         qb.addOrderBy(
           `CASE docente.categoria 
             WHEN 'PRINCIPAL' THEN 4
@@ -654,11 +770,11 @@ export class CampañasVentanasService {
             WHEN 'SIN_CATEGORIA' THEN 1
             ELSE 0
           END`,
-          order
+          order,
         );
-      } 
+      }
       // Para tipo_docente, usar CASE para orden jerárquico correcto
-      else if (regla.campo === 'tipo_docente') {
+      else if (regla.campo === "tipo_docente") {
         qb.addOrderBy(
           `CASE docente.tipo_docente 
             WHEN 'ORDINARIO' THEN 3
@@ -666,11 +782,11 @@ export class CampañasVentanasService {
             WHEN 'JEFE_PRACTICA_CONTRATADO' THEN 1
             ELSE 0
           END`,
-          order
+          order,
         );
       }
       // Para modalidad (régimen de dedicación), usar CASE para orden jerárquico correcto
-      else if (regla.campo === 'modalidad') {
+      else if (regla.campo === "modalidad") {
         qb.addOrderBy(
           `CASE docente.modalidad 
             WHEN 'DEDICACION_EXCLUSIVA' THEN 6
@@ -681,7 +797,7 @@ export class CampañasVentanasService {
             WHEN 'TIEMPO_PARCIAL_8' THEN 1
             ELSE 0
           END`,
-          order
+          order,
         );
       } else {
         qb.addOrderBy(`docente.${regla.campo}`, order);
@@ -689,8 +805,8 @@ export class CampañasVentanasService {
     }
 
     // Añadir desempates estables para garantizar consistencia
-    qb.addOrderBy('docente.codigo', 'ASC');
-    qb.addOrderBy('docente.apellidos', 'ASC');
+    qb.addOrderBy("docente.codigo", "ASC");
+    qb.addOrderBy("docente.apellidos", "ASC");
 
     // No aplicar límite para obtener todos los docentes activos
     // El límite se usa solo para validar, no para restringir resultados
@@ -700,7 +816,15 @@ export class CampañasVentanasService {
   }
 
   private obtenerDiaSemana(fecha: Date): string {
-    const dias = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+    const dias = [
+      "DOMINGO",
+      "LUNES",
+      "MARTES",
+      "MIERCOLES",
+      "JUEVES",
+      "VIERNES",
+      "SABADO",
+    ];
     return dias[fecha.getDay()];
   }
 
@@ -714,24 +838,31 @@ export class CampañasVentanasService {
     const fechaNormalizada = new Date(fecha);
     fechaNormalizada.setHours(0, 0, 0, 0);
 
-    return feriados.some(feriado => {
+    return feriados.some((feriado) => {
       const feriadoNormalizado = new Date(feriado);
       feriadoNormalizado.setHours(0, 0, 0, 0);
       return feriadoNormalizado.getTime() === fechaNormalizada.getTime();
     });
   }
 
-  async actualizarCampaña(campañaId: string, dto: any): Promise<CampañaVentanas> {
+  async actualizarCampaña(
+    campañaId: string,
+    dto: any,
+  ): Promise<CampañaVentanas> {
     this.logger.log(`[actualizarCampaña] Actualizando campaña: ${campañaId}`);
 
-    const campaña = await this.campañaRepo.findOne({ where: { id: campañaId } });
+    const campaña = await this.campañaRepo.findOne({
+      where: { id: campañaId },
+    });
     if (!campaña) {
       throw new NotFoundException(`Campaña ${campañaId} no encontrada`);
     }
 
     // Solo se puede editar campañas en estado BORRADOR
     if (campaña.estado !== EstadoCampaña.BORRADOR) {
-      throw new BadRequestException('Solo se pueden editar campañas en estado BORRADOR. Elimina las ventanas primero.');
+      throw new BadRequestException(
+        "Solo se pueden editar campañas en estado BORRADOR. Elimina las ventanas primero.",
+      );
     }
 
     // Función para parsear fechas robustamente
@@ -739,7 +870,7 @@ export class CampañasVentanasService {
       if (!fechaStr) {
         return undefined;
       }
-      const partes = fechaStr.split('-');
+      const partes = fechaStr.split("-");
       if (partes.length !== 3) {
         throw new BadRequestException(`Fecha inválida: ${fechaStr}`);
       }
@@ -754,10 +885,16 @@ export class CampañasVentanasService {
 
     // Validar fechas si se están actualizando
     if (dto.fecha_inicio || dto.fecha_fin) {
-      const fechaInicio = dto.fecha_inicio ? parsearFecha(dto.fecha_inicio) : campaña.fecha_inicio;
-      const fechaFin = dto.fecha_fin ? parsearFecha(dto.fecha_fin) : campaña.fecha_fin;
+      const fechaInicio = dto.fecha_inicio
+        ? parsearFecha(dto.fecha_inicio)
+        : campaña.fecha_inicio;
+      const fechaFin = dto.fecha_fin
+        ? parsearFecha(dto.fecha_fin)
+        : campaña.fecha_fin;
       if (fechaInicio && fechaFin && fechaInicio >= fechaFin) {
-        throw new BadRequestException('La fecha de inicio debe ser anterior a la fecha fin');
+        throw new BadRequestException(
+          "La fecha de inicio debe ser anterior a la fecha fin",
+        );
       }
     }
 
@@ -806,38 +943,54 @@ export class CampañasVentanasService {
     }
 
     // Si se actualizaron fechas, bloques, días o capacidad, recalcular y validar
-    if (dto.fecha_inicio || dto.fecha_fin || dto.dias_habilitados || dto.bloques_horarios || 
-        dto.duracion_turno_minutos || dto.buffer_minutos || dto.cupos_maximos_ventana) {
-      
+    if (
+      dto.fecha_inicio ||
+      dto.fecha_fin ||
+      dto.dias_habilitados ||
+      dto.bloques_horarios ||
+      dto.duracion_turno_minutos ||
+      dto.buffer_minutos ||
+      dto.cupos_maximos_ventana
+    ) {
       // Contar docentes activos
-      const totalDocentes = await this.docenteRepo.count({ where: { activo: true } });
-      
+      const totalDocentes = await this.docenteRepo.count({
+        where: { activo: true },
+      });
+
       if (totalDocentes > 0) {
         // Crear un objeto temporal para calcular la capacidad
         const tempCampaña = {
           bloques_horarios: dto.bloques_horarios ?? campaña.bloques_horarios,
-          duracion_turno_minutos: dto.duracion_turno_minutos ?? campaña.duracion_turno_minutos,
+          duracion_turno_minutos:
+            dto.duracion_turno_minutos ?? campaña.duracion_turno_minutos,
           buffer_minutos: dto.buffer_minutos ?? campaña.buffer_minutos,
-          cupos_maximos_ventana: dto.cupos_maximos_ventana ?? campaña.cupos_maximos_ventana,
+          cupos_maximos_ventana:
+            dto.cupos_maximos_ventana ?? campaña.cupos_maximos_ventana,
         } as CampañaVentanas;
 
         const capacidadPorDia = this.calcularCapacidadPorDia(tempCampaña);
-        const fechaInicio = dto.fecha_inicio ? parsearFecha(dto.fecha_inicio)! : campaña.fecha_inicio;
-        const fechaFin = dto.fecha_fin ? parsearFecha(dto.fecha_fin)! : campaña.fecha_fin;
-        const diasHabilitados = dto.dias_habilitados ?? campaña.dias_habilitados;
+        const fechaInicio = dto.fecha_inicio
+          ? parsearFecha(dto.fecha_inicio)!
+          : campaña.fecha_inicio;
+        const fechaFin = dto.fecha_fin
+          ? parsearFecha(dto.fecha_fin)!
+          : campaña.fecha_fin;
+        const diasHabilitados =
+          dto.dias_habilitados ?? campaña.dias_habilitados;
         const diasHabilitadosCalculados = this.obtenerDiasHabilitados(
           fechaInicio,
           fechaFin,
           diasHabilitados,
           dto.excluir_feriados ?? campaña.excluir_feriados,
         );
-        const capacidadTotal = capacidadPorDia * diasHabilitadosCalculados.length;
+        const capacidadTotal =
+          capacidadPorDia * diasHabilitadosCalculados.length;
 
         // Validar que la capacidad sea suficiente
         if (capacidadTotal < totalDocentes) {
           throw new BadRequestException(
             `Capacidad insuficiente: tienes ${totalDocentes} docentes activos, pero la capacidad total es de ${capacidadTotal} docentes. ` +
-            `Aumenta los días hábiles, los bloques horarios, o reduce la duración del turno + buffer.`
+              `Aumenta los días hábiles, los bloques horarios, o reduce la duración del turno + buffer.`,
           );
         }
       }
@@ -849,13 +1002,17 @@ export class CampañasVentanasService {
   async publicarCampaña(campañaId: string): Promise<CampañaVentanas> {
     this.logger.log(`[publicarCampaña] Publicando campaña: ${campañaId}`);
 
-    const campaña = await this.campañaRepo.findOne({ where: { id: campañaId } });
+    const campaña = await this.campañaRepo.findOne({
+      where: { id: campañaId },
+    });
     if (!campaña) {
       throw new NotFoundException(`Campaña ${campañaId} no encontrada`);
     }
 
     if (campaña.estado !== EstadoCampaña.GENERADO) {
-      throw new BadRequestException('Solo se pueden publicar campañas en estado GENERADO');
+      throw new BadRequestException(
+        "Solo se pueden publicar campañas en estado GENERADO",
+      );
     }
 
     campaña.estado = EstadoCampaña.PUBLICADO;
@@ -866,7 +1023,12 @@ export class CampañasVentanasService {
   async obtenerCampaña(campañaId: string): Promise<CampañaVentanas> {
     return await this.campañaRepo.findOne({
       where: { id: campañaId },
-      relations: ['periodo', 'ventanas', 'ventanas.colas', 'ventanas.colas.docente'],
+      relations: [
+        "periodo",
+        "ventanas",
+        "ventanas.colas",
+        "ventanas.colas.docente",
+      ],
     });
   }
 
@@ -874,29 +1036,43 @@ export class CampañasVentanasService {
     const where = periodoId ? { periodo_id: periodoId } : {};
     return await this.campañaRepo.find({
       where,
-      relations: ['periodo', 'ventanas', 'ventanas.colas', 'ventanas.colas.docente'],
-      order: { fecha_creacion: 'DESC' },
+      relations: [
+        "periodo",
+        "ventanas",
+        "ventanas.colas",
+        "ventanas.colas.docente",
+      ],
+      order: { fecha_creacion: "DESC" },
     });
   }
 
-  async eliminarVentanas(campañaId: string): Promise<{ ventanasEliminadas: number; campañaActualizada: CampañaVentanas }> {
-    this.logger.log(`[eliminarVentanas] Eliminando ventanas de campaña: ${campañaId}`);
-    
-    const campaña = await this.campañaRepo.findOne({ where: { id: campañaId } });
+  async eliminarVentanas(campañaId: string): Promise<{
+    ventanasEliminadas: number;
+    campañaActualizada: CampañaVentanas;
+  }> {
+    this.logger.log(
+      `[eliminarVentanas] Eliminando ventanas de campaña: ${campañaId}`,
+    );
+
+    const campaña = await this.campañaRepo.findOne({
+      where: { id: campañaId },
+    });
     if (!campaña) {
       throw new NotFoundException(`Campaña ${campañaId} no encontrada`);
     }
 
     // Eliminar docentes de la cola de las ventanas
-    const ventanas = await this.ventanaRepo.find({ where: { campaña_id: campañaId } });
-    const ventanaIds = ventanas.map(v => v.id);
-    
+    const ventanas = await this.ventanaRepo.find({
+      where: { campaña_id: campañaId },
+    });
+    const ventanaIds = ventanas.map((v) => v.id);
+
     if (ventanaIds.length > 0) {
       await this.ventanaRepo
         .createQueryBuilder()
         .delete()
-        .from('cola_docentes')
-        .where('ventana_id IN (:...ids)', { ids: ventanaIds })
+        .from("cola_docentes")
+        .where("ventana_id IN (:...ids)", { ids: ventanaIds })
         .execute();
     }
 
@@ -910,8 +1086,10 @@ export class CampañasVentanasService {
     campaña.total_docentes_asignados = 0;
     await this.campañaRepo.save(campaña);
 
-    this.logger.log(`[eliminarVentanas] Se eliminaron ${ventanasEliminadas} ventanas de la campaña ${campañaId}`);
-    
+    this.logger.log(
+      `[eliminarVentanas] Se eliminaron ${ventanasEliminadas} ventanas de la campaña ${campañaId}`,
+    );
+
     return { ventanasEliminadas, campañaActualizada: campaña };
   }
 }

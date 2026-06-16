@@ -192,7 +192,9 @@ describe("ConfiguracionService", () => {
       diaNoLaborableRepo.remove.mockResolvedValue(mockDiaNoLaborable);
 
       await expect(service.removeDiaNoLaborable(1)).resolves.not.toThrow();
-      expect(diaNoLaborableRepo.remove).toHaveBeenCalledWith(mockDiaNoLaborable);
+      expect(diaNoLaborableRepo.remove).toHaveBeenCalledWith(
+        mockDiaNoLaborable,
+      );
     });
 
     it("debe lanzar NotFoundException si no existe el día", async () => {

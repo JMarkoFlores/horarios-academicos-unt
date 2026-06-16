@@ -50,7 +50,10 @@ export class CreateDiaNoLaborableDto {
   @IsBoolean()
   afecta_laboratorios?: boolean;
 
-  @ApiProperty({ example: "2026-I", description: "Período académico al que pertenece" })
+  @ApiProperty({
+    example: "2026-I",
+    description: "Período académico al que pertenece",
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)

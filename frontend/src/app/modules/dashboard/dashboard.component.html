@@ -72,6 +72,174 @@
     </div>
   }
 
+  <!-- Tab Selector (Admin/Coord/Director) -->
+  @if (canViewFullDashboard()) {
+    <div class="tab-selector">
+      <button class="tab-btn" [class.active]="activeTab() === 'horarios'" (click)="switchTab('horarios')">
+        <mat-icon>schedule</mat-icon> Horarios
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'carga'" (click)="switchTab('carga')">
+        <mat-icon>assignment</mat-icon> Carga Académica
+      </button>
+    </div>
+  }
+
+  <!-- ──── TAB: CARGA ACADÉMICA ──── -->
+  @if (activeTab() === 'carga' && canViewFullDashboard()) {
+    @if (cargaLoading() && !cargaResumen) {
+      <div class="skeleton-grid">
+        <div class="skeleton-card" *ngFor="let _ of [1,2,3,4]">
+          <div class="skeleton-line skeleton-title"></div>
+          <div class="skeleton-line skeleton-value"></div>
+        </div>
+      </div>
+    }
+    @if (cargaResumen) {
+      <!-- Filtro departamento -->
+      <div class="carga-filters">
+        <mat-form-field appearance="fill" class="compact-filter">
+          <mat-label>Departamento</mat-label>
+          <mat-select [(ngModel)]="selectedDeptCarga">
+            <mat-option [value]="null">Todos</mat-option>
+            <mat-option *ngFor="let d of departamentosSet" [value]="d.id">{{ d.nombre }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- KPIs Carga -->
+      <div class="kpi-grid">
+        <mat-card class="kpi-card-premium" style="--accent-color: #3b82f6">
+          <div class="card-content">
+            <span class="kpi-label">Total docentes</span>
+            <h2 class="kpi-value">{{ cargaResumen.total_docentes }}</h2>
+          </div>
+          <mat-icon class="watermark-icon">people</mat-icon>
+        </mat-card>
+        <mat-card class="kpi-card-premium" style="--accent-color: #10b981">
+          <div class="card-content">
+            <span class="kpi-label">Declaraciones enviadas</span>
+            <h2 class="kpi-value">{{ cargaResumen.declaraciones_enviadas }}</h2>
+          </div>
+          <mat-icon class="watermark-icon">how_to_reg</mat-icon>
+        </mat-card>
+        <mat-card class="kpi-card-premium" style="--accent-color: #22c55e">
+          <div class="card-content">
+            <span class="kpi-label">Aprobadas (facultad)</span>
+            <h2 class="kpi-value">{{ cargaResumen.declaraciones_aprobadas }}</h2>
+          </div>
+          <mat-icon class="watermark-icon">verified</mat-icon>
+        </mat-card>
+        <mat-card class="kpi-card-premium" style="--accent-color: #f59e0b">
+          <div class="card-content">
+            <span class="kpi-label">% Avance</span>
+            <h2 class="kpi-value">{{ cargaResumen.porcentaje_avance }}%</h2>
+            <div class="progress-track carga-progress"><div class="progress-fill" [style.width.%]="cargaResumen.porcentaje_avance"></div></div>
+          </div>
+          <mat-icon class="watermark-icon">trending_up</mat-icon>
+        </mat-card>
+        <mat-card class="kpi-card-premium" style="--accent-color: #ef4444" *ngIf="cargaResumen.docentes_observados > 0">
+          <div class="card-content">
+            <span class="kpi-label">Con observaciones</span>
+            <h2 class="kpi-value">{{ cargaResumen.docentes_observados }}</h2>
+          </div>
+          <mat-icon class="watermark-icon">warning</mat-icon>
+        </mat-card>
+        <mat-card class="kpi-card-premium" style="--accent-color: #a855f7">
+          <div class="card-content">
+            <span class="kpi-label">Carga lectiva promedio</span>
+            <h2 class="kpi-value">{{ cargaResumen.carga_lectiva_promedio }}h</h2>
+          </div>
+          <mat-icon class="watermark-icon">bar_chart</mat-icon>
+        </mat-card>
+      </div>
+
+      <!-- Funnel + Dept Chart -->
+      <div class="charts-grid">
+        <mat-card class="chart-container-premium">
+          <div class="chart-header"><h3>Distribución por estado (funnel)</h3><span class="periodo-badge">{{ periodoService.periodo }}</span></div>
+          <mat-divider></mat-divider>
+          <div class="chart-body"><canvas baseChart [data]="funnelChartData" [type]="'bar'" [options]="funnelChartOptions"></canvas></div>
+        </mat-card>
+        <mat-card class="chart-container-premium">
+          <div class="chart-header"><h3>Carga por departamento</h3><span class="periodo-badge">Top 10</span></div>
+          <mat-divider></mat-divider>
+          <div class="chart-body"><canvas baseChart [data]="deptBarChartData" [type]="'bar'" [options]="deptBarChartOptions"></canvas></div>
+        </mat-card>
+      </div>
+
+      <!-- Avance temporal -->
+      @if (cargaAvance.length > 0) {
+        <mat-card class="chart-container-premium">
+          <div class="chart-header"><h3>Avance temporal</h3><span class="periodo-badge">{{ cargaAvance.length }} días</span></div>
+          <mat-divider></mat-divider>
+          <div class="chart-body"><canvas baseChart [data]="avanceChartData" [type]="'line'" [options]="avanceChartOptions"></canvas></div>
+        </mat-card>
+      }
+
+      <!-- Top Docentes Table -->
+      @if (filteredTopDocentes.length > 0) {
+        <mat-card class="chart-container-premium">
+          <div class="chart-header"><h3>Top docentes con más carga</h3><span class="periodo-badge">{{ filteredTopDocentes.length }}</span></div>
+          <mat-divider></mat-divider>
+          <div class="table-wrapper">
+            <table mat-table [dataSource]="filteredTopDocentes" class="full-width premium-table">
+              <ng-container matColumnDef="posicion">
+                <th mat-header-cell *matHeaderCellDef>#</th>
+                <td mat-cell *matCellDef="let d; let i = index">{{ i + 1 }}</td>
+              </ng-container>
+              <ng-container matColumnDef="nombre">
+                <th mat-header-cell *matHeaderCellDef>Docente</th>
+                <td mat-cell *matCellDef="let d">{{ d.nombre }}</td>
+              </ng-container>
+              <ng-container matColumnDef="categoria">
+                <th mat-header-cell *matHeaderCellDef>Categoría</th>
+                <td mat-cell *matCellDef="let d">{{ d.categoria }}</td>
+              </ng-container>
+              <ng-container matColumnDef="horasLectivas">
+                <th mat-header-cell *matHeaderCellDef>Hrs lectivas</th>
+                <td mat-cell *matCellDef="let d">{{ d.total_horas_lectivas }}</td>
+              </ng-container>
+              <ng-container matColumnDef="horasNoLectivas">
+                <th mat-header-cell *matHeaderCellDef>Hrs no lectivas</th>
+                <td mat-cell *matCellDef="let d">{{ d.total_horas_no_lectivas }}</td>
+              </ng-container>
+              <ng-container matColumnDef="totalHoras">
+                <th mat-header-cell *matHeaderCellDef>Total</th>
+                <td mat-cell *matCellDef="let d"><strong>{{ d.total_horas }}</strong></td>
+              </ng-container>
+              <ng-container matColumnDef="estado">
+                <th mat-header-cell *matHeaderCellDef>Estado</th>
+                <td mat-cell *matCellDef="let d">
+                  <span class="estado-badge" [style.background]="estadoDocenteColor[d.estado] + '20'" [style.color]="estadoDocenteColor[d.estado]">{{ d.estado }}</span>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="topDocentesColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: topDocentesColumns"></tr>
+            </table>
+          </div>
+        </mat-card>
+      }
+
+      <!-- Sin declarar -->
+      @if (filteredSinDeclarar.length > 0) {
+        <mat-card class="chart-container-premium">
+          <div class="chart-header">
+            <h3 class="warn-title"><mat-icon>warning_amber</mat-icon> Docentes sin declarar</h3>
+            <span class="periodo-badge">{{ filteredSinDeclarar.length }}</span>
+          </div>
+          <mat-divider></mat-divider>
+          <div class="list-body">
+            <div class="rank-item" *ngFor="let d of filteredSinDeclarar">
+              <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.email }}</div></div>
+            </div>
+          </div>
+        </mat-card>
+      }
+    }
+  }
+
+  <!-- ──── TAB: HORARIOS ──── -->
+  @if (activeTab() === 'horarios') {
   <!-- Docente Dashboard -->
   @if (isDocente() && misKpis) {
     <div class="kpi-grid">
@@ -403,5 +571,6 @@
         </div>
       }
     }
+  }
   }
 </div>

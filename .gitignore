@@ -19,3 +19,5 @@ testsprite_tests\tmp\config.json
 AGENTS.md
 build.log
 opencode.json
+testsprite_tests/
+test-data/

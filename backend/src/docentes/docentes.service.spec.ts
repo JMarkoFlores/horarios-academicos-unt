@@ -398,16 +398,44 @@ describe("DocentesService", () => {
         codigo: "PERIODO-TEST",
       } as PeriodoAcademico);
       mockDocenteRepo.find.mockResolvedValue([mockDocente]);
-      mockHorarioRepo.find.mockResolvedValue(
-        [
-          { docente_id: 1, dia: 1, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
-          { docente_id: 1, dia: 2, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
-          { docente_id: 1, dia: 3, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
-          { docente_id: 1, dia: 4, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
-          { docente_id: 1, dia: 5, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
-          { docente_id: 1, dia: 6, hora_inicio: "08:00:00", hora_fin: "11:00:00" },
-        ] as HorarioAsignado[],
-      );
+      mockHorarioRepo.find.mockResolvedValue([
+        {
+          docente_id: 1,
+          dia: 1,
+          hora_inicio: "08:00:00",
+          hora_fin: "11:00:00",
+        },
+        {
+          docente_id: 1,
+          dia: 2,
+          hora_inicio: "08:00:00",
+          hora_fin: "11:00:00",
+        },
+        {
+          docente_id: 1,
+          dia: 3,
+          hora_inicio: "08:00:00",
+          hora_fin: "11:00:00",
+        },
+        {
+          docente_id: 1,
+          dia: 4,
+          hora_inicio: "08:00:00",
+          hora_fin: "11:00:00",
+        },
+        {
+          docente_id: 1,
+          dia: 5,
+          hora_inicio: "08:00:00",
+          hora_fin: "11:00:00",
+        },
+        {
+          docente_id: 1,
+          dia: 6,
+          hora_inicio: "08:00:00",
+          hora_fin: "11:00:00",
+        },
+      ] as HorarioAsignado[]);
 
       const result = await service.getCargaDesequilibrada("PERIODO-TEST");
 

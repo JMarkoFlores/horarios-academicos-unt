@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddPracticaToDocenteCursoTipoClase1779075469473
-  implements MigrationInterface
-{
+export class AddPracticaToDocenteCursoTipoClase1779075469473 implements MigrationInterface {
   name = "AddPracticaToDocenteCursoTipoClase1779075469473";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -28,6 +26,8 @@ export class AddPracticaToDocenteCursoTipoClase1779075469473
           END
         )
     `);
-    await queryRunner.query(`DROP TYPE "public"."docente_curso_tipo_clase_enum_old"`);
+    await queryRunner.query(
+      `DROP TYPE "public"."docente_curso_tipo_clase_enum_old"`,
+    );
   }
 }

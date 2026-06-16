@@ -120,7 +120,10 @@ export class ValidacionesService {
     const existeCruce = (await qb.getCount()) > 0;
 
     return existeCruce
-      ? { valido: false, motivo: "El grupo ya tiene otro horario asignado en ese intervalo." }
+      ? {
+          valido: false,
+          motivo: "El grupo ya tiene otro horario asignado en ese intervalo.",
+        }
       : { valido: true };
   }
 

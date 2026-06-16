@@ -75,7 +75,9 @@ describe("ValidadorHorarioService", () => {
     const result = await service.validarSlot(baseDto);
 
     expect(result.valido).toBe(false);
-    expect(result.errores).toContain("La hora está fuera de la franja institucional permitida.");
+    expect(result.errores).toContain(
+      "La hora está fuera de la franja institucional permitida.",
+    );
   });
 
   it("regla 2: retorna error si docente no está disponible", async () => {
@@ -84,7 +86,9 @@ describe("ValidadorHorarioService", () => {
     const result = await service.validarSlot(baseDto);
 
     expect(result.valido).toBe(false);
-    expect(result.errores).toContain("El docente no está disponible para el horario solicitado.");
+    expect(result.errores).toContain(
+      "El docente no está disponible para el horario solicitado.",
+    );
   });
 
   it("regla 3: retorna error si supera máximo de horas del docente", async () => {
@@ -93,7 +97,9 @@ describe("ValidadorHorarioService", () => {
     const result = await service.validarSlot(baseDto);
 
     expect(result.valido).toBe(false);
-    expect(result.errores).toContain("El docente supera el máximo de horas permitidas en el día.");
+    expect(result.errores).toContain(
+      "El docente supera el máximo de horas permitidas en el día.",
+    );
   });
 
   it("regla 4: retorna error si la fecha es día no laborable", async () => {
@@ -102,7 +108,9 @@ describe("ValidadorHorarioService", () => {
     const result = await service.validarSlot(baseDto);
 
     expect(result.valido).toBe(false);
-    expect(result.errores).toContain("La fecha seleccionada corresponde a un día no laborable.");
+    expect(result.errores).toContain(
+      "La fecha seleccionada corresponde a un día no laborable.",
+    );
   });
 
   it("regla 5: retorna error si hay cruce en ambiente principal (con cache miss)", async () => {
@@ -112,7 +120,9 @@ describe("ValidadorHorarioService", () => {
     const result = await service.validarSlot(baseDto);
 
     expect(result.valido).toBe(false);
-    expect(result.errores).toContain("El ambiente seleccionado ya está ocupado en ese horario.");
+    expect(result.errores).toContain(
+      "El ambiente seleccionado ya está ocupado en ese horario.",
+    );
     expect(cacheManager.set).toHaveBeenCalledWith(
       "slots_ambiente_30_2026-I",
       expect.any(Array),
@@ -152,6 +162,8 @@ describe("ValidadorHorarioService", () => {
     });
 
     expect(result.valido).toBe(false);
-    expect(result.errores).toContain("El laboratorio seleccionado ya está ocupado en ese horario.");
+    expect(result.errores).toContain(
+      "El laboratorio seleccionado ya está ocupado en ese horario.",
+    );
   });
 });

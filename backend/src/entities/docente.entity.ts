@@ -21,6 +21,7 @@ import { DisponibilidadDocente } from "./disponibilidad-docente.entity";
 import { HorarioAsignado } from "./horario-asignado.entity";
 import { ColaDocentes } from "./cola-docentes.entity";
 import { Ambiente } from "./ambiente.entity";
+import { AsignacionLectiva } from "./asignacion-lectiva.entity";
 
 @Entity("docente")
 export class Docente {
@@ -118,4 +119,7 @@ export class Docente {
     inverseJoinColumn: { name: "ambiente_id", referencedColumnName: "id" },
   })
   ambientes: Ambiente[];
+
+  @OneToMany(() => AsignacionLectiva, (asignacion) => asignacion.docente)
+  asignaciones_lectivas: AsignacionLectiva[];
 }

@@ -1,18 +1,25 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-import { RolUsuario } from '../../common/enums/rol-usuario.enum';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MinLength,
+} from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
+import { RolUsuario } from "../../common/enums/rol-usuario.enum";
 
 export class CrearUsuarioDto {
-  @ApiProperty({ example: 'Juan Pérez' })
+  @ApiProperty({ example: "Juan Pérez" })
   @IsString()
   @IsNotEmpty()
   nombre: string;
 
-  @ApiProperty({ example: 'juan@unt.edu.pe' })
+  @ApiProperty({ example: "juan@unt.edu.pe" })
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: 'Clave123!' })
+  @ApiProperty({ example: "Clave123!" })
   @IsString()
   @MinLength(8)
   password: string;
@@ -21,7 +28,7 @@ export class CrearUsuarioDto {
   @IsEnum(RolUsuario)
   rol: RolUsuario;
 
-  @ApiProperty({ example: 'es', enum: ['es', 'en', 'pt'], default: 'es' })
+  @ApiProperty({ example: "es", enum: ["es", "en", "pt"], default: "es" })
   @IsString()
   @IsOptional()
   idioma?: string;

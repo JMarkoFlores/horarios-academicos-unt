@@ -52,7 +52,7 @@ import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion
         username: config.get<string>("DATABASE_USER", "unt_user"),
         password: config.get<string>("DATABASE_PASSWORD", "unt_pass123"),
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: false,
         logging: config.get<string>("DATABASE_LOGGING") === "true",
         timezone: "-05:00",
         ssl:

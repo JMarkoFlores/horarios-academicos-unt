@@ -77,7 +77,7 @@ const AppDataSource = new DataSource({
   username: process.env.DATABASE_USER ?? "unt_user",
   password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
   entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
-  synchronize: true,
+  synchronize: false,
   logging: false,
   ssl:
     process.env.DATABASE_SSL === "true"

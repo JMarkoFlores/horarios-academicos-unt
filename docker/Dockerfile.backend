@@ -28,8 +28,18 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Lightweight process manager for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dependencies for Puppeteer/Chromium and dumb-init
+RUN apk add --no-cache \
+      dumb-init \
+      chromium \
+      nss \
+      freetype \
+      harfbuzz \
+      ca-certificates \
+      ttf-freefont
+
+# Tell Puppeteer to use the installed Chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Non-root user for security
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001

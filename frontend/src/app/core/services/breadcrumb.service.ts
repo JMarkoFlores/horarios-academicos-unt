@@ -25,6 +25,7 @@ const ROUTE_LABELS: Record<string, RouteLabel> = {
   'docentes/:id/editar': { label: 'Editar', translationKey: 'breadcrumb.docentes_editar' },
   cursos: { label: 'Cursos', icon: 'menu_book', translationKey: 'breadcrumb.cursos' },
   'cursos/nuevo': { label: 'Nuevo', translationKey: 'breadcrumb.cursos_nuevo' },
+  'cursos/:id': { label: 'Detalle', icon: 'info' },
   'cursos/:id/editar': { label: 'Editar', translationKey: 'breadcrumb.cursos_editar' },
   ambientes: { label: 'Ambientes', icon: 'meeting_room', translationKey: 'breadcrumb.ambientes' },
   'ambientes/mapa': { label: 'Mapa', icon: 'map', translationKey: 'breadcrumb.ambientes_mapa' },
@@ -33,7 +34,6 @@ const ROUTE_LABELS: Record<string, RouteLabel> = {
   disponibilidad: { label: 'Disponibilidad', icon: 'event_available', translationKey: 'breadcrumb.disponibilidad' },
   horarios: { label: 'Horarios', icon: 'schedule', translationKey: 'breadcrumb.horarios' },
   'mis-horarios': { label: 'Mis Horarios', icon: 'schedule', translationKey: 'breadcrumb.misHorarios' },
-  'curso-ambientes': { label: 'Curso-Ambiente', icon: 'link', translationKey: 'breadcrumb.cursoAmbientes' },
   'docente-facultad': { label: 'Docente-Facultad', icon: 'school', translationKey: 'breadcrumb.docenteFacultad' },
   'docente-facultad/:id/editar': { label: 'Editar', translationKey: 'breadcrumb.docenteFacultad_editar' },
   reportes: { label: 'Reportes', icon: 'table_chart', translationKey: 'breadcrumb.reportes' },
@@ -63,18 +63,38 @@ export class BreadcrumbService {
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   readonly breadcrumbs = signal<Breadcrumb[]>([]);
+  private tabSuffix = '';
 
   constructor() {
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe((e) => {
-      this.breadcrumbs.set(this.resolve(e.urlAfterRedirects));
+      const base = this.resolve(e.urlAfterRedirects);
+      if (base.length > 0 && this.tabSuffix) {
+        const last = base[base.length - 1];
+        last.label = `${last.label} › ${this.tabSuffix}`;
+      }
+      this.breadcrumbs.set(base);
     });
   }
 
+  setTabSuffix(suffix: string): void {
+    this.tabSuffix = suffix;
+    const current = this.breadcrumbs();
+    if (current.length > 0) {
+      const updated = [...current];
+      const last = { ...updated[updated.length - 1] };
+      const baseLabel = last.label.split(' ›')[0];
+      last.label = suffix ? `${baseLabel} › ${suffix}` : baseLabel;
+      updated[updated.length - 1] = last;
+      this.breadcrumbs.set(updated);
+    }
+  }
+
   private resolve(url: string): Breadcrumb[] {
-    const segments = url.replace(/\/+$/, '').split('/').filter(s => s && s !== 'app');
+    const withoutQuery = url.split('?')[0];
+    const segments = withoutQuery.replace(/\/+$/, '').split('/').filter(s => s && s !== 'app');
     if (segments.length === 0) return [];
 
     const result: Breadcrumb[] = [];

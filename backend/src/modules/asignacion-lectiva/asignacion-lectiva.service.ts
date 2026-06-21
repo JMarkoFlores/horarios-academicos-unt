@@ -13,6 +13,8 @@ import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Grupo } from "../../entities/grupo.entity";
+import { EstadoAsignacionLectiva } from "../../common/enums/estado-asignacion-lectiva.enum";
+import { TipoClase } from "../../common/enums/tipo-clase.enum";
 import { CreateAsignacionLectivaDto } from "./dto/create-asignacion-lectiva.dto";
 import { UpdateAsignacionLectivaDto } from "./dto/update-asignacion-lectiva.dto";
 import { QueryAsignacionLectivaDto } from "./dto/query-asignacion-lectiva.dto";
@@ -269,7 +271,7 @@ export class AsignacionLectivaService {
   ) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
 
-    if (asignacion.estado !== "PENDIENTE") {
+    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
       throw new BadRequestException(
         `No se puede modificar una asignación en estado "${asignacion.estado}"`,
       );
@@ -342,13 +344,13 @@ export class AsignacionLectivaService {
 
   async confirmar(id: number, usuario: UsuarioAutenticado) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
-    if (asignacion.estado !== "PENDIENTE") {
+    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
       throw new BadRequestException(
         `No se puede confirmar una asignación en estado "${asignacion.estado}"`,
       );
     }
     const estadoAnterior = asignacion.estado;
-    asignacion.estado = "CONFIRMADO";
+    asignacion.estado = EstadoAsignacionLectiva.CONFIRMADO;
     asignacion.confirmado_por_id = usuario.id;
     asignacion.confirmado_en = new Date();
     const saved = await this.asignacionRepo.save(asignacion);
@@ -378,7 +380,7 @@ export class AsignacionLectivaService {
     observaciones: string,
   ) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
-    if (asignacion.estado !== "PENDIENTE") {
+    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
       throw new BadRequestException(
         `No se puede rechazar una asignación en estado "${asignacion.estado}"`,
       );
@@ -389,7 +391,7 @@ export class AsignacionLectivaService {
       );
     }
     const estadoAnterior = asignacion.estado;
-    asignacion.estado = "RECHAZADO";
+    asignacion.estado = EstadoAsignacionLectiva.RECHAZADO;
     asignacion.confirmado_por_id = usuario.id;
     asignacion.confirmado_en = new Date();
     asignacion.observaciones = observaciones;
@@ -417,7 +419,7 @@ export class AsignacionLectivaService {
 
   async remove(id: number, usuario: UsuarioAutenticado) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
-    if (asignacion.estado !== "PENDIENTE") {
+    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
       throw new BadRequestException(
         `No se puede eliminar una asignación en estado "${asignacion.estado}"`,
       );
@@ -477,10 +479,10 @@ export class AsignacionLectivaService {
 
     const total = asignaciones.length;
     const asignados = asignaciones.filter(
-      (a) => a.estado === "CONFIRMADO",
+      (a) => a.estado === EstadoAsignacionLectiva.CONFIRMADO,
     ).length;
     const pendientes = asignaciones.filter(
-      (a) => a.estado === "PENDIENTE",
+      (a) => a.estado === EstadoAsignacionLectiva.PENDIENTE,
     ).length;
     const totalHoras = asignaciones.reduce(
       (sum, a) => sum + Number(a.horas_asignadas),
@@ -520,17 +522,15 @@ export class AsignacionLectivaService {
 
   private getHorasPorTipo(
     cursoPlan: CursoPlanEstudios,
-    tipoClase: string,
+    tipoClase: TipoClase,
   ): number {
     switch (tipoClase) {
-      case "TEORIA":
+      case TipoClase.TEORIA:
         return cursoPlan.horas_teoria;
-      case "PRACTICA":
+      case TipoClase.PRACTICA:
         return cursoPlan.horas_practica;
-      case "LABORATORIO":
+      case TipoClase.LABORATORIO:
         return cursoPlan.horas_laboratorio;
-      default:
-        return 0;
     }
   }
 
@@ -544,7 +544,7 @@ export class AsignacionLectivaService {
       where: {
         docente_id: docenteId,
         periodo_id: periodoId,
-        estado: Not("RECHAZADO"),
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
       },
     });
 
@@ -579,7 +579,7 @@ export class AsignacionLectivaService {
       where: {
         docente_id: docenteId,
         periodo_id: periodoId,
-        estado: Not("RECHAZADO"),
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
       },
     });
 

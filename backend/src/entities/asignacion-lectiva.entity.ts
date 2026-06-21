@@ -14,13 +14,14 @@ import { CursoPlanEstudios } from "./curso-plan-estudios.entity";
 import { PeriodoAcademico } from "./periodo-academico.entity";
 import { Grupo } from "./grupo.entity";
 import { Usuario } from "./usuario.entity";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { EstadoAsignacionLectiva } from "../common/enums/estado-asignacion-lectiva.enum";
 
 @Entity("asignacion_lectiva")
 @Unique("uq_asig_lectiva_docente_curso_periodo", [
   "docente_id",
   "curso_plan_id",
   "periodo_id",
-  "grupo_id",
   "tipo_clase",
   "seccion",
 ])
@@ -42,14 +43,14 @@ export class AsignacionLectiva {
   @Column({ name: "curso_plan_id" })
   curso_plan_id: number;
 
-  @ManyToOne(() => CursoPlanEstudios, { eager: true })
+  @ManyToOne(() => CursoPlanEstudios, (cursoPlan) => cursoPlan.asignaciones, { eager: true })
   @JoinColumn({ name: "curso_plan_id" })
   curso_plan: CursoPlanEstudios;
 
   @Column({ name: "periodo_id" })
   periodo_id: number;
 
-  @ManyToOne(() => PeriodoAcademico, { eager: false })
+  @ManyToOne(() => PeriodoAcademico, (periodo) => periodo.asignaciones_lectivas, { eager: false })
   @JoinColumn({ name: "periodo_id" })
   periodo: PeriodoAcademico;
 
@@ -60,8 +61,9 @@ export class AsignacionLectiva {
   @JoinColumn({ name: "grupo_id" })
   grupo: Grupo | null;
 
-  @Column({ length: 20 })
-  tipo_clase: string;
+  @Index("idx_asig_lectiva_tipo_clase")
+  @Column({ type: "enum", enum: TipoClase })
+  tipo_clase: TipoClase;
 
   @Column({ length: 10 })
   seccion: string;
@@ -72,8 +74,9 @@ export class AsignacionLectiva {
   @Column({ type: "decimal", precision: 4, scale: 1, name: "horas_asignadas" })
   horas_asignadas: number;
 
-  @Column({ length: 20, default: "PENDIENTE" })
-  estado: string;
+  @Index("idx_asig_lectiva_estado")
+  @Column({ type: "enum", enum: EstadoAsignacionLectiva, default: EstadoAsignacionLectiva.PENDIENTE })
+  estado: EstadoAsignacionLectiva;
 
   @Column({ type: "text", nullable: true })
   observaciones: string | null;

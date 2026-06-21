@@ -1,0 +1,295 @@
+<div class="detail-page animate-fadein">
+
+  <!-- HEADER -->
+  <div class="page-header-premium">
+    <div class="title-section">
+      <button mat-icon-button class="btn-back" (click)="volver()" matTooltip="Volver a lista">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <div class="header-title-row">
+          <span class="codigo-badge">{{ curso?.codigo }}</span>
+          <h1 class="gradient-text">{{ curso?.nombre }}</h1>
+          <span class="estado-badge" [class.activo]="curso?.activo" [class.inactivo]="!curso?.activo">
+            {{ curso?.activo ? 'ACTIVO' : 'INACTIVO' }}
+          </span>
+        </div>
+        <p class="subtitle">
+          <span *ngIf="entries[0]">{{ tipoCursoLabel }} · Ciclo {{ entries[0].ciclo }}</span>
+          <span *ngIf="curso?.departamento as depto"> · {{ depto.nombre }}</span>
+        </p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button class="btn-export" (click)="volver()">
+        <mat-icon>arrow_back</mat-icon>
+        <span>Volver</span>
+      </button>
+      <a mat-raised-button class="btn-new" [routerLink]="['/app/cursos', curso.id, 'editar']" *ngIf="curso">
+        <mat-icon>edit</mat-icon>
+        <span>Editar Curso</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading-center" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <span>Cargando curso...</span>
+  </div>
+
+  <!-- CONTENT -->
+  <ng-container *ngIf="!loading && curso">
+    <mat-tab-group [(selectedIndex)]="selectedTabIndex" (selectedIndexChange)="onTabChange($event)" animationDuration="400ms">
+
+      <!-- ═════════ INFORMACIÓN ═════════ -->
+      <mat-tab label="Información">
+        <ng-template matTabContent>
+          <div class="tab-content">
+
+            <!-- Summary stats per plan -->
+            <div class="planes-grid" *ngIf="entries.length > 0">
+              <mat-card *ngFor="let e of entries" class="plan-stats-card">
+                <div class="plan-header">
+                  <mat-icon>school</mat-icon>
+                  <div>
+                    <div class="plan-name">{{ e.plan_estudios?.nombre }}</div>
+                    <div class="plan-meta">Ciclo {{ e.ciclo }} · {{ entryTipoLabel(e) }}</div>
+                  </div>
+                  <span class="estado-badge activo" *ngIf="e.plan_estudios?.activo">ACTIVO</span>
+                </div>
+                <div class="plan-hours">
+                  <span class="hour-tag theory">
+                    <mat-icon>menu_book</mat-icon> {{ e.horas_teoria }}h Teoría
+                  </span>
+                  <span class="hour-tag practice">
+                    <mat-icon>assignment</mat-icon> {{ e.horas_practica }}h Práctica
+                  </span>
+                  <span class="hour-tag lab">
+                    <mat-icon>biotech</mat-icon> {{ e.horas_laboratorio }}h Laboratorio
+                  </span>
+                </div>
+                <div class="plan-footer">
+                  <span class="credit-badge">{{ e.creditos }}</span>
+                  <span>créditos</span>
+                </div>
+              </mat-card>
+            </div>
+
+            <!-- Data card -->
+            <mat-card class="table-container-premium">
+              <div class="results-bar">
+                <span class="results-count">
+                  <mat-icon>info</mat-icon>
+                  <strong>Datos del curso</strong>
+                </span>
+              </div>
+              <div class="detail-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Código</span>
+                  <span class="code-badge">{{ curso.codigo }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Nombre</span>
+                  <span class="detail-value">{{ curso.nombre }}</span>
+                </div>
+                <div class="detail-item" *ngIf="curso.departamento">
+                  <span class="detail-label">Departamento</span>
+                  <span class="detail-value">{{ curso.departamento.nombre }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Tiene Laboratorio</span>
+                  <span class="estado-badge" [class.activo]="curso.tiene_laboratorio" [class.inactivo]="!curso.tiene_laboratorio">
+                    {{ curso.tiene_laboratorio ? 'SÍ' : 'NO' }}
+                  </span>
+                </div>
+                <div class="detail-item" *ngIf="curso.prerequisitos">
+                  <span class="detail-label">Prerequisitos</span>
+                  <span class="detail-value">{{ curso.prerequisitos }}</span>
+                </div>
+              </div>
+            </mat-card>
+
+          </div>
+        </ng-template>
+      </mat-tab>
+
+      <!-- ═════════ AMBIENTES ════════════ -->
+      <mat-tab label="Ambientes">
+        <ng-template matTabContent>
+          <div class="tab-content">
+
+            <!-- Context banner -->
+            <div class="context-banner" *ngIf="currentEntry">
+              <mat-icon>info</mat-icon>
+              <span>
+                Según <strong>{{ currentEntry.plan_estudios?.nombre }}</strong>:
+                <span class="hour-tag theory" style="display:inline-flex;margin:0 4px"><mat-icon>menu_book</mat-icon> {{ currentEntry.horas_teoria }}h</span>
+                <span class="hour-tag practice" style="display:inline-flex;margin:0 4px"><mat-icon>assignment</mat-icon> {{ currentEntry.horas_practica }}h</span>
+                <span class="hour-tag lab" style="display:inline-flex;margin:0 4px"><mat-icon>biotech</mat-icon> {{ currentEntry.horas_laboratorio }}h</span>
+              </span>
+              <button mat-button class="context-switch" [matMenuTriggerFor]="planMenu" *ngIf="entries.length > 1">
+                Cambiar plan <mat-icon>arrow_drop_down</mat-icon>
+              </button>
+              <mat-menu #planMenu="matMenu">
+                <button mat-menu-item *ngFor="let e of entries; let i = index" (click)="selectedPlanIdx = i">
+                  {{ e.plan_estudios?.nombre }}
+                </button>
+              </mat-menu>
+            </div>
+
+            <div class="ambiente-grid">
+              <mat-card *ngFor="let tipo of tiposAmbiente" class="table-container-premium">
+                <div class="results-bar">
+                  <span class="results-count">
+                    <mat-icon>{{ tipo.icon }}</mat-icon>
+                    <strong>{{ tipo.label }}</strong>
+                    <span class="hour-tag" [class.theory]="tipo.clave === 'TEORIA'" [class.practice]="tipo.clave === 'TEORIA' && tipo.label === 'Práctica'" [class.lab]="tipo.clave === 'LABORATORIO'" style="margin-left:8px">
+                      {{ tipo.obtenerHoras(currentEntry) }}h
+                    </span>
+                  </span>
+                  <button mat-stroked-button color="primary" (click)="asignarAmbientes(tipo.clave)">
+                    <mat-icon>add</mat-icon> Asignar
+                  </button>
+                </div>
+                <div class="ambiente-list" *ngIf="tipo.obtenerAmbientes(this).length > 0; else emptyAmb">
+                  <div class="ambiente-item" *ngFor="let a of tipo.obtenerAmbientes(this)">
+                    <div class="ambiente-info">
+                      <span class="code-badge">{{ a.codigo }}</span>
+                      <span>{{ a.nombre }}</span>
+                      <span class="capacity-badge">{{ a.capacidad }} pers.</span>
+                    </div>
+                    <button mat-icon-button class="btn-remove" (click)="removerAmbiente(a)" matTooltip="Remover">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+                <ng-template #emptyAmb>
+                  <div class="empty-state-premium">
+                    <div class="empty-illustration"><mat-icon>{{ tipo.icon }}</mat-icon></div>
+                    <p>Sin ambientes de {{ tipo.label | lowercase }}</p>
+                  </div>
+                </ng-template>
+              </mat-card>
+            </div>
+
+          </div>
+        </ng-template>
+      </mat-tab>
+
+      <!-- ═════════ GRUPOS ════════════════ -->
+      <mat-tab label="Grupos">
+        <ng-template matTabContent>
+          <div class="tab-content">
+
+            <!-- Context banner -->
+            <div class="context-banner" *ngIf="currentEntry">
+              <mat-icon>school</mat-icon>
+              <span>
+                Grupos según <strong>{{ currentEntry.plan_estudios?.nombre }}</strong>
+                — Ciclo <strong>{{ currentEntry.ciclo }}</strong>
+              </span>
+              <button mat-button class="context-switch" [matMenuTriggerFor]="planMenu2" *ngIf="entries.length > 1">
+                Cambiar plan <mat-icon>arrow_drop_down</mat-icon>
+              </button>
+              <mat-menu #planMenu2="matMenu">
+                <button mat-menu-item *ngFor="let e of entries; let i = index" (click)="selectedPlanIdx = i">
+                  {{ e.plan_estudios?.nombre }}
+                </button>
+              </mat-menu>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar-row">
+              <span class="results-count" style="display:flex;align-items:center;gap:6px">
+                <mat-icon>groups</mat-icon>
+                <strong>{{ grupos.length }}</strong> grupo{{ grupos.length !== 1 ? 's' : '' }}
+              </span>
+              <button mat-raised-button class="btn-new" (click)="mostrarFormGrupo()" *ngIf="!grupoFormVisible">
+                <mat-icon>add</mat-icon> Nuevo Grupo
+              </button>
+            </div>
+
+            <!-- Quick form -->
+            <mat-card class="table-container-premium quick-form-card" *ngIf="grupoFormVisible">
+              <div class="results-bar">
+                <span class="results-count">
+                  <mat-icon>{{ grupoEditando ? 'edit' : 'add' }}</mat-icon>
+                  <strong>{{ grupoEditando ? 'Editar Grupo' : 'Nuevo Grupo' }}</strong>
+                </span>
+              </div>
+              <div class="quick-form-body">
+                <div class="form-row">
+                  <mat-form-field appearance="outline" class="gf">
+                    <mat-label>Tipo</mat-label>
+                    <mat-select [(ngModel)]="grupoNuevo.tipo">
+                      <mat-option value="TEORIA">Teoría</mat-option>
+                      <mat-option value="PRACTICA">Práctica</mat-option>
+                      <mat-option value="LABORATORIO">Laboratorio</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="gf">
+                    <mat-label>Código</mat-label>
+                    <input matInput [(ngModel)]="grupoNuevo.codigo" placeholder="T1">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="gf">
+                    <mat-label>Nombre</mat-label>
+                    <input matInput [(ngModel)]="grupoNuevo.nombre" placeholder="Teoría 1">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="gf">
+                    <mat-label>Cupo máx.</mat-label>
+                    <input matInput type="number" [(ngModel)]="grupoNuevo.cupo_maximo" min="1">
+                  </mat-form-field>
+                </div>
+                <div class="quick-form-actions">
+                  <button mat-button (click)="cancelarGrupoForm()">Cancelar</button>
+                  <button mat-raised-button color="primary" (click)="guardarGrupo()" [disabled]="!grupoNuevo.codigo || !grupoNuevo.nombre">
+                    <mat-icon>{{ grupoEditando ? 'check' : 'add' }}</mat-icon>
+                    {{ grupoEditando ? 'Actualizar' : 'Crear' }}
+                  </button>
+                </div>
+              </div>
+            </mat-card>
+
+            <!-- Groups grid -->
+            <div class="grupos-grid">
+              <mat-card *ngFor="let tipo of tiposGrupo" class="table-container-premium">
+                <div class="results-bar">
+                  <span class="results-count">
+                    <mat-icon>{{ tipo.icon }}</mat-icon>
+                    <strong>{{ tipo.label }}</strong>
+                    <span class="badge-count">{{ gruposPorTipo(tipo.clave).length }}</span>
+                  </span>
+                </div>
+                <div class="grupo-list" *ngIf="gruposPorTipo(tipo.clave).length > 0; else emptyGrupo">
+                  <div class="grupo-item premium-row" *ngFor="let g of gruposPorTipo(tipo.clave)">
+                    <div class="grupo-info">
+                      <strong>{{ g.nombre }}</strong>
+                      <span class="grupo-meta">{{ g.codigo }}</span>
+                      <span class="grupo-meta">Cupo: {{ g.cupo_maximo }}</span>
+                    </div>
+                    <div class="grupo-actions">
+                      <button mat-icon-button class="btn-action" (click)="editarGrupo(g)" matTooltip="Editar">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button class="btn-action" style="color:#ef4444" (click)="eliminarGrupo(g)" matTooltip="Eliminar">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <ng-template #emptyGrupo>
+                  <div class="empty-state-premium">
+                    <div class="empty-illustration"><mat-icon>{{ tipo.icon }}</mat-icon></div>
+                    <p>Sin {{ tipo.emptyText }}</p>
+                  </div>
+                </ng-template>
+              </mat-card>
+            </div>
+
+          </div>
+        </ng-template>
+      </mat-tab>
+    </mat-tab-group>
+  </ng-container>
+</div>

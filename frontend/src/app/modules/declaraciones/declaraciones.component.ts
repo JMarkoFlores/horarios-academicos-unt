@@ -181,7 +181,7 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
   }
 
   get isDirectorOrCoord(): boolean {
-    return this.authService.hasRole('directorescuela', 'directordepartamento', 'coordinador');
+    return this.authService.hasRole('directorescuela', 'directordepartamento', 'coordinadoracademico');
   }
 
   get isDecano(): boolean {

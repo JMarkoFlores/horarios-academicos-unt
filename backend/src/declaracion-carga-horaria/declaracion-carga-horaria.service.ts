@@ -23,6 +23,7 @@ import { DeclaracionObservacion } from "../entities/declaracion-observacion.enti
 import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
 import { CargaAdicional } from "../entities/carga-adicional.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
+import { TipoObservacion } from "../common/enums/tipo-observacion.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
@@ -531,8 +532,8 @@ export class DeclaracionCargaHorariaService {
       estado_destino: estadoObjetivo,
       tipo:
         estadoObjetivo === EstadoDeclaracionCarga.OBSERVADO_DPTO
-          ? "OBSERVACION_DPTO"
-          : "OBSERVACION_FACULTAD",
+          ? TipoObservacion.OBSERVACION_DPTO
+          : TipoObservacion.OBSERVACION_FACULTAD,
       subsanada: false,
     });
     await this.observacionRepo.save(observacion);
@@ -1252,7 +1253,7 @@ export class DeclaracionCargaHorariaService {
         cursoId: curso?.id ?? 0,
         codigoCurso: curso?.codigo ?? "",
         nombreCurso: curso?.nombre ?? "",
-        tipoCurso: a.curso_plan.tipo_curso || "OBLIGATORIO",
+        tipoCurso: a.curso_plan.tipo_curso || "OBLIGATORIO_GENERAL",
         escuela: curso?.departamento?.escuela?.nombre ?? "",
         grupoId: a.grupo_id ?? 0,
         seccion: a.grupo?.codigo ?? a.seccion ?? "",
@@ -1585,7 +1586,7 @@ export class DeclaracionCargaHorariaService {
             id: curso.id,
             codigo: curso.codigo,
             nombre: curso.nombre,
-            tipoCurso: a.curso_plan.tipo_curso || "OBLIGATORIO",
+            tipoCurso: a.curso_plan.tipo_curso || "OBLIGATORIO_GENERAL",
             secciones: new Set([a.seccion || ""]),
             escuela:
               curso.departamento?.escuela?.nombre ?? "Ingeniería de Sistemas",

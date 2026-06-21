@@ -152,6 +152,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
       next: (r: any) => {
         this.todosDocentes = r?.data?.items ?? r?.data ?? [];
       },
+      error: () => { this.notif.error('Error al cargar docentes'); },
     });
 
     this.api
@@ -160,6 +161,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         next: (r: any) => {
           this.todosAmbientes = r?.data?.items ?? r?.data ?? [];
         },
+        error: () => { this.notif.error('Error al cargar ambientes'); },
       });
 
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
@@ -737,6 +739,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingDocente = false;
+          this.notif.error('Error al cargar horario del docente');
         },
       });
   }
@@ -757,6 +760,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingAmbiente = false;
+          this.notif.error('Error al cargar horario del ambiente');
         },
       });
   }
@@ -780,6 +784,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingCiclo = false;
+          this.notif.error('Error al cargar horarios del ciclo');
         },
       });
   }
@@ -798,7 +803,10 @@ export class HorariosComponent implements OnInit, OnDestroy {
           this.aplicarFiltrosDia();
           this.loadingDia = false;
         },
-        error: () => (this.loadingDia = false),
+        error: () => {
+          this.loadingDia = false;
+          this.notif.error('Error al cargar horarios del día');
+        },
       });
   }
 
@@ -933,6 +941,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingConflictos = false;
+          this.notif.error('Error al cargar conflictos');
         },
       });
   }

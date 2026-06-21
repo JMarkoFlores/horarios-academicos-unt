@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+﻿import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsInt,
   IsString,
@@ -13,22 +13,26 @@ import { TipoClase } from "../../common/enums/tipo-clase.enum";
 export class CrearAsignacionDto {
   @ApiProperty({ description: "ID del docente" })
   @IsInt()
+  @Min(1)
   docente_id: number;
 
   @ApiProperty({ description: "ID del curso" })
   @IsInt()
+  @Min(1)
   curso_id: number;
 
   @ApiProperty({ description: "ID del ambiente" })
   @IsInt()
+  @Min(1)
   ambiente_id: number;
 
   @ApiProperty({ description: "ID del grupo" })
   @IsInt()
+  @Min(1)
   grupo_id: number;
 
   @ApiProperty({
-    description: "Día semana 1=Lun…5=Vie",
+    description: "DÃ­a semana 1=Lunâ€¦5=Vie",
     minimum: 1,
     maximum: 5,
   })
@@ -55,3 +59,4 @@ export class CrearAsignacionDto {
   @IsString()
   periodo_academico: string;
 }
+

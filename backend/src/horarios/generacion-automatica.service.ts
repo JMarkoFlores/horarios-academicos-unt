@@ -1,6 +1,6 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+﻿import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, DataSource } from "typeorm";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { Docente } from "../entities/docente.entity";
 import { Curso } from "../entities/curso.entity";
@@ -8,7 +8,6 @@ import { Ambiente } from "../entities/ambiente.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
-import { CursoAmbiente } from "../entities/curso-ambiente.entity";
 import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
@@ -43,7 +42,7 @@ export interface DetalleDocente {
 @Injectable()
 export class GeneracionAutomaticaService {
   private readonly logger = new Logger(GeneracionAutomaticaService.name);
-  private readonly DIAS_SEMANA = [1, 2, 3, 4, 5, 6]; // Lun-Sáb
+  private readonly DIAS_SEMANA = [1, 2, 3, 4, 5, 6]; // Lun-SÃ¡b
   private readonly HORAS_INICIO = [
     "07:00",
     "08:00",
@@ -77,42 +76,46 @@ export class GeneracionAutomaticaService {
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     @InjectRepository(DocenteCurso)
     private readonly docenteCursoRepo: Repository<DocenteCurso>,
-    @InjectRepository(CursoAmbiente)
-    private readonly cursoAmbienteRepo: Repository<CursoAmbiente>,
     @InjectRepository(DisponibilidadDocente)
     private readonly disponibilidadRepo: Repository<DisponibilidadDocente>,
     @InjectRepository(ParametrosCarga)
     private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async generarHorarios(periodoCodigo: string): Promise<ResultadoGeneracion> {
-    this.logger.log(`[Generación] Iniciando para período ${periodoCodigo}`);
+    this.logger.log(`[GeneraciÃ³n] Iniciando para perÃ­odo ${periodoCodigo}`);
 
     const periodo = await this.periodoRepo.findOne({
       where: { codigo: periodoCodigo },
     });
     if (!periodo)
-      throw new BadRequestException(`Período ${periodoCodigo} no encontrado`);
+      throw new BadRequestException(`PerÃ­odo ${periodoCodigo} no encontrado`);
 
-    // Solo permitir generación en modo AUTOMATICA o MIXTA
+    // Solo permitir generaciÃ³n en modo AUTOMATICA o MIXTA
     if (periodo.modo_asignacion === ModoAsignacion.VENTANAS) {
       throw new BadRequestException(
-        "Este período está configurado solo para ventanas de atención",
+        "Este perÃ­odo estÃ¡ configurado solo para ventanas de atenciÃ³n",
       );
     }
 
-    // Limpiar horarios auto-generados previos del período
+    // Limpiar horarios auto-generados previos del perÃ­odo
     const previos = await this.horarioRepo.find({
       where: {
         periodo: periodoCodigo,
         origen: OrigenHorario.GENERACION_AUTOMATICA,
       },
     });
+    // Iniciar transacci\u00F3n para todas las operaciones de escritura
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
     if (previos.length > 0) {
       this.logger.log(
-        `[Generación] Eliminando ${previos.length} horarios auto-generados previos`,
+        `[GeneraciÃ³n] Eliminando ${previos.length} horarios auto-generados previos`,
       );
-      await this.horarioRepo.remove(previos);
+        await queryRunner.manager.remove(previos);
     }
 
     const resultado: ResultadoGeneracion = {
@@ -123,7 +126,7 @@ export class GeneracionAutomaticaService {
       detallePorDocente: [],
     };
 
-    // Obtener docentes activos ordenados por jerarquía: categoría luego tipo_contrato luego fecha_ingreso
+    // Obtener docentes activos ordenados por jerarquÃ­a: categorÃ­a luego tipo_contrato luego fecha_ingreso
     const docentes = await this.docenteRepo.find({
       where: { activo: true },
       order: {
@@ -135,13 +138,13 @@ export class GeneracionAutomaticaService {
 
     resultado.totalDocentes = docentes.length;
 
-    // Obtener todos los grupos del período
+    // Obtener todos los grupos del perÃ­odo
     const grupos = await this.grupoRepo.find({
       where: { periodo_academico: { id: periodo.id } },
       relations: ["curso"],
     });
 
-    // Obtener disponibilidades del período
+    // Obtener disponibilidades del perÃ­odo
     const disponibilidades = await this.disponibilidadRepo.find({
       where: { periodo_academico: periodoCodigo },
     });
@@ -152,7 +155,7 @@ export class GeneracionAutomaticaService {
       relations: ["docente", "ambiente", "grupo"],
     });
 
-    // Cargar parámetros de carga para el período
+    // Cargar parÃ¡metros de carga para el perÃ­odo
     const parametrosCarga = await this.parametrosCargaRepo.find({
       where: { periodo_academico: periodoCodigo },
     });
@@ -164,7 +167,7 @@ export class GeneracionAutomaticaService {
       );
     }
 
-    // Rastreo de horas semanales y cursos por docente en este período
+    // Rastreo de horas semanales y cursos por docente en este perÃ­odo
     const horasSemanalesDocente = new Map<number, number>();
     const cursosDocenteSet = new Map<number, Set<number>>();
 
@@ -178,7 +181,7 @@ export class GeneracionAutomaticaService {
         errores: [],
       };
 
-      // Obtener parámetros para este docente
+      // Obtener parÃ¡metros para este docente
       const pKey = `${docente.tipo_docente}_${docente.categoria}_${docente.modalidad ?? ""}`;
       const parametro = parametrosMap.get(pKey);
       const maxHorasSemanal = parametro?.horas_max_semanal ?? 999;
@@ -189,7 +192,7 @@ export class GeneracionAutomaticaService {
       if (!cursosDocenteSet.has(docente.id))
         cursosDocenteSet.set(docente.id, new Set());
 
-      // Obtener cursos asignados al docente en este período
+      // Obtener cursos asignados al docente en este perÃ­odo
       const docenteCursos = await this.docenteCursoRepo.find({
         where: { docenteId: docente.id, periodoId: periodo.id },
         relations: ["curso"],
@@ -206,10 +209,11 @@ export class GeneracionAutomaticaService {
         const tipoClase = dc.tipo_clase;
 
         // Obtener ambientes compatibles para este curso
-        const cursoAmbientes = await this.cursoAmbienteRepo.find({
-          where: { cursoId: curso.id },
-          relations: ["ambiente"],
+        const cursoConAmbientes = await this.cursoRepo.findOne({
+          where: { id: curso.id },
+          relations: ["ambientes"],
         });
+        const cursoAmbientes = (cursoConAmbientes?.ambientes ?? []).map((a) => ({ ambiente: a }));
 
         if (cursoAmbientes.length === 0) {
           detalle.errores.push(
@@ -218,18 +222,18 @@ export class GeneracionAutomaticaService {
           continue;
         }
 
-        // Buscar grupo del curso en este período
+        // Buscar grupo del curso en este perÃ­odo
         const gruposCurso = grupos.filter((g) => g.curso.id === curso.id);
         if (gruposCurso.length === 0) {
           detalle.errores.push(
-            `Curso ${curso.nombre}: no hay grupos en este período`,
+            `Curso ${curso.nombre}: no hay grupos en este perÃ­odo`,
           );
           continue;
         }
 
         // Para cada grupo, asignar slots
         for (const grupo of gruposCurso) {
-          // Determinar cuántas horas necesita
+          // Determinar cuÃ¡ntas horas necesita
           const horasRequeridas =
             tipoClase === TipoClase.TEORIA
               ? curso.horas_teoria || 0
@@ -265,11 +269,11 @@ export class GeneracionAutomaticaService {
               );
               if (tieneDisponibilidades && dispDocente.length === 0) continue;
 
-              // Validar límite de horas semanales según ParametrosCarga
+              // Validar lÃ­mite de horas semanales segÃºn ParametrosCarga
               const horasActuales = horasSemanalesDocente.get(docente.id) ?? 0;
               if (horasActuales + this.DURACION_BLOQUE > maxHorasSemanal) break;
 
-              // Validar límite de cursos según ParametrosCarga
+              // Validar lÃ­mite de cursos segÃºn ParametrosCarga
               const cursosSet = cursosDocenteSet.get(docente.id) ?? new Set();
               const esCursoNuevo = !cursosSet.has(curso.id);
               if (esCursoNuevo && cursosSet.size >= maxCursos) break;
@@ -302,7 +306,7 @@ export class GeneracionAutomaticaService {
               }
 
               if (!ambienteAsignado) {
-                continue; // Ningún ambiente libre
+                continue; // NingÃºn ambiente libre
               }
 
               // Validar cruce de grupo
@@ -316,7 +320,7 @@ export class GeneracionAutomaticaService {
               if (cruceGrupo) continue;
 
               // Crear horario
-              const nuevoHorario = this.horarioRepo.create({
+              const nuevoHorario = queryRunner.manager.create(HorarioAsignado, {
                 docente_id: docente.id,
                 curso_id: curso.id,
                 grupo_id: grupo.id,
@@ -330,7 +334,7 @@ export class GeneracionAutomaticaService {
                 origen: OrigenHorario.GENERACION_AUTOMATICA,
               });
 
-              const guardado = await this.horarioRepo.save(nuevoHorario);
+              const guardado = await queryRunner.manager.save(nuevoHorario);
               horariosExistentes.push(guardado as any);
               horasSemanalesDocente.set(
                 docente.id,
@@ -360,10 +364,18 @@ export class GeneracionAutomaticaService {
     }
 
     this.logger.log(
-      `[Generación] Finalizado: ${resultado.horariosGenerados} horarios para ${resultado.docentesAtendidos} docentes`,
+      `[GeneraciÃ³n] Finalizado: ${resultado.horariosGenerados} horarios para ${resultado.docentesAtendidos} docentes`,
     );
 
+    await queryRunner.commitTransaction();
     return resultado;
+    } catch (txError) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`[Generación] Error en transacción: ${txError.message}`);
+      throw txError;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async publicarHorariosAutoGenerados(
@@ -386,3 +398,4 @@ export class GeneracionAutomaticaService {
     return `${total.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
   }
 }
+

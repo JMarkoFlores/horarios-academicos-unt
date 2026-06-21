@@ -26,7 +26,6 @@ import { ConfiguracionModule } from "./configuracion/configuracion.module";
 import { PreasignacionesModule } from "./modules/preasignaciones/preasignaciones.module";
 import { VentanasModule } from "./modules/ventanas/ventanas.module";
 import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
-import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
 import { FacultadesModule } from "./facultades/facultades.module";
 import { DataImportModule } from "./modules/data-import/data-import.module";
 import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/declaracion-carga-horaria.module";
@@ -116,7 +115,6 @@ import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion
     ConfiguracionModule,
     PreasignacionesModule,
     AuditoriaModule,
-    CursosAmbienteModule,
     FacultadesModule,
     DataImportModule,
     DeclaracionCargaHorariaModule,

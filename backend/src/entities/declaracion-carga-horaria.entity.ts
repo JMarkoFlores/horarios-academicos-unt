@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Unique,
 } from "typeorm";
@@ -77,6 +78,9 @@ export class DeclaracionCargaHoraria {
     default: EstadoDeclaracionCarga.NO_INICIADO,
   })
   estado: EstadoDeclaracionCarga;
+
+  @OneToMany("DeclaracionObservacion", "declaracion")
+  observacion_items: import("./declaracion-observacion.entity").DeclaracionObservacion[];
 
   @Column({ type: "text", nullable: true })
   observaciones: string | null;

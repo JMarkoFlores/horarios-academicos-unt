@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subject, Subscription, debounceTime, switchMap } from 'rxjs';
+import { Subject, Subscription, debounceTime, switchMap, tap } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
@@ -184,7 +184,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     this.cargarDeclaracionJurada();
 
     this.autoSaveSub = this.autoSaveSubject.pipe(
-      debounceTime(30000),
+      debounceTime(10000),
       switchMap(() => this.ejecutarAutoSave()),
     ).subscribe();
   }
@@ -1017,32 +1017,25 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
     this.api.post<any>(`/declaraciones/docentes/${this.docenteId}/declaracion-jurada`, {
       periodo: this.periodoActivo,
-    }).subscribe({
-      next: () => {
-        this.cargarDeclaracionJurada();
-        this.api.getBlob(`/reportes/declaracion-jurada/${this.docenteId}/pdf?periodo=${this.periodoActivo}`)
-          .subscribe({
-            next: (blob) => {
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `declaracion_jurada_incompatibilidad_${this.docente?.apellidos}_${this.periodoActivo}.pdf`;
-              document.body.appendChild(a);
-              a.click();
-              window.URL.revokeObjectURL(url);
-              a.remove();
-              this.generandoDeclaracionJurada = false;
-              this.snackBar.open('Declaración Jurada generada con éxito', 'Cerrar', { duration: 3000 });
-            },
-            error: () => {
-              this.generandoDeclaracionJurada = false;
-              this.snackBar.open('Error al generar el PDF', 'Cerrar', { duration: 3000 });
-            },
-          });
+    }).pipe(
+      tap(() => this.cargarDeclaracionJurada()),
+      switchMap(() => this.api.getBlob(`/reportes/declaracion-jurada/${this.docenteId}/pdf?periodo=${this.periodoActivo}`)),
+    ).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `declaracion_jurada_incompatibilidad_${this.docente?.apellidos}_${this.periodoActivo}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        this.generandoDeclaracionJurada = false;
+        this.snackBar.open('Declaración Jurada generada con éxito', 'Cerrar', { duration: 3000 });
       },
       error: () => {
         this.generandoDeclaracionJurada = false;
-        this.snackBar.open('Error al registrar la declaración jurada', 'Cerrar', { duration: 3000 });
+        this.snackBar.open('Error al generar la declaración jurada', 'Cerrar', { duration: 3000 });
       },
     });
   }

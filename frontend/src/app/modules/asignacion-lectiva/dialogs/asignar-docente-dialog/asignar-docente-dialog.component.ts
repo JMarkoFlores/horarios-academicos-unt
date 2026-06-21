@@ -1,14 +1,16 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../../core/services/api.service';
 import { PeriodoService } from '../../../../core/services/periodo.service';
-import { ApiResponse, PaginatedData, Docente, Grupo } from '../../../../core/interfaces/entities';
+import { ApiResponse, PaginatedData, PlanEstudios, Docente, Grupo } from '../../../../core/interfaces/entities';
+import { CursoPlanDialogComponent } from '../../../../modules/plan-estudios/dialogs/curso-plan-dialog/curso-plan-dialog.component';
 
 export interface CursoPlanData {
   id: number;
   curso_id: number;
+  plan_estudios_id: number;
   horas_teoria: number;
   horas_practica: number;
   horas_laboratorio: number;
@@ -22,13 +24,22 @@ export interface CursoPlanData {
     <h2 mat-dialog-title>Asignar docente</h2>
     <mat-dialog-content>
       <form [formGroup]="form" class="dialog-form">
+        <mat-form-field appearance="outline" class="premium-field">
+          <mat-label>Plan de Estudios</mat-label>
+          <mat-select [formControl]="planControl">
+            <mat-option *ngFor="let p of planes" [value]="p.id">
+              {{ p.nombre }} <span *ngIf="p.activo">(Activo)</span>
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
         <div class="curso-info">
-          <strong>{{ data.cursoPlan.curso.codigo }} — {{ data.cursoPlan.curso.nombre }}</strong>
+          <strong>{{ cursoPlanData.curso.codigo }} — {{ cursoPlanData.curso.nombre }}</strong>
           <div class="horas-info">
-            <span>T: {{ data.cursoPlan.horas_teoria }}h</span>
-            <span>P: {{ data.cursoPlan.horas_practica }}h</span>
-            <span>L: {{ data.cursoPlan.horas_laboratorio }}h</span>
-            <span class="credits">{{ data.cursoPlan.creditos }} créd.</span>
+            <span>T: {{ cursoPlanData.horas_teoria }}h</span>
+            <span>P: {{ cursoPlanData.horas_practica }}h</span>
+            <span>L: {{ cursoPlanData.horas_laboratorio }}h</span>
+            <span class="credits">{{ cursoPlanData.creditos }} créd.</span>
           </div>
         </div>
 
@@ -91,9 +102,15 @@ export interface CursoPlanData {
         </mat-form-field>
       </form>
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
+      <div *ngIf="cursoNoExisteEnPlan" class="warning-banner">
+        <mat-icon>warning</mat-icon>
+        <span>Este curso no existe en el plan seleccionado.</span>
+        <button mat-stroked-button color="primary" (click)="agregarCursoAlPlan()">Agregar al plan</button>
+      </div>
+
+      <mat-dialog-actions align="end">
       <button mat-button (click)="onCancel()">Cancelar</button>
-      <button mat-raised-button color="primary" [disabled]="form.invalid || saving" (click)="onSave()">
+      <button mat-raised-button color="primary" [disabled]="form.invalid || saving || cursoNoExisteEnPlan" (click)="onSave()">
         Asignar
       </button>
     </mat-dialog-actions>
@@ -108,25 +125,35 @@ export interface CursoPlanData {
     .carga-info { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #e3f2fd; border-radius: 8px; font-size: 0.85rem; }
     .carga-info mat-icon { font-size: 18px; width: 18px; height: 18px; color: #1565c0; }
     .carga-info .excede { color: #c62828; font-weight: 600; }
+    .warning-banner { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #fff3e0; color: #e65100; border-radius: 8px; font-size: 0.85rem; margin-bottom: 8px; flex-wrap: wrap; }
+    .warning-banner mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    .warning-banner span { flex: 1; }
+    .warning-banner button { flex-shrink: 0; }
   `],
 })
 export class AsignarDocenteDialogComponent implements OnInit {
   form: FormGroup;
+  planes: PlanEstudios[] = [];
+  planControl = this.fb.control<number | null>(null);
+  cursoPlanData: CursoPlanData;
   docentes: Docente[] = [];
   grupos: Grupo[] = [];
   saving = false;
   cargaActual: number | null = null;
   cargaMaxima = 40;
   nuevaCargaTotal = 0;
+  cursoNoExisteEnPlan = false;
 
   constructor(
     private fb: FormBuilder,
     private api: ApiService,
     private snackBar: MatSnackBar,
     private periodoService: PeriodoService,
+    private dialog: MatDialog,
     public dialogRef: MatDialogRef<AsignarDocenteDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { cursoPlan: CursoPlanData; periodoId: number },
   ) {
+    this.cursoPlanData = { ...data.cursoPlan };
     this.form = this.fb.group({
       docente_id: [null, Validators.required],
       tipo_clase: ['TEORIA', Validators.required],
@@ -138,6 +165,19 @@ export class AsignarDocenteDialogComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.api.get<ApiResponse<PlanEstudios[]>>('/plan-estudios').subscribe({
+      next: (res) => {
+        this.planes = res.data;
+        this.planControl.setValue(this.data.cursoPlan.plan_estudios_id);
+      },
+    });
+
+    this.planControl.valueChanges.subscribe((planId) => {
+      if (planId && planId !== this.data.cursoPlan.plan_estudios_id) {
+        this.cargarCursoParaPlan(planId);
+      }
+    });
+
     this.api.get<ApiResponse<PaginatedData<Docente>>>('/docentes', { limit: 200 }).subscribe({
       next: (res) => {
         this.docentes = Array.isArray(res.data) ? res.data : res.data?.items || [];
@@ -164,12 +204,37 @@ export class AsignarDocenteDialogComponent implements OnInit {
     });
   }
 
+  cargarCursoParaPlan(planId: number): void {
+    this.api.get<ApiResponse<CursoPlanData[]>>(
+      `/plan-estudios/${planId}/cursos`
+    ).subscribe({
+      next: (res) => {
+        const items = Array.isArray(res.data) ? res.data : [];
+        const encontrado = items.find((cp) => cp.curso_id === this.data.cursoPlan.curso_id);
+        if (encontrado) {
+          this.cursoPlanData = encontrado;
+          this.cursoNoExisteEnPlan = false;
+          this.form.patchValue({
+            horas_asignadas: this.getHorasPorTipo(this.form.get('tipo_clase')?.value),
+          });
+          if (this.form.get('docente_id')?.value) {
+            this.onDocenteChange(this.form.get('docente_id')?.value);
+          }
+        } else {
+          this.cursoNoExisteEnPlan = true;
+        }
+      },
+      error: () => {
+        this.cursoNoExisteEnPlan = true;
+      },
+    });
+  }
+
   getHorasPorTipo(tipo: string): number {
-    const cp = this.data.cursoPlan;
     switch (tipo) {
-      case 'TEORIA': return cp.horas_teoria;
-      case 'PRACTICA': return cp.horas_practica;
-      case 'LABORATORIO': return cp.horas_laboratorio;
+      case 'TEORIA': return this.cursoPlanData.horas_teoria;
+      case 'PRACTICA': return this.cursoPlanData.horas_practica;
+      case 'LABORATORIO': return this.cursoPlanData.horas_laboratorio;
       default: return 0;
     }
   }
@@ -193,7 +258,7 @@ export class AsignarDocenteDialogComponent implements OnInit {
     this.saving = true;
     const dto = {
       ...this.form.value,
-      curso_plan_id: this.data.cursoPlan.id,
+      curso_plan_id: this.cursoPlanData.id,
       periodo_id: this.data.periodoId,
     };
     this.api.post<ApiResponse<any>>('/asignacion-lectiva', dto).subscribe({
@@ -210,5 +275,24 @@ export class AsignarDocenteDialogComponent implements OnInit {
 
   onCancel(): void {
     this.dialogRef.close(false);
+  }
+
+  agregarCursoAlPlan(): void {
+    const planId = this.planControl.value;
+    if (!planId) return;
+
+    const cursoInfo = this.data.cursoPlan.curso;
+    this.dialog.open(CursoPlanDialogComponent, {
+      width: '600px',
+      data: {
+        planId,
+        modo: 'crear',
+        cursoPreSeleccionado: { id: cursoInfo.id, codigo: cursoInfo.codigo, nombre: cursoInfo.nombre },
+      },
+    }).afterClosed().subscribe((result: boolean) => {
+      if (result) {
+        this.cargarCursoParaPlan(planId);
+      }
+    });
   }
 }

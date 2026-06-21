@@ -34,9 +34,10 @@ import { CursoPlan } from '../../plan-estudios-detail/plan-estudios-detail.compo
           <mat-form-field appearance="outline" class="premium-field">
             <mat-label>Tipo</mat-label>
             <mat-select formControlName="tipo_curso">
-              <mat-option value="OBLIGATORIO">Obligatorio</mat-option>
+              <mat-option value="ESPECIALIDAD">Especialidad</mat-option>
+              <mat-option value="OBLIGATORIO_GENERAL">Obligatorio General</mat-option>
+              <mat-option value="OBLIGATORIO_PROFESIONAL">Obligatorio Profesional</mat-option>
               <mat-option value="ELECTIVO">Electivo</mat-option>
-              <mat-option value="COMPLEMENTARIO">Complementario</mat-option>
             </mat-select>
             <mat-error>Requerido</mat-error>
           </mat-form-field>
@@ -103,12 +104,12 @@ export class CursoPlanDialogComponent implements OnInit {
     private api: ApiService,
     private snackBar: MatSnackBar,
     private dialogRef: MatDialogRef<CursoPlanDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { planId: number; cursoPlan?: CursoPlan; modo: 'crear' | 'editar' },
+    @Inject(MAT_DIALOG_DATA) public data: { planId: number; cursoPlan?: CursoPlan; modo: 'crear' | 'editar'; cursoPreSeleccionado?: { id: number; codigo: string; nombre: string } },
   ) {
     this.form = this.fb.group({
       curso_id: [null, Validators.required],
       ciclo: [1, [Validators.required, Validators.min(1), Validators.max(10)]],
-      tipo_curso: ['OBLIGATORIO', Validators.required],
+      tipo_curso: ['OBLIGATORIO_GENERAL', Validators.required],
       horas_teoria: [0, Validators.min(0)],
       horas_practica: [0, Validators.min(0)],
       horas_laboratorio: [0, Validators.min(0)],
@@ -126,6 +127,11 @@ export class CursoPlanDialogComponent implements OnInit {
       error: () => this.snackBar.open('Error al cargar cursos', 'Cerrar', { duration: 3000 }),
     });
 
+    if (this.data.modo === 'crear' && this.data.cursoPreSeleccionado) {
+      this.form.patchValue({ curso_id: this.data.cursoPreSeleccionado.id });
+      this.form.get('curso_id')?.disable();
+    }
+
     if (this.data.modo === 'editar' && this.data.cursoPlan) {
       const cp = this.data.cursoPlan;
       this.form.patchValue({
@@ -138,9 +144,7 @@ export class CursoPlanDialogComponent implements OnInit {
         creditos: cp.creditos,
         prerequisitos: cp.prerequisitos || [],
       });
-      if (this.data.modo === 'editar') {
-        this.form.get('curso_id')?.disable();
-      }
+      this.form.get('curso_id')?.disable();
     }
   }
 

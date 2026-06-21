@@ -10,18 +10,10 @@
     </div>
   </div>
 
-  <mat-card class="filters-card">
-    <mat-card-content>
-      <div class="filters-row">
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>{{ 'asignacionLectiva.plan' | translate }}</mat-label>
-          <mat-select [formControl]="planControl">
-            <mat-option *ngFor="let p of planes" [value]="p.id">{{ p.nombre }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-      </div>
-    </mat-card-content>
-  </mat-card>
+  <div class="plan-badge">
+    <mat-icon>school</mat-icon>
+    <span><strong>{{ planActivoNombre }}</strong> <em>(Activo)</em></span>
+  </div>
 
   <mat-card class="table-card">
     <mat-tab-group (selectedTabChange)="selectedCiclo = ciclos[$event.index]" [selectedIndex]="selectedCiclo - 1">

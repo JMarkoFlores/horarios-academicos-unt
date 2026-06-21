@@ -29,7 +29,6 @@ import { VentanaAtencion } from "../entities/ventana-atencion.entity";
 import { ColaDocentes } from "../entities/cola-docentes.entity";
 import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
-import { CursoAmbiente } from "../entities/curso-ambiente.entity";
 import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
 import { NotificacionDocente } from "../entities/notificacion-docente.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";

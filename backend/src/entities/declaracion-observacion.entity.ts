@@ -10,9 +10,11 @@ import {
 import { DeclaracionCargaHoraria } from "./declaracion-carga-horaria.entity";
 import { Usuario } from "./usuario.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
+import { TipoObservacion } from "../common/enums/tipo-observacion.enum";
 
 @Entity("declaracion_observacion")
 @Index("idx_observacion_declaracion", ["declaracion_id"])
+@Index("idx_observacion_usuario", ["usuario_id"])
 export class DeclaracionObservacion {
   @PrimaryGeneratedColumn()
   id: number;
@@ -20,7 +22,7 @@ export class DeclaracionObservacion {
   @Column({ name: "declaracion_id" })
   declaracion_id: number;
 
-  @ManyToOne(() => DeclaracionCargaHoraria, {
+  @ManyToOne(() => DeclaracionCargaHoraria, (declaracion) => declaracion.observacion_items, {
     nullable: false,
     eager: false,
     onDelete: "CASCADE",
@@ -42,14 +44,14 @@ export class DeclaracionObservacion {
   @Column({ type: "text", nullable: false })
   observacion: string;
 
-  @Column({ length: 30, name: "estado_origen" })
-  estado_origen: string;
+  @Column({ type: "enum", enum: EstadoDeclaracionCarga, name: "estado_origen" })
+  estado_origen: EstadoDeclaracionCarga;
 
-  @Column({ length: 30, name: "estado_destino" })
-  estado_destino: string;
+  @Column({ type: "enum", enum: EstadoDeclaracionCarga, name: "estado_destino" })
+  estado_destino: EstadoDeclaracionCarga;
 
-  @Column({ length: 20 })
-  tipo: string;
+  @Column({ type: "enum", enum: TipoObservacion })
+  tipo: TipoObservacion;
 
   @Column({ default: false })
   subsanada: boolean;

@@ -17,7 +17,6 @@ import { Usuario } from "../entities/usuario.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
-import { CursoAmbiente } from "../entities/curso-ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
@@ -80,8 +79,6 @@ export class DocentesService {
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
-    @InjectRepository(CursoAmbiente)
-    private readonly cursoAmbienteRepo: Repository<CursoAmbiente>,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(PeriodoAcademico)
@@ -882,19 +879,11 @@ export class DocentesService {
       tipoClase,
     );
 
-    const cursoAmbienteRelations = await this.cursoAmbienteRepo.find({
-      where: {
-        cursoId,
-      },
-      relations: ["ambiente"],
+    const curso = await this.cursoRepo.findOne({
+      where: { id: cursoId },
+      relations: ["ambientes"],
     });
-
-    console.log(
-      "[findAmbientesCompatibles] cursoAmbienteRelations:",
-      cursoAmbienteRelations.length,
-      "items",
-    );
-    const ambientes = cursoAmbienteRelations.map((ca) => ca.ambiente);
+    const ambientes = curso?.ambientes ?? [];
     console.log(
       "[findAmbientesCompatibles] ambientes:",
       ambientes.map((a) => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })),

@@ -4,9 +4,11 @@ import {
   IsOptional,
   IsString,
   IsNumber,
+  IsEnum,
   Min,
   MaxLength,
 } from "class-validator";
+import { TipoClase } from "../../../common/enums/tipo-clase.enum";
 
 export class CreateAsignacionLectivaDto {
   @IsInt()
@@ -25,9 +27,9 @@ export class CreateAsignacionLectivaDto {
   @IsOptional()
   grupo_id?: number;
 
-  @IsString()
+  @IsEnum(TipoClase)
   @IsNotEmpty()
-  tipo_clase: string;
+  tipo_clase: TipoClase;
 
   @IsString()
   @IsNotEmpty()

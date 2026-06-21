@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   Controller,
   Get,
@@ -27,7 +27,7 @@ import {
   ApiParam,
 } from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, DataSource } from "typeorm";
 import { Request } from "express";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -70,6 +70,7 @@ export class HorariosController {
     private readonly auditoriaRepo: Repository<AuditoriaHorario>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
+    private readonly dataSource: DataSource,
   ) {}
 
   @Post("asignar")
@@ -93,7 +94,7 @@ export class HorariosController {
 
   @Post("generar")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Generar horario para un período" })
+  @ApiOperation({ summary: "Generar horario para un perÃ­odo" })
   @ApiResponse({ status: 201, description: "Horario generado correctamente" })
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   async generarHorario(@Body() dto: GenerarHorarioDto) {
@@ -109,7 +110,7 @@ export class HorariosController {
   @Delete("limpiar")
   @ApiBearerAuth("JWT")
   @ApiOperation({
-    summary: "Limpiar horario en BORRADOR/CONFLICTO por período",
+    summary: "Limpiar horario en BORRADOR/CONFLICTO por perÃ­odo",
   })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({ status: 200, description: "Horario limpiado correctamente" })
@@ -126,11 +127,18 @@ export class HorariosController {
   }
 
   @Get("periodo/:periodo")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DOCENTE,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar horario por período" })
+  @ApiOperation({ summary: "Listar horario por perÃ­odo" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Horarios del período" })
+  @ApiResponse({ status: 200, description: "Horarios del perÃ­odo" })
   async getPorPeriodo(
     @Param("periodo") periodo: string,
     @Query("page") page?: string,
@@ -143,14 +151,21 @@ export class HorariosController {
     );
     return {
       data,
-      message: "Horario del período obtenido",
+      message: "Horario del perÃ­odo obtenido",
       statusCode: HttpStatus.OK,
     };
   }
 
   @Get("docente/:id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DOCENTE,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar horario de un docente por período" })
+  @ApiOperation({ summary: "Listar horario de un docente por perÃ­odo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
@@ -175,8 +190,14 @@ export class HorariosController {
   }
 
   @Get("ocupacion-heatmap")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar heatmap de ocupación por período" })
+  @ApiOperation({ summary: "Listar heatmap de ocupaciÃ³n por perÃ­odo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({ status: 200, description: "Heatmap obtenido" })
   async getOcupacionHeatmap(@Query("periodo") periodo: string) {
@@ -185,12 +206,18 @@ export class HorariosController {
   }
 
   @Get("ambiente/:id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar ocupación de un ambiente por período" })
+  @ApiOperation({ summary: "Listar ocupaciÃ³n de un ambiente por perÃ­odo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Ocupación del ambiente" })
+  @ApiResponse({ status: 200, description: "OcupaciÃ³n del ambiente" })
   async getPorAmbiente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
@@ -211,12 +238,18 @@ export class HorariosController {
   }
 
   @Get("dia/:dia")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar asignaciones por día y período" })
+  @ApiOperation({ summary: "Listar asignaciones por dÃ­a y perÃ­odo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Asignaciones del día" })
+  @ApiResponse({ status: 200, description: "Asignaciones del dÃ­a" })
   async getPorDia(
     @Param("dia", ParseIntPipe) dia: number,
     @Query("periodo") periodo: string,
@@ -231,7 +264,7 @@ export class HorariosController {
     );
     return {
       data,
-      message: "Horario del día obtenido",
+      message: "Horario del dÃ­a obtenido",
       statusCode: HttpStatus.OK,
     };
   }
@@ -374,10 +407,10 @@ export class HorariosController {
 
   @Patch(":id/actualizar")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Actualizar una asignación de horario existente" })
+  @ApiOperation({ summary: "Actualizar una asignaciÃ³n de horario existente" })
   @ApiResponse({
     status: 200,
-    description: "Asignación actualizada correctamente",
+    description: "AsignaciÃ³n actualizada correctamente",
   })
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
@@ -397,17 +430,17 @@ export class HorariosController {
     await this.horariosService.invalidateHorariosCache();
     return {
       data,
-      message: "Asignación actualizada",
+      message: "AsignaciÃ³n actualizada",
       statusCode: HttpStatus.OK,
     };
   }
 
   @Delete(":id")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Eliminar una asignación de horario existente" })
+  @ApiOperation({ summary: "Eliminar una asignaciÃ³n de horario existente" })
   @ApiResponse({
     status: 200,
-    description: "Asignación eliminada correctamente",
+    description: "AsignaciÃ³n eliminada correctamente",
   })
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
@@ -446,21 +479,32 @@ export class HorariosController {
         `[deleteAsignacion] Datos anteriores: ${JSON.stringify(datosAnteriores)}`,
       );
 
-      // Save audit record before deletion to avoid foreign key constraint violation
-      await this.auditoriaRepo.save(
-        this.auditoriaRepo.create({
-          horario_id: id,
-          usuario_id: usuario?.id ?? 1,
-          accion: "eliminar_asignacion",
-          datos_anteriores: datosAnteriores,
-          datos_nuevos: null,
-          ip: request.ip ?? "desconocida",
-          motivo: "Eliminación desde modo edición",
-        }),
-      );
-      this.logger.log(`[deleteAsignacion] Auditoría guardada exitosamente`);
+      // Wrap audit + delete in transaction
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        await queryRunner.manager.save(
+          queryRunner.manager.create(AuditoriaHorario, {
+            horario_id: id,
+            usuario_id: usuario?.id ?? 1,
+            accion: "eliminar_asignacion",
+            datos_anteriores: datosAnteriores,
+            datos_nuevos: null,
+            ip: request.ip ?? "desconocida",
+            motivo: "Eliminaci\u00F3n desde modo edici\u00F3n",
+          }),
+        );
+        this.logger.log(`[deleteAsignacion] Auditor\u00EDa guardada exitosamente`);
 
-      await this.horarioRepo.delete(id);
+        await queryRunner.manager.delete(HorarioAsignado, { id });
+        await queryRunner.commitTransaction();
+      } catch (txError) {
+        await queryRunner.rollbackTransaction();
+        throw txError;
+      } finally {
+        await queryRunner.release();
+      }
       this.logger.log(
         `[deleteAsignacion] Horario ${id} eliminado de la base de datos`,
       );
@@ -469,7 +513,7 @@ export class HorariosController {
 
       return {
         data: null,
-        message: "Asignación eliminada",
+        message: "AsignaciÃ³n eliminada",
         statusCode: HttpStatus.OK,
       };
     } catch (error) {
@@ -482,11 +526,16 @@ export class HorariosController {
   }
 
   @Get("conflictos/:periodo")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar conflictos del período" })
+  @ApiOperation({ summary: "Listar conflictos del perÃ­odo" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Conflictos del período" })
+  @ApiResponse({ status: 200, description: "Conflictos del perÃ­odo" })
   async getConflictos(
     @Param("periodo") periodo: string,
     @Query("page") page?: string,
@@ -557,14 +606,14 @@ export class HorariosController {
   @Post("generar-automatico")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Generar horarios automáticamente para un período" })
+  @ApiOperation({ summary: "Generar horarios automÃ¡ticamente para un perÃ­odo" })
   @ApiResponse({ status: 201, description: "Horarios generados correctamente" })
   async generarAutomatico(@Body() dto: GenerarAutomaticoDto) {
     const resultado = await this.generacionService.generarHorarios(dto.periodo);
     await this.horariosService.invalidateHorariosCache();
     return {
       data: resultado,
-      message: "Generación automática completada",
+      message: "GeneraciÃ³n automÃ¡tica completada",
       statusCode: HttpStatus.CREATED,
     };
   }
@@ -572,7 +621,7 @@ export class HorariosController {
   @Post("publicar-auto-generados")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Publicar horarios auto-generados de un período" })
+  @ApiOperation({ summary: "Publicar horarios auto-generados de un perÃ­odo" })
   @ApiResponse({ status: 200, description: "Horarios publicados" })
   async publicarAutoGenerados(@Body() dto: GenerarAutomaticoDto) {
     const resultado =
@@ -589,7 +638,7 @@ export class HorariosController {
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiBearerAuth("JWT")
   @ApiOperation({
-    summary: "Depurar horarios de un período (verificar consistencia)",
+    summary: "Depurar horarios de un perÃ­odo (verificar consistencia)",
   })
   @ApiParam({ name: "periodo", type: String })
   async debugHorarios(@Param("periodo") periodo: string) {
@@ -624,7 +673,7 @@ export class HorariosController {
           curso: h.curso?.nombre,
           tipo: h.tipo_clase,
           periodoIdBuscado: periodoId,
-          error: "No tiene habilitación docente-curso",
+          error: "No tiene habilitaciÃ³n docente-curso",
         });
       } else {
         consistentes.push({
@@ -636,7 +685,7 @@ export class HorariosController {
       }
     }
 
-    // También verificar cuántas habilitaciones existen para este periodo
+    // TambiÃ©n verificar cuÃ¡ntas habilitaciones existen para este periodo
     const totalHabilitaciones = await this.horarioRepo
       .createQueryBuilder("h")
       .select("COUNT(*)")
@@ -653,11 +702,18 @@ export class HorariosController {
         totalHabilitaciones: totalHabilitaciones?.count || 0,
         inconsistentesList: inconsistentes,
       },
-      message: "Depuración completada",
+      message: "DepuraciÃ³n completada",
     };
   }
 
   @Get("docente/:id/ics")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DOCENTE,
+  )
   @ApiBearerAuth("JWT")
   @ApiOperation({
     summary: "Exportar horario de docente a formato iCalendar (.ics)",
@@ -699,7 +755,7 @@ export class HorariosController {
   @Get("matriz-disponibilidad")
   @ApiBearerAuth("JWT")
   @ApiOperation({
-    summary: "Obtener matriz de disponibilidad para selección de horarios",
+    summary: "Obtener matriz de disponibilidad para selecciÃ³n de horarios",
   })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({
@@ -731,3 +787,5 @@ export class HorariosController {
     };
   }
 }
+
+

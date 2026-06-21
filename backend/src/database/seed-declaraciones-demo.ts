@@ -8,6 +8,7 @@ import { Facultad } from "../entities/facultad.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Usuario } from "../entities/usuario.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
+import { TipoObservacion } from "../common/enums/tipo-observacion.enum";
 
 /** DNIs de 8 dígitos (formato peruano) para los 28 docentes del seed */
 export const DNIS_DOCENTES = [
@@ -183,7 +184,7 @@ export async function seedDeclaracionesDemo(
         observacion: textosObs[i % textosObs.length],
         estado_origen: EstadoDeclaracionCarga.ENVIADO_DOCENTE,
         estado_destino: EstadoDeclaracionCarga.OBSERVADO_DPTO,
-        tipo: "DEPARTAMENTO",
+        tipo: TipoObservacion.OBSERVACION_DPTO,
         subsanada: esSubsanado,
         subsanada_en: esSubsanado ? new Date("2026-03-25T11:00:00") : null,
         created_at: fecha,
@@ -200,7 +201,7 @@ export async function seedDeclaracionesDemo(
             "Observación histórica de seguimiento académico (solo referencia).",
           estado_origen: EstadoDeclaracionCarga.OBSERVADO_DPTO,
           estado_destino: EstadoDeclaracionCarga.OBSERVADO_DPTO,
-          tipo: "SEGUIMIENTO",
+          tipo: TipoObservacion.OBSERVACION_DPTO,
           subsanada: false,
           created_at: new Date("2026-03-18T14:30:00"),
         }),

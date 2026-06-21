@@ -398,19 +398,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cargaResumen = res.data;
         this.cargaLoading.set(false);
       },
-      error: () => { this.cargaLoading.set(false); },
+      error: () => {
+        this.cargaLoading.set(false);
+        this.snackBar.open('Error al cargar resumen de carga', 'Cerrar', { duration: 3000 });
+      },
     });
     this.api.get<ApiResponse<CargaDepartamento[]>>('/dashboard/carga/departamentos', { periodo }).subscribe({
       next: (res) => { this.cargaDepartamentos = res.data; this.buildDeptChart(res.data); },
+      error: () => { this.snackBar.open('Error al cargar datos por departamento', 'Cerrar', { duration: 3000 }); },
     });
     this.api.get<ApiResponse<CargaEstado[]>>('/dashboard/carga/estados', { periodo }).subscribe({
       next: (res) => { this.cargaEstados = res.data; this.buildFunnelChart(res.data); },
+      error: () => { this.snackBar.open('Error al cargar estados de carga', 'Cerrar', { duration: 3000 }); },
     });
     this.api.get<ApiResponse<CargaTopDocente[]>>('/dashboard/carga/top-docentes', { periodo, limit: '10' }).subscribe({
       next: (res) => { this.cargaTopDocentes = res.data; },
+      error: () => { this.snackBar.open('Error al cargar top docentes', 'Cerrar', { duration: 3000 }); },
     });
     this.api.get<ApiResponse<CargaAvance[]>>('/dashboard/carga/avance', { periodo }).subscribe({
       next: (res) => { this.cargaAvance = res.data; this.buildAvanceChart(res.data); },
+      error: () => { this.snackBar.open('Error al cargar avance', 'Cerrar', { duration: 3000 }); },
     });
   }
 

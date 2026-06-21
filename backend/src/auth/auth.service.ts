@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
@@ -138,7 +138,7 @@ export class AuthService {
     });
 
     if (!usuario) {
-      throw new UnauthorizedException("Credenciales inválidas");
+      throw new UnauthorizedException("Credenciales invÃ¡lidas");
     }
 
     if (!usuario.activo) {
@@ -151,7 +151,7 @@ export class AuthService {
     );
 
     if (!passwordValido) {
-      throw new UnauthorizedException("Credenciales inválidas");
+      throw new UnauthorizedException("Credenciales invÃ¡lidas");
     }
 
     return usuario;
@@ -190,14 +190,14 @@ export class AuthService {
     dto: CambiarPasswordDto,
   ): Promise<void> {
     if (dto.password_nueva !== dto.confirmar_password) {
-      throw new BadRequestException("Las contraseñas no coinciden");
+      throw new BadRequestException("Las contraseÃ±as no coinciden");
     }
     const valida = await this.comparePassword(
       dto.password_actual,
       usuario.password_hash,
     );
     if (!valida) {
-      throw new UnauthorizedException("Contraseña actual incorrecta");
+      throw new UnauthorizedException("ContraseÃ±a actual incorrecta");
     }
     usuario.password_hash = await this.hashPassword(dto.password_nueva);
     await this.usuarioRepository.save(usuario);
@@ -214,19 +214,19 @@ export class AuthService {
       usuario.reset_token = token;
       usuario.reset_token_expira = expira;
       await this.usuarioRepository.save(usuario);
-      this.mailService.sendPasswordReset(dto.email, token);
+      await this.mailService.sendPasswordReset(dto.email, token);
     }
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
     if (dto.password_nueva !== dto.confirmar_password) {
-      throw new BadRequestException("Las contraseñas no coinciden");
+      throw new BadRequestException("Las contraseÃ±as no coinciden");
     }
     const usuario = await this.usuarioRepository.findOne({
       where: { reset_token: dto.token },
     });
     if (!usuario || !usuario.reset_token_expira) {
-      throw new NotFoundException("Token inválido o expirado");
+      throw new NotFoundException("Token invÃ¡lido o expirado");
     }
     if (usuario.reset_token_expira < new Date()) {
       throw new BadRequestException("El token ha expirado");

@@ -33,6 +33,37 @@
     }
   }
 
+    .plan-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 8px 0 0 0;
+      font-size: 13px;
+      color: var(--color-text-muted);
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--color-primary);
+      }
+
+      strong {
+        color: var(--color-text);
+        font-weight: 700;
+      }
+
+      .resolucion {
+        margin-left: 4px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: var(--color-primary-light);
+        color: var(--color-primary);
+        font-size: 11px;
+        font-weight: 600;
+      }
+    }
+
   .btn-new {
     background-color: var(--color-accent) !important; // Cambiado a Esmeralda
     color: white !important;
@@ -287,6 +318,11 @@
       width: 36px;
       height: 36px;
       line-height: 36px;
+
+      &.view {
+        color: #7c3aed;
+        &:hover { background: rgba(124, 58, 237, 0.1); }
+      }
 
       &.edit {
         color: var(--color-primary);

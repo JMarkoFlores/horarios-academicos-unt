@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Unique,
   Index,
@@ -36,7 +37,7 @@ export class CursoPlanEstudios {
   @Column({ type: "smallint" })
   ciclo: number;
 
-  @Column({ length: 50, default: "OBLIGATORIO" })
+  @Column({ length: 50, default: "OBLIGATORIO_GENERAL" })
   tipo_curso: string;
 
   @Column({ type: "smallint", default: 0 })
@@ -50,6 +51,9 @@ export class CursoPlanEstudios {
 
   @Column({ type: "decimal", precision: 3, scale: 1 })
   creditos: number;
+
+  @OneToMany("AsignacionLectiva", "curso_plan")
+  asignaciones: import("./asignacion-lectiva.entity").AsignacionLectiva[];
 
   @Column({ type: "jsonb", nullable: true })
   prerequisitos: number[];

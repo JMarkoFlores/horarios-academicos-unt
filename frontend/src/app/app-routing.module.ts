@@ -17,6 +17,7 @@ const routes: Routes = [
     canActivate: [AuthGuard],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+
       {
         path: 'dashboard',
         loadChildren: () =>
@@ -24,6 +25,7 @@ const routes: Routes = [
             (m) => m.DashboardModule,
           ),
       },
+
       // Admin only
       {
         path: 'usuarios',
@@ -153,15 +155,6 @@ const routes: Routes = [
           ),
         canActivate: [RolesGuard],
         data: { roles: ['docente', 'administradorsistema'] },
-      },
-      {
-        path: 'curso-ambientes',
-        loadChildren: () =>
-          import('./modules/curso-ambientes-config/curso-ambientes-config.module').then(
-            (m) => m.CursoAmbientesConfigModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'disponibilidad',

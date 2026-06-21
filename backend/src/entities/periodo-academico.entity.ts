@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
 
@@ -35,4 +35,7 @@ export class PeriodoAcademico {
     default: ModoAsignacion.VENTANAS,
   })
   modo_asignacion: ModoAsignacion;
+
+  @OneToMany("AsignacionLectiva", "periodo")
+  asignaciones_lectivas: import("./asignacion-lectiva.entity").AsignacionLectiva[];
 }

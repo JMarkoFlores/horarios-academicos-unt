@@ -9,7 +9,6 @@ import { Usuario } from "../entities/usuario.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
-import { CursoAmbiente } from "../entities/curso-ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
@@ -28,7 +27,6 @@ import { DocentesController } from "./docentes.controller";
       DocenteCurso,
       Curso,
       Ambiente,
-      CursoAmbiente,
       HorarioAsignado,
       PeriodoAcademico,
       ParametrosCarga,

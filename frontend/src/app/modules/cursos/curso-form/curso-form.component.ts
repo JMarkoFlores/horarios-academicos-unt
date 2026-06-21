@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { Location } from '@angular/common';
 import { FormBuilder, FormGroup, ValidatorFn, AbstractControl, ValidationErrors, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -37,6 +38,7 @@ export class CursoFormComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute,
     private snackBar: MatSnackBar,
+    private location: Location,
   ) {}
 
   ngOnInit(): void {
@@ -148,11 +150,11 @@ export class CursoFormComponent implements OnInit {
         Promise.all(assigns)
           .then(() => {
             this.snackBar.open(this.isEdit ? 'Curso actualizado' : 'Curso creado exitosamente', 'OK', { duration: 2500 });
-            this.router.navigate(['/app/cursos']);
+            this.location.back();
           })
           .catch(() => {
             this.snackBar.open('Curso guardado (error al asignar ambientes)', 'OK', { duration: 3000 });
-            this.router.navigate(['/app/cursos']);
+            this.location.back();
           });
       },
       error: (err) => {
@@ -167,5 +169,5 @@ export class CursoFormComponent implements OnInit {
     });
   }
 
-  cancelar(): void { this.router.navigate(['/app/cursos']); }
+  cancelar(): void { this.location.back(); }
 }

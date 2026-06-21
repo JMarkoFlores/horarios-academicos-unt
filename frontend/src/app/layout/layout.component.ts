@@ -125,12 +125,6 @@ export class LayoutComponent implements OnInit {
           roles: ['administradorsistema', 'coordinadoracademico', 'secretaria'],
         },
         {
-          icon: 'link',
-          label: 'sidebar.courseEnvironments',
-          route: '/app/curso-ambientes',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
-        {
           icon: 'school',
           label: 'sidebar.teacherFaculty',
           route: '/app/docente-facultad',

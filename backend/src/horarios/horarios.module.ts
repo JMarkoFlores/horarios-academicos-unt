@@ -11,7 +11,6 @@ import { Grupo } from "../entities/grupo.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Preasignacion } from "../entities/preasignacion.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
-import { CursoAmbiente } from "../entities/curso-ambiente.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { AsignacionService } from "./asignacion.service";
 import { HorariosService } from "./horarios.service";
@@ -40,7 +39,6 @@ import { ValidacionesModule } from "../validaciones/validaciones.module";
       DisponibilidadDocente,
       Preasignacion,
       DocenteCurso,
-      CursoAmbiente,
       ParametrosCarga,
     ]),
     DocentesModule,

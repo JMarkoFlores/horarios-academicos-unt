@@ -1,5 +1,6 @@
-import { IsOptional, IsInt, IsString } from "class-validator";
+import { IsOptional, IsInt, IsEnum } from "class-validator";
 import { Type } from "class-transformer";
+import { EstadoAsignacionLectiva } from "../../../common/enums/estado-asignacion-lectiva.enum";
 
 export class QueryAsignacionLectivaDto {
   @IsOptional()
@@ -23,6 +24,6 @@ export class QueryAsignacionLectivaDto {
   docente_id?: number;
 
   @IsOptional()
-  @IsString()
-  estado?: string;
+  @IsEnum(EstadoAsignacionLectiva)
+  estado?: EstadoAsignacionLectiva;
 }

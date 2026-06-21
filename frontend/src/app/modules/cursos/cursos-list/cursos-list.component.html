@@ -295,10 +295,14 @@
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let c" class="actions-cell">
             <div class="btn-group">
-              <button mat-icon-button class="btn-action groups" (click)="abrirGestionarGrupos(c)"
+              <a mat-icon-button class="btn-action view" [routerLink]="['/app/cursos', c.id]"
+                matTooltip="Ver detalle">
+                <mat-icon>visibility</mat-icon>
+              </a>
+              <a mat-icon-button class="btn-action groups" [routerLink]="['/app/cursos', c.id]" [queryParams]="{tab: 'grupos'}"
                 matTooltip="Gestionar grupos/secciones">
                 <mat-icon>groups</mat-icon>
-              </button>
+              </a>
               <a mat-icon-button class="btn-action edit" [routerLink]="['/app/cursos', c.id, 'editar']"
                 matTooltip="Editar curso">
                 <mat-icon>edit</mat-icon>

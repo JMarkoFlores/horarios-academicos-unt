@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { switchMap, tap } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { ApiResponse, Docente } from '../../../core/interfaces/entities';
@@ -108,43 +109,32 @@ export class VerificarAprobacionComponent implements OnInit {
   }
 
   cargarDatos(): void {
-    this.api.get<ApiResponse<Docente>>(`/docentes/${this.docenteId}`).subscribe({
-      next: (docenteRes) => {
+    this.api.get<ApiResponse<Docente>>(`/docentes/${this.docenteId}`).pipe(
+      switchMap((docenteRes) => {
         this.docente = docenteRes.data;
-        this.api
-          .get<ApiResponse<DeclaracionEstadoDetalle>>(
-            `/declaraciones/docentes/${this.docenteId}/declaracion?periodo=${this.periodo}`,
-          )
-          .subscribe({
-            next: (declaracionRes) => {
-              this.declaracionId = declaracionRes.data?.id || null;
-              this.estado = declaracionRes.data?.estado || 'SIN_DECLARACION';
-              this.directorValidador = this.resolverDirectorValidador(
-                declaracionRes.data,
-              );
-              this.fechaValidacion = this.resolverFechaValidacion(
-                declaracionRes.data,
-              );
-              this.cargarCargaNoLectiva(declaracionRes.data?.carga_no_lectiva);
-              this.cargarCursosAsignados();
-              this.loading = false;
-            },
-            error: () => {
-              this.declaracionId = null;
-              this.estado = 'SIN_DECLARACION';
-              this.directorValidador = 'No validado';
-              this.fechaValidacion = 'No validado';
-              this.cursosLectivos = [];
-              this.actividadesNoLectivas = [];
-              this.loading = false;
-            },
-          });
+        return this.api.get<ApiResponse<DeclaracionEstadoDetalle>>(
+          `/declaraciones/docentes/${this.docenteId}/declaracion?periodo=${this.periodo}`,
+        );
+      }),
+    ).subscribe({
+      next: (declaracionRes) => {
+        this.declaracionId = declaracionRes.data?.id || null;
+        this.estado = declaracionRes.data?.estado || 'SIN_DECLARACION';
+        this.directorValidador = this.resolverDirectorValidador(declaracionRes.data);
+        this.fechaValidacion = this.resolverFechaValidacion(declaracionRes.data);
+        this.cargarCargaNoLectiva(declaracionRes.data?.carga_no_lectiva);
+        this.cargarCursosAsignados();
+        this.loading = false;
       },
       error: () => {
+        this.declaracionId = null;
+        this.estado = 'SIN_DECLARACION';
+        this.directorValidador = 'No validado';
+        this.fechaValidacion = 'No validado';
+        this.cursosLectivos = [];
+        this.actividadesNoLectivas = [];
         this.loading = false;
-        this.snackBar.open('No se pudo cargar el docente', 'Cerrar', {
-          duration: 3000,
-        });
+        this.snackBar.open('No se pudieron cargar los datos', 'Cerrar', { duration: 3000 });
       },
     });
   }
@@ -312,31 +302,24 @@ export class VerificarAprobacionComponent implements OnInit {
     this.snackBar.open('Generando documento...', '', { duration: 2000 });
     this.api.post<any>(`/declaraciones/docentes/${d.id}/declaracion-jurada`, {
       periodo: this.periodo,
-    }).subscribe({
-      next: () => {
-        this.api.getBlob(`/reportes/declaracion-jurada/${d.id}/pdf?periodo=${this.periodo}`)
-          .subscribe({
-            next: (blob) => {
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `declaracion_jurada_incompatibilidad_${d.apellidos}_${this.periodo}.pdf`;
-              document.body.appendChild(a);
-              a.click();
-              window.URL.revokeObjectURL(url);
-              a.remove();
-              this.descargandoDocumento = null;
-              this.snackBar.open('PDF generado con éxito', 'Cerrar', { duration: 3000 });
-            },
-            error: () => {
-              this.descargandoDocumento = null;
-              this.snackBar.open('Error al generar el PDF', 'Cerrar', { duration: 3000 });
-            },
-          });
+    }).pipe(
+      switchMap(() => this.api.getBlob(`/reportes/declaracion-jurada/${d.id}/pdf?periodo=${this.periodo}`)),
+    ).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `declaracion_jurada_incompatibilidad_${d.apellidos}_${this.periodo}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        this.descargandoDocumento = null;
+        this.snackBar.open('PDF generado con éxito', 'Cerrar', { duration: 3000 });
       },
       error: () => {
         this.descargandoDocumento = null;
-        this.snackBar.open('Error al registrar la declaración jurada', 'Cerrar', { duration: 3000 });
+        this.snackBar.open('Error al generar la declaración jurada', 'Cerrar', { duration: 3000 });
       },
     });
   }

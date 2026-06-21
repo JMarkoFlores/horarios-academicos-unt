@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { DataSource } from "typeorm";
+import { DataSource, EntityManager } from "typeorm";
 import { config } from "dotenv";
 import { join } from "path";
 
@@ -52,18 +52,20 @@ const AppDataSource = new DataSource({
   logging: false,
 });
 
-export async function seedHorariosCicloI() {
+export async function seedHorariosCicloI(manager?: EntityManager) {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO I (Actualizado)...");
 
-  await AppDataSource.initialize();
-  console.log("✅ Conexión a la base de datos establecida");
+  if (!manager) {
+    await AppDataSource.initialize();
+    console.log("✅ Conexión a la base de datos establecida");
+  }
 
-  const docenteRepo = AppDataSource.getRepository(Docente);
-  const cursoRepo = AppDataSource.getRepository(Curso);
-  const ambienteRepo = AppDataSource.getRepository(Ambiente);
-  const grupoRepo = AppDataSource.getRepository(Grupo);
-  const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
-  const periodoRepo = AppDataSource.getRepository(PeriodoAcademico);
+  const docenteRepo = (manager ?? AppDataSource.manager).getRepository(Docente);
+  const cursoRepo = (manager ?? AppDataSource.manager).getRepository(Curso);
+  const ambienteRepo = (manager ?? AppDataSource.manager).getRepository(Ambiente);
+  const grupoRepo = (manager ?? AppDataSource.manager).getRepository(Grupo);
+  const horarioRepo = (manager ?? AppDataSource.manager).getRepository(HorarioAsignado);
+  const periodoRepo = (manager ?? AppDataSource.manager).getRepository(PeriodoAcademico);
 
   const periodo = "2026-I";
   const dbPeriodo = await periodoRepo.findOne({ where: { codigo: periodo } });
@@ -425,7 +427,9 @@ export async function seedHorariosCicloI() {
   }
 
   console.log("✅ Seed de Ciclo I completado.");
-  await AppDataSource.destroy();
+  if (!manager) {
+    await AppDataSource.destroy();
+  }
 }
 
 if (require.main === module) {

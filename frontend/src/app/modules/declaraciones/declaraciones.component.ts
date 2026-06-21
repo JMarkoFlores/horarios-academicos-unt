@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
+import { ROLES } from '../../core/constants/roles';
 import { AuthService } from '../../core/services/auth.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { Docente, ApiResponse } from '../../core/interfaces/entities';
@@ -78,7 +79,7 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.periodoActivo = this.periodoService.periodo;
-    if (this.authService.hasRole('docente')) {
+    if (this.authService.hasRole(ROLES.DOCENTE)) {
       this.cargarDatosDocenteActual();
     } else {
       this.cargarDocentes();
@@ -177,19 +178,19 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
   // ── Roles ───────────────────────────────────────────────────────────────────
 
   get isDocente(): boolean {
-    return this.authService.hasRole('docente');
+    return this.authService.hasRole(ROLES.DOCENTE);
   }
 
   get isDirectorOrCoord(): boolean {
-    return this.authService.hasRole('directorescuela', 'directordepartamento', 'coordinadoracademico');
+    return this.authService.hasRole(ROLES.DIRECTOR_ESCUELA, ROLES.DIRECTOR_DEPARTAMENTO, ROLES.COORDINADOR_ACADEMICO);
   }
 
   get isDecano(): boolean {
-    return this.authService.hasRole('decano');
+    return this.authService.hasRole(ROLES.DECANO);
   }
 
   get isAdmin(): boolean {
-    return this.authService.hasRole('administradorsistema');
+    return this.authService.hasRole(ROLES.ADMINISTRADOR_SISTEMA);
   }
 
   /** Puede ver la propia declaración del docente / abrir verificar-declaracion */

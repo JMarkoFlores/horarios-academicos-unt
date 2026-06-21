@@ -71,7 +71,8 @@
     "periods": "Periods",
     "loadParams": "Load Parameters",
     "campaigns": "Campaigns",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "audit": "Audit Log"
   },
   "nav": {
     "groups": {

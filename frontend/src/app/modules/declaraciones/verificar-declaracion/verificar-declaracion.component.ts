@@ -4,6 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, Subscription, debounceTime, switchMap, tap } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
+import { ROLES } from '../../../core/constants/roles';
 import { AuthService } from '../../../core/services/auth.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { CargaAdicionalService, CargaAdicional } from '../../../core/services/carga-adicional.service';
@@ -210,19 +211,19 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   }
 
   get isDirector(): boolean {
-    return this.authService.hasRole('directorescuela') || this.authService.hasRole('directordepartamento');
+    return this.authService.hasRole(ROLES.DIRECTOR_ESCUELA) || this.authService.hasRole(ROLES.DIRECTOR_DEPARTAMENTO);
   }
 
   get isDecano(): boolean {
-    return this.authService.hasRole('decano');
+    return this.authService.hasRole(ROLES.DECANO);
   }
 
   get isDocente(): boolean {
-    return this.authService.hasRole('docente');
+    return this.authService.hasRole(ROLES.DOCENTE);
   }
 
   get isAdmin(): boolean {
-    return this.authService.hasRole('administradorsistema');
+    return this.authService.hasRole(ROLES.ADMINISTRADOR_SISTEMA);
   }
 
   get puedeObservar(): boolean {

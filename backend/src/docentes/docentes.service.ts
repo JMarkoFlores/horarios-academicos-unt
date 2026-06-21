@@ -588,8 +588,8 @@ export class DocentesService {
     return saved;
   }
 
-  async update(id: number, dto: UpdateDocenteDto): Promise<Docente> {
-    const docente = await this.findOne(id);
+  async update(id: number, dto: UpdateDocenteDto, contexto?: ContextoAcademico): Promise<Docente> {
+    const docente = await this.findOne(id, contexto);
 
     if (dto.usuario_id && dto.usuario_id !== docente.usuario_id) {
       await this.validarUsuarioAsociado(dto.usuario_id, id);
@@ -645,17 +645,14 @@ export class DocentesService {
     return saved;
   }
 
-  async remove(id: number): Promise<void> {
-    const docente = await this.findOne(id);
+  async remove(id: number, contexto?: ContextoAcademico): Promise<void> {
+    const docente = await this.findOne(id, contexto);
     await this.docenteRepo.save({ ...docente, activo: false });
     await this.invalidarCacheDocentes(id);
   }
 
-  async reactivar(id: number): Promise<Docente> {
-    const docente = await this.docenteRepo.findOne({ where: { id } });
-    if (!docente) {
-      throw new NotFoundException(`Docente con ID ${id} no encontrado`);
-    }
+  async reactivar(id: number, contexto?: ContextoAcademico): Promise<Docente> {
+    const docente = await this.findOne(id, contexto);
     docente.activo = true;
     const saved = await this.docenteRepo.save(docente);
     await this.invalidarCacheDocentes(id);

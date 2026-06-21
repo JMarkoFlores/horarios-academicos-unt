@@ -44,7 +44,7 @@ async function main() {
     `SELECT COUNT(*)::int AS n FROM docente WHERE activo = true`,
   );
   const docentesConDni = await AppDataSource.query(
-    `SELECT COUNT(*)::int AS n FROM docente WHERE ibm IS NOT NULL AND ibm >= 10000000`,
+    `SELECT COUNT(*)::int AS n FROM docente WHERE dni IS NOT NULL AND LENGTH(dni::text) = 8`,
   );
   checks.push({
     ok: docentes[0].n >= 28,
@@ -52,7 +52,7 @@ async function main() {
   });
   checks.push({
     ok: docentesConDni[0].n >= 28,
-    message: `Docentes con DNI (ibm 8 dígitos): ${docentesConDni[0].n} (mín. 28)`,
+    message: `Docentes con DNI (8 dígitos): ${docentesConDni[0].n} (mín. 28)`,
   });
 
   const cursosPlan = await AppDataSource.query(

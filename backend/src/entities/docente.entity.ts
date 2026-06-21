@@ -9,6 +9,7 @@ import {
   ManyToMany,
   JoinColumn,
   JoinTable,
+  Index,
 } from "typeorm";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
@@ -22,14 +23,24 @@ import { HorarioAsignado } from "./horario-asignado.entity";
 import { ColaDocentes } from "./cola-docentes.entity";
 import { Ambiente } from "./ambiente.entity";
 import { AsignacionLectiva } from "./asignacion-lectiva.entity";
+import { DeclaracionJurada } from "./declaracion-jurada.entity";
+import { CargaAdicional } from "./carga-adicional.entity";
 
 @Entity("docente")
+@Index("idx_docente_categoria", ["categoria"])
+@Index("idx_docente_tipo_docente", ["tipo_docente"])
+@Index("idx_docente_modalidad", ["modalidad"])
+@Index("idx_docente_activo", ["activo"])
+@Index("idx_docente_categoria_tipo_modalidad", ["categoria", "tipo_docente", "modalidad"])
 export class Docente {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ unique: true, length: 20 })
   codigo: string;
+
+  @Column({ unique: true, length: 15, name: "dni" })
+  dni: string;
 
   @Column({ unique: true, nullable: true })
   ibm: number;
@@ -122,4 +133,10 @@ export class Docente {
 
   @OneToMany(() => AsignacionLectiva, (asignacion) => asignacion.docente)
   asignaciones_lectivas: AsignacionLectiva[];
+
+  @OneToMany(() => DeclaracionJurada, (jurada) => jurada.docente)
+  declaraciones_juradas: DeclaracionJurada[];
+
+  @OneToMany(() => CargaAdicional, (ca) => ca.docente)
+  carga_adicional: CargaAdicional[];
 }

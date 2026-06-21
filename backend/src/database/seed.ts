@@ -158,10 +158,16 @@ export async function main() {
   await AppDataSource.initialize();
   console.log("✅ Conexión establecida.");
 
+  // Sincronizar esquema de base de datos (crear tablas si no existen)
+  console.log("🔄 Sincronizando esquema de base de datos...");
+  await AppDataSource.synchronize();
+  console.log("✅ Esquema sincronizado.");
+
   const queryRunner = AppDataSource.createQueryRunner();
   await queryRunner.connect();
 
   try {
+    // Truncation fuera de transacción (operación DDL)
     console.log("🧹 Limpiando base de datos...");
     const tables = [
       "declaracion_observacion",
@@ -205,23 +211,32 @@ export async function main() {
       }
     }
 
-    const docenteRepo = AppDataSource.getRepository(Docente);
-    const usuarioRepo = AppDataSource.getRepository(Usuario);
-    const facultadRepo = AppDataSource.getRepository(Facultad);
-    const escuelaRepo = AppDataSource.getRepository(Escuela);
-    const departamentoRepo = AppDataSource.getRepository(Departamento);
-    const periodoRepo = AppDataSource.getRepository(PeriodoAcademico);
-    const cursoRepo = AppDataSource.getRepository(Curso);
-    const grupoRepo = AppDataSource.getRepository(Grupo);
-    const ambienteRepo = AppDataSource.getRepository(Ambiente);
-    const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
-    const turnoRepo = AppDataSource.getRepository(TurnoHorario);
-    const diaActivoRepo = AppDataSource.getRepository(DiaActivo);
-    const declaracionRepo = AppDataSource.getRepository(
+    const docenteRepo = queryRunner.manager.getRepository(Docente);
+    const usuarioRepo = queryRunner.manager.getRepository(Usuario);
+    const facultadRepo = queryRunner.manager.getRepository(Facultad);
+    const escuelaRepo = queryRunner.manager.getRepository(Escuela);
+    const departamentoRepo = queryRunner.manager.getRepository(Departamento);
+    const periodoRepo = queryRunner.manager.getRepository(PeriodoAcademico);
+    const cursoRepo = queryRunner.manager.getRepository(Curso);
+    const grupoRepo = queryRunner.manager.getRepository(Grupo);
+    const ambienteRepo = queryRunner.manager.getRepository(Ambiente);
+    const horarioRepo = queryRunner.manager.getRepository(HorarioAsignado);
+    const turnoRepo = queryRunner.manager.getRepository(TurnoHorario);
+    const diaActivoRepo = queryRunner.manager.getRepository(DiaActivo);
+    const declaracionRepo = queryRunner.manager.getRepository(
       DeclaracionCargaHoraria,
     );
 
     const passwordHash = await bcrypt.hash("Admin123!", 10);
+
+    const CONFIG = {
+      logo_url:
+        process.env.SEED_LOGO_URL ??
+        "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png",
+      color_primario: process.env.SEED_COLOR_PRIMARIO ?? "#1a237e",
+      color_secundario: process.env.SEED_COLOR_SECUNDARIO ?? "#283593",
+      color_acento: process.env.SEED_COLOR_ACENTO ?? "#e91e63",
+    };
 
     // ── 0.5. USUARIOS ESPECIALES ──────────────────────────────────────────
     console.log("🔑 Creando usuarios administrativos...");
@@ -232,6 +247,7 @@ export async function main() {
         password_hash: passwordHash,
         rol: RolUsuario.ADMINISTRADOR_SISTEMA,
         activo: true,
+        debe_cambiar_password: true,
       }),
     );
 
@@ -242,6 +258,7 @@ export async function main() {
         password_hash: passwordHash,
         rol: RolUsuario.DECANO,
         activo: true,
+        debe_cambiar_password: true,
       }),
     );
 
@@ -252,6 +269,7 @@ export async function main() {
         password_hash: passwordHash,
         rol: RolUsuario.DIRECTOR_ESCUELA,
         activo: true,
+        debe_cambiar_password: true,
       }),
     );
 
@@ -262,6 +280,7 @@ export async function main() {
         password_hash: passwordHash,
         rol: RolUsuario.DIRECTOR_DEPARTAMENTO,
         activo: true,
+        debe_cambiar_password: true,
       }),
     );
 
@@ -272,6 +291,7 @@ export async function main() {
         password_hash: passwordHash,
         rol: RolUsuario.COORDINADOR_ACADEMICO,
         activo: true,
+        debe_cambiar_password: true,
       }),
     );
 
@@ -282,6 +302,7 @@ export async function main() {
         password_hash: passwordHash,
         rol: RolUsuario.SECRETARIA,
         activo: true,
+        debe_cambiar_password: true,
       }),
     );
 
@@ -292,6 +313,7 @@ export async function main() {
         password_hash: passwordHash,
         rol: RolUsuario.OPERADOR_HORARIOS,
         activo: true,
+        debe_cambiar_password: true,
       }),
     );
 
@@ -576,168 +598,196 @@ export async function main() {
         apellidos: "Torres Villanueva",
         email: "torres.villanueva@unt.edu.pe",
         ibm: 1001,
+        dni: "12345678",
       },
       {
         nombres: "Alberto",
         apellidos: "Mendoza de los Santos",
         email: "mendoza.santos@unt.edu.pe",
         ibm: 1002,
+        dni: "23456789",
       },
       {
         nombres: "Paul",
         apellidos: "Cotrina Castellanos",
         email: "cotrina.castellanos@unt.edu.pe",
         ibm: 1003,
+        dni: "34567890",
       },
       {
         nombres: "Bertha",
         apellidos: "Urtecho Zavaleta",
         email: "urtecho.zavaleta@unt.edu.pe",
         ibm: 1004,
+        dni: "45678901",
       },
       {
         nombres: "Jose Luis",
         apellidos: "Ponte Bejarano",
         email: "ponte.bejarano@unt.edu.pe",
         ibm: 1005,
+        dni: "56789012",
       },
       {
         nombres: "Jorge Luis",
         apellidos: "Rios Gonzales",
         email: "rios.gonzales@unt.edu.pe",
         ibm: 1006,
+        dni: "67890123",
       },
       {
         nombres: "Segundo",
         apellidos: "Guibar Obeso",
         email: "guibar.obeso@unt.edu.pe",
         ibm: 1007,
+        dni: "78901234",
       },
       {
         nombres: "Miguel",
         apellidos: "Ipanaque Zapata",
         email: "ipanaque.zapata@unt.edu.pe",
         ibm: 1008,
+        dni: "89012345",
       },
       {
         nombres: "Martha",
         apellidos: "Cardoso",
         email: "cardoso@unt.edu.pe",
         ibm: 1009,
+        dni: "90123456",
       },
       {
         nombres: "Zoraida",
         apellidos: "Vidal Melgarejo",
         email: "zvidal@unt.edu.pe",
         ibm: 1010,
+        dni: "01234567",
       },
       {
         nombres: "Everson David",
         apellidos: "Agreda Gamboa",
         email: "eagreda@unt.edu.pe",
         ibm: 1011,
+        dni: "11223344",
       },
       {
         nombres: "Juan Carlos",
         apellidos: "Obando Roldan",
         email: "jobando@unt.edu.pe",
         ibm: 1012,
+        dni: "22334455",
       },
       {
         nombres: "Marcos",
         apellidos: "Ferrer Reyna",
         email: "mferrer@unt.edu.pe",
         ibm: 1013,
+        dni: "33445566",
       },
       {
         nombres: "Teresita",
         apellidos: "Rojas Garcia",
         email: "trojas@unt.edu.pe",
         ibm: 1014,
+        dni: "44556677",
       },
       {
         nombres: "Juan",
         apellidos: "Carrascal Cabanillas",
         email: "jcarrascal@unt.edu.pe",
         ibm: 1015,
+        dni: "55667788",
       },
       {
         nombres: "Vilma",
         apellidos: "Mendez Gil",
         email: "vmendez@unt.edu.pe",
         ibm: 1016,
+        dni: "66778899",
       },
       {
         nombres: "Sheyla Laura",
         apellidos: "Escobedo Rodriguez",
         email: "sescobedo@unt.edu.pe",
         ibm: 1017,
+        dni: "77889900",
       },
       {
         nombres: "Luis",
         apellidos: "Boy Chavil",
         email: "lboy@unt.edu.pe",
         ibm: 1018,
+        dni: "88990011",
       },
       {
         nombres: "Robert Jerry",
         apellidos: "Sanchez Ticona",
         email: "rsanchez@unt.edu.pe",
         ibm: 1019,
+        dni: "99001122",
       },
       {
         nombres: "Cesar",
         apellidos: "Arellano Salazar",
         email: "carellano@unt.edu.pe",
         ibm: 1020,
+        dni: "00112233",
       },
       {
         nombres: "Camilo",
         apellidos: "Suarez Rebaza",
         email: "csuarez@unt.edu.pe",
         ibm: 1021,
+        dni: "00223344",
       },
       {
         nombres: "Marcos",
         apellidos: "Baca Lopez",
         email: "mbaca@unt.edu.pe",
         ibm: 1022,
+        dni: "00334455",
       },
       {
         nombres: "Ana",
         apellidos: "Cuadra Mitzugaray",
         email: "acuadra@unt.edu.pe",
         ibm: 1023,
+        dni: "00445566",
       },
       {
         nombres: "Juan Pedro",
         apellidos: "Santos Fernandez",
         email: "jsantos@unt.edu.pe",
         ibm: 4247,
+        dni: "00556677",
       },
       {
         nombres: "Ricardo",
         apellidos: "Mendoza Rivera",
         email: "rmendoza@unt.edu.pe",
         ibm: 1025,
+        dni: "00667788",
       },
       {
         nombres: "Oscar Romel",
         apellidos: "Alcantara Moreno",
         email: "oalcantara@unt.edu.pe",
         ibm: 1026,
+        dni: "00778899",
       },
       {
         nombres: "Jhoe",
         apellidos: "Gonzalez Vasquez",
         email: "jgonzalez@unt.edu.pe",
         ibm: 1027,
+        dni: "00889900",
       },
       {
         nombres: "Jose",
         apellidos: "Gomez Avila",
         email: "jgomez@unt.edu.pe",
         ibm: 1028,
+        dni: "00990011",
       },
     ];
 
@@ -960,8 +1010,9 @@ export async function main() {
       await docenteRepo.save(
         docenteRepo.create({
           ...d,
-          ibm: DNIS_DOCENTES[i] ?? d.ibm,
-          codigo: `DOC-${DNIS_DOCENTES[i] ?? d.ibm}`,
+          ibm: d.ibm,
+          codigo: `DOC-${d.ibm}`,
+          dni: d.dni,
           usuario,
           departamento_id: departamento.id,
           facultad_id: facultad.id,
@@ -976,8 +1027,8 @@ export async function main() {
     }
 
     console.log("📋 Creando Plan de Estudios 2018...");
-    const planRepo = AppDataSource.getRepository(PlanEstudios);
-    const cursoPlanRepo = AppDataSource.getRepository(CursoPlanEstudios);
+    const planRepo = queryRunner.manager.getRepository(PlanEstudios);
+    const cursoPlanRepo = queryRunner.manager.getRepository(CursoPlanEstudios);
     const plan2018 = await planRepo.save(
       planRepo.create({
         codigo: "2018",
@@ -2128,11 +2179,21 @@ export async function main() {
     console.log(
       "📅 Creando asignaciones de horarios desde archivos por ciclo...",
     );
-    await seedHorariosCicloI();
-    await seedHorariosCicloIII();
-    await seedHorariosCicloV();
-    await seedHorariosCicloVII();
-    await seedHorariosCicloIX();
+    const seedCiclos = [
+      { nombre: "I", fn: seedHorariosCicloI },
+      { nombre: "III", fn: seedHorariosCicloIII },
+      { nombre: "V", fn: seedHorariosCicloV },
+      { nombre: "VII", fn: seedHorariosCicloVII },
+      { nombre: "IX", fn: seedHorariosCicloIX },
+    ];
+    for (const ciclo of seedCiclos) {
+      try {
+        await ciclo.fn(queryRunner.manager);
+        console.log(`  ✅ Ciclo ${ciclo.nombre} OK`);
+      } catch (e) {
+        console.error(`  ⚠️ Ciclo ${ciclo.nombre} falló, continuando...`, e);
+      }
+    }
 
     console.log("🔗 Poblando relaciones curso-ambiente...");
     const horariosCursoAmbiente = await horarioRepo.find({
@@ -2184,13 +2245,17 @@ export async function main() {
     }
 
     console.log("🧹 Limpiando Asignaciones Lectivas previas...");
-    const asignacionRepo = AppDataSource.getRepository(AsignacionLectiva);
+    const asignacionRepo = queryRunner.manager.getRepository(AsignacionLectiva);
     await asignacionRepo
       .createQueryBuilder()
       .delete()
       .from(AsignacionLectiva)
       .execute();
     console.log("📝 Creando Asignaciones Lectivas desde Horarios Asignados...");
+
+    // Pre-cargar todos los periodos en un mapa para evitar N+1
+    const todosLosPeriodos = await periodoRepo.find();
+    const periodoMap = new Map(todosLosPeriodos.map((p) => [p.codigo, p]));
 
     // Obtener el usuario admin para "asignado_por_id" (ya lo tenemos como 'admin')
     if (!admin) throw new Error("Usuario admin no encontrado");
@@ -2221,10 +2286,8 @@ export async function main() {
         continue;
       }
 
-      // Encontrar el PeriodoAcademico por el código del horario
-      const periodoAcademico = await periodoRepo.findOne({
-        where: { codigo: horario.periodo },
-      });
+      // Encontrar el PeriodoAcademico por el código del horario (mapa precargado)
+      const periodoAcademico = periodoMap.get(horario.periodo);
       if (!periodoAcademico) {
         console.warn(
           `⚠️ PeriodoAcademico no encontrado para código: ${horario.periodo}`,
@@ -2291,8 +2354,8 @@ export async function main() {
     const dbDocentes = await docenteRepo.find({ order: { id: "ASC" } });
 
     console.log("📝 Generando declaraciones de carga en múltiples estados...");
-    const observacionRepo = AppDataSource.getRepository(DeclaracionObservacion);
-    const juradaRepo = AppDataSource.getRepository(DeclaracionJurada);
+    const observacionRepo = queryRunner.manager.getRepository(DeclaracionObservacion);
+    const juradaRepo = queryRunner.manager.getRepository(DeclaracionJurada);
 
     const demoResult = await seedDeclaracionesDemo({
       declaracionRepo,
@@ -2319,13 +2382,12 @@ export async function main() {
       `✅ ${demoResult.declaraciones.length} declaraciones, ${demoResult.observaciones} observaciones, ${demoResult.juradas} juradas`,
     );
 
-    await AppDataSource.getRepository(ConfiguracionGeneral).save({
+    await queryRunner.manager.getRepository(ConfiguracionGeneral).save({
       nombre_institucional: "Universidad Nacional de Trujillo",
-      logo_url:
-        "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png",
-      color_primario: "#1a237e",
-      color_secundario: "#283593",
-      color_acento: "#e91e63",
+      logo_url: CONFIG.logo_url,
+      color_primario: CONFIG.color_primario,
+      color_secundario: CONFIG.color_secundario,
+      color_acento: CONFIG.color_acento,
     });
 
     console.log("\n✅ SEED UNIFICADO COMPLETADO EXITOSAMENTE.");

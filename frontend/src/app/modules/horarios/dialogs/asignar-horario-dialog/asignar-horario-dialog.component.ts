@@ -36,6 +36,7 @@ export class AsignarHorarioDialogComponent implements OnInit, OnDestroy {
   loading = false;
   guardando = false;
   private ambSub?: Subscription;
+  private subs: Subscription[] = [];
 
   tiposClase = [
     { value: 'TEORIA', label: 'Teoría' },
@@ -69,57 +70,79 @@ export class AsignarHorarioDialogComponent implements OnInit, OnDestroy {
       tipo_clase: ['TEORIA', Validators.required],
     });
 
-    this.form.get('curso_id')?.valueChanges.subscribe((cursoId) => {
-      if (cursoId) {
-        this.cargarGrupos(cursoId);
-      } else {
-        this.grupos = [];
-        this.grupoSeleccionado = null;
-        this.form.get('grupo_id')?.reset();
-      }
-    });
+    const cursoCtrl = this.form.get('curso_id')!;
+    if (cursoCtrl) {
+      this.subs.push(
+        cursoCtrl.valueChanges.subscribe((cursoId) => {
+          if (cursoId) {
+            this.cargarGrupos(cursoId);
+          } else {
+            this.grupos = [];
+            this.grupoSeleccionado = null;
+            this.form.get('grupo_id')?.reset();
+          }
+        }),
+      );
+    }
 
-    this.form.get('grupo_id')?.valueChanges.subscribe((grupoId) => {
-      this.grupoSeleccionado =
-        this.grupos.find((g) => g.id === grupoId) ?? null;
-      this.form.get('ambiente_id')?.reset();
-      this.ambienteOcupado = false;
-    });
-
-    this.form
-      .get('ambiente_id')
-      ?.valueChanges.pipe(debounceTime(200))
-      .subscribe((ambienteId) => {
-        if (ambienteId) {
-          this.verificarOcupacion(ambienteId);
-        } else {
+    const grupoCtrl = this.form.get('grupo_id')!;
+    if (grupoCtrl) {
+      this.subs.push(
+        grupoCtrl.valueChanges.subscribe((grupoId) => {
+          this.grupoSeleccionado =
+            this.grupos.find((g) => g.id === grupoId) ?? null;
+          this.form.get('ambiente_id')?.reset();
           this.ambienteOcupado = false;
-        }
-      });
+        }),
+      );
+    }
+
+    const ambCtrl = this.form.get('ambiente_id')!;
+    if (ambCtrl) {
+      this.subs.push(
+        ambCtrl.valueChanges
+          .pipe(debounceTime(200))
+          .subscribe((ambienteId) => {
+            if (ambienteId) {
+              this.verificarOcupacion(ambienteId);
+            } else {
+              this.ambienteOcupado = false;
+            }
+          }),
+      );
+    }
 
     this.loading = true;
-    this.api.get<ApiResponse<any>>('/cursos', { limit: 100 }).subscribe({
-      next: (r: ApiResponse<any>) => {
-        this.cursos = r.data?.items ?? r.data ?? [];
-      },
-      error: () => {},
-    });
-
-    this.api
-      .get<ApiResponse<any>>('/ambientes', { limit: 100, estado: 'ACTIVO' })
-      .subscribe({
+    this.subs.push(
+      this.api.get<ApiResponse<any>>('/cursos', { limit: 100 }).subscribe({
         next: (r: ApiResponse<any>) => {
-          this.ambientes = r.data?.items ?? r.data ?? [];
-          this.loading = false;
+          this.cursos = r.data?.items ?? r.data ?? [];
         },
         error: () => {
-          this.loading = false;
+          this.notif.error('Error al cargar cursos');
         },
-      });
+      })!,
+    );
+
+    this.subs.push(
+      this.api
+        .get<ApiResponse<any>>('/ambientes', { limit: 100, estado: 'ACTIVO' })
+        .subscribe({
+          next: (r: ApiResponse<any>) => {
+            this.ambientes = r.data?.items ?? r.data ?? [];
+            this.loading = false;
+          },
+          error: () => {
+            this.loading = false;
+            this.notif.error('Error al cargar ambientes');
+          },
+        })!,
+    );
   }
 
   ngOnDestroy(): void {
     this.ambSub?.unsubscribe();
+    this.subs.forEach(s => s.unsubscribe());
   }
 
   cargarGrupos(cursoId: number): void {
@@ -136,7 +159,9 @@ export class AsignarHorarioDialogComponent implements OnInit, OnDestroy {
         next: (r: any) => {
           this.grupos = r?.data?.items ?? r?.data ?? [];
         },
-        error: () => {},
+        error: () => {
+          this.notif.error('Error al cargar grupos del curso');
+        },
       });
   }
 
@@ -157,6 +182,7 @@ export class AsignarHorarioDialogComponent implements OnInit, OnDestroy {
 
   private verificarOcupacion(ambienteId: number): void {
     this.ambienteOcupado = false;
+    this.ambSub?.unsubscribe();
     this.ambSub = this.api
       .get<ApiResponse<any>>(`/horarios/ambiente/${ambienteId}`, {
         periodo: this.data.periodo,
@@ -176,6 +202,7 @@ export class AsignarHorarioDialogComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.ambienteOcupado = false;
+          this.notif.error('Error al verificar ocupación del ambiente');
         },
       });
   }

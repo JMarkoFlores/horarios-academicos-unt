@@ -88,20 +88,23 @@
   @if (activeTab() === 'carga' && canViewFullDashboard()) {
     @if (cargaLoading() && !cargaResumen) {
       <div class="skeleton-grid">
-        <div class="skeleton-card" *ngFor="let _ of [1,2,3,4]">
-          <div class="skeleton-line skeleton-title"></div>
-          <div class="skeleton-line skeleton-value"></div>
-        </div>
+        @for (_ of [1,2,3,4]; track $index) {
+          <div class="skeleton-card">
+            <div class="skeleton-line skeleton-title"></div>
+            <div class="skeleton-line skeleton-value"></div>
+          </div>
+        }
       </div>
-    }
-    @if (cargaResumen) {
+    } @else if (cargaResumen) {
       <!-- Filtro departamento -->
       <div class="carga-filters">
         <mat-form-field appearance="fill" class="compact-filter">
           <mat-label>Departamento</mat-label>
           <mat-select [(ngModel)]="selectedDeptCarga">
             <mat-option [value]="null">Todos</mat-option>
-            <mat-option *ngFor="let d of departamentosSet" [value]="d.id">{{ d.nombre }}</mat-option>
+            @for (d of departamentosSet; track d.id) {
+              <mat-option [value]="d.id">{{ d.nombre }}</mat-option>
+            }
           </mat-select>
         </mat-form-field>
       </div>
@@ -137,13 +140,15 @@
           </div>
           <mat-icon class="watermark-icon">trending_up</mat-icon>
         </mat-card>
-        <mat-card class="kpi-card-premium" style="--accent-color: #ef4444" *ngIf="cargaResumen.docentes_observados > 0">
+        @if (cargaResumen.docentes_observados > 0) {
+        <mat-card class="kpi-card-premium" style="--accent-color: #ef4444">
           <div class="card-content">
             <span class="kpi-label">Con observaciones</span>
             <h2 class="kpi-value">{{ cargaResumen.docentes_observados }}</h2>
           </div>
           <mat-icon class="watermark-icon">warning</mat-icon>
         </mat-card>
+        }
         <mat-card class="kpi-card-premium" style="--accent-color: #a855f7">
           <div class="card-content">
             <span class="kpi-label">Carga lectiva promedio</span>
@@ -229,9 +234,11 @@
           </div>
           <mat-divider></mat-divider>
           <div class="list-body">
-            <div class="rank-item" *ngFor="let d of filteredSinDeclarar">
+            @for (d of filteredSinDeclarar; track d.id) {
+            <div class="rank-item">
               <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.email }}</div></div>
             </div>
+            }
           </div>
         </mat-card>
       }

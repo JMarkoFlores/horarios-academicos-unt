@@ -224,8 +224,9 @@ export class DocentesController {
   async update(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateDocenteDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.docentesService.update(id, dto);
+    const result = await this.docentesService.update(id, dto, usuario.contextoAcademico);
     return { data: result, message: "Docente actualizado correctamente" };
   }
 
@@ -235,8 +236,11 @@ export class DocentesController {
   @ApiOperation({ summary: "Desactivar un docente (soft delete)" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente desactivado" })
-  async remove(@Param("id", ParseIntPipe) id: number) {
-    await this.docentesService.remove(id);
+  async remove(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
+    await this.docentesService.remove(id, usuario.contextoAcademico);
     return { data: null, message: "Docente desactivado correctamente" };
   }
 
@@ -245,8 +249,11 @@ export class DocentesController {
   @ApiOperation({ summary: "Reactivar un docente previamente desactivado" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente reactivado" })
-  async reactivar(@Param("id", ParseIntPipe) id: number) {
-    const result = await this.docentesService.reactivar(id);
+  async reactivar(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
+    const result = await this.docentesService.reactivar(id, usuario.contextoAcademico);
     return { data: result, message: "Docente reactivado correctamente" };
   }
 

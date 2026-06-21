@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { DataSource } from "typeorm";
+import { DataSource, EntityManager } from "typeorm";
 import { config } from "dotenv";
 import { join } from "path";
 
@@ -44,18 +44,20 @@ const AppDataSource = new DataSource({
   logging: false,
 });
 
-export async function seedHorariosCicloIII() {
+export async function seedHorariosCicloIII(manager?: EntityManager) {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO III...");
 
-  await AppDataSource.initialize();
-  console.log("✅ Conexión a la base de datos establecida");
+  if (!manager) {
+    await AppDataSource.initialize();
+    console.log("✅ Conexión a la base de datos establecida");
+  }
 
-  const docenteRepo = AppDataSource.getRepository(Docente);
-  const cursoRepo = AppDataSource.getRepository(Curso);
-  const ambienteRepo = AppDataSource.getRepository(Ambiente);
-  const grupoRepo = AppDataSource.getRepository(Grupo);
-  const horarioRepo = AppDataSource.getRepository(HorarioAsignado);
-  const periodoRepo = AppDataSource.getRepository(PeriodoAcademico);
+  const docenteRepo = (manager ?? AppDataSource.manager).getRepository(Docente);
+  const cursoRepo = (manager ?? AppDataSource.manager).getRepository(Curso);
+  const ambienteRepo = (manager ?? AppDataSource.manager).getRepository(Ambiente);
+  const grupoRepo = (manager ?? AppDataSource.manager).getRepository(Grupo);
+  const horarioRepo = (manager ?? AppDataSource.manager).getRepository(HorarioAsignado);
+  const periodoRepo = (manager ?? AppDataSource.manager).getRepository(PeriodoAcademico);
 
   // ── 1. OBTENER DATOS EXISTENTES ───────────────────────────────────────────
   console.log("📋 Obteniendo datos existentes de la base de datos...");
@@ -585,7 +587,9 @@ export async function seedHorariosCicloIII() {
     "💡 Recuerda: Para ejecutar este seed, usa: npx ts-node src/database/seed-horarios-ciclo-III.ts",
   );
 
-  await AppDataSource.destroy();
+  if (!manager) {
+    await AppDataSource.destroy();
+  }
 }
 
 if (require.main === module) {

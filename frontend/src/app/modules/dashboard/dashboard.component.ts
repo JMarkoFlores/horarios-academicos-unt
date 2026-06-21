@@ -1,13 +1,21 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subscription } from 'rxjs';
-import { ChartData, ChartOptions } from 'chart.js';
+import { ChartData } from 'chart.js';
 import { ApiService } from '../../core/services/api.service';
+import { ROLES } from '../../core/constants/roles';
 import { AuthService } from '../../core/services/auth.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { SocketService } from '../../core/services/socket.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ApiResponse, KPIs, MisKPIs, ConflictoAsignacion, CargaResumen, CargaDepartamento, CargaEstado, CargaTopDocente, CargaAvance } from '../../core/interfaces/entities';
+import {
+  defaultFunnelChartOptions,
+  defaultDeptBarChartOptions,
+  defaultAvanceChartOptions,
+  defaultBarChartOptions,
+  defaultDoughnutOptions,
+} from './dashboard-chart.config';
 
 @Component({
   selector: 'app-dashboard',
@@ -41,34 +49,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectedDeptCarga: number | null = null;
 
   funnelChartData: ChartData<'bar'> = { labels: [], datasets: [] };
-  funnelChartOptions: ChartOptions<'bar'> = {
-    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { family: "'Inter', sans-serif", size: 13 }, bodyFont: { family: "'Inter', sans-serif", size: 12 } },
-    },
-    scales: { y: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif", size: 10 } } }, x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: "'Inter', sans-serif", size: 10 } } } },
-  };
+  funnelChartOptions = defaultFunnelChartOptions;
 
   deptBarChartData: ChartData<'bar'> = { labels: [], datasets: [] };
-  deptBarChartOptions: ChartOptions<'bar'> = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', font: { family: "'Inter', sans-serif", size: 11, weight: 500 } } },
-      tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { family: "'Inter', sans-serif", size: 13 }, bodyFont: { family: "'Inter', sans-serif", size: 12 } },
-    },
-    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } }, x: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } } },
-  };
+  deptBarChartOptions = defaultDeptBarChartOptions;
 
   avanceChartData: ChartData<'line'> = { labels: [], datasets: [] };
-  avanceChartOptions: ChartOptions<'line'> = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', font: { family: "'Inter', sans-serif", size: 11, weight: 500 } } },
-      tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { family: "'Inter', sans-serif", size: 13 }, bodyFont: { family: "'Inter', sans-serif", size: 12 } },
-    },
-    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } }, x: { grid: { display: false }, ticks: { maxRotation: 45, font: { family: "'Inter', sans-serif", size: 10 } } } },
-  };
+  avanceChartOptions = defaultAvanceChartOptions;
 
   topDocentesColumns = ['posicion', 'nombre', 'categoria', 'horasLectivas', 'horasNoLectivas', 'totalHoras', 'estado'];
   deptColumns = ['departamento', 'totalDocentes', 'horasLectivas', 'promedio'];
@@ -76,11 +63,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly rol = this.authService.getUsuarioActual()?.rol ?? '';
   readonly usuario = this.authService.getUsuarioActual();
 
-  isAdmin(): boolean { return this.rol === 'administradorsistema'; }
-  isCoord(): boolean { return this.rol === 'coordinadoracademico'; }
-  isDirector(): boolean { return this.rol === 'directorescuela'; }
-  isDocente(): boolean { return this.rol === 'docente'; }
-  isSecretaria(): boolean { return this.rol === 'secretaria'; }
+  isAdmin(): boolean { return this.rol === ROLES.ADMINISTRADOR_SISTEMA; }
+  isCoord(): boolean { return this.rol === ROLES.COORDINADOR_ACADEMICO; }
+  isDirector(): boolean { return this.rol === ROLES.DIRECTOR_ESCUELA; }
+  isDocente(): boolean { return this.rol === ROLES.DOCENTE; }
+  isSecretaria(): boolean { return this.rol === ROLES.SECRETARIA; }
   isAdminOrCoord(): boolean { return this.isAdmin() || this.isCoord(); }
   canViewFullDashboard(): boolean { return this.isAdminOrCoord() || this.isDirector(); }
   canGenerateHorario(): boolean { return this.isAdminOrCoord(); }
@@ -119,28 +106,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   };
 
   barChartData: ChartData<'bar'> = { labels: [], datasets: [] };
-  barChartOptions: ChartOptions<'bar'> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top', align: 'end', labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, font: { family: "'Inter', sans-serif", size: 12, weight: 500 } } },
-      tooltip: { backgroundColor: '#1e293b', titleFont: { family: "'Inter', sans-serif", size: 13 }, bodyFont: { family: "'Inter', sans-serif", size: 12 }, padding: 12, cornerRadius: 8, displayColors: true },
-    },
-    scales: { y: { beginAtZero: true, grid: { display: true, color: 'rgba(0,0,0,0.05)' }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } }, x: { grid: { display: false }, ticks: { font: { family: "'Inter', sans-serif", size: 11 } } } },
-  };
+  barChartOptions = defaultBarChartOptions;
 
   doughnutData: ChartData<'doughnut'> = { labels: [], datasets: [] };
-  doughnutOptions: ChartOptions<'doughnut'> = {
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: 0,
-    layout: { padding: 10 },
-    plugins: {
-      legend: { position: 'right', align: 'center', labels: { usePointStyle: true, pointStyle: 'circle', padding: 15, font: { family: "'Inter', sans-serif", size: 11, weight: 500 } } },
-      tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8, titleFont: { family: "'Inter', sans-serif", size: 13, weight: 'bold' }, bodyFont: { family: "'Inter', sans-serif", size: 12 } },
-    },
-    animation: { animateRotate: true, animateScale: true, duration: 1000, easing: 'easeOutQuart' },
-  };
+  doughnutOptions = defaultDoughnutOptions;
 
   private getLocaleCode(lang: string): string {
     const locales: Record<string, string> = {
@@ -203,7 +172,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.setGreeting();
     this.setCurrentDate();
     this.setDiasSemana();
-    this.sub = this.periodoService.periodo$.subscribe(() => this.loadAll());
+    this.sub = this.periodoService.periodo$.subscribe(() => {
+      this.cargaResumen = null;
+      this.cargaDepartamentos = [];
+      this.cargaEstados = [];
+      this.cargaTopDocentes = [];
+      this.cargaAvance = [];
+      this.loadAll();
+      if (this.activeTab() === 'carga') {
+        this.loadCargaKPIs();
+      }
+    });
     this.dashSub = this.socketService.dashboardKpiUpdate$.subscribe(() => this.loadKPIs());
     this.langSub = this.translate.onLangChange.subscribe(() => {
       this.setGreeting();
@@ -258,7 +237,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         error: (err) => { 
           this.loading.set(false); 
           this.error = true; 
-          this.translate.get('dashboard.errorLoading').subscribe(text => this.errorMessage = err?.error?.message || text); 
+          this.errorMessage = err?.error?.message || this.translate.instant('dashboard.errorLoading'); 
         },
       });
   }
@@ -307,10 +286,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.loading.set(false);
           this.firstLoadDone.set(true);
           this.error = true;
-          this.translate.get('dashboard.errorLoading').subscribe(text => {
-            this.errorMessage = err?.error?.message || text;
-            this.snackBar.open(this.errorMessage, this.translate.instant('common.close'), { duration: 3000 });
-          });
+          this.errorMessage = err?.error?.message || this.translate.instant('dashboard.errorLoading');
+          this.snackBar.open(this.errorMessage, this.translate.instant('common.close'), { duration: 3000 });
         },
       });
   }
@@ -324,10 +301,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         },
         error: (err) => { 
           this.error = true; 
-          this.translate.get('dashboard.errorLoading').subscribe(text => {
-            this.errorMessage = err?.error?.message || text;
-            this.snackBar.open(this.errorMessage, this.translate.instant('common.close'), { duration: 3000 });
-          }); 
+          this.errorMessage = err?.error?.message || this.translate.instant('dashboard.errorLoading');
+          this.snackBar.open(this.errorMessage, this.translate.instant('common.close'), { duration: 3000 });
         },
       });
   }
@@ -393,31 +368,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
   loadCargaKPIs(): void {
     this.cargaLoading.set(true);
     const periodo = this.periodoService.periodo;
+    let pending = 5;
+    const dec = () => { pending--; if (pending === 0) this.cargaLoading.set(false); };
+    const onError = (msg: string) => {
+      this.snackBar.open(msg, this.translate.instant('common.close'), { duration: 3000 });
+      dec();
+    };
     this.api.get<ApiResponse<CargaResumen>>('/dashboard/carga/resumen', { periodo }).subscribe({
-      next: (res) => {
-        this.cargaResumen = res.data;
-        this.cargaLoading.set(false);
-      },
-      error: () => {
-        this.cargaLoading.set(false);
-        this.snackBar.open('Error al cargar resumen de carga', 'Cerrar', { duration: 3000 });
-      },
+      next: (res) => { this.cargaResumen = res.data; dec(); },
+      error: () => onError('Error al cargar resumen de carga'),
     });
     this.api.get<ApiResponse<CargaDepartamento[]>>('/dashboard/carga/departamentos', { periodo }).subscribe({
-      next: (res) => { this.cargaDepartamentos = res.data; this.buildDeptChart(res.data); },
-      error: () => { this.snackBar.open('Error al cargar datos por departamento', 'Cerrar', { duration: 3000 }); },
+      next: (res) => { this.cargaDepartamentos = res.data; this.buildDeptChart(res.data); dec(); },
+      error: () => onError('Error al cargar datos por departamento'),
     });
     this.api.get<ApiResponse<CargaEstado[]>>('/dashboard/carga/estados', { periodo }).subscribe({
-      next: (res) => { this.cargaEstados = res.data; this.buildFunnelChart(res.data); },
-      error: () => { this.snackBar.open('Error al cargar estados de carga', 'Cerrar', { duration: 3000 }); },
+      next: (res) => { this.cargaEstados = res.data; this.buildFunnelChart(res.data); dec(); },
+      error: () => onError('Error al cargar estados de carga'),
     });
     this.api.get<ApiResponse<CargaTopDocente[]>>('/dashboard/carga/top-docentes', { periodo, limit: '10' }).subscribe({
-      next: (res) => { this.cargaTopDocentes = res.data; },
-      error: () => { this.snackBar.open('Error al cargar top docentes', 'Cerrar', { duration: 3000 }); },
+      next: (res) => { this.cargaTopDocentes = res.data; dec(); },
+      error: () => onError('Error al cargar top docentes'),
     });
     this.api.get<ApiResponse<CargaAvance[]>>('/dashboard/carga/avance', { periodo }).subscribe({
-      next: (res) => { this.cargaAvance = res.data; this.buildAvanceChart(res.data); },
-      error: () => { this.snackBar.open('Error al cargar avance', 'Cerrar', { duration: 3000 }); },
+      next: (res) => { this.cargaAvance = res.data; this.buildAvanceChart(res.data); dec(); },
+      error: () => onError('Error al cargar avance'),
     });
   }
 
@@ -485,24 +460,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   generarHorario(): void {
-    this.translate.get('dashboard.confirmGenerateSchedule', { periodo: this.periodoService.periodo })
-      .subscribe(message => {
-        if (!confirm(message)) return;
-        this.generando = true;
-        this.api.post<ApiResponse<any>>('/horarios/generar', { periodo: this.periodoService.periodo })
-          .subscribe({
-            next: (res) => { 
-              this.snackBar.open(res.message, 'OK', { duration: 4000 }); 
-              this.generando = false; 
-              this.loadAll(); 
-            },
-            error: () => { 
-              this.generando = false; 
-              this.translate.get('dashboard.errorLoading').subscribe(msg => 
-                this.snackBar.open(msg, this.translate.instant('common.close'), { duration: 3000 })
-              ); 
-            },
-          });
+    const message = this.translate.instant('dashboard.confirmGenerateSchedule', { periodo: this.periodoService.periodo });
+    if (!confirm(message)) return;
+    this.generando = true;
+    this.api.post<ApiResponse<any>>('/horarios/generar', { periodo: this.periodoService.periodo })
+      .subscribe({
+        next: (res) => { 
+          this.snackBar.open(res.message, 'OK', { duration: 4000 }); 
+          this.generando = false; 
+          this.loadAll(); 
+        },
+        error: () => { 
+          this.generando = false; 
+          this.snackBar.open(this.translate.instant('dashboard.errorLoading'), this.translate.instant('common.close'), { duration: 3000 }); 
+        },
       });
   }
 
@@ -510,16 +481,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.api.patch<ApiResponse<any>>(`/horarios/conflictos/${id}/resolver`, {})
       .subscribe({
         next: () => { 
-          this.translate.get('common.success').subscribe(msg => 
-            this.snackBar.open(msg, 'OK', { duration: 2000 })
-          ); 
+          this.snackBar.open(this.translate.instant('common.success'), 'OK', { duration: 2000 }); 
           this.loadConflictos(); 
           this.loadKPIs(); 
         },
         error: () => { 
-          this.translate.get('dashboard.errorLoading').subscribe(msg => 
-            this.snackBar.open(msg, this.translate.instant('common.close'), { duration: 3000 })
-          ); 
+          this.snackBar.open(this.translate.instant('dashboard.errorLoading'), this.translate.instant('common.close'), { duration: 3000 }); 
         },
       });
   }

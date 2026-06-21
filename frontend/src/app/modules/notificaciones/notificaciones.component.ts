@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
+import { ROLES } from '../../core/constants/roles';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { NotificacionesService, PreferenciasNotificacion, NotificacionItem } from '../../core/services/notificaciones.service';
@@ -41,7 +42,7 @@ export class NotificacionesComponent implements OnInit {
   ngOnInit(): void {
     const usuario = this.authService.getUsuarioActual();
     this.docenteId = usuario?.docenteId ?? null;
-    this.isAdmin = this.authService.hasRole('administradorsistema');
+    this.isAdmin = this.authService.hasRole(ROLES.ADMINISTRADOR_SISTEMA);
 
     // Diagnóstico visible
     console.log('Usuario:', usuario, 'docenteId:', this.docenteId);

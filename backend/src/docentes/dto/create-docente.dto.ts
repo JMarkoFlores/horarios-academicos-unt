@@ -24,6 +24,16 @@ export class CreateDocenteDto {
   codigo: string;
 
   @ApiProperty({
+    example: "12345678",
+    description: "DNI del docente (8 dígitos)",
+  })
+  @IsString()
+  @IsNotEmpty({ message: "El DNI es obligatorio" })
+  @Matches(/^\d{8}$/, { message: "El DNI debe tener exactamente 8 dígitos" })
+  @MaxLength(15)
+  dni: string;
+
+  @ApiProperty({
     example: 4247,
     description: "Código IBM único de 4 dígitos",
   })
@@ -45,8 +55,9 @@ export class CreateDocenteDto {
   @MaxLength(150)
   apellidos: string;
 
-  @ApiProperty({ example: "jperez@unitru.edu.pe" })
+  @ApiProperty({ example: "jperez@unt.edu.pe" })
   @IsEmail({}, { message: "Email inválido" })
+  @Matches(/@unt\.edu\.pe$/, { message: "El email debe ser del dominio @unt.edu.pe" })
   @IsNotEmpty({ message: "El email no puede estar vacío" })
   @MaxLength(150)
   email: string;

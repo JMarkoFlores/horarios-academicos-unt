@@ -302,6 +302,12 @@ export class ReportesController {
   }
 
   @Get("ambiente/:id/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({
     summary: "PDF del horario de un ambiente (aula o laboratorio)",
   })
@@ -325,6 +331,12 @@ export class ReportesController {
   }
 
   @Get("ambiente/:id/excel")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({
     summary: "Excel del horario de un ambiente (aula/laboratorio)",
   })
@@ -478,6 +490,12 @@ export class ReportesController {
   }
 
   @Get("completo/excel")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Excel completo de horarios" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async completoExcel(@Query("periodo") periodo: string, @Res() res: Response) {
@@ -548,6 +566,12 @@ export class ReportesController {
   }
 
   @Get("dia/:dia/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF del horario de un dÃ­a especÃ­fico" })
   @ApiParam({ name: "dia", type: Number, description: "NÃºmero de dÃ­a (1-6)" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -699,6 +723,14 @@ export class ReportesController {
   }
 
   @Get("cursos/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DOCENTE,
+  )
   @ApiOperation({ summary: "PDF de la lista de cursos" })
   @ApiQuery({ name: "search", required: false, type: String })
   @ApiQuery({ name: "ciclo", required: false, type: Number })

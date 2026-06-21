@@ -1,15 +1,18 @@
 import { Injectable, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, BehaviorSubject } from 'rxjs';
+import { Observable, tap, BehaviorSubject, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import { environment } from '../../../environments/environment';
 import { Usuario } from '../interfaces/entities';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly TOKEN_KEY = 'unt_token';
-  private readonly USER_KEY = 'unt_user';
+  static readonly TOKEN_KEY = 'unt_token';
+  static readonly USER_KEY = 'unt_user';
+  readonly TOKEN_KEY = AuthService.TOKEN_KEY;
+  readonly USER_KEY = AuthService.USER_KEY;
 
   private profilePhotoSubject = new BehaviorSubject<string | null>(null);
   profilePhoto$ = this.profilePhotoSubject.asObservable();
@@ -82,6 +85,24 @@ export class AuthService {
     localStorage.removeItem(this.USER_KEY);
     this.profilePhotoSubject.next(null);
     this.router.navigate(['/']);
+  }
+
+  verificarToken(): Observable<boolean> {
+    const token = this.getToken();
+    if (!token) return of(false);
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp * 1000 <= Date.now()) return of(false);
+    } catch {
+      return of(false);
+    }
+    return this.http.get(`${environment.apiUrl}/auth/perfil`).pipe(
+      map(() => true),
+      catchError(() => {
+        this.logout();
+        return of(false);
+      }),
+    );
   }
 
   getToken(): string | null {

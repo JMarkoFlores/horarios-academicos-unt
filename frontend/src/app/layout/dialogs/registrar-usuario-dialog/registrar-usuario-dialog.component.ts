@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ROLES } from '../../../core/constants/roles';
 import { UsuariosService } from '../../../core/services/usuarios.service';
 
 @Component({
@@ -14,11 +15,11 @@ export class RegistrarUsuarioDialogComponent {
   hidePassword = true;
 
   roles = [
-    { value: 'administradorsistema', label: 'Administrador del Sistema' },
-    { value: 'directorescuela', label: 'Director de Escuela' },
-    { value: 'coordinadoracademico', label: 'Coordinador Académico' },
-    { value: 'secretaria', label: 'Secretaria' },
-    { value: 'docente', label: 'Docente' },
+    { value: ROLES.ADMINISTRADOR_SISTEMA, label: 'Administrador del Sistema' },
+    { value: ROLES.DIRECTOR_ESCUELA, label: 'Director de Escuela' },
+    { value: ROLES.COORDINADOR_ACADEMICO, label: 'Coordinador Académico' },
+    { value: ROLES.SECRETARIA, label: 'Secretaria' },
+    { value: ROLES.DOCENTE, label: 'Docente' },
   ];
 
   constructor(
@@ -31,7 +32,7 @@ export class RegistrarUsuarioDialogComponent {
       nombre: ['', [Validators.required, Validators.minLength(3)]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(8)]],
-      rol: ['secretaria', Validators.required],
+      rol: [ROLES.SECRETARIA, Validators.required],
     });
   }
 

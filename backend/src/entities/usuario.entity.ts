@@ -36,6 +36,9 @@ export class Usuario {
   @Column({ default: true })
   activo: boolean;
 
+  @Column({ type: "boolean", default: false, name: "debe_cambiar_password" })
+  debe_cambiar_password: boolean;
+
   @Column({ type: "varchar", length: 5, default: "es" })
   idioma: string;
 

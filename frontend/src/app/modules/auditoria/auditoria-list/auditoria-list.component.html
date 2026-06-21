@@ -1,200 +1,262 @@
-<div class="page-container animate-fadein">
-  <header class="page-header">
-    <h1>Auditoría</h1>
-    <p>Historial de cambios en el sistema</p>
-  </header>
+<div class="audit-page">
+  <!-- Header -->
+  <div class="audit-hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div class="hero-text">
+        <div class="hero-badge">
+          <mat-icon>history</mat-icon>
+          <span>Trazabilidad del Sistema</span>
+        </div>
+        <h1>Auditoría</h1>
+        <p class="hero-subtitle">Historial de cambios en horarios y carga académica</p>
+      </div>
+    </div>
+  </div>
 
-  <mat-tab-group [(selectedIndex)]="selectedTab" (selectedIndexChange)="onTabChange($event)">
-    <mat-tab label="Horarios">
-      <div class="tab-content">
-        <div class="toolbar">
-          <div class="filtros">
-            <mat-form-field appearance="outline">
-              <mat-label>Período</mat-label>
-              <input matInput [(ngModel)]="filtros.periodo" (change)="cargarAuditoria()">
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Usuario ID</mat-label>
-              <input matInput type="number" [(ngModel)]="filtros.usuario_id" (change)="cargarAuditoria()">
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Acción</mat-label>
-              <mat-select [(ngModel)]="filtros.accion" (selectionChange)="cargarAuditoria()">
-                <mat-option value="">Todas</mat-option>
-                <mat-option value="crear">Crear</mat-option>
-                <mat-option value="actualizar">Actualizar</mat-option>
-                <mat-option value="eliminar">Eliminar</mat-option>
-                <mat-option value="confirmar">Confirmar</mat-option>
-                <mat-option value="reasignar">Reasignar</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Desde</mat-label>
-              <input matInput type="date" [(ngModel)]="filtros.desde" (change)="cargarAuditoria()">
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Hasta</mat-label>
-              <input matInput type="date" [(ngModel)]="filtros.hasta" (change)="cargarAuditoria()">
-            </mat-form-field>
-            <button mat-stroked-button (click)="cargarAuditoria()">
-              <mat-icon>refresh</mat-icon> Actualizar
+  <!-- Filtros globales -->
+  <div class="filter-bar">
+    <div class="filter-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Período</mat-label>
+        <input matInput [(ngModel)]="filtros.periodo" (change)="cargarAuditoria()">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Usuario ID</mat-label>
+        <input matInput type="number" [(ngModel)]="filtros.usuario_id" (change)="cargarAuditoria()" placeholder="Filtrar por ID">
+      </mat-form-field>
+
+      @if (selectedTab === 1) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Entidad</mat-label>
+          <mat-select [(ngModel)]="filtros.entidad" (selectionChange)="cargarAuditoria()">
+            @for (opt of entidadOptions; track opt.value) {
+              <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Acción</mat-label>
+        <mat-select [(ngModel)]="filtros.accion" (selectionChange)="cargarAuditoria()">
+          @for (opt of accionOptions; track opt.value) {
+            <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Desde</mat-label>
+        <input matInput type="date" [(ngModel)]="filtros.desde" (change)="cargarAuditoria()">
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Hasta</mat-label>
+        <input matInput type="date" [(ngModel)]="filtros.hasta" (change)="cargarAuditoria()">
+      </mat-form-field>
+
+      <button mat-stroked-button class="refresh-btn" (click)="cargarAuditoria()">
+        <mat-icon>refresh</mat-icon>
+        Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <mat-tab-group [(selectedIndex)]="selectedTab" (selectedIndexChange)="onTabChange($event)" class="audit-tabs">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>calendar_month</mat-icon>
+        Horarios
+        @if (totalHorarios > 0) {
+          <span class="tab-count">{{ totalHorarios }}</span>
+        }
+      </ng-template>
+
+      <div class="tab-panel">
+        @if (loading) {
+          <mat-progress-bar mode="indeterminate" class="tab-loader"></mat-progress-bar>
+        }
+
+        @if (!loading && registrosHorarios.length === 0) {
+          <div class="empty-state">
+            <mat-icon class="empty-icon">history</mat-icon>
+            <h3>Sin registros</h3>
+            <p>No hay cambios registrados en horarios para los filtros seleccionados.</p>
+          </div>
+        }
+
+        @if (!loading && registrosHorarios.length > 0) {
+          <div class="table-scroll">
+            <table mat-table [dataSource]="registrosHorarios" class="audit-table">
+              <ng-container matColumnDef="fecha">
+                <th mat-header-cell *matHeaderCellDef>Fecha</th>
+                <td mat-cell *matCellDef="let r">{{ r.creado_en | date:'dd/MM/yy HH:mm' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="usuario">
+                <th mat-header-cell *matHeaderCellDef>Usuario</th>
+                <td mat-cell *matCellDef="let r">
+                  <span class="user-cell">{{ r.usuario?.nombre || r.usuario_id }}</span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="accion">
+                <th mat-header-cell *matHeaderCellDef>Acción</th>
+                <td mat-cell *matCellDef="let r">
+                  <span class="badge" [class]="accionBadgeClass(r.accion)">{{ r.accion }}</span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="docente">
+                <th mat-header-cell *matHeaderCellDef>Docente</th>
+                <td mat-cell *matCellDef="let r">{{ r.horario?.docente?.apellidos || '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="curso">
+                <th mat-header-cell *matHeaderCellDef>Curso</th>
+                <td mat-cell *matCellDef="let r">{{ r.horario?.curso?.codigo || '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="periodo">
+                <th mat-header-cell *matHeaderCellDef>Período</th>
+                <td mat-cell *matCellDef="let r">{{ r.horario?.periodo || '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="datos_anteriores">
+                <th mat-header-cell *matHeaderCellDef>Anterior</th>
+                <td mat-cell *matCellDef="let r"><pre class="json-cell">{{ formatJson(r.datos_anteriores) }}</pre></td>
+              </ng-container>
+
+              <ng-container matColumnDef="datos_nuevos">
+                <th mat-header-cell *matHeaderCellDef>Nuevo</th>
+                <td mat-cell *matCellDef="let r"><pre class="json-cell">{{ formatJson(r.datos_nuevos) }}</pre></td>
+              </ng-container>
+
+              <ng-container matColumnDef="motivo">
+                <th mat-header-cell *matHeaderCellDef>Motivo</th>
+                <td mat-cell *matCellDef="let r">{{ r.motivo || '—' }}</td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumnsHorarios"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumnsHorarios;"></tr>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button mat-button [disabled]="currentPage <= 1" (click)="cambiarPagina(-1)">
+              <mat-icon>chevron_left</mat-icon> Anterior
+            </button>
+            <span class="page-info">Página {{ currentPage }}</span>
+            <button mat-button [disabled]="registrosHorarios.length < pageSize" (click)="cambiarPagina(1)">
+              Siguiente <mat-icon>chevron_right</mat-icon>
             </button>
           </div>
-        </div>
-
-        <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
-
-        <div class="table-container" *ngIf="!loading">
-          <table mat-table [dataSource]="registrosHorarios" class="mat-elevation-z2">
-            <ng-container matColumnDef="fecha">
-              <th mat-header-cell *matHeaderCellDef>Fecha</th>
-              <td mat-cell *matCellDef="let r">{{ r.creado_en | date:'short' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="usuario">
-              <th mat-header-cell *matHeaderCellDef>Usuario</th>
-              <td mat-cell *matCellDef="let r">{{ r.usuario?.nombre || r.usuario_id || '—' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="accion">
-              <th mat-header-cell *matHeaderCellDef>Acción</th>
-              <td mat-cell *matCellDef="let r"><span class="badge" [class]="r.accion">{{ r.accion }}</span></td>
-            </ng-container>
-            <ng-container matColumnDef="docente">
-              <th mat-header-cell *matHeaderCellDef>Docente</th>
-              <td mat-cell *matCellDef="let r">{{ r.horario?.docente?.apellidos || '—' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="curso">
-              <th mat-header-cell *matHeaderCellDef>Curso</th>
-              <td mat-cell *matCellDef="let r">{{ r.horario?.curso?.codigo || '—' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="periodo">
-              <th mat-header-cell *matHeaderCellDef>Período</th>
-              <td mat-cell *matCellDef="let r">{{ r.horario?.periodo || '—' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="datos_anteriores">
-              <th mat-header-cell *matHeaderCellDef>Anterior</th>
-              <td mat-cell *matCellDef="let r"><pre class="json-preview">{{ formatJson(r.datos_anteriores) }}</pre></td>
-            </ng-container>
-            <ng-container matColumnDef="datos_nuevos">
-              <th mat-header-cell *matHeaderCellDef>Nuevo</th>
-              <td mat-cell *matCellDef="let r"><pre class="json-preview">{{ formatJson(r.datos_nuevos) }}</pre></td>
-            </ng-container>
-            <ng-container matColumnDef="motivo">
-              <th mat-header-cell *matHeaderCellDef>Motivo</th>
-              <td mat-cell *matCellDef="let r">{{ r.motivo || '—' }}</td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="displayedColumnsHorarios"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumnsHorarios;"></tr>
-          </table>
-
-          <div *ngIf="registrosHorarios.length === 0" class="estado-vacio">
-            <mat-icon>history</mat-icon>
-            <p>No hay registros de auditoría de horarios</p>
-          </div>
-        </div>
+        }
       </div>
     </mat-tab>
 
-    <mat-tab label="Carga Académica">
-      <div class="tab-content">
-        <div class="toolbar">
-          <div class="filtros">
-            <mat-form-field appearance="outline">
-              <mat-label>Período</mat-label>
-              <input matInput [(ngModel)]="filtros.periodo" (change)="cargarAuditoria()">
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Usuario ID</mat-label>
-              <input matInput type="number" [(ngModel)]="filtros.usuario_id" (change)="cargarAuditoria()">
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Entidad</mat-label>
-              <mat-select [(ngModel)]="filtros.entidad" (selectionChange)="cargarAuditoria()">
-                <mat-option value="">Todas</mat-option>
-                <mat-option value="ASIGNACION_LECTIVA">Asignación Lectiva</mat-option>
-                <mat-option value="DECLARACION_CARGA">Declaración de Carga</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Acción</mat-label>
-              <mat-select [(ngModel)]="filtros.accion" (selectionChange)="cargarAuditoria()">
-                <mat-option value="">Todas</mat-option>
-                <mat-option value="CREAR">Crear</mat-option>
-                <mat-option value="ACTUALIZAR">Actualizar</mat-option>
-                <mat-option value="CONFIRMAR">Confirmar</mat-option>
-                <mat-option value="RECHAZAR">Rechazar</mat-option>
-                <mat-option value="ELIMINAR">Eliminar</mat-option>
-                <mat-option value="ENVIAR">Enviar</mat-option>
-                <mat-option value="OBSERVAR">Observar</mat-option>
-                <mat-option value="VALIDAR">Validar</mat-option>
-                <mat-option value="APROBAR">Aprobar</mat-option>
-                <mat-option value="SUBSANAR">Subsanar</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Desde</mat-label>
-              <input matInput type="date" [(ngModel)]="filtros.desde" (change)="cargarAuditoria()">
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Hasta</mat-label>
-              <input matInput type="date" [(ngModel)]="filtros.hasta" (change)="cargarAuditoria()">
-            </mat-form-field>
-            <button mat-stroked-button (click)="cargarAuditoria()">
-              <mat-icon>refresh</mat-icon> Actualizar
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon>assignment</mat-icon>
+        Carga Académica
+        @if (totalCarga > 0) {
+          <span class="tab-count">{{ totalCarga }}</span>
+        }
+      </ng-template>
+
+      <div class="tab-panel">
+        @if (loading) {
+          <mat-progress-bar mode="indeterminate" class="tab-loader"></mat-progress-bar>
+        }
+
+        @if (!loading && registrosCarga.length === 0) {
+          <div class="empty-state">
+            <mat-icon class="empty-icon">assignment</mat-icon>
+            <h3>Sin registros</h3>
+            <p>No hay cambios registrados en carga académica para los filtros seleccionados.</p>
+          </div>
+        }
+
+        @if (!loading && registrosCarga.length > 0) {
+          <div class="table-scroll">
+            <table mat-table [dataSource]="registrosCarga" class="audit-table">
+              <ng-container matColumnDef="fecha">
+                <th mat-header-cell *matHeaderCellDef>Fecha</th>
+                <td mat-cell *matCellDef="let r">{{ r.creado_en | date:'dd/MM/yy HH:mm' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="usuario">
+                <th mat-header-cell *matHeaderCellDef>Usuario</th>
+                <td mat-cell *matCellDef="let r">
+                  <span class="user-cell">{{ r.usuario?.nombre || r.usuario_id }}</span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="entidad">
+                <th mat-header-cell *matHeaderCellDef>Entidad</th>
+                <td mat-cell *matCellDef="let r">
+                  <span class="badge badge-entidad">{{ r.entidad === 'ASIGNACION_LECTIVA' ? 'Asig. Lectiva' : 'Decl. Carga' }}</span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="accion">
+                <th mat-header-cell *matHeaderCellDef>Acción</th>
+                <td mat-cell *matCellDef="let r">
+                  <span class="badge" [class]="accionBadgeClass(r.accion)">{{ r.accion }}</span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="estado_anterior">
+                <th mat-header-cell *matHeaderCellDef>Estado Anterior</th>
+                <td mat-cell *matCellDef="let r">
+                  @if (r.estado_anterior) {
+                    <span class="badge badge-estado">{{ r.estado_anterior }}</span>
+                  } @else { — }
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="estado_nuevo">
+                <th mat-header-cell *matHeaderCellDef>Estado Nuevo</th>
+                <td mat-cell *matCellDef="let r">
+                  @if (r.estado_nuevo) {
+                    <span class="badge badge-estado-nuevo">{{ r.estado_nuevo }}</span>
+                  } @else { — }
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="datos_anteriores">
+                <th mat-header-cell *matHeaderCellDef>Anterior</th>
+                <td mat-cell *matCellDef="let r"><pre class="json-cell">{{ formatJson(r.datos_anteriores) }}</pre></td>
+              </ng-container>
+
+              <ng-container matColumnDef="datos_nuevos">
+                <th mat-header-cell *matHeaderCellDef>Nuevo</th>
+                <td mat-cell *matCellDef="let r"><pre class="json-cell">{{ formatJson(r.datos_nuevos) }}</pre></td>
+              </ng-container>
+
+              <ng-container matColumnDef="motivo">
+                <th mat-header-cell *matHeaderCellDef>Motivo</th>
+                <td mat-cell *matCellDef="let r">{{ r.motivo || '—' }}</td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumnsCarga"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumnsCarga;"></tr>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button mat-button [disabled]="currentPage <= 1" (click)="cambiarPagina(-1)">
+              <mat-icon>chevron_left</mat-icon> Anterior
+            </button>
+            <span class="page-info">Página {{ currentPage }}</span>
+            <button mat-button [disabled]="registrosCarga.length < pageSize" (click)="cambiarPagina(1)">
+              Siguiente <mat-icon>chevron_right</mat-icon>
             </button>
           </div>
-        </div>
-
-        <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
-
-        <div class="table-container" *ngIf="!loading">
-          <table mat-table [dataSource]="registrosCarga" class="mat-elevation-z2">
-            <ng-container matColumnDef="fecha">
-              <th mat-header-cell *matHeaderCellDef>Fecha</th>
-              <td mat-cell *matCellDef="let r">{{ r.creado_en | date:'short' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="usuario">
-              <th mat-header-cell *matHeaderCellDef>Usuario</th>
-              <td mat-cell *matCellDef="let r">{{ r.usuario?.nombre || r.usuario_id || '—' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="entidad">
-              <th mat-header-cell *matHeaderCellDef>Entidad</th>
-              <td mat-cell *matCellDef="let r"><span class="badge entidad">{{ r.entidad }}</span></td>
-            </ng-container>
-            <ng-container matColumnDef="accion">
-              <th mat-header-cell *matHeaderCellDef>Acción</th>
-              <td mat-cell *matCellDef="let r"><span class="badge" [class]="r.accion">{{ r.accion }}</span></td>
-            </ng-container>
-            <ng-container matColumnDef="estado_anterior">
-              <th mat-header-cell *matHeaderCellDef>Estado Anterior</th>
-              <td mat-cell *matCellDef="let r">{{ r.estado_anterior || '—' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="estado_nuevo">
-              <th mat-header-cell *matHeaderCellDef>Estado Nuevo</th>
-              <td mat-cell *matCellDef="let r">{{ r.estado_nuevo || '—' }}</td>
-            </ng-container>
-            <ng-container matColumnDef="datos_anteriores">
-              <th mat-header-cell *matHeaderCellDef>Anterior</th>
-              <td mat-cell *matCellDef="let r"><pre class="json-preview">{{ formatJson(r.datos_anteriores) }}</pre></td>
-            </ng-container>
-            <ng-container matColumnDef="datos_nuevos">
-              <th mat-header-cell *matHeaderCellDef>Nuevo</th>
-              <td mat-cell *matCellDef="let r"><pre class="json-preview">{{ formatJson(r.datos_nuevos) }}</pre></td>
-            </ng-container>
-            <ng-container matColumnDef="motivo">
-              <th mat-header-cell *matHeaderCellDef>Motivo</th>
-              <td mat-cell *matCellDef="let r">{{ r.motivo || '—' }}</td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="displayedColumnsCarga"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumnsCarga;"></tr>
-          </table>
-
-          <div *ngIf="registrosCarga.length === 0" class="estado-vacio">
-            <mat-icon>history</mat-icon>
-            <p>No hay registros de auditoría de carga académica</p>
-          </div>
-        </div>
+        }
       </div>
     </mat-tab>
   </mat-tab-group>

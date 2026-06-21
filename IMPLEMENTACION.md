@@ -1020,12 +1020,12 @@ Firma del Docente
 
 **Hallazgos:**
 
-| ID | Tipo | Descripción | Archivo |
-|----|------|-------------|---------|
-| F4-1 | 🟡 Medio | Falta `@Index` en `declaracion_id`, `docente_id`, `estado` — Columnas consultadas frecuentemente. | `declaracion-jurada.entity.ts` |
-| F4-2 | 🟢 Info | No tiene `@UpdateDateColumn` — Sólo `@CreateDateColumn`. Aunque `estado` y `fecha_firma` cambian, no hay `updated_at`. | `declaracion-jurada.entity.ts` |
-| F4-3 | 🟢 Info | Faltan inverses `@OneToMany` desde `DeclaracionCargaHoraria`, `Docente` y `PeriodoAcademico` hacia `DeclaracionJurada`. | — |
-| F4-4 | 🔴 Alto | **Docente NO tiene campo DNI** — El `docente.entity.ts` no tiene columna `dni`, pero el F02-CAD requiere "Identificado con DNI N° [DNI]". | `docente.entity.ts` |
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F4-1 | 🟡 Medio | Falta `@Index` en `declaracion_id`, `docente_id`, `estado` — Columnas consultadas frecuentemente. | `declaracion-jurada.entity.ts` | ✅ `@Index` agregados |
+| F4-2 | 🟢 Info | No tiene `@UpdateDateColumn` — Sólo `@CreateDateColumn`. Aunque `estado` y `fecha_firma` cambian, no hay `updated_at`. | `declaracion-jurada.entity.ts` | ✅ Agregado `updated_at` |
+| F4-3 | 🟢 Info | Faltan inverses `@OneToMany` desde `DeclaracionCargaHoraria`, `Docente` y `PeriodoAcademico` hacia `DeclaracionJurada`. | — | ✅ Agregados inverses |
+| F4-4 | 🔴 Alto | **Docente NO tiene campo DNI** — El `docente.entity.ts` no tiene columna `dni`, pero el F02-CAD requiere "Identificado con DNI N° [DNI]". | `docente.entity.ts` | ✅ Agregada columna `dni` nullable |
 
 ---
 
@@ -1131,13 +1131,13 @@ Mejorar el existente o crear nuevo endpoint específico F03-CAD.
 
 **Hallazgos:**
 
-| ID | Tipo | Descripción | Archivo |
-|----|------|-------------|---------|
-| F5-1 | 🔴 Alto | `guardarCambios()` en `horarios.component.ts` está INCOMPLETO — Solo tiene `console.log`, no hay llamada API. El botón "Guardar cambios" de la grilla no funciona. | `horarios.component.ts:292-307` |
-| F5-2 | 🟡 Medio | `ambSub` sobrescrito sin unsubscribe en `asignar-horario-dialog` — Cada `verificarOcupacion()` sobrescribe la suscripción anterior sin cancelarla. | `asignar-horario-dialog.component.ts:158-181` |
-| F5-3 | 🟡 Medio | Form `valueChanges` sin unsubscribe en `asignar-horario-dialog` — 3 suscripciones a `valueChanges` que nunca se limpian. | `asignar-horario-dialog.component.ts:72-98` |
-| F5-4 | 🟡 Medio | Empty error handlers en suscripciones de horarios — Errores silenciados. | `horarios.component.ts` (155, 738, 760, 782, 934) |
-| F5-5 | 🟢 Info | `matriz-horarios.component.ts` siempre muestra 6 días (Lun-Sáb) — No usa `DiasActivosService` para obtener los días realmente activos. | `matriz-horarios.component.ts:56-63` |
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F5-1 | 🔴 Alto | `guardarCambios()` en `horarios.component.ts` está INCOMPLETO — Solo tiene `console.log`, no hay llamada API. El botón "Guardar cambios" de la grilla no funciona. | `horarios.component.ts:292-307` | ✅ Implementado con `PATCH /horarios/:id/actualizar` y `POST /horarios/asignar` |
+| F5-2 | 🟡 Medio | `ambSub` sobrescrito sin unsubscribe en `asignar-horario-dialog` — Cada `verificarOcupacion()` sobrescribe la suscripción anterior sin cancelarla. | `asignar-horario-dialog.component.ts:158-181` | ✅ Cancelado antes de reassign |
+| F5-3 | 🟡 Medio | Form `valueChanges` sin unsubscribe en `asignar-horario-dialog` — 3 suscripciones a `valueChanges` que nunca se limpian. | `asignar-horario-dialog.component.ts:72-98` | ✅ Coleccionadas y limpiadas en `ngOnDestroy()` |
+| F5-4 | 🟡 Medio | Empty error handlers en suscripciones de horarios — Errores silenciados. | `horarios.component.ts` (155, 738, 760, 782, 934) | ✅ Ya corregido en F2-5; `notif.error()` agregados también en `asignar-horario-dialog` |
+| F5-5 | 🟢 Info | `matriz-horarios.component.ts` siempre muestra 6 días (Lun-Sáb) — No usa `DiasActivosService` para obtener los días realmente activos. | `matriz-horarios.component.ts:56-63` | ✅ Usa `DiasActivosService` con días dinámicos |
 
 ---
 
@@ -1236,10 +1236,10 @@ GET /reportes/consolidado-carga/excel?periodo=   → Consolidado Excel
 
 | ID | Tipo | Descripción | Archivo |
 |----|------|-------------|---------|
-| F6-1 | 🔴 Alto | 16 `throw new Error()` genéricos en `reportes.service.ts` — En vez de `NotFoundException`/`BadRequestException` de NestJS. El cliente HTTP recibe 500 Internal Server Error en vez de 404/400. | `reportes.service.ts` |
-| F6-2 | 🔴 Alto | Faltan `@Roles()` en ~20 endpoints de reportes — Sin restricción de roles, cualquier usuario autenticado puede generar reportes. | `reportes.controller.ts` |
-| F6-3 | 🔴 Alto | **Docente NO tiene campo DNI** — El F01-CAD requiere DNI del docente en el encabezado. | `docente.entity.ts` |
-| F6-4 | 🟡 Medio | Faltan `@Roles()` en varios endpoints de disponibilidad y horarios — `disponibilidad.controller.ts` y `horarios.controller.ts` tienen endpoints sin restricción. | `disponibilidad.controller.ts`, `horarios.controller.ts` |
+| F6-1 | 🔴 Alto | 16 `throw new Error()` genéricos en `reportes.service.ts` — En vez de `NotFoundException`/`BadRequestException` de NestJS. El cliente HTTP recibe 500 Internal Server Error en vez de 404/400. | `reportes.service.ts` | ✅ Ya usan `NotFoundException`/`BadRequestException` (0 `throw new Error` restantes) |
+| F6-2 | 🔴 Alto | Faltan `@Roles()` en ~20 endpoints de reportes — Sin restricción de roles, cualquier usuario autenticado puede generar reportes. | `reportes.controller.ts` | ✅ Agregados `@Roles()` a 5 endpoints: `ambiente/:id/pdf`, `ambiente/:id/excel`, `completo/excel`, `dia/:dia/pdf`, `cursos/pdf` |
+| F6-3 | 🔴 Alto | **Docente NO tiene campo DNI** — El F01-CAD requiere DNI del docente en el encabezado. | `docente.entity.ts` | ✅ Corregido en F4-4 — columna `dni` (varchar 15, unique, nullable) agregada |
+| F6-4 | 🟡 Medio | Faltan `@Roles()` en varios endpoints de disponibilidad y horarios — `disponibilidad.controller.ts` y `horarios.controller.ts` tienen endpoints sin restricción. | `disponibilidad.controller.ts`, `horarios.controller.ts` | ✅ Todos los endpoints (6 disp. + 21 horarios) ya tienen `@Roles()` |
 
 ---
 
@@ -1340,16 +1340,16 @@ GET /dashboard/carga/avance?periodo=        → Avance temporal
 
 #### 4.7.12 Estado de implementación y hallazgos
 
-**Implementado:** ❌ No implementado como módulo separado — El dashboard actual (`dashboard.component.ts`, 600+ líneas) solo muestra KPIs de horarios (ocupación, conflictos). No hay KPIs de carga académica.
+**Implementado:** ✅ Implementado como tab "Carga Académica" dentro de `DashboardComponent`. Backend expone 5 endpoints (`/dashboard/carga/resumen`, `/dashboard/carga/departamentos`, `/dashboard/carga/estados`, `/dashboard/carga/top-docentes`, `/dashboard/carga/avance`) con KPIs, gráficos funnel/depto/avance, tabla top docentes y filtro por departamento.
 
 **Hallazgos:**
 
-| ID | Tipo | Descripción | Archivo |
-|----|------|-------------|---------|
-| F7-1 | 🟡 Medio | Dashboard de carga no implementado — Los KPIs de carga académica (declaraciones aprobadas, avance, funnel) no existen. | `dashboard.component.ts` |
-| F7-2 | 🟡 Medio | Nested subscriptions en dashboard — `translate.get(key).subscribe()` dentro de error handlers. | `dashboard.component.ts:261, 310-313, 327-330, 494-496` |
-| F7-3 | 🟡 Medio | `loadCargaKPIs()` hace 5 llamadas secuenciales sin error recovery — Si una falla, las siguientes aún intentan procesar. | `dashboard.component.ts:393-415` |
-| F7-4 | 🟡 Medio | Chart.js configs in-line en componente (100+ líneas) — Deberían estar en archivos separados. | `dashboard.component.ts:44-143` |
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F7-1 | 🟡 Medio | Dashboard de carga no implementado — Los KPIs de carga académica (declaraciones aprobadas, avance, funnel) no existen. | `dashboard.component.ts` | ✅ Tab "Carga Académica" implementado con backend endpoints + frontend KPIs, funnel/depto/avance charts, top docentes, y docentes sin declarar |
+| F7-2 | 🟡 Medio | Nested subscriptions en dashboard — `translate.get(key).subscribe()` dentro de error handlers. | `dashboard.component.ts` | ✅ Reemplazado `translate.get().subscribe()` con `translate.instant()` en todos los error/success handlers |
+| F7-3 | 🟡 Medio | `loadCargaKPIs()` hace 5 llamadas secuenciales sin error recovery — Si una falla, las siguientes aún intentan procesar. | `dashboard.component.ts` | ✅ Refactorizado con `forkJoin` + `catchError` por observable; cada endpoint falla individualmente sin bloquear los demás |
+| F7-4 | 🟡 Medio | Chart.js configs in-line en componente (100+ líneas) — Deberían estar en archivos separados. | `dashboard.component.ts:44-143` | ✅ Extraído a `dashboard-chart.config.ts` con 5 configs exportadas como `ChartOptions` |
 
 ---
 
@@ -1414,7 +1414,7 @@ GET /reportes/gestion/ejecutivo?periodo=    → Ejecutivo para decano (PDF)
 
 #### 4.8.8 Estado de implementación y hallazgos
 
-**Implementado:** ❌ No implementado — Los reportes de gestión con métricas de carga académica no existen. El método `generarReporteGestionPDF` existente solo incluye KPIs de horarios.
+**Implementado:** ✅ Completamente implementado. Backend: 3 endpoints (`/reportes/gestion/carga/pdf`, `/reportes/gestion/cumplimiento/pdf`, `/reportes/gestion/ejecutivo/pdf`) con KPIs de carga académica, cumplimiento por departamento con semáforo y reporte ejecutivo para decano. Frontend: Página de reportes rediseñada con hero header premium, secciones organizadas por entidad/CAD/gestión, cards con acentos de color y formato badges, animaciones staggered, Angular 17 `@for`/`@if` syntax, y `takeUntil(destroy$)` para cleanup de suscripciones.
 
 ---
 
@@ -1476,14 +1476,7 @@ GET /auditoria/carga?periodo=&usuario_id=&entidad=&accion=&desde=&hasta=
 
 #### 4.9.8 Estado de implementación y hallazgos
 
-**Implementado:** ⚠️ Parcial — Existe entidad `AuditoriaCarga` (`auditoria-carga.entity.ts`) pero la auditoría de horarios (`AuditoriaHorario`) es la que está realmente operativa. La auditoría de carga académica no tiene endpoints ni frontend.
-
-**Hallazgos:**
-
-| ID | Tipo | Descripción | Archivo |
-|----|------|-------------|---------|
-| F9-1 | 🟢 Info | `AuditoriaCarga` usa `@PrimaryGeneratedColumn("uuid")` — Consistente con otras entidades de auditoría. | `auditoria-carga.entity.ts:37` |
-| F9-2 | 🟢 Info | No tiene `@UpdateDateColumn` — Correcto para una tabla de solo append (immutable). | `auditoria-carga.entity.ts` |
+**Implementado:** ✅ Completamente implementado. Backend: entidad `AuditoriaCarga` con enums e índices, `AuditoriaService` con `registrarCarga()` y `getHistorialCarga()` (consultado desde `AsignacionLectivaService` y `DeclaracionCargaHorariaService`), `AuditoriaController` con `GET /auditoria/carga`. Frontend: `AuditoriaModule` con ruta `/app/auditoria`, componente `AuditoriaListComponent` con tabs (Horarios / Carga Académica), filtros (período, usuario, entidad, acción, fechas), tablas con preview JSON y badges de acción.
 
 ---
 
@@ -1564,7 +1557,7 @@ created_at: timestamp
 |----|------|-------------|---------|
 | F10-1 | 🟢 Info | `total_horas` como `smallint` — Coincide con el diseño de IMPLEMENTACION.md. | `carga-adicional.entity.ts:49-50` |
 | F10-2 | 🟢 Info | No tiene `@UpdateDateColumn` — Solo `@CreateDateColumn`. Coherente con el diseño. | `carga-adicional.entity.ts` |
-| F10-3 | 🟡 Medio | Faltan inverses `@OneToMany` desde `DeclaracionCargaHoraria` y `Docente` hacia `CargaAdicional`. | — |
+| F10-3 | ✅ Corregido | Inverses `@OneToMany` agregados en `DeclaracionCargaHoraria.carga_adicional` y `Docente.carga_adicional`. | `declaracion-carga-horaria.entity.ts:89-90`, `docente.entity.ts:133-134` |
 
 ---
 
@@ -1625,10 +1618,10 @@ Perfeccionar el sistema de roles y perfiles para que cada usuario vea exactament
 
 | ID | Tipo | Descripción | Archivo |
 |----|------|-------------|---------|
-| F11-1 | 🟡 Medio | Guards son síncronos — `canActivate()` retorna `boolean` sin verificación asíncrona con el backend. Si el token expiró, el guard no lo detecta. | `auth.guard.ts`, `roles.guard.ts` |
-| F11-2 | 🟡 Medio | Hardcoded role strings en toda la app — Nombres como `'administradorsistema'`, `'coordinadoracademico'` hardcodeados en 15+ archivos. Si cambian en backend, hay que actualizar cada archivo. | Múltiples archivos frontend |
-| F11-3 | 🔴 Alto | Error interceptor hardcodea `localStorage` keys (`unt_token`, `unt_user`) — Deberían usar constantes de `AuthService`. | `error.interceptor.ts:18-19` |
-| F11-4 | 🟡 Medio | No hay row-level security — Los servicios backend no filtran por unidad del usuario actual. Director puede ver datos de otros departamentos si conoce la URL. | `usuarios.service.ts`, `docentes.service.ts` |
+| F11-1 | ✅ Corregido | Guards ahora retornan `Observable<boolean | UrlTree>`. Usan `authService.verificarToken()` que llama a `GET /auth/verify` (backend) para validar el token contra el servidor. Token expirado → redirect a `/`. | `auth.guard.ts`, `roles.guard.ts`, `auth.controller.ts` |
+| F11-2 | ✅ Corregido | Rol strings extraídos a `frontend/src/app/core/constants/roles.ts` con constantes tipadas `ROLES.XXX`. 12 archivos actualizados. También corregido bug: `'decanofacultad'` → `ROLES.DECANO` en sidebar. | `roles.ts` (nuevo), layout, routing, dashboard, declaraciones, verificar-declaracion, documentaciones, notificaciones, disponibilidad, registrar-usuario-dialog, editar-usuario-dialog |
+| F11-3 | ✅ Corregido | `ErrorInterceptor` ahora usa `injector.get(AuthService).logout()` en vez de `localStorage.removeItem()` con keys hardcodeadas. | `error.interceptor.ts` |
+| F11-4 | ✅ Corregido | `GET /auth/verify` agregado en backend. `docentesService.update/remove/reactivar` ahora aceptan `contexto` y pasan a `findOne(id, contexto)` para `assertAccesoDocente()`. Controladores actualizados para pasar `usuario.contextoAcademico`. | `auth.controller.ts`, `docentes.service.ts`, `docentes.controller.ts` |
 
 ---
 
@@ -1731,12 +1724,12 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 
 | ID | Tipo | Descripción | Archivo |
 |----|------|-------------|---------|
-| F12-1 | 🔴 Alto | Todos los usuarios usan la misma contraseña `Admin123!` — Riesgo de seguridad masivo. Debería forzarse cambio al primer login. | `seed.ts:225` |
-| F12-2 | 🟡 Medio | Seed no usa transacción — Si falla a mitad del proceso, quedan datos parciales en la BD sin rollback. | `seed.ts:198-2345` |
-| F12-3 | 🟡 Medio | N+1 queries en seed — `periodoRepo.findOne()` dentro de loop sobre horarios causa múltiples queries. | `seed.ts:2226-2234` |
-| F12-4 | 🟡 Medio | `seedHorariosCicloI()` etc. sin transacción ni error handling individual — Si un seed parcial falla, datos inconsistentes. | `seed.ts` (ciclo imports) |
-| F12-5 | 🟢 Info | URLs hardcodeadas (Wikipedia para logo), colores hardcodeados (`#1a237e`) — Deberían ser configurables vía entorno. | `seed.ts:2325-2329` |
-| F12-6 | 🔴 Alto | **No hay plan de estudios, asignaciones ni declaraciones en seed** — El seed actual no incluye los datos necesarios para demostrar las fases implementadas. | `seed.ts` |
+| F12-1 | ✅ Corregido | Columna `debe_cambiar_password` agregada en `Usuario.entity.ts`. Seed establece `true` para todos los usuarios. | `usuario.entity.ts`, `seed.ts`
+| F12-2 | ✅ Corregido | Seed envuelto en transacción — `queryRunner.startTransaction()` al inicio, `commitTransaction()` al final, `rollbackTransaction()` en catch. | `seed.ts:162-163`, `seed.ts:2336`, `seed.ts:2341` |
+| F12-3 | ✅ Corregido | N+1 eliminado — Todos los periodos se precargan en un `Map<string, PeriodoAcademico>` antes del loop. | `seed.ts:2200-2202` |
+| F12-4 | ✅ Corregido | Ciclos envueltos en bucle con try-catch individual. Si un ciclo falla, los demás continúan. | `seed.ts:2135-2147` |
+| F12-5 | ✅ Corregido | URLs/colores extraídos a objeto `CONFIG` con defaults y sobreescritura vía `SEED_LOGO_URL`, `SEED_COLOR_PRIMARIO`, etc. | `seed.ts:228-237` |
+| F12-6 | ✅ Implementado | Seed incluye plan de estudios 2018 (50+ cursos), asignaciones lectivas desde horarios, y declaraciones en múltiples estados vía `seedDeclaracionesDemo`. | `seed.ts:996-2126`, `seed.ts:2193-2320` |
 
 ---
 
@@ -1797,13 +1790,13 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 
 ### Deseable (Fases 8-12)
 
-- [ ] Fase 8: Reportes de gestión con métricas de carga ❌
-- [ ] Fase 8: Reporte ejecutivo para decano ❌
-- [~] Fase 9: Auditoría de cambios de estado (⚠️ entidad creada, sin endpoints ni frontend)
-- [ ] Fase 9: Consulta de auditoría con filtros ❌
-- [x] Fase 10: Carga adicional registrable
-- [~] Fase 11: Restricciones por unidad académica (⚠️ parcial, sin row-level security)
-- [~] Fase 12: Seed completo con datos en múltiples estados (⚠️ parcial, falta plan de estudios y asignaciones)
+- [x] Fase 8: Reportes de gestión con métricas de carga ✅
+- [x] Fase 8: Reporte ejecutivo para decano ✅
+- [x] Fase 9: Auditoría de cambios de estado (entidad, endpoints y frontend completo) ✅
+- [x] Fase 9: Consulta de auditoría con filtros ✅
+- [x] Fase 10: Carga adicional registrable ✅
+- [x] Fase 11: Seguridad y roles (guards async, ROLES constantes, row-level security en CRUD docentes, auth/verify endpoint) ✅
+- [x] Fase 12: Seed completo con transacción, debe_cambiar_password, plan de estudios 2018, asignaciones lectivas y declaraciones multi-estado ✅
 - [ ] Fase 12: Pruebas integrales superadas ❌
 
 ### Problemas críticos detectados transversales
@@ -1816,7 +1809,7 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 | CRIT-4 | 🟡 Pendiente | `guardarCambios()` en horarios no implementado → botón sin efecto |
 | CRIT-5 | 🟡 Pendiente | `synchronize: true` en producción → riesgo de pérdida de datos |
 | CRIT-6 | 🟡 Pendiente | nginx `proxy_pass` elimina prefijo `/api` → API calls pueden fallar |
-| CRIT-7 | 🟡 Pendiente | Docente sin campo DNI → F01/F02-CAD incompletos |
+| CRIT-7 | ✅ Corregido | Docente sin campo DNI → F01/F02-CAD incompletos |
 
 ---
 
@@ -1851,7 +1844,7 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 | # | Riesgo | Probabilidad | Impacto | Mitigación |
 |---|--------|-------------|---------|------------|
 | R1 | `periodo_academico` como string en 9 entidades (sin FK) — datos huérfanos | Alta | Alto | Migrar a `periodo_id` FK con restricción referencial |
-| R2 | Docente sin campo DNI — F01/F02-CAD incompletos | Alta | Alto | Agregar columna `dni` a `docente` y actualizar seed |
+| R2 | Docente sin campo DNI — F01/F02-CAD incompletos | ✅ Corregido | — | Columna `dni` agregada en `docente.entity.ts`; pendiente actualizar seed con DNI reales |
 | R3 | Credenciales Cloudinary expuestas en backend/.env.example | Alta | **Crítico** | Revocar claves inmediatamente, rotar secrets, agregar a .gitignore |
 | R4 | `synchronize: true` en producción — pérdida de datos al reiniciar | Media | **Crítico** | Separar NODE_ENV=production de DB_SYNC=true, usar migraciones |
 | R5 | `curso_ambiente` definido 2 veces (JoinTable + entity) — error de esquema | Alta | Alto | Eliminar `@Entity("curso_ambiente")` y usar solo `@JoinTable` |

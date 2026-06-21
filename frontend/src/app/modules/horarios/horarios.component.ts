@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
@@ -118,6 +118,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
   celdasOriginales: HorarioAsignado[] = [];
   celdasParaAgregar: HorarioAsignado[] = [];
   celdasParaEliminar: HorarioAsignado[] = [];
+  guardandoCambios = false;
 
   constructor(
     private api: ApiService,
@@ -292,20 +293,82 @@ export class HorariosComponent implements OnInit, OnDestroy {
   }
 
   guardarCambios(): void {
-    // Lógica para enviar al backend:
-    // - this.asignacionEnEdicion (para el ID y los datos principales)
-    // - this.celdasParaAgregar (nuevas celdas a crear)
-    // - this.celdasParaEliminar (celdas a eliminar)
-    console.log('Guardando cambios:', {
-      asignacion: this.asignacionEnEdicion,
-      agregar: this.celdasParaAgregar,
-      eliminar: this.celdasParaEliminar,
-    });
+    if (!this.asignacionEnEdicion?.asignacionId && this.celdasParaAgregar.length === 0) {
+      this.notif.info('No hay cambios para guardar');
+      return;
+    }
 
-    // Aquí iría la llamada a la API
+    this.guardandoCambios = true;
 
-    // Al finalizar, salir del modo edición
-    this.cancelarEdicion();
+    if (this.asignacionEnEdicion?.asignacionId) {
+      const payload: any = {};
+
+      if (this.celdasParaAgregar.length > 0) {
+        payload.celdasParaAgregar = this.celdasParaAgregar.map(c => ({
+          dia_semana: c.dia_semana ?? c.dia,
+          hora_inicio: c.hora_inicio,
+          hora_fin: c.hora_fin,
+        }));
+      }
+
+      if (this.celdasParaEliminar.length > 0) {
+        payload.celdasParaEliminar = this.celdasParaEliminar.map(c => c.id);
+      }
+
+      this.api
+        .patch<ApiResponse<any>>(
+          `/horarios/${this.asignacionEnEdicion.asignacionId}/actualizar`,
+          payload,
+        )
+        .subscribe({
+          next: () => {
+            this.guardandoCambios = false;
+            this.notif.success('Cambios guardados correctamente');
+            this.cancelarEdicion();
+            if (this.docenteSeleccionado) {
+              this.selectDocente(this.docenteSeleccionado);
+            }
+          },
+          error: (err) => {
+            this.guardandoCambios = false;
+            this.notif.error(err?.error?.message ?? 'Error al guardar cambios');
+          },
+        });
+    } else if (this.celdasParaAgregar.length > 0) {
+      const observables = this.celdasParaAgregar.map(celda =>
+        this.api.post<ApiResponse<any>>('/horarios/asignar', {
+          docente_id: celda.docente?.id ?? this.docenteSeleccionado?.id,
+          curso_id: celda.curso?.id,
+          ambiente_id: celda.ambiente?.id,
+          dia_semana: celda.dia_semana ?? celda.dia,
+          hora_inicio: celda.hora_inicio,
+          hora_fin: celda.hora_fin,
+          tipo_clase: celda.tipo_clase ?? 'TEORIA',
+          periodo_academico: this.periodoService.periodo,
+        })
+      );
+
+      if (observables.length === 0) {
+        this.guardandoCambios = false;
+        this.cancelarEdicion();
+        return;
+      }
+
+      forkJoin(observables).subscribe({
+        next: () => {
+          this.guardandoCambios = false;
+          this.notif.success('Asignaciones creadas correctamente');
+          this.cancelarEdicion();
+          if (this.docenteSeleccionado) {
+            this.selectDocente(this.docenteSeleccionado);
+          }
+        },
+        error: (err) => {
+          this.guardandoCambios = false;
+          this.notif.error(err?.error?.message ?? 'Error al guardar asignaciones');
+        },
+      });
+    }
   }
 
   cancelarEdicion(): void {

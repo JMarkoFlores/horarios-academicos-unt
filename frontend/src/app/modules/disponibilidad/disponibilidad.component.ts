@@ -18,6 +18,7 @@ import {
   TurnoHorario,
 } from './disponibilidad.service';
 
+import { ROLES } from '../../core/constants/roles';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
@@ -268,7 +269,7 @@ export class DisponibilidadComponent implements OnInit {
       ),
     };
 
-    const isDocente = this.authService.hasRole('docente');
+    const isDocente = this.authService.hasRole(ROLES.DOCENTE);
     if (!isDocente) {
       calls.docentes = this.disponibilidadService.obtenerDocentes();
     } else {

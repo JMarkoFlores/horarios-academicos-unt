@@ -49,6 +49,16 @@ export class AuthController {
     return { data, message: "Perfil obtenido correctamente" };
   }
 
+  @Get("verify")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Verificar que el token sigue siendo válido" })
+  @ApiResponse({ status: 200, description: "Token válido" })
+  @ApiResponse({ status: 401, description: "Token inválido o expirado" })
+  async verify() {
+    return { message: "Token válido" };
+  }
+
   @Post("refresh")
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)

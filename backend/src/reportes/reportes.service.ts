@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Not } from "typeorm";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
@@ -90,7 +90,7 @@ export class ReportesService {
       const headerTemplate = `
         <div style="font-size: 9px; width: 100%; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin: 0 20px; color: #555;">
           <span style="float: left; font-weight: bold;">UNIVERSIDAD NACIONAL DE TRUJILLO</span>
-          <span style="float: right;">Escuela de IngenierÃ­a de Sistemas</span>
+          <span style="float: right;">Escuela de Ingeniería de Sistemas</span>
           <div style="clear: both;"></div>
         </div>
       `;
@@ -98,7 +98,7 @@ export class ReportesService {
       const footerTemplate = `
         <div style="font-size: 8px; width: 100%; text-align: center; border-top: 1px solid #ddd; padding-top: 5px; margin: 0 20px; color: #555;">
           <span style="float: left;">Generado el: <span class="date"></span></span>
-          <span style="float: right;">PÃ¡gina <span class="pageNumber"></span> de <span class="totalPages"></span></span>
+          <span style="float: right;">Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
           <div style="clear: both;"></div>
         </div>
       `;
@@ -175,7 +175,7 @@ export class ReportesService {
       lightText: [100, 116, 139] as [number, number, number],
     };
 
-    // PÃGINA 1: INFORMACIÃ“N DETALLADA
+    // PÃGINA 1: INFORMACIÓN DETALLADA
     // Cabecera premium
     doc.setFillColor(...C.primary);
     doc.rect(0, 0, PAGE_W, 35, "F");
@@ -190,7 +190,7 @@ export class ReportesService {
     doc.text(`REPORTE DETALLADO DEL DOCENTE`, 40, 15);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text(`Periodo AcadÃ©mico: ${periodo}`, 40, 22);
+    doc.text(`Periodo Académico: ${periodo}`, 40, 22);
     doc.text(
       `Generado el: ${new Date().toLocaleDateString()}`,
       PAGE_W - 12,
@@ -198,12 +198,12 @@ export class ReportesService {
       { align: "right" },
     );
 
-    // SecciÃ³n 1: Datos Personales
+    // Sección 1: Datos Personales
     let yPos = 45;
     doc.setTextColor(...C.primary);
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("1. INFORMACIÃ“N DEL DOCENTE", 12, yPos);
+    doc.text("1. INFORMACIÓN DEL DOCENTE", 12, yPos);
     doc.setDrawColor(...C.primary);
     doc.setLineWidth(0.5);
     doc.line(12, yPos + 2, 80, yPos + 2);
@@ -215,22 +215,22 @@ export class ReportesService {
         [
           "Apellidos y Nombres:",
           `${docente.apellidos}, ${docente.nombres}`,
-          "CÃ³digo:",
-          docente.codigo || "â€”",
+          "Código:",
+          docente.codigo || "—",
         ],
         [
-          "CategorÃ­a:",
-          docente.categoria || "â€”",
+          "Categoría:",
+          docente.categoria || "—",
           "Contrato:",
-          docente.tipo_contrato || "â€”",
+          docente.tipo_contrato || "—",
         ],
         [
           "Departamento:",
-          docente.departamento?.nombre || "â€”",
+          docente.departamento?.nombre || "—",
           "Modalidad:",
-          docente.modalidad || "â€”",
+          docente.modalidad || "—",
         ],
-        ["Email:", docente.email || "â€”", "TelÃ©fono:", docente.telefono || "â€”"],
+        ["Email:", docente.email || "—", "Teléfono:", docente.telefono || "—"],
       ],
       theme: "plain",
       styles: { fontSize: 10, cellPadding: 3 },
@@ -243,12 +243,12 @@ export class ReportesService {
       margin: { left: 12 },
     });
 
-    // SecciÃ³n 2: Carga AcadÃ©mica Detallada
+    // Sección 2: Carga Académica Detallada
     yPos = (doc as any).lastAutoTable.finalY + 15;
     doc.setTextColor(...C.primary);
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("2. CARGA ACADÃ‰MICA DETALLADA", 12, yPos);
+    doc.text("2. CARGA ACADÉMICA DETALLADA", 12, yPos);
     doc.setDrawColor(...C.primary);
     doc.line(12, yPos + 2, 80, yPos + 2);
 
@@ -280,7 +280,7 @@ export class ReportesService {
       startY: yPos,
       head: [
         [
-          "CÃ³digo",
+          "Código",
           "Asignatura",
           "Ciclo",
           "Tipo",
@@ -290,16 +290,16 @@ export class ReportesService {
         ],
       ],
       body: Array.from(resumenMap.values()).map((r) => [
-        r.curso.codigo || "â€”",
+        r.curso.codigo || "—",
         r.curso.nombre,
-        r.curso.ciclo || "â€”",
+        r.curso.ciclo || "—",
         r.tipo === TipoClase.TEORIA
-          ? "TeorÃ­a"
+          ? "Teoría"
           : r.tipo === TipoClase.PRACTICA
-            ? "PrÃ¡ctica"
+            ? "Práctica"
             : "Laboratorio",
-        r.grupo || "â€”",
-        r.ambiente || "â€”",
+        r.grupo || "—",
+        r.ambiente || "—",
         `${r.horas} hrs`,
       ]),
       foot: [["", "", "", "", "", "TOTAL HORAS:", `${totalHorasSemana} hrs`]],
@@ -328,7 +328,7 @@ export class ReportesService {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.text(
-      `PROGRAMACIÃ“N SEMANAL: ${docente.apellidos}, ${docente.nombres}`,
+      `PROGRAMACIÓN SEMANAL: ${docente.apellidos}, ${docente.nombres}`,
       12,
       13,
     );
@@ -339,10 +339,10 @@ export class ReportesService {
     const dias = [
       "Lunes",
       "Martes",
-      "MiÃ©rcoles",
+      "Miércoles",
       "Jueves",
       "Viernes",
-      "SÃ¡bado",
+      "Sábado",
     ];
     const horas = Array.from({ length: 15 }, (_, i) => i + 7);
     const cellHeight = 10;
@@ -406,7 +406,7 @@ export class ReportesService {
       currentY += cellHeight;
     });
 
-    // Bloques de clase con lÃ³gica de fusiÃ³n
+    // Bloques de clase con lógica de fusión
     const bloquesPorDia = new Map<number, HorarioAsignado[]>();
     horarios.forEach((h) => {
       const dia = h.dia || h.dia_semana;
@@ -610,7 +610,7 @@ export class ReportesService {
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
 
     const modalidadLabel: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "DEDICACIÃ“N EXCLUSIVA",
+      DEDICACION_EXCLUSIVA: "DEDICACIÓN EXCLUSIVA",
       TIEMPO_COMPLETO_40: "TIEMPO COMPLETO 40 H",
       TIEMPO_PARCIAL_20: "TIEMPO PARCIAL 20 H",
       TIEMPO_PARCIAL_12: "TIEMPO PARCIAL 12 H",
@@ -678,7 +678,7 @@ export class ReportesService {
 
       const ambiente = entry.teo[0]?.ambiente || entry.pra[0]?.ambiente || entry.lab[0]?.ambiente || null;
       const lugarCod = ambiente?.codigo?.substring(0, 3) || "F11";
-      const aulaNombre = ambiente?.nombre || ambiente?.codigo || "â€”";
+      const aulaNombre = ambiente?.nombre || ambiente?.codigo || "—";
       const grupoCod = entry.grupo?.codigo || entry.teo[0]?.grupo?.codigo || entry.pra[0]?.grupo?.codigo || "";
       const ciclo = entry.curso.ciclo ? `${entry.curso.ciclo}0-C` : "";
       const cursoLabel = `${entry.curso.nombre}<br><small>${ciclo} ${grupoCod}</small>`;
@@ -693,7 +693,7 @@ export class ReportesService {
         </tr>`;
     });
 
-    // Filas vacÃ­as adicionales (como en la imagen)
+    // Filas vacías adicionales (como en la imagen)
     trsCHL += `
       <tr><td style="font-size:8px;padding:4px;"><b>T:</b><br><b>P:</b></td><td></td><td></td><td></td><td></td></tr>
       <tr><td style="font-size:8px;padding:4px;"><b>T:</b><br><b>P:</b></td><td></td><td></td><td></td><td></td></tr>`;
@@ -712,11 +712,11 @@ export class ReportesService {
       4: "INVESTIGACION",
       9: "RESPONSABILIDAD SOCIAL UNIVERSITARIA",
       8: "ASESORÃA DE TESIS Y EXAMENES PROFESIONALES",
-      5: "FORMACION ACADÃ‰MICA Y CAPACITACIÃ“N",
-      1: "AUTOEVALUACIÃ“N Y/O ACREDITACIÃ“N DE LA ESCUELA PROFESIONAL",
+      5: "FORMACION ACADÉMICA Y CAPACITACIÓN",
+      1: "AUTOEVALUACIÓN Y/O ACREDITACIÓN DE LA ESCUELA PROFESIONAL",
       10: "COMITES O COMISIONES ESPECIALES",
       6: "ACTIVIDADES DE GOBIERNO O AUTORIDAD",
-      7: "ACTIVIDADES DE GESTIÃ“N INSTITUCIONAL",
+      7: "ACTIVIDADES DE GESTIÓN INSTITUCIONAL",
     };
     const ordenNoLectiva = [2, 3, 4, 9, 8, 5, 1, 10, 6, 7];
 
@@ -807,15 +807,15 @@ export class ReportesService {
       <body>
         <div class="watermark">${watermarkText}</div>
         <div class="container">
-          <div class="main-title">HORARIO SEMANAL DE LA CARGA ACADÃ‰MICA DOCENTE (F03-CAD)</div>
+          <div class="main-title">HORARIO SEMANAL DE LA CARGA ACADÉMICA DOCENTE (F03-CAD)</div>
 
           <table style="margin-bottom: 0;">
-            <!-- Fila 1: Facultad | Dpto â€” total 5 cols -->
+            <!-- Fila 1: Facultad | Dpto — total 5 cols -->
             <tr>
-              <td colspan="3" style="font-size:9px; border-right:none;">Facultad / Filial: <b>${docente.facultad?.nombre || "â€”"}</b></td>
-              <td colspan="2" style="font-size:9px; border-left:none;">Dpto. AcadÃ©mico: <b>${docente.departamento?.nombre || "â€”"}</b></td>
+              <td colspan="3" style="font-size:9px; border-right:none;">Facultad / Filial: <b>${docente.facultad?.nombre || "—"}</b></td>
+              <td colspan="2" style="font-size:9px; border-left:none;">Dpto. Académico: <b>${docente.departamento?.nombre || "—"}</b></td>
             </tr>
-            <!-- Fila 2: DNI | IBM | Docente | CategorÃ­a â€” total 5 cols -->
+            <!-- Fila 2: DNI | IBM | Docente | Categoría — total 5 cols -->
             <tr>
               <td style="width:8%; font-size:8px; font-weight:bold; text-align:center;">DNI</td>
               <td style="width:14%; text-align:center; font-weight:bold;">${ibm}</td>
@@ -824,10 +824,10 @@ export class ReportesService {
                 <div class="cat-box">${categoriaDisplay}<br>${modalidadShort[docente.modalidad] || ""}</div>
               </td>
             </tr>
-            <!-- Fila 3: AÃ±o / Semestre / Fechas â€” total 5 cols -->
+            <!-- Fila 3: Año / Semestre / Fechas — total 5 cols -->
             <tr>
               <td colspan="5" class="text-center" style="font-size:9px; padding:5px;">
-                AÃ‘O ACADEMICO: <b>${anio}</b> &nbsp;&nbsp; SEMESTRE: <b>${semestre}</b> &nbsp;&nbsp;&nbsp;&nbsp; Fecha de Inicio: <b>${dateIni}</b> &nbsp;&nbsp; Fecha de tÃ©rmino: <b>${dateFin}</b>
+                AÑO ACADEMICO: <b>${anio}</b> &nbsp;&nbsp; SEMESTRE: <b>${semestre}</b> &nbsp;&nbsp;&nbsp;&nbsp; Fecha de Inicio: <b>${dateIni}</b> &nbsp;&nbsp; Fecha de término: <b>${dateFin}</b>
               </td>
             </tr>
 
@@ -854,7 +854,7 @@ export class ReportesService {
 
             <!-- TOTAL -->
             <tr class="bg-blue">
-              <td colspan="4" class="text-center fw-bold" style="font-size:11px; padding:8px;">TOTAL HORAS CARGA ACADÃ‰MICA</td>
+              <td colspan="4" class="text-center fw-bold" style="font-size:11px; padding:8px;">TOTAL HORAS CARGA ACADÉMICA</td>
               <td class="text-center fw-bold" style="font-size:13px;">${totalAcademica.toFixed(0)}</td>
             </tr>
           </table>
@@ -875,7 +875,7 @@ export class ReportesService {
             </div>
             <div class="firma-box">
               <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
-              <div class="firma-label">VÂ°BÂ° DECANO</div>
+              <div class="firma-label">V°B° DECANO</div>
             </div>
           </div>
         </div>
@@ -969,55 +969,55 @@ export class ReportesService {
         </div>
 
         <p class="intro">
-          Yo, <b>${nombreCompleto}</b>, identificado(a) con DNI NÂ° <b>${ibm}</b>, adscrito al Departamento AcadÃ©mico de
+          Yo, <b>${nombreCompleto}</b>, identificado(a) con DNI N° <b>${ibm}</b>, adscrito al Departamento Académico de
           <b>${departamento}</b> de la Facultad de <b>${facultad}</b>; en el marco de la Ley Universitaria 30220,
-          D.S. NÂ° 418-2017-EF, Estatuto Reformado 2021 y el reglamento de asignaciÃ³n de la Carga AcadÃ©mica de los
+          D.S. N° 418-2017-EF, Estatuto Reformado 2021 y el reglamento de asignación de la Carga Académica de los
           Docentes de la UNT, <b>DECLARO BAJO JURAMENTO Y EN HONOR A LA VERDAD</b>, que:
         </p>
 
         <p class="declaration-main">
           <b>NO ESTOY INCURSO</b> en causales de incompatibilidad laboral y <b>NO TENGO</b> impedimento para ejercer la
-          docencia en la Universidad Nacional de Trujillo, de conformidad con lo previsto en el CapÃ­tulo VIII de las
-          Incompatibilidades, Impedimentos y sanciones, del TÃ­tulo XII: de los docentes, del Estatuto Institucional
-          vigente, segÃºn la especificaciÃ³n siguiente:
+          docencia en la Universidad Nacional de Trujillo, de conformidad con lo previsto en el Capítulo VIII de las
+          Incompatibilidades, Impedimentos y sanciones, del Título XII: de los docentes, del Estatuto Institucional
+          vigente, según la especificación siguiente:
         </p>
 
         <p class="clause">
-          1. Soy docente, ordinario a DedicaciÃ³n Exclusiva y NO EJERZO cualquier otra actividad o cargo remunerado
-          en otra universidad, entidad pÃºblica o privada, fuera de la Universidad Nacional de Trujillo (De conformidad
-          con el ArtÃ­culo 225Â° del Estatuto Institucional vigente).
+          1. Soy docente, ordinario a Dedicación Exclusiva y NO EJERZO cualquier otra actividad o cargo remunerado
+          en otra universidad, entidad pública o privada, fuera de la Universidad Nacional de Trujillo (De conformidad
+          con el Artículo 225° del Estatuto Institucional vigente).
         </p>
         <p class="clause">
           2. Soy docente, ordinario a Tiempo Completo y NO ejerzo cualquier otra actividad o cargo remunerado en
-          otra universidad, entidad pÃºblica o privada, fuera de la Universidad Nacional de Trujillo (De conformidad con
-          el ArtÃ­culo 225Â° del Estatuto Institucional vigente), asÃ­ mismo en caso de incumplimiento, me someto a las
-          sanciones dispuestas en el Reglamento del Docente Investigador y PromociÃ³n de la InvestigaciÃ³n, aprobado
-          por R.C.U. NÂ°281-2021/UNT
+          otra universidad, entidad pública o privada, fuera de la Universidad Nacional de Trujillo (De conformidad con
+          el Artículo 225° del Estatuto Institucional vigente), así mismo en caso de incumplimiento, me someto a las
+          sanciones dispuestas en el Reglamento del Docente Investigador y Promoción de la Investigación, aprobado
+          por R.C.U. N°281-2021/UNT
         </p>
         <p class="clause">
-          3. Soy docente, ordinario a Tiempo Parcial y NO TENGO incompatibilidad horaria con mi carga acadÃ©mica
-          en la Universidad Nacional de Trujillo y otra instituciÃ³n donde laboro
+          3. Soy docente, ordinario a Tiempo Parcial y NO TENGO incompatibilidad horaria con mi carga académica
+          en la Universidad Nacional de Trujillo y otra institución donde laboro
         </p>
         <p class="clause">
-          4. Soy docente, Investigador de la UNT a â€¦. acreditado con ResoluciÃ³n Vicerrectoral y NO ejerzo cualquier
-          otra actividad o cargo remunerado en otra universidad, entidad pÃºblica o privada, fuera de la Universidad
-          Nacional de Trujillo (De conformidad con el ArtÃ­culo 225Â° del Estatuto Institucional vigente), asÃ­ mismo en
+          4. Soy docente, Investigador de la UNT a …. acreditado con Resolución Vicerrectoral y NO ejerzo cualquier
+          otra actividad o cargo remunerado en otra universidad, entidad pública o privada, fuera de la Universidad
+          Nacional de Trujillo (De conformidad con el Artículo 225° del Estatuto Institucional vigente), así mismo en
           caso de incumplimiento, me someto a las sanciones dispuestas en el Reglamento del Docente Investigador
-          y PromociÃ³n de la InvestigaciÃ³n, aprobado por R.C.U. NÂ°281-2021/UNT
+          y Promoción de la Investigación, aprobado por R.C.U. N°281-2021/UNT
         </p>
         <p class="clause">
-          5. Soy docente, contratado a Tiempo Completo y NO EJERZO la misma modalidad en otra entidad pÃºblica
-          o privada, asÃ­ mismo, no tengo otra responsabilidad remunerada en alguna instituciÃ³n pÃºblica o privada mÃ¡s
+          5. Soy docente, contratado a Tiempo Completo y NO EJERZO la misma modalidad en otra entidad pública
+          o privada, así mismo, no tengo otra responsabilidad remunerada en alguna institución pública o privada más
           de diez (10 horas) semanales, excepto ley expresa que lo permita
         </p>
         <p class="clause">
-          6. Soy docente, contratado a Tiempo Parcial y NO TENGO incompatibilidad horaria con mi carga acadÃ©mica
-          en la Universidad Nacional de Trujillo y otra instituciÃ³n donde laboro.
+          6. Soy docente, contratado a Tiempo Parcial y NO TENGO incompatibilidad horaria con mi carga académica
+          en la Universidad Nacional de Trujillo y otra institución donde laboro.
         </p>
 
         <p class="sanction">
           EN CASO DE FALTAR A LA VERDAD ME SOMETO A LAS SANCIONES QUE SEAN APLICABLES DE
-          ACUERDO A LEY; ASIMISMO, DE ENCONTRARME INCURSO EN SITUACIÃ“N DE INCOMPATIBILIDAD
+          ACUERDO A LEY; ASIMISMO, DE ENCONTRARME INCURSO EN SITUACIÓN DE INCOMPATIBILIDAD
           O IMPEDIMENTO PARA EJERCER LA DOCENCIA EN LA U.N.T., ME SOMETO A LAS SANCIONES
           PREVISTAS POR SU ESTATUTO, <b><i><u>Y AUTORIZO AL FUNCIONARIO COMPETENTE DISPONGA EL
           DESCUENTO DE MI PLANILLA DE HABERES, DEL MONTO QUE LA UNIDAD DE REMUNERACIONES
@@ -1035,7 +1035,7 @@ export class ReportesService {
         <div class="firma-bottom">
           <div class="firma-line"></div>
           <div class="firma-label">${nombreCompleto}</div>
-          <div class="firma-label" style="margin-top:4px;">DNI NÂ° ${ibm}</div>
+          <div class="firma-label" style="margin-top:4px;">DNI N° ${ibm}</div>
         </div>
       </body>
       </html>
@@ -1109,10 +1109,10 @@ export class ReportesService {
 
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
     const ibm = docente.ibm || 0;
-    const categoriaLabel: Record<string, string> = { PRINCIPAL: "Principal", ASOCIADO: "Asociado", AUXILIAR: "Auxiliar", SIN_CATEGORIA: "Sin categorÃ­a" };
+    const categoriaLabel: Record<string, string> = { PRINCIPAL: "Principal", ASOCIADO: "Asociado", AUXILIAR: "Auxiliar", SIN_CATEGORIA: "Sin categoría" };
     const contratoLabel: Record<string, string> = { NOMBRADO: "Nombrado", CONTRATADO: "Contratado" };
     const modalidadLabel: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "DedicaciÃ³n Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
+      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
       TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H", TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
       TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H", TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
     };
@@ -1165,7 +1165,7 @@ export class ReportesService {
           <td class="text-center">${c.codigo}</td>
           <td class="text-left" style="padding-left: 4px;">${c.nombre}</td>
           <td class="text-center" style="font-size: 8px;">OB</td>
-          <td class="text-center" style="font-size: 8px;">${docente.facultad?.nombre || "â€”"}</td>
+          <td class="text-center" style="font-size: 8px;">${docente.facultad?.nombre || "—"}</td>
           <td class="text-center">${c.ciclo}</td>
           <td class="text-center">${c.seccion}</td>
           <td class="text-center">${c.alumnos}</td>
@@ -1270,12 +1270,12 @@ export class ReportesService {
           <table>
             <tr>
               <td colspan="5" class="info-label" style="border-right: none;">FACULTAD / FILIAL: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.facultad?.nombre || ""}</b></td>
-              <td colspan="6" class="info-label" style="border-left: none;">DPTO. ACADÃ‰MICO: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.departamento?.nombre || ""}</b></td>
+              <td colspan="6" class="info-label" style="border-left: none;">DPTO. ACADÉMICO: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.departamento?.nombre || ""}</b></td>
             </tr>
             <tr>
               <th class="info-label text-center">DNI</th>
               <th colspan="4" class="info-label text-center">NOMBRE COMPLETO</th>
-              <th colspan="2" class="info-label text-center">CONDICIÃ“N</th>
+              <th colspan="2" class="info-label text-center">CONDICIÓN</th>
               <th colspan="2" class="info-label text-center">CATEGORÃA</th>
               <th colspan="2" class="info-label text-center">MODALIDAD</th>
             </tr>
@@ -1288,7 +1288,7 @@ export class ReportesService {
             </tr>
             <tr>
               <td colspan="11" class="text-center info-label" style="padding: 6px;">
-                AÃ‘O ACADÃ‰MICO: <b>${anio}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SEMESTRE: <b>${semestre}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Inicio: <b>${dateIni}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de TÃ©rmino: <b>${dateFin}</b>
+                AÑO ACADÉMICO: <b>${anio}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SEMESTRE: <b>${semestre}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Inicio: <b>${dateIni}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Término: <b>${dateFin}</b>
               </td>
             </tr>
             
@@ -1297,19 +1297,19 @@ export class ReportesService {
             </tr>
             <tr class="header-row">
               <th colspan="2">CURSO O ASIGNATURA CURRICULAR</th>
-              <th rowspan="2">Tipo Curso<br>SegÃºn Plan de<br>Estudios actual</th>
-              <th rowspan="2">Programa o<br>Escuela AcadÃ©mico<br>Profesional</th>
-              <th rowspan="2">AÃ±o<br>o<br>Ciclo</th>
-              <th rowspan="2">SecciÃ³n</th>
-              <th rowspan="2">NÂ°<br>Alumnos</th>
+              <th rowspan="2">Tipo Curso<br>Según Plan de<br>Estudios actual</th>
+              <th rowspan="2">Programa o<br>Escuela Académico<br>Profesional</th>
+              <th rowspan="2">Año<br>o<br>Ciclo</th>
+              <th rowspan="2">Sección</th>
+              <th rowspan="2">N°<br>Alumnos</th>
               <th colspan="3">Horas</th>
               <th rowspan="2">Total<br>Horas</th>
             </tr>
             <tr class="header-row">
-              <th width="8%">CÃ“DIGO</th>
-              <th width="30%">DENOMINACIÃ“N</th>
-              <th width="5%">TeorÃ­a</th>
-              <th width="5%">PrÃ¡ctica</th>
+              <th width="8%">CÓDIGO</th>
+              <th width="30%">DENOMINACIÓN</th>
+              <th width="5%">Teoría</th>
+              <th width="5%">Práctica</th>
               <th width="5%">Lab.</th>
             </tr>
             
@@ -1330,7 +1330,7 @@ export class ReportesService {
             ${trsNoLectivaAdministrativa}
             
             <tr class="bg-blue">
-              <td colspan="10" class="text-center fw-bold" style="font-size: 11px; padding: 8px;">TOTAL HORAS CARGA ACADÃ‰MICA</td>
+              <td colspan="10" class="text-center fw-bold" style="font-size: 11px; padding: 8px;">TOTAL HORAS CARGA ACADÉMICA</td>
               <td class="text-center fw-bold" style="font-size: 11px;">${totalFinal.toFixed(1)}</td>
             </tr>
           </table>
@@ -1346,7 +1346,7 @@ export class ReportesService {
             </div>
             <div class="firma-box">
               <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
-              <div class="firma-label">VÂ°BÂ° DECANO</div>
+              <div class="firma-label">V°B° DECANO</div>
             </div>
           </div>
         </div>
@@ -1425,7 +1425,7 @@ export class ReportesService {
         <tr>
           <td>${d.apellidos}, ${d.nombres}</td>
           <td class="text-center">${d.tipo_contrato === "NOMBRADO" ? "Nomb" : "Cont"}</td>
-          <td class="text-center">${modalidadLabel[d.modalidad] || d.modalidad || "â€”"}</td>
+          <td class="text-center">${modalidadLabel[d.modalidad] || d.modalidad || "—"}</td>
           <td class="text-center">${hLect}</td>
           <td class="text-center">${hNoLect}</td>
           <td class="text-center total-h">${hTotal}</td>
@@ -1447,7 +1447,7 @@ export class ReportesService {
         .total-row td { background: #1e40af; color: #ffffff; font-weight: bold; font-size: 10px; }
         .title { text-align: center; font-size: 16px; font-weight: 800; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; }
       </style></head><body>
-        <div class="title">REPORTE CONSOLIDADO DE CARGA ACADÃ‰MICA<br><span style="font-size:11px">PerÃ­odo: ${periodo}</span></div>
+        <div class="title">REPORTE CONSOLIDADO DE CARGA ACADÉMICA<br><span style="font-size:11px">Período: ${periodo}</span></div>
         <table>
           <thead><tr>
             <th width="26%">DOCENTE</th><th width="8%">COND.</th><th width="10%">MOD.</th>
@@ -1491,7 +1491,7 @@ export class ReportesService {
     const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
 
     const modalidadLabels: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "DedicaciÃ³n Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
+      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
       TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H", TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
       TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H", TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
     };
@@ -1538,7 +1538,7 @@ export class ReportesService {
         .title { text-align: center; font-size: 16px; font-weight: 800; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; }
         .total-row td { background: #1e40af; color: #ffffff; font-weight: bold; font-size: 10px; }
       </style></head><body>
-        <div class="title">REPORTE DE CARGA POR MODALIDAD<br><span style="font-size:11px">PerÃ­odo: ${periodo}</span></div>
+        <div class="title">REPORTE DE CARGA POR MODALIDAD<br><span style="font-size:11px">Período: ${periodo}</span></div>
         <table>
           <thead><tr>
             <th width="30%">MODALIDAD</th><th width="12%">DOCENTES</th><th width="15%">HRS LECTIVAS</th>
@@ -1575,7 +1575,7 @@ export class ReportesService {
 
     sheet.columns = [
       { header: "Docente", key: "docente", width: 35 },
-      { header: "CondiciÃ³n", key: "condicion", width: 12 },
+      { header: "Condición", key: "condicion", width: 12 },
       { header: "Modalidad", key: "modalidad", width: 22 },
       { header: "Departamento", key: "departamento", width: 30 },
       { header: "Hrs Lectivas", key: "hrsLectivas", width: 14 },
@@ -1617,8 +1617,8 @@ export class ReportesService {
       const row = sheet.addRow({
         docente: `${d.apellidos}, ${d.nombres}`,
         condicion: d.tipo_contrato === "NOMBRADO" ? "Nombrado" : "Contratado",
-        modalidad: d.modalidad || "â€”",
-        departamento: d.departamento?.nombre || "â€”",
+        modalidad: d.modalidad || "—",
+        departamento: d.departamento?.nombre || "—",
         hrsLectivas: decl?.total_horas_lectivas || 0,
         hrsNoLectivas: decl?.total_horas_no_lectivas || 0,
         total: decl?.total_horas_general || 0,
@@ -1693,12 +1693,12 @@ export class ReportesService {
     const nombresDias = [
       "Lunes",
       "Martes",
-      "MiÃ©rcoles",
+      "Miércoles",
       "Jueves",
       "Viernes",
-      "SÃ¡bado",
+      "Sábado",
     ];
-    const nombreDia = nombresDias[dia - 1] || "DÃ­a";
+    const nombreDia = nombresDias[dia - 1] || "Día";
 
     const doc = new jsPDF({
       orientation: "landscape",
@@ -1723,10 +1723,10 @@ export class ReportesService {
     doc.setTextColor(...C.white);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text(`PROGRAMACIÃ“N DIARIA: ${nombreDia.toUpperCase()}`, 35, 11);
+    doc.text(`PROGRAMACIÓN DIARIA: ${nombreDia.toUpperCase()}`, 35, 11);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Periodo AcadÃ©mico: ${periodo}`, 35, 18);
+    doc.text(`Periodo Académico: ${periodo}`, 35, 18);
     doc.text(`Total Asignaciones: ${horarios.length}`, PAGE_W - 12, 15, {
       align: "right",
     });
@@ -1746,11 +1746,11 @@ export class ReportesService {
       ],
       body: horarios.map((h) => [
         `${h.hora_inicio.substring(0, 5)} - ${h.hora_fin.substring(0, 5)}`,
-        h.curso?.nombre || "â€”",
-        h.curso?.ciclo || "â€”",
+        h.curso?.nombre || "—",
+        h.curso?.ciclo || "—",
         `${h.docente?.apellidos}, ${h.docente?.nombres}`,
-        h.ambiente?.nombre || h.ambiente?.codigo || "â€”",
-        h.grupo?.codigo || "â€”",
+        h.ambiente?.nombre || h.ambiente?.codigo || "—",
+        h.grupo?.codigo || "—",
         h.tipo_clase,
       ]),
       theme: "grid",
@@ -1799,13 +1799,13 @@ export class ReportesService {
         <div class="meta-info">
           <p><strong>Aula:</strong> ${ambiente.codigo} - ${ambiente.nombre}</p>
           <p><strong>Capacidad:</strong> ${ambiente.capacidad} alumnos</p>
-          <p><strong>UbicaciÃ³n:</strong> Piso ${ambiente.piso}, PabellÃ³n ${ambiente.pabellon}</p>
-          <p><strong>PerÃ­odo:</strong> ${periodo}</p>
+          <p><strong>Ubicación:</strong> Piso ${ambiente.piso}, Pabellón ${ambiente.pabellon}</p>
+          <p><strong>Período:</strong> ${periodo}</p>
         </div>
       </div>
       ${gridHtml}
       <div class="summary">
-        <p><strong>Porcentaje de ocupaciÃ³n:</strong> ${ocupacion.toFixed(1)}%</p>
+        <p><strong>Porcentaje de ocupación:</strong> ${ocupacion.toFixed(1)}%</p>
       </div>
     `);
 
@@ -1842,8 +1842,8 @@ export class ReportesService {
         <div class="meta-info">
           <p><strong>Laboratorio:</strong> ${ambiente.codigo} - ${ambiente.nombre}</p>
           <p><strong>Capacidad:</strong> ${ambiente.capacidad} alumnos</p>
-          <p><strong>UbicaciÃ³n:</strong> Piso ${ambiente.piso}, PabellÃ³n ${ambiente.pabellon}</p>
-          <p><strong>PerÃ­odo:</strong> ${periodo}</p>
+          <p><strong>Ubicación:</strong> Piso ${ambiente.piso}, Pabellón ${ambiente.pabellon}</p>
+          <p><strong>Período:</strong> ${periodo}</p>
         </div>
       </div>
       <div class="equipment-section">
@@ -1852,7 +1852,7 @@ export class ReportesService {
       </div>
       ${gridHtml}
       <div class="summary">
-        <p><strong>Porcentaje de ocupaciÃ³n:</strong> ${ocupacion.toFixed(1)}%</p>
+        <p><strong>Porcentaje de ocupación:</strong> ${ocupacion.toFixed(1)}%</p>
       </div>
     `,
       true,
@@ -2014,10 +2014,10 @@ export class ReportesService {
     const dias = [
       "Lunes",
       "Martes",
-      "MiÃ©rcoles",
+      "Miércoles",
       "Jueves",
       "Viernes",
-      "SÃ¡bado",
+      "Sábado",
     ];
     const horas = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 a 22:00
     const cellHeight = 8;
@@ -2081,7 +2081,7 @@ export class ReportesService {
       currentY += cellHeight;
     });
 
-    // Bloques de clase con lÃ³gica de fusiÃ³n (TeorÃ­a + PrÃ¡ctica consecutivo)
+    // Bloques de clase con lógica de fusión (Teoría + Práctica consecutivo)
     const bloquesPorDia = new Map<number, HorarioAsignado[]>();
     horarios.forEach((h) => {
       const dia = h.dia || h.dia_semana;
@@ -2151,7 +2151,7 @@ export class ReportesService {
                 ? `${this.formatDurationValue(dur)}P`
                 : `${this.formatDurationValue(dur)}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ""}`;
 
-          // Calcular el nÃºmero mÃ¡ximo de carriles ocupados durante este bloque especÃ­fico
+          // Calcular el número máximo de carriles ocupados durante este bloque específico
           let maxCarrilIdxEnIntervalo = 0;
           todosLosBloquesDelDia.forEach((otro) => {
             if (hIni < otro.hFin && otro.hIni < hFin) {
@@ -2199,7 +2199,7 @@ export class ReportesService {
               ultimo.tiposClase.push(h.tipo_clase);
               ultimo.label = this.construirLabelBloque(ultimo.asignaciones);
 
-              // Actualizar el ancho y posiciÃ³n si el nuevo bloque fusionado tiene mÃ¡s colisiones
+              // Actualizar el ancho y posición si el nuevo bloque fusionado tiene más colisiones
               if (
                 numCarrilesLocales > Math.round((cellWidth - 1) / ultimo.width)
               ) {
@@ -2342,7 +2342,7 @@ export class ReportesService {
       order: { dia: "ASC", hora_inicio: "ASC" },
     });
 
-    const dias = ["", "Lunes", "Martes", "MiÃ©rcoles", "Jueves", "Viernes"];
+    const dias = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
     const filas = horarios
       .map((h) => {
@@ -2356,7 +2356,7 @@ export class ReportesService {
           <td>${h.grupo?.codigo || "-"}</td>
           <td>${h.docente ? `${h.docente.apellidos}, ${h.docente.nombres}` : "-"}</td>
           <td>${h.ambiente?.codigo || "-"}</td>
-          <td>${h.tipo_clase === TipoClase.TEORIA ? "TeorÃ­a" : "Laboratorio"}</td>
+          <td>${h.tipo_clase === TipoClase.TEORIA ? "Teoría" : "Laboratorio"}</td>
           <td>${duracion.toFixed(1)}</td>
         </tr>
       `;
@@ -2371,7 +2371,7 @@ export class ReportesService {
     const html = this.htmlWrapper(`
       <div class="content-header">
         <h1>REPORTE CONSOLIDADO DE ASIGNACIONES</h1>
-        <p>PerÃ­odo AcadÃ©mico: ${periodo}</p>
+        <p>Período Académico: ${periodo}</p>
       </div>
 
       <div class="summary">
@@ -2382,7 +2382,7 @@ export class ReportesService {
       <table>
         <thead>
           <tr>
-            <th>DÃ­a</th>
+            <th>Día</th>
             <th>Inicio</th>
             <th>Fin</th>
             <th>Curso</th>
@@ -2458,8 +2458,8 @@ export class ReportesService {
 
     const html = this.htmlWrapper(`
       <div class="content-header">
-        <h1>REPORTE DE GESTIÃ“N Y RENDIMIENTO</h1>
-        <p>PerÃ­odo AcadÃ©mico: ${periodo}</p>
+        <h1>REPORTE DE GESTIÓN Y RENDIMIENTO</h1>
+        <p>Período Académico: ${periodo}</p>
       </div>
 
       <div class="section">
@@ -2467,17 +2467,17 @@ export class ReportesService {
         <div class="kpi-grid">
           <div class="kpi-card"><span>Total Docentes:</span> <strong>${totalDocentes}</strong></div>
           <div class="kpi-card"><span>% Docentes con Horario:</span> <strong>${totalDocentes > 0 ? ((docentesConHorario / totalDocentes) * 100).toFixed(1) : 0}%</strong></div>
-          <div class="kpi-card"><span>% OcupaciÃ³n Aulas:</span> <strong>${ocupacionAulas.toFixed(1)}%</strong></div>
-          <div class="kpi-card"><span>% OcupaciÃ³n Labs:</span> <strong>${ocupacionLabs.toFixed(1)}%</strong></div>
+          <div class="kpi-card"><span>% Ocupación Aulas:</span> <strong>${ocupacionAulas.toFixed(1)}%</strong></div>
+          <div class="kpi-card"><span>% Ocupación Labs:</span> <strong>${ocupacionLabs.toFixed(1)}%</strong></div>
           <div class="kpi-card"><span>Conflictos Pendientes:</span> <strong>${conflictos.length}</strong></div>
         </div>
       </div>
 
       <div class="section">
-        <h2>2. DistribuciÃ³n de Carga por CategorÃ­a Docente</h2>
+        <h2>2. Distribución de Carga por Categoría Docente</h2>
         <table>
           <thead>
-            <tr><th>CategorÃ­a</th><th>Total Horas</th><th>% del Total</th></tr>
+            <tr><th>Categoría</th><th>Total Horas</th><th>% del Total</th></tr>
           </thead>
           <tbody>
             ${cargaPorCategoria.map((c) => `<tr><td>${c.categoria}</td><td>${c.horas.toFixed(1)}</td><td>${c.porcentaje.toFixed(1)}%</td></tr>`).join("")}
@@ -2525,7 +2525,7 @@ export class ReportesService {
         <h2>5. Lista de Conflictos No Resueltos</h2>
         <table>
           <thead>
-            <tr><th>Tipo</th><th>DescripciÃ³n</th><th>Docente/Ambiente</th></tr>
+            <tr><th>Tipo</th><th>Descripción</th><th>Docente/Ambiente</th></tr>
           </thead>
           <tbody>
             ${conflictos.map((c) => `<tr><td>${c.tipo_conflicto}</td><td>${c.descripcion}</td><td>${c.docente?.apellidos || c.ambiente?.codigo || "-"}</td></tr>`).join("")}
@@ -2538,7 +2538,7 @@ export class ReportesService {
   }
 
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // FASE 8 â€” Reportes de GestiÃ³n (Carga AcadÃ©mica)
+  // FASE 8 — Reportes de Gestión (Carga Académica)
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   async generarReporteGestionCargaPDF(periodo: string): Promise<Buffer> {
@@ -2621,12 +2621,12 @@ export class ReportesService {
 
     const html = this.htmlWrapper(`
       <div class="content-header">
-        <h1>REPORTE DE GESTIÃ“N DE CARGA ACADÃ‰MICA</h1>
-        <p>PerÃ­odo: ${periodo}</p>
+        <h1>REPORTE DE GESTIÓN DE CARGA ACADÉMICA</h1>
+        <p>Período: ${periodo}</p>
       </div>
 
       <div class="section">
-        <h2>1. Indicadores Clave (KPIs) â€” Carga AcadÃ©mica</h2>
+        <h2>1. Indicadores Clave (KPIs) — Carga Académica</h2>
         <div class="kpi-grid">
           <div class="kpi-card"><span>Total Docentes</span><strong>${totalDocentes}</strong></div>
           <div class="kpi-card"><span>Declaraciones Enviadas</span><strong>${enviadas.length}</strong></div>
@@ -2635,14 +2635,14 @@ export class ReportesService {
           <div class="kpi-card"><span>Docentes con Observaciones</span><strong>${observadas.length}</strong></div>
           <div class="kpi-card"><span>Carga Lectiva Promedio</span><strong>${cargaPromedio.toFixed(1)}h</strong></div>
           <div class="kpi-card"><span>Tiempo Promedio Proceso</span><strong>${tiempoPromedioHoras}h</strong></div>
-          <div class="kpi-card"><span>VariaciÃ³n vs PerÃ­odo Anterior</span><strong style="color: ${variacion >= 0 ? '#10b981' : '#ef4444'}">${variacion >= 0 ? '+' : ''}${variacion}%</strong></div>
+          <div class="kpi-card"><span>Variación vs Período Anterior</span><strong style="color: ${variacion >= 0 ? '#10b981' : '#ef4444'}">${variacion >= 0 ? '+' : ''}${variacion}%</strong></div>
         </div>
       </div>
 
       <div class="section">
-        <h2>2. DistribuciÃ³n de Carga Lectiva por CategorÃ­a</h2>
+        <h2>2. Distribución de Carga Lectiva por Categoría</h2>
         <table>
-          <thead><tr><th>CategorÃ­a</th><th>Docentes</th><th>Total Horas Lectivas</th><th>Promedio</th></tr></thead>
+          <thead><tr><th>Categoría</th><th>Docentes</th><th>Total Horas Lectivas</th><th>Promedio</th></tr></thead>
           <tbody>
             ${categorias.map((c) => `<tr><td>${c.categoria}</td><td>${c.docentes}</td><td>${c.horas.toFixed(1)}</td><td>${c.promedio.toFixed(1)}h</td></tr>`).join("")}
           </tbody>
@@ -2650,7 +2650,7 @@ export class ReportesService {
       </div>
 
       <div class="section">
-        <h2>3. Estados de DeclaraciÃ³n</h2>
+        <h2>3. Estados de Declaración</h2>
         <table>
           <thead><tr><th>Estado</th><th>Cantidad</th><th>% del Total</th></tr></thead>
           <tbody>
@@ -2661,7 +2661,7 @@ export class ReportesService {
 
       <div class="section">
         <h2>4. Docentes Pendientes de Declarar</h2>
-        <p>Docentes activos sin declaraciÃ³n registrada en el perÃ­odo.</p>
+        <p>Docentes activos sin declaración registrada en el período.</p>
       </div>
 
       <div class="section">
@@ -2733,7 +2733,7 @@ export class ReportesService {
     const html = this.htmlWrapper(`
       <div class="content-header">
         <h1>REPORTE DE CUMPLIMIENTO POR DEPARTAMENTO</h1>
-        <p>PerÃ­odo: ${periodo}</p>
+        <p>Período: ${periodo}</p>
       </div>
 
       <div class="section">
@@ -2768,16 +2768,16 @@ export class ReportesService {
       </div>
 
       <div class="section">
-        <h3>Leyenda de SemÃ¡foro</h3>
-        <p><span style="color: #10b981; font-weight: bold;">Verde</span> â‰¥ 80% â€” Buen avance</p>
-        <p><span style="color: #f59e0b; font-weight: bold;">Amarillo</span> â‰¥ 50% â€” En proceso</p>
-        <p><span style="color: #ef4444; font-weight: bold;">Rojo</span> &lt; 50% â€” Requiere atenciÃ³n</p>
+        <h3>Leyenda de Semáforo</h3>
+        <p><span style="color: #10b981; font-weight: bold;">Verde</span> â‰¥ 80% — Buen avance</p>
+        <p><span style="color: #f59e0b; font-weight: bold;">Amarillo</span> â‰¥ 50% — En proceso</p>
+        <p><span style="color: #ef4444; font-weight: bold;">Rojo</span> &lt; 50% — Requiere atención</p>
       </div>
 
       <div class="signature-section">
         <div class="signature-box">
           <div class="line"></div>
-          <p>DirecciÃ³n AcadÃ©mica</p>
+          <p>Dirección Académica</p>
         </div>
       </div>
     `);
@@ -2847,8 +2847,8 @@ export class ReportesService {
 
     const html = this.htmlWrapper(`
       <div class="content-header">
-        <h1>REPORTE EJECUTIVO â€” DECANATURA</h1>
-        <p>Resumen de Carga AcadÃ©mica Â· PerÃ­odo ${periodo}</p>
+        <h1>REPORTE EJECUTIVO — DECANATURA</h1>
+        <p>Resumen de Carga Académica · Período ${periodo}</p>
       </div>
 
       <div class="section">
@@ -2866,7 +2866,7 @@ export class ReportesService {
       </div>
 
       <div class="section">
-        <h2>Tabla de Departamentos con SemÃ¡foro</h2>
+        <h2>Tabla de Departamentos con Semáforo</h2>
         <table>
           <thead>
             <tr>
@@ -2898,9 +2898,9 @@ export class ReportesService {
 
       <div class="section">
         <h3>Leyenda</h3>
-        <p style="color: #10b981; font-weight: bold;">Verde â€” Buen avance (â‰¥ 80%)</p>
-        <p style="color: #f59e0b; font-weight: bold;">Amarillo â€” En proceso (â‰¥ 50%)</p>
-        <p style="color: #ef4444; font-weight: bold;">Rojo â€” Requiere atenciÃ³n (&lt; 50%)</p>
+        <p style="color: #10b981; font-weight: bold;">Verde — Buen avance (â‰¥ 80%)</p>
+        <p style="color: #f59e0b; font-weight: bold;">Amarillo — En proceso (â‰¥ 50%)</p>
+        <p style="color: #ef4444; font-weight: bold;">Rojo — Requiere atención (&lt; 50%)</p>
       </div>
 
       <div class="signature-section">
@@ -2911,7 +2911,7 @@ export class ReportesService {
         <div style="width: 40px;"></div>
         <div class="signature-box">
           <div class="line"></div>
-          <p>Secretario AcadÃ©mico</p>
+          <p>Secretario Académico</p>
         </div>
       </div>
     `);
@@ -2952,7 +2952,7 @@ export class ReportesService {
     >();
     for (const d of declaraciones) {
       if (!d.docente) continue;
-      const cat = d.docente.categoria || "Sin categorÃ­a";
+      const cat = d.docente.categoria || "Sin categoría";
       if (!map.has(cat))
         map.set(cat, { docentes: new Set(), horas: 0 });
       const grupo = map.get(cat);
@@ -2978,7 +2978,7 @@ export class ReportesService {
     const labels: Record<string, string> = {
       NO_INICIADO: "No iniciado",
       BORRADOR: "Borrador",
-      PENDIENTE_ENVIO: "Pendiente envÃ­o",
+      PENDIENTE_ENVIO: "Pendiente envío",
       ENVIADO_DOCENTE: "Enviado",
       OBSERVADO_DPTO: "Observado (dpto)",
       SUBSANADO: "Subsanado",
@@ -3078,7 +3078,7 @@ export class ReportesService {
     const sheetAulas = workbook.addWorksheet("Aulas");
     sheetAulas.columns = [
       { header: "ID", key: "id" },
-      { header: "CÃ³digo", key: "codigo" },
+      { header: "Código", key: "codigo" },
       { header: "Nombre", key: "nombre" },
       { header: "Capacidad", key: "capacidad" },
       { header: "Horas Asignadas", key: "horas", width: 15 },
@@ -3107,7 +3107,7 @@ export class ReportesService {
     const sheetLabs = workbook.addWorksheet("Laboratorios");
     sheetLabs.columns = [
       { header: "ID", key: "id" },
-      { header: "CÃ³digo", key: "codigo" },
+      { header: "Código", key: "codigo" },
       { header: "Nombre", key: "nombre" },
       { header: "Capacidad", key: "capacidad" },
       { header: "Horas Asignadas", key: "horas", width: 15 },
@@ -3186,7 +3186,7 @@ export class ReportesService {
     horarios: HorarioAsignado[],
     isLab = false,
   ): string {
-    const dias = ["Lunes", "Martes", "MiÃ©rcoles", "Jueves", "Viernes"];
+    const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
     const horas = [
       "07:00",
       "08:00",
@@ -3231,7 +3231,7 @@ export class ReportesService {
   }
 
   private calcularPorcentajeOcupacion(horarios: HorarioAsignado[]): number {
-    const totalHorasDisponibles = 15 * 5; // 15 horas x 5 dÃ­as
+    const totalHorasDisponibles = 15 * 5; // 15 horas x 5 días
     let horasOcupadas = 0;
     horarios.forEach(
       (h) =>
@@ -3314,7 +3314,7 @@ export class ReportesService {
 
     await this.dibujarPaginaCiclo(doc, ciclo, periodo, logoBase64, primaryRGB);
 
-    // Agregar pie de pÃ¡gina para reporte individual
+    // Agregar pie de página para reporte individual
     const pW = doc.internal.pageSize.getWidth();
     const pH = doc.internal.pageSize.getHeight();
     doc.setPage(1);
@@ -3325,7 +3325,7 @@ export class ReportesService {
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
     doc.text(`Generado el: ${new Date().toLocaleString()}`, 15, pH - 6);
-    doc.text(`PÃ¡gina 1 de 1`, pW - 15, pH - 6, { align: "right" });
+    doc.text(`Página 1 de 1`, pW - 15, pH - 6, { align: "right" });
 
     return Buffer.from(doc.output("arraybuffer"));
   }
@@ -3358,17 +3358,17 @@ export class ReportesService {
     };
     const primaryRGB = hexToRgb(primaryColor);
 
-    // --- PÃGINA 1: INFORMACIÃ“N GENERAL (VERTICAL) ---
+    // --- PÃGINA 1: INFORMACIÓN GENERAL (VERTICAL) ---
     doc.setFillColor(...primaryRGB);
     doc.rect(0, 0, PAGE_W, 45, "F");
 
-    // Logo en la primera pÃ¡gina
+    // Logo en la primera página
     if (logoBase64) {
       try {
         doc.addImage(logoBase64, "PNG", 15, 10, 25, 25);
       } catch (e) {
         this.logger.warn(
-          "No se pudo cargar el logo en la primera pÃ¡gina del PDF",
+          "No se pudo cargar el logo en la primera página del PDF",
         );
       }
     }
@@ -3376,11 +3376,11 @@ export class ReportesService {
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
-    doc.text("PROGRAMACIÃ“N ACADÃ‰MICA", PAGE_W / 2 + 10, 22, {
+    doc.text("PROGRAMACIÓN ACADÉMICA", PAGE_W / 2 + 10, 22, {
       align: "center",
     });
     doc.setFontSize(14);
-    doc.text(`SEMESTRE ACADÃ‰MICO ${periodo}`, PAGE_W / 2 + 10, 32, {
+    doc.text(`SEMESTRE ACADÉMICO ${periodo}`, PAGE_W / 2 + 10, 32, {
       align: "center",
     });
 
@@ -3390,7 +3390,7 @@ export class ReportesService {
 
     let currentY = 60;
     doc.setFont("helvetica", "bold");
-    doc.text("INFORMACIÃ“N DE LA INSTITUCIÃ“N", 20, currentY);
+    doc.text("INFORMACIÓN DE LA INSTITUCIÓN", 20, currentY);
     currentY += 10;
     doc.setFont("helvetica", "normal");
     doc.text(
@@ -3399,9 +3399,9 @@ export class ReportesService {
       currentY,
     );
     currentY += 7;
-    doc.text("Facultad de IngenierÃ­a", 25, currentY);
+    doc.text("Facultad de Ingeniería", 25, currentY);
     currentY += 7;
-    doc.text("Escuela Profesional de IngenierÃ­a de Sistemas", 25, currentY);
+    doc.text("Escuela Profesional de Ingeniería de Sistemas", 25, currentY);
     currentY += 15;
 
     doc.setFont("helvetica", "bold");
@@ -3421,7 +3421,7 @@ export class ReportesService {
 
     autoTable(doc, {
       startY: currentY,
-      head: [["Ciclo", "NÂ° Asignaciones"]],
+      head: [["Ciclo", "N° Asignaciones"]],
       body: tableData,
       theme: "striped",
       headStyles: { fillColor: primaryRGB },
@@ -3433,13 +3433,13 @@ export class ReportesService {
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
     doc.text(
-      "Este documento contiene la programaciÃ³n detallada de horarios para los ciclos impares del periodo.",
+      "Este documento contiene la programación detallada de horarios para los ciclos impares del periodo.",
       20,
       currentY,
     );
     currentY += 6;
     doc.text(
-      "Generado automÃ¡ticamente por el Sistema de GestiÃ³n de Horarios UNT.",
+      "Generado automáticamente por el Sistema de Gestión de Horarios UNT.",
       20,
       currentY,
     );
@@ -3456,7 +3456,7 @@ export class ReportesService {
       );
     }
 
-    // --- AGREGAR PIE DE PÃGINA (NÃšMEROS Y FECHA) ---
+    // --- AGREGAR PIE DE PÃGINA (NÚMEROS Y FECHA) ---
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -3465,7 +3465,7 @@ export class ReportesService {
       const pW = doc.internal.pageSize.getWidth();
       const pH = doc.internal.pageSize.getHeight();
 
-      // Fondo para el pie de pÃ¡gina para que no se superponga
+      // Fondo para el pie de página para que no se superponga
       doc.setFillColor(255, 255, 255);
       doc.rect(0, pH - 12, pW, 12, "F");
 
@@ -3475,7 +3475,7 @@ export class ReportesService {
       doc.setFontSize(8);
       doc.setTextColor(120, 120, 120);
       doc.text(`Generado el: ${new Date().toLocaleString()}`, 15, pH - 6);
-      doc.text(`PÃ¡gina ${i} de ${pageCount}`, pW - 15, pH - 6, {
+      doc.text(`Página ${i} de ${pageCount}`, pW - 15, pH - 6, {
         align: "right",
       });
     }
@@ -3548,11 +3548,11 @@ export class ReportesService {
     doc.setTextColor(...C.white);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text(`HORARIO ACADÃ‰MICO - CICLO ${ciclo}`, 32, 11);
+    doc.text(`HORARIO ACADÉMICO - CICLO ${ciclo}`, 32, 11);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.text(
-      "Universidad Nacional de Trujillo | IngenierÃ­a de Sistemas",
+      "Universidad Nacional de Trujillo | Ingeniería de Sistemas",
       32,
       18,
     );
@@ -3649,7 +3649,7 @@ export class ReportesService {
       startY: yPos,
       head: [
         [
-          "NÂ°",
+          "N°",
           "Profesor",
           "Departamento",
           "Asignatura",
@@ -3662,7 +3662,7 @@ export class ReportesService {
       body: profesoresCursos.map((item, idx) => [
         idx + 1,
         `${item.docente.apellidos}, ${item.docente.nombres}`,
-        item.docente.departamento?.nombre || "â€”",
+        item.docente.departamento?.nombre || "—",
         item.curso.nombre,
         item.hTeoria || "-",
         item.hPractica || "-",
@@ -3714,14 +3714,14 @@ export class ReportesService {
     const dias = [
       "Lunes",
       "Martes",
-      "MiÃ©rcoles",
+      "Miércoles",
       "Jueves",
       "Viernes",
-      "SÃ¡bado",
+      "Sábado",
     ];
     const diasNum = [1, 2, 3, 4, 5, 6];
     const horas = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 a 22:00
-    const cellHeight = 6.5; // Reducido un poco mÃ¡s para asegurar que quepa con el footer
+    const cellHeight = 6.5; // Reducido un poco más para asegurar que quepa con el footer
     const horaColWidth = 15;
     const gridWidth = PAGE_W - 20;
     const cellWidth = (gridWidth - horaColWidth * 2) / 6;
@@ -3775,7 +3775,7 @@ export class ReportesService {
         { align: "center" },
       );
 
-      // Dibujar celdas de dÃ­as y almuerzo
+      // Dibujar celdas de días y almuerzo
       diasNum.forEach((d, idx) => {
         const cellX = 10 + horaColWidth + idx * cellWidth;
         const isAlmuerzo = hora >= almuerzoInicio && hora < almuerzoFin;
@@ -3853,7 +3853,7 @@ export class ReportesService {
           }
         }
 
-        // 2. Segunda opciÃ³n: Cualquier carril libre
+        // 2. Segunda opción: Cualquier carril libre
         if (carrilIndex === -1) {
           for (let i = 0; i < carriles.length; i++) {
             const ultimoBloque = carriles[i][carriles[i].length - 1];
@@ -3874,7 +3874,7 @@ export class ReportesService {
 
       const numCarriles = carriles.length;
 
-      // Pre-procesar bloques para calcular anchos dinÃ¡micos (Igual que en el frontend)
+      // Pre-procesar bloques para calcular anchos dinámicos (Igual que en el frontend)
       const todosLosBloquesDelDia: any[] = [];
       carriles.forEach((bloquesEnCarril, carrilIdx) => {
         bloquesEnCarril.forEach((asig) => {
@@ -3900,7 +3900,7 @@ export class ReportesService {
                 ? `${this.formatDurationValue(dur)}P`
                 : `${this.formatDurationValue(dur)}L-G${h.grupo?.codigo?.match(/-G(\d+)$/)?.[1] || ""}`;
 
-          // Calcular el nÃºmero mÃ¡ximo de carriles ocupados durante este bloque especÃ­fico
+          // Calcular el número máximo de carriles ocupados durante este bloque específico
           let maxCarrilIdxEnIntervalo = 0;
           todosLosBloquesDelDia.forEach((otro) => {
             if (hIni < otro.hFin && otro.hIni < hFin) {
@@ -3948,7 +3948,7 @@ export class ReportesService {
               ultimo.tiposClase.push(h.tipo_clase);
               ultimo.label = this.construirLabelBloque(ultimo.asignaciones);
 
-              // Actualizar el ancho y posiciÃ³n si el nuevo bloque fusionado tiene mÃ¡s colisiones
+              // Actualizar el ancho y posición si el nuevo bloque fusionado tiene más colisiones
               if (
                 numCarrilesLocales > Math.round((cellWidth - 1) / ultimo.width)
               ) {
@@ -4116,7 +4116,7 @@ export class ReportesService {
     } else if (docenteId) {
       headerCell.value = `HORARIO PERSONAL: ${docente?.apellidos}, ${docente?.nombres} | Periodo: ${periodo}`;
     } else {
-      headerCell.value = `HORARIO ACADÃ‰MICO - CICLO ${ciclo} | Periodo: ${periodo}`;
+      headerCell.value = `HORARIO ACADÉMICO - CICLO ${ciclo} | Periodo: ${periodo}`;
     }
     headerCell.font = { bold: true, size: 14, color: { argb: white } };
     headerCell.alignment = { vertical: "middle", horizontal: "center" };
@@ -4188,7 +4188,7 @@ export class ReportesService {
     currentRow++;
 
     const tableHeaders = [
-      "NÂ°",
+      "N°",
       "Profesor",
       "Departamento",
       "Asignatura",
@@ -4239,7 +4239,7 @@ export class ReportesService {
       const row = [
         idx + 1,
         `${item.docente.apellidos}, ${item.docente.nombres}`,
-        item.docente.departamento?.nombre || "â€”",
+        item.docente.departamento?.nombre || "—",
         item.curso.nombre,
         item.hTeoria || "-",
         item.hPractica || "-",
@@ -4268,12 +4268,12 @@ export class ReportesService {
     currentRow += 2;
 
     // 3. Grid de Horarios
-    sheet.getCell(`A${currentRow}`).value = "PROGRAMACIÃ“N SEMANAL";
+    sheet.getCell(`A${currentRow}`).value = "PROGRAMACIÓN SEMANAL";
     sheet.getCell(`A${currentRow}`).font = { bold: true, size: 11 };
     currentRow++;
 
-    // --- LÃ“GICA DINÃMICA DE COLUMNAS ---
-    // 1. Agrupar asignaciones por dÃ­a y calcular peak lanes por dÃ­a
+    // --- LÓGICA DINÃMICA DE COLUMNAS ---
+    // 1. Agrupar asignaciones por día y calcular peak lanes por día
     const asignacionesPorDia = new Map<number, HorarioAsignado[]>();
     horarios.forEach((h) => {
       const dia = h.dia || h.dia_semana;
@@ -4310,7 +4310,7 @@ export class ReportesService {
         else carriles[carrilIndex].push(asig);
       });
 
-      // Calcular el peak real en cualquier momento del dÃ­a
+      // Calcular el peak real en cualquier momento del día
       let peak = 1;
       const horasCheck = Array.from({ length: 15 }, (_, i) => i + 7);
       horasCheck.forEach((hCheck) => {
@@ -4327,17 +4327,17 @@ export class ReportesService {
       carrilesPorDia.set(d, carriles);
     }
 
-    // 2. Mapear columnas a dÃ­as
+    // 2. Mapear columnas a días
     const dayToStartCol = new Map<number, number>();
     let currentColumn = 2; // Empezamos en B (la A es para HORA)
     const diasHeaders = [
       "HORA",
       "Lunes",
       "Martes",
-      "MiÃ©rcoles",
+      "Miércoles",
       "Jueves",
       "Viernes",
-      "SÃ¡bado",
+      "Sábado",
     ];
 
     diasHeaders.forEach((d, i) => {
@@ -4359,7 +4359,7 @@ export class ReportesService {
           right: { style: "thin" },
         };
       } else {
-        // DÃ­as
+        // Días
         const diaNum = i;
         const peak = peakLanesPorDia.get(diaNum);
         dayToStartCol.set(diaNum, currentColumn);
@@ -4460,7 +4460,7 @@ export class ReportesService {
       currentRow++;
     });
 
-    // Dibujar bloques usando carriles dinÃ¡micos
+    // Dibujar bloques usando carriles dinámicos
     for (let dia = 1; dia <= 6; dia++) {
       const asigs = asignacionesPorDia.get(dia) || [];
       const carriles = carrilesPorDia.get(dia) || [];
@@ -4602,7 +4602,7 @@ export class ReportesService {
     cursos: Curso[],
     horarios: HorarioAsignado[],
   ): any[] {
-    // Simplificado por brevedad, asumiendo que si no hay horarios asignados o menos de lo esperado, estÃ¡ incompleto.
+    // Simplificado por brevedad, asumiendo que si no hay horarios asignados o menos de lo esperado, está incompleto.
     return cursos
       .map((c) => {
         const asignadas = horarios
@@ -4734,7 +4734,7 @@ export class ReportesService {
       });
 
       cursoList.forEach((c) => {
-        const departamento = c.departamento?.nombre || "â€”";
+        const departamento = c.departamento?.nombre || "—";
         totalCreditosCiclo += Number(c.creditos || 0);
         const cursoPlan = cursoIdToCursoPlan.get(c.id);
         const tipoCurso = cursoPlan?.tipo_curso;
@@ -4791,12 +4791,12 @@ export class ReportesService {
             <td class="centered">${c.codigo || contador++}</td>
             <td class="centered">${cicloNum}</td>
             <td class="centered">${tipoCursoStr}</td>
-            <td class="curso-nombre">${c.nombre?.toUpperCase() || "â€”"}</td>
+            <td class="curso-nombre">${c.nombre?.toUpperCase() || "—"}</td>
             <td class="centered">${c.horas_teoria || 0}</td>
             <td class="centered">${c.horas_practica || 0}</td>
             <td class="centered">${c.horas_laboratorio || 0}</td>
             <td class="centered">${c.creditos || 0}</td>
-            <td>${departamento?.toUpperCase() || "â€”"}</td>
+            <td>${departamento?.toUpperCase() || "—"}</td>
           </tr>
           ${prerequisitosRow}
         `;
@@ -4805,7 +4805,7 @@ export class ReportesService {
       tableHtml += `
         <tr class="suma-ciclo">
           <td colspan="6" style="text-align: right; padding-right: 10px; font-weight: bold;">
-            SUMA DE CRÃ‰DITOS:
+            SUMA DE CRÉDITOS:
           </td>
           <td class="centered" style="font-weight: bold;">
             ${totalCreditosCiclo}
@@ -4916,7 +4916,7 @@ export class ReportesService {
       <body>
         ${logoBase64 ? `<img class="watermark" src="${logoBase64}" />` : ""}
         <div class="fecha-impresion">
-          Fecha de ImpresiÃ³n: ${new Date().toLocaleDateString("es-PE", { year: "numeric", month: "2-digit", day: "2-digit" })} (${new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })})
+          Fecha de Impresión: ${new Date().toLocaleDateString("es-PE", { year: "numeric", month: "2-digit", day: "2-digit" })} (${new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })})
         </div>
         <div class="header-universidad">
           UNIVERSIDAD NACIONAL DE TRUJILLO
@@ -5009,7 +5009,7 @@ export class ReportesService {
       });
 
       cursoList.forEach((cp) => {
-        const departamento = cp.curso?.departamento?.nombre || "â€”";
+        const departamento = cp.curso?.departamento?.nombre || "—";
         totalCreditosCiclo += Number(cp.creditos || 0);
 
         // Build prerequisites row if any
@@ -5055,12 +5055,12 @@ export class ReportesService {
             <td class="centered">${cp.curso?.codigo || contador++}</td>
             <td class="centered">${ciclo}</td>
             <td class="centered">${cp.tipo_curso === "ESPECIALIDAD" ? "S" : cp.tipo_curso === "OBLIGATORIO_GENERAL" ? "OB" : cp.tipo_curso === "OBLIGATORIO_PROFESIONAL" ? "OP" : "EL"}</td>
-            <td class="curso-nombre">${cp.curso?.nombre?.toUpperCase() || "â€”"}</td>
+            <td class="curso-nombre">${cp.curso?.nombre?.toUpperCase() || "—"}</td>
             <td class="centered">${cp.horas_teoria || 0}</td>
             <td class="centered">${cp.horas_practica || 0}</td>
             <td class="centered">${cp.horas_laboratorio || 0}</td>
             <td class="centered">${cp.creditos || 0}</td>
-            <td>${departamento?.toUpperCase() || "â€”"}</td>
+            <td>${departamento?.toUpperCase() || "—"}</td>
           </tr>
           ${prerequisitosRow}
         `;
@@ -5069,7 +5069,7 @@ export class ReportesService {
       tableHtml += `
         <tr class="suma-ciclo">
           <td colspan="6" style="text-align: right; padding-right: 10px; font-weight: bold;">
-            SUMA DE CRÃ‰DITOS:
+            SUMA DE CRÉDITOS:
           </td>
           <td class="centered" style="font-weight: bold;">
             ${totalCreditosCiclo}
@@ -5180,7 +5180,7 @@ export class ReportesService {
       <body>
         ${logoBase64 ? `<img class="watermark" src="${logoBase64}" />` : ""}
         <div class="fecha-impresion">
-          Fecha de ImpresiÃ³n: ${new Date().toLocaleDateString("es-PE", { year: "numeric", month: "2-digit", day: "2-digit" })} (${new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })})
+          Fecha de Impresión: ${new Date().toLocaleDateString("es-PE", { year: "numeric", month: "2-digit", day: "2-digit" })} (${new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })})
         </div>
         <div class="header-universidad">
           UNIVERSIDAD NACIONAL DE TRUJILLO

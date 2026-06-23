@@ -81,6 +81,10 @@ export class CladVerificacionComponent implements OnInit {
     return this.canValidarDpto() || this.canValidarDependencia() || this.canAprobarFinal();
   }
 
+  isHorarioArray(horario: any): boolean {
+    return Array.isArray(horario);
+  }
+
   enviar(): void {
     this.cladService.enviar(this.clad!.id).subscribe({
       next: () => {

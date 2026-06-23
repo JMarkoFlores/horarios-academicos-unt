@@ -77,13 +77,16 @@ export class CladListComponent implements OnInit {
   }
 
   descargarPDF(id: number): void {
-    const token = localStorage.getItem('token');
+    const token = this.authService.getToken();
     const url = `${environment.apiUrl}/reportes/clad/${id}/pdf`;
     
     fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(response => response.blob())
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.blob();
+    })
     .then(blob => {
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -92,6 +95,7 @@ export class CladListComponent implements OnInit {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
     })
     .catch(err => console.error('Error al descargar PDF', err));
   }

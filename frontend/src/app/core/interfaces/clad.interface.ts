@@ -24,7 +24,7 @@ export interface DetalleClad {
   codigo_curso?: string;
   fecha_inicio: string | Date;
   fecha_fin: string | Date;
-  horario: { dia: number; hora_inicio: string; hora_fin: string; lugar: string }[];
+  horario: any;
   horas_semanales: number;
 }
 

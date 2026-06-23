@@ -1,7 +1,7 @@
 <div class="header-container">
   <div class="header-content">
     <div class="title-section">
-      <button mat-icon-button routerLink="..">
+      <button mat-icon-button routerLink="/app/clad">
         <mat-icon>arrow_back</mat-icon>
       </button>
       <h1>{{ isEditMode ? 'Editar' : 'Nueva' }} Declaración CLAD</h1>
@@ -121,7 +121,7 @@
       </mat-form-field>
 
       <div class="actions">
-        <button mat-button type="button" routerLink="..">Cancelar</button>
+        <button mat-button type="button" routerLink="/app/clad">Cancelar</button>
         <button mat-raised-button color="primary" type="submit" [disabled]="cladForm.invalid || saving">
           {{ saving ? 'Guardando...' : 'Guardar Declaración' }}
         </button>

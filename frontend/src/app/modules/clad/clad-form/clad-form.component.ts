@@ -86,8 +86,9 @@ export class CladFormComponent implements OnInit {
         const horariosArray = detGroup.get('horario') as FormArray;
         horariosArray.clear();
         
-        if (det.horario && Array.isArray(det.horario)) {
-          det.horario.forEach((h: any) => {
+        if (det.horario) {
+          const horarios = Array.isArray(det.horario) ? det.horario : [det.horario];
+          horarios.forEach((h: any) => {
             const hGroup = this.crearHorarioGroup();
             hGroup.patchValue(h);
             horariosArray.push(hGroup);

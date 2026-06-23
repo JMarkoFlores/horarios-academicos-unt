@@ -340,8 +340,8 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
             if (res.data.carga_no_lectiva) {
               this.cargarCargaNoLectiva(res.data.carga_no_lectiva);
             }
-            if (res.data.cargaAdicional) {
-              this.cargaAdicional = res.data.cargaAdicional;
+            if (res.data.carga_adicional) {
+              this.cargaAdicional = res.data.carga_adicional;
               this.totalHorasCargaAdicional = this.cargaAdicional.reduce((sum: number, c: CargaAdicional) => sum + (c.total_horas || 0), 0);
             }
             this.cargarObservaciones();

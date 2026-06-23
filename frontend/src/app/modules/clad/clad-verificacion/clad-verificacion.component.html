@@ -1,7 +1,7 @@
 <div class="header-container" *ngIf="clad">
   <div class="header-content">
     <div class="title-section">
-      <button mat-icon-button routerLink="..">
+      <button mat-icon-button routerLink="/app/clad">
         <mat-icon>arrow_back</mat-icon>
       </button>
       <div>
@@ -29,9 +29,19 @@
         <div *ngFor="let det of clad.detalles" class="detalle-item">
           <strong>{{ det.nombre_curso }} ({{ det.horas_semanales }}h)</strong>
           <div class="horarios">
-            <div *ngFor="let h of det.horario" class="text-sm text-gray-600">
-              Día {{ h.dia }} | {{ h.hora_inicio }} - {{ h.hora_fin }} ({{ h.lugar }})
+            <div *ngIf="det.horario" class="text-sm text-gray-600">
+              <ng-container *ngIf="isHorarioArray(det.horario); else singleHorario">
+                <div *ngFor="let h of det.horario">
+                  Día {{ h.dia }} | {{ h.hora_inicio }} - {{ h.hora_fin }} ({{ h.lugar }})
+                </div>
+              </ng-container>
+              <ng-template #singleHorario>
+                Día {{ det.horario.dia }} | {{ det.horario.hora_inicio }} - {{ det.horario.hora_fin }} ({{ det.horario.lugar }})
+              </ng-template>
             </div>
+          </div>
+          <div *ngIf="det.fecha_inicio || det.fecha_fin" class="text-sm text-gray-500">
+            Vigencia: {{ det.fecha_inicio | date:'dd/MM/yyyy' }} - {{ det.fecha_fin | date:'dd/MM/yyyy' }}
           </div>
         </div>
       </mat-card>

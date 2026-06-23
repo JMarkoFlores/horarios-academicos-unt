@@ -27,9 +27,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exceptionResponse
         : ((exceptionResponse as any)?.message ?? "Error interno del servidor");
 
-    this.logger.error(
-      `${request.method} ${request.url} — ${statusCode}: ${JSON.stringify(message)}`,
-    );
+    const logMsg = `${request.method} ${request.url} — ${statusCode}: ${JSON.stringify(message)}`;
+    if (statusCode >= 500) {
+      this.logger.error(logMsg);
+    } else {
+      this.logger.warn(logMsg);
+    }
 
     response.status(statusCode).json({
       data: null,

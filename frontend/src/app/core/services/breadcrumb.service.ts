@@ -56,6 +56,7 @@ const ROUTE_LABELS: Record<string, RouteLabel> = {
   'campaigns/nuevo': { label: 'Nueva', translationKey: 'breadcrumb.campaigns_nuevo' },
   'campaigns/:id/editar': { label: 'Editar', translationKey: 'breadcrumb.campaigns_editar' },
   facultades: { label: 'Facultades', icon: 'account_balance', translationKey: 'breadcrumb.facultades' },
+  perfil: { label: 'Mi Perfil', icon: 'person', translationKey: 'breadcrumb.perfil' },
 };
 
 @Injectable({ providedIn: 'root' })

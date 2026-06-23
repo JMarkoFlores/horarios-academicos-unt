@@ -1,12 +1,14 @@
-<div class="page-header">
-  <div class="header-left">
-    <h1 class="page-title">Usuarios del Sistema</h1>
-    <p class="page-sub">Gestiona los usuarios y sus roles de acceso</p>
+<div class="page-header-premium">
+  <div class="title-section">
+    <h1 class="gradient-text">Usuarios del Sistema</h1>
+    <p class="subtitle">Gestiona los usuarios y sus roles de acceso</p>
   </div>
-  <button mat-flat-button color="primary" class="btn-crear" (click)="abrirCrear()">
-    <mat-icon>person_add</mat-icon>
-    Crear usuario del sistema
-  </button>
+  <div class="header-actions">
+    <button mat-raised-button class="btn-new" (click)="abrirCrear()">
+      <mat-icon>person_add</mat-icon>
+      Crear usuario
+    </button>
+  </div>
 </div>
 
 <mat-card class="table-card">

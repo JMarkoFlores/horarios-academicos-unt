@@ -3,21 +3,25 @@
 }
 
 // ── PAGE HEADER ──
-.page-header {
+.page-header-premium {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 4px;
+  padding: 0 24px;
 
-  .header-content {
-    h1 {
+  .title-section {
+    .gradient-text {
       font-size: 28px;
       font-weight: 800;
-      color: var(--color-text);
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
       margin: 0;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
     }
-    .header-subtitle {
+    .subtitle {
       color: var(--color-text-muted);
       font-size: 14px;
       margin-top: 4px;

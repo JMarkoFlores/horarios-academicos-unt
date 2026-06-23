@@ -1527,4 +1527,36 @@ export class VentanasService
     const minutosFin = hFin * 60 + mFin;
     return minutosFin - minutosInicio;
   }
+
+  async obtenerVentanasPorDocente(docenteId: number, periodo: string): Promise<VentanaAtencion[]> {
+    // Obtener ventanas donde el docente está en la cola
+    const colas = await this.colaRepo.find({
+      where: { docente_id: docenteId },
+      relations: ["ventana"],
+    });
+
+    const ventanaIds = colas.map((c) => c.ventana_id);
+    if (ventanaIds.length === 0) {
+      return [];
+    }
+
+    // Obtener las ventanas filtrando por periodo
+    const ventanas = await this.ventanaRepo.find({
+      where: {
+        id: ventanaIds as any,
+        periodo: periodo,
+      },
+      order: { fecha: "ASC", hora_inicio: "ASC" },
+    });
+
+    // Agregar información de posición en la cola
+    return ventanas.map((ventana) => {
+      const cola = colas.find((c) => c.ventana_id === ventana.id);
+      return {
+        ...ventana,
+        posicion_cola: cola?.orden ?? null,
+        estado_cola: cola?.estado ?? null,
+      } as any;
+    });
+  }
 }

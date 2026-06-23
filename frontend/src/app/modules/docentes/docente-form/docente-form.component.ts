@@ -39,6 +39,18 @@ export function fechaNoFuturaValidator(): ValidatorFn {
   };
 }
 
+export function dniValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (!control.value) return null;
+    const valor = control.value.toString();
+    // DNI peruano: exactamente 8 dígitos
+    if (!/^\d{8}$/.test(valor)) {
+      return { dniInvalido: true };
+    }
+    return null;
+  };
+}
+
 const CATEGORIAS_POR_TIPO: Record<string, { value: string; label: string }[]> =
   {
     ORDINARIO: [
@@ -97,6 +109,7 @@ export class DocenteFormComponent implements OnInit {
         null,
         [Validators.required, Validators.min(1000), Validators.max(9999)],
       ],
+      dni: ['', [Validators.required, dniValidator()]],
       nombres: ['', [Validators.required, Validators.maxLength(150)]],
       apellidos: ['', [Validators.required, Validators.maxLength(150)]],
       email: ['', [Validators.required, emailInstitucionalValidator()]],
@@ -161,6 +174,7 @@ export class DocenteFormComponent implements OnInit {
           this.form.patchValue({
             codigo: d.codigo,
             ibm: d.ibm,
+            dni: d.dni ?? '',
             nombres: d.nombres,
             apellidos: d.apellidos,
             email: d.email,

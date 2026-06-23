@@ -137,6 +137,13 @@ export class AuthService {
     localStorage.setItem(this.USER_KEY, JSON.stringify(actualizado));
   }
 
+  actualizarUsuarioLocal(usuario: Partial<Usuario>): void {
+    const actual = this.getUsuarioActual();
+    if (!actual) return;
+    const merged = { ...actual, ...usuario };
+    localStorage.setItem(this.USER_KEY, JSON.stringify(merged));
+  }
+
   cargarPerfil(): Observable<any> {
     return this.http
       .get<{ data: Usuario }>(`${environment.apiUrl}/auth/perfil`)

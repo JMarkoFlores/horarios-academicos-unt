@@ -17,6 +17,9 @@
         <span class="chip-stat">
           <mat-icon>assignment</mat-icon>{{ horasAsignadas }} bloques
         </span>
+        <mat-slide-toggle color="primary" [(ngModel)]="mostrarNoLectiva" (change)="toggleNoLectiva()" class="toggle-no-lectiva">
+          Mostrar Carga No Lectiva
+        </mat-slide-toggle>
       </div>
     </div>
   </header>
@@ -56,8 +59,10 @@
                       [ngClass]="cls(dNum, hora)"
                       [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null">
                       <div *ngIf="cell.asig as a" class="celda-content">
-                        <span class="tipo-badge" [class.lab]="a.tipo_clase === 'LABORATORIO'">
-                          {{ a.tipo_clase === 'LABORATORIO' ? 'LAB' : 'TEO' }}
+                        <span class="tipo-badge" 
+                          [class.lab]="a.tipo_clase === 'LABORATORIO'"
+                          [class.no-lec]="a.tipo_clase === 'NO_LECTIVA'">
+                          {{ a.tipo_clase === 'LABORATORIO' ? 'LAB' : (a.tipo_clase === 'NO_LECTIVA' ? 'NO LEC' : 'TEO') }}
                         </span>
                         <div class="curso-txt">{{ a.curso?.nombre ?? '—' }}</div>
                         <div class="meta-row">
@@ -77,6 +82,7 @@
         <div class="legend" *ngIf="asignaciones.length > 0">
           <span class="legend-item"><span class="dot dot-teoria"></span> Teoría</span>
           <span class="legend-item"><span class="dot dot-lab"></span> Laboratorio</span>
+          <span class="legend-item"><span class="dot dot-no-lectiva"></span> No Lectiva</span>
           <span class="legend-item"><span class="dot dot-almuerzo"></span> Almuerzo ({{ fmtH(almuerzoInicio) }}–{{ fmtH(almuerzoFin) }})</span>
           <span class="legend-spacer"></span>
           <span class="legend-info">Las celdas fusionadas representan bloques de varias horas consecutivas</span>

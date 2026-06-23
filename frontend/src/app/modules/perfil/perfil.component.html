@@ -1,0 +1,272 @@
+﻿<div class="perfil-page">
+  <app-breadcrumb></app-breadcrumb>
+
+  <!-- Profile Cover Banner -->
+  <div class="profile-cover">
+    <div class="cover-gradient">
+      <div class="cover-pattern"></div>
+    </div>
+    <div class="cover-content" *ngIf="usuario">
+      <div class="avatar-section">
+        <div class="avatar-ring" (click)="triggerAvatarInput()" [matTooltip]="'Haga clic para cambiar foto'">
+          <div class="avatar-circle" [class.has-photo]="!!fotoUrl">
+            <img *ngIf="fotoUrl" [src]="fotoUrl" class="avatar-img" alt="Foto de perfil" />
+            <span class="avatar-initials" *ngIf="!fotoUrl">{{ iniciales }}</span>
+          </div>
+          <div class="avatar-edit-overlay">
+            <mat-icon>photo_camera</mat-icon>
+            <span>Cambiar</span>
+          </div>
+        </div>
+      </div>
+      <div class="identity-section">
+        <h1 class="profile-name">{{ usuario.nombre }}</h1>
+        <p class="profile-email">{{ usuario.email }}</p>
+        <div class="profile-meta">
+          <span class="role-badge">
+            <mat-icon>verified_user</mat-icon>
+            {{ getRolLabel(usuario.rol) }}
+          </span>
+          <span class="meta-separator">•</span>
+          <span class="member-since">Miembro desde {{ memberSince }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="perfil-body">
+    <mat-card class="perfil-card">
+      <mat-tab-group
+        [selectedIndex]="selectedIndex"
+        (selectedIndexChange)="onTabChange($event)"
+        animationDuration="400"
+        [mat-stretch-tabs]="false"
+        class="custom-tabs"
+      >
+        <!-- Tab 1: Información -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">person</mat-icon>
+            <span class="tab-label-text">Información</span>
+          </ng-template>
+          <div class="tab-panel" *ngIf="usuario">
+            <!-- Editable Profile Form -->
+            <div class="section-card info-form-card">
+              <div class="section-card-header">
+                <div class="section-card-title">
+                  <mat-icon>badge</mat-icon>
+                  <h3>Datos Personales</h3>
+                </div>
+                <div class="section-card-actions">
+                  <button mat-stroked-button color="primary" (click)="toggleEdicionPerfil()" *ngIf="!editandoPerfil">
+                    <mat-icon>edit</mat-icon> Editar
+                  </button>
+                  <ng-container *ngIf="editandoPerfil">
+                    <button mat-stroked-button (click)="cancelarEdicionPerfil()">Cancelar</button>
+                    <button mat-flat-button color="primary" (click)="guardarPerfil()" [disabled]="perfilForm.invalid || loadingPerfil">
+                      <mat-spinner diameter="18" *ngIf="loadingPerfil"></mat-spinner>
+                      <mat-icon *ngIf="!loadingPerfil">save</mat-icon>
+                      Guardar
+                    </button>
+                  </ng-container>
+                </div>
+              </div>
+              <form [formGroup]="perfilForm" class="profile-form">
+                <div class="form-row">
+                  <mat-form-field appearance="outline" class="form-field">
+                    <mat-label>Nombre completo</mat-label>
+                    <mat-icon matPrefix>person</mat-icon>
+                    <input matInput formControlName="nombre" [readonly]="!editandoPerfil" />
+                    <mat-error>El nombre es obligatorio</mat-error>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="form-field">
+                    <mat-label>Correo electrónico</mat-label>
+                    <mat-icon matPrefix>email</mat-icon>
+                    <input matInput formControlName="email" [readonly]="!editandoPerfil" />
+                    <mat-error>Correo inválido</mat-error>
+                  </mat-form-field>
+                </div>
+              </form>
+            </div>
+
+            <!-- Detalles de Cuenta -->
+            <div class="section-card account-details-card">
+              <div class="section-card-header">
+                <div class="section-card-title">
+                  <mat-icon>manage_accounts</mat-icon>
+                  <h3>Detalles de la Cuenta</h3>
+                </div>
+              </div>
+              <div class="details-grid">
+                <div class="detail-item">
+                  <div class="detail-icon-box"><mat-icon>badge</mat-icon></div>
+                  <div class="detail-content">
+                    <span class="detail-label">Rol en el sistema</span>
+                    <span class="detail-value">{{ getRolLabel(usuario.rol) }}</span>
+                  </div>
+                </div>
+                <div class="detail-item" *ngIf="usuario.docenteId">
+                  <div class="detail-icon-box"><mat-icon>school</mat-icon></div>
+                  <div class="detail-content">
+                    <span class="detail-label">ID Docente</span>
+                    <span class="detail-value">#{{ usuario.docenteId }}</span>
+                  </div>
+                </div>
+                <div class="detail-item" *ngIf="usuario.contextoAcademico?.facultadNombre">
+                  <div class="detail-icon-box"><mat-icon>account_balance</mat-icon></div>
+                  <div class="detail-content">
+                    <span class="detail-label">Facultad</span>
+                    <span class="detail-value">{{ usuario.contextoAcademico?.facultadNombre }}</span>
+                  </div>
+                </div>
+                <div class="detail-item" *ngIf="usuario.contextoAcademico?.escuelaNombre">
+                  <div class="detail-icon-box"><mat-icon>cast_for_education</mat-icon></div>
+                  <div class="detail-content">
+                    <span class="detail-label">Escuela</span>
+                    <span class="detail-value">{{ usuario.contextoAcademico?.escuelaNombre }}</span>
+                  </div>
+                </div>
+                <div class="detail-item" *ngIf="usuario.contextoAcademico?.departamentoNombre">
+                  <div class="detail-icon-box"><mat-icon>layers</mat-icon></div>
+                  <div class="detail-content">
+                    <span class="detail-label">Departamento</span>
+                    <span class="detail-value">{{ usuario.contextoAcademico?.departamentoNombre }}</span>
+                  </div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-icon-box"><mat-icon>translate</mat-icon></div>
+                  <div class="detail-content">
+                    <span class="detail-label">Idioma preferido</span>
+                    <span class="detail-value">{{ (usuario.idiomaPreferido || 'es' | uppercase) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab 2: Firma Digital (solo docentes) -->
+        <mat-tab *ngIf="usuario?.docenteId">
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">draw</mat-icon>
+            <span class="tab-label-text">Firma Digital</span>
+          </ng-template>
+          <div class="tab-panel firma-panel">
+            <div class="firma-card">
+              <div class="firma-preview-area">
+                <div class="firma-preview" *ngIf="firmaUrl" [style.background-image]="'url(' + firmaUrl + ')'"></div>
+                <div class="firma-empty" *ngIf="!firmaUrl && !cargandoFirma">
+                  <div class="empty-icon"><mat-icon>signature</mat-icon></div>
+                  <h4>Sin firma digital</h4>
+                  <p>Suba su firma para habilitar la generación de documentos oficiales</p>
+                </div>
+                <div class="firma-loading" *ngIf="cargandoFirma">
+                  <mat-spinner diameter="40"></mat-spinner>
+                  <p>Subiendo firma...</p>
+                </div>
+              </div>
+              <div class="firma-actions">
+                <button mat-raised-button color="primary" (click)="triggerFirmaInput()" [disabled]="cargandoFirma">
+                  <mat-icon>upload_file</mat-icon>
+                  {{ firmaUrl ? 'Actualizar firma' : 'Subir firma' }}
+                </button>
+              </div>
+              <div class="firma-info">
+                <mat-icon>info</mat-icon>
+                <span>Esta firma se usará en reportes oficiales (F01, F02, Anexo 04)</span>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab 3: Cambiar Contraseña -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="tab-icon">lock_reset</mat-icon>
+            <span class="tab-label-text">Contraseña</span>
+          </ng-template>
+          <div class="tab-panel password-panel">
+            <div class="password-card">
+              <div class="password-header">
+                <mat-icon>security</mat-icon>
+                <div>
+                  <h3>Cambiar Contraseña</h3>
+                  <p>Mínimo 8 caracteres, incluyendo mayúsculas y números</p>
+                </div>
+              </div>
+              <form [formGroup]="passwordForm" (ngSubmit)="cambiarPassword()" class="password-form">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Contraseña actual</mat-label>
+                  <mat-icon matPrefix>lock_outline</mat-icon>
+                  <input matInput formControlName="password_actual" [type]="hideActual ? 'password' : 'text'" autocomplete="current-password" />
+                  <button mat-icon-button matSuffix type="button" (click)="hideActual = !hideActual">
+                    <mat-icon>{{ hideActual ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
+                  <mat-error>La contraseña actual es obligatoria</mat-error>
+                </mat-form-field>
+
+                <div class="password-divider">
+                  <span>Nueva contraseña</span>
+                </div>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Nueva contraseña</mat-label>
+                  <mat-icon matPrefix>lock_reset</mat-icon>
+                  <input matInput formControlName="password_nueva" [type]="hideNueva ? 'password' : 'text'" autocomplete="new-password" />
+                  <button mat-icon-button matSuffix type="button" (click)="hideNueva = !hideNueva">
+                    <mat-icon>{{ hideNueva ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
+                  <mat-hint>Mínimo 8 caracteres</mat-hint>
+                  <mat-error *ngIf="passwordForm.get('password_nueva')?.hasError('required')">Obligatorio</mat-error>
+                  <mat-error *ngIf="passwordForm.get('password_nueva')?.hasError('minlength')">Mínimo 8 caracteres</mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Confirmar nueva contraseña</mat-label>
+                  <mat-icon matPrefix>check_circle_outline</mat-icon>
+                  <input matInput formControlName="confirmar_password" [type]="hideConfirmar ? 'password' : 'text'" autocomplete="new-password" />
+                  <button mat-icon-button matSuffix type="button" (click)="hideConfirmar = !hideConfirmar">
+                    <mat-icon>{{ hideConfirmar ? 'visibility_off' : 'visibility' }}</mat-icon>
+                  </button>
+                  <mat-error>Confirme la contraseña</mat-error>
+                </mat-form-field>
+
+                <div class="password-requirements" *ngIf="passwordForm.get('password_nueva')?.dirty">
+                  <div class="req-item" [class.req-met]="hasMinLength">
+                    <mat-icon>{{ hasMinLength ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                    <span>Mínimo 8 caracteres</span>
+                  </div>
+                  <div class="req-item" [class.req-met]="hasUppercase">
+                    <mat-icon>{{ hasUppercase ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                    <span>Al menos una mayúscula</span>
+                  </div>
+                  <div class="req-item" [class.req-met]="hasNumber">
+                    <mat-icon>{{ hasNumber ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                    <span>Al menos un número</span>
+                  </div>
+                  <div class="req-item" [class.req-met]="passwordsMatch">
+                    <mat-icon>{{ passwordsMatch ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                    <span>Contraseñas coinciden</span>
+                  </div>
+                </div>
+
+                <mat-error *ngIf="passwordForm.hasError('noCoinciden') && passwordForm.get('confirmar_password')?.dirty" class="form-error">
+                  <mat-icon>error_outline</mat-icon> Las contraseñas no coinciden
+                </mat-error>
+
+                <div class="password-actions">
+                  <button mat-flat-button color="primary" type="submit" [disabled]="passwordForm.invalid || loadingPassword">
+                    <mat-spinner diameter="20" *ngIf="loadingPassword"></mat-spinner>
+                    <mat-icon *ngIf="!loadingPassword">lock_reset</mat-icon>
+                    Cambiar contraseña
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  </div>
+</div>

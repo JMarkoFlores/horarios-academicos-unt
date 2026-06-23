@@ -44,6 +44,65 @@
       }
     </div>
 
+    <!-- Contenedor de perfil de usuario movido al inicio para mejor accesibilidad -->
+    <div class="sidenav-footer sidenav-user-section">
+      <button
+        type="button"
+        class="user-row-btn"
+        [matMenuTriggerFor]="userMenu"
+        [matTooltip]="
+          sidebarCollapsed() ? usuario?.nombre || 'Administrador' : ''
+        "
+        matTooltipPosition="right"
+      >
+        <div class="user-avatar-wrapper">
+          <div
+            class="user-avatar"
+            [style.background-image]="userPhoto() ? 'url(' + userPhoto() + ')' : ''"
+            [class.has-photo]="!!userPhoto()"
+          >
+            @if (!userPhoto()) {
+              <span>{{ (usuario?.nombre || "A")[0] }}</span>
+            }
+          </div>
+          <span class="status-dot"></span>
+        </div>
+        @if (!sidebarCollapsed()) {
+          <div class="user-info">
+            <span class="user-name">{{
+              usuario?.nombre || ('layout.administrator' | translate)
+            }}</span>
+            <span class="user-role">{{
+              usuario?.rol || ('layout.systemAdministrator' | translate)
+            }}</span>
+          </div>
+          <mat-icon class="user-chevron">unfold_more</mat-icon>
+        }
+      </button>
+
+      <mat-menu #userMenu="matMenu" yPosition="below" class="user-dropdown">
+        <div class="dropdown-header">
+          <span class="dropdown-user-name">{{ usuario?.nombre }}</span>
+          <span class="dropdown-user-email">{{
+            usuario?.email || "admin@unt.edu.pe"
+          }}</span>
+        </div>
+        <mat-divider></mat-divider>
+        <button mat-menu-item (click)="openVerPerfil()">
+          <mat-icon>manage_accounts</mat-icon>
+          <span>{{ 'layout.viewProfile' | translate }}</span>
+        </button>
+        <button mat-menu-item (click)="openCambiarPassword()">
+          <mat-icon>lock_reset</mat-icon>
+          <span>{{ 'layout.changePassword' | translate }}</span>
+        </button>
+        <button mat-menu-item class="logout-menu-item" (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>{{ 'layout.logout' | translate }}</span>
+        </button>
+      </mat-menu>
+    </div>
+
     @if (sidebarCollapsed() && !isMobile()) {
       <button
         class="collapse-btn-floating"
@@ -116,64 +175,6 @@
     </div>
 
     <app-chatbot></app-chatbot>
-
-    <div class="sidenav-footer">
-      <button
-        type="button"
-        class="user-row-btn"
-        [matMenuTriggerFor]="userMenu"
-        [matTooltip]="
-          sidebarCollapsed() ? usuario?.nombre || 'Administrador' : ''
-        "
-        matTooltipPosition="right"
-      >
-        <div class="user-avatar-wrapper">
-          <div
-            class="user-avatar"
-            [style.background-image]="userPhoto() ? 'url(' + userPhoto() + ')' : ''"
-            [class.has-photo]="!!userPhoto()"
-          >
-            @if (!userPhoto()) {
-              <span>{{ (usuario?.nombre || "A")[0] }}</span>
-            }
-          </div>
-          <span class="status-dot"></span>
-        </div>
-        @if (!sidebarCollapsed()) {
-          <div class="user-info">
-            <span class="user-name">{{
-              usuario?.nombre || ('layout.administrator' | translate)
-            }}</span>
-            <span class="user-role">{{
-              usuario?.rol || ('layout.systemAdministrator' | translate)
-            }}</span>
-          </div>
-          <mat-icon class="user-chevron">unfold_more</mat-icon>
-        }
-      </button>
-
-      <mat-menu #userMenu="matMenu" yPosition="above" class="user-dropdown">
-        <div class="dropdown-header">
-          <span class="dropdown-user-name">{{ usuario?.nombre }}</span>
-          <span class="dropdown-user-email">{{
-            usuario?.email || "admin@unt.edu.pe"
-          }}</span>
-        </div>
-        <mat-divider></mat-divider>
-        <button mat-menu-item (click)="openVerPerfil()">
-          <mat-icon>manage_accounts</mat-icon>
-          <span>{{ 'layout.viewProfile' | translate }}</span>
-        </button>
-        <button mat-menu-item (click)="openCambiarPassword()">
-          <mat-icon>lock_reset</mat-icon>
-          <span>{{ 'layout.changePassword' | translate }}</span>
-        </button>
-        <button mat-menu-item class="logout-menu-item" (click)="logout()">
-          <mat-icon>logout</mat-icon>
-          <span>{{ 'layout.logout' | translate }}</span>
-        </button>
-      </mat-menu>
-    </div>
   </mat-sidenav>
 
   <mat-sidenav-content [class.collapsed]="sidebarCollapsed() && !isMobile()">
@@ -205,19 +206,29 @@
           </button>
 
           <!-- Botón de alertas del sistema -->
-          <button
-            mat-icon-button
-            class="topbar-btn"
-            [matMenuTriggerFor]="alertsMenu"
-            matTooltip="Alertas del sistema"
-          >
-            <mat-icon>notifications</mat-icon>
-            @if (notificacionesCount() > 0) {
-              <span class="notif-badge">
-                {{ notificacionesCount() > 9 ? '9+' : notificacionesCount() }}
-              </span>
-            }
-          </button>
+          @if (!authService.hasRole(ROLES.DOCENTE) || authService.hasRole(
+            ROLES.ADMINISTRADOR_SISTEMA, 
+            ROLES.COORDINADOR_ACADEMICO, 
+            ROLES.DIRECTOR_ESCUELA, 
+            ROLES.DIRECTOR_DEPARTAMENTO,
+            ROLES.DECANO,
+            ROLES.SECRETARIA,
+            ROLES.OPERADOR_HORARIOS
+          )) {
+            <button
+              mat-icon-button
+              class="topbar-btn"
+              [matMenuTriggerFor]="alertsMenu"
+              matTooltip="Alertas del sistema"
+            >
+              <mat-icon>notifications</mat-icon>
+              @if (notificacionesCount() > 0) {
+                <span class="notif-badge">
+                  {{ notificacionesCount() > 9 ? '9+' : notificacionesCount() }}
+                </span>
+              }
+            </button>
+          }
 
           <!-- Botón de tema -->
           <button

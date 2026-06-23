@@ -36,8 +36,9 @@
         135deg,
         var(--color-primary),
         var(--color-accent)
-      ); // Azul a Esmeralda
+      );
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       margin: 0;
       letter-spacing: -0.03em;

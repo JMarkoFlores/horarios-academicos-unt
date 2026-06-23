@@ -41,6 +41,7 @@ export class DisponibilidadController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Obtener disponibilidad declarada de un docente" })
   @ApiParam({ name: "id", type: Number })

@@ -51,6 +51,7 @@ export interface Usuario {
   nombre: string;
   rol: string;
   docenteId?: number;
+  debe_cambiar_password?: boolean;
   contextoAcademico?: ContextoAcademico;
   idiomaPreferido?: string;
 }
@@ -59,6 +60,7 @@ export interface Docente {
   id: number;
   codigo: string;
   ibm?: number;
+  dni?: string;
   nombres: string;
   apellidos: string;
   email: string;

@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   HttpCode,
@@ -16,6 +17,7 @@ import {
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { CambiarPasswordDto } from "./dto/cambiar-password.dto";
+import { ActualizarPerfilDto } from "./dto/actualizar-perfil.dto";
 import { RecuperarPasswordDto } from "./dto/recuperar-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
@@ -44,7 +46,9 @@ export class AuthController {
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Obtener perfil y contexto académico del usuario" })
   @ApiResponse({ status: 200, description: "Perfil del usuario autenticado" })
-  async perfil(@CurrentUser() usuario: Usuario & { docenteId?: number | null }) {
+  async perfil(
+    @CurrentUser() usuario: Usuario & { docenteId?: number | null },
+  ) {
     const data = await this.authService.obtenerPerfil(usuario);
     return { data, message: "Perfil obtenido correctamente" };
   }
@@ -84,6 +88,22 @@ export class AuthController {
   ) {
     await this.authService.cambiarPassword(usuario, dto);
     return { message: "Contraseña cambiada exitosamente" };
+  }
+
+  @Patch("perfil")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({
+    summary: "Actualizar nombre y/o email del usuario autenticado",
+  })
+  @ApiResponse({ status: 200, description: "Perfil actualizado exitosamente" })
+  @ApiResponse({ status: 409, description: "El correo ya está registrado" })
+  async actualizarPerfil(
+    @CurrentUser() usuario: Usuario,
+    @Body() dto: ActualizarPerfilDto,
+  ) {
+    const data = await this.authService.actualizarPerfil(usuario, dto);
+    return { data, message: "Perfil actualizado exitosamente" };
   }
 
   @Post("recuperar-password")

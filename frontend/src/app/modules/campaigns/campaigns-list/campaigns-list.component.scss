@@ -6,17 +6,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 4px;
 
   .title-section {
-    display: flex;
-    flex-direction: column;
-
-    h1 {
+    .gradient-text {
       font-size: 28px;
-      font-weight: 700;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
       margin: 0;
-      color: #6366f1;
+      letter-spacing: -0.03em;
     }
     .subtitle {
       margin: 4px 0 0;
@@ -28,18 +29,23 @@
   .header-actions {
     display: flex;
     gap: 12px;
+    align-items: center;
 
     .btn-new {
-      background: #6366f1;
-      color: white;
-      padding: 8px 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-      transition: all 0.2s ease;
+      background: var(--color-accent) !important;
+      color: white !important;
+      border-radius: 12px !important;
+      height: 44px;
+      padding: 8px 20px !important;
+      font-weight: 600 !important;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+      transition: all 0.2s ease !important;
+
+      mat-icon { margin-right: 8px; }
 
       &:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
       }
     }
   }

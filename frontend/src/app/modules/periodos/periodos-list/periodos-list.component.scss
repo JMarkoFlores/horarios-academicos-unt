@@ -6,14 +6,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 4px;
 
   .title-section {
-    h1 {
+    .gradient-text {
       font-size: 28px;
-      font-weight: 700;
-      color: var(--color-text);
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
       margin: 0;
+      letter-spacing: -0.03em;
     }
     .subtitle {
       margin: 4px 0 0;
@@ -25,10 +29,22 @@
   .header-actions {
     display: flex;
     gap: 12px;
+    align-items: center;
 
     .btn-new {
-      background: #10b981;
-      color: white;
+      background: var(--color-accent) !important;
+      color: white !important;
+      border-radius: 12px !important;
+      padding: 8px 20px !important;
+      height: 44px;
+      font-weight: 600 !important;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+      transition: all 0.2s ease !important;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+      }
     }
   }
 }

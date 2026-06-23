@@ -25,6 +25,7 @@ import { Ambiente } from "./ambiente.entity";
 import { AsignacionLectiva } from "./asignacion-lectiva.entity";
 import { DeclaracionJurada } from "./declaracion-jurada.entity";
 import { CargaAdicional } from "./carga-adicional.entity";
+import { DeclaracionClad } from "./declaracion-clad.entity";
 
 @Entity("docente")
 @Index("idx_docente_categoria", ["categoria"])
@@ -139,4 +140,7 @@ export class Docente {
 
   @OneToMany(() => CargaAdicional, (ca) => ca.docente)
   carga_adicional: CargaAdicional[];
+
+  @OneToMany(() => DeclaracionClad, (dc) => dc.docente)
+  declaraciones_clad: DeclaracionClad[];
 }

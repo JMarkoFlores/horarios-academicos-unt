@@ -1,0 +1,79 @@
+<div class="header-container" *ngIf="clad">
+  <div class="header-content">
+    <div class="title-section">
+      <button mat-icon-button routerLink="..">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <div>
+        <h1>Verificar Declaración CLAD</h1>
+        <p>Docente: {{ clad.docente?.apellidos }}, {{ clad.docente?.nombres }}</p>
+      </div>
+    </div>
+    <div class="status-section">
+      <span class="badge" [ngClass]="getEstadoClass(clad.estado)">{{ clad.estado.replace('_', ' ') }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="main-content" *ngIf="clad">
+  <div class="content-grid">
+    <div class="left-col">
+      <mat-card class="info-card">
+        <h3>Datos de la Declaración</h3>
+        <p><strong>Dependencia:</strong> {{ clad.tipo_dependencia.replace('_', ' ') }}</p>
+        <p *ngIf="clad.nombre_dependencia"><strong>Nombre:</strong> {{ clad.nombre_dependencia }}</p>
+        <p><strong>Total Horas:</strong> {{ clad.total_horas }}</p>
+        <p><strong>Periodo:</strong> {{ clad.periodo_academico?.codigo }}</p>
+        
+        <h4 class="mt-4">Detalles</h4>
+        <div *ngFor="let det of clad.detalles" class="detalle-item">
+          <strong>{{ det.nombre_curso }} ({{ det.horas_semanales }}h)</strong>
+          <div class="horarios">
+            <div *ngFor="let h of det.horario" class="text-sm text-gray-600">
+              Día {{ h.dia }} | {{ h.hora_inicio }} - {{ h.hora_fin }} ({{ h.lugar }})
+            </div>
+          </div>
+        </div>
+      </mat-card>
+    </div>
+
+    <div class="right-col">
+      <mat-card class="action-card">
+        <h3>Acciones Disponibles</h3>
+        
+        <div class="acciones-container">
+          <button mat-raised-button color="primary" class="w-full mb-3"
+                  *ngIf="canEnviar()" (click)="enviar()">
+            <mat-icon>send</mat-icon> Enviar a Departamento
+          </button>
+
+          <button mat-raised-button color="primary" class="w-full mb-3"
+                  *ngIf="canValidarDpto()" (click)="validarDpto()">
+            <mat-icon>check_circle</mat-icon> Validar (Departamento)
+          </button>
+
+          <button mat-raised-button color="accent" class="w-full mb-3"
+                  *ngIf="canValidarDependencia()" (click)="validarDependencia()">
+            <mat-icon>verified</mat-icon> Validar (Dependencia)
+          </button>
+
+          <button mat-raised-button class="w-full mb-3 bg-green-600 text-white"
+                  *ngIf="canAprobarFinal()" (click)="aprobarFinal()">
+            <mat-icon>done_all</mat-icon> Aprobar Final (Decanato)
+          </button>
+
+          <div class="observacion-box" *ngIf="canObservar()">
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Motivo de Observación</mat-label>
+              <textarea matInput [(ngModel)]="motivoObservacion" rows="3"></textarea>
+            </mat-form-field>
+            <button mat-stroked-button color="warn" class="w-full"
+                    [disabled]="!motivoObservacion" (click)="observar()">
+              <mat-icon>feedback</mat-icon> Observar Declaración
+            </button>
+          </div>
+        </div>
+      </mat-card>
+    </div>
+  </div>
+</div>

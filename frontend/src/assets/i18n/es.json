@@ -41,6 +41,7 @@
     "horarios": "Horarios",
     "schedules": "Horarios",
     "mySchedules": "Mis Horarios",
+    "myWindows": "Mis Ventanas",
     "docentes": "Docentes",
     "teachers": "Docentes",
     "cursos": "Cursos",
@@ -79,6 +80,8 @@
       "main": "Principal",
       "academic": "Gestión Académica",
       "operations": "Operaciones",
+      "declarations": "Declaraciones",
+      "windows": "Ventanas y Atención",
       "reports": "Reportes y Análisis",
       "system": "Sistema"
     }
@@ -132,7 +135,8 @@
     "facultades": "Facultades",
     "planEstudios": "Plan de Estudios",
     "planEstudios_detalle": "Detalle",
-    "asignacionLectiva": "Asignación Lectiva"
+    "asignacionLectiva": "Asignación Lectiva",
+    "perfil": "Mi Perfil"
   },
   "planEstudios": {
     "title": "Plan de Estudios",

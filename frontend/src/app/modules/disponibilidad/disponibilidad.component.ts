@@ -39,6 +39,7 @@ export class DisponibilidadComponent implements OnInit {
   readonly saving = signal(false);
   readonly loading = signal(false);
   readonly loadingCatalogos = signal(true);
+  readonly horasIndividuales = signal<string[]>([]);
 
   constructor(
     private readonly disponibilidadService: DisponibilidadService,
@@ -47,20 +48,20 @@ export class DisponibilidadComponent implements OnInit {
   ) {}
 
   readonly horasDisponibles = computed(() => {
-    const turnos = this.turnos();
-    return this.redondearHoras(
-      this.grilla().reduce(
-        (total, fila) =>
-          total +
-          fila.reduce(
-            (subtotal, activa, turnoIndex) =>
-              subtotal +
-              (activa ? this.getDuracionTurnoHoras(turnos[turnoIndex]) : 0),
-            0,
-          ),
-        0,
-      ),
-    );
+    const grilla = this.grilla();
+    const horas = this.horasIndividuales();
+    const dias = this.diasActivos();
+    let total = 0;
+
+    for (let horaIndex = 0; horaIndex < grilla.length; horaIndex++) {
+      for (let diaIndex = 0; diaIndex < grilla[horaIndex].length; diaIndex++) {
+        if (grilla[horaIndex][diaIndex] > 0) {
+          total += 1; // Cada celda representa 1 hora
+        }
+      }
+    }
+
+    return total;
   });
 
   readonly minimoNormativo = computed(() => {
@@ -116,11 +117,8 @@ export class DisponibilidadComponent implements OnInit {
     return maximo > 0 && this.horasDisponibles() >= maximo;
   });
 
-  readonly hayTurnoManana = computed(() =>
-    this.turnos().some((turno) => this.esTurnoManana(turno)),
-  );
-
   ngOnInit(): void {
+    this.generarHorasIndividuales();
     this.cargarDatosIniciales();
 
     this.periodoService.periodo$
@@ -149,10 +147,18 @@ export class DisponibilidadComponent implements OnInit {
     return colors[Math.abs(hash) % colors.length];
   }
 
+  private generarHorasIndividuales(): void {
+    const horas: string[] = [];
+    for (let hora = 7; hora <= 22; hora++) {
+      horas.push(`${hora.toString().padStart(2, '0')}:00`);
+    }
+    this.horasIndividuales.set(horas);
+  }
+
   resetGrilla(): void {
     this.grilla.set(
-      Array.from({ length: this.diasActivos().length }, () =>
-        Array(this.turnos().length).fill(0),
+      Array.from({ length: this.horasIndividuales().length }, () =>
+        Array(this.diasActivos().length).fill(0),
       ),
     );
   }
@@ -162,8 +168,8 @@ export class DisponibilidadComponent implements OnInit {
     this.cargarDisponibilidad();
   }
 
-  toggleCelda(diaIndex: number, turnoIndex: number): void {
-    const estaActiva = (this.grilla()[diaIndex]?.[turnoIndex] ?? 0) > 0;
+  toggleCelda(horaIndex: number, diaIndex: number): void {
+    const estaActiva = (this.grilla()[horaIndex]?.[diaIndex] ?? 0) > 0;
 
     if (!estaActiva && this.limiteAlcanzado()) {
       const maximo = this.maximoNormativo();
@@ -177,44 +183,83 @@ export class DisponibilidadComponent implements OnInit {
 
     this.grilla.update((actual) =>
       actual.map((fila, filaIndex) =>
-        filaIndex === diaIndex
+        filaIndex === horaIndex
           ? fila.map((valor, columnaIndex) =>
-              columnaIndex === turnoIndex ? (valor === 0 ? 1 : 0) : valor,
+              columnaIndex === diaIndex ? (valor === 0 ? 1 : 0) : valor,
             )
           : [...fila],
       ),
     );
   }
 
-  marcarTurnoManana(): void {
-    const indices = this.turnos()
-      .map((turno, index) => (this.esTurnoManana(turno) ? index : -1))
-      .filter((index) => index >= 0);
+  marcarRangoHoras(horaInicio: number, horaFin: number): void {
+    const horas = this.horasIndividuales();
+    const startIndex = horas.findIndex(h => parseInt(h.split(':')[0]) === horaInicio);
+    const endIndex = horas.findIndex(h => parseInt(h.split(':')[0]) === horaFin);
 
-    if (indices.length === 0) {
-      this.snackBar.open(
-        'No existe un turno con nombre "mañana" en la configuración actual.',
-        'Cerrar',
-        { duration: 3000 },
-      );
+    if (startIndex === -1 || endIndex === -1) {
       return;
     }
 
     this.grilla.update((actual) =>
-      actual.map((fila) =>
-        fila.map((valor, turnoIndex) =>
-          indices.includes(turnoIndex) ? Math.min(valor + 1, 3) : valor,
-        ),
+      actual.map((fila, horaIndex) =>
+        horaIndex >= startIndex && horaIndex < endIndex
+          ? fila.map(() => 1)
+          : [...fila],
       ),
     );
+  }
+
+  desmarcarRangoHoras(horaInicio: number, horaFin: number): void {
+    const horas = this.horasIndividuales();
+    const startIndex = horas.findIndex(h => parseInt(h.split(':')[0]) === horaInicio);
+    const endIndex = horas.findIndex(h => parseInt(h.split(':')[0]) === horaFin);
+
+    if (startIndex === -1 || endIndex === -1) {
+      return;
+    }
+
+    this.grilla.update((actual) =>
+      actual.map((fila, horaIndex) =>
+        horaIndex >= startIndex && horaIndex < endIndex
+          ? fila.map(() => 0)
+          : [...fila],
+      ),
+    );
+  }
+
+  marcarTurnoManana(): void {
+    this.marcarRangoHoras(7, 13);
+  }
+
+  limpiarTurnoManana(): void {
+    this.desmarcarRangoHoras(7, 13);
+  }
+
+  marcarTurnoTarde(): void {
+    this.marcarRangoHoras(13, 18);
+  }
+
+  limpiarTurnoTarde(): void {
+    this.desmarcarRangoHoras(13, 18);
+  }
+
+  marcarTurnoNoche(): void {
+    this.marcarRangoHoras(18, 22);
+  }
+
+  limpiarTurnoNoche(): void {
+    this.desmarcarRangoHoras(18, 22);
   }
 
   limpiarSeleccion(): void {
     this.resetGrilla();
   }
 
-  getRangoTurno(turno: TurnoHorario): string {
-    return `${turno.hora_inicio.slice(0, 5)} - ${turno.hora_fin.slice(0, 5)}`;
+  getHoraFin(horaInicio: string): string {
+    const [hora] = horaInicio.split(':').map(Number);
+    const horaFin = hora + 1;
+    return `${horaFin.toString().padStart(2, '0')}:00`;
   }
 
   guardar(): void {
@@ -225,13 +270,18 @@ export class DisponibilidadComponent implements OnInit {
 
     this.saving.set(true);
 
-    const slots = this.diasActivos().flatMap((dia, diaIndex) =>
-      this.turnos().map((turno, turnoIndex) => ({
-        dia_semana: dia.dia_semana,
-        hora_inicio: turno.hora_inicio,
-        hora_fin: turno.hora_fin,
-        disponible: (this.grilla()[diaIndex]?.[turnoIndex] ?? 0) > 0,
-      })),
+    const slots = this.horasIndividuales().flatMap((hora, horaIndex) =>
+      this.diasActivos().map((dia, diaIndex) => {
+        const disponible = (this.grilla()[horaIndex]?.[diaIndex] ?? 0) > 0;
+        const [horaNum] = hora.split(':').map(Number);
+        const horaFin = `${(horaNum + 1).toString().padStart(2, '0')}:00`;
+        return {
+          dia_semana: dia.dia_semana,
+          hora_inicio: hora,
+          hora_fin: horaFin,
+          disponible,
+        };
+      }),
     );
 
     this.disponibilidadService
@@ -327,7 +377,7 @@ export class DisponibilidadComponent implements OnInit {
       return;
     }
 
-    if (this.diasActivos().length === 0 || this.turnos().length === 0) {
+    if (this.diasActivos().length === 0 || this.horasIndividuales().length === 0) {
       this.resetGrilla();
       return;
     }
@@ -365,43 +415,15 @@ export class DisponibilidadComponent implements OnInit {
         }
       });
 
-    const siguienteMatriz = this.diasActivos().map((dia) =>
-      this.turnos().map((turno) => {
-        const bloquesTurno = this.obtenerBloquesTurno(turno);
-        return (
-          bloquesTurno.length > 0 &&
-          bloquesTurno.every((minuto) =>
-            bloquesDisponibles.has(`${dia.dia_semana}-${minuto}`),
-          )
-        ) ? 1 : 0;
+    const siguienteMatriz = this.horasIndividuales().map((hora) =>
+      this.diasActivos().map((dia) => {
+        const [horaNum] = hora.split(':').map(Number);
+        const minutos = horaNum * 60;
+        return bloquesDisponibles.has(`${dia.dia_semana}-${minutos}`) ? 1 : 0;
       }),
     );
 
     this.grilla.set(siguienteMatriz);
-  }
-
-  private obtenerBloquesTurno(turno: TurnoHorario): number[] {
-    const inicio = this.horaAMinutos(turno.hora_inicio);
-    const fin = this.horaAMinutos(turno.hora_fin);
-    const bloques: number[] = [];
-
-    for (let minuto = inicio; minuto < fin; minuto += 60) {
-      bloques.push(minuto);
-    }
-
-    return bloques;
-  }
-
-  private getDuracionTurnoHoras(turno?: TurnoHorario): number {
-    if (!turno) {
-      return 0;
-    }
-
-    return this.redondearHoras(
-      (this.horaAMinutos(turno.hora_fin) -
-        this.horaAMinutos(turno.hora_inicio)) /
-        60,
-    );
   }
 
   private horaAMinutos(hora: string): number {
@@ -411,16 +433,5 @@ export class DisponibilidadComponent implements OnInit {
 
   private redondearHoras(valor: number): number {
     return Number(valor.toFixed(2));
-  }
-
-  private esTurnoManana(turno: TurnoHorario): boolean {
-    return this.normalizarTexto(turno.nombre).includes('manana');
-  }
-
-  private normalizarTexto(valor: string): string {
-    return valor
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
   }
 }

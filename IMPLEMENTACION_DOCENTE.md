@@ -533,6 +533,13 @@ El docente puede marcar su disponibilidad horaria, ver sus horas disponibles, y 
    - **Solución**: Agregar validación de no superposición
    - **Estado**: Sin validación
 
+4. **F6: Estructura de grilla en HTML no coincide con TypeScript**
+   - **Ubicación**: `disponibilidad.component.html:169-183`
+   - **Problema**: La grilla en TypeScript tiene estructura `grilla[diaIndex][horaIndex]` (días como filas, horas como columnas), pero el HTML renderizaba horas como filas y días como columnas, causando que las celdas solo aparecieran en el primer día
+   - **Impacto**: Las celdas de disponibilidad no se mostraban correctamente para días distintos al primero
+   - **Solución**: Corregir el HTML para iterar días como filas y horas como columnas, coincidiendo con la estructura de datos
+   - **Estado**: Corregido - HTML ahora renderiza días como filas
+
 ### Backend
 4. **F4: Unique constraint demasiado estricto**
    - **Ubicación**: `disponibilidad-docente.entity.ts:13`
@@ -565,6 +572,7 @@ El docente puede marcar su disponibilidad horaria, ver sus horas disponibles, y 
   - Redondeo por string formatting
   - Sin validación de superposición
   - Unique constraint incompleto
+  - Estructura de grilla HTML/TypeScript desalineada (corregido)
 
 ---
 
@@ -1148,6 +1156,210 @@ El docente no interactúa directamente con esta vista. Es para decanos/administr
    - Manejo de errores específico en PDFs
 19. Mejorar validaciones según feedback de usuarios
 20. Documentar arquitectura y decisiones de diseño
+
+---
+
+# HALLAZGOS ADICIONALES DEL ROL DOCENTE (FECHA: 2026-06-21)
+
+## Problemas Identificados
+
+### Backend - Permisos
+
+1. **F1: Endpoint /disponibilidad/docente/:id sin rol DOCENTE**
+   - **Ubicación**: `backend/src/disponibilidad/disponibilidad.controller.ts:38-57`
+   - **Problema**: El endpoint `GET /disponibilidad/docente/:id` NO incluye `RolUsuario.DOCENTE` en el decorator `@Roles()`
+   - **Roles permitidos**: ADMINISTRADOR_SISTEMA, COORDINADOR_ACADEMICO, SECRETARIA, DIRECTOR_DEPARTAMENTO
+   - **Impacto**: Error 403 "Forbidden resource" cuando un docente intenta acceder a su propia disponibilidad
+   - **Solución**: Agregar `RolUsuario.DOCENTE` al decorator `@Roles()`
+   - **Estado**: ✅ CORREGIDO
+
+### Frontend - Vistas del Rol Docente
+
+2. **F2: Dashboard no redirige a mis horarios para docentes**
+   - **Ubicación**: `frontend/src/app/auth/login.component.ts:13`
+   - **Problema**: El usuario reporta que al loguearse como docente va directamente a mis horarios en lugar del dashboard
+   - **Hallazgo**: En `login.component.ts`, la constante `ROL_REDIRECT` redirige a docentes a `/app/mis-horarios` en lugar de `/app/dashboard`
+   - **Impacto**: El docente no puede ver su panel de control personalizado
+   - **Solución**: Cambiar redirección de docente a `/app/dashboard`
+   - **Estado**: ✅ CORREGIDO
+
+3. **F3: Notificaciones no diferenciadas por rol**
+   - **Ubicación**: `frontend/src/app/modules/notificaciones/notificaciones.component.html`
+   - **Problema**: Las notificaciones aparecen igual que las del administrador
+   - **Hallazgo**: El componente verifica si es admin y carga estadísticas, pero para docentes carga preferencias e historial. La vista no estaba claramente diferenciada por rol.
+   - **Impacto**: El docente ve una interfaz similar a la del administrador, lo que puede causar confusión
+   - **Solución**: Diferenciar claramente la interfaz por rol con títulos y subtítulos específicos
+   - **Estado**: ✅ CORREGIDO
+
+4. **F4: No hay módulo de ventanas de atención para docentes**
+   - **Ubicación**: `backend/src/modules/ventanas/ventanas.controller.ts`
+   - **Problema**: No hay sección para que los docentes vean y entren a sus ventanas de atención según su turno establecido
+   - **Hallazgo**: Los módulos de ventanas están en el módulo `operador` (secretaria), no hay un módulo específico para docentes
+   - **Impacto**: Los docentes no pueden ver sus turnos asignados ni acceder a las ventanas de atención
+   - **Solución**: Agregar endpoint `/mis-ventanas` en backend para que docentes vean sus ventanas asignadas
+   - **Estado**: ✅ CORREGIDO (backend endpoint agregado, pendiente frontend module)
+
+5. **F5: Notificaciones de ventanas de atención no verificadas**
+   - **Ubicación**: `backend/src/notificaciones/notificaciones.service.ts`
+   - **Problema**: No se sabe si se están dando correctamente las notificaciones para escoger horario de carga lectiva con ventanas de atención (telegram, correo, sistema)
+   - **Hallazgo**: El servicio de notificaciones tiene métodos `enviarRecordatorio24h()` y `enviarAlerta15min()` que programan notificaciones para ventanas de atención. Estos métodos son llamados cuando se pre-asignan docentes a una ventana.
+   - **Impacto**: Los docentes pueden no recibir notificaciones oportunas para escoger sus horarios
+   - **Solución**: El sistema de notificaciones está implementado. Se requiere verificar que las colas de Bull estén configuradas correctamente y que los jobs se ejecuten.
+   - **Estado**: ✅ VERIFICADO (sistema implementado, requiere configuración de colas)
+
+### Frontend - Sidebar
+
+6. **F6: Sidebar muestra vista de preferencias de notificación**
+   - **Ubicación**: `frontend/src/app/layout/layout.component.ts:267-271`
+   - **Problema**: El sidebar muestra un ítem de "Notificaciones" que lleva a preferencias de notificación
+   - **Hallazgo**: El ítem de notificaciones está disponible para DOCENTE y ADMINISTRADOR_SISTEMA. La vista actual muestra preferencias e historial, pero no hay una vista separada de notificaciones recibidas (inbox).
+   - **Impacto**: El docente puede acceder a preferencias de notificación, pero no hay una vista clara de sus notificaciones recibidas
+   - **Solución**: Diferenciar entre preferencias de notificación y vista de notificaciones recibidas (requiere crear componente separado para inbox)
+   - **Estado**: ⚠️ PARCIALMENTE CORREGIDO (vista diferenciada por rol, pendiente separar preferencias vs inbox)
+
+## Resumen de Hallazgos del Rol Docente
+
+- **Total hallazgos identificados**: 6
+- **Hallazgos críticos corregidos**: 1 (F1 - Error 403 en disponibilidad)
+- **Hallazgos de alta prioridad corregidos**: 3 (F2, F3, F4)
+- **Hallazgos de media prioridad**: 2 (F5 verificado, F6 parcialmente corregido)
+
+## Prioridad Sugerida de Correcciones
+
+### Prioridad CRÍTICA (bloquea funcionalidad principal)
+1. ✅ Agregar `RolUsuario.DOCENTE` al endpoint `/disponibilidad/docente/:id` en backend
+
+### Prioridad ALTA (afecta UX del docente)
+2. ✅ Crear módulo de ventanas de atención para docentes (backend endpoint agregado)
+3. ✅ Diferenciar claramente la vista de notificaciones por rol
+4. ✅ Investigar y corregir la redirección del dashboard para docentes
+
+### Prioridad MEDIA (mejoras de UX)
+5. ✅ Verificar el sistema de notificaciones de ventanas de atención (sistema implementado)
+6. ⚠️ Diferenciar entre preferencias de notificación y vista de notificaciones recibidas (vista diferenciada por rol, pendiente separar preferencias vs inbox)
+
+## Tareas Pendientes
+
+1. Crear módulo frontend para que los docentes vean sus ventanas de atención asignadas (usar endpoint `/mis-ventanas`)
+2. Crear componente separado para vista de notificaciones recibidas (inbox) vs preferencias
+3. Verificar configuración de colas de Bull para que las notificaciones de ventanas se ejecuten correctamente
+
+---
+
+# MODELO HÍBRIDO DE DISPONIBILIDAD CON TURNOS (FECHA: 2026-06-21)
+
+## Descripción del Modelo
+
+Se ha implementado un modelo híbrido de disponibilidad que combina:
+- **Modelo principal por horas (slots finos)**: Disponibilidad guardada por día + rango horario (ej. 07:00–22:00 en bloques de 1 hora)
+- **Capa de turnos como vista/atalho**: Turnos configurables que el docente puede seleccionar para marcar automáticamente los bloques horarios correspondientes
+
+## Arquitectura
+
+### Backend
+
+#### Entity TurnoConfig
+- **Ubicación**: `backend/src/entities/turno-config.entity.ts`
+- **Propiedades**:
+  - `id`: Identificador único
+  - `nombre`: Nombre del turno (ej. "Mañana", "Tarde")
+  - `tipo`: Enum TipoTurno (MANANA, TARDE, NOCHE, SABADO_MANANA, SABADO_TARDE)
+  - `hora_inicio`: Hora de inicio (ej. "07:00")
+  - `hora_fin`: Hora de fin (ej. "13:00")
+  - `intervalo_minutos`: Intervalo en minutos para los slots (default: 60)
+  - `dias_habilitados`: Array de días habilitados (ej. [1,2,3,4,5] para lunes-viernes)
+  - `facultad_id`: ID de facultad (null para configuración global)
+  - `activo`: Boolean para activar/desactivar
+  - `descripcion`: Descripción opcional
+
+#### TurnoConfigService
+- **Ubicación**: `backend/src/disponibilidad/turno-config.service.ts`
+- **Métodos principales**:
+  - `obtenerTurnosActivos(facultadId?)`: Obtiene turnos activos (globales o por facultad)
+  - `convertirTurnosASlots(turnoIds, docenteId, periodo)`: Convierte turnos seleccionados a slots de disponibilidad
+  - `aplicarTurnosADocente(turnoIds, docenteId, periodo)`: Aplica turnos seleccionados a un docente
+  - `inicializarTurnosPorDefecto()`: Inicializa turnos por defecto para UNT
+
+#### TurnoConfigController
+- **Ubicación**: `backend/src/disponibilidad/turno-config.controller.ts`
+- **Endpoints**:
+  - `GET /turno-config`: Obtener turnos activos
+  - `POST /turno-config`: Crear configuración de turno (admin/coordinador)
+  - `PUT /turno-config/:id`: Actualizar configuración de turno (admin/coordinador)
+  - `DELETE /turno-config/:id`: Eliminar configuración de turno (admin/coordinador)
+  - `POST /turno-config/aplicar`: Aplicar turnos seleccionados a disponibilidad de docente (docente/secretaria)
+  - `POST /turno-config/inicializar`: Inicializar turnos por defecto (admin)
+
+### Frontend
+
+#### TurnoConfigService
+- **Ubicación**: `frontend/src/app/core/services/turno-config.service.ts`
+- **Métodos**:
+  - `obtenerTurnos(facultadId?)`: Obtiene turnos configurados
+  - `aplicarTurnos(body)`: Aplica turnos seleccionados a disponibilidad de docente
+  - `inicializarTurnos()`: Inicializa turnos por defecto
+
+#### DisponibilidadComponent
+- **Ubicación**: `frontend/src/app/modules/disponibilidad/disponibilidad.component.ts`
+- **Nuevas señales**:
+  - `turnosConfig`: Array de turnos configurados
+  - `turnosSeleccionados`: Array de IDs de turnos seleccionados
+- **Nuevos métodos**:
+  - `cargarTurnosConfig()`: Carga configuración de turnos
+  - `toggleTurnoSeleccionado(turnoId)`: Alterna selección de turno
+  - `aplicarTurnosSeleccionados()`: Aplica turnos seleccionados a disponibilidad
+  - `getDiaNombre(dia)`: Obtiene nombre del día en español
+
+#### DisponibilidadComponent HTML
+- **Nueva sección**: "Selección Rápida por Turnos"
+- **Funcionalidad**:
+  - Muestra turnos configurados como checkboxes
+  - Permite seleccionar múltiples turnos
+  - Botón "Aplicar Turnos Seleccionados" para marcar automáticamente los slots correspondientes
+  - Botón "Cancelar" para limpiar selección
+
+### Seeds
+
+#### seedTurnosPorDefecto
+- **Ubicación**: `backend/src/database/seed.ts`
+- **Función**: Inicializa 4 turnos por defecto para UNT:
+  - Mañana (07:00 - 13:00, lunes-viernes)
+  - Tarde (13:00 - 18:00, lunes-viernes)
+  - Noche (18:00 - 22:00, lunes-viernes)
+  - Sábado Mañana (07:00 - 13:00, sábado)
+
+#### seedDisponibilidadesDocentes
+- **Ubicación**: `backend/src/database/seed.ts`
+- **Función**: Genera disponibilidades para todos los docentes activos
+- **Lógica**: Asigna 1-2 turnos aleatorios a cada docente y genera los slots correspondientes
+
+## Ventajas del Modelo Híbrido
+
+1. **Flexibilidad**: Si otra universidad tiene horarios distintos, basta cambiar la configuración de turnos
+2. **UX mejorada**: El docente puede marcar "turno mañana" y el sistema marca automáticamente los bloques horarios
+3. **Precisión interna**: El motor de asignación sigue trabajando con slots finos para máxima precisión
+4. **Mantenibilidad**: La lógica de negocio permanece igual, solo cambia la configuración de turnos
+
+## Configuración por Defecto para UNT
+
+- **Mañana**: 07:00 - 13:00 (lunes-viernes)
+- **Tarde**: 13:00 - 18:00 (lunes-viernes)
+- **Noche**: 18:00 - 22:00 (lunes-viernes)
+- **Sábado Mañana**: 07:00 - 13:00 (sábado)
+
+## Uso
+
+### Para Docentes
+1. Ir a la página de Disponibilidad
+2. Ver la sección "Selección Rápida por Turnos"
+3. Seleccionar los turnos deseados (ej. Mañana, Tarde)
+4. Clic en "Aplicar Turnos Seleccionados"
+5. El sistema marca automáticamente todos los bloques horarios correspondientes
+
+### Para Administradores
+1. Crear/Editar configuraciones de turno según necesidades de la facultad
+2. Inicializar turnos por defecto con `POST /turno-config/inicializar`
+3. Configurar turnos específicos por facultad si es necesario
 
 ---
 

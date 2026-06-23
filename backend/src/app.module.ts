@@ -33,6 +33,7 @@ import { DeclaracionesModule } from "./modules/declaraciones/declaraciones.modul
 import { ChatbotModule } from "./chatbot/chatbot.module";
 import { PlanEstudiosModule } from "./modules/plan-estudios/plan-estudios.module";
 import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion-lectiva.module";
+import { CladModule } from "./clad/clad.module";
 
 @Module({
   imports: [
@@ -122,6 +123,7 @@ import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion
     ChatbotModule,
     PlanEstudiosModule,
     AsignacionLectivaModule,
+    CladModule,
   ],
   providers: [
     {

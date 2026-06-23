@@ -1645,7 +1645,7 @@ export class DeclaracionCargaHorariaService {
     for (const h of horarios) {
       if (!h.curso || !h.grupo) continue;
 
-      const key = `${h.curso_id}-${h.grupo_id}`;
+      const key = `${h.curso_id}`;
       const horasBloque = this.calcularHorasBloque(h.hora_inicio, h.hora_fin);
 
       if (!cursosMap.has(key)) {
@@ -1654,7 +1654,7 @@ export class DeclaracionCargaHorariaService {
           codigo: h.curso.codigo,
           nombre: h.curso.nombre,
           tipoCurso: "",
-          seccion: h.grupo.codigo || h.grupo.nombre || "",
+          secciones: new Set([h.grupo.codigo || h.grupo.nombre || ""]),
           escuela:
             h.curso.departamento?.escuela?.nombre || "Ingeniería de Sistemas",
           ciclo: h.curso.ciclo || 0,
@@ -1666,14 +1666,21 @@ export class DeclaracionCargaHorariaService {
         });
       } else {
         const entry = cursosMap.get(key);
+        const seccion = h.grupo.codigo || h.grupo.nombre || "";
+        if (seccion) entry.secciones.add(seccion);
         if (h.tipo_clase === TipoClase.TEORIA) entry.hrsTeo += horasBloque;
         if (h.tipo_clase === TipoClase.PRACTICA) entry.hrsPra += horasBloque;
         if (h.tipo_clase === TipoClase.LABORATORIO) entry.hrsLab += horasBloque;
         entry.totalHrs += horasBloque;
+        entry.nroAlumnos = Math.max(entry.nroAlumnos, h.grupo.cupo_maximo || 40);
       }
     }
 
     const resultado = Array.from(cursosMap.values());
+    for (const entry of resultado) {
+      entry.seccion = Array.from(entry.secciones).filter(Boolean).join(", ");
+      delete entry.secciones;
+    }
     this.logger.debug(`Resultado final: ${resultado.length} cursos`);
     return resultado;
   }
@@ -1780,13 +1787,34 @@ export class DeclaracionCargaHorariaService {
     }
 
     // CL-V1: Carga lectiva SIEMPRE desde AsignacionLectiva (source of truth)
-    const asignaciones = await this.asignacionLectivaRepo.find({
+    // Fallback a HorarioAsignado si no hay asignaciones lectivas
+    let asignaciones = await this.asignacionLectivaRepo.find({
       where: { docente_id, periodo_id: periodoId },
     });
-    const totalLectivas = asignaciones.reduce(
+    let totalLectivas = asignaciones.reduce(
       (sum, a) => sum + Number(a.horas_asignadas),
       0,
     );
+
+    // Fallback: calcular desde HorarioAsignado si no hay asignaciones lectivas
+    if (totalLectivas === 0) {
+      const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+      if (periodo) {
+        const horarios = await this.horarioRepo
+          .createQueryBuilder("horario")
+          .where("horario.docente_id = :docente_id", { docente_id })
+          .andWhere("horario.periodo = :periodo", { periodo: periodo.codigo })
+          .getMany();
+        
+        totalLectivas = horarios.reduce((sum, h) => {
+          const horasBloque = this.calcularHorasBloque(h.hora_inicio, h.hora_fin);
+          return sum + horasBloque;
+        }, 0);
+        
+        this.logger.debug(`Carga lectiva calculada desde HorarioAsignado: ${totalLectivas}h para docente ${docente_id}`);
+      }
+    }
+    
     const totalCursosAsignados =
       asignaciones.length > 0
         ? new Set(asignaciones.map((a) => a.curso_plan_id)).size
@@ -1819,19 +1847,30 @@ export class DeclaracionCargaHorariaService {
 
     // CL-V2 + CL-V4: validar rubros no lectivos
     const actividades = carga_no_lectiva?.actividades ?? [];
+    
+    // Validar sincronización entre horarios y horas
+    for (const act of actividades) {
+      const horasDeclaradas = Number(act.horas) || 0;
+      const horasManual = act.horasManual === true;
+      
+      if (horasDeclaradas > 0 && act.id !== 1 && (!act.detalle || act.detalle.trim().length < 10)) {
+        throw new BadRequestException(
+          `El rubro "${act.descripcion || act.id}" tiene ${horasDeclaradas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
+        );
+      }
+      
+      // Validar que si hay horas, haya horarios (excepto rubro 1) - ahora es advertencia, no error bloqueante
+      if (horasDeclaradas > 0 && act.id !== 1 && (!act.horarios || !Array.isArray(act.horarios) || act.horarios.length === 0)) {
+        this.logger.warn(
+          `Advertencia: El rubro "${act.descripcion || act.id}" tiene ${horasDeclaradas}h pero no tiene horarios registrados. Se recomienda asignar horarios.`,
+        );
+      }
+    }
+    
     const totalNoLectivas = actividades.reduce(
       (sum: number, a: any) => sum + (Number(a.horas) || 0),
       0,
     );
-
-    for (const act of actividades) {
-      const horas = Number(act.horas) || 0;
-      if (horas > 0 && act.id !== 1 && (!act.detalle || act.detalle.trim().length < 10)) {
-        throw new BadRequestException(
-          `El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
-        );
-      }
-    }
 
     declaracion.carga_no_lectiva = carga_no_lectiva || null;
     declaracion.total_horas_no_lectivas = totalNoLectivas;

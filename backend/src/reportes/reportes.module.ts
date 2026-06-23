@@ -12,6 +12,7 @@ import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { PlanEstudios } from "../entities/plan-estudios.entity";
 import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
 import { Departamento } from "../entities/departamento.entity";
+import { DeclaracionClad } from "../entities/declaracion-clad.entity";
 import { ReportesService } from "./reportes.service";
 import { ReportesController } from "./reportes.controller";
 import { ConfiguracionModule } from "../configuracion/configuracion.module";
@@ -31,6 +32,7 @@ import { ConfiguracionModule } from "../configuracion/configuracion.module";
       PlanEstudios,
       CursoPlanEstudios,
       Departamento,
+      DeclaracionClad,
     ]),
     ConfiguracionModule,
   ],

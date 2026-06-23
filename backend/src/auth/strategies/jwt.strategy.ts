@@ -22,7 +22,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>("JWT_SECRET") ?? "fallback-secret-dev-only",
+      secretOrKey:
+        configService.get<string>("JWT_SECRET") ?? "fallback-secret-dev-only",
     });
   }
 
@@ -64,4 +65,3 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return usuarioConDocente;
   }
 }
-

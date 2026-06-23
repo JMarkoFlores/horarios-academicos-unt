@@ -440,7 +440,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     this.totalHorasLectivas = this.cursosLectivos.reduce((sum, c) => sum + (c.totalHrs || 0), 0);
 
     for (const act of this.actividadesNoLectivas) {
-      if (!act.horasManual) {
+      if (!act.horasManual && (!act.horas || act.horas === 0)) {
         const calc = this.calcularHorasDesdeHorarios(act.horarios);
         if (calc > 0) act.horas = calc;
       }
@@ -656,6 +656,9 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   onActividadChange(actividad?: ActividadNoLectiva): void {
     if (!actividad) return;
     actividad.horas = this.sanitizeNumero(actividad.horas);
+    
+    // Activar modo manual cuando el usuario cambia las horas manualmente
+    actividad.horasManual = true;
 
     if (actividad.id === 2) {
       const maxPermitido = Math.floor(this.totalHorasLectivas * 0.5);
@@ -685,6 +688,17 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
         { duration: 4000, panelClass: ['snackbar-warning'] },
       );
     }
+    
+    // Validación: si horas es 0 pero hay horarios asignados
+    if (actividad.horas === 0 && actividad.horarios && actividad.horarios.length > 0) {
+      const horasDesdeHorarios = this.calcularHorasDesdeHorarios(actividad.horarios);
+      this.snackBar.open(
+        `Ha asignado horarios pero las horas están en 0. Los horarios suman ${horasDesdeHorarios.toFixed(2)}h.`,
+        'OK',
+        { duration: 5000, panelClass: ['snackbar-warning'] },
+      );
+    }
+    
     this.calcularTotales();
     this.triggerAutoSave();
   }
@@ -696,6 +710,10 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       this.cargandoHorariosLectivos = false;
     }
 
+    // Guardar el valor original de horas para no sobreescribir si el usuario las ingresó manualmente
+    const horasOriginales = actividad.horas;
+    const horasManualOriginal = actividad.horasManual;
+
     const allHorarios = this.actividadesNoLectivas
       .filter(a => a.id !== actividad.id && a.horarios && a.horarios.length > 0)
       .map(a => ({
@@ -703,6 +721,12 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
         actividadNombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
         horarios: [...a.horarios],
       }));
+
+    // Calcular maxHoras para preparación y evaluación (50% de lectivas)
+    let maxHoras: number | undefined;
+    if (actividad.id === 2) {
+      maxHoras = Math.floor(this.totalHorasLectivas * 0.5);
+    }
 
     const data: GestionarHorarioData = {
       actividadId: actividad.id,
@@ -712,6 +736,8 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       horasManual: actividad.horasManual,
       allHorarios,
       horariosLectivos: this.horariosLectivos.map(h => ({ ...h })),
+      maxHoras,
+      totalHorasLectivas: this.totalHorasLectivas,
     };
 
     const ref = this.dialog.open(GestionarHorarioDialogComponent, {
@@ -725,7 +751,24 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       if (!result) return;
       actividad.horarios = result.horarios;
       actividad.horasManual = result.horasManual;
-      actividad.horas = result.horas;
+      
+      // Solo actualizar horas si:
+      // - El usuario activó modo manual en el diálogo, O
+      // - Las horas estaban vacías (0) antes de abrir el diálogo, O
+      // - El usuario presionó ACTUALIZAR explícitamente (horasActualizadas flag)
+      if (!horasManualOriginal && (!horasOriginales || horasOriginales === 0)) {
+        actividad.horas = result.horas;
+      }
+      // Si el usuario tenía horas ingresadas manualmente, mantenerlas
+      // Solo actualizar si el usuario las modificó explícitamente en el diálogo (horasManual cambió a true)
+      else if (result.horasManual && !horasManualOriginal) {
+        actividad.horas = result.horas;
+      }
+      // Si el usuario presionó ACTUALIZAR en el snackBar de discrepancia
+      else if (result.horasActualizadas) {
+        actividad.horas = result.horas;
+      }
+      
       this.calcularTotales();
       this.triggerAutoSave();
     });

@@ -197,6 +197,29 @@ export class VentanasController {
     return { data, message: "Ventanas obtenidas", statusCode: HttpStatus.OK };
   }
 
+  @Get("mis-ventanas")
+  @Roles(RolUsuario.DOCENTE)
+  @ApiOperation({ summary: "Obtener ventanas de atención asignadas al docente autenticado" })
+  @ApiQuery({ name: "periodo", required: true, type: String })
+  async getMisVentanas(
+    @CurrentUser() user: Usuario,
+    @Query("periodo") periodo: string,
+  ) {
+    const docenteId = (user as Usuario & { docenteId?: number }).docenteId;
+    if (!docenteId) {
+      return {
+        data: [],
+        message: "Usuario no vinculado a docente",
+        statusCode: HttpStatus.OK,
+      };
+    }
+    const data = await this.ventanasService.obtenerVentanasPorDocente(
+      docenteId,
+      periodo,
+    );
+    return { data, message: "Ventanas obtenidas", statusCode: HttpStatus.OK };
+  }
+
   @Get("activa")
   @ApiOperation({ summary: "Obtener la ventana de atención activa actual" })
   async getVentanaActiva() {

@@ -41,7 +41,7 @@ export class NotificacionesComponent implements OnInit {
 
   ngOnInit(): void {
     const usuario = this.authService.getUsuarioActual();
-    this.docenteId = usuario?.docenteId ?? null;
+    this.docenteId = usuario?.docenteId ?? usuario?.contextoAcademico?.docenteId ?? null;
     this.isAdmin = this.authService.hasRole(ROLES.ADMINISTRADOR_SISTEMA);
 
     // Diagnóstico visible

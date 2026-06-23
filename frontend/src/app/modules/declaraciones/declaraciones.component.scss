@@ -1,7 +1,34 @@
-.declaraciones-container {
-  padding: 24px 28px;
-  width: 100%;
+.declaraciones-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
   box-sizing: border-box;
+}
+
+.page-header-premium {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+
+  .title-section {
+    .gradient-text {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+    .subtitle {
+      color: var(--color-text-muted);
+      margin: 4px 0 0;
+      font-size: 14px;
+    }
+  }
 }
 
 ::ng-deep .docentes-dropdown-panel {

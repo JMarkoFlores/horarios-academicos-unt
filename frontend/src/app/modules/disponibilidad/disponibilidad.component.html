@@ -32,10 +32,49 @@
           mat-stroked-button
           class="btn-secondary"
           (click)="marcarTurnoManana()"
-          [disabled]="!hayTurnoManana()"
-          matTooltip="Marca todas las celdas del turno mañana"
+          matTooltip="Marca todas las celdas del turno mañana (07:00-13:00)"
         >
-          <mat-icon>wb_sunny</mat-icon> <span>Marcar todo el turno mañana</span>
+          <mat-icon>wb_sunny</mat-icon> <span>Marcar mañana</span>
+        </button>
+        <button
+          mat-stroked-button
+          class="btn-secondary"
+          (click)="limpiarTurnoManana()"
+          matTooltip="Desmarca todas las celdas del turno mañana (07:00-13:00)"
+        >
+          <mat-icon>wb_sunny</mat-icon> <span>Limpiar mañana</span>
+        </button>
+        <button
+          mat-stroked-button
+          class="btn-secondary"
+          (click)="marcarTurnoTarde()"
+          matTooltip="Marca todas las celdas del turno tarde (13:00-18:00)"
+        >
+          <mat-icon>wb_twilight</mat-icon> <span>Marcar tarde</span>
+        </button>
+        <button
+          mat-stroked-button
+          class="btn-secondary"
+          (click)="limpiarTurnoTarde()"
+          matTooltip="Desmarca todas las celdas del turno tarde (13:00-18:00)"
+        >
+          <mat-icon>wb_twilight</mat-icon> <span>Limpiar tarde</span>
+        </button>
+        <button
+          mat-stroked-button
+          class="btn-secondary"
+          (click)="marcarTurnoNoche()"
+          matTooltip="Marca todas las celdas del turno noche (18:00-22:00)"
+        >
+          <mat-icon>nights_stay</mat-icon> <span>Marcar noche</span>
+        </button>
+        <button
+          mat-stroked-button
+          class="btn-secondary"
+          (click)="limpiarTurnoNoche()"
+          matTooltip="Desmarca todas las celdas del turno noche (18:00-22:00)"
+        >
+          <mat-icon>nights_stay</mat-icon> <span>Limpiar noche</span>
         </button>
         <button
           mat-stroked-button
@@ -43,7 +82,7 @@
           (click)="limpiarSeleccion()"
           matTooltip="Desmarcar todas las celdas"
         >
-          <mat-icon>deselect</mat-icon> <span>Limpiar selección</span>
+          <mat-icon>deselect</mat-icon> <span>Limpiar todo</span>
         </button>
         <div class="divider"></div>
         <button
@@ -113,37 +152,35 @@
         </div>
       </div>
 
-      <div class="empty-grid-state" *ngIf="turnos().length === 0 || diasActivos().length === 0">
+      <div class="empty-grid-state" *ngIf="horasIndividuales().length === 0 || diasActivos().length === 0">
         <mat-icon>calendar_view_week</mat-icon>
-        <p>No hay turnos activos o días habilitados para construir la grilla.</p>
+        <p>No hay horas activas o días habilitados para construir la grilla.</p>
       </div>
 
-      <div class="grilla-scroll" *ngIf="turnos().length > 0 && diasActivos().length > 0">
-        <table class="premium-grilla">
-          <thead>
-            <tr>
-              <th class="hora-col">Turno</th>
-              <th *ngFor="let dia of diasActivos()" class="dia-col">{{ dia.nombre }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let turno of turnos(); let ti = index">
-              <td class="hora-cell">
-                <div class="time-box">
-                  <span class="start">{{ turno.nombre }}</span>
-                  <span class="end">{{ getRangoTurno(turno) }}</span>
-                </div>
-              </td>
-              <td
-                *ngFor="let dia of diasActivos(); let di = index"
-                class="slot-cell"
-                [class.disponible]="grilla()[di][ti] > 0"
-                (click)="toggleCelda(di, ti)"
+      <div class="grilla-scroll" *ngIf="horasIndividuales().length > 0 && diasActivos().length > 0">
+        <div class="horario-grid-container">
+          <div class="horario-header">
+            <div class="header-cell hora-col">Hora</div>
+            <div *ngFor="let dia of diasActivos()" class="header-cell">{{ dia.nombre }}</div>
+          </div>
+          
+          <div class="horario-body">
+            <div *ngFor="let hora of horasIndividuales(); let horaIndex = index" class="hora-row">
+              <div class="hora-cell">
+                <span>{{ hora }} - {{ getHoraFin(hora) }}</span>
+              </div>
+              
+              <div
+                *ngFor="let dia of diasActivos(); let diaIndex = index"
+                class="celda"
+                [class.disponible]="grilla()[horaIndex] && grilla()[horaIndex][diaIndex] > 0"
+                (click)="toggleCelda(horaIndex, diaIndex)"
               >
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <mat-icon *ngIf="grilla()[horaIndex] && grilla()[horaIndex][diaIndex] > 0" class="check-icon">check_circle</mat-icon>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="legend-premium">

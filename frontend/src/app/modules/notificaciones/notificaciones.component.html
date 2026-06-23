@@ -1,208 +1,388 @@
 <div class="notificaciones-container">
-  <h2 class="page-title">Notificaciones</h2>
-
-  <mat-card class="card-seleccion-docente" *ngIf="!docenteId && isAdmin">
-    <mat-card-header>
-      <mat-card-title>Seleccionar Docente</mat-card-title>
-      <mat-card-subtitle>Busca al docente por nombre para gestionar sus notificaciones</mat-card-subtitle>
-    </mat-card-header>
-    <mat-card-content>
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Nombre del Docente</mat-label>
-        <input matInput 
-               #searchInput
-               [matAutocomplete]="auto" 
-               (input)="buscarDocentes(searchInput.value)"
-               placeholder="Escribe el nombre..." />
-        <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayDocente">
-          <mat-option *ngFor="let docente of docentes" [value]="docente" (onSelectionChange)="seleccionarDocente(docente)">
-            {{ docente.nombre }} ({{ docente.codigo }})
-          </mat-option>
-          <mat-option *ngIf="buscandoDocentes" disabled>
-            Buscando...
-          </mat-option>
-          <mat-option *ngIf="!buscandoDocentes && docentes.length === 0" disabled>
-            No se encontraron resultados
-          </mat-option>
-        </mat-autocomplete>
-      </mat-form-field>
-    </mat-card-content>
-  </mat-card>
-
-  <mat-card class="card-error" *ngIf="!docenteId && !isAdmin">
-    <mat-card-header>
-      <mat-card-title>Cuenta no vinculada</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <p>Tu cuenta de usuario no está vinculada a un docente en el sistema.</p>
-      <p>Para configurar notificaciones, cierra sesión y vuelve a iniciar sesión.</p>
-      <p>Si el problema persiste, contacta al administrador.</p>
-      <button mat-raised-button color="primary" (click)="logout()">Cerrar sesión</button>
-    </mat-card-content>
-  </mat-card>
-
-  <mat-card class="card-preferencias" *ngIf="docenteId">
-    <mat-card-header>
-      <mat-card-title>Preferencias de Notificación</mat-card-title>
-      <mat-card-subtitle>Configura cómo quiere recibir alertas y recordatorios</mat-card-subtitle>
-      <div *ngIf="docenteNombre" class="docente-info">
-        <strong>Docente:</strong> {{ docenteNombre }} <span *ngIf="docenteCodigo">({{ docenteCodigo }})</span>
+  <div class="page-content">
+    <div class="page-header-premium">
+      <div class="title-section">
+        <h1 class="gradient-text">{{ isAdmin ? 'Gestión de Notificaciones' : 'Mis Notificaciones' }}</h1>
+        <p class="subtitle">Mantente al día con las notificaciones del sistema</p>
       </div>
-    </mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="preferenciasForm" (ngSubmit)="guardarPreferencias()">
-        <div class="form-row">
-          <mat-slide-toggle formControlName="canal_correo" color="primary">
-            Recibir notificaciones por correo electrónico
-          </mat-slide-toggle>
-        </div>
+    </div>
 
-        <div class="form-row" *ngIf="preferenciasForm.get('canal_correo')?.value">
+    <!-- Vista para Administrador -->
+    <div *ngIf="isAdmin">
+      <mat-card class="card-seleccion-docente" *ngIf="!docenteId">
+        <mat-card-header>
+          <mat-card-title>Seleccionar Docente</mat-card-title>
+          <mat-card-subtitle>Busca al docente por nombre para gestionar sus notificaciones</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Correo alternativo (opcional)</mat-label>
+            <mat-label>Nombre del Docente</mat-label>
             <input matInput 
-                   formControlName="correo_alternativo" 
-                   type="email"
-                   placeholder="ejemplo@gmail.com" 
-                   email />
-            <mat-hint>Si lo dejas vacío se usará tu correo institucional</mat-hint>
-            <mat-error>Ingresa un correo válido</mat-error>
+                   #searchInput
+                   [matAutocomplete]="auto" 
+                   (input)="buscarDocentes(searchInput.value)"
+                   placeholder="Escribe el nombre..." />
+            <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayDocente">
+              <mat-option *ngFor="let docente of docentes" [value]="docente" (onSelectionChange)="seleccionarDocente(docente)">
+                {{ docente.nombre }} ({{ docente.codigo }})
+              </mat-option>
+              <mat-option *ngIf="buscandoDocentes" disabled>
+                Buscando...
+              </mat-option>
+              <mat-option *ngIf="!buscandoDocentes && docentes.length === 0" disabled>
+                No se encontraron resultados
+              </mat-option>
+            </mat-autocomplete>
           </mat-form-field>
-        </div>
+        </mat-card-content>
+      </mat-card>
 
-        <mat-divider class="divider"></mat-divider>
+      <mat-card class="card-estadisticas" *ngIf="estadisticas">
+        <mat-card-header>
+          <mat-card-title>Estadísticas Globales de Envíos</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value">{{ estadisticas.total }}</div>
+              <div class="stat-label">Total enviadas</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ estadisticas.entregados }}</div>
+              <div class="stat-label">Entregadas</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ estadisticas.fallidos }}</div>
+              <div class="stat-label">Fallidas</div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
 
-        <div class="form-row">
-          <mat-slide-toggle formControlName="canal_telegram" color="primary">
-            Recibir notificaciones por Telegram
-          </mat-slide-toggle>
-        </div>
+      <!-- Admin: Show both sections without tabs -->
+      <ng-container *ngIf="docenteId">
+        <mat-card class="card-preferencias">
+          <mat-card-header>
+            <mat-card-title>Preferencias de Notificación</mat-card-title>
+            <mat-card-subtitle>Configura cómo el docente quiere recibir alertas y recordatorios</mat-card-subtitle>
+            <div *ngIf="docenteNombre" class="docente-info">
+              <mat-icon>person</mat-icon>
+              <span><strong>Docente:</strong> {{ docenteNombre }} <span *ngIf="docenteCodigo">({{ docenteCodigo }})</span></span>
+            </div>
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="preferenciasForm" (ngSubmit)="guardarPreferencias()">
+              <div class="form-row">
+                <mat-slide-toggle formControlName="canal_correo" color="primary">
+                  Recibir notificaciones por correo electrónico
+                </mat-slide-toggle>
+              </div>
 
-        <div class="form-row telegram-config" *ngIf="preferenciasForm.get('canal_telegram')?.value">
-          <div class="telegram-instructions" *ngIf="docenteCodigo">
-            <p class="instruction-title">📱 Para recibir notificaciones por Telegram:</p>
-            <ol>
-              <li>
-                <strong>Tu código de docente es:</strong>
-                <span class="codigo-badge">{{ docenteCodigo }}</span>
-              </li>
-              <li>
-                <button mat-stroked-button color="primary" (click)="abrirTelegramBot()">
-                  <mat-icon>open_in_new</mat-icon>
-                  Abrir Bot de Telegram
-                </button>
-              </li>
-              <li>
-                Escribe este comando al bot:
-                <div class="comando-box">
-                  <code>{{ comandoStart }}</code>
-                  <button mat-icon-button (click)="copiarComando()" matTooltip="Copiar comando">
-                    <mat-icon>content_copy</mat-icon>
-                  </button>
+              <div class="form-row" *ngIf="preferenciasForm.get('canal_correo')?.value">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Correo alternativo (opcional)</mat-label>
+                  <input matInput 
+                         formControlName="correo_alternativo" 
+                         type="email"
+                         placeholder="ejemplo@gmail.com" 
+                         email />
+                  <mat-hint>Si lo dejas vacío se usará el correo institucional del docente</mat-hint>
+                  <mat-error>Ingresa un correo válido</mat-error>
+                </mat-form-field>
+              </div>
+
+              <mat-divider class="divider"></mat-divider>
+
+              <div class="form-row">
+                <mat-slide-toggle formControlName="canal_telegram" color="primary">
+                  Recibir notificaciones por Telegram
+                </mat-slide-toggle>
+              </div>
+
+              <div class="form-row telegram-config" *ngIf="preferenciasForm.get('canal_telegram')?.value">
+                <div class="telegram-instructions" *ngIf="docenteCodigo">
+                  <p class="instruction-title">📱 Para recibir notificaciones por Telegram:</p>
+                  <ol>
+                    <li>
+                      <strong>Código de docente:</strong>
+                      <span class="codigo-badge">{{ docenteCodigo }}</span>
+                    </li>
+                    <li>
+                      <button mat-stroked-button color="primary" (click)="abrirTelegramBot()">
+                        <mat-icon>open_in_new</mat-icon>
+                        Abrir Bot de Telegram
+                      </button>
+                    </li>
+                    <li>
+                      Escribe este comando al bot:
+                      <div class="comando-box">
+                        <code>{{ comandoStart }}</code>
+                        <button mat-icon-button (click)="copiarComando()" matTooltip="Copiar comando">
+                          <mat-icon>content_copy</mat-icon>
+                        </button>
+                      </div>
+                    </li>
+                    <li>El bot te responderá confirmando tu registro</li>
+                  </ol>
                 </div>
-              </li>
-              <li>El bot te responderá confirmando tu registro</li>
-            </ol>
-          </div>
 
-          <div class="chatid-instructions" *ngIf="!preferenciasForm.get('telegram_chat_id')?.value">
-            <p class="instruction-title">🔧 Obtener tu Chat ID manualmente:</p>
-            <ol>
-              <li>Escribe a <strong>&#64;RawDataBot</strong> o <strong>&#64;jsondump_bot</strong> en Telegram</li>
-              <li>Te responderán con tu información, busca el número después de <code>"chat":{{ "{" }}"id":</code></li>
-              <li>Ese número (ej: <code>123456789</code>) es tu Chat ID</li>
-              <li>Pégalo aquí arriba ☝️</li>
-            </ol>
-            <p class="hint-text">Alternativa: escribe <code>/start</code> a cualquier bot y mira el número que aparece al inicio del mensaje.</p>
-          </div>
+                <div class="chatid-instructions" *ngIf="!preferenciasForm.get('telegram_chat_id')?.value">
+                  <p class="instruction-title">🔧 Obtener Chat ID manualmente:</p>
+                  <ol>
+                    <li>Escribe a <strong>&#64;RawDataBot</strong> o <strong>&#64;jsondump_bot</strong> en Telegram</li>
+                    <li>Te responderán con tu información, busca el número después de <code>"chat":{{ "{" }}"id":</code></li>
+                    <li>Ese número (ej: <code>123456789</code>) es tu Chat ID</li>
+                    <li>Pégalo aquí arriba ☝️</li>
+                  </ol>
+                  <p class="hint-text">Alternativa: escribe <code>/start</code> a cualquier bot y mira el número que aparece al inicio del mensaje.</p>
+                </div>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Chat ID de Telegram</mat-label>
-            <input matInput 
-                   formControlName="telegram_chat_id" 
-                   type="number"
-                   placeholder="123456789" />
-            <mat-hint>Se completa automáticamente al registrar con el bot, o ingrésalo manualmente</mat-hint>
-            <mat-error>Ingresa un número válido</mat-error>
-          </mat-form-field>
-        </div>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Chat ID de Telegram</mat-label>
+                  <input matInput 
+                         formControlName="telegram_chat_id" 
+                         type="number"
+                         placeholder="123456789" />
+                  <mat-hint>Se completa automáticamente al registrar con el bot, o ingrésalo manualmente</mat-hint>
+                  <mat-error>Ingresa un número válido</mat-error>
+                </mat-form-field>
+              </div>
 
-        <div class="actions">
-          <button mat-raised-button color="primary" type="submit">Guardar preferencias</button>
-          <button mat-stroked-button color="accent" type="button" (click)="enviarPrueba()" [disabled]="enviandoPrueba">
-            <mat-icon>send</mat-icon>
-            {{ enviandoPrueba ? 'Enviando...' : 'Enviar prueba' }}
-          </button>
-        </div>
-      </form>
-    </mat-card-content>
-  </mat-card>
+              <div class="actions">
+                <button mat-raised-button color="primary" type="submit">Guardar preferencias</button>
+                <button mat-stroked-button color="accent" type="button" (click)="enviarPrueba()" [disabled]="enviandoPrueba">
+                  <mat-icon>send</mat-icon>
+                  {{ enviandoPrueba ? 'Enviando...' : 'Enviar prueba' }}
+                </button>
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
 
-  <mat-card class="card-historial" *ngIf="historial.length > 0 || cargando">
-    <mat-card-header>
-      <mat-card-title>Historial de Notificaciones</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <table mat-table [dataSource]="historial" class="mat-elevation-z0">
-        <ng-container matColumnDef="tipo">
-          <th mat-header-cell *matHeaderCellDef>Tipo</th>
-          <td mat-cell *matCellDef="let row">{{ row.tipo }}</td>
-        </ng-container>
+        <mat-card class="card-historial" *ngIf="historial.length > 0 || cargando">
+          <mat-card-header>
+            <mat-card-title>Historial de Notificaciones</mat-card-title>
+            <mat-card-subtitle>Historial de envíos para el docente seleccionado</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <table mat-table [dataSource]="historial" class="mat-elevation-z0">
+              <ng-container matColumnDef="tipo">
+                <th mat-header-cell *matHeaderCellDef>Tipo</th>
+                <td mat-cell *matCellDef="let row">{{ row.tipo }}</td>
+              </ng-container>
 
-        <ng-container matColumnDef="canal">
-          <th mat-header-cell *matHeaderCellDef>Canal</th>
-          <td mat-cell *matCellDef="let row">{{ row.canal }}</td>
-        </ng-container>
+              <ng-container matColumnDef="canal">
+                <th mat-header-cell *matHeaderCellDef>Canal</th>
+                <td mat-cell *matCellDef="let row">{{ row.canal }}</td>
+              </ng-container>
 
-        <ng-container matColumnDef="estado">
-          <th mat-header-cell *matHeaderCellDef>Estado</th>
-          <td mat-cell *matCellDef="let row">
-            <mat-chip-listbox>
-              <mat-chip-option [selected]="row.estado === 'ENTREGADO'" [color]="row.estado === 'ENTREGADO' ? 'accent' : 'warn'">
-                {{ row.estado }}
-              </mat-chip-option>
-            </mat-chip-listbox>
-          </td>
-        </ng-container>
+              <ng-container matColumnDef="estado">
+                <th mat-header-cell *matHeaderCellDef>Estado</th>
+                <td mat-cell *matCellDef="let row">
+                  <mat-chip-listbox>
+                    <mat-chip-option [selected]="row.estado === 'ENTREGADO'" [color]="row.estado === 'ENTREGADO' ? 'accent' : 'warn'">
+                      {{ row.estado }}
+                    </mat-chip-option>
+                  </mat-chip-listbox>
+                </td>
+              </ng-container>
 
-        <ng-container matColumnDef="fecha_envio">
-          <th mat-header-cell *matHeaderCellDef>Fecha</th>
-          <td mat-cell *matCellDef="let row">{{ row.fecha_envio | date:'short' }}</td>
-        </ng-container>
+              <ng-container matColumnDef="fecha_envio">
+                <th mat-header-cell *matHeaderCellDef>Fecha</th>
+                <td mat-cell *matCellDef="let row">{{ row.fecha_envio | date:'short' }}</td>
+              </ng-container>
 
-        <ng-container matColumnDef="mensaje">
-          <th mat-header-cell *matHeaderCellDef>Mensaje</th>
-          <td mat-cell *matCellDef="let row">{{ row.mensaje }}</td>
-        </ng-container>
+              <ng-container matColumnDef="mensaje">
+                <th mat-header-cell *matHeaderCellDef>Mensaje</th>
+                <td mat-cell *matCellDef="let row">{{ row.mensaje }}</td>
+              </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-      </table>
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
 
-      <mat-paginator [length]="totalHistorial" [pageSize]="limit" [pageSizeOptions]="[10,20,50]" (page)="onPageChange($event)">
-      </mat-paginator>
-    </mat-card-content>
-  </mat-card>
+            <mat-paginator [length]="totalHistorial" [pageSize]="limit" [pageSizeOptions]="[10,20,50]" (page)="onPageChange($event)">
+            </mat-paginator>
+          </mat-card-content>
+        </mat-card>
+      </ng-container>
+    </div>
 
-  <mat-card class="card-estadisticas" *ngIf="isAdmin && estadisticas">
-    <mat-card-header>
-      <mat-card-title>Estadísticas de Envíos</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <div class="stat-value">{{ estadisticas.total }}</div>
-          <div class="stat-label">Total enviadas</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ estadisticas.entregados }}</div>
-          <div class="stat-label">Entregadas</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ estadisticas.fallidos }}</div>
-          <div class="stat-label">Fallidas</div>
-        </div>
-      </div>
-    </mat-card-content>
-  </mat-card>
+    <!-- Vista para Docente (con tabs) -->
+    <div *ngIf="!isAdmin">
+      <mat-card class="card-error" *ngIf="!docenteId">
+        <mat-card-header>
+          <mat-card-title>Cuenta no vinculada</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Tu cuenta de usuario no está vinculada a un docente en el sistema.</p>
+          <p>Para configurar notificaciones, cierra sesión y vuelve a iniciar sesión.</p>
+          <p>Si el problema persiste, contacta al administrador.</p>
+          <button mat-raised-button color="primary" (click)="logout()">Cerrar sesión</button>
+        </mat-card-content>
+      </mat-card>
+
+      <ng-container *ngIf="docenteId">
+        <mat-tab-group class="tab-group" animationDuration="0ms">
+          <mat-tab label="Preferencias">
+            <mat-card class="card-preferencias">
+              <mat-card-header>
+                <mat-card-title>Preferencias de Notificación</mat-card-title>
+                <mat-card-subtitle>Configura cómo quieres recibir alertas y recordatorios</mat-card-subtitle>
+                <div *ngIf="docenteNombre" class="docente-info">
+                  <mat-icon>person</mat-icon>
+                  <span><strong>Docente:</strong> {{ docenteNombre }} <span *ngIf="docenteCodigo">({{ docenteCodigo }})</span></span>
+                </div>
+              </mat-card-header>
+              <mat-card-content>
+                <form [formGroup]="preferenciasForm" (ngSubmit)="guardarPreferencias()">
+                  <div class="form-row">
+                    <mat-slide-toggle formControlName="canal_correo" color="primary">
+                      Recibir notificaciones por correo electrónico
+                    </mat-slide-toggle>
+                  </div>
+
+                  <div class="form-row" *ngIf="preferenciasForm.get('canal_correo')?.value">
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Correo alternativo (opcional)</mat-label>
+                      <input matInput 
+                             formControlName="correo_alternativo" 
+                             type="email"
+                             placeholder="ejemplo@gmail.com" 
+                             email />
+                      <mat-hint>Si lo dejas vacío se usará tu correo institucional</mat-hint>
+                      <mat-error>Ingresa un correo válido</mat-error>
+                    </mat-form-field>
+                  </div>
+
+                  <mat-divider class="divider"></mat-divider>
+
+                  <div class="form-row">
+                    <mat-slide-toggle formControlName="canal_telegram" color="primary">
+                      Recibir notificaciones por Telegram
+                    </mat-slide-toggle>
+                  </div>
+
+                  <div class="form-row telegram-config" *ngIf="preferenciasForm.get('canal_telegram')?.value">
+                    <div class="telegram-instructions" *ngIf="docenteCodigo">
+                      <p class="instruction-title">📱 Para recibir notificaciones por Telegram:</p>
+                      <ol>
+                        <li>
+                          <strong>Tu código de docente es:</strong>
+                          <span class="codigo-badge">{{ docenteCodigo }}</span>
+                        </li>
+                        <li>
+                          <button mat-stroked-button color="primary" (click)="abrirTelegramBot()">
+                            <mat-icon>open_in_new</mat-icon>
+                            Abrir Bot de Telegram
+                          </button>
+                        </li>
+                        <li>
+                          Escribe este comando al bot:
+                          <div class="comando-box">
+                            <code>{{ comandoStart }}</code>
+                            <button mat-icon-button (click)="copiarComando()" matTooltip="Copiar comando">
+                              <mat-icon>content_copy</mat-icon>
+                            </button>
+                          </div>
+                        </li>
+                        <li>El bot te responderá confirmando tu registro</li>
+                      </ol>
+                    </div>
+
+                    <div class="chatid-instructions" *ngIf="!preferenciasForm.get('telegram_chat_id')?.value">
+                      <p class="instruction-title">🔧 Obtener tu Chat ID manualmente:</p>
+                      <ol>
+                        <li>Escribe a <strong>&#64;RawDataBot</strong> o <strong>&#64;jsondump_bot</strong> en Telegram</li>
+                        <li>Te responderán con tu información, busca el número después de <code>"chat":{{ "{" }}"id":</code></li>
+                        <li>Ese número (ej: <code>123456789</code>) es tu Chat ID</li>
+                        <li>Pégalo aquí arriba ☝️</li>
+                      </ol>
+                      <p class="hint-text">Alternativa: escribe <code>/start</code> a cualquier bot y mira el número que aparece al inicio del mensaje.</p>
+                    </div>
+
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Chat ID de Telegram</mat-label>
+                      <input matInput 
+                             formControlName="telegram_chat_id" 
+                             type="number"
+                             placeholder="123456789" />
+                      <mat-hint>Se completa automáticamente al registrar con el bot, o ingrésalo manualmente</mat-hint>
+                      <mat-error>Ingresa un número válido</mat-error>
+                    </mat-form-field>
+                  </div>
+
+                  <div class="actions">
+                    <button mat-raised-button color="primary" type="submit">Guardar preferencias</button>
+                    <button mat-stroked-button color="accent" type="button" (click)="enviarPrueba()" [disabled]="enviandoPrueba">
+                      <mat-icon>send</mat-icon>
+                      {{ enviandoPrueba ? 'Enviando...' : 'Enviar prueba' }}
+                    </button>
+                  </div>
+                </form>
+              </mat-card-content>
+            </mat-card>
+          </mat-tab>
+
+          <mat-tab label="Historial">
+            <mat-card class="card-historial">
+              <mat-card-header>
+                <mat-card-title>Historial de Notificaciones</mat-card-title>
+                <mat-card-subtitle>Historial de notificaciones recibidas</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <div *ngIf="cargando" class="loading-spinner">
+                  <mat-spinner diameter="48"></mat-spinner>
+                  <p>Cargando historial...</p>
+                </div>
+                <div *ngIf="!cargando && historial.length === 0" class="empty-state">
+                  <mat-icon class="empty-icon">inbox</mat-icon>
+                  <h3>No hay notificaciones</h3>
+                  <p>Aún no has recibido notificaciones.</p>
+                </div>
+                <table *ngIf="!cargando && historial.length > 0" mat-table [dataSource]="historial" class="mat-elevation-z0">
+                  <ng-container matColumnDef="tipo">
+                    <th mat-header-cell *matHeaderCellDef>Tipo</th>
+                    <td mat-cell *matCellDef="let row">{{ row.tipo }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="canal">
+                    <th mat-header-cell *matHeaderCellDef>Canal</th>
+                    <td mat-cell *matCellDef="let row">{{ row.canal }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="estado">
+                    <th mat-header-cell *matHeaderCellDef>Estado</th>
+                    <td mat-cell *matCellDef="let row">
+                      <mat-chip-listbox>
+                        <mat-chip-option [selected]="row.estado === 'ENTREGADO'" [color]="row.estado === 'ENTREGADO' ? 'accent' : 'warn'">
+                          {{ row.estado }}
+                        </mat-chip-option>
+                      </mat-chip-listbox>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="fecha_envio">
+                    <th mat-header-cell *matHeaderCellDef>Fecha</th>
+                    <td mat-cell *matCellDef="let row">{{ row.fecha_envio | date:'short' }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="mensaje">
+                    <th mat-header-cell *matHeaderCellDef>Mensaje</th>
+                    <td mat-cell *matCellDef="let row">{{ row.mensaje }}</td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                </table>
+
+                <mat-paginator *ngIf="!cargando && historial.length > 0" [length]="totalHistorial" [pageSize]="limit" [pageSizeOptions]="[10,20,50]" (page)="onPageChange($event)">
+                </mat-paginator>
+              </mat-card-content>
+            </mat-card>
+          </mat-tab>
+        </mat-tab-group>
+      </ng-container>
+    </div>
+  </div>
 </div>

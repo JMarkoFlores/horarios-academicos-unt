@@ -2,7 +2,8 @@ import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Cache } from "cache-manager";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, In } from "typeorm";
+import { UsuarioAutenticado } from "../common/interfaces/contexto-academico.interface";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
 import { Docente } from "../entities/docente.entity";
@@ -44,10 +45,22 @@ export class DashboardService {
     private readonly dashboardGateway: DashboardGateway,
   ) {}
 
-  async getKPIs(periodo: string, top = 5, recent = 10) {
-    const cacheKey = `dashboard_kpis_${periodo}_${top}_${recent}`;
+  async getKPIs(periodo: string, usuario?: UsuarioAutenticado, top = 5, recent = 10) {
+    const ctx = usuario?.contextoAcademico;
+    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+
+    const cacheKey = `dashboard_kpis_${periodo}_${top}_${recent}_${deptoIds?.join(',') ?? 'all'}`;
     const cachedData = await this.cacheManager.get(cacheKey);
     if (cachedData) return cachedData;
+
+    let deptoDocenteIds: number[] | null = null;
+    if (deptoIds) {
+      const docentesDepto = await this.docenteRepo.find({
+        where: { activo: true, departamento_id: In(deptoIds) },
+        select: ['id'],
+      });
+      deptoDocenteIds = docentesDepto.map(d => d.id);
+    }
 
     let horarios: HorarioAsignado[] = [];
     let docentes: Docente[] = [];
@@ -78,7 +91,9 @@ export class DashboardService {
     ] = await Promise.all([
       fetchSection(
         "totalDocentes",
-        () => this.docenteRepo.count({ where: { activo: true } }),
+        () => this.docenteRepo.count({
+          where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
+        }),
         0,
       ),
       fetchSection(
@@ -106,25 +121,37 @@ export class DashboardService {
         "conflictosActivos",
         () =>
           this.conflictoRepo.count({
-            where: { periodo_academico: periodo, resuelto: false },
+            where: {
+              periodo_academico: periodo,
+              resuelto: false,
+              ...(deptoDocenteIds ? { docente_id: In(deptoDocenteIds) } : {}),
+            },
           }),
         0,
       ),
       fetchSection(
         "totalConflictos",
         () =>
-          this.conflictoRepo.count({ where: { periodo_academico: periodo } }),
+          this.conflictoRepo.count({
+            where: {
+              periodo_academico: periodo,
+              ...(deptoDocenteIds ? { docente_id: In(deptoDocenteIds) } : {}),
+            },
+          }),
         0,
       ),
       fetchSection(
         "docentesConDisponibilidad",
-        () =>
-          this.disponibilidadRepo
+        () => {
+          let qb = this.disponibilidadRepo
             .createQueryBuilder("d")
             .select("COUNT(DISTINCT d.docente_id)", "count")
-            .where("d.periodo_academico = :periodo", { periodo })
-            .getRawOne()
-            .then((r) => Number(r?.count ?? 0)),
+            .where("d.periodo_academico = :periodo", { periodo });
+          if (deptoDocenteIds) {
+            qb = qb.andWhere("d.docente_id IN (:...ids)", { ids: deptoDocenteIds });
+          }
+          return qb.getRawOne().then((r) => Number(r?.count ?? 0));
+        },
         0,
       ),
       fetchSection(
@@ -152,21 +179,26 @@ export class DashboardService {
 
     horarios = await fetchSection(
       "horarios",
-      () =>
-        this.horarioRepo
+      () => {
+        let qb = this.horarioRepo
           .createQueryBuilder("horario")
           .leftJoinAndSelect("horario.docente", "docente")
           .leftJoinAndSelect("horario.curso", "curso")
           .leftJoinAndSelect("horario.ambiente", "ambiente")
           .leftJoinAndSelect("horario.grupo", "grupo")
-          .where("horario.periodo = :periodo", { periodo })
-          .cache(`horarios_periodo_${periodo}_dashboard_kpis`, 60000)
-          .getMany(),
+          .where("horario.periodo = :periodo", { periodo });
+        if (deptoDocenteIds) {
+          qb = qb.andWhere("horario.docente_id IN (:...ids)", { ids: deptoDocenteIds });
+        }
+        return qb.cache(`horarios_periodo_${periodo}_dashboard_kpis_${deptoDocenteIds?.join(',') ?? 'all'}`, 60000).getMany();
+      },
       [],
     );
     docentes = await fetchSection(
       "docentes",
-      () => this.docenteRepo.find({ where: { activo: true } }),
+      () => this.docenteRepo.find({
+        where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
+      }),
       [],
     );
     ambientes = await fetchSection(
@@ -464,7 +496,19 @@ export class DashboardService {
     return result;
   }
 
-  async getAlerts(periodo: string) {
+  async getAlerts(periodo: string, usuario?: UsuarioAutenticado) {
+    const ctx = usuario?.contextoAcademico;
+    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+
+    let deptoDocenteIds: number[] | null = null;
+    if (deptoIds) {
+      const docentesDepto = await this.docenteRepo.find({
+        where: { activo: true, departamento_id: In(deptoIds) },
+        select: ['id'],
+      });
+      deptoDocenteIds = docentesDepto.map(d => d.id);
+    }
+
     const fetchSection = async <T>(
       fn: () => Promise<T>,
       fallback: T,
@@ -479,7 +523,9 @@ export class DashboardService {
     const [totalDocentes, totalCursos, conflictos, horarios] =
       await Promise.all([
         fetchSection(
-          () => this.docenteRepo.count({ where: { activo: true } }),
+          () => this.docenteRepo.count({
+            where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
+          }),
           0,
         ),
         fetchSection(
@@ -489,18 +535,27 @@ export class DashboardService {
         fetchSection(
           () =>
             this.conflictoRepo.find({
-              where: { periodo_academico: periodo, resuelto: false },
+              where: {
+                periodo_academico: periodo,
+                resuelto: false,
+                ...(deptoDocenteIds ? { docente_id: In(deptoDocenteIds) } : {}),
+              },
               take: 20,
               order: { created_at: "DESC" },
             }),
           [],
         ),
         fetchSection(
-          () =>
-            this.horarioRepo.find({
-              where: { periodo },
+          () => {
+            const whereClause: any = { periodo };
+            if (deptoDocenteIds) {
+              whereClause.docente_id = In(deptoDocenteIds);
+            }
+            return this.horarioRepo.find({
+              where: whereClause,
               select: ["docente_id", "curso_id"],
-            }),
+            });
+          },
           [],
         ),
       ]);
@@ -632,17 +687,36 @@ export class DashboardService {
   // CARGA ACADÉMICA — KPIs
   // ═══════════════════════════════════════════════════════════════════
 
-  async getCargaResumen(periodo: string) {
+  async getCargaResumen(periodo: string, usuario?: UsuarioAutenticado) {
     const periodoId = await this.obtenerPeriodoId(periodo);
     if (!periodoId) return this.cargaVacia();
 
+    const ctx = usuario?.contextoAcademico;
+    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+
+    let deptoDocenteIds: number[] | null = null;
+    if (deptoIds) {
+      const docentesDepto = await this.docenteRepo.find({
+        where: { activo: true, departamento_id: In(deptoIds) },
+        select: ['id'],
+      });
+      deptoDocenteIds = docentesDepto.map(d => d.id);
+    }
+
     const [totalDocentes, declaraciones, docentes] = await Promise.all([
-      this.docenteRepo.count({ where: { activo: true } }),
+      this.docenteRepo.count({
+        where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
+      }),
       this.declaracionRepo.find({
-        where: { periodo_academico_id: periodoId },
+        where: {
+          periodo_academico_id: periodoId,
+          ...(deptoDocenteIds ? { docente_id: In(deptoDocenteIds) } : {}),
+        },
         relations: ["docente"],
       }),
-      this.docenteRepo.find({ where: { activo: true } }),
+      this.docenteRepo.find({
+        where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
+      }),
     ]);
 
     const enviadas = declaraciones.filter(
@@ -727,12 +801,27 @@ export class DashboardService {
       .sort((a, b) => b.total_horas_lectivas - a.total_horas_lectivas);
   }
 
-  async getCargaEstados(periodo: string) {
+  async getCargaEstados(periodo: string, usuario?: UsuarioAutenticado) {
     const periodoId = await this.obtenerPeriodoId(periodo);
     if (!periodoId) return [];
 
+    const ctx = usuario?.contextoAcademico;
+    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+
+    let deptoDocenteIds: number[] | null = null;
+    if (deptoIds) {
+      const docentesDepto = await this.docenteRepo.find({
+        where: { activo: true, departamento_id: In(deptoIds) },
+        select: ['id'],
+      });
+      deptoDocenteIds = docentesDepto.map(d => d.id);
+    }
+
     const declaraciones = await this.declaracionRepo.find({
-      where: { periodo_academico_id: periodoId },
+      where: {
+        periodo_academico_id: periodoId,
+        ...(deptoDocenteIds ? { docente_id: In(deptoDocenteIds) } : {}),
+      },
     });
 
     const ordenEstados = [
@@ -770,12 +859,27 @@ export class DashboardService {
       .filter((e) => e.count > 0);
   }
 
-  async getCargaTopDocentes(periodo: string, limit = 5) {
+  async getCargaTopDocentes(periodo: string, limit = 5, usuario?: UsuarioAutenticado) {
     const periodoId = await this.obtenerPeriodoId(periodo);
     if (!periodoId) return [];
 
+    const ctx = usuario?.contextoAcademico;
+    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+
+    let deptoDocenteIds: number[] | null = null;
+    if (deptoIds) {
+      const docentesDepto = await this.docenteRepo.find({
+        where: { activo: true, departamento_id: In(deptoIds) },
+        select: ['id'],
+      });
+      deptoDocenteIds = docentesDepto.map(d => d.id);
+    }
+
     const declaraciones = await this.declaracionRepo.find({
-      where: { periodo_academico_id: periodoId },
+      where: {
+        periodo_academico_id: periodoId,
+        ...(deptoDocenteIds ? { docente_id: In(deptoDocenteIds) } : {}),
+      },
       relations: ["docente"],
     });
 
@@ -795,12 +899,27 @@ export class DashboardService {
       .slice(0, limit);
   }
 
-  async getCargaAvance(periodo: string) {
+  async getCargaAvance(periodo: string, usuario?: UsuarioAutenticado) {
     const periodoId = await this.obtenerPeriodoId(periodo);
     if (!periodoId) return [];
 
+    const ctx = usuario?.contextoAcademico;
+    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+
+    let deptoDocenteIds: number[] | null = null;
+    if (deptoIds) {
+      const docentesDepto = await this.docenteRepo.find({
+        where: { activo: true, departamento_id: In(deptoIds) },
+        select: ['id'],
+      });
+      deptoDocenteIds = docentesDepto.map(d => d.id);
+    }
+
     const declaraciones = await this.declaracionRepo.find({
-      where: { periodo_academico_id: periodoId },
+      where: {
+        periodo_academico_id: periodoId,
+        ...(deptoDocenteIds ? { docente_id: In(deptoDocenteIds) } : {}),
+      },
       select: ["created_at", "estado"],
     });
 

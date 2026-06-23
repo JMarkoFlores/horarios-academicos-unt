@@ -4,6 +4,7 @@
   BadRequestException,
   NotFoundException,
   Logger,
+  ConflictException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -14,6 +15,7 @@ import { Usuario } from "../entities/usuario.entity";
 import { Docente } from "../entities/docente.entity";
 import { LoginDto } from "./dto/login.dto";
 import { CambiarPasswordDto } from "./dto/cambiar-password.dto";
+import { ActualizarPerfilDto } from "./dto/actualizar-perfil.dto";
 import { RecuperarPasswordDto } from "./dto/recuperar-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { MailService } from "../mail/mail.service";
@@ -83,6 +85,7 @@ export class AuthService {
         email: usuario.email,
         rol: usuario.rol,
         docenteId: docente?.id ?? null,
+        debe_cambiar_password: usuario.debe_cambiar_password,
         contextoAcademico,
       },
     };
@@ -96,6 +99,7 @@ export class AuthService {
     email: string;
     rol: RolUsuario;
     docenteId: number | null;
+    debe_cambiar_password: boolean;
     contextoAcademico: ContextoAcademico;
   }> {
     const docente =
@@ -118,6 +122,7 @@ export class AuthService {
       email: usuario.email,
       rol: usuario.rol,
       docenteId,
+      debe_cambiar_password: usuario.debe_cambiar_password,
       contextoAcademico,
     };
   }
@@ -200,7 +205,47 @@ export class AuthService {
       throw new UnauthorizedException("ContraseÃ±a actual incorrecta");
     }
     usuario.password_hash = await this.hashPassword(dto.password_nueva);
+    usuario.debe_cambiar_password = false;
     await this.usuarioRepository.save(usuario);
+  }
+
+  async actualizarPerfil(
+    usuario: Usuario,
+    dto: ActualizarPerfilDto,
+  ): Promise<{
+    id: number;
+    nombre: string;
+    email: string;
+    debe_cambiar_password: boolean;
+  }> {
+    if (!dto.nombre && !dto.email) {
+      throw new BadRequestException(
+        "Debe proporcionar al menos un campo a actualizar",
+      );
+    }
+
+    if (dto.nombre) {
+      usuario.nombre = dto.nombre;
+    }
+
+    if (dto.email && dto.email !== usuario.email) {
+      const existente = await this.usuarioRepository.findOne({
+        where: { email: dto.email },
+      });
+      if (existente) {
+        throw new ConflictException("El correo electrónico ya está registrado");
+      }
+      usuario.email = dto.email;
+    }
+
+    await this.usuarioRepository.save(usuario);
+
+    return {
+      id: usuario.id,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      debe_cambiar_password: usuario.debe_cambiar_password,
+    };
   }
 
   async recuperarPassword(dto: RecuperarPasswordDto): Promise<void> {

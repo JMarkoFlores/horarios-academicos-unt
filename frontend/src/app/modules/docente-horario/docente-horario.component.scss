@@ -1,7 +1,6 @@
 .docente-horario-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  max-width: 100%;
+  padding: 24px 32px;
 }
 
 .page-header {
@@ -54,7 +53,13 @@
 
 .stats-block {
   display: flex;
-  gap: 10px;
+  gap: 16px;
+  align-items: center;
+}
+
+.toggle-no-lectiva {
+  margin-left: 10px;
+  .mdc-form-field { color: var(--color-text); font-weight: 500; }
 }
 
 .chip-stat {
@@ -136,32 +141,36 @@
 
 .grid-wrapper {
   overflow-x: auto;
-  border-radius: 10px;
+  border-radius: 16px;
   border: 1px solid var(--color-border);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  background: var(--color-surface);
+  padding: 8px;
 }
 
 .horario-grid {
-  border-collapse: collapse;
-  min-width: 700px;
+  border-collapse: separate;
+  border-spacing: 6px;
+  min-width: 900px;
   width: 100%;
 
   th, td {
-    border: 1px solid var(--color-border);
     text-align: center;
     vertical-align: middle;
+    border-radius: 12px;
   }
 
   thead th {
-    background: var(--color-primary);
-    color: white;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 12px 10px;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 14px 10px;
     white-space: nowrap;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 
-    &.hora-col { width: 70px; background: #3730a3; }
+    &.hora-col { width: 75px; }
   }
 
   .hora-cell {
@@ -192,39 +201,54 @@
   }
 
   .celda {
-    min-width: 140px;
+    min-width: 150px;
     padding: 0;
-    transition: filter 0.15s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
 
     &.celda-vacia {
-      background: var(--color-surface);
-      &:hover { background: var(--color-background); }
+      background: rgba(0,0,0,0.015);
+      border: 1px dashed var(--color-border);
+      &:hover { background: rgba(0,0,0,0.03); }
     }
 
     &.celda-teoria {
-      background: rgba(79, 70, 229, 0.07);
-      border-left: 3px solid var(--color-primary) !important;
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.2);
 
-      .curso-txt { color: var(--color-primary); }
-      .amb-txt { color: var(--color-primary); opacity: 0.8; }
-      .hora-rango { color: var(--color-primary); opacity: 0.7; }
+      .curso-txt { color: #4338ca; }
+      .amb-txt { color: #4f46e5; opacity: 0.8; }
+      .hora-rango { color: #4f46e5; opacity: 0.7; }
     }
 
     &.celda-lab {
-      background: var(--color-success-bg);
-      border-left: 3px solid var(--color-success) !important;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
 
-      .curso-txt { color: var(--color-success); }
-      .amb-txt { color: var(--color-success); opacity: 0.8; }
-      .hora-rango { color: var(--color-success); opacity: 0.7; }
+      .curso-txt { color: #047857; }
+      .amb-txt { color: #059669; opacity: 0.8; }
+      .hora-rango { color: #059669; opacity: 0.7; }
+    }
+
+    &.celda-no-lectiva {
+      background: rgba(139, 92, 246, 0.08);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+
+      .curso-txt { color: #6d28d9; }
+      .amb-txt { color: #7c3aed; opacity: 0.8; }
+      .hora-rango { color: #7c3aed; opacity: 0.7; }
     }
 
     &.celda-almuerzo {
-      background: var(--color-warning-bg);
-      border-left: 3px solid var(--color-warning) !important;
+      background: rgba(251, 191, 36, 0.1);
+      border: 1px dashed rgba(245, 158, 11, 0.4);
     }
 
-    &:hover:not(.celda-vacia):not(.celda-almuerzo) { filter: brightness(0.96); }
+    &:hover:not(.celda-vacia):not(.celda-almuerzo) { 
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      filter: brightness(0.98); 
+    }
   }
 
   .celda-content {
@@ -246,7 +270,12 @@
 
       &.lab {
         background: rgba(16, 185, 129, 0.15);
-        color: #065f46;
+        color: #047857;
+      }
+
+      &.no-lec {
+        background: rgba(139, 92, 246, 0.15);
+        color: #6d28d9;
       }
     }
 
@@ -313,17 +342,21 @@
     flex-shrink: 0;
 
     &.dot-teoria {
-      background: rgba(79, 70, 229, 0.07);
-      border-color: var(--color-primary);
+      background: rgba(99, 102, 241, 0.08);
+      border-color: rgba(99, 102, 241, 0.8);
     }
     &.dot-lab {
       background: rgba(16, 185, 129, 0.08);
-      border-color: #10b981;
+      border-color: rgba(16, 185, 129, 0.8);
+    }
+    &.dot-no-lectiva {
+      background: rgba(139, 92, 246, 0.08);
+      border-color: rgba(139, 92, 246, 0.8);
     }
 
     &.dot-almuerzo {
-      background: rgba(251, 191, 36, 0.15);
-      border-color: #f59e0b;
+      background: rgba(251, 191, 36, 0.1);
+      border-color: rgba(245, 158, 11, 0.8);
     }
   }
 

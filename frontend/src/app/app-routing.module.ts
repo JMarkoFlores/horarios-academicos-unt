@@ -149,15 +149,6 @@ const routes: Routes = [
         },
       },
       {
-        path: 'notificaciones',
-        loadChildren: () =>
-          import('./modules/notificaciones/notificaciones.module').then(
-            (m) => m.NotificacionesModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA] },
-      },
-      {
         path: 'disponibilidad',
         loadChildren: () =>
           import('./modules/disponibilidad/disponibilidad.module').then(
@@ -184,6 +175,20 @@ const routes: Routes = [
             ROLES.DIRECTOR_ESCUELA,
           ],
         },
+      },
+      {
+        path: 'clad',
+        loadChildren: () =>
+          import('./modules/clad/clad.module').then(
+            (m) => m.CladModule,
+          ),
+      },
+      {
+        path: 'perfil',
+        loadComponent: () =>
+          import('./modules/perfil/perfil.component').then(
+            (m) => m.PerfilComponent,
+          ),
       },
       {
         path: 'docente-facultad',
@@ -286,6 +291,15 @@ const routes: Routes = [
         loadChildren: () =>
           import('./modules/docente-horario/docente-horario.module').then(
             (m) => m.DocenteHorarioModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA] },
+      },
+      {
+        path: 'mis-ventanas',
+        loadComponent: () =>
+          import('./modules/operador/mis-ventanas/mis-ventanas.component').then(
+            (m) => m.MisVentanasComponent,
           ),
         canActivate: [RolesGuard],
         data: { roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA] },

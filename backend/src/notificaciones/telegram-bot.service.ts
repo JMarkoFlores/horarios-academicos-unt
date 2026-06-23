@@ -28,12 +28,19 @@ export class TelegramBotService {
   async handleUpdate(
     update: any,
   ): Promise<{ chat_id: number; text: string; parse_mode?: string } | null> {
+    this.logger.log("📩 Recibido update de Telegram: " + JSON.stringify(update));
+    
     const message = update?.message;
-    if (!message) return null;
+    if (!message) {
+      this.logger.warn("⚠️ Update sin message");
+      return null;
+    }
 
     const chatId = message.chat?.id;
     const text = (message.text || "").trim();
     const command = text.split(" ")[0];
+
+    this.logger.log(`💬 Chat ID: ${chatId}, Texto: ${text}, Comando: ${command}`);
 
     switch (command) {
       case "/start":
@@ -54,28 +61,36 @@ export class TelegramBotService {
     chatId: number,
     text: string,
   ): Promise<{ chat_id: number; text: string }> {
+    this.logger.log("🔍 Procesando comando /start...");
     const parts = text.split(/\s+/);
     const codigo = parts[1]?.trim();
+
+    this.logger.log(`📋 Código de docente recibido: ${codigo}`);
 
     if (!codigo) {
       return {
         chat_id: chatId,
-        text: "Por favor envía tu código de docente después de /start. Ejemplo: /start D2024001",
+        text: "Por favor envía tu código de docente después de /start. Ejemplo: /start DOC-1001",
       };
     }
 
+    this.logger.log(`🔎 Buscando docente con código: ${codigo}`);
     const docente = await this.docenteRepo.findOne({ where: { codigo } });
     if (!docente) {
+      this.logger.warn(`⚠️ No se encontró docente con código: ${codigo}`);
       return {
         chat_id: chatId,
-        text: `No se encontró un docente con el código ${codigo}. Verifica e intenta nuevamente.`,
+        text: `No se encontró un docente con el código ${codigo}. Verifica e intenta nuevamente. Los códigos válidos son del tipo DOC-1001, DOC-1002, etc.`,
       };
     }
+
+    this.logger.log(`✅ Docente encontrado: ${docente.nombres} ${docente.apellidos} (ID: ${docente.id})`);
 
     let prefs = await this.preferenciasRepo.findOne({
       where: { docente: { id: docente.id } },
     });
     if (!prefs) {
+      this.logger.log("📝 Creando nuevas preferencias de notificación...");
       prefs = this.preferenciasRepo.create({
         docente,
         canal_correo: true,
@@ -85,6 +100,8 @@ export class TelegramBotService {
     prefs.canal_telegram = true;
     prefs.telegram_chat_id = String(chatId);
     await this.preferenciasRepo.save(prefs);
+
+    this.logger.log("✅ Preferencias guardadas exitosamente");
 
     return {
       chat_id: chatId,
@@ -101,6 +118,7 @@ export class TelegramBotService {
 
     const prefs = await this.preferenciasRepo.findOne({
       where: { telegram_chat_id: String(chatId) },
+      relations: ["docente"],
     });
     if (!prefs) {
       return {
@@ -177,6 +195,7 @@ export class TelegramBotService {
   ): Promise<{ chat_id: number; text: string }> {
     const prefs = await this.preferenciasRepo.findOne({
       where: { telegram_chat_id: String(chatId) },
+      relations: ["docente"],
     });
     if (!prefs) {
       return {

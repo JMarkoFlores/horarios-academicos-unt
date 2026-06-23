@@ -21,6 +21,7 @@ import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.e
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Departamento } from "../entities/departamento.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
+import { DeclaracionClad } from "../entities/declaracion-clad.entity";
 
 @Injectable()
 export class ReportesService {
@@ -49,6 +50,8 @@ export class ReportesService {
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     @InjectRepository(Departamento)
     private readonly departamentoRepo: Repository<Departamento>,
+    @InjectRepository(DeclaracionClad)
+    private readonly cladRepo: Repository<DeclaracionClad>,
     private readonly configuracionService: ConfiguracionService,
   ) {}
 
@@ -175,7 +178,7 @@ export class ReportesService {
       lightText: [100, 116, 139] as [number, number, number],
     };
 
-    // PÃGINA 1: INFORMACIÓN DETALLADA
+    // PÁGINA 1: INFORMACIÓN DETALLADA
     // Cabecera premium
     doc.setFillColor(...C.primary);
     doc.rect(0, 0, PAGE_W, 35, "F");
@@ -318,7 +321,7 @@ export class ReportesService {
       margin: { left: 12, right: 12 },
     });
 
-    // PÃGINA 2: HORARIO (GRID HORIZONTAL)
+    // PÁGINA 2: HORARIO (GRID HORIZONTAL)
     doc.addPage();
 
     // Cabecera simplificada para el horario
@@ -588,6 +591,10 @@ export class ReportesService {
     });
     if (!periodoObj) throw new NotFoundException("Periodo no encontrado");
 
+    const firmaBase64 = docente.firma_url
+      ? await this.getBase64Image(docente.firma_url)
+      : null;
+
     const declaracion = await this.declaracionRepo.findOne({
       where: { docente_id: docenteId, periodo_academico_id: periodoObj.id },
     });
@@ -711,7 +718,7 @@ export class ReportesService {
       3: "TUTORIA Y CONSEJERIA",
       4: "INVESTIGACION",
       9: "RESPONSABILIDAD SOCIAL UNIVERSITARIA",
-      8: "ASESORÃA DE TESIS Y EXAMENES PROFESIONALES",
+      8: "ASESORÍA DE TESIS Y EXAMENES PROFESIONALES",
       5: "FORMACION ACADÉMICA Y CAPACITACIÓN",
       1: "AUTOEVALUACIÓN Y/O ACREDITACIÓN DE LA ESCUELA PROFESIONAL",
       10: "COMITES O COMISIONES ESPECIALES",
@@ -746,7 +753,7 @@ export class ReportesService {
           <td style="font-size:8px; padding:4px;">${horarioStr}</td>
           <td style="padding:4px;">${labelsNoLectiva[id] || ""}</td>
           <td class="text-center">${horas > 0 ? "F11" : ""}</td>
-          <td class="text-center">${horas > 0 ? "CUBÃCULO" : ""}</td>
+          <td class="text-center">${horas > 0 ? "CUBÍCULO" : ""}</td>
           <td class="text-center fw-bold">${horas > 0 ? horas : ""}</td>
         </tr>`;
     });
@@ -773,34 +780,35 @@ export class ReportesService {
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 0; padding: 0; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 9px; color: #334155; margin: 0; padding: 0; line-height: 1.3; }
           .watermark { position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
             font-size: 80px; font-weight: bold; color: rgba(0,0,0,${watermarkOpacity});
             transform: rotate(-30deg); pointer-events: none; z-index: 1000; letter-spacing: 10px; }
-          .container { padding: 20px 24px; }
-          .main-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+          .container { padding: 15px 25px; }
+          .main-title { font-size: 15px; font-weight: bold; text-align: center; margin-bottom: 18px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
 
-          table { width: 100%; border-collapse: collapse; margin-bottom: 0; border-radius: 4px; overflow: hidden; }
-          table, th, td { border: 1px solid #cbd5e1; }
-          th, td { padding: 6px 8px; vertical-align: middle; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #94a3b8; }
+          th, td { border: 1px solid #94a3b8; padding: 5px 6px; vertical-align: middle; }
 
           .bg-blue { background-color: #f1f5f9; color: #0f172a; font-weight: bold; }
+          th.bg-blue, td.bg-blue { font-size: 9.5px; text-transform: uppercase; }
           .text-center { text-align: center; }
           .text-left { text-align: left; }
           .fw-bold { font-weight: bold; }
 
-          .cat-box { border: 2px solid #000; padding: 4px 10px; text-align: center; font-weight: bold; font-size: 10px; display: inline-block; }
+          .cat-box { border: 1.5px solid #475569; border-radius: 4px; padding: 4px 8px; text-align: center; font-weight: bold; font-size: 9.5px; display: inline-block; background-color: #f8fafc; }
 
-          .footer-note { font-size: 7px; color: #333; margin-top: 10px; }
+          .footer-note { font-size: 8px; color: #64748b; margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 5px; }
 
-          .firma-section { margin-top: 30px; display: flex; justify-content: space-around; width: 100%; }
+          .firma-section { margin-top: 40px; display: flex; justify-content: space-around; width: 100%; }
           .firma-box { width: 28%; text-align: center; }
-          .firma-rect { border: 2px solid #000; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; font-size: 13px; font-weight: bold; font-family: 'Times New Roman', Times, serif; flex-direction: column; }
-          .firma-label { font-size: 8px; font-weight: bold; }
+          .firma-rect { border: 1.5px dashed #94a3b8; border-radius: 6px; height: 70px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; color: #94a3b8; flex-direction: column; background-color: #f8fafc; }
+          .firma-label { font-size: 8.5px; font-weight: bold; color: #334155; text-transform: uppercase; }
 
           @media print {
             .watermark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .bg-blue { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #b3cbe6 !important; }
+            .bg-blue, .cat-box, .firma-rect { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
         </style>
       </head>
@@ -860,13 +868,16 @@ export class ReportesService {
           </table>
 
           <div class="footer-note">
-            T: TEORÃA &nbsp; P: PRÃCTICA<br>
+            T: TEORÍA &nbsp; P: PRÁCTICA<br>
             LU (LUNES); MA (MARTES); MI (MIERCOLES); JU (JUEVES); VI (VIERNES); &nbsp; TIEMPO EN FORMATO DE 24 HORAS.
           </div>
 
           <div class="firma-section">
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma</span><span>Digital</span></div>
+              ${firmaBase64
+                ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                : `<div class="firma-rect"><span>Firma</span><span>Digital</span></div>`
+              }
               <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
             <div class="firma-box">
@@ -884,9 +895,10 @@ export class ReportesService {
     `;
 
     const puppeteer = await import("puppeteer");
+    this.logger.log(`Iniciando Puppeteer para generar PDF F03-CAD para docente ${docenteId}`);
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
     });
     try {
       const page = await browser.newPage();
@@ -898,7 +910,11 @@ export class ReportesService {
         printBackground: true,
         margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" },
       });
+      this.logger.log(`PDF F03-CAD generado exitosamente para docente ${docenteId}`);
       return Buffer.from(buffer);
+    } catch (error) {
+      this.logger.error(`Error generando PDF F03-CAD para docente ${docenteId}: ${error.message}`, error.stack);
+      throw error;
     } finally {
       await browser.close();
     }
@@ -920,6 +936,10 @@ export class ReportesService {
     });
     if (!periodoObj) throw new NotFoundException("Periodo no encontrado");
 
+    const firmaBase64 = docente.firma_url
+      ? await this.getBase64Image(docente.firma_url)
+      : null;
+
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
     const departamento = docente.departamento?.nombre || "No asignado";
     const facultad = docente.facultad?.nombre || "No asignada";
@@ -937,29 +957,27 @@ export class ReportesService {
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11.5px; color: #1e293b; margin: 0; padding: 25px 45px; line-height: 1.6; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 11px; color: #334155; margin: 0; padding: 30px 45px; line-height: 1.7; text-align: justify; }
 
-          .title { text-align: center; font-weight: 800; font-size: 14px; margin-bottom: 22px; color: #0f172a; }
+          .title { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 25px; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
 
-          .intro { text-align: justify; margin-bottom: 10px; }
+          .intro { margin-bottom: 12px; }
 
           .bold { font-weight: bold; color: #0f172a; }
           .italic { font-style: italic; }
           .underline { text-decoration: underline; }
 
-          .declaration-main { text-align: justify; margin-bottom: 10px; }
+          .declaration-main { margin-bottom: 12px; }
 
-          .clause { text-align: justify; margin-bottom: 8px; }
+          .clause { margin-bottom: 10px; padding-left: 15px; }
 
-          .sanction { text-align: justify; margin-top: 14px; margin-bottom: 20px; color: #475569; }
+          .sanction { margin-top: 18px; margin-bottom: 25px; color: #475569; font-size: 10.5px; text-align: justify; }
 
-          .fecha-firma { display: flex; align-items: flex-end; gap: 20px; margin-top: 40px; margin-bottom: 30px; }
-          .fecha-text { font-size: 11.5px; white-space: nowrap; }
-          .firma-box { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 10px 24px; text-align: center; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: bold; min-width: 120px; min-height: 55px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #64748b; }
-
-          .firma-bottom { margin-top: 10px; }
-          .firma-line { border-top: 1px solid #000; width: 280px; margin: 0 auto 4px auto; }
-          .firma-label { text-align: center; font-size: 10px; }
+          .fecha-text { font-size: 11px; font-weight: bold; color: #0f172a; }
+          .firma-box { border: 1.5px dashed #94a3b8; border-bottom: none; border-radius: 6px 6px 0 0; padding: 10px 24px; text-align: center; font-size: 12px; font-weight: bold; width: 140px; height: 50px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; background-color: #f8fafc; margin: 0 auto; }
+          .firma-line { border-top: 1px solid #475569; width: 280px; margin: 0 auto 6px auto; }
+          .firma-label { font-size: 10.5px; font-weight: bold; color: #334155; text-align: center; }
         </style>
       </head>
       <body>
@@ -1024,15 +1042,14 @@ export class ReportesService {
           LIQUIDE COMO PAGOS INDEBIDOS POR EL LAPSO DE TIEMPO LABORADO ILEGALMENTE</u></i></b>.
         </p>
 
-        <div class="fecha-firma">
-          <div class="fecha-text">Trujillo, ${fechaActual}</div>
-          <div class="firma-box">
-            <span>Firma</span>
-            <span>Digital</span>
-          </div>
+        <div style="text-align: right; margin-top: 40px; margin-bottom: 50px;">
+          <span class="fecha-text">Trujillo, ${fechaActual}</span>
         </div>
-
-        <div class="firma-bottom">
+        <div style="text-align: center;">
+          ${firmaBase64
+            ? `<img src="${firmaBase64}" style="max-width:160px; max-height:70px; display:block; margin:0 auto;" alt="Firma docente" />`
+            : `<div class="firma-box"><span>Firma</span><span>Digital</span></div>`
+          }
           <div class="firma-line"></div>
           <div class="firma-label">${nombreCompleto}</div>
           <div class="firma-label" style="margin-top:4px;">DNI N° ${ibm}</div>
@@ -1042,9 +1059,10 @@ export class ReportesService {
     `;
 
     const puppeteer = await import("puppeteer");
+    this.logger.log(`Iniciando Puppeteer para generar PDF F02-CAD para docente ${docenteId}`);
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
     });
     try {
       const page = await browser.newPage();
@@ -1055,7 +1073,11 @@ export class ReportesService {
         printBackground: true,
         margin: { top: "15mm", bottom: "15mm", left: "15mm", right: "15mm" },
       });
+      this.logger.log(`PDF F02-CAD generado exitosamente para docente ${docenteId}`);
       return Buffer.from(buffer);
+    } catch (error) {
+      this.logger.error(`Error generando PDF F02-CAD para docente ${docenteId}: ${error.message}`, error.stack);
+      throw error;
     } finally {
       await browser.close();
     }
@@ -1096,6 +1118,10 @@ export class ReportesService {
     const logoUrl = config?.logo_url ||
       "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
     const logoBase64 = await this.getBase64Image(logoUrl);
+
+    const firmaBase64 = docente.firma_url
+      ? await this.getBase64Image(docente.firma_url)
+      : null;
 
     const estadoDeclaracion = declaracion?.estado || "NO_INICIADO";
     const estadosAprobados = ["VALIDADO_DPTO", "APROBADO_FACULTAD", "CERRADO"];
@@ -1237,13 +1263,13 @@ export class ReportesService {
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 0; padding: 0; }
-          .container { width: 100%; margin: 0 auto; padding: 20px 24px; }
-          .main-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 7.5px; color: #334155; margin: 0; padding: 0; line-height: 1.1; }
+          .container { width: 100%; margin: 0 auto; padding: 10px 10px; }
+          .main-title { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 12px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
           
-          table { width: 100%; border-collapse: collapse; margin-bottom: 0; border-radius: 4px; overflow: hidden; }
-          table, th, td { border: 1px solid #cbd5e1; }
-          th, td { padding: 6px 8px; vertical-align: middle; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #94a3b8; table-layout: fixed; word-wrap: break-word; word-break: break-all; overflow-wrap: break-word; }
+          th, td { border: 1px solid #94a3b8; padding: 2px 2px; vertical-align: middle; overflow: hidden; }
           
           .bg-blue { background-color: #f1f5f9; color: #0f172a; font-weight: bold; }
           .bg-gray { background-color: #f8fafc; font-weight: bold; }
@@ -1253,14 +1279,19 @@ export class ReportesService {
           .text-right { text-align: right; }
           .fw-bold { font-weight: bold; }
           
-          .info-label { font-size: 8px; color: #64748b; }
-          .header-row th { background-color: #ffffff; font-size: 8px; font-weight: normal; text-align: center; color: #475569; }
+          .info-label { font-size: 8.5px; color: #475569; }
+          .header-row th { background-color: #f8fafc; font-size: 8px; font-weight: bold; text-align: center; color: #334155; text-transform: uppercase; }
           
-          .firma-section { margin-top: 40px; width: 100%; text-align: center; display: flex; justify-content: space-around; }
+          .firma-section { margin-top: 40px; display: flex; justify-content: space-around; width: 100%; }
           .firma-box { width: 28%; text-align: center; }
-          .firma-rect { border: 2px solid #000; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; font-size: 14px; font-weight: bold; font-family: 'Times New Roman', Times, serif; flex-direction: column;}
-          .firma-label { font-size: 9px; font-weight: bold; }
+          .firma-rect { border: 1.5px dashed #94a3b8; border-radius: 6px; height: 70px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; color: #94a3b8; flex-direction: column; background-color: #f8fafc; }
+          .firma-label { font-size: 8.5px; font-weight: bold; color: #334155; text-transform: uppercase; }
           
+          @media print {
+            .bg-blue, .bg-gray, .firma-rect, .header-row th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            tr { page-break-inside: avoid; }
+            .firma-section { page-break-inside: avoid; }
+          }
         </style>
       </head>
       <body>
@@ -1268,6 +1299,19 @@ export class ReportesService {
           <div class="main-title">DECLARACION DE LA CARGA ACADEMICA DOCENTE (F01-CAD)</div>
           
           <table>
+            <colgroup>
+              <col style="width: 8%;">
+              <col style="width: 25%;">
+              <col style="width: 10%;">
+              <col style="width: 15%;">
+              <col style="width: 5%;">
+              <col style="width: 5%;">
+              <col style="width: 6%;">
+              <col style="width: 6%;">
+              <col style="width: 6%;">
+              <col style="width: 6%;">
+              <col style="width: 8%;">
+            </colgroup>
             <tr>
               <td colspan="5" class="info-label" style="border-right: none;">FACULTAD / FILIAL: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.facultad?.nombre || ""}</b></td>
               <td colspan="6" class="info-label" style="border-left: none;">DPTO. ACADÉMICO: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.departamento?.nombre || ""}</b></td>
@@ -1276,7 +1320,7 @@ export class ReportesService {
               <th class="info-label text-center">DNI</th>
               <th colspan="4" class="info-label text-center">NOMBRE COMPLETO</th>
               <th colspan="2" class="info-label text-center">CONDICIÓN</th>
-              <th colspan="2" class="info-label text-center">CATEGORÃA</th>
+              <th colspan="2" class="info-label text-center">CATEGORÍA</th>
               <th colspan="2" class="info-label text-center">MODALIDAD</th>
             </tr>
             <tr>
@@ -1287,8 +1331,13 @@ export class ReportesService {
               <td colspan="2" class="text-center">${modalidadLabel[docente.modalidad] || docente.modalidad}</td>
             </tr>
             <tr>
-              <td colspan="11" class="text-center info-label" style="padding: 6px;">
-                AÑO ACADÉMICO: <b>${anio}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SEMESTRE: <b>${semestre}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Inicio: <b>${dateIni}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Término: <b>${dateFin}</b>
+              <td colspan="11" class="info-label" style="padding: 6px;">
+                <div style="display: flex; justify-content: space-between; width: 100%;">
+                  <span>AÑO ACADÉMICO: <b>${anio}</b></span>
+                  <span>SEMESTRE: <b>${semestre}</b></span>
+                  <span>Fecha de Inicio: <b>${dateIni}</b></span>
+                  <span>Fecha de Término: <b>${dateFin}</b></span>
+                </div>
               </td>
             </tr>
             
@@ -1306,11 +1355,11 @@ export class ReportesService {
               <th rowspan="2">Total<br>Horas</th>
             </tr>
             <tr class="header-row">
-              <th width="8%">CÓDIGO</th>
-              <th width="30%">DENOMINACIÓN</th>
-              <th width="5%">Teoría</th>
-              <th width="5%">Práctica</th>
-              <th width="5%">Lab.</th>
+              <th>CÓDIGO</th>
+              <th>DENOMINACIÓN</th>
+              <th>Teoría</th>
+              <th>Práctica</th>
+              <th>Lab.</th>
             </tr>
             
             ${trsLectiva}
@@ -1337,7 +1386,10 @@ export class ReportesService {
 
           <div class="firma-section">
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma</span><span>Digital</span></div>
+              ${firmaBase64
+                ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                : `<div class="firma-rect"><span>Firma</span><span>Digital</span></div>`
+              }
               <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
             <div class="firma-box">
@@ -1355,19 +1407,25 @@ export class ReportesService {
     `;
 
     const puppeteer = await import("puppeteer");
+    this.logger.log(`Iniciando Puppeteer para generar PDF F01-CAD para docente ${docenteId}`);
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
     });
     try {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "load" });
       const buffer = await page.pdf({
         format: "A4",
+        landscape: false,
         printBackground: true,
-        margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" },
+        margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
       });
+      this.logger.log(`PDF F01-CAD generado exitosamente para docente ${docenteId}`);
       return Buffer.from(buffer);
+    } catch (error) {
+      this.logger.error(`Error generando PDF F01-CAD para docente ${docenteId}: ${error.message}`, error.stack);
+      throw error;
     } finally {
       await browser.close();
     }
@@ -2887,7 +2945,7 @@ export class ReportesService {
               <td>${d.declarados}</td>
               <td style="color: ${d.semaforo}; font-weight: bold;">${d.porcentaje}%</td>
               <td style="background: ${d.semaforo}; color: white; text-align: center; font-weight: bold;">
-                ${d.porcentaje >= 80 ? "âœ“ BUENO" : d.porcentaje >= 50 ? "âš  MEDIO" : "âœ— CRÃTICO"}
+                ${d.porcentaje >= 80 ? "✓ BUENO" : d.porcentaje >= 50 ? "⚠ MEDIO" : "✗ CRÍTICO"}
               </td>
             </tr>`,
               )
@@ -3358,7 +3416,7 @@ export class ReportesService {
     };
     const primaryRGB = hexToRgb(primaryColor);
 
-    // --- PÃGINA 1: INFORMACIÓN GENERAL (VERTICAL) ---
+    // --- PÁGINA 1: INFORMACIÓN GENERAL (VERTICAL) ---
     doc.setFillColor(...primaryRGB);
     doc.rect(0, 0, PAGE_W, 45, "F");
 
@@ -3444,7 +3502,7 @@ export class ReportesService {
       currentY,
     );
 
-    // --- SIGUIENTES PÃGINAS: HORARIOS (HORIZONTAL) ---
+    // --- SIGUIENTES PÁGINAS: HORARIOS (HORIZONTAL) ---
     for (const ciclo of ciclos) {
       doc.addPage("a4", "landscape");
       await this.dibujarPaginaCiclo(
@@ -3456,7 +3514,7 @@ export class ReportesService {
       );
     }
 
-    // --- AGREGAR PIE DE PÃGINA (NÚMEROS Y FECHA) ---
+    // --- AGREGAR PIE DE PÁGINA (NÚMEROS Y FECHA) ---
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -4272,7 +4330,7 @@ export class ReportesService {
     sheet.getCell(`A${currentRow}`).font = { bold: true, size: 11 };
     currentRow++;
 
-    // --- LÓGICA DINÃMICA DE COLUMNAS ---
+    // --- LÓGICA DINÁMICA DE COLUMNAS ---
     // 1. Agrupar asignaciones por día y calcular peak lanes por día
     const asignacionesPorDia = new Map<number, HorarioAsignado[]>();
     horarios.forEach((h) => {
@@ -5189,6 +5247,188 @@ export class ReportesService {
           PLAN DE ESTUDIOS DE ${plan.nombre.toUpperCase()} ${plan.anio}
         </div>
         ${tableHtml}
+      </body>
+      </html>
+    `;
+
+    return this.generarPDF(html);
+  }
+
+  async generarReporteCLAD(id: number): Promise<Buffer> {
+    const clad = await this.cladRepo.findOne({
+      where: { id },
+      relations: [
+        'docente',
+        'docente.departamento',
+        'docente.facultad',
+        'periodo_academico',
+        'detalles',
+      ],
+    });
+
+    if (!clad) throw new NotFoundException('Declaración CLAD no encontrada');
+
+    const configuracion = await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl = configuracion.logo_url || "https://upload.wikimedia.org/wikipedia/commons/e/e0/Escudo_de_la_Universidad_Nacional_de_Trujillo.png";
+    const logoBase64 = await this.getBase64Image(logoUrl);
+    const watermarkBase64 = await this.getBase64Image(logoUrl);
+
+    const firmaBase64 = clad.docente?.firma_url
+      ? await this.getBase64Image(clad.docente.firma_url)
+      : null;
+
+    let filasCursos = '';
+    clad.detalles.forEach((det, i) => {
+      let horarioStr = '';
+      if (Array.isArray(det.horario)) {
+        horarioStr = det.horario.map((h: any) => {
+          const diaNombre = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'][h.dia] || h.dia;
+          return `${diaNombre} ${h.hora_inicio}-${h.hora_fin} (${h.lugar})`;
+        }).join('<br>');
+      }
+      
+      filasCursos += `
+        <tr>
+          <td class="centered">${i + 1}</td>
+          <td>${det.codigo_curso || ''}</td>
+          <td>${det.nombre_curso}</td>
+          <td class="centered">${det.horas_semanales}</td>
+          <td>${horarioStr}</td>
+          <td>${det.fecha_inicio ? new Date(det.fecha_inicio).toLocaleDateString() : ''} - ${det.fecha_fin ? new Date(det.fecha_fin).toLocaleDateString() : ''}</td>
+        </tr>
+      `;
+    });
+
+    const firmaDocenteStr = clad.firma_docente ? `Firmado digitalmente el ${new Date((clad.firma_docente as any).fecha).toLocaleDateString()}` : '';
+    const firmaDptoStr = clad.firma_director_dpto ? `Firmado digitalmente el ${new Date((clad.firma_director_dpto as any).fecha).toLocaleDateString()}` : '';
+    const firmaDependenciaStr = clad.firma_director_dependencia ? `Firmado digitalmente el ${new Date((clad.firma_director_dependencia as any).fecha).toLocaleDateString()}` : '';
+    const firmaDecanoStr = clad.firma_decano ? `Firmado digitalmente el ${new Date((clad.firma_decano as any).fecha).toLocaleDateString()}` : '';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Anexo 04 - CLAD</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 10px; color: #334155; margin: 0; padding: 0; line-height: 1.3; position: relative; }
+          .watermark { position: fixed; top: 30%; left: 15%; width: 70%; opacity: 0.05; z-index: -1; }
+          .container { padding: 40px; }
+          .header-table { width: 100%; margin-bottom: 20px; border-bottom: 2px solid #1e293b; padding-bottom: 10px; }
+          .header-table td { vertical-align: middle; }
+          .logo { width: 60px; height: auto; }
+          .title { text-align: center; font-size: 14px; font-weight: bold; color: #0f172a; margin: 0; padding: 0; }
+          .subtitle { text-align: center; font-size: 11px; font-weight: bold; color: #475569; margin-top: 5px; }
+          .section-title { font-weight: bold; font-size: 11px; margin-top: 20px; margin-bottom: 5px; background-color: #f1f5f9; padding: 4px; border: 1px solid #cbd5e1; }
+          table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9px; }
+          table.data-table th, table.data-table td { border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; vertical-align: top; }
+          table.data-table th { background-color: #f8fafc; font-weight: bold; text-align: center; }
+          .centered { text-align: center !important; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 50px; flex-wrap: wrap; }
+          .signature-box { width: 45%; text-align: center; margin-bottom: 40px; }
+          .signature-line { border-top: 1px solid #000; margin-top: 50px; padding-top: 5px; font-weight: bold; }
+          .signature-date { font-size: 8px; color: #64748b; margin-top: 3px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          ${watermarkBase64 ? `<img class="watermark" src="${watermarkBase64}" />` : ""}
+          <table class="header-table">
+            <tr>
+              <td width="15%">${logoBase64 ? `<img class="logo" src="${logoBase64}" />` : ""}</td>
+              <td width="70%">
+                <div class="title">UNIVERSIDAD NACIONAL DE TRUJILLO</div>
+                <div class="subtitle">ANEXO 04<br>FORMATO DE CARGA LECTIVA ADICIONAL (CLAD)</div>
+              </td>
+              <td width="15%" style="text-align: right; font-size: 8px;">
+                Fecha: ${new Date().toLocaleDateString('es-PE')}<br>
+                Estado: ${clad.estado.replace('_', ' ')}
+              </td>
+            </tr>
+          </table>
+
+          <div class="section-title">I. DATOS DEL DOCENTE</div>
+          <table class="data-table">
+            <tr>
+              <td width="20%"><strong>Apellidos y Nombres:</strong></td>
+              <td width="80%">${clad.docente.apellidos}, ${clad.docente.nombres}</td>
+            </tr>
+            <tr>
+              <td><strong>Facultad:</strong></td>
+              <td>${clad.docente.facultad?.nombre || ''}</td>
+            </tr>
+            <tr>
+              <td><strong>Departamento:</strong></td>
+              <td>${clad.docente.departamento?.nombre || ''}</td>
+            </tr>
+            <tr>
+              <td><strong>Categoría/Dedicación:</strong></td>
+              <td>${clad.docente.categoria} - ${clad.docente.modalidad}</td>
+            </tr>
+          </table>
+
+          <div class="section-title">II. DEPENDENCIA SOLICITANTE</div>
+          <table class="data-table">
+            <tr>
+              <td width="20%"><strong>Tipo de Dependencia:</strong></td>
+              <td width="30%">${clad.tipo_dependencia.replace('_', ' ')}</td>
+              <td width="20%"><strong>Nombre Específico:</strong></td>
+              <td width="30%">${clad.nombre_dependencia || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td><strong>Periodo Académico:</strong></td>
+              <td colspan="3">${clad.periodo_academico?.codigo}</td>
+            </tr>
+          </table>
+
+          <div class="section-title">III. DETALLE DE CARGA LECTIVA ADICIONAL</div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th width="5%">N°</th>
+                <th width="10%">Código</th>
+                <th width="35%">Nombre de la Asignatura / Actividad</th>
+                <th width="10%">Horas Sem.</th>
+                <th width="20%">Horario y Lugar</th>
+                <th width="20%">Vigencia (Inicio - Fin)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filasCursos}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" style="text-align: right; font-weight: bold;">TOTAL HORAS ADICIONALES:</td>
+                <td class="centered" style="font-weight: bold;">${clad.total_horas}</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="signatures">
+            <div class="signature-box">
+              ${firmaBase64
+                ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                : `<div style="border:1px dashed #94a3b8; border-radius:4px; padding:12px; margin-bottom:8px; color:#94a3b8; font-size:10px;">[Firma Digital del Docente]</div>`
+              }
+              <div class="signature-line">Firma del Docente</div>
+              <div class="signature-date">${firmaDocenteStr}</div>
+            </div>
+            <div class="signature-box">
+              <div class="signature-line">V°B° Director de Departamento Académico</div>
+              <div class="signature-date">${firmaDptoStr}</div>
+            </div>
+            <div class="signature-box">
+              <div class="signature-line">V°B° Autoridad Dependencia (Posgrado/CEPUNT/Filial)</div>
+              <div class="signature-date">${firmaDependenciaStr}</div>
+            </div>
+            <div class="signature-box">
+              <div class="signature-line">V°B° Decano de Facultad (Aprobación Final)</div>
+              <div class="signature-date">${firmaDecanoStr}</div>
+            </div>
+          </div>
+        </div>
       </body>
       </html>
     `;

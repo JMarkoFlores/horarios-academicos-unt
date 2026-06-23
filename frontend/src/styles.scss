@@ -122,12 +122,17 @@ $unt-dark-theme: mat.define-dark-theme(
   --color-accent-900: #5c1b02;
 
   // Colores de uso común (alias para compatibilidad)
+// Alias
   --color-primary: var(--color-primary-500);
+  --color-primary-rgb: 21, 101, 192;
   --color-primary-light: rgba(21, 101, 192, 0.08);
   --color-primary-hover: var(--color-primary-600);
   --color-accent: var(--color-accent-500);
+  --color-accent-rgb: 255, 111, 0;
   --color-accent-light: rgba(255, 111, 0, 0.08);
   --color-accent-hover: var(--color-accent-600);
+  --color-background: var(--color-bg);
+  --color-warning-rgb: 245, 158, 11;
 
   // Semánticos (light)
   --color-success: #059669;
@@ -248,11 +253,15 @@ body.dark-theme {
 
   // Alias
   --color-primary: var(--color-primary-500);
+  --color-primary-rgb: 66, 165, 245;
   --color-primary-light: rgba(66, 165, 245, 0.15);
   --color-primary-hover: var(--color-primary-600);
   --color-accent: var(--color-accent-500);
+  --color-accent-rgb: 255, 183, 77;
   --color-accent-light: rgba(255, 183, 77, 0.15);
   --color-accent-hover: var(--color-accent-600);
+  --color-background: var(--color-bg);
+  --color-warning-rgb: 251, 191, 36;
 
   // Semánticos (dark)
   --color-success: #34d399;

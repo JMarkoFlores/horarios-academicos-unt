@@ -5,7 +5,7 @@
       <h1 class="greeting">{{ greeting() }}, {{ usuario?.nombre || "Usuario" }}</h1>
       <p class="current-date">{{ currentDate() }}</p>
     </div>
-    <div class="header-actions">
+    <div class="header-actions" *ngIf="isAdminOrCoord() || isDirector()">
       <button mat-icon-button [matTooltip]="'dashboard.compactMode' | translate" (click)="compactMode.set(!compactMode())" [class.active]="compactMode()">
         <mat-icon>view_stream</mat-icon>
       </button>
@@ -62,7 +62,7 @@
   }
 
   <!-- Quick Actions -->
-  @if (canViewFullDashboard()) {
+  @if (isAdminOrCoord()) {
     <div class="quick-actions">
       <a mat-stroked-button class="qa-btn" routerLink="/app/docentes"><mat-icon>person_add</mat-icon><span>{{ 'dashboard.newTeacher' | translate }}</span></a>
       <a mat-stroked-button class="qa-btn" routerLink="/app/asignaciones"><mat-icon>assignment_ind</mat-icon><span>{{ 'dashboard.assignSchedule' | translate }}</span></a>

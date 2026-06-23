@@ -41,15 +41,32 @@ const ESTADOS_DEMO: Array<{ estado: EstadoDeclaracionCarga; count: number }> = [
 ];
 
 function buildCargaNoLectiva(horasLectivas: number, horasNoLectivas: number) {
-  const prep = Math.min(6, Math.round(horasNoLectivas * 0.4));
-  const inv = Math.min(4, Math.round(horasNoLectivas * 0.3));
+  const prep = Math.min(Math.floor(horasLectivas * 0.5), horasNoLectivas);
+  const inv = Math.max(0, Math.floor((horasNoLectivas - prep) / 2));
   const gest = Math.max(0, horasNoLectivas - prep - inv);
   return {
     actividades: [
-      { id: 1, descripcion: "Docencia universitaria", horas: horasLectivas },
-      { id: 2, descripcion: "Preparación de clases y evaluación", horas: prep },
-      { id: 3, descripcion: "Investigación aplicada", horas: inv },
-      { id: 6, descripcion: "Gestión académica", horas: gest },
+      { 
+        id: 2, 
+        descripcion: "PREPARACIÓN DE CLASES Y EVALUACIÓN", 
+        horas: prep,
+        detalle: "Preparación de material didáctico, sílabos y evaluación continua.",
+        horarios: prep > 0 ? [{ dia: "Lunes", inicio: "08:00", fin: "10:00" }] : []
+      },
+      { 
+        id: 3, 
+        descripcion: "INVESTIGACIÓN (BÁSICA Y/O APLICADA)", 
+        horas: inv,
+        detalle: "Desarrollo de proyecto de investigación en PIC.",
+        horarios: inv > 0 ? [{ dia: "Miércoles", inicio: "14:00", fin: "16:00" }] : []
+      },
+      { 
+        id: 7, 
+        descripcion: "ACTIVIDADES DE GESTIÓN INSTITUCIONAL", 
+        horas: gest,
+        detalle: "Reuniones de comité directivo y coordinación académica.",
+        horarios: gest > 0 ? [{ dia: "Jueves", inicio: "16:00", fin: "18:00" }] : []
+      },
     ],
     total_horas_lectivas: horasLectivas,
     total_horas_no_lectivas: horasNoLectivas,
@@ -118,12 +135,38 @@ export async function seedDeclaracionesDemo(
   const declaraciones: DeclaracionCargaHoraria[] = [];
   const baseFecha = new Date("2026-03-15T10:00:00");
 
+  const horarioRepo = declaracionRepo.manager.getRepository("HorarioAsignado");
+  const horariosDB = await horarioRepo.find({
+    where: { periodo: periodoActivo.codigo }
+  });
+  
+  const horasPorDocente = new Map<number, number>();
+  for (const h of horariosDB) {
+    const [hIni] = (h as any).hora_inicio.split(":");
+    const [hFin] = (h as any).hora_fin.split(":");
+    const horas = parseInt(hFin, 10) - parseInt(hIni, 10);
+    const actual = horasPorDocente.get((h as any).docente_id) || 0;
+    horasPorDocente.set((h as any).docente_id, actual + horas);
+  }
+
   for (let i = 0; i < ordenados.length; i++) {
     const doc = ordenados[i];
-    const estado =
-      estadoPorIndice[i] ?? EstadoDeclaracionCarga.NO_INICIADO;
-    const horasLectivas = 12 + (i % 8);
-    const horasNoLectivas = 4 + (i % 6);
+    let estado = estadoPorIndice[i] ?? EstadoDeclaracionCarga.NO_INICIADO;
+    
+    const esRobert = doc.nombres.toLowerCase().includes("robert jerry") && doc.apellidos.toLowerCase().includes("sanchez ticona");
+    if (esRobert) {
+      estado = EstadoDeclaracionCarga.BORRADOR;
+    }
+
+    let totalHoras = 40;
+    if (doc.modalidad === "TIEMPO_PARCIAL_20") totalHoras = 20;
+    else if (doc.modalidad === "TIEMPO_PARCIAL_12") totalHoras = 12;
+    else if (doc.modalidad === "TIEMPO_PARCIAL_10") totalHoras = 10;
+    else if (doc.modalidad === "TIEMPO_PARCIAL_8") totalHoras = 8;
+    
+    const horasLectivas = horasPorDocente.get(doc.id) || 0;
+    let horasNoLectivas = totalHoras - horasLectivas;
+    if (horasNoLectivas < 0) horasNoLectivas = 0;
     const fechas = fechasPorEstado(estado, new Date(baseFecha.getTime() + i * 86400000));
     const tieneCarga =
       estado !== EstadoDeclaracionCarga.BORRADOR &&

@@ -9,17 +9,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
   gap: 16px;
 
   .title-section {
-    h1 {
-      margin: 0;
+    .gradient-text {
       font-size: 28px;
-      font-weight: 700;
-      color: var(--color-text);
-      letter-spacing: -0.02em;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+      letter-spacing: -0.03em;
     }
     .subtitle {
       margin: 4px 0 0;

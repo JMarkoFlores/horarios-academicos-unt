@@ -1,4 +1,4 @@
-﻿import {
+import {
   BadRequestException,
   Controller,
   Get,
@@ -132,6 +132,8 @@ export class HorariosController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
     RolUsuario.DOCENTE,
   )
   @ApiBearerAuth("JWT")
@@ -162,6 +164,8 @@ export class HorariosController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
     RolUsuario.DOCENTE,
   )
   @ApiBearerAuth("JWT")
@@ -195,6 +199,8 @@ export class HorariosController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
   )
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar heatmap de ocupaciÃ³n por perÃ­odo" })
@@ -211,6 +217,8 @@ export class HorariosController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
   )
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar ocupaciÃ³n de un ambiente por perÃ­odo" })
@@ -243,6 +251,8 @@ export class HorariosController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
   )
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar asignaciones por dÃ­a y perÃ­odo" })
@@ -530,6 +540,9 @@ export class HorariosController {
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
   )
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Listar conflictos del perÃ­odo" })
@@ -712,6 +725,8 @@ export class HorariosController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
     RolUsuario.DOCENTE,
   )
   @ApiBearerAuth("JWT")
@@ -768,6 +783,9 @@ export class HorariosController {
     RolUsuario.DOCENTE,
     RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
   )
   async getMatrizDisponibilidad(
     @Query("periodo") periodo: string,

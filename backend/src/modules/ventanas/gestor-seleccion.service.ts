@@ -21,11 +21,12 @@ import { ValidadorHorarioService } from "../../horarios/validador-horario.servic
 import { SeleccionarCeldaDto } from "./dto/seleccionar-celda.dto";
 import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
 import { ValidacionesService } from "../../common/services/validaciones.service";
-import { AuditoriaService } from "../../modules/auditoria/auditoria.service";
+import { AuditoriaService } from "../auditoria/auditoria.service";
 import { Ambiente } from "../../entities/ambiente.entity";
 import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Docente } from "../../entities/docente.entity";
 import { Curso } from "../../entities/curso.entity";
+import { DisponibilidadDocente } from "../../entities/disponibilidad-docente.entity";
 import { SincronizacionRedisService } from "./sincronizacion-redis.service";
 
 type SeleccionTemporalRedis = {
@@ -963,7 +964,8 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         if (seleccion.tipoClase === "LABORATORIO" && grupoId) {
           // Para LABORATORIO, el grupoId ya es el database ID (mapeado durante selección)
           // Validar que el grupo existe
-          const grupoExistente = await queryRunner.manager.findOne(Grupo, {
+          const grupoRepo = queryRunner.manager.getRepository(Grupo);
+          const grupoExistente = await grupoRepo.findOne({
             where: { id: grupoId, curso_id: seleccion.cursoId },
           });
           if (!grupoExistente) {
@@ -979,7 +981,8 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           );
         } else {
           // Para TEORIA y PRACTICA, obtener un grupo válido existente
-          const grupoExistente = await queryRunner.manager.findOne(Grupo, {
+          const grupoRepo = queryRunner.manager.getRepository(Grupo);
+          const grupoExistente = await grupoRepo.findOne({
             where: { curso_id: seleccion.cursoId },
             order: { id: "ASC" },
           });
@@ -993,7 +996,8 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
           grupoFinal = grupoExistente.id;
         }
 
-        const horario = queryRunner.manager.create(HorarioAsignado, {
+        const horarioRepo = queryRunner.manager.getRepository(HorarioAsignado);
+        const horario = horarioRepo.create({
           docente_id: seleccion.docenteId,
           curso_id: seleccion.cursoId,
           grupo_id: grupoFinal,
@@ -1173,14 +1177,20 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         relations: ["curso"],
       });
 
-    // Si se proporciona docenteId, también obtener sus horarios confirmados en otros ambientes
+    // Si se proporciona docenteId, también obtener sus horarios confirmados en otros ambientes y su disponibilidad
     let horariosDocenteEnOtrosAmbientes: HorarioAsignado[] = [];
+    let disponibilidadDocente: DisponibilidadDocente[] = [];
     if (docenteId) {
       horariosDocenteEnOtrosAmbientes = await this.dataSource
         .getRepository(HorarioAsignado)
         .find({
           where: { docente_id: docenteId, periodo },
           relations: ["curso"],
+        });
+      disponibilidadDocente = await this.dataSource
+        .getRepository(DisponibilidadDocente)
+        .find({
+          where: { docente: { id: docenteId }, periodo_academico: periodo },
         });
     }
 
@@ -1226,7 +1236,22 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
             horaInicio,
             horaFin,
           );
-        if (fueraDeFranja || esNoLaborable) {
+        // Check if docente is not available for this slot
+        let docenteNoDisponible = false;
+        if (docenteId && disponibilidadDocente.length > 0) {
+          // Check if there's any disponibilidad slot that covers this time and is not disponible
+          docenteNoDisponible = disponibilidadDocente.some(d => {
+            if (d.dia_semana !== dia) return false;
+            // Check if times overlap
+            const slotInicio = parseInt(horaInicio.split(':')[0]);
+            const slotFin = parseInt(horaFin.split(':')[0]);
+            const dispInicio = parseInt(d.hora_inicio.split(':')[0]);
+            const dispFin = parseInt(d.hora_fin.split(':')[0]);
+            const overlap = !(slotFin <= dispInicio || slotInicio >= dispFin);
+            return overlap && !d.disponible;
+          });
+        }
+        if (fueraDeFranja || esNoLaborable || docenteNoDisponible) {
           estado = "BLOQUEADO";
         } else {
           const confirmados = horariosConfirmados.filter(

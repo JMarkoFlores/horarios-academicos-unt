@@ -1,0 +1,131 @@
+<div class="header-container">
+  <div class="header-content">
+    <div class="title-section">
+      <button mat-icon-button routerLink="..">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1>{{ isEditMode ? 'Editar' : 'Nueva' }} Declaración CLAD</h1>
+    </div>
+  </div>
+</div>
+
+<div class="main-content">
+  <form [formGroup]="cladForm" (ngSubmit)="guardar()">
+    <mat-card class="form-card">
+      <div class="section-title">Datos Principales</div>
+      <div class="grid-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Periodo Académico</mat-label>
+          <mat-select formControlName="periodo_academico_id">
+            <mat-option *ngFor="let p of periodos" [value]="p.id">{{ p.codigo }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Tipo de Dependencia</mat-label>
+          <mat-select formControlName="tipo_dependencia">
+            <mat-option *ngFor="let tipo of tiposDependencia" [value]="tipo">{{ tipo.replace('_', ' ') }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre de Dependencia Específica</mat-label>
+          <input matInput formControlName="nombre_dependencia" placeholder="Ej. Segunda Especialidad en...">
+        </mat-form-field>
+      </div>
+
+      <div class="section-title">Detalle de Asignaturas / Actividades</div>
+      
+      <div formArrayName="detalles">
+        <div *ngFor="let det of detalles.controls; let i=index" [formGroupName]="i" class="detalle-card">
+          <div class="detalle-header">
+            <h3>Asignatura {{ i + 1 }}</h3>
+            <button mat-icon-button color="warn" type="button" (click)="removerDetalle(i)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+          
+          <div class="grid-form">
+            <mat-form-field appearance="outline">
+              <mat-label>Código Curso</mat-label>
+              <input matInput formControlName="codigo_curso">
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline" class="col-span-2">
+              <mat-label>Nombre del Curso</mat-label>
+              <input matInput formControlName="nombre_curso" required>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Horas Semanales</mat-label>
+              <input matInput type="number" formControlName="horas_semanales" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Fecha Inicio</mat-label>
+              <input matInput type="date" formControlName="fecha_inicio" required>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Fecha Fin</mat-label>
+              <input matInput type="date" formControlName="fecha_fin" required>
+            </mat-form-field>
+          </div>
+
+          <!-- Componente simplificado de horario -->
+          <div class="horario-mini">
+            <h4>Horarios <button mat-button type="button" color="primary" (click)="agregarHorario(i)"><mat-icon>add</mat-icon> Agregar Horario</button></h4>
+            <div formArrayName="horario">
+              <div *ngFor="let h of getHorarios(i).controls; let j=index" [formGroupName]="j" class="horario-row">
+                <mat-form-field appearance="outline">
+                  <mat-select formControlName="dia">
+                    <mat-option [value]="1">Lunes</mat-option>
+                    <mat-option [value]="2">Martes</mat-option>
+                    <mat-option [value]="3">Miércoles</mat-option>
+                    <mat-option [value]="4">Jueves</mat-option>
+                    <mat-option [value]="5">Viernes</mat-option>
+                    <mat-option [value]="6">Sábado</mat-option>
+                    <mat-option [value]="0">Domingo</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <input matInput type="time" formControlName="hora_inicio">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <input matInput type="time" formControlName="hora_fin">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <input matInput placeholder="Lugar" formControlName="lugar">
+                </mat-form-field>
+                
+                <button mat-icon-button color="warn" type="button" (click)="removerHorario(i, j)">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <button mat-button type="button" color="primary" (click)="agregarDetalle()">
+        <mat-icon>add</mat-icon> Agregar Asignatura
+      </button>
+
+      <div class="section-title">Observaciones (Opcional)</div>
+      <mat-form-field appearance="outline" class="w-full">
+        <textarea matInput formControlName="observaciones" rows="3"></textarea>
+      </mat-form-field>
+
+      <div class="actions">
+        <button mat-button type="button" routerLink="..">Cancelar</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="cladForm.invalid || saving">
+          {{ saving ? 'Guardando...' : 'Guardar Declaración' }}
+        </button>
+      </div>
+    </mat-card>
+  </form>
+</div>

@@ -66,10 +66,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isAdmin(): boolean { return this.rol === ROLES.ADMINISTRADOR_SISTEMA; }
   isCoord(): boolean { return this.rol === ROLES.COORDINADOR_ACADEMICO; }
   isDirector(): boolean { return this.rol === ROLES.DIRECTOR_ESCUELA; }
+  isDirectorDepto(): boolean { return this.rol === ROLES.DIRECTOR_DEPARTAMENTO; }
   isDocente(): boolean { return this.rol === ROLES.DOCENTE; }
   isSecretaria(): boolean { return this.rol === ROLES.SECRETARIA; }
   isAdminOrCoord(): boolean { return this.isAdmin() || this.isCoord(); }
-  canViewFullDashboard(): boolean { return this.isAdminOrCoord() || this.isDirector(); }
+  canViewFullDashboard(): boolean { return this.isAdminOrCoord() || this.isDirector() || this.isDirectorDepto(); }
   canGenerateHorario(): boolean { return this.isAdminOrCoord(); }
 
   conflictosColumns = ['tipo', 'descripcion', 'periodo', 'acciones'];

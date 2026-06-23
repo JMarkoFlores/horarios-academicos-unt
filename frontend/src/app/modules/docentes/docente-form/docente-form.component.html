@@ -136,6 +136,24 @@
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>DNI</mat-label>
+              <input
+                matInput
+                type="text"
+                formControlName="dni"
+                placeholder="Ej. 12345678"
+                maxlength="8"
+              />
+              <mat-icon matPrefix>badge</mat-icon>
+              <mat-error *ngIf="form.get('dni')?.hasError('required')"
+                >El DNI es necesario</mat-error
+              >
+              <mat-error *ngIf="form.get('dni')?.hasError('dniInvalido')"
+                >Debe ser un número de 8 dígitos</mat-error
+              >
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Fecha de Ingreso</mat-label>
               <input
                 matInput

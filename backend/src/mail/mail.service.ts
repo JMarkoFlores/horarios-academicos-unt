@@ -8,15 +8,15 @@ export class MailService {
   private transporter: nodemailer.Transporter;
 
   constructor(private readonly configService: ConfigService) {
-    const host = this.configService.get<string>("SMTP_HOST", "localhost");
+    const host = this.configService.get<string>("CORREO_HOST", "localhost");
     const port = parseInt(
-      this.configService.get<string>("SMTP_PORT", "1025") || "1025",
+      this.configService.get<string>("CORREO_PORT", "1025") || "1025",
       10,
     );
     const secureStr = this.configService.get<string>("SMTP_SECURE", "false");
     const secure = secureStr === "true" || secureStr === "1";
-    const user = this.configService.get<string>("SMTP_USER", "");
-    const pass = this.configService.get<string>("SMTP_PASS", "");
+    const user = this.configService.get<string>("CORREO_USER", "");
+    const pass = this.configService.get<string>("CORREO_PASS", "");
 
     const isDev =
       this.configService.get<string>("NODE_ENV", "development") ===
@@ -44,7 +44,7 @@ export class MailService {
   async sendMail(to: string, subject: string, html: string): Promise<void> {
     try {
       const info = await this.transporter.sendMail({
-        from: this.configService.get<string>("SMTP_FROM", "noreply@unt.edu.pe"),
+        from: this.configService.get<string>("CORREO_FROM", "noreply@unt.edu.pe"),
         to,
         subject,
         html,

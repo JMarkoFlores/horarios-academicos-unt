@@ -1,0 +1,85 @@
+.header-container {
+  padding: 24px 32px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  .header-content {
+    display: flex;
+    align-items: center;
+    .title-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      h1 { margin: 0; font-size: 24px; color: #0f172a; font-weight: 600; }
+    }
+  }
+}
+
+.main-content {
+  padding: 24px 32px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.form-card {
+  padding: 32px;
+  border-radius: 12px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f1f5f9;
+  margin-top: 24px;
+  &:first-child { margin-top: 0; }
+}
+
+.grid-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  .col-span-2 { grid-column: span 2; }
+}
+
+.w-full { width: 100%; }
+
+.detalle-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #f8fafc;
+  
+  .detalle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  }
+}
+
+.horario-mini {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #cbd5e1;
+  
+  h4 { margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px; font-size: 14px;}
+  
+  .horario-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    mat-form-field { width: 140px; }
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 32px;
+}

@@ -42,6 +42,7 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
 
   private _gridCache: Map<string, CeldaHorario> = new Map();
   private periodSub?: Subscription;
+  mostrarNoLectiva = false;
 
   constructor(
     private api: ApiService,
@@ -142,10 +143,14 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
     for (const dia of this.diasNum) {
       for (const hora of this.horas) {
         const key = `${dia}_${hora}`;
-        const asig =
-          this.asignaciones.find(
-            (a) => a.dia_semana === dia && a.hora_inicio === this.fmtHStr(hora),
-          ) ?? null;
+        const asigMatches = this.asignaciones.filter(
+          (a) => a.dia_semana === dia && a.hora_inicio === this.fmtHStr(hora)
+        );
+        let asig: HorarioAsignado | null = asigMatches.find(a => a.tipo_clase !== 'NO_LECTIVA') ?? asigMatches[0] ?? null;
+
+        if (asig && asig.tipo_clase === 'NO_LECTIVA' && !this.mostrarNoLectiva) {
+          asig = null;
+        }
         let rowspan = 1;
         if (asig?.hora_fin) {
           const finH = parseInt(asig.hora_fin.split(':')[0], 10);
@@ -183,9 +188,14 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
   cls(dia: number, hora: number): string {
     const cell = this.getCell(dia, hora);
     if (!cell.asig) return cell.esAlmuerzo ? 'celda-almuerzo' : 'celda-vacia';
+    if (cell.asig.tipo_clase === 'NO_LECTIVA') return 'celda-no-lectiva';
     return cell.asig.tipo_clase === 'LABORATORIO'
       ? 'celda-lab'
       : 'celda-teoria';
+  }
+
+  toggleNoLectiva(): void {
+    this._buildGrid();
   }
 
   esAlmuerzoHora(hora: number): boolean {

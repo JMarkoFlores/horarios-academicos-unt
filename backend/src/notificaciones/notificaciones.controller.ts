@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Query,
   UseGuards,
+  Logger,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -29,6 +30,8 @@ import { RolUsuario } from "../common/enums/rol-usuario.enum";
 @ApiTags("notificaciones")
 @Controller("notificaciones")
 export class NotificacionesController {
+  private readonly logger = new Logger(NotificacionesController.name);
+
   constructor(
     private readonly notificacionesService: NotificacionesService,
     private readonly telegramBotService: TelegramBotService,
@@ -70,6 +73,7 @@ export class NotificacionesController {
     @Param("docenteId", ParseIntPipe) docenteId: number,
     @Body() dto: UpdatePreferenciasDto,
   ) {
+    this.logger.log(`Recibiendo DTO para guardar preferencias: ${JSON.stringify(dto)}`);
     const result = await this.notificacionesService.upsertPreferencias(
       docenteId,
       dto,
@@ -115,15 +119,24 @@ export class NotificacionesController {
   @Post("telegram/webhook")
   @ApiOperation({ summary: "Webhook receptor del bot de Telegram" })
   async telegramWebhook(@Body() update: unknown) {
+    this.logger?.log("📨 Webhook de Telegram recibido!");
     const response = await this.telegramBotService.handleUpdate(update);
     if (response) {
       const token = process.env.TELEGRAM_BOT_TOKEN;
+      this.logger?.log(`🔑 Token encontrado: ${token ? "SI" : "NO"}`);
       if (token) {
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(response),
-        });
+        this.logger?.log("📤 Enviando mensaje a Telegram...");
+        try {
+          const result = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(response),
+          });
+          const data = await result.json();
+          this.logger?.log(`✅ Mensaje enviado: ${JSON.stringify(data)}`);
+        } catch (error) {
+          this.logger?.error(`❌ Error al enviar mensaje: ${error}`);
+        }
       }
     }
     return { ok: true };

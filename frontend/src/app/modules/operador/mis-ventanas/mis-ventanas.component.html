@@ -1,0 +1,86 @@
+
+<div class="mis-ventanas-container">
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Mis Ventanas de Atención</h1>
+      <p class="subtitle">Consulta tus ventanas de atención programadas y tu posición en la cola</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <div *ngIf="isLoading" class="loading-spinner">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Cargando ventanas...</p>
+    </div>
+
+    <div *ngIf="!isLoading && ventanas.length === 0" class="empty-state">
+      <mat-icon class="empty-icon">event_busy</mat-icon>
+      <h3>No hay ventanas de atención programadas</h3>
+      <p>No tienes ventanas de atención asignadas en este período académico</p>
+    </div>
+
+    <div *ngIf="!isLoading && ventanas.length > 0" class="table-container">
+      <table mat-table [dataSource]="ventanas" class="ventanas-table">
+        <!-- Fecha Column -->
+        <ng-container matColumnDef="fecha">
+          <th mat-header-cell *matHeaderCellDef>Fecha</th>
+          <td mat-cell *matCellDef="let ventana">
+            {{ ventana.fecha | date: 'fullDate' }}
+          </td>
+        </ng-container>
+
+        <!-- Hora Column -->
+        <ng-container matColumnDef="hora">
+          <th mat-header-cell *matHeaderCellDef>Hora</th>
+          <td mat-cell *matCellDef="let ventana">
+            {{ ventana.hora_inicio }} - {{ ventana.hora_fin }}
+          </td>
+        </ng-container>
+
+        <!-- Propósito Column -->
+        <ng-container matColumnDef="proposito">
+          <th mat-header-cell *matHeaderCellDef>Propósito</th>
+          <td mat-cell *matCellDef="let ventana">
+            {{ ventana.proposito | titlecase }}
+          </td>
+        </ng-container>
+
+        <!-- Estado Column -->
+        <ng-container matColumnDef="estado">
+          <th mat-header-cell *matHeaderCellDef>Estado</th>
+          <td mat-cell *matCellDef="let ventana">
+            <span class="badge" [ngClass]="getEstadoBadgeClass(ventana.estado)">
+              {{ ventana.estado | titlecase }}
+            </span>
+          </td>
+        </ng-container>
+
+        <!-- Posición Column -->
+        <ng-container matColumnDef="posicion">
+          <th mat-header-cell *matHeaderCellDef>Posición en Cola</th>
+          <td mat-cell *matCellDef="let ventana">
+            <span *ngIf="ventana.estado_cola" class="badge" [ngClass]="getEstadoColaBadgeClass(ventana.estado_cola)">
+              #{{ ventana.posicion_cola }} · {{ ventana.estado_cola | titlecase }}
+            </span>
+            <span *ngIf="!ventana.estado_cola" class="text-muted">No asignado</span>
+          </td>
+        </ng-container>
+
+        <!-- Acciones Column -->
+        <ng-container matColumnDef="acciones">
+          <th mat-header-cell *matHeaderCellDef>Acciones</th>
+          <td mat-cell *matCellDef="let ventana">
+            <button mat-icon-button color="primary" matTooltip="Ver detalles"
+              [routerLink]="['/app/secretaria/ventanas', ventana.id]"
+              *ngIf="ventana.estado === 'EN_CURSO' || ventana.estado === 'PROGRAMADA'">
+              <mat-icon>visibility</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+    </div>
+  </div>
+</div>

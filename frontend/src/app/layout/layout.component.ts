@@ -27,8 +27,7 @@ import { ConfiguracionGeneralService } from '../core/services/configuracion-gene
 import { ApiService } from '../core/services/api.service';
 import { SocketService } from '../core/services/socket.service';
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
-import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialog/cambiar-password-dialog.component';
-import { PerfilDialogComponent } from './dialogs/perfil-dialog/perfil-dialog.component';
+
 import { fromEvent } from 'rxjs';
 
 interface NavItem {
@@ -72,11 +71,11 @@ export class LayoutComponent implements OnInit {
 
   usuario = this.authService.getUsuarioActual();
   userPhoto = signal<string | null>(null);
+  readonly ROLES = ROLES;
   private _visibleNavGroups: NavGroup[] = [];
   private _resizeTimer: any;
   private destroyRef = inject(DestroyRef);
 
-  // Grupos de navegación para mejor organización visual (con keys de traducción)
   navGroups: NavGroup[] = [
     {
       label: 'nav.groups.main',
@@ -95,196 +94,61 @@ export class LayoutComponent implements OnInit {
       label: 'nav.groups.academic',
       expanded: true,
       items: [
-        {
-          icon: 'people',
-          label: 'sidebar.teachers',
-          route: '/app/docentes',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO],
-        },
-        {
-          icon: 'menu_book',
-          label: 'sidebar.courses',
-          route: '/app/cursos',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO],
-        },
-        {
-          icon: 'meeting_room',
-          label: 'sidebar.environments',
-          route: '/app/ambientes',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO],
-        },
-        {
-          icon: 'auto_stories',
-          label: 'sidebar.planEstudios',
-          route: '/app/plan-estudios',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA],
-        },
-        {
-          icon: 'assignment',
-          label: 'sidebar.asignacionLectiva',
-          route: '/app/asignacion-lectiva',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA],
-        },
-        {
-          icon: 'school',
-          label: 'sidebar.teacherFaculty',
-          route: '/app/docente-facultad',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO],
-        },
-        {
-          icon: 'event_available',
-          label: 'sidebar.availability',
-          route: '/app/disponibilidad',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE],
-        },
+        { icon: 'people', label: 'sidebar.teachers', route: '/app/docentes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'menu_book', label: 'sidebar.courses', route: '/app/cursos', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'meeting_room', label: 'sidebar.environments', route: '/app/ambientes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'auto_stories', label: 'sidebar.planEstudios', route: '/app/plan-estudios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'assignment', label: 'sidebar.asignacionLectiva', route: '/app/asignacion-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
+        { icon: 'event_available', label: 'sidebar.availability', route: '/app/disponibilidad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE] },
+        { icon: 'school', label: 'sidebar.teacherFaculty', route: '/app/docente-facultad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       ],
     },
     {
       label: 'nav.groups.operations',
       expanded: true,
       items: [
-        {
-          icon: 'schedule',
-          label: 'sidebar.schedules',
-          route: '/app/horarios',
-          roles: [
-            ROLES.ADMINISTRADOR_SISTEMA,
-            ROLES.COORDINADOR_ACADEMICO,
-            ROLES.DIRECTOR_ESCUELA,
-          ],
-        },
-        {
-          icon: 'schedule',
-          label: 'sidebar.mySchedules',
-          route: '/app/mis-horarios',
-          roles: [ROLES.DOCENTE],
-        },
-        {
-          icon: 'support_agent',
-          label: 'sidebar.secretary',
-          route: '/app/secretaria',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA],
-        },
+        { icon: 'schedule', label: 'sidebar.schedules', route: '/app/horarios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+      ],
+    },
+    {
+      label: 'nav.groups.windows',
+      expanded: true,
+      items: [
+        { icon: 'event', label: 'sidebar.myWindows', route: '/app/mis-ventanas', roles: [ROLES.DOCENTE] },
+        { icon: 'support_agent', label: 'Ventanas de Atención', route: '/app/secretaria', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
+      ],
+    },
+    {
+      label: 'nav.groups.declarations',
+      expanded: true,
+      items: [
+        { icon: 'description', label: 'sidebar.declarations', route: '/app/declaraciones', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.OPERADOR_HORARIOS, ROLES.DOCENTE, ROLES.DECANO, ROLES.DIRECTOR_DEPARTAMENTO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'approval', label: 'Aprobación Facultad', route: '/app/declaraciones/aprobacion-facultad', roles: [ROLES.DECANO, ROLES.ADMINISTRADOR_SISTEMA] },
+        { icon: 'post_add', label: 'CLAD', route: '/app/clad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE, ROLES.DECANO, ROLES.DIRECTOR_DEPARTAMENTO] },
+        { icon: 'fact_check', label: 'sidebar.documentations', route: '/app/documentaciones', roles: [ROLES.DIRECTOR_ESCUELA, ROLES.DIRECTOR_DEPARTAMENTO] },
+        { icon: 'insights', label: 'sidebar.loadAnalysis', route: '/app/analisis-carga', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
       ],
     },
     {
       label: 'nav.groups.reports',
       expanded: true,
       items: [
-        {
-          icon: 'table_chart',
-          label: 'sidebar.reports',
-          route: '/app/reportes',
-          roles: [
-            ROLES.ADMINISTRADOR_SISTEMA,
-            ROLES.COORDINADOR_ACADEMICO,
-            ROLES.DIRECTOR_ESCUELA,
-          ],
-        },
-        {
-          icon: 'analytics',
-          label: 'sidebar.analytics',
-          route: '/app/analytics',
-          roles: [
-            ROLES.ADMINISTRADOR_SISTEMA,
-            ROLES.COORDINADOR_ACADEMICO,
-            ROLES.DIRECTOR_ESCUELA,
-          ],
-        },
-        {
-          icon: 'insights',
-          label: 'sidebar.loadAnalysis',
-          route: '/app/analisis-carga',
-          roles: [
-            ROLES.ADMINISTRADOR_SISTEMA,
-            ROLES.COORDINADOR_ACADEMICO,
-            ROLES.DIRECTOR_ESCUELA,
-          ],
-        },
-        {
-          icon: 'description',
-          label: 'sidebar.declarations',
-          route: '/app/declaraciones',
-          roles: [
-            ROLES.ADMINISTRADOR_SISTEMA,
-            ROLES.COORDINADOR_ACADEMICO,
-            ROLES.OPERADOR_HORARIOS,
-            ROLES.DOCENTE,
-            ROLES.DECANO,
-            ROLES.DIRECTOR_DEPARTAMENTO,
-            ROLES.DIRECTOR_ESCUELA,
-          ],
-        },
-        {
-          icon: 'approval',
-          label: 'Aprobación de Facultad',
-          route: '/app/declaraciones/aprobacion-facultad',
-          roles: [ROLES.DECANO, ROLES.ADMINISTRADOR_SISTEMA],
-        },
-        {
-          icon: 'fact_check',
-          label: 'sidebar.documentations',
-          route: '/app/documentaciones',
-          roles: [ROLES.DIRECTOR_ESCUELA, ROLES.DIRECTOR_DEPARTAMENTO],
-        },
+        { icon: 'table_chart', label: 'sidebar.reports', route: '/app/reportes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'analytics', label: 'sidebar.analytics', route: '/app/analytics', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
       ],
     },
     {
       label: 'nav.groups.system',
       expanded: true,
       items: [
-        {
-          icon: 'manage_accounts',
-          label: 'sidebar.users',
-          route: '/app/usuarios',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA],
-        },
-        {
-          icon: 'event_note',
-          label: 'sidebar.periods',
-          route: '/app/periodos',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO],
-        },
-        {
-          icon: 'tune',
-          label: 'sidebar.loadParams',
-          route: '/app/parametros-carga',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA],
-        },
-        {
-          icon: 'campaign',
-          label: 'sidebar.campaigns',
-          route: '/app/campaigns',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO],
-        },
-        {
-          icon: 'history',
-          label: 'sidebar.audit',
-          route: '/app/auditoria',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_DEPARTAMENTO, ROLES.DIRECTOR_ESCUELA],
-        },
-        {
-          icon: 'notifications',
-          label: 'sidebar.notifications',
-          route: '/app/notificaciones',
-          roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA],
-        },
-        {
-          icon: 'account_balance',
-          label: 'sidebar.faculties',
-          route: '/app/facultades',
-          roles: [
-            ROLES.ADMINISTRADOR_SISTEMA,
-            ROLES.COORDINADOR_ACADEMICO,
-            ROLES.DIRECTOR_ESCUELA,
-          ],
-        },
-        {
-          icon: 'settings',
-          label: 'sidebar.settings',
-          route: '/app/configuracion',
-          roles: [ROLES.ADMINISTRADOR_SISTEMA],
-        },
+        { icon: 'manage_accounts', label: 'sidebar.users', route: '/app/usuarios', roles: [ROLES.ADMINISTRADOR_SISTEMA] },
+        { icon: 'event_note', label: 'sidebar.periods', route: '/app/periodos', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'tune', label: 'sidebar.loadParams', route: '/app/parametros-carga', roles: [ROLES.ADMINISTRADOR_SISTEMA] },
+        { icon: 'account_balance', label: 'sidebar.faculties', route: '/app/facultades', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'campaign', label: 'sidebar.campaigns', route: '/app/campaigns', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'history', label: 'sidebar.audit', route: '/app/auditoria', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_DEPARTAMENTO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'notifications', label: 'sidebar.notifications', route: '/app/notificaciones', roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA] },
+        { icon: 'settings', label: 'sidebar.settings', route: '/app/configuracion', roles: [ROLES.ADMINISTRADOR_SISTEMA] },
       ],
     },
   ];
@@ -352,6 +216,21 @@ export class LayoutComponent implements OnInit {
   }
 
   private _loadNotificacionesCount(): void {
+    // Only load admin alerts if user is not a docente
+    if (this.authService.hasRole(ROLES.DOCENTE) && !this.authService.hasRole(
+      ROLES.ADMINISTRADOR_SISTEMA, 
+      ROLES.COORDINADOR_ACADEMICO, 
+      ROLES.DIRECTOR_ESCUELA, 
+      ROLES.DIRECTOR_DEPARTAMENTO,
+      ROLES.DECANO,
+      ROLES.SECRETARIA,
+      ROLES.OPERADOR_HORARIOS
+    )) {
+      this.notificacionesCount.set(0);
+      this.alertasData.set(null);
+      return;
+    }
+
     const fetchCount = () => {
       this.api.get<any>('/dashboard/alerts', { periodo: this.periodoService.periodo })
         .subscribe({
@@ -453,26 +332,11 @@ export class LayoutComponent implements OnInit {
   }
 
   openVerPerfil(): void {
-    const dialogRef = this.dialog.open(PerfilDialogComponent, {
-      width: '450px',
-      maxWidth: '95vw',
-      panelClass: 'profile-dialog-panel',
-      data: this.usuario,
-      disableClose: false,
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (result !== 'logout') {
-        this.router.navigate(['/app/dashboard']);
-      }
-    });
+    this.router.navigate(['/app/perfil']);
   }
 
   openCambiarPassword(): void {
-    this.dialog.open(CambiarPasswordDialogComponent, {
-      width: '440px',
-      disableClose: true,
-    });
+    this.router.navigate(['/app/perfil'], { queryParams: { tab: 'password' } });
   }
 
   logout(): void {

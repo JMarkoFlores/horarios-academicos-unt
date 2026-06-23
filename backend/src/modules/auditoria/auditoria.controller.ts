@@ -21,7 +21,7 @@ export class AuditoriaController {
   constructor(private readonly auditoriaService: AuditoriaService) {}
 
   @Get()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_DEPARTAMENTO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Obtener historial de auditoría" })
   @ApiQuery({ name: "periodo", required: false, type: String })
   @ApiQuery({ name: "usuario_id", required: false, type: Number })
@@ -60,7 +60,7 @@ export class AuditoriaController {
   }
 
   @Get("carga")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DIRECTOR_DEPARTAMENTO, RolUsuario.DIRECTOR_ESCUELA)
   @ApiOperation({ summary: "Obtener historial de auditoría de carga académica" })
   @ApiQuery({ name: "periodo", required: false, type: String })
   @ApiQuery({ name: "usuario_id", required: false, type: Number })

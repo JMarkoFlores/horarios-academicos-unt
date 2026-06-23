@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { NotifToastService } from '../../core/services/notif-toast.service';
 import { ConfiguracionGeneralService } from '../../core/services/configuracion-general.service';
 
 const ROL_REDIRECT: Record<string, string> = {
@@ -10,7 +11,7 @@ const ROL_REDIRECT: Record<string, string> = {
   directorescuela: '/app/dashboard',
   visualizador: '/app/dashboard',
   secretaria: '/app/secretaria',
-  docente: '/app/mis-horarios',
+  docente: '/app/dashboard',
 };
 
 function redirectByRol(rol: string): string {
@@ -51,6 +52,7 @@ export class LoginComponent implements OnInit {
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
+    private notif: NotifToastService,
     public configService: ConfiguracionGeneralService,
   ) {
     this.form = this.fb.group({
@@ -90,7 +92,13 @@ export class LoginComponent implements OnInit {
     const { email, password } = this.form.value;
     this.authService.login(email, password).subscribe({
       next: (res: any) => {
-        const rol: string = res?.data?.usuario?.rol ?? '';
+        const usuario = res?.data?.usuario;
+        if (usuario?.debe_cambiar_password) {
+          this.notif.info('Por seguridad, debe cambiar su contraseña antes de continuar.');
+          this.router.navigate(['/app/perfil'], { queryParams: { tab: 'password' } });
+          return;
+        }
+        const rol: string = usuario?.rol ?? '';
         this.router.navigate([redirectByRol(rol)]);
       },
       error: (err: any) => {

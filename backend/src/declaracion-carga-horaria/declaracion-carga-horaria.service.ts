@@ -1705,7 +1705,7 @@ export class DeclaracionCargaHorariaService {
 
     return this.declaracionRepo.findOne({
       where: { docente_id: docenteId, periodo_academico_id: periodoId },
-      relations: ["usuario_firmante", "periodo_academico"],
+      relations: ["usuario_firmante", "periodo_academico", "carga_adicional"],
     });
   }
 

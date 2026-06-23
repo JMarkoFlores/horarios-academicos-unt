@@ -117,57 +117,66 @@ const cursosRaw = [
   { codigo: "5265", ciclo: 10, tipo: "S", nombre: "TRABAJO DE INVESTIGACIÓN", ht: 2, hp: 2, hl: 2, creditos: 4, depto: "INGENIERIA DE SISTEMAS", prereq: "4492 TESIS I (Ciclo 9)" },
 ];
 
-export async function seedPlanEstudios(
+export async function seedPlanEstudios2027(
   planRepo: Repository<PlanEstudios>,
   cursoRepo: Repository<Curso>,
   cursoPlanRepo: Repository<CursoPlanEstudios>,
   escuela: Escuela,
   departamentos: Record<string, Departamento>
 ) {
-  const plan2018 = await planRepo.save(
+  const plan2027 = await planRepo.save(
     planRepo.create({
-      codigo: "2018",
-      nombre: "Plan de Estudios 2018",
-      descripcion: "Plan de estudios de Ingeniería de Sistemas - Aprobado con R.N° 123-2018-UNT",
-      resolucion: "R.N° 123-2018-UNT",
-      anio: 2018,
-      activo: true,
+      codigo: "2027",
+      nombre: "Plan de Estudios 2027",
+      descripcion: "Plan de estudios de Ingeniería de Sistemas - Versión 2027",
+      resolucion: "R.N° 001-2027-UNT",
+      anio: 2027,
+      activo: false,
       escuela_id: escuela.id,
     })
   );
-  console.log("✅ Plan de Estudios 2018 creado");
+  console.log("✅ Plan de Estudios 2027 creado");
 
+  let cursosReutilizados = 0;
+  let cursosCreados = 0;
   const dbCursos: Curso[] = [];
 
   for (const c of cursosRaw) {
-    const deptoNorm = normalize(c.depto);
-    let departamento: Departamento | null = null;
-    for (const [key, dep] of Object.entries(departamentos)) {
-      if (normalize(key) === deptoNorm) {
-        departamento = dep;
-        break;
-      }
-    }
+    let curso = await cursoRepo.findOne({ where: { codigo: c.codigo } });
 
-    const curso = await cursoRepo.save(
-      cursoRepo.create({
-        codigo: c.codigo,
-        nombre: c.nombre,
-        creditos: c.creditos,
-        horas_teoria: c.ht,
-        horas_practica: c.hp,
-        horas_laboratorio: c.hl,
-        ciclo: c.ciclo,
-        tiene_laboratorio: c.hl > 0,
-        prerequisitos: c.prereq || null,
-        activo: true,
-        departamento_id: departamento?.id ?? null,
-      })
-    );
+    if (curso) {
+      cursosReutilizados++;
+    } else {
+      const deptoNorm = normalize(c.depto);
+      let departamento: Departamento | null = null;
+      for (const [key, dep] of Object.entries(departamentos)) {
+        if (normalize(key) === deptoNorm) {
+          departamento = dep;
+          break;
+        }
+      }
+
+      curso = await cursoRepo.save(
+        cursoRepo.create({
+          codigo: c.codigo,
+          nombre: c.nombre,
+          creditos: c.creditos,
+          horas_teoria: c.ht,
+          horas_practica: c.hp,
+          horas_laboratorio: c.hl,
+          ciclo: c.ciclo,
+          tiene_laboratorio: c.hl > 0,
+          prerequisitos: c.prereq || null,
+          activo: true,
+          departamento_id: departamento?.id ?? null,
+        })
+      );
+      cursosCreados++;
+    }
 
     await cursoPlanRepo.save(
       cursoPlanRepo.create({
-        plan_estudios_id: plan2018.id,
+        plan_estudios_id: plan2027.id,
         curso_id: curso.id,
         ciclo: c.ciclo,
         tipo_curso: TIPO_MAP[c.tipo] || TipoCursoPlan.OBLIGATORIO_GENERAL,
@@ -182,7 +191,7 @@ export async function seedPlanEstudios(
     dbCursos.push(curso);
   }
 
-  console.log(`✅ ${dbCursos.length} cursos del Plan de Estudios 2018 creados`);
+  console.log(`✅ Plan 2027: ${cursosReutilizados} cursos reutilizados, ${cursosCreados} creados, ${dbCursos.length} CursoPlanEstudios generados`);
 
-  return { plan2018, cursos: dbCursos };
+  return { plan2027, cursos: dbCursos };
 }

@@ -76,6 +76,7 @@ export interface SeedEstructuraResult {
   facultad: Facultad;
   escuela: Escuela;
   departamento: Departamento;
+  departamentos: Record<string, Departamento>;
   periodos: PeriodoAcademico[];
   periodoActivo: PeriodoAcademico;
   ambientesByCodigo: Record<string, Ambiente>;
@@ -895,6 +896,7 @@ export async function seedEstructura(queryRunner: any): Promise<SeedEstructuraRe
     facultad,
     escuela,
     departamento,
+    departamentos: createdDepartamentos,
     periodos,
     periodoActivo,
     ambientesByCodigo,

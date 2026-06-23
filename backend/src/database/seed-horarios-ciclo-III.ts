@@ -479,7 +479,7 @@ export async function seedHorariosCicloIII(manager?: EntityManager) {
     // 8. Sheyla Laura Escobedo Rodriguez - Psicología Organizacional (T:2, P:2, L:0, G:1)
     {
       docente: "Sheyla Laura Escobedo Rodriguez",
-      curso: "Psicologia Organizacional (e )",
+      curso: "SICOLOGIA ORGANIZACIONAL",
       dia: "Martes",
       horas: "18:00-19:00",
       tipo: "Teoría",
@@ -488,7 +488,7 @@ export async function seedHorariosCicloIII(manager?: EntityManager) {
     },
     {
       docente: "Sheyla Laura Escobedo Rodriguez",
-      curso: "Psicologia Organizacional (e )",
+      curso: "SICOLOGIA ORGANIZACIONAL",
       dia: "Martes",
       horas: "19:00-20:00",
       tipo: "Práctica",
@@ -497,7 +497,7 @@ export async function seedHorariosCicloIII(manager?: EntityManager) {
     },
     {
       docente: "Sheyla Laura Escobedo Rodriguez",
-      curso: "Psicologia Organizacional (e )",
+      curso: "SICOLOGIA ORGANIZACIONAL",
       dia: "Viernes",
       horas: "18:00-19:00",
       tipo: "Teoría",
@@ -506,7 +506,7 @@ export async function seedHorariosCicloIII(manager?: EntityManager) {
     },
     {
       docente: "Sheyla Laura Escobedo Rodriguez",
-      curso: "Psicologia Organizacional (e )",
+      curso: "SICOLOGIA ORGANIZACIONAL",
       dia: "Viernes",
       horas: "19:00-20:00",
       tipo: "Práctica",

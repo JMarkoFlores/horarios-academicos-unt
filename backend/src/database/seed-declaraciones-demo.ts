@@ -36,7 +36,7 @@ const ESTADOS_DEMO: Array<{ estado: EstadoDeclaracionCarga; count: number }> = [
   { estado: EstadoDeclaracionCarga.OBSERVADO_DPTO, count: 3 },
   { estado: EstadoDeclaracionCarga.SUBSANADO, count: 2 },
   { estado: EstadoDeclaracionCarga.VALIDADO_DPTO, count: 3 },
-  { estado: EstadoDeclaracionCarga.APROBADO_FACULTAD, count: 2 },
+  { estado: EstadoDeclaracionCarga.APROBADO_FACULTAD, count: 3 },
   { estado: EstadoDeclaracionCarga.CERRADO, count: 2 },
 ];
 

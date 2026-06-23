@@ -360,7 +360,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     // 6. Oscar Romel Alcántara Moreno - Emprendimiento Tecnológico (T:2, P:0, L:2, G:2)
     {
       docente: "Oscar Romel Alcántara Moreno",
-      curso: "Emprendimiento Tecnológico",
+      curso: "EMPRENDEDURISMO TECNOLÓGICO",
       dia: "Viernes",
       horas: "14:00-16:00",
       tipo: "Laboratorio",
@@ -369,7 +369,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Oscar Romel Alcántara Moreno",
-      curso: "Emprendimiento Tecnológico",
+      curso: "EMPRENDEDURISMO TECNOLÓGICO",
       dia: "Viernes",
       horas: "16:00-18:00",
       tipo: "Laboratorio",
@@ -378,7 +378,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Oscar Romel Alcántara Moreno",
-      curso: "Emprendimiento Tecnológico",
+      curso: "EMPRENDEDURISMO TECNOLÓGICO",
       dia: "Viernes",
       horas: "18:00-20:00",
       tipo: "Teoría",

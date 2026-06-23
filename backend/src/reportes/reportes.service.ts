@@ -5271,161 +5271,195 @@ export class ReportesService {
     const configuracion = await this.configuracionService.getConfiguracionGeneral();
     const logoUrl = configuracion.logo_url || "https://upload.wikimedia.org/wikipedia/commons/e/e0/Escudo_de_la_Universidad_Nacional_de_Trujillo.png";
     const logoBase64 = await this.getBase64Image(logoUrl);
-    const watermarkBase64 = await this.getBase64Image(logoUrl);
 
     const firmaBase64 = clad.docente?.firma_url
       ? await this.getBase64Image(clad.docente.firma_url)
       : null;
 
+    const isRegular = ['NOMBRADO'].includes(clad.docente.tipo_contrato || '');
+    const isContratado = !isRegular;
+
+    const isPrincipal = clad.docente.categoria === 'PRINCIPAL';
+    const isAsociado = clad.docente.categoria === 'ASOCIADO';
+    const isAuxiliar = clad.docente.categoria === 'AUXILIAR';
+
+    const isDE = clad.docente.modalidad === 'DEDICACION_EXCLUSIVA';
+    const isTC = (clad.docente.modalidad || '').startsWith('TIEMPO_COMPLETO');
+    const isTP = (clad.docente.modalidad || '').startsWith('TIEMPO_PARCIAL');
+
+    const check = '(  X  )';
+    const uncheck = '(      )';
+
+    const periodoInicio = clad.periodo_academico?.fecha_inicio
+      ? new Date(clad.periodo_academico.fecha_inicio).toLocaleDateString('es-PE')
+      : '';
+    const periodoFin = clad.periodo_academico?.fecha_fin
+      ? new Date(clad.periodo_academico.fecha_fin).toLocaleDateString('es-PE')
+      : '';
+    const anoAcademico = clad.periodo_academico?.codigo?.split('-')[0] || '';
+    const semestre = clad.periodo_academico?.codigo?.split('-')[1] || '';
+
+    const nombresCompletos = `${clad.docente.apellidos}, ${clad.docente.nombres}`;
+
+    const fechaHoy = new Date().toLocaleDateString('es-PE', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
     let filasCursos = '';
     clad.detalles.forEach((det, i) => {
       let horarioStr = '';
-      if (Array.isArray(det.horario)) {
-        horarioStr = det.horario.map((h: any) => {
-          const diaNombre = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'][h.dia] || h.dia;
-          return `${diaNombre} ${h.hora_inicio}-${h.hora_fin} (${h.lugar})`;
-        }).join('<br>');
+      if (det.horario) {
+        const h = det.horario as any;
+        const diaNombre = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'][h.dia] || h.dia;
+        horarioStr = `${diaNombre}<br>${h.hora_inicio} - ${h.hora_fin}`;
       }
-      
+
+      const fechaInicio = det.fecha_inicio ? new Date(det.fecha_inicio).toLocaleDateString('es-PE') : '';
+      const fechaFin = det.fecha_fin ? new Date(det.fecha_fin).toLocaleDateString('es-PE') : '';
+
       filasCursos += `
         <tr>
-          <td class="centered">${i + 1}</td>
-          <td>${det.codigo_curso || ''}</td>
           <td>${det.nombre_curso}</td>
-          <td class="centered">${det.horas_semanales}</td>
-          <td>${horarioStr}</td>
-          <td>${det.fecha_inicio ? new Date(det.fecha_inicio).toLocaleDateString() : ''} - ${det.fecha_fin ? new Date(det.fecha_fin).toLocaleDateString() : ''}</td>
+          <td>${clad.tipo_dependencia.replace('_', ' ')}</td>
+          <td style="font-size:9px;">
+            F.I.: ${fechaInicio}<br>
+            F.T.: ${fechaFin}
+          </td>
+          <td style="font-size:9px;">${horarioStr}</td>
+          <td class="centered" style="font-weight:bold;">${det.horas_semanales}</td>
         </tr>
       `;
     });
 
-    const firmaDocenteStr = clad.firma_docente ? `Firmado digitalmente el ${new Date((clad.firma_docente as any).fecha).toLocaleDateString()}` : '';
-    const firmaDptoStr = clad.firma_director_dpto ? `Firmado digitalmente el ${new Date((clad.firma_director_dpto as any).fecha).toLocaleDateString()}` : '';
-    const firmaDependenciaStr = clad.firma_director_dependencia ? `Firmado digitalmente el ${new Date((clad.firma_director_dependencia as any).fecha).toLocaleDateString()}` : '';
-    const firmaDecanoStr = clad.firma_decano ? `Firmado digitalmente el ${new Date((clad.firma_decano as any).fecha).toLocaleDateString()}` : '';
+    const firmaDocenteStr = clad.firma_docente ? `Firmado digitalmente el ${new Date((clad.firma_docente as any).fecha).toLocaleDateString('es-PE')}` : '';
+    const firmaDptoStr = clad.firma_director_dpto ? `Firmado digitalmente el ${new Date((clad.firma_director_dpto as any).fecha).toLocaleDateString('es-PE')}` : '';
+    const firmaDecanoStr = clad.firma_decano ? `Firmado digitalmente el ${new Date((clad.firma_decano as any).fecha).toLocaleDateString('es-PE')}` : '';
 
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Anexo 04 - CLAD</title>
+        <title>CLAD - ${nombresCompletos}</title>
         <style>
-          * { box-sizing: border-box; }
-          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 10px; color: #334155; margin: 0; padding: 0; line-height: 1.3; position: relative; }
-          .watermark { position: fixed; top: 30%; left: 15%; width: 70%; opacity: 0.05; z-index: -1; }
-          .container { padding: 40px; }
-          .header-table { width: 100%; margin-bottom: 20px; border-bottom: 2px solid #1e293b; padding-bottom: 10px; }
-          .header-table td { vertical-align: middle; }
-          .logo { width: 60px; height: auto; }
-          .title { text-align: center; font-size: 14px; font-weight: bold; color: #0f172a; margin: 0; padding: 0; }
-          .subtitle { text-align: center; font-size: 11px; font-weight: bold; color: #475569; margin-top: 5px; }
-          .section-title { font-weight: bold; font-size: 11px; margin-top: 20px; margin-bottom: 5px; background-color: #f1f5f9; padding: 4px; border: 1px solid #cbd5e1; }
-          table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9px; }
-          table.data-table th, table.data-table td { border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; vertical-align: top; }
-          table.data-table th { background-color: #f8fafc; font-weight: bold; text-align: center; }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #000; line-height: 1.4; }
+          .container { padding: 30px 40px; }
+          .title-formato { text-align: center; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; }
+          .title-main { text-align: center; font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; line-height: 1.5; }
+          .info-header { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 15px; }
+          .info-header span { font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          table td, table th { border: 1px solid #000; padding: 5px 8px; vertical-align: top; }
+          table th { background-color: #f0f0f0; font-weight: bold; text-align: center; font-size: 9px; }
           .centered { text-align: center !important; }
-          .signatures { display: flex; justify-content: space-between; margin-top: 50px; flex-wrap: wrap; }
-          .signature-box { width: 45%; text-align: center; margin-bottom: 40px; }
-          .signature-line { border-top: 1px solid #000; margin-top: 50px; padding-top: 5px; font-weight: bold; }
-          .signature-date { font-size: 8px; color: #64748b; margin-top: 3px; }
+          .docente-table td { height: 50px; }
+          .curso-table td { height: 60px; font-size: 9px; }
+          .curso-table .horario-col { font-size: 9px; line-height: 1.6; }
+          .footer-date { text-align: center; margin-top: 30px; margin-bottom: 20px; font-size: 10px; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+          .signature-box { width: 25%; text-align: center; }
+          .signature-box.wide { width: 30%; }
+          .signature-line { border-top: 1px solid #000; margin-top: 60px; padding-top: 5px; font-size: 9px; font-weight: bold; }
+          .vobo-title { font-size: 9px; font-weight: bold; margin-top: 5px; }
         </style>
       </head>
       <body>
         <div class="container">
-          ${watermarkBase64 ? `<img class="watermark" src="${watermarkBase64}" />` : ""}
-          <table class="header-table">
-            <tr>
-              <td width="15%">${logoBase64 ? `<img class="logo" src="${logoBase64}" />` : ""}</td>
-              <td width="70%">
-                <div class="title">UNIVERSIDAD NACIONAL DE TRUJILLO</div>
-                <div class="subtitle">ANEXO 04<br>FORMATO DE CARGA LECTIVA ADICIONAL (CLAD)</div>
-              </td>
-              <td width="15%" style="text-align: right; font-size: 8px;">
-                Fecha: ${new Date().toLocaleDateString('es-PE')}<br>
-                Estado: ${clad.estado.replace('_', ' ')}
-              </td>
-            </tr>
-          </table>
+          <div class="title-formato">FORMATO</div>
+          <div class="title-main">DECLARACIÓN DE CARGA HORARIA LECTIVA ASIGNADA EN FILIALES,<br>POSTGRADO, SEGUNDAS ESPECIALIDADES Y CENTROS DE<br>PRODUCCIÓN Y EXTENSIÓN UNIVERSITARIA</div>
 
-          <div class="section-title">I. DATOS DEL DOCENTE</div>
-          <table class="data-table">
-            <tr>
-              <td width="20%"><strong>Apellidos y Nombres:</strong></td>
-              <td width="80%">${clad.docente.apellidos}, ${clad.docente.nombres}</td>
-            </tr>
-            <tr>
-              <td><strong>Facultad:</strong></td>
-              <td>${clad.docente.facultad?.nombre || ''}</td>
-            </tr>
-            <tr>
-              <td><strong>Departamento:</strong></td>
-              <td>${clad.docente.departamento?.nombre || ''}</td>
-            </tr>
-            <tr>
-              <td><strong>Categoría/Dedicación:</strong></td>
-              <td>${clad.docente.categoria} - ${clad.docente.modalidad}</td>
-            </tr>
-          </table>
+          <div class="info-header">
+            <div><span>FACULTAD:</span> ${clad.docente.facultad?.nombre || ''}</div>
+            <div><span>DPTO. ACADÉMICO:</span> ${clad.docente.departamento?.nombre || ''}</div>
+          </div>
 
-          <div class="section-title">II. DEPENDENCIA SOLICITANTE</div>
-          <table class="data-table">
-            <tr>
-              <td width="20%"><strong>Tipo de Dependencia:</strong></td>
-              <td width="30%">${clad.tipo_dependencia.replace('_', ' ')}</td>
-              <td width="20%"><strong>Nombre Específico:</strong></td>
-              <td width="30%">${clad.nombre_dependencia || 'N/A'}</td>
-            </tr>
-            <tr>
-              <td><strong>Periodo Académico:</strong></td>
-              <td colspan="3">${clad.periodo_academico?.codigo}</td>
-            </tr>
-          </table>
+          <div class="info-header" style="margin-bottom:5px;">
+            <div><span>DATOS DEL DOCENTE:</span></div>
+          </div>
 
-          <div class="section-title">III. DETALLE DE CARGA LECTIVA ADICIONAL</div>
-          <table class="data-table">
+          <table class="docente-table">
             <thead>
               <tr>
-                <th width="5%">N°</th>
-                <th width="10%">Código</th>
-                <th width="35%">Nombre de la Asignatura / Actividad</th>
-                <th width="10%">Horas Sem.</th>
-                <th width="20%">Horario y Lugar</th>
-                <th width="20%">Vigencia (Inicio - Fin)</th>
+                <th width="35%">NOMBRES Y APELLIDOS</th>
+                <th width="25%">CONDICIÓN</th>
+                <th width="25%">CATEGORÍA</th>
+                <th width="15%">MODALIDAD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="height:45px;">
+                  <strong>${nombresCompletos}</strong><br><br>
+                  <strong>CÓDIGO:</strong> ${clad.docente.codigo || ''}
+                </td>
+                <td>
+                  REGULAR ${isRegular ? check : uncheck}<br>
+                  CONTRATADO ${isContratado ? check : uncheck}
+                </td>
+                <td>
+                  PRINCIPAL ${isPrincipal ? check : uncheck}<br>
+                  ASOCIADO ${isAsociado ? check : uncheck}<br>
+                  AUXILIAR ${isAuxiliar ? check : uncheck}
+                </td>
+                <td>
+                  DE. ${isDE ? check : uncheck}<br>
+                  TC. ${isTC ? check : uncheck}<br>
+                  TP. ${isTP ? check : uncheck}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="info-header" style="font-size:10px; margin-bottom:10px;">
+            <div>AÑO ACADÉMICO: ${anoAcademico}</div>
+            <div>SEMESTRE: ${semestre}</div>
+            <div>INICIO: ${periodoInicio}</div>
+            <div>FINAL: ${periodoFin}</div>
+          </div>
+
+          <table class="curso-table">
+            <thead>
+              <tr>
+                <th width="30%">CURSO</th>
+                <th width="18%">DEPENDENCIA</th>
+                <th width="22%">FECHA DE INICIO / TERMINO</th>
+                <th width="20%">HORARIO SEMANAL</th>
+                <th width="10%">TOTAL HORAS</th>
               </tr>
             </thead>
             <tbody>
               ${filasCursos}
-            </tbody>
-            <tfoot>
               <tr>
-                <td colspan="3" style="text-align: right; font-weight: bold;">TOTAL HORAS ADICIONALES:</td>
-                <td class="centered" style="font-weight: bold;">${clad.total_horas}</td>
-                <td colspan="2"></td>
+                <td colspan="4" style="text-align:right; font-weight:bold; border-bottom:2px solid #000;">TOTAL</td>
+                <td class="centered" style="font-weight:bold; border-bottom:2px solid #000; font-size:11px;">${clad.total_horas}</td>
               </tr>
-            </tfoot>
+            </tbody>
           </table>
 
+          <div class="footer-date">
+            Trujillo, ${fechaHoy}
+          </div>
+
           <div class="signatures">
-            <div class="signature-box">
+            <div class="signature-box wide">
               ${firmaBase64
-                ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
-                : `<div style="border:1px dashed #94a3b8; border-radius:4px; padding:12px; margin-bottom:8px; color:#94a3b8; font-size:10px;">[Firma Digital del Docente]</div>`
+                ? `<img src="${firmaBase64}" style="max-height:50px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                : ''
               }
-              <div class="signature-line">Firma del Docente</div>
-              <div class="signature-date">${firmaDocenteStr}</div>
+              <div class="signature-line">Firma del Profesor</div>
             </div>
             <div class="signature-box">
-              <div class="signature-line">V°B° Director de Departamento Académico</div>
-              <div class="signature-date">${firmaDptoStr}</div>
+              <div class="vobo-title">V° B°</div>
+              <div class="signature-line">DECANO</div>
             </div>
-            <div class="signature-box">
-              <div class="signature-line">V°B° Autoridad Dependencia (Posgrado/CEPUNT/Filial)</div>
-              <div class="signature-date">${firmaDependenciaStr}</div>
+            <div class="signature-box wide">
+              <div class="signature-line">Director del Departamento Académico</div>
             </div>
-            <div class="signature-box">
-              <div class="signature-line">V°B° Decano de Facultad (Aprobación Final)</div>
-              <div class="signature-date">${firmaDecanoStr}</div>
+            <div class="signature-box wide">
+              <div class="signature-line">Director de la Unidad Académica</div>
             </div>
           </div>
         </div>

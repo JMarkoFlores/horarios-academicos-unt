@@ -17,9 +17,20 @@
         <span class="chip-stat">
           <mat-icon>assignment</mat-icon>{{ horasAsignadas }} bloques
         </span>
-        <mat-slide-toggle color="primary" [(ngModel)]="mostrarNoLectiva" (change)="toggleNoLectiva()" class="toggle-no-lectiva">
-          Mostrar Carga No Lectiva
-        </mat-slide-toggle>
+        <div class="toggle-wrapper">
+          <mat-slide-toggle 
+            color="primary" 
+            [(ngModel)]="mostrarNoLectiva" 
+            (change)="toggleNoLectiva()" 
+            class="toggle-no-lectiva"
+            [disabled]="!puedeMostrarNoLectiva">
+            Mostrar Carga No Lectiva
+          </mat-slide-toggle>
+          <span *ngIf="mensajeEstadoDeclaracion && !puedeMostrarNoLectiva" class="estado-mensaje">
+            <mat-icon class="info-icon">info</mat-icon>
+            {{ mensajeEstadoDeclaracion }}
+          </span>
+        </div>
       </div>
     </div>
   </header>

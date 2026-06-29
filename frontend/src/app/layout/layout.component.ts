@@ -97,8 +97,9 @@ export class LayoutComponent implements OnInit {
         { icon: 'people', label: 'sidebar.teachers', route: '/app/docentes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
         { icon: 'menu_book', label: 'sidebar.courses', route: '/app/cursos', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
         { icon: 'meeting_room', label: 'sidebar.environments', route: '/app/ambientes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
-        { icon: 'auto_stories', label: 'sidebar.planEstudios', route: '/app/plan-estudios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
-        { icon: 'assignment', label: 'sidebar.asignacionLectiva', route: '/app/asignacion-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
+      { icon: 'auto_stories', label: 'sidebar.planEstudios', route: '/app/plan-estudios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+      { icon: 'book_online', label: 'sidebar.ofertaAcademica', route: '/app/oferta-academica', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+      { icon: 'assignment', label: 'sidebar.asignacionLectiva', route: '/app/asignacion-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
         { icon: 'event_available', label: 'sidebar.availability', route: '/app/disponibilidad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE] },
         { icon: 'school', label: 'sidebar.teacherFaculty', route: '/app/docente-facultad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       ],
@@ -348,5 +349,24 @@ export class LayoutComponent implements OnInit {
     const codigo = this.selectedPeriodoCodigo();
     const found = periodos.find(p => p.codigo === codigo);
     return found?.nombre || codigo || 'Seleccionar Período';
+  }
+
+  formatRol(rol: string | undefined): string {
+    if (!rol) return 'Administrador del Sistema';
+    const rolesMap: Record<string, string> = {
+      [ROLES.ADMINISTRADOR_SISTEMA]: 'Administrador del Sistema',
+      [ROLES.COORDINADOR_ACADEMICO]: 'Coordinador Académico',
+      [ROLES.DIRECTOR_ESCUELA]: 'Director de Escuela',
+      [ROLES.DIRECTOR_DEPARTAMENTO]: 'Director de Departamento',
+      [ROLES.DECANO]: 'Decano',
+      [ROLES.DOCENTE]: 'Docente',
+      [ROLES.SECRETARIA]: 'Secretaria',
+      [ROLES.OPERADOR_HORARIOS]: 'Operador de Horarios',
+    };
+    return rolesMap[rol] || rol;
+  }
+
+  isRouteActive(route: string): boolean {
+    return this.router.url === route || this.router.url.startsWith(route + '/');
   }
 }

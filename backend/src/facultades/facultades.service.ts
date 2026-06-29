@@ -199,14 +199,25 @@ export class FacultadesService {
 
   // ── DEPARTAMENTOS ─────────────────────────────────────────────────────────
 
-  async findAllDepartamentos(escuelaId?: number) {
-    const where: any = {};
-    if (escuelaId) where.escuela_id = escuelaId;
-    return this.departamentoRepo.find({
-      where,
-      relations: ["escuela", "escuela.facultad", "coordinador"],
-      order: { nombre: "ASC" },
-    });
+  async findAllDepartamentos(escuelaId?: number, conDocentes?: boolean) {
+    const qb = this.departamentoRepo
+      .createQueryBuilder("dep")
+      .leftJoinAndSelect("dep.escuela", "escuela")
+      .leftJoinAndSelect("escuela.facultad", "facultad")
+      .leftJoinAndSelect("dep.coordinador", "coordinador")
+      .orderBy("dep.nombre", "ASC");
+
+    if (escuelaId) {
+      qb.andWhere("dep.escuela_id = :escuelaId", { escuelaId });
+    }
+
+    if (conDocentes) {
+      qb.andWhere(
+        "dep.id IN (SELECT d.departamento_id FROM docente d WHERE d.activo = true AND d.departamento_id IS NOT NULL)",
+      );
+    }
+
+    return qb.getMany();
   }
 
   async findOneDepartamento(id: number) {

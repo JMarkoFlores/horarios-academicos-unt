@@ -17,11 +17,11 @@ import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
 
 export class CreateDocenteDto {
-  @ApiProperty({ example: "DOC001" })
+  @ApiProperty({ example: "DOC001", description: "Código único del docente. Se autogenera si se envía vacío" })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: "El código no puede estar vacío" })
   @MaxLength(20)
-  codigo: string;
+  codigo?: string;
 
   @ApiProperty({
     example: "12345678",
@@ -65,7 +65,7 @@ export class CreateDocenteDto {
   @ApiPropertyOptional({ example: "944123456" })
   @IsOptional()
   @IsString()
-  @Matches(/^\+?[\d\s\-]{7,20}$/, { message: "Formato de teléfono inválido" })
+  @Matches(/^\d{9}$/, { message: "El teléfono debe tener exactamente 9 dígitos" })
   telefono?: string;
 
   @ApiProperty({ enum: TipoDocente, example: TipoDocente.ORDINARIO })

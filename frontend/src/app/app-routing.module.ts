@@ -82,6 +82,15 @@ const routes: Routes = [
         data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
       },
       {
+        path: 'oferta-academica',
+        loadChildren: () =>
+          import('./modules/oferta-academica/oferta-academica.module').then(
+            (m) => m.OfertaAcademicaModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+      },
+      {
         path: 'asignacion-lectiva',
         loadChildren: () =>
           import('./modules/asignacion-lectiva/asignacion-lectiva.module').then(

@@ -1312,7 +1312,7 @@ export async function seedAuto(dataSource: DataSource): Promise<void> {
           facultad_id: facultad.id,
           periodo_academico_id: periodoActivo.id,
           sede: "Facultad de Ingeniería",
-          estado: EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+          estado: EstadoDeclaracionCarga.CONFIRMADO,
           fecha_firma_docente: new Date(),
         }),
       );

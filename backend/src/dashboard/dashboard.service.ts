@@ -14,6 +14,10 @@ import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { Departamento } from "../entities/departamento.entity";
+import { DiaActivo } from "../entities/dia-activo.entity";
+import { TurnoHorario } from "../entities/turno-horario.entity";
+import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
+import { ConfiguracionGeneral } from "../entities/configuracion-general.entity";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
@@ -41,17 +45,38 @@ export class DashboardService {
     private readonly declaracionRepo: Repository<DeclaracionCargaHoraria>,
     @InjectRepository(Departamento)
     private readonly departamentoRepo: Repository<Departamento>,
+    @InjectRepository(DiaActivo)
+    private readonly diaActivoRepo: Repository<DiaActivo>,
+    @InjectRepository(TurnoHorario)
+    private readonly turnoHorarioRepo: Repository<TurnoHorario>,
+    @InjectRepository(RestriccionInstitucional)
+    private readonly restriccionRepo: Repository<RestriccionInstitucional>,
+    @InjectRepository(ConfiguracionGeneral)
+    private readonly configGeneralRepo: Repository<ConfiguracionGeneral>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly dashboardGateway: DashboardGateway,
   ) {}
+
+  // Helper methods for time formatting with minute support
+  private formatTime(decimalHours: number): string {
+    const hours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - hours) * 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  private timeToMinutes(timeStr: string): number {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + (minutes || 0);
+  }
 
   async getKPIs(periodo: string, usuario?: UsuarioAutenticado, top = 5, recent = 10) {
     const ctx = usuario?.contextoAcademico;
     const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
 
-    const cacheKey = `dashboard_kpis_${periodo}_${top}_${recent}_${deptoIds?.join(',') ?? 'all'}`;
-    const cachedData = await this.cacheManager.get(cacheKey);
-    if (cachedData) return cachedData;
+    // Temporarily disable cache to ensure configuration is always respected
+    // const cacheKey = `dashboard_kpis_${periodo}_${top}_${recent}_${deptoIds?.join(',') ?? 'all'}`;
+    // const cachedData = await this.cacheManager.get(cacheKey);
+    // if (cachedData) return cachedData;
 
     let deptoDocenteIds: number[] | null = null;
     if (deptoIds) {
@@ -312,30 +337,157 @@ export class DashboardService {
       .sort((a, b) => b.porcentaje_ocupacion - a.porcentaje_ocupacion);
 
     // ── Mapa de calor ──
-    const diasNombre: Record<number, string> = {
-      1: "Lunes",
-      2: "Martes",
-      3: "Miércoles",
-      4: "Jueves",
-      5: "Viernes",
-    };
+    // Get configuration for days and time slots
+    let diasActivos: DiaActivo[] = [];
+    let horaInicio = 7;
+    let horaFin = 21;
+    let duracionBloque = 1; // Default 1 hour blocks
+
+    try {
+      diasActivos = await this.diaActivoRepo.find({
+        where: { activo: true },
+        order: { dia_semana: "ASC" },
+      });
+      console.log('[Dashboard] Días activos encontrados:', diasActivos.map(d => ({ nombre: d.nombre, dia_semana: d.dia_semana })));
+    } catch (e) {
+      console.error('[Dashboard] Error cargando días activos:', e);
+      // Fallback to default days
+      diasActivos = [
+        { id: 1, nombre: "Lunes", dia_semana: 1, activo: true } as any,
+        { id: 2, nombre: "Martes", dia_semana: 2, activo: true } as any,
+        { id: 3, nombre: "Miércoles", dia_semana: 3, activo: true } as any,
+        { id: 4, nombre: "Jueves", dia_semana: 4, activo: true } as any,
+        { id: 5, nombre: "Viernes", dia_semana: 5, activo: true } as any,
+      ];
+    }
+
+    if (diasActivos.length === 0) {
+      console.log('[Dashboard] No hay días activos, usando defaults');
+      diasActivos = [
+        { id: 1, nombre: "Lunes", dia_semana: 1, activo: true } as any,
+        { id: 2, nombre: "Martes", dia_semana: 2, activo: true } as any,
+        { id: 3, nombre: "Miércoles", dia_semana: 3, activo: true } as any,
+        { id: 4, nombre: "Jueves", dia_semana: 4, activo: true } as any,
+        { id: 5, nombre: "Viernes", dia_semana: 5, activo: true } as any,
+      ];
+    }
+
+    try {
+      // First try to get from restricciones (FRANJA_HORARIA) as it's the primary config
+      const franjaRestriccion = await this.restriccionRepo.findOne({
+        where: {
+          tipo_restriccion: "FRANJA_HORARIA",
+          periodo_academico: periodo,
+          activo: true,
+        },
+      });
+      if (franjaRestriccion && franjaRestriccion.valor) {
+        const valor = franjaRestriccion.valor as any;
+        if (valor.hora_inicio && valor.hora_fin) {
+          const [hi] = valor.hora_inicio.split(":").map(Number);
+          const [hf, hfMin] = valor.hora_fin.split(":").map(Number);
+          horaInicio = hi;
+          horaFin = hf + (hfMin / 60);
+          console.log('[Dashboard] Franja horaria desde restricción:', horaInicio, '-', horaFin, '(decimal)');
+        }
+      } else {
+        // Fallback to turnos if no restriction found
+        const turnos = await this.turnoHorarioRepo.find({
+          where: { activo: true },
+          order: { hora_inicio: "ASC" },
+        });
+        console.log('[Dashboard] Turnos horarios encontrados:', turnos.map(t => ({ nombre: t.nombre, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin })));
+        if (turnos.length > 0) {
+          const [hi] = turnos[0].hora_inicio.split(":").map(Number);
+          const [hf, hfMin] = turnos[turnos.length - 1].hora_fin.split(":").map(Number);
+          horaInicio = hi;
+          horaFin = hf + (hfMin / 60); // Include minutes in decimal
+          console.log('[Dashboard] Franja horaria desde turnos:', horaInicio, '-', horaFin, '(decimal)');
+        }
+      }
+    } catch (e) {
+      console.error('[Dashboard] Error cargando configuración de franja horaria:', e);
+      // Keep defaults
+    }
+
+    try {
+      // Try multiple possible type names for duration block
+      const tipos = ["DURACION_BLOQUE", "duracion_bloque_estandar", "duracion_bloque"];
+      let restriccion = null;
+      for (const tipo of tipos) {
+        restriccion = await this.restriccionRepo.findOne({
+          where: {
+            tipo_restriccion: tipo,
+            periodo_academico: periodo,
+            activo: true,
+          },
+        });
+        if (restriccion) break;
+      }
+      console.log('[Dashboard] Restricción duración bloque:', restriccion);
+      if (restriccion && restriccion.valor) {
+        // valor is jsonb, could be number or object
+        const valor = restriccion.valor as any;
+        if (typeof valor === "number") {
+          duracionBloque = valor;
+        } else if (typeof valor === "object" && valor !== null) {
+          // Try to extract value from object - seed uses duracion_minutos
+          if (valor.duracion_minutos) {
+            duracionBloque = valor.duracion_minutos / 60; // Convert minutes to hours
+          } else {
+            duracionBloque = valor.valor || valor.duracion || valor.duracion_bloque || 1;
+          }
+        }
+        console.log('[Dashboard] Duración bloque (en horas):', duracionBloque);
+      }
+    } catch (e) {
+      console.error('[Dashboard] Error cargando restricción:', e);
+      // Keep default
+    }
+
+    console.log('[Dashboard] Config final usada:', { dias: diasActivos.map(d => d.nombre), horaInicio, horaFin, duracionBloque });
+
+    const diasNombre: Record<number, string> = {};
+    diasActivos.forEach((d) => {
+      diasNombre[d.dia_semana] = d.nombre;
+    });
+
     const maxPorSlot = ambientes.length || 1;
     const mapaCalor: any[] = [];
-    for (let dia = 1; dia <= 5; dia++) {
-      for (let hora = 7; hora <= 21; hora++) {
-        const hStr = `${String(hora).padStart(2, "0")}:00`;
-        const sig = `${String(hora + 1).padStart(2, "0")}:00`;
-        const [slotIni, slotFin] = [hora, hora + 1];
+
+    for (const diaActivo of diasActivos) {
+      const dia = diaActivo.dia_semana;
+      console.log('[Dashboard] Generando slots para día', dia, 'con horaInicio:', horaInicio, 'horaFin:', horaFin, 'duracionBloque:', duracionBloque);
+      for (let hora = horaInicio; hora < horaFin; hora += duracionBloque) {
+        // Support minute-based blocks (e.g., 0.5 for 30 minutes, 0.75 for 45 minutes)
+        const hDecimal = hora;
+        const hEndDecimal = hora + duracionBloque;
+        
+        // Don't create a slot if it would exceed horaFin
+        // Allow slots that end exactly at horaFin (use > instead of >=)
+        if (hEndDecimal > horaFin) {
+          console.log('[Dashboard] Skipping slot', hDecimal, '-', hEndDecimal, 'because hEndDecimal > horaFin:', horaFin);
+          break;
+        }
+        
+        // Format hours with minutes support
+        const hStr = this.formatTime(hDecimal);
+        const sig = this.formatTime(hEndDecimal);
+        const rangoHora = `${hStr}-${sig}`; // Full range for frontend
+        const [slotIni, slotFin] = [hDecimal, hEndDecimal];
+        console.log('[Dashboard] Creating slot:', rangoHora);
         const asig = horarios.filter(
-          (h) => h.dia === dia && h.hora_inicio < sig && h.hora_fin > hStr,
+          (h) => h.dia === dia && this.timeToMinutes(h.hora_fin) > this.timeToMinutes(hStr) && this.timeToMinutes(h.hora_inicio) < this.timeToMinutes(sig),
         );
         let totalHoras = 0,
           labHoras = 0;
         for (const h of asig) {
-          const [hi] = h.hora_inicio.split(":").map(Number);
-          const [hf] = h.hora_fin.split(":").map(Number);
-          const overlap = Math.min(hf, slotFin) - Math.max(hi, slotIni);
-          const contribucion = Math.max(0, Math.min(overlap, 1));
+          const hiMinutes = this.timeToMinutes(h.hora_inicio);
+          const hfMinutes = this.timeToMinutes(h.hora_fin);
+          const slotIniMinutes = this.timeToMinutes(hStr);
+          const slotFinMinutes = this.timeToMinutes(sig);
+          const overlap = Math.min(hfMinutes, slotFinMinutes) - Math.max(hiMinutes, slotIniMinutes);
+          const contribucion = Math.max(0, overlap) / 60; // Convert minutes to hours
           totalHoras += contribucion;
           if (h.tipo_clase === TipoClase.LABORATORIO) labHoras += contribucion;
         }
@@ -349,7 +501,7 @@ export class DashboardService {
         }
         mapaCalor.push({
           dia: diasNombre[dia],
-          hora: hStr,
+          hora: rangoHora, // Send full range to frontend
           intensidad: Math.min(
             100,
             Math.round((totalHoras / maxPorSlot) * 100),
@@ -481,6 +633,12 @@ export class DashboardService {
       top_docentes_menor_carga: topMenor,
       ocupacion_por_ambiente: ocupacionAmbiente,
       mapa_calor: mapaCalor,
+      heatmap_config: {
+        dias: diasActivos.map(d => d.nombre),
+        hora_inicio: horaInicio,
+        hora_fin: horaFin,
+        duracion_bloque: duracionBloque,
+      },
       actividad_reciente: actividadReciente,
       progreso_semanal: progresoSemanal,
       estado_periodo: periodoActivo?.estado ?? "desconocido",
@@ -489,10 +647,11 @@ export class DashboardService {
       ultima_generacion_horario: ultimaGeneracion?.creado_en ?? null,
       histograma_carga: histogramaCarga,
       tiempo_promedio_resolucion_horas: tiempoPromedioResolucionHoras,
+      colores_config: await this.obtenerConfiguracionColores(),
       tendencia,
     };
 
-    await this.cacheManager.set(cacheKey, result, 60000);
+    // await this.cacheManager.set(cacheKey, result, 60000);
     return result;
   }
 
@@ -720,16 +879,12 @@ export class DashboardService {
     ]);
 
     const enviadas = declaraciones.filter(
-      (d) => this.estadoNumero(d.estado) >= this.estadoNumero(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+      (d) => this.estadoNumero(d.estado) >= this.estadoNumero(EstadoDeclaracionCarga.CONFIRMADO),
     );
     const aprobadas = declaraciones.filter(
-      (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      (d) => d.estado === EstadoDeclaracionCarga.CONFIRMADO,
     );
-    const observadas = declaraciones.filter(
-      (d) =>
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
-    );
+    const observadas: typeof declaraciones = [];
     const conDeclaracion = new Set(declaraciones.map((d) => d.docente_id));
     const sinDeclarar = docentes.filter((d) => !conDeclaracion.has(d.id));
 
@@ -825,28 +980,14 @@ export class DashboardService {
     });
 
     const ordenEstados = [
-      EstadoDeclaracionCarga.NO_INICIADO,
       EstadoDeclaracionCarga.BORRADOR,
-      EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-      EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-      EstadoDeclaracionCarga.OBSERVADO_DPTO,
-      EstadoDeclaracionCarga.SUBSANADO,
-      EstadoDeclaracionCarga.VALIDADO_DPTO,
-      EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
-      EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      EstadoDeclaracionCarga.CONFIRMADO,
       EstadoDeclaracionCarga.CERRADO,
     ];
 
     const labels: Record<string, string> = {
-      NO_INICIADO: "No iniciado",
       BORRADOR: "Borrador",
-      PENDIENTE_ENVIO: "Pendiente envío",
-      ENVIADO_DOCENTE: "Enviado",
-      OBSERVADO_DPTO: "Observado (dpto)",
-      SUBSANADO: "Subsanado",
-      VALIDADO_DPTO: "Validado (dpto)",
-      OBSERVADO_FACULTAD: "Observado (facultad)",
-      APROBADO_FACULTAD: "Aprobado",
+      CONFIRMADO: "Confirmado",
       CERRADO: "Cerrado",
     };
 
@@ -930,7 +1071,7 @@ export class DashboardService {
       grupo.total++;
       if (
         this.estadoNumero(d.estado) >=
-        this.estadoNumero(EstadoDeclaracionCarga.ENVIADO_DOCENTE)
+        this.estadoNumero(EstadoDeclaracionCarga.CONFIRMADO)
       ) {
         grupo.enviadas++;
       }
@@ -960,17 +1101,9 @@ export class DashboardService {
 
   private estadoNumero(estado: EstadoDeclaracionCarga): number {
     const orden: Record<string, number> = {
-      NO_INICIADO: 0,
-      BORRADOR: 1,
-      PENDIENTE_ENVIO: 2,
-      ENVIADO_DOCENTE: 3,
-      OBSERVADO_DPTO: 4,
-      SUBSANADO: 5,
-      VALIDADO_DPTO: 6,
-      OBSERVADO_FACULTAD: 7,
-      APROBADO_FACULTAD: 8,
-      CERRADO: 9,
-      ANULADO: -1,
+      BORRADOR: 0,
+      CONFIRMADO: 1,
+      CERRADO: 2,
     };
     return orden[estado] ?? 0;
   }
@@ -1001,6 +1134,58 @@ export class DashboardService {
     return sorted.length % 2 !== 0
       ? sorted[mid]
       : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+
+  private async obtenerConfiguracionColores() {
+    try {
+      const config = await this.configGeneralRepo.findOne({ where: {} });
+      if (!config) {
+        // Return default colors if no config exists
+        return {
+          light: {
+            fondo_base: '#F8FAFC',
+            contenedores: '#FFFFFF',
+            texto_principal: '#0F172A',
+            dominante: '#2563EB',
+            exito: '#10B981',
+            advertencia: '#D97706',
+            critico: '#EF4444',
+          },
+          dark: {
+            fondo_base: '#0F172A',
+            contenedores: '#1E293B',
+            texto_principal: '#F8FAFC',
+            dominante: '#38BDF8',
+            exito: '#34D399',
+            advertencia: '#FBBF24',
+            critico: '#F87171',
+          },
+        };
+      }
+      return {
+        light: {
+          fondo_base: config.light_fondo_base || '#F8FAFC',
+          contenedores: config.light_contenedores || '#FFFFFF',
+          texto_principal: config.light_texto_principal || '#0F172A',
+          dominante: config.light_dominante || '#2563EB',
+          exito: config.light_exito || '#10B981',
+          advertencia: config.light_advertencia || '#D97706',
+          critico: config.light_critico || '#EF4444',
+        },
+        dark: {
+          fondo_base: config.dark_fondo_base || '#0F172A',
+          contenedores: config.dark_contenedores || '#1E293B',
+          texto_principal: config.dark_texto_principal || '#F8FAFC',
+          dominante: config.dark_dominante || '#38BDF8',
+          exito: config.dark_exito || '#34D399',
+          advertencia: config.dark_advertencia || '#FBBF24',
+          critico: config.dark_critico || '#F87171',
+        },
+      };
+    } catch (e) {
+      console.error('[Dashboard] Error loading color configuration:', e);
+      return null;
+    }
   }
 
   private calcularProgresoSemanal(horarios: HorarioAsignado[]) {

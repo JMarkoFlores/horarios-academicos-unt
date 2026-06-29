@@ -277,6 +277,7 @@ export class AuthService {
       throw new BadRequestException("El token ha expirado");
     }
     usuario.password_hash = await this.hashPassword(dto.password_nueva);
+    usuario.debe_cambiar_password = false;
     usuario.reset_token = null;
     usuario.reset_token_expira = null;
     await this.usuarioRepository.save(usuario);

@@ -4,12 +4,14 @@ import {
   ConflictException,
   BadRequestException,
   Inject,
+  InternalServerErrorException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Cache } from "cache-manager";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { v2 as cloudinary } from "cloudinary";
 import { Docente } from "../entities/docente.entity";
 import { Departamento } from "../entities/departamento.entity";
 import { Facultad } from "../entities/facultad.entity";
@@ -103,6 +105,8 @@ export class DocentesService {
       sortDir,
       activo,
       sin_vinculacion,
+      departamento_id,
+      escuela_id,
     } = query;
     const qb = this.docenteRepo
       .createQueryBuilder("docente")
@@ -129,6 +133,18 @@ export class DocentesService {
       );
     }
 
+    if (departamento_id) {
+      qb.andWhere("docente.departamento_id = :departamento_id", {
+        departamento_id: Number(departamento_id),
+      });
+    }
+
+    if (escuela_id) {
+      qb.andWhere("escuela.id = :escuela_id", {
+        escuela_id: Number(escuela_id),
+      });
+    }
+
     if (categoria) {
       qb.andWhere("docente.categoria = :categoria", { categoria });
     }
@@ -143,7 +159,7 @@ export class DocentesService {
 
     if (busqueda) {
       qb.andWhere(
-        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda OR docente.email ILIKE :busqueda)",
+        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda OR docente.email ILIKE :busqueda OR docente.dni ILIKE :busqueda OR CAST(docente.ibm AS TEXT) ILIKE :busqueda)",
         { busqueda: `%${busqueda}%` },
       );
     }
@@ -187,6 +203,9 @@ export class DocentesService {
       tipo_docente?: string;
       modalidad?: string;
       busqueda?: string;
+      activo?: string;
+      departamento_id?: string;
+      escuela_id?: string;
     },
     contexto?: ContextoAcademico,
   ) {
@@ -196,8 +215,24 @@ export class DocentesService {
       .leftJoinAndSelect("departamento.escuela", "escuela")
       .leftJoinAndSelect("escuela.facultad", "facultadDesdeDepartamento")
       .leftJoinAndSelect("docente.facultad", "facultad")
-      .where("docente.activo = :activo", { activo: true });
+      .where("1 = 1");
 
+    if (filters.activo === "true") {
+      qb.andWhere("docente.activo = true");
+    } else if (filters.activo === "false") {
+      qb.andWhere("docente.activo = false");
+    }
+
+    if (filters.departamento_id) {
+      qb.andWhere("docente.departamento_id = :departamento_id", {
+        departamento_id: parseInt(filters.departamento_id, 10),
+      });
+    }
+    if (filters.escuela_id) {
+      qb.andWhere("escuela.id = :escuela_id", {
+        escuela_id: parseInt(filters.escuela_id, 10),
+      });
+    }
     if (filters.categoria) {
       qb.andWhere("docente.categoria = :categoria", {
         categoria: filters.categoria,
@@ -215,7 +250,7 @@ export class DocentesService {
     }
     if (filters.busqueda) {
       qb.andWhere(
-        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda)",
+        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda OR docente.email ILIKE :busqueda OR docente.dni ILIKE :busqueda OR CAST(docente.ibm AS TEXT) ILIKE :busqueda)",
         { busqueda: `%${filters.busqueda}%` },
       );
     }
@@ -522,20 +557,48 @@ export class DocentesService {
   }
 
   async create(dto: CreateDocenteDto): Promise<Docente> {
-    const emailExistente = await this.docenteRepo.findOne({
-      where: { email: dto.email },
-    });
-    if (emailExistente) {
-      throw new ConflictException(`El email '${dto.email}' ya está registrado`);
+    const codigo = dto.codigo || await this.generarCodigoUnico();
+
+    if (dto.email) {
+      const emailExistente = await this.docenteRepo.findOne({
+        where: { email: dto.email },
+      });
+      if (emailExistente) {
+        throw new ConflictException(`El email '${dto.email}' ya está registrado`);
+      }
     }
 
-    const codigoExistente = await this.docenteRepo.findOne({
-      where: { codigo: dto.codigo },
-    });
-    if (codigoExistente) {
-      throw new ConflictException(
-        `El código '${dto.codigo}' ya está registrado`,
-      );
+    if (dto.codigo) {
+      const codigoExistente = await this.docenteRepo.findOne({
+        where: { codigo: dto.codigo },
+      });
+      if (codigoExistente) {
+        throw new ConflictException(
+          `El código '${dto.codigo}' ya está registrado`,
+        );
+      }
+    }
+
+    if (dto.dni) {
+      const dniExistente = await this.docenteRepo.findOne({
+        where: { dni: dto.dni },
+      });
+      if (dniExistente) {
+        throw new ConflictException(
+          `El DNI '${dto.dni}' ya está registrado`,
+        );
+      }
+    }
+
+    if (dto.ibm) {
+      const ibmExistente = await this.docenteRepo.findOne({
+        where: { ibm: dto.ibm },
+      });
+      if (ibmExistente) {
+        throw new ConflictException(
+          `El IBM '${dto.ibm}' ya está registrado`,
+        );
+      }
     }
 
     if (dto.usuario_id) {
@@ -575,6 +638,7 @@ export class DocentesService {
 
     const docente = this.docenteRepo.create({
       ...dto,
+      codigo,
       ...vinculosInstitucionales,
       usuario_id: dto.usuario_id ?? null,
       tipo_contrato: this.derivarTipoContrato(dto.tipo_docente),
@@ -624,6 +688,24 @@ export class DocentesService {
       }
     }
 
+    if (dto.dni && dto.dni !== docente.dni) {
+      const dniExistente = await this.docenteRepo.findOne({
+        where: { dni: dto.dni },
+      });
+      if (dniExistente) {
+        throw new ConflictException(`El DNI '${dto.dni}' ya está en uso`);
+      }
+    }
+
+    if (dto.ibm && dto.ibm !== docente.ibm) {
+      const ibmExistente = await this.docenteRepo.findOne({
+        where: { ibm: dto.ibm },
+      });
+      if (ibmExistente) {
+        throw new ConflictException(`El IBM '${dto.ibm}' ya está en uso`);
+      }
+    }
+
     const tipoDocente = dto.tipo_docente ?? docente.tipo_docente;
     const actualizado = this.docenteRepo.merge(docente, {
       ...dto,
@@ -641,6 +723,23 @@ export class DocentesService {
     });
 
     const saved = await this.docenteRepo.save(actualizado);
+
+    // Sync email with associated usuario record for login consistency
+    if (dto.email && dto.email !== docente.email && docente.usuario_id) {
+      const usuario = await this.usuarioRepo.findOne({
+        where: { id: docente.usuario_id },
+      });
+      if (usuario && usuario.email !== dto.email) {
+        const emailTaken = await this.usuarioRepo.findOne({
+          where: { email: dto.email },
+        });
+        if (!emailTaken) {
+          usuario.email = dto.email;
+          await this.usuarioRepo.save(usuario);
+        }
+      }
+    }
+
     await this.invalidarCacheDocentes(id);
     return saved;
   }
@@ -657,6 +756,18 @@ export class DocentesService {
     const saved = await this.docenteRepo.save(docente);
     await this.invalidarCacheDocentes(id);
     return saved;
+  }
+
+  private async generarCodigoUnico(): Promise<string> {
+    let intentos = 0;
+    while (intentos < 50) {
+      intentos++;
+      const numero = Math.floor(Math.random() * 90000) + 10000;
+      const codigo = `DOC-${numero}`;
+      const existe = await this.docenteRepo.findOne({ where: { codigo } });
+      if (!existe) return codigo;
+    }
+    throw new BadRequestException('No se pudo generar un código único. Intente escribirlo manualmente.');
   }
 
   private async invalidarCacheDocentes(id?: number): Promise<void> {
@@ -888,6 +999,75 @@ export class DocentesService {
 
     // Ya no filtramos por tipo de clase porque hay casos donde laboratorios se dan en aulas
     return ambientes;
+  }
+
+  async updateFoto(docenteId: number, fotoUrl: string): Promise<Docente> {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
+
+    if (!docente) {
+      throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
+    }
+
+    docente.foto_url = fotoUrl;
+    return await this.docenteRepo.save(docente);
+  }
+
+  private getCloudinaryConfig() {
+    const cloudName = this.configService.get("CLOUDINARY_CLOUD_NAME");
+    const apiKey = this.configService.get("CLOUDINARY_API_KEY");
+    const apiSecret = this.configService.get("CLOUDINARY_API_SECRET");
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      throw new InternalServerErrorException(
+        "Cloudinary no está configurado correctamente",
+      );
+    }
+
+    return { cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret };
+  }
+
+  async uploadFotoToCloudinary(
+    docenteId: number,
+    file: { buffer: Buffer; mimetype: string; originalname: string },
+  ): Promise<string> {
+    if (!file.mimetype?.startsWith("image/")) {
+      throw new BadRequestException("El archivo de foto debe ser una imagen");
+    }
+
+    cloudinary.config(this.getCloudinaryConfig());
+
+    const originalName = file.originalname.replace(/\.[^.]+$/, "");
+    const publicId = `foto_docente_${docenteId}_${Date.now()}`;
+    const dataUri = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+
+    try {
+      const result = await cloudinary.uploader.upload(dataUri, {
+        folder: "fotos-docentes",
+        public_id: publicId,
+        resource_type: "image",
+        overwrite: true,
+        invalidate: true,
+        filename_override: originalName,
+      });
+
+      if (!result.secure_url) {
+        throw new InternalServerErrorException(
+          "Cloudinary no devolvió una URL segura para la foto",
+        );
+      }
+
+      return result.secure_url;
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        "No se pudo subir la foto a Cloudinary",
+      );
+    }
   }
 
   async asignarAmbientes(

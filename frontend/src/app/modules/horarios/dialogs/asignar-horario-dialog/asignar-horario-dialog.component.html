@@ -2,7 +2,10 @@
 
 <mat-dialog-content>
   <div class="info-row">
-    <mat-icon>person</mat-icon>
+    <img *ngIf="data.docente.foto_url" [src]="data.docente.foto_url" class="docente-photo" alt="Foto docente" />
+    <div *ngIf="!data.docente.foto_url" class="avatar-circle" [style.background-color]="getAvatarColor(data.docente.nombres)">
+      {{ data.docente.nombres[0] }}{{ data.docente.apellidos[0] }}
+    </div>
     <span
       ><strong
         >{{ data.docente.apellidos }}, {{ data.docente.nombres }}</strong

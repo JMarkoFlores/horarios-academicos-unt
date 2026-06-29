@@ -26,28 +26,26 @@
     <span class="estado-label">Estado Actual:</span>
     <span class="estado-valor {{ estadoColor }}">
       {{ estadoLabel }}
-      <span *ngIf="estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'NO_INICIADO'" class="estado-sufijo">(Docente)</span>
-      <span *ngIf="estadoDeclaracion === 'OBSERVADO_DPTO'" class="estado-sufijo">(Director)</span>
-      <span *ngIf="estadoDeclaracion === 'VALIDADO_DPTO'" class="estado-sufijo">(Director)</span>
-      <span *ngIf="estadoDeclaracion === 'APROBADO_FACULTAD'" class="estado-sufijo">(Decano)</span>
-      <span *ngIf="estadoDeclaracion === 'OBSERVADO_FACULTAD'" class="estado-sufijo">(Decano)</span>
+      <span *ngIf="estadoDeclaracion === 'BORRADOR'" class="estado-sufijo">(Editable)</span>
+      <span *ngIf="estadoDeclaracion === 'CONFIRMADO'" class="estado-sufijo">(Confirmado)</span>
+      <span *ngIf="estadoDeclaracion === 'CERRADO'" class="estado-sufijo">(Cerrado)</span>
     </span>
   </div>
 
   <!-- Aviso si es editable -->
-  <div class="aviso-borrador" *ngIf="(estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'NO_INICIADO') && esEditable">
+  <div class="aviso-borrador" *ngIf="estadoDeclaracion === 'BORRADOR' && esEditable">
     <mat-icon>info</mat-icon>
     <span>Complete su declaración de carga horaria. Una vez enviada, no podrá realizar modificaciones.</span>
   </div>
 
   <!-- Aviso si está observado -->
-  <div class="aviso-observado" *ngIf="estadoDeclaracion === 'OBSERVADO_DPTO' || estadoDeclaracion === 'OBSERVADO_FACULTAD'">
-    <mat-icon>warning</mat-icon>
-    <span>La declaración ha sido observada. Revise las observaciones, corrija los datos y presione "Corregir y reenviar".</span>
+  <div class="aviso-confirmado" *ngIf="estadoDeclaracion === 'CONFIRMADO'">
+    <mat-icon>check_circle</mat-icon>
+    <span>La declaración ha sido confirmada y no puede ser modificada.</span>
   </div>
 
   <!-- Aviso si no es editable -->
-  <div class="aviso-no-editable" *ngIf="!esEditable && estadoDeclaracion !== 'OBSERVADO_DPTO' && estadoDeclaracion !== 'OBSERVADO_FACULTAD'">
+  <div class="aviso-no-editable" *ngIf="!esEditable && estadoDeclaracion !== 'BORRADOR'">
     <mat-icon>lock</mat-icon>
     <span>La declaración ha sido enviada y no puede ser modificada.</span>
   </div>
@@ -76,7 +74,7 @@
     </div>
   </div>
 
-  <div class="aviso-observado" *ngIf="tieneHorasIncompletas() && (puedeEditar || puedeSubsanar)" style="margin-top: 10px; background-color: #ffebee; color: #c62828;">
+  <div class="aviso-observado" *ngIf="tieneHorasIncompletas() && puedeEditar" style="margin-top: 10px; background-color: #ffebee; color: #c62828;">
     <mat-icon style="color: #c62828;">error</mat-icon>
     <span>Debe completar exactamente el 100% de sus horas ({{ horasModalidad }}h) según su modalidad para poder guardar, enviar o corregir.</span>
   </div>
@@ -361,7 +359,7 @@
     </div>
 
     <!-- DECLARACIÓN JURADA F02-CAD -->
-    <mat-card class="seccion-card declaracion-jurada-card" *ngIf="estadoDeclaracion !== 'NO_INICIADO' && estadoDeclaracion !== 'BORRADOR'">
+    <mat-card class="seccion-card declaracion-jurada-card" *ngIf="estadoDeclaracion !== 'BORRADOR'">
       <mat-card-header class="header-jurada">
         <mat-card-title>
           <mat-icon>gavel</mat-icon>
@@ -438,7 +436,7 @@
               <td>{{ obs.usuario.nombre || '—' }}</td>
               <td class="text-left">{{ obs.observacion }}</td>
               <td>{{ obs.estado_origen }}</td>
-              <td><span class="estado-valor-mini" [ngClass]="obs.estado_destino === 'OBSERVADO_DPTO' ? 'estado-observado' : 'estado-observado-facultad'">{{ obs.estado_destino }}</span></td>
+              <td><span class="estado-valor-mini">{{ obs.estado_destino }}</span></td>
               <td>
                 <span *ngIf="obs.subsanada" class="subsanado-si">Sí</span>
                 <span *ngIf="!obs.subsanada" class="subsanado-no">No</span>
@@ -450,21 +448,21 @@
     </mat-card>
 
     <!-- Campo de nueva observación (Director/Decano) -->
-    <mat-card class="observacion-nueva-card" *ngIf="puedeObservar">
+    <mat-card class="observacion-nueva-card" *ngIf="estadoDeclaracion === 'BORRADOR'">
       <mat-card-header class="header-nueva-observacion">
-        <mat-card-title>Nueva Observación</mat-card-title>
-        <span class="subtitle">Ingrese el detalle de la observación</span>
+        <mat-card-title>Agregar Comentario</mat-card-title>
+        <span class="subtitle">Comentario para la declaración</span>
       </mat-card-header>
       <mat-card-content>
         <mat-form-field appearance="outline" class="observacion-field">
-          <mat-label>Texto de la observación (mín. 10 caracteres)</mat-label>
-          <textarea matInput [(ngModel)]="textoObservacion" rows="3" placeholder="Describa la observación..."></textarea>
+          <mat-label>Texto del comentario (mín. 10 caracteres)</mat-label>
+          <textarea matInput [(ngModel)]="textoObservacion" rows="3" placeholder="Describa..."></textarea>
           <mat-hint>{{ textoObservacion.length }}/10 caracteres mínimo</mat-hint>
         </mat-form-field>
         <div class="observacion-actions">
-          <button mat-raised-button color="warn" (click)="observarDeclaracion()" [disabled]="saving || textoObservacion.trim().length < 10">
-            <mat-icon>cancel</mat-icon>
-            {{ isDecano ? 'Observar (Decano)' : 'Observar (Director)' }}
+          <button mat-raised-button color="primary" (click)="guardarObservacion()" [disabled]="saving || textoObservacion.trim().length < 10">
+            <mat-icon>comment</mat-icon>
+            Guardar Comentario
           </button>
         </div>
       </mat-card-content>
@@ -482,26 +480,21 @@
           Guardar
         </button>
 
-        <button *ngIf="puedeEditar && (estadoDeclaracion === 'BORRADOR' || estadoDeclaracion === 'NO_INICIADO')" mat-raised-button color="accent" class="btn-enviar" (click)="enviar()" [disabled]="saving || tieneErroresEnviar()">
+        <button *ngIf="puedeEnviar" mat-raised-button color="accent" class="btn-enviar" (click)="enviar()" [disabled]="saving || tieneErroresEnviar()">
           <mat-icon>send</mat-icon>
-          Enviar
+          Confirmar
         </button>
 
-        <button *ngIf="puedeSubsanar" mat-raised-button color="accent" class="btn-subsanar" (click)="subsanar()" [disabled]="saving || tieneHorasIncompletas()">
-          <mat-icon>refresh</mat-icon>
-          Corregir y reenviar
+        <button *ngIf="estadoDeclaracion === 'CONFIRMADO'" mat-raised-button color="primary" class="btn-cerrar" (click)="cerrar()" [disabled]="saving">
+          <mat-icon>lock</mat-icon>
+          Cerrar
         </button>
 
-        <button *ngIf="puedeValidarOAprobar" mat-raised-button color="primary" class="btn-aprobar" (click)="validarOAprobar()" [disabled]="saving">
-          <mat-icon>check_circle</mat-icon>
-          {{ isDecano ? 'Aprobar (Decano)' : 'Validar (Director)' }}
-        </button>
-
-        <button *ngIf="estadoDeclaracion !== 'NO_INICIADO' && estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="warn" class="btn-pdf" (click)="generarPDF('declaracion')" matTooltip="F01-CAD: Declaración de carga horaria">
+        <button *ngIf="estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="warn" class="btn-pdf" (click)="generarPDF('declaracion')" matTooltip="F01-CAD: Declaración de carga horaria">
           <mat-icon>description</mat-icon>
           F01-CAD
         </button>
-        <button *ngIf="estadoDeclaracion !== 'NO_INICIADO' && estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="primary" class="btn-f03" (click)="generarPDF('f03cad')" matTooltip="F03-CAD: Horario semanal docente">
+        <button *ngIf="estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="primary" class="btn-f03" (click)="generarPDF('f03cad')" matTooltip="F03-CAD: Horario semanal docente">
           <mat-icon>calendar_month</mat-icon>
           F03-CAD
         </button>

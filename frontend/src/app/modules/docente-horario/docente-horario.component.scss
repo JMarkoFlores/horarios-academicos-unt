@@ -57,9 +57,32 @@
   align-items: center;
 }
 
+.toggle-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
 .toggle-no-lectiva {
   margin-left: 10px;
   .mdc-form-field { color: var(--color-text); font-weight: 500; }
+}
+
+.estado-mensaje {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-style: italic;
+
+  .info-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #3b82f6;
+  }
 }
 
 .chip-stat {

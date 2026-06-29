@@ -7,6 +7,8 @@ import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { VentanaAtencion } from "../entities/ventana-atencion.entity";
 import { ColaDocente } from "../entities/cola-docentes.entity";
 import { EstadoVentanaAtencion } from "../entities/ventana-atencion.entity";
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 
 @Injectable()
 export class TelegramBotService {
@@ -23,6 +25,10 @@ export class TelegramBotService {
     private readonly ventanaRepo: Repository<VentanaAtencion>,
     @InjectRepository(ColaDocente)
     private readonly colaRepo: Repository<ColaDocente>,
+    @InjectRepository(DeclaracionCargaHoraria)
+    private readonly declaracionRepo: Repository<DeclaracionCargaHoraria>,
+    @InjectRepository(PeriodoAcademico)
+    private readonly periodoRepo: Repository<PeriodoAcademico>,
   ) {}
 
   async handleUpdate(
@@ -150,10 +156,39 @@ export class TelegramBotService {
       };
     }
 
+    // Verificar estado de declaración para determinar si mostrar carga no lectiva
+    let puedeMostrarNoLectiva = false;
+    let cargaNoLectiva: any = null;
+    try {
+      let periodoId: number | undefined;
+      const p = await this.periodoRepo.findOne({ where: { codigo: targetPeriodo } });
+      this.logger.log(`📅 Periodo encontrado: ${p?.id} (${p?.codigo})`);
+      if (p) periodoId = p.id;
+      
+      if (periodoId) {
+        const declaracion = await this.declaracionRepo.findOne({
+          where: { docente_id: docenteId, periodo_academico_id: periodoId },
+        });
+        this.logger.log(`📋 Declaración encontrada: ${declaracion?.id}, estado: ${declaracion?.estado}`);
+        const estadosConfirmados = ['CONFIRMADO', 'VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO'];
+        puedeMostrarNoLectiva = declaracion?.estado && estadosConfirmados.includes(declaracion.estado);
+        this.logger.log(`✅ Puede mostrar no lectiva: ${puedeMostrarNoLectiva}`);
+        cargaNoLectiva = declaracion?.carga_no_lectiva;
+        this.logger.log(`📦 Carga no lectiva JSON: ${JSON.stringify(cargaNoLectiva)}`);
+      }
+    } catch (error) {
+      this.logger.warn(`No se pudo obtener declaración para docente ${docenteId}: ${error}`);
+    }
+
     const horarios = await this.horarioRepo.find({
       where: { docente_id: docenteId, periodo: targetPeriodo },
       relations: ["curso", "ambiente", "grupo"],
       order: { dia: "ASC", hora_inicio: "ASC" },
+    });
+
+    this.logger.log(`📊 Horarios encontrados: ${horarios.length}`);
+    horarios.forEach(h => {
+      this.logger.log(`  - ${h.curso?.nombre} | tipo: ${h.tipo_clase} | ${h.hora_inicio}-${h.hora_fin}`);
     });
 
     if (horarios.length === 0) {
@@ -173,19 +208,69 @@ export class TelegramBotService {
       "Sábado",
       "Domingo",
     ];
+    const diaMap: Record<string, string> = {
+      "LU": "Lunes",
+      "MA": "Martes",
+      "MI": "Miércoles",
+      "JU": "Jueves",
+      "VI": "Viernes",
+      "SA": "Sábado",
+      "DO": "Domingo",
+    };
     const lines = [
       `*Horario ${targetPeriodo} — ${docente.nombres} ${docente.apellidos}*`,
     ];
+    
+    // Filtrar horarios según estado de declaración
+    const horariosFiltrados = horarios.filter(h => {
+      if (h.tipo_clase === 'NO_LECTIVA') {
+        return puedeMostrarNoLectiva;
+      }
+      return true;
+    });
+
     lines.push("");
-    for (const h of horarios) {
+    for (const h of horariosFiltrados) {
       const dia = dias[h.dia] || h.dia;
-      lines.push(`• *${dia}* ${h.hora_inicio}–${h.hora_fin}`);
-      lines.push(
-        `  ${h.curso?.nombre || "Curso"} | ${h.ambiente?.codigo || "Ambiente"} | Grupo ${h.grupo?.nombre || "?"}`,
-      );
+      const tipoLabel = h.tipo_clase === 'NO_LECTIVA' ? '🔵 NO LECTIVA' : '';
+      lines.push(`• *${dia}* ${h.hora_inicio}–${h.hora_fin} ${tipoLabel}`);
+      if (h.tipo_clase === 'NO_LECTIVA') {
+        lines.push(`  ${h.curso?.nombre || "Actividad no lectiva"}`);
+      } else {
+        lines.push(
+          `  ${h.curso?.nombre || "Curso"} | ${h.ambiente?.codigo || "Ambiente"} | Grupo ${h.grupo?.nombre || "?"}`,
+        );
+      }
     }
+
+    // Agregar carga no lectiva desde la declaración
+    if (puedeMostrarNoLectiva && cargaNoLectiva?.actividades) {
+      const actividades = cargaNoLectiva.actividades.filter((a: any) => a.horas > 0 && a.horarios && a.horarios.length > 0);
+      
+      if (actividades.length > 0) {
+        lines.push("");
+        lines.push("🔵 *CARGA NO LECTIVA*");
+        
+        for (const act of actividades) {
+          for (const hor of act.horarios) {
+            const diaNombre = diaMap[hor.dia] || hor.dia;
+            lines.push(`• *${diaNombre}* ${hor.hora_inicio}–${hor.hora_fin} 🔵 NO LECTIVA`);
+            lines.push(`  ${act.descripcion}`);
+            if (act.detalle) {
+              lines.push(`  ${act.detalle}`);
+            }
+          }
+        }
+      }
+    }
+
     lines.push("");
-    lines.push(`Total: ${horarios.length} asignaciones`);
+    lines.push(`Total: ${horariosFiltrados.length} asignaciones`);
+    
+    if (!puedeMostrarNoLectiva) {
+      lines.push("");
+      lines.push("ℹ️ La carga no lectiva se mostrará cuando confirmes tu declaración.");
+    }
 
     return { chat_id: chatId, text: lines.join("\n"), parse_mode: "Markdown" };
   }

@@ -43,6 +43,9 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
   private _gridCache: Map<string, CeldaHorario> = new Map();
   private periodSub?: Subscription;
   mostrarNoLectiva = false;
+  declaracionEstado: string | null = null;
+  puedeMostrarNoLectiva = false;
+  mensajeEstadoDeclaracion = '';
 
   constructor(
     private api: ApiService,
@@ -61,10 +64,12 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
     this.diasNum = this.diasActivosService.numeros;
     this.cargarBloqueAlmuerzo();
     this.cargarHorario();
+    this.cargarEstadoDeclaracion();
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
       this._gridCache.clear();
       this.cargarBloqueAlmuerzo();
       this.cargarHorario();
+      this.cargarEstadoDeclaracion();
     });
   }
 
@@ -125,6 +130,48 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loading = false;
+        },
+      });
+  }
+
+  cargarEstadoDeclaracion(): void {
+    this.api
+      .get<ApiResponse<any>>('/declaraciones/mia')
+      .subscribe({
+        next: (r) => {
+          const declaracion = r.data;
+          this.declaracionEstado = declaracion?.estado || null;
+          
+          // Habilitar mostrar no lectiva solo si la declaración está en estado CONFIRMADO o superior
+          const estadosConfirmados = ['CONFIRMADO', 'VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO'];
+          this.puedeMostrarNoLectiva = !!this.declaracionEstado && estadosConfirmados.includes(this.declaracionEstado);
+          
+          // Si no puede mostrar, desactivar el toggle
+          if (!this.puedeMostrarNoLectiva) {
+            this.mostrarNoLectiva = false;
+          }
+          
+          // Mensaje informativo
+          if (this.declaracionEstado) {
+            const mensajes: Record<string, string> = {
+              BORRADOR: 'Complete su declaración para ver carga no lectiva',
+              ENVIADO: 'Su declaración está en revisión',
+              OBSERVADO_DPTO: 'Subsane las observaciones para ver carga no lectiva',
+              OBSERVADO_FACULTAD: 'Subsane las observaciones para ver carga no lectiva',
+              VALIDADO_DPTO: 'Carga no lectiva disponible',
+              APROBADO_FACULTAD: 'Carga no lectiva disponible',
+              CERRADO: 'Carga no lectiva disponible',
+            };
+            this.mensajeEstadoDeclaracion = mensajes[this.declaracionEstado] || '';
+          } else {
+            this.mensajeEstadoDeclaracion = 'No hay declaración para este período';
+          }
+        },
+        error: () => {
+          this.declaracionEstado = null;
+          this.puedeMostrarNoLectiva = false;
+          this.mostrarNoLectiva = false;
+          this.mensajeEstadoDeclaracion = 'No hay declaración para este período';
         },
       });
   }

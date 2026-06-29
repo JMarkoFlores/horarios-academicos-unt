@@ -29,8 +29,6 @@ import { CreateDeclaracionCargaHorariaDto } from "./dto/create-declaracion-carga
 import { UpdateDeclaracionCargaHorariaDto } from "./dto/update-declaracion-carga-horaria.dto";
 import { AccionDeclaracionCargaHorariaDto } from "./dto/accion-declaracion-carga-horaria.dto";
 import { CargaLectivaDeclaracionDto } from "./dto/carga-lectiva.dto";
-import { ObservarDeclaracionDto } from "./dto/observar-declaracion.dto";
-import { SubsanarDeclaracionDto } from "./dto/subsanar-declaracion.dto";
 
 import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
 
@@ -330,52 +328,40 @@ export class DeclaracionCargaHorariaController {
     return { data, message: "Declaración enviada correctamente" };
   }
 
-  @Patch(":id/observar")
+  @Post(":id/cerrar")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
   )
-  @ApiOperation({ summary: "Observar una declaración" })
+  @ApiOperation({ summary: "Cerrar una declaración confirmada" })
   @ApiParam({ name: "id", type: Number })
-  async observar(
+  async cerrar(
     @Param("id", ParseIntPipe) id: number,
-    @Body() dto: AccionDeclaracionCargaHorariaDto,
     @CurrentUser() usuario: Usuario,
   ): Promise<any> {
-    const data = await this.declaracionService.observar(id, usuario, dto);
-    return { data, message: "Declaración observada correctamente" };
+    const data = await this.declaracionService.cerrar(id, usuario);
+    return { data, message: "Declaración cerrada correctamente" };
   }
 
-  @Patch(":id/validar")
+  @Post(":id/observaciones")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
-    RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
   )
-  @ApiOperation({ summary: "Validar una declaración a nivel departamental" })
+  @ApiOperation({ summary: "Agregar comentario a una declaración" })
   @ApiParam({ name: "id", type: Number })
-  async validar(
+  async agregarObservacion(
     @Param("id", ParseIntPipe) id: number,
-    @Body() dto: AccionDeclaracionCargaHorariaDto,
+    @Body() body: { observacion: string },
     @CurrentUser() usuario: Usuario,
   ): Promise<any> {
-    const data = await this.declaracionService.validar(id, usuario, dto);
-    return { data, message: "Declaración validada correctamente" };
-  }
-
-  @Patch(":id/aprobar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
-  @ApiOperation({ summary: "Aprobar una declaración a nivel de facultad" })
-  @ApiParam({ name: "id", type: Number })
-  async aprobar(
-    @Param("id", ParseIntPipe) id: number,
-    @Body() dto: AccionDeclaracionCargaHorariaDto,
-    @CurrentUser() usuario: Usuario,
-  ): Promise<any> {
-    const data = await this.declaracionService.aprobar(id, usuario, dto);
-    return { data, message: "Declaración aprobada correctamente" };
+    await this.declaracionService.agregarObservacion(id, body.observacion, usuario);
+    return { data: null, message: "Comentario guardado correctamente" };
   }
 
   @Get(":id/observaciones")
@@ -393,19 +379,6 @@ export class DeclaracionCargaHorariaController {
   ): Promise<any> {
     const data = await this.declaracionService.obtenerObservaciones(id);
     return { data, message: "Observaciones obtenidas correctamente" };
-  }
-
-  @Patch(":id/subsanar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
-  @ApiOperation({ summary: "Docente subsana observaciones y reenvía" })
-  @ApiParam({ name: "id", type: Number })
-  async subsanar(
-    @Param("id", ParseIntPipe) id: number,
-    @Body() dto: SubsanarDeclaracionDto,
-    @CurrentUser() usuario: Usuario,
-  ): Promise<any> {
-    const data = await this.declaracionService.subsanar(id, usuario, dto);
-    return { data, message: "Declaración subsanada correctamente" };
   }
 
   @Get("docentes/:id/declaracion-jurada")

@@ -150,11 +150,16 @@ export class FacultadesController {
   @Get("departamentos")
   @Roles(...ADMIN_COORD, RolUsuario.DIRECTOR_ESCUELA)
   @ApiQuery({ name: "escuela_id", required: false, type: Number })
+  @ApiQuery({ name: "con_docentes", required: false, type: Boolean, description: "Solo departamentos con al menos un docente activo" })
   @ApiOperation({ summary: "Listar departamentos, opcionalmente por escuela" })
-  async findAllDepartamentos(@Query("escuela_id") escuelaId?: string) {
+  async findAllDepartamentos(
+    @Query("escuela_id") escuelaId?: string,
+    @Query("con_docentes") conDocentes?: string,
+  ) {
     return {
       data: await this.service.findAllDepartamentos(
         escuelaId ? +escuelaId : undefined,
+        conDocentes === "true",
       ),
     };
   }

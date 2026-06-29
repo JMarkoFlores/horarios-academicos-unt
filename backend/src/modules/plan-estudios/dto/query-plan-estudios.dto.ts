@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBooleanString, IsInt, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsInt, IsOptional, IsString } from "class-validator";
+import { Transform } from "class-transformer";
 
 export class QueryPlanEstudiosDto {
   @ApiPropertyOptional()
@@ -9,8 +10,9 @@ export class QueryPlanEstudiosDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsBooleanString()
-  activo?: string;
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  activo?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

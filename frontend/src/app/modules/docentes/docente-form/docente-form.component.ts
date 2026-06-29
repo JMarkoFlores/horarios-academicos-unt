@@ -15,13 +15,14 @@ import { ApiResponse, Docente } from '../../../core/interfaces/entities';
 export function emailInstitucionalValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     if (!control.value) return null;
-    const valor: string = control.value.trim();
+    const valor: string = control.value.trim().toLowerCase();
     const partes = valor.split('@');
     if (partes.length !== 2) return { emailInvalido: true };
     const [local, dominio] = partes;
     if (!local || local.length === 0) return { emailInvalido: true };
     if (!/^[a-zA-Z0-9_\-\.]+$/.test(dominio)) return { emailInvalido: true };
     if (!dominio.includes('.')) return { emailInvalido: true };
+    if (dominio !== 'unt.edu.pe') return { dominioInvalido: true };
     return null;
   };
 }
@@ -77,6 +78,8 @@ export class DocenteFormComponent implements OnInit {
   saving = false;
   hoy = new Date();
 
+  autoGenerarCodigo = false;
+
   tiposDocente = [
     { value: 'ORDINARIO', label: 'Nombrado' },
     { value: 'CONTRATADO', label: 'Contratado' },
@@ -94,6 +97,15 @@ export class DocenteFormComponent implements OnInit {
     { value: 'TIEMPO_PARCIAL_8', label: 'Tiempo parcial 8h' },
   ];
 
+  horasMaximasPorModalidad: Record<string, number> = {
+    DEDICACION_EXCLUSIVA: 40,
+    TIEMPO_COMPLETO_40: 40,
+    TIEMPO_PARCIAL_20: 20,
+    TIEMPO_PARCIAL_12: 12,
+    TIEMPO_PARCIAL_10: 10,
+    TIEMPO_PARCIAL_8: 8,
+  };
+
   constructor(
     private fb: FormBuilder,
     private api: ApiService,
@@ -110,10 +122,16 @@ export class DocenteFormComponent implements OnInit {
         [Validators.required, Validators.min(1000), Validators.max(9999)],
       ],
       dni: ['', [Validators.required, dniValidator()]],
-      nombres: ['', [Validators.required, Validators.maxLength(150)]],
-      apellidos: ['', [Validators.required, Validators.maxLength(150)]],
+      nombres: [
+        '',
+        [Validators.required, Validators.minLength(2), Validators.maxLength(150)],
+      ],
+      apellidos: [
+        '',
+        [Validators.required, Validators.minLength(2), Validators.maxLength(150)],
+      ],
       email: ['', [Validators.required, emailInstitucionalValidator()]],
-      telefono: ['', [Validators.pattern(/^\+?[\d\s\-]{7,20}$/)]],
+      telefono: ['', [Validators.pattern(/^\d{9}$/)]],
       tipo_docente: [{ value: '', disabled: false }, Validators.required],
       categoria: [{ value: '', disabled: true }, Validators.required],
       modalidad: [{ value: '', disabled: true }, Validators.required],
@@ -125,6 +143,49 @@ export class DocenteFormComponent implements OnInit {
       this.isEdit = true;
       this.docenteId = parseInt(id, 10);
       this.loadDocente();
+    }
+  }
+
+  toggleAutoGenerarCodigo(): void {
+    this.autoGenerarCodigo = !this.autoGenerarCodigo;
+    const ctrl = this.form.get('codigo')!;
+    if (this.autoGenerarCodigo) {
+      ctrl.clearValidators();
+      ctrl.setValue(this.generarCodigoSiguiente());
+      ctrl.disable();
+    } else {
+      ctrl.setValidators([Validators.required, Validators.maxLength(20)]);
+      ctrl.setValue('');
+      ctrl.enable();
+    }
+    ctrl.updateValueAndValidity();
+  }
+
+  generarCodigoSiguiente(): string {
+    const prefijo = 'DOC-';
+    const siguiente = Math.floor(Math.random() * 90000) + 10000;
+    return `${prefijo}${siguiente}`;
+  }
+
+  onTelefonoBlur(): void {
+    const ctrl = this.form.get('telefono');
+    if (ctrl && ctrl.value) {
+      const limpio = ctrl.value.replace(/\D/g, '').slice(0, 9);
+      ctrl.setValue(limpio, { emitEvent: false });
+    }
+  }
+
+  onNombresBlur(): void {
+    const ctrl = this.form.get('nombres');
+    if (ctrl && ctrl.value) {
+      ctrl.setValue(ctrl.value.trim().replace(/\s+/g, ' '), { emitEvent: false });
+    }
+  }
+
+  onApellidosBlur(): void {
+    const ctrl = this.form.get('apellidos');
+    if (ctrl && ctrl.value) {
+      ctrl.setValue(ctrl.value.trim().replace(/\s+/g, ' '), { emitEvent: false });
     }
   }
 
@@ -207,6 +268,8 @@ export class DocenteFormComponent implements OnInit {
     const fi = v['fecha_ingreso'];
     const payload = {
       ...v,
+      codigo: this.autoGenerarCodigo ? this.generarCodigoSiguiente() : v['codigo'],
+      email: typeof v['email'] === 'string' ? (v['email'] as string).trim().toLowerCase() : v['email'],
       fecha_ingreso:
         fi instanceof Date ? (fi as Date).toISOString().split('T')[0] : fi,
     };

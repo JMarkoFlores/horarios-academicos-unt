@@ -160,27 +160,13 @@ export class PeriodosService {
     periodo.estado = EstadoPeriodo.FINALIZADO;
     await this.periodoRepo.save(periodo);
 
-    // 2. Cerrar las declaraciones aprobadas
+    // 2. Cerrar las declaraciones confirmadas
     await this.declaracionRepo.update(
-      { periodo_academico_id: id, estado: EstadoDeclaracionCarga.APROBADO_FACULTAD },
+      { periodo_academico_id: id, estado: EstadoDeclaracionCarga.CONFIRMADO },
       { estado: EstadoDeclaracionCarga.CERRADO }
     );
 
-    // 3. Anular las declaraciones incompletas
-    await this.declaracionRepo.createQueryBuilder()
-      .update()
-      .set({ estado: EstadoDeclaracionCarga.ANULADO })
-      .where("periodo_academico_id = :id", { id })
-      .andWhere("estado NOT IN (:...estados)", { 
-        estados: [
-          EstadoDeclaracionCarga.APROBADO_FACULTAD,
-          EstadoDeclaracionCarga.CERRADO,
-          EstadoDeclaracionCarga.ANULADO
-        ] 
-      })
-      .execute();
-
-    return { success: true, message: "Periodo finalizado, declaraciones cerradas/anuladas." };
+    return { success: true, message: "Periodo finalizado, declaraciones cerradas." };
   }
 
   async remove(id: number) {

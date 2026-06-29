@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsBoolean, IsInt, IsString, Min } from "class-validator";
+import { Transform } from "class-transformer";
 
 export class QueryPeriodoDto {
   @ApiPropertyOptional({ default: 1 })
@@ -17,6 +18,7 @@ export class QueryPeriodoDto {
   @ApiPropertyOptional({ description: "Filtrar activos/inactivos" })
   @IsOptional()
   @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
   activo?: boolean;
 
   @ApiPropertyOptional({ description: "Filtrar por código de período" })

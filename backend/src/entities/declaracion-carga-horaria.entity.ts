@@ -77,7 +77,7 @@ export class DeclaracionCargaHoraria {
   @Column({
     type: "enum",
     enum: EstadoDeclaracionCarga,
-    default: EstadoDeclaracionCarga.NO_INICIADO,
+    default: EstadoDeclaracionCarga.BORRADOR,
   })
   estado: EstadoDeclaracionCarga;
 

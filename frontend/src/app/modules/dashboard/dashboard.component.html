@@ -1,585 +1,332 @@
-<div class="dashboard-page animate-fadein" [class.compact]="compactMode()">
-  <!-- Toolbar toggles -->
-  <div class="dashboard-toolbar">
-    <div class="welcome-section">
-      <h1 class="greeting">{{ greeting() }}, {{ usuario?.nombre || "Usuario" }}</h1>
-      <p class="current-date">{{ currentDate() }}</p>
-    </div>
-    <div class="header-actions" *ngIf="isAdminOrCoord() || isDirector()">
-      <button mat-icon-button [matTooltip]="'dashboard.compactMode' | translate" (click)="compactMode.set(!compactMode())" [class.active]="compactMode()">
-        <mat-icon>view_stream</mat-icon>
-      </button>
-      <button mat-icon-button [matTooltip]="'dashboard.refresh' | translate" (click)="loadAll()" [disabled]="loading()">
-        <mat-icon>refresh</mat-icon>
-      </button>
-      <button mat-raised-button class="btn-generate" *ngIf="canGenerateHorario()" (click)="generarHorario()" [disabled]="generando">
-        <mat-spinner diameter="20" *ngIf="generando"></mat-spinner>
-        <mat-icon *ngIf="!generando">auto_fix_high</mat-icon>
-        <span>{{ generando ? ('dashboard.generating' | translate) : ('dashboard.generateSchedule' | translate) }}</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Skeleton Loading -->
-  @if (loading() && !kpis && !misKpis) {
-    <div class="skeleton-grid">
-      <div class="skeleton-card" *ngFor="let _ of [1,2,3,4]">
-        <div class="skeleton-line skeleton-title"></div>
-        <div class="skeleton-line skeleton-value"></div>
+<div class="admin-dashboard" role="main" aria-label="Dashboard del administrador">
+  <!-- Loading State -->
+  @if (loading() && !kpis) {
+    <div class="dashboard-loading" aria-live="polite" aria-busy="true">
+      <div class="skeleton-grid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
       </div>
+      <p>Cargando datos del sistema...</p>
     </div>
   }
 
   <!-- Error State -->
   @if (!loading() && error) {
-    <div class="error-state animate-fadein">
-      <div class="error-icon-wrapper"><mat-icon>error_outline</mat-icon></div>
-      <h3>{{ 'dashboard.errorLoading' | translate }}</h3>
-      <p>{{ errorMessage }}</p>
-      <button mat-stroked-button (click)="loadAll()"><mat-icon>refresh</mat-icon> {{ 'dashboard.retry' | translate }}</button>
+    <div class="dashboard-error" role="alert" aria-live="assertive">
+      <mat-icon aria-hidden="true">error_outline</mat-icon>
+      <div class="error-content">
+        <h3>Error al cargar el dashboard</h3>
+        <p>{{ errorMessage }}</p>
+        <button mat-stroked-button (click)="loadAll()">Reintentar</button>
+      </div>
     </div>
   }
 
-  <!-- Period Status Bar -->
-  @if (kpis && canViewFullDashboard()) {
-    <div class="period-status-bar">
-      <div class="status-left">
-        <mat-icon class="status-icon" [class.activo]="kpis.estado_periodo === 'encurso'">event_note</mat-icon>
-        <div class="status-info">
-          <span class="status-label">{{ 'dashboard.period' | translate }} {{ periodoService.periodo }}</span>
-          <span class="status-value">{{ estadoPeriodoTexto(kpis.estado_periodo) }}</span>
+  <!-- Main Dashboard Content -->
+  @if (!loading() && !error && kpis) {
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-left">
+        <h1>Panel de Control</h1>
+        <p class="header-subtitle">{{ greeting() }}, {{ usuario?.nombre || "Administrador" }}</p>
+        <p class="header-date">{{ currentDate() }}</p>
+      </div>
+      <div class="header-right">
+        <button mat-icon-button [matTooltip]="'dashboard.refresh' | translate" (click)="loadAll()" [disabled]="loading()">
+          <mat-icon>refresh</mat-icon>
+        </button>
+        <button mat-raised-button color="primary" class="btn-hero-generate" *ngIf="canGenerateHorario()" (click)="generarHorario()" [disabled]="generando">
+          <mat-spinner diameter="18" *ngIf="generando" class="btn-spinner"></mat-spinner>
+          <mat-icon *ngIf="!generando">auto_awesome</mat-icon>
+          <span>Generar Horarios</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Quick Actions Rail -->
+    <nav class="quick-actions-rail" role="navigation" aria-label="Acciones rápidas">
+      <a class="action-item" routerLink="/app/docentes" mat-ripple>
+        <mat-icon>people</mat-icon>
+        <span>Docentes</span>
+      </a>
+      <a class="action-item" routerLink="/app/cursos" mat-ripple>
+        <mat-icon>menu_book</mat-icon>
+        <span>Cursos</span>
+      </a>
+      <a class="action-item" routerLink="/app/ambientes" mat-ripple>
+        <mat-icon>meeting_room</mat-icon>
+        <span>Ambientes</span>
+      </a>
+      <a class="action-item" routerLink="/app/horarios" mat-ripple>
+        <mat-icon>schedule</mat-icon>
+        <span>Horarios</span>
+      </a>
+      <a class="action-item" routerLink="/app/disponibilidad" mat-ripple>
+        <mat-icon>event_available</mat-icon>
+        <span>Disponibilidad</span>
+      </a>
+      <a class="action-item" routerLink="/app/asignaciones" mat-ripple>
+        <mat-icon>assignment_ind</mat-icon>
+        <span>Asignaciones</span>
+      </a>
+      <a class="action-item" routerLink="/app/reportes" mat-ripple>
+        <mat-icon>assessment</mat-icon>
+        <span>Reportes</span>
+      </a>
+      <a class="action-item" routerLink="/app/configuracion" mat-ripple>
+        <mat-icon>settings</mat-icon>
+        <span>Configuración</span>
+      </a>
+    </nav>
+
+    <!-- Bento Grid Layout - Reorganized for Better Hierarchy -->
+    <div class="bento-grid">
+      <!-- Row 1: Key Metrics (Full Width Row - 4 cards) -->
+      <div class="bento-card bento-card-metric">
+        <div class="metric-header">
+          <div class="metric-icon-wrap color-docentes">
+            <mat-icon>people</mat-icon>
+          </div>
+          <span>Docentes</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number">{{ displayKPIs.total_docentes }}</span>
+          <span class="metric-sub">{{ displayKPIs.docentes_con_horario }} con horario</span>
         </div>
       </div>
-      <div class="status-progress">
-        <div class="progress-track"><div class="progress-fill" [style.width.%]="progresoPeriodo()"></div></div>
-        <span class="progress-text">{{ progresoPeriodo() }}{{ 'dashboard.progress' | translate }}</span>
-      </div>
-      <div class="status-right">
-        <span class="status-date" *ngIf="kpis.ultima_generacion_horario">{{ 'dashboard.lastGeneration' | translate }}: {{ kpis.ultima_generacion_horario | date: 'short' }}</span>
-        <span class="status-date" *ngIf="!kpis.ultima_generacion_horario">{{ 'dashboard.noGenerations' | translate }}</span>
-      </div>
-    </div>
-  }
 
-  <!-- Quick Actions -->
-  @if (isAdminOrCoord()) {
-    <div class="quick-actions">
-      <a mat-stroked-button class="qa-btn" routerLink="/app/docentes"><mat-icon>person_add</mat-icon><span>{{ 'dashboard.newTeacher' | translate }}</span></a>
-      <a mat-stroked-button class="qa-btn" routerLink="/app/asignaciones"><mat-icon>assignment_ind</mat-icon><span>{{ 'dashboard.assignSchedule' | translate }}</span></a>
-      <a mat-stroked-button class="qa-btn" routerLink="/app/disponibilidad"><mat-icon>event_available</mat-icon><span>{{ 'dashboard.availability' | translate }}</span></a>
-      <a mat-stroked-button class="qa-btn" routerLink="/app/reportes"><mat-icon>picture_as_pdf</mat-icon><span>{{ 'dashboard.reports' | translate }}</span></a>
-      <a mat-stroked-button class="qa-btn" *ngIf="isAdmin()" routerLink="/app/usuarios"><mat-icon>manage_accounts</mat-icon><span>{{ 'dashboard.users' | translate }}</span></a>
-    </div>
-  }
-
-  <!-- Tab Selector (Admin/Coord/Director) -->
-  @if (canViewFullDashboard()) {
-    <div class="tab-selector">
-      <button class="tab-btn" [class.active]="activeTab() === 'horarios'" (click)="switchTab('horarios')">
-        <mat-icon>schedule</mat-icon> Horarios
-      </button>
-      <button class="tab-btn" [class.active]="activeTab() === 'carga'" (click)="switchTab('carga')">
-        <mat-icon>assignment</mat-icon> Carga Académica
-      </button>
-    </div>
-  }
-
-  <!-- ──── TAB: CARGA ACADÉMICA ──── -->
-  @if (activeTab() === 'carga' && canViewFullDashboard()) {
-    @if (cargaLoading() && !cargaResumen) {
-      <div class="skeleton-grid">
-        @for (_ of [1,2,3,4]; track $index) {
-          <div class="skeleton-card">
-            <div class="skeleton-line skeleton-title"></div>
-            <div class="skeleton-line skeleton-value"></div>
+      <div class="bento-card bento-card-metric">
+        <div class="metric-header">
+          <div class="metric-icon-wrap color-ocupacion">
+            <mat-icon>meeting_room</mat-icon>
           </div>
-        }
-      </div>
-    } @else if (cargaResumen) {
-      <!-- Filtro departamento -->
-      <div class="carga-filters">
-        <mat-form-field appearance="fill" class="compact-filter">
-          <mat-label>Departamento</mat-label>
-          <mat-select [(ngModel)]="selectedDeptCarga">
-            <mat-option [value]="null">Todos</mat-option>
-            @for (d of departamentosSet; track d.id) {
-              <mat-option [value]="d.id">{{ d.nombre }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+          <span>Ocupación</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number">{{ displayKPIs.porcentaje_ocupacion_aulas }}%</span>
+          <span class="metric-sub">{{ displayKPIs.aulas_ocupadas }}/{{ displayKPIs.total_aulas }} aulas</span>
+        </div>
       </div>
 
-      <!-- KPIs Carga -->
-      <div class="kpi-grid">
-        <mat-card class="kpi-card-premium" style="--accent-color: #3b82f6">
-          <div class="card-content">
-            <span class="kpi-label">Total docentes</span>
-            <h2 class="kpi-value">{{ cargaResumen.total_docentes }}</h2>
+      <div class="bento-card bento-card-metric">
+        <div class="metric-header">
+          <div class="metric-icon-wrap color-asignados">
+            <mat-icon>how_to_reg</mat-icon>
           </div>
-          <mat-icon class="watermark-icon">people</mat-icon>
-        </mat-card>
-        <mat-card class="kpi-card-premium" style="--accent-color: #10b981">
-          <div class="card-content">
-            <span class="kpi-label">Declaraciones enviadas</span>
-            <h2 class="kpi-value">{{ cargaResumen.declaraciones_enviadas }}</h2>
-          </div>
-          <mat-icon class="watermark-icon">how_to_reg</mat-icon>
-        </mat-card>
-        <mat-card class="kpi-card-premium" style="--accent-color: #22c55e">
-          <div class="card-content">
-            <span class="kpi-label">Aprobadas (facultad)</span>
-            <h2 class="kpi-value">{{ cargaResumen.declaraciones_aprobadas }}</h2>
-          </div>
-          <mat-icon class="watermark-icon">verified</mat-icon>
-        </mat-card>
-        <mat-card class="kpi-card-premium" style="--accent-color: #f59e0b">
-          <div class="card-content">
-            <span class="kpi-label">% Avance</span>
-            <h2 class="kpi-value">{{ cargaResumen.porcentaje_avance }}%</h2>
-            <div class="progress-track carga-progress"><div class="progress-fill" [style.width.%]="cargaResumen.porcentaje_avance"></div></div>
-          </div>
-          <mat-icon class="watermark-icon">trending_up</mat-icon>
-        </mat-card>
-        @if (cargaResumen.docentes_observados > 0) {
-        <mat-card class="kpi-card-premium" style="--accent-color: #ef4444">
-          <div class="card-content">
-            <span class="kpi-label">Con observaciones</span>
-            <h2 class="kpi-value">{{ cargaResumen.docentes_observados }}</h2>
-          </div>
-          <mat-icon class="watermark-icon">warning</mat-icon>
-        </mat-card>
-        }
-        <mat-card class="kpi-card-premium" style="--accent-color: #a855f7">
-          <div class="card-content">
-            <span class="kpi-label">Carga lectiva promedio</span>
-            <h2 class="kpi-value">{{ cargaResumen.carga_lectiva_promedio }}h</h2>
-          </div>
-          <mat-icon class="watermark-icon">bar_chart</mat-icon>
-        </mat-card>
+          <span>Asignados</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number">{{ displayKPIs.porcentaje_docentes_asignados }}%</span>
+          <span class="metric-sub">Docentes asignados</span>
+        </div>
       </div>
 
-      <!-- Funnel + Dept Chart -->
-      <div class="charts-grid">
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>Distribución por estado (funnel)</h3><span class="periodo-badge">{{ periodoService.periodo }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="chart-body"><canvas baseChart [data]="funnelChartData" [type]="'bar'" [options]="funnelChartOptions"></canvas></div>
-        </mat-card>
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>Carga por departamento</h3><span class="periodo-badge">Top 10</span></div>
-          <mat-divider></mat-divider>
-          <div class="chart-body"><canvas baseChart [data]="deptBarChartData" [type]="'bar'" [options]="deptBarChartOptions"></canvas></div>
-        </mat-card>
+      <div class="bento-card bento-card-metric">
+        <div class="metric-header">
+          <div class="metric-icon-wrap color-conflictos">
+            <mat-icon>error_outline</mat-icon>
+          </div>
+          <span>Conflictos</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number" [class.metric-danger]="kpis.conflictos_activos > 0">{{ kpis.conflictos_activos }}</span>
+          <span class="metric-sub">Conflictos activos</span>
+        </div>
       </div>
 
-      <!-- Avance temporal -->
-      @if (cargaAvance.length > 0) {
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>Avance temporal</h3><span class="periodo-badge">{{ cargaAvance.length }} días</span></div>
-          <mat-divider></mat-divider>
-          <div class="chart-body"><canvas baseChart [data]="avanceChartData" [type]="'line'" [options]="avanceChartOptions"></canvas></div>
-        </mat-card>
-      }
-
-      <!-- Top Docentes Table -->
-      @if (filteredTopDocentes.length > 0) {
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>Top docentes con más carga</h3><span class="periodo-badge">{{ filteredTopDocentes.length }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="table-wrapper">
-            <table mat-table [dataSource]="filteredTopDocentes" class="full-width premium-table">
-              <ng-container matColumnDef="posicion">
-                <th mat-header-cell *matHeaderCellDef>#</th>
-                <td mat-cell *matCellDef="let d; let i = index">{{ i + 1 }}</td>
-              </ng-container>
-              <ng-container matColumnDef="nombre">
-                <th mat-header-cell *matHeaderCellDef>Docente</th>
-                <td mat-cell *matCellDef="let d">{{ d.nombre }}</td>
-              </ng-container>
-              <ng-container matColumnDef="categoria">
-                <th mat-header-cell *matHeaderCellDef>Categoría</th>
-                <td mat-cell *matCellDef="let d">{{ d.categoria }}</td>
-              </ng-container>
-              <ng-container matColumnDef="horasLectivas">
-                <th mat-header-cell *matHeaderCellDef>Hrs lectivas</th>
-                <td mat-cell *matCellDef="let d">{{ d.total_horas_lectivas }}</td>
-              </ng-container>
-              <ng-container matColumnDef="horasNoLectivas">
-                <th mat-header-cell *matHeaderCellDef>Hrs no lectivas</th>
-                <td mat-cell *matCellDef="let d">{{ d.total_horas_no_lectivas }}</td>
-              </ng-container>
-              <ng-container matColumnDef="totalHoras">
-                <th mat-header-cell *matHeaderCellDef>Total</th>
-                <td mat-cell *matCellDef="let d"><strong>{{ d.total_horas }}</strong></td>
-              </ng-container>
-              <ng-container matColumnDef="estado">
-                <th mat-header-cell *matHeaderCellDef>Estado</th>
-                <td mat-cell *matCellDef="let d">
-                  <span class="estado-badge" [style.background]="estadoDocenteColor[d.estado] + '20'" [style.color]="estadoDocenteColor[d.estado]">{{ d.estado }}</span>
-                </td>
-              </ng-container>
-              <tr mat-header-row *matHeaderRowDef="topDocentesColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: topDocentesColumns"></tr>
-            </table>
+      <!-- Row 2: Critical Issues (Full Width if present) -->
+      @if (kpis.conflictos_activos > 0 || kpis.docentes_sin_disponibilidad > 0 || kpis.cursos_sin_asignar > 0) {
+        <div class="bento-card bento-card-large bento-card-alert">
+          <div class="card-header">
+            <h2>Problemas Críticos</h2>
+            <mat-icon>warning</mat-icon>
           </div>
-        </mat-card>
-      }
-
-      <!-- Sin declarar -->
-      @if (filteredSinDeclarar.length > 0) {
-        <mat-card class="chart-container-premium">
-          <div class="chart-header">
-            <h3 class="warn-title"><mat-icon>warning_amber</mat-icon> Docentes sin declarar</h3>
-            <span class="periodo-badge">{{ filteredSinDeclarar.length }}</span>
-          </div>
-          <mat-divider></mat-divider>
-          <div class="list-body">
-            @for (d of filteredSinDeclarar; track d.id) {
-            <div class="rank-item">
-              <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.email }}</div></div>
+          <div class="card-content">
+            <div class="alert-item conflict-alert" *ngIf="kpis.conflictos_activos > 0">
+              <div class="alert-icon conflict">
+                <mat-icon>error</mat-icon>
+              </div>
+              <div class="alert-info">
+                <span class="alert-title">{{ kpis.conflictos_activos }} conflictos activos</span>
+                <span class="alert-subtitle">Requieren atención inmediata</span>
+              </div>
+              <button mat-stroked-button size="small" routerLink="/app/horarios">Ver</button>
             </div>
-            }
-          </div>
-        </mat-card>
-      }
-    }
-  }
-
-  <!-- ──── TAB: HORARIOS ──── -->
-  @if (activeTab() === 'horarios') {
-  <!-- Docente Dashboard -->
-  @if (isDocente() && misKpis) {
-    <div class="kpi-grid">
-      <mat-card class="kpi-card-premium card-docentes" style="--accent-color: var(--color-primary)">
-        <div class="card-content"><span class="kpi-label">{{ 'dashboard.assignedHours' | translate }}</span><h2 class="kpi-value">{{ misKpis.total_horas }}</h2></div>
-        <mat-icon class="watermark-icon">schedule</mat-icon>
-      </mat-card>
-      <mat-card class="kpi-card-premium card-asignados" style="--accent-color: #10b981">
-        <div class="card-content"><span class="kpi-label">{{ 'dashboard.courses' | translate }}</span><h2 class="kpi-value">{{ misKpis.total_cursos }}</h2></div>
-        <mat-icon class="watermark-icon">menu_book</mat-icon>
-      </mat-card>
-      <mat-card class="kpi-card-premium card-ocupacion" style="--accent-color: #f59e0b">
-        <div class="card-content"><span class="kpi-label">{{ 'dashboard.environments' | translate }}</span><h2 class="kpi-value">{{ misKpis.total_ambientes }}</h2></div>
-        <mat-icon class="watermark-icon">meeting_room</mat-icon>
-      </mat-card>
-      <mat-card class="kpi-card-premium card-conflictos" style="--accent-color: #8b5cf6">
-        <div class="card-content"><span class="kpi-label">{{ 'dashboard.daysWithClasses' | translate }}</span><h2 class="kpi-value">{{ misKpis.dias_con_clase }}</h2></div>
-        <mat-icon class="watermark-icon">calendar_month</mat-icon>
-      </mat-card>
-    </div>
-    <div class="charts-grid">
-      <mat-card class="chart-container-premium">
-        <div class="chart-header"><h3>{{ 'dashboard.hourlyDistribution' | translate }}</h3><span class="periodo-badge">{{ periodoService.periodo }}</span></div>
-        <mat-divider></mat-divider>
-        <div class="chart-body"><canvas baseChart [data]="barChartData" [type]="'bar'" [options]="barChartOptions"></canvas></div>
-      </mat-card>
-      <mat-card class="chart-container-premium">
-        <div class="chart-header"><h3>{{ 'dashboard.upcomingClasses' | translate }}</h3><span class="periodo-badge">{{ misKpis.proximas_clases.length }}</span></div>
-        <mat-divider></mat-divider>
-        <div class="list-body">
-          <div class="rank-item" *ngFor="let c of misKpis.proximas_clases">
-            <div class="rank-num">{{ c.diaNombre.substring(0,2) }}</div>
-            <div class="rank-info"><div class="rank-name">{{ c.curso }}</div><div class="rank-meta">{{ c.grupo }} — {{ c.ambiente }}</div></div>
-            <div class="rank-value">{{ c.hora_inicio }}</div>
-          </div>
-        </div>
-      </mat-card>
-    </div>
-  }
-
-  <!-- Secretaria Dashboard -->
-  @if (isSecretaria() && kpis) {
-    <div class="kpi-grid">
-      <mat-card class="kpi-card-premium card-docentes" style="--accent-color: var(--color-primary)">
-        <div class="card-content"><span class="kpi-label">{{ 'dashboard.totalTeachers' | translate }}</span><h2 class="kpi-value">{{ displayKPIs.total_docentes }}</h2></div>
-        <mat-icon class="watermark-icon">people</mat-icon>
-      </mat-card>
-      <mat-card class="kpi-card-premium card-asignados" style="--accent-color: #10b981">
-        <div class="card-content"><span class="kpi-label">{{ 'dashboard.assigned' | translate }}</span><h2 class="kpi-value">{{ displayKPIs.porcentaje_docentes_asignados }}%</h2></div>
-        <mat-icon class="watermark-icon">how_to_reg</mat-icon>
-      </mat-card>
-      <mat-card class="kpi-card-premium card-ocupacion" style="--accent-color: #f59e0b">
-        <div class="card-content"><span class="kpi-label">{{ 'dashboard.classroomOccupancy' | translate }}</span><h2 class="kpi-value">{{ displayKPIs.porcentaje_ocupacion_aulas }}%</h2></div>
-        <mat-icon class="watermark-icon">meeting_room</mat-icon>
-      </mat-card>
-      <mat-card class="kpi-card-premium card-conflictos" style="--accent-color: #ef4444">
-        <div class="card-content"><span class="kpi-label">{{ 'dashboard.conflicts' | translate }}</span><h2 class="kpi-value">{{ displayKPIs.conflictos_activos }}</h2></div>
-        <mat-icon class="watermark-icon">warning</mat-icon>
-      </mat-card>
-    </div>
-    @if (kpis) {
-      <div class="charts-grid">
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>{{ 'dashboard.distributionByCategory' | translate }}</h3><span class="periodo-badge">{{ periodoService.periodo }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="chart-body"><canvas baseChart [data]="barChartData" [type]="'bar'" [options]="barChartOptions"></canvas></div>
-        </mat-card>
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>{{ 'dashboard.spaceOccupancy' | translate }}</h3><span class="periodo-badge">{{ periodoService.periodo }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="chart-body"><canvas baseChart [data]="doughnutData" [type]="'doughnut'" [options]="doughnutOptions"></canvas></div>
-        </mat-card>
-      </div>
-    }
-  }
-
-  <!-- Admin/Coord/Director Alert KPIs -->
-  @if (kpis && canViewFullDashboard()) {
-    <div class="kpi-grid alert-grid">
-      @if (kpis.conflictos_activos > 0) {
-        <mat-card class="kpi-card-premium card-alert" style="--accent-color: #ef4444">
-          <div class="card-content">
-            <span class="kpi-label">{{ 'dashboard.activeConflicts' | translate }}</span>
-            <h2 class="kpi-value">{{ displayKPIs.conflictos_activos }}</h2>
-            <p class="kpi-sub">{{ kpis.tasa_resolucion_conflictos }}{{ 'dashboard.resolved' | translate }}</p>
-          </div>
-          <mat-icon class="watermark-icon">warning</mat-icon>
-          <span class="trend-badge" *ngIf="kpis.tendencia.conflictos !== undefined" [style.color]="tendenciaColor(kpis.tendencia.conflictos, false)">
-            <mat-icon class="trend-icon">{{ tendenciaIcon(kpis.tendencia.conflictos) }}</mat-icon>
-            {{ kpis.tendencia.conflictos > 0 ? '+' : '' }}{{ kpis.tendencia.conflictos || 0 }}%
-          </span>
-        </mat-card>
-      }
-      @if (kpis.docentes_sin_disponibilidad > 0) {
-        <mat-card class="kpi-card-premium card-alert" style="--accent-color: #f59e0b">
-          <div class="card-content">
-            <span class="kpi-label">{{ 'dashboard.noAvailability' | translate }}</span>
-            <h2 class="kpi-value">{{ kpis.docentes_sin_disponibilidad }}</h2>
-            <p class="kpi-sub">{{ kpis.porcentaje_docentes_con_disponibilidad }}{{ 'dashboard.withAvailability' | translate }}</p>
-          </div>
-          <mat-icon class="watermark-icon">event_busy</mat-icon>
-        </mat-card>
-      }
-      @if (kpis.cursos_sin_asignar > 0) {
-        <mat-card class="kpi-card-premium card-alert" style="--accent-color: #8b5cf6">
-          <div class="card-content">
-            <span class="kpi-label">{{ 'dashboard.coursesUnassigned' | translate }}</span>
-            <h2 class="kpi-value">{{ kpis.cursos_sin_asignar }}</h2>
-            <p class="kpi-sub">{{ 'dashboard.ofTotal' | translate: { total: kpis.total_cursos } }}</p>
-          </div>
-          <mat-icon class="watermark-icon">menu_book</mat-icon>
-        </mat-card>
-      }
-    </div>
-
-    <!-- Standard KPIs with Trends -->
-    <div class="kpi-grid">
-      <mat-card class="kpi-card-premium card-docentes" style="--accent-color: var(--color-primary)">
-        <div class="card-content">
-          <span class="kpi-label">{{ 'dashboard.totalTeachers' | translate }}</span>
-          <h2 class="kpi-value">{{ displayKPIs.total_docentes }}</h2>
-        </div>
-        <mat-icon class="watermark-icon">people</mat-icon>
-        <span class="trend-badge" *ngIf="kpis.tendencia.docentes !== undefined" [style.color]="tendenciaColor(kpis.tendencia.docentes, true)">
-          <mat-icon class="trend-icon">{{ tendenciaIcon(kpis.tendencia.docentes) }}</mat-icon>
-          {{ kpis.tendencia.docentes > 0 ? '+' : '' }}{{ kpis.tendencia.docentes }}%
-        </span>
-      </mat-card>
-
-      <mat-card class="kpi-card-premium card-asignados" style="--accent-color: #10b981">
-        <div class="card-content">
-          <span class="kpi-label">{{ 'dashboard.teachersWithSchedule' | translate }}</span>
-          <h2 class="kpi-value">{{ displayKPIs.porcentaje_docentes_asignados }}%</h2>
-          <p class="kpi-sub">{{ displayKPIs.docentes_con_horario }} {{ 'dashboard.ofTotal' | translate: { total: displayKPIs.total_docentes } }}</p>
-        </div>
-        <mat-icon class="watermark-icon">how_to_reg</mat-icon>
-      </mat-card>
-
-      <mat-card class="kpi-card-premium card-ocupacion" style="--accent-color: #3b82f6">
-        <div class="card-content">
-          <span class="kpi-label">{{ 'dashboard.classroomOccupancy' | translate }}</span>
-          <h2 class="kpi-value">{{ displayKPIs.porcentaje_ocupacion_aulas }}%</h2>
-          <p class="kpi-sub">{{ displayKPIs.aulas_ocupadas }} {{ 'dashboard.ofTotal' | translate: { total: displayKPIs.total_aulas } }}</p>
-        </div>
-        <mat-icon class="watermark-icon">meeting_room</mat-icon>
-        <span class="trend-badge" *ngIf="kpis.tendencia.asignaciones !== undefined" [style.color]="tendenciaColor(kpis.tendencia.asignaciones, true)">
-          <mat-icon class="trend-icon">{{ tendenciaIcon(kpis.tendencia.asignaciones) }}</mat-icon>
-          {{ kpis.tendencia.asignaciones > 0 ? '+' : '' }}{{ kpis.tendencia.asignaciones }}%
-        </span>
-      </mat-card>
-
-      <mat-card class="kpi-card-premium card-conflictos" style="--accent-color: #64748b" *ngIf="kpis.conflictos_activos === 0">
-        <div class="card-content">
-          <span class="kpi-label">{{ 'dashboard.activeConflicts' | translate }}</span>
-          <h2 class="kpi-value">0</h2>
-          <p class="kpi-sub">{{ 'dashboard.allGood' | translate }}</p>
-        </div>
-        <mat-icon class="watermark-icon">verified</mat-icon>
-      </mat-card>
-    </div>
-  }
-
-  <!-- Charts & Rankings (Admin/Coord/Director) -->
-  @if (canViewFullDashboard()) {
-    @if (kpis) {
-      <div class="charts-grid">
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>{{ 'dashboard.distributionByCategory' | translate }}</h3><span class="periodo-badge">{{ periodoService.periodo }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="chart-body"><canvas baseChart [data]="barChartData" [type]="'bar'" [options]="barChartOptions"></canvas></div>
-        </mat-card>
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>{{ 'dashboard.spaceOccupancy' | translate }}</h3><span class="periodo-badge">{{ periodoService.periodo }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="chart-body"><canvas baseChart [data]="doughnutData" [type]="'doughnut'" [options]="doughnutOptions"></canvas></div>
-        </mat-card>
-      </div>
-
-      <!-- Mayor Carga / Menor Carga — misma fila -->
-      <div class="two-col-grid">
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>{{ 'dashboard.highestTeacherLoad' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.top5' | translate }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="list-body">
-            <div class="rank-item" *ngFor="let d of kpis.top_docentes_mayor_carga; let i = index">
-              <div class="rank-num">{{ i + 1 }}</div>
-              <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.categoria }}</div></div>
-              <div class="rank-value">{{ d.horas.toFixed(1) }}h</div>
+            <div class="alert-item warning-alert" *ngIf="kpis.docentes_sin_disponibilidad > 0">
+              <div class="alert-icon warning">
+                <mat-icon>event_busy</mat-icon>
+              </div>
+              <div class="alert-info">
+                <span class="alert-title">{{ kpis.docentes_sin_disponibilidad }} sin disponibilidad</span>
+                <span class="alert-subtitle">Docentes sin horarios definidos</span>
+              </div>
+              <button mat-stroked-button size="small" routerLink="/app/disponibilidad">Ver</button>
+            </div>
+            <div class="alert-item info-alert" *ngIf="kpis.cursos_sin_asignar > 0">
+              <div class="alert-icon info">
+                <mat-icon>menu_book</mat-icon>
+              </div>
+              <div class="alert-info">
+                <span class="alert-title">{{ kpis.cursos_sin_asignar }} cursos sin asignar</span>
+                <span class="alert-subtitle">Cursos pendientes de asignación</span>
+              </div>
+              <button mat-stroked-button size="small" routerLink="/app/asignaciones">Ver</button>
             </div>
           </div>
-        </mat-card>
+        </div>
+      }
 
-        @if (kpis.top_docentes_menor_carga.length) {
-          <mat-card class="chart-container-premium">
-            <div class="chart-header"><h3>{{ 'dashboard.lowestTeacherLoad' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.top5' | translate }}</span></div>
-            <mat-divider></mat-divider>
-            <div class="list-body">
-              <div class="rank-item" *ngFor="let d of kpis?.top_docentes_menor_carga; let i = index">
-                <div class="rank-num">{{ i + 1 }}</div>
-                <div class="rank-info"><div class="rank-name">{{ d.nombre }}</div><div class="rank-meta">{{ d.categoria }}</div></div>
-                <div class="rank-value">{{ d.horas.toFixed(1) }}h</div>
+      <!-- Row 3: Charts Side by Side -->
+      <div class="bento-card bento-card-chart">
+        <div class="card-header">
+          <h2>Distribución por Categoría</h2>
+          <span class="card-badge">{{ periodoService.periodo }}</span>
+        </div>
+        <div class="card-content">
+          <canvas baseChart [data]="barChartData" [type]="'bar'" [options]="barChartOptions"></canvas>
+        </div>
+      </div>
+
+      <div class="bento-card bento-card-chart">
+        <div class="card-header">
+          <h2>Ocupación de Espacios</h2>
+          <span class="card-badge">{{ periodoService.periodo }}</span>
+        </div>
+        <div class="card-content">
+          <canvas baseChart [data]="doughnutData" [type]="'doughnut'" [options]="doughnutOptions"></canvas>
+        </div>
+      </div>
+
+      <!-- Heatmap Card -->
+      @if (kpis.mapa_calor && kpis.mapa_calor.length) {
+        <div class="bento-card bento-card-heatmap">
+          <div class="card-header">
+            <h2>Mapa de Calor</h2>
+            <span class="card-badge">{{ periodoService.periodo }}</span>
+          </div>
+          <div class="card-content">
+            <div class="heatmap-grid">
+              <!-- Corner cell -->
+              <div class="heatmap-corner"></div>
+              <!-- Start time header -->
+              <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="1" [style.gridRow]="1">Hora</div>
+              <!-- Day headers -->
+              @for (dia of diasSemana(); track dia; let i = $index) {
+                <div class="heatmap-cell-header heatmap-day-header" [style.gridColumn]="i + 2" [style.gridRow]="1">{{ dia }}</div>
+              }
+              <!-- End time header -->
+              <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="diasSemana().length + 2" [style.gridRow]="1">Hora</div>
+              <!-- Hour rows with start time, cells, and end time -->
+              @for (hora of horasRango(); track hora; let i = $index) {
+                <!-- Start time column (shows full range) -->
+                <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="1" [style.gridRow]="i + 2">{{ formatHoraRango(hora) }}</div>
+                <!-- Day cells -->
+                @for (dia of diasSemana(); track dia; let j = $index) {
+                  <div class="heatmap-cell clickable"
+                       [style.gridColumn]="j + 2"
+                       [style.gridRow]="i + 2"
+                       [style.background]="getHeatmapColor(dia, hora)"
+                       [matTooltip]="getHeatmapTooltip(dia, hora)"
+                       matTooltipPosition="above"
+                       (click)="onHeatmapCellClick(dia, hora)">
+                  </div>
+                }
+                <!-- End time column (shows full range) -->
+                <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="diasSemana().length + 2" [style.gridRow]="i + 2">{{ formatHoraRango(hora) }}</div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Row 4: Activity and Lists -->
+      <div class="bento-card bento-card-activity">
+        <div class="card-header">
+          <h2>Actividad Reciente</h2>
+          <mat-icon>history</mat-icon>
+        </div>
+        <div class="card-content">
+          @if (kpis.actividad_reciente && kpis.actividad_reciente.length) {
+            <div class="activity-list">
+              <div class="activity-item" *ngFor="let act of kpis.actividad_reciente.slice(0, 5)">
+                <div class="activity-dot" [class.lab]="act.tipo === 'LABORATORIO'"></div>
+                <div class="activity-details">
+                  <span class="activity-desc">{{ act.descripcion }}</span>
+                  <span class="activity-time">{{ act.timestamp | date: 'short' }}</span>
+                </div>
               </div>
             </div>
-          </mat-card>
-        }
+          } @else {
+            <div class="empty-activity">
+              <mat-icon>history</mat-icon>
+              <p>Sin actividad reciente</p>
+            </div>
+          }
+        </div>
       </div>
 
-      <!-- Heatmap -->
-      <mat-card class="chart-container-premium heatmap-card">
-        <div class="chart-header">
-          <h3>{{ 'dashboard.heatmapTitle' | translate }}</h3>
-          <div class="heatmap-legend">
-            <span class="legend-item"><span class="legend-dot teal"></span>{{ 'dashboard.theory' | translate }}</span>
-            <span class="legend-item"><span class="legend-dot green"></span>{{ 'dashboard.laboratory' | translate }}</span>
-            <span class="legend-item"><span class="legend-dot purple"></span>{{ 'dashboard.mixed' | translate }}</span>
-            <span class="legend-item"><span class="legend-dot empty"></span>{{ 'dashboard.empty' | translate }}</span>
-          </div>
+      <div class="bento-card bento-card-list">
+        <div class="card-header">
+          <h2>Mayor Carga Docente</h2>
+          <span class="card-badge">Top 5</span>
         </div>
-        <mat-divider></mat-divider>
-        <div class="heatmap-body">
-          <div class="heatmap-grid">
-            <div class="heatmap-header">
-              <div class="heatmap-cell header-cell"></div>
-              <div class="heatmap-cell header-cell" *ngFor="let dia of diasSemana()">{{ dia }}</div>
+        <div class="card-content">
+          @if (kpis.top_docentes_mayor_carga && kpis.top_docentes_mayor_carga.length) {
+            <div class="rank-list">
+              <div class="rank-item" *ngFor="let d of kpis.top_docentes_mayor_carga; let i = index">
+                <span class="rank-number">{{ i + 1 }}</span>
+                <div class="rank-info">
+                  <span class="rank-name">{{ d.nombre }}</span>
+                  <span class="rank-meta">{{ d.categoria }}</span>
+                </div>
+                <span class="rank-value">{{ d.horas.toFixed(1) }}h</span>
+              </div>
             </div>
-            <div class="heatmap-row" *ngFor="let hora of horasRango">
-              <div class="heatmap-cell time-cell">{{ hora }}</div>
-              <div class="heatmap-cell" *ngFor="let dia of ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']"
-                [style.background-color]="getHeatmapColor(dia, hora)"
-                [style.cursor]="getHeatmapTooltip(dia, hora) !== ('dashboard.noClasses' | translate) ? 'pointer' : 'default'"
-                [matTooltip]="getHeatmapTooltip(dia, hora)"
-                matTooltipClass="heatmap-tooltip"
-              ></div>
+          } @else {
+            <div class="empty-rank">
+              <mat-icon>people</mat-icon>
+              <p>Sin datos disponibles</p>
             </div>
-          </div>
+          }
         </div>
-      </mat-card>
+      </div>
 
-      <!-- Ocupación por Ambiente -->
-      @if (kpis.ocupacion_por_ambiente.length) {
-        <mat-card class="chart-container-premium">
-          <div class="chart-header"><h3>{{ 'dashboard.occupancyByEnvironment' | translate }}</h3><span class="periodo-badge">{{ periodoService.periodo }}</span></div>
-          <mat-divider></mat-divider>
-          <div class="table-wrapper">
-            <table mat-table [dataSource]="kpis!.ocupacion_por_ambiente.slice(0, 10)" class="full-width premium-table" matSort>
-              <ng-container matColumnDef="codigo">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'dashboard.code' | translate }}</th>
-                <td mat-cell *matCellDef="let a">{{ a.codigo }}</td>
-              </ng-container>
-              <ng-container matColumnDef="tipo">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'dashboard.type' | translate }}</th>
-                <td mat-cell *matCellDef="let a">
-                  <span class="badge-type" [class.aula]="a.tipo === 'AULA'" [class.lab]="a.tipo === 'LABORATORIO'">{{ a.tipo }}</span>
-                </td>
-              </ng-container>
-              <ng-container matColumnDef="capacidad">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'dashboard.capacity' | translate }}</th>
-                <td mat-cell *matCellDef="let a">{{ a.capacidad }}</td>
-              </ng-container>
-              <ng-container matColumnDef="porcentaje">
-                <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'dashboard.occupancy' | translate }}</th>
-                <td mat-cell *matCellDef="let a">
-                  <div class="progress-bar">
-                    <div class="progress-fill" [style.width.%]="a.porcentaje_ocupacion"></div>
-                    <span>{{ a.porcentaje_ocupacion }}%</span>
-                  </div>
-                </td>
-              </ng-container>
-              <tr mat-header-row *matHeaderRowDef="ambienteColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: ambienteColumns"></tr>
+      <!-- Row 5: Environment Table (Full Width) -->
+      @if (kpis.ocupacion_por_ambiente && kpis.ocupacion_por_ambiente.length) {
+        <div class="bento-card bento-card-table">
+          <div class="card-header">
+            <h2>Ocupación por Ambiente</h2>
+            <span class="card-badge">Top 10</span>
+          </div>
+          <div class="card-content">
+            <table class="compact-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Tipo</th>
+                  <th>Capacidad</th>
+                  <th>Ocupación</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of kpis.ocupacion_por_ambiente.slice(0, 10)">
+                  <td>{{ a.codigo }}</td>
+                  <td><span class="table-badge" [class.aula]="a.tipo === 'AULA'" [class.lab]="a.tipo === 'LABORATORIO'">{{ a.tipo }}</span></td>
+                  <td>{{ a.capacidad }}</td>
+                  <td>
+                    <div class="mini-progress" [ngClass]="'ocupacion-' + getOcupacionLevel(a.porcentaje_ocupacion)">
+                      <div class="mini-progress-fill" [style.width.%]="a.porcentaje_ocupacion"></div>
+                      <span>{{ a.porcentaje_ocupacion }}%</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
             </table>
           </div>
-        </mat-card>
-      }
-
-      <!-- Actividad Reciente -->
-      <mat-card class="chart-container-premium compact-card" *ngIf="kpis?.actividad_reciente?.length">
-        <div class="chart-header"><h3>{{ 'dashboard.recentActivity' | translate }}</h3><span class="periodo-badge">{{ 'dashboard.last10' | translate }}</span></div>
-        <mat-divider></mat-divider>
-        <div class="list-body activity-list">
-          <div class="activity-item" *ngFor="let act of kpis!.actividad_reciente">
-            <div class="activity-dot" [class.lab]="act.tipo === 'LABORATORIO'"></div>
-            <div class="activity-info"><div class="activity-desc">{{ act.descripcion }}</div><div class="activity-time">{{ act.timestamp | date: "short" }}</div></div>
-          </div>
-        </div>
-      </mat-card>
-
-      <!-- Conflicts -->
-      @if (conflictos.length > 0) {
-        <mat-card class="conflicts-container-premium">
-          <div class="chart-header">
-            <h3 class="warn-title"><mat-icon>warning_amber</mat-icon> {{ 'dashboard.unresolvedConflicts' | translate }}</h3>
-            <span class="conflict-count">{{ conflictos.length }} {{ 'dashboard.pending' | translate }}</span>
-          </div>
-          <mat-divider></mat-divider>
-          <div class="table-wrapper">
-            <table mat-table [dataSource]="conflictos" class="full-width premium-table">
-              <ng-container matColumnDef="tipo">
-                <th mat-header-cell *matHeaderCellDef>{{ 'dashboard.type' | translate }}</th>
-                <td mat-cell *matCellDef="let c">
-                  <span class="badge-type conflict-badge" [class.cruce]="c.tipo_conflicto?.includes('CRUCE')" [class.aula]="c.tipo_conflicto?.includes('AULA')" [class.cupo]="c.tipo_conflicto?.includes('CUPO')">{{ c.tipo_conflicto }}</span>
-                </td>
-              </ng-container>
-              <ng-container matColumnDef="descripcion">
-                <th mat-header-cell *matHeaderCellDef>{{ 'dashboard.description' | translate }}</th>
-                <td mat-cell *matCellDef="let c">{{ c.descripcion }}</td>
-              </ng-container>
-              <ng-container matColumnDef="periodo">
-                <th mat-header-cell *matHeaderCellDef>{{ 'dashboard.period' | translate }}</th>
-                <td mat-cell *matCellDef="let c" class="text-muted">{{ c.periodo_academico }}</td>
-              </ng-container>
-              <ng-container matColumnDef="acciones">
-                <th mat-header-cell *matHeaderCellDef></th>
-                <td mat-cell *matCellDef="let c" class="text-right">
-                  <button mat-button class="btn-resolve" (click)="resolverConflicto(c.id)"><mat-icon>done_all</mat-icon> {{ 'dashboard.resolve' | translate }}</button>
-                </td>
-              </ng-container>
-              <tr mat-header-row *matHeaderRowDef="conflictosColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: conflictosColumns"></tr>
-            </table>
-          </div>
-        </mat-card>
-      }
-
-      <!-- Empty Conflicts State -->
-      @if (!loading() && conflictos.length === 0 && kpis) {
-        <div class="empty-state-conflicts animate-fadein">
-          <div class="empty-icon-wrapper"><mat-icon class="pulse-icon">verified</mat-icon></div>
-          <h3>{{ 'dashboard.everythingOk' | translate }}</h3>
-          <p>{{ 'dashboard.noConflictsMsg' | translate: { periodo: periodoService.periodo } }}</p>
         </div>
       }
-    }
-  }
+    </div>
   }
 </div>

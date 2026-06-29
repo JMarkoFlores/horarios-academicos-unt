@@ -36,10 +36,15 @@
                 matInput
                 formControlName="nombres"
                 placeholder="Ej. Juan Pedro"
+                (blur)="onNombresBlur()"
               />
               <mat-icon matPrefix>person</mat-icon>
+              <mat-hint>Mínimo 2 caracteres, máximo 150</mat-hint>
               <mat-error *ngIf="form.get('nombres')?.hasError('required')"
                 >Este campo es obligatorio</mat-error
+              >
+              <mat-error *ngIf="form.get('nombres')?.hasError('minlength')"
+                >Mínimo 2 caracteres</mat-error
               >
             </mat-form-field>
 
@@ -49,10 +54,15 @@
                 matInput
                 formControlName="apellidos"
                 placeholder="Ej. García Pérez"
+                (blur)="onApellidosBlur()"
               />
               <mat-icon matPrefix>badge</mat-icon>
+              <mat-hint>Mínimo 2 caracteres, máximo 150</mat-hint>
               <mat-error *ngIf="form.get('apellidos')?.hasError('required')"
                 >Este campo es obligatorio</mat-error
+              >
+              <mat-error *ngIf="form.get('apellidos')?.hasError('minlength')"
+                >Mínimo 2 caracteres</mat-error
               >
             </mat-form-field>
 
@@ -62,15 +72,18 @@
                 matInput
                 type="email"
                 formControlName="email"
-                placeholder="usuario@unitru.edu.pe"
+                placeholder="usuario@unt.edu.pe"
               />
               <mat-icon matPrefix>alternate_email</mat-icon>
+              <mat-hint>Debe ser un correo &#64;unt.edu.pe</mat-hint>
               <mat-error *ngIf="form.get('email')?.hasError('required')"
                 >Requerido</mat-error
               >
               <mat-error *ngIf="form.get('email')?.hasError('emailInvalido')"
-                >Formato de email no v&#225;lido (ej.
-                usuario&#64;unt.edu.pe)</mat-error
+                >Formato de email no v&#225;lido</mat-error
+              >
+              <mat-error *ngIf="form.get('email')?.hasError('dominioInvalido')"
+                >Debe usar el dominio &#64;unt.edu.pe</mat-error
               >
             </mat-form-field>
 
@@ -78,12 +91,17 @@
               <mat-label>Teléfono / WhatsApp</mat-label>
               <input
                 matInput
+                type="tel"
                 formControlName="telefono"
-                placeholder="+51 999 999 999"
+                placeholder="999 999 999"
+                maxlength="9"
+                inputmode="numeric"
+                (blur)="onTelefonoBlur()"
               />
               <mat-icon matPrefix>phone_iphone</mat-icon>
+              <mat-hint>9 dígitos numéricos. Opcional</mat-hint>
               <mat-error *ngIf="form.get('telefono')?.hasError('pattern')"
-                >Formato inválido (ej. +51 999 999 999)</mat-error
+                >Solo 9 dígitos numéricos (ej: 999888777)</mat-error
               >
             </mat-form-field>
           </div>
@@ -104,8 +122,15 @@
                 formControlName="codigo"
                 maxlength="20"
                 placeholder="Ej. DOC001"
+                [disabled]="autoGenerarCodigo"
               />
               <mat-icon matPrefix>pin</mat-icon>
+              <mat-hint *ngIf="!autoGenerarCodigo"
+                >Código único. Máximo 20 caracteres</mat-hint
+              >
+              <mat-hint *ngIf="autoGenerarCodigo"
+                >Se asignará: {{ form.get('codigo')?.value }}</mat-hint
+              >
               <mat-error *ngIf="form.get('codigo')?.hasError('required')"
                 >El código es necesario</mat-error
               >
@@ -114,6 +139,16 @@
               >
             </mat-form-field>
 
+            <div class="auto-gen-toggle">
+              <mat-checkbox
+                [checked]="autoGenerarCodigo"
+                (change)="toggleAutoGenerarCodigo()"
+                color="primary"
+              >
+                Autogenerar código
+              </mat-checkbox>
+            </div>
+
             <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Código IBM</mat-label>
               <input
@@ -121,8 +156,11 @@
                 type="number"
                 formControlName="ibm"
                 placeholder="Ej. 4247"
+                min="1000"
+                max="9999"
               />
               <mat-icon matPrefix>numbers</mat-icon>
+              <mat-hint>Número de 4 dígitos (1000-9999)</mat-hint>
               <mat-error *ngIf="form.get('ibm')?.hasError('required')"
                 >El IBM es necesario</mat-error
               >
@@ -143,8 +181,10 @@
                 formControlName="dni"
                 placeholder="Ej. 12345678"
                 maxlength="8"
+                inputmode="numeric"
               />
               <mat-icon matPrefix>badge</mat-icon>
+              <mat-hint>8 dígitos numéricos exactamente</mat-hint>
               <mat-error *ngIf="form.get('dni')?.hasError('required')"
                 >El DNI es necesario</mat-error
               >
@@ -167,6 +207,7 @@
               ></mat-datepicker-toggle>
               <mat-datepicker #dpIngreso></mat-datepicker>
               <mat-icon matPrefix>calendar_today</mat-icon>
+              <mat-hint>No puede ser futura</mat-hint>
               <mat-error *ngIf="form.get('fecha_ingreso')?.hasError('required')"
                 >Selecciona una fecha</mat-error
               >

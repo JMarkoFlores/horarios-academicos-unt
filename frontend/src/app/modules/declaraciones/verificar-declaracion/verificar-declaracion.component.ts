@@ -81,24 +81,14 @@ const MINIMO_NORMATIVO: Record<string, number> = {
 };
 
 const ESTADOS_CONFIG: Record<string, EstadoConfig> = {
-  NO_INICIADO: { label: 'No Iniciado', color: 'estado-no-iniciado', editable: true, etapa: 0 },
-  BORRADOR: { label: 'Borrador', color: 'estado-borrador', editable: true, etapa: 1 },
-  PENDIENTE_ENVIO: { label: 'Pendiente de Envío', color: 'estado-pendiente', editable: true, etapa: 1 },
-  ENVIADO_DOCENTE: { label: 'Enviado por Docente', color: 'estado-enviado', editable: false, etapa: 2 },
-  OBSERVADO_DPTO: { label: 'Observado por Departamento', color: 'estado-observado', editable: true, etapa: 2 },
-  SUBSANADO: { label: 'Subsanado', color: 'estado-subsanado', editable: true, etapa: 2 },
-  VALIDADO_DPTO: { label: 'Validado por Departamento', color: 'estado-validado', editable: false, etapa: 3 },
-  OBSERVADO_FACULTAD: { label: 'Observado por Facultad', color: 'estado-observado-facultad', editable: true, etapa: 3 },
-  APROBADO_FACULTAD: { label: 'Aprobado por Facultad', color: 'estado-aprobado', editable: false, etapa: 4 },
-  CERRADO: { label: 'Cerrado', color: 'estado-cerrado', editable: false, etapa: 5 },
-  ANULADO: { label: 'Anulado', color: 'estado-anulado', editable: false, etapa: -1 },
+  BORRADOR: { label: 'Borrador', color: 'estado-borrador', editable: true, etapa: 0 },
+  CONFIRMADO: { label: 'Confirmado', color: 'estado-enviado', editable: false, etapa: 1 },
+  CERRADO: { label: 'Cerrado', color: 'estado-cerrado', editable: false, etapa: 2 },
 };
 
 const STEPPER_ETAPAS = [
   { key: 'BORRADOR', label: 'Borrador', icon: 'edit_note' },
-  { key: 'ENVIADO_DOCENTE', label: 'Enviado', icon: 'send' },
-  { key: 'VALIDADO_DPTO', label: 'Departamento', icon: 'verified' },
-  { key: 'APROBADO_FACULTAD', label: 'Facultad', icon: 'approval' },
+  { key: 'CONFIRMADO', label: 'Confirmado', icon: 'check_circle' },
   { key: 'CERRADO', label: 'Cerrado', icon: 'lock' },
 ];
 
@@ -115,7 +105,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   saving = false;
   periodoActivo = '';
 
-  estadoDeclaracion: string = 'NO_INICIADO';
+  estadoDeclaracion: string = 'BORRADOR';
 
   cursosLectivos: CursoLectivo[] = [];
   horariosLectivos: HorarioLectivoRef[] = [];
@@ -195,7 +185,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   }
 
   get estadoConfig(): EstadoConfig {
-    return ESTADOS_CONFIG[this.estadoDeclaracion] || ESTADOS_CONFIG['NO_INICIADO'];
+    return ESTADOS_CONFIG[this.estadoDeclaracion] || ESTADOS_CONFIG['BORRADOR'];
   }
 
   get estadoLabel(): string {
@@ -226,28 +216,13 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     return this.authService.hasRole(ROLES.ADMINISTRADOR_SISTEMA);
   }
 
-  get puedeObservar(): boolean {
+  get puedeEnviar(): boolean {
     if (!this.declaracionId) return false;
-    if (this.isDirector && this.estadoDeclaracion === 'ENVIADO_DOCENTE') return true;
-    if (this.isDecano && this.estadoDeclaracion === 'VALIDADO_DPTO') return true;
-    return false;
-  }
-
-  get puedeValidarOAprobar(): boolean {
-    if (!this.declaracionId) return false;
-    if (this.isDirector && this.estadoDeclaracion === 'ENVIADO_DOCENTE') return true;
-    if (this.isDecano && this.estadoDeclaracion === 'VALIDADO_DPTO') return true;
-    return false;
-  }
-
-  get puedeSubsanar(): boolean {
-    if (!this.declaracionId) return false;
-    if (!this.isDocente) return false;
-    return this.estadoDeclaracion === 'OBSERVADO_DPTO' || this.estadoDeclaracion === 'OBSERVADO_FACULTAD';
+    return this.isDocente && this.estadoDeclaracion === 'BORRADOR';
   }
 
   get puedeEditar(): boolean {
-    return this.esEditable && (this.isDocente || this.isAdmin);
+    return this.esEditable && this.estadoDeclaracion === 'BORRADOR';
   }
 
   private asignarPeriodoInfoFallback(): void {
@@ -323,7 +298,8 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
         next: (res) => {
           if (res.data) {
             this.declaracionId = res.data.id;
-            this.estadoDeclaracion = res.data.estado || 'NO_INICIADO';
+            const estadosValidos = ['BORRADOR', 'CONFIRMADO', 'CERRADO'];
+      this.estadoDeclaracion = estadosValidos.includes(res.data.estado) ? res.data.estado : 'BORRADOR';
             if (res.data.periodo_academico) {
               const p = res.data.periodo_academico;
               const codigo = p.codigo || this.periodoActivo;
@@ -347,7 +323,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
             this.cargarObservaciones();
             this.cargarHorariosLectivos();
           } else {
-            this.estadoDeclaracion = 'NO_INICIADO';
+            this.estadoDeclaracion = 'BORRADOR';
             this.cargarHorariosLectivos();
           }
           if (!this.periodoInfo) {
@@ -355,7 +331,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
           }
         },
         error: () => {
-          this.estadoDeclaracion = 'NO_INICIADO';
+          this.estadoDeclaracion = 'BORRADOR';
           if (!this.periodoInfo) this.asignarPeriodoInfoFallback();
         },
       });
@@ -424,11 +400,9 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     const etapaIdx = this.stepperEtapas.findIndex(e => e.key === etapaKey);
     if (etapaIdx === -1) return 'pendiente';
     const estadosMap: Record<string, number> = {
-      BORRADOR: 0, NO_INICIADO: 0, PENDIENTE_ENVIO: 0,
-      ENVIADO_DOCENTE: 1, OBSERVADO_DPTO: 1, SUBSANADO: 1,
-      VALIDADO_DPTO: 2, OBSERVADO_FACULTAD: 2,
-      APROBADO_FACULTAD: 3,
-      CERRADO: 4, ANULADO: -1,
+      BORRADOR: 0,
+      CONFIRMADO: 1,
+      CERRADO: 2,
     };
     const current = estadosMap[this.estadoDeclaracion] ?? 0;
     if (current > etapaIdx) return 'completada';
@@ -877,13 +851,13 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       this.saving = true;
       this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/enviar`, {}).subscribe({
         next: () => {
-          this.estadoDeclaracion = 'ENVIADO_DOCENTE';
-          this.snackBar.open('Declaración enviada correctamente', 'Cerrar', { duration: 3000 });
+          this.estadoDeclaracion = 'CONFIRMADO';
+          this.snackBar.open('Declaración confirmada correctamente', 'Cerrar', { duration: 3000 });
           this.saving = false;
           this.cargarDeclaracion();
         },
         error: (err) => {
-          this.snackBar.open(err.error?.message || 'Error al enviar la declaración', 'Cerrar', { duration: 3000 });
+          this.snackBar.open(err.error?.message || 'Error al confirmar la declaración', 'Cerrar', { duration: 3000 });
           this.saving = false;
         },
       });
@@ -892,77 +866,47 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       this.api.post<ApiResponse<any>>(`/declaraciones/docentes/${this.docenteId}/enviar`, { periodo: this.periodoActivo })
         .subscribe({
           next: () => {
-            this.estadoDeclaracion = 'ENVIADO_DOCENTE';
-            this.snackBar.open('Declaración enviada correctamente', 'Cerrar', { duration: 3000 });
+            this.estadoDeclaracion = 'CONFIRMADO';
+            this.snackBar.open('Declaración confirmada correctamente', 'Cerrar', { duration: 3000 });
             this.saving = false;
             this.cargarDeclaracion();
           },
           error: (err) => {
-            this.snackBar.open(err.error?.message || 'Error al enviar la declaración', 'Cerrar', { duration: 3000 });
+            this.snackBar.open(err.error?.message || 'Error al confirmar la declaración', 'Cerrar', { duration: 3000 });
             this.saving = false;
           },
         });
     }
   }
 
-  subsanar(): void {
+  cerrar(): void {
     if (!this.declaracionId) return;
     this.saving = true;
-    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/subsanar`, {}).subscribe({
+    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/cerrar`, {}).subscribe({
       next: () => {
-        this.snackBar.open('Declaración subsanada y reenviada correctamente', 'Cerrar', { duration: 3000 });
+        this.snackBar.open('Declaración cerrada correctamente', 'Cerrar', { duration: 3000 });
         this.saving = false;
         this.cargarDeclaracion();
       },
       error: (err) => {
-        this.snackBar.open(err.error?.message || 'Error al subsanar la declaración', 'Cerrar', { duration: 3000 });
+        this.snackBar.open(err.error?.message || 'Error al cerrar la declaración', 'Cerrar', { duration: 3000 });
         this.saving = false;
       },
     });
   }
 
-  validarOAprobar(): void {
-    if (!this.declaracionId) return;
-    this.saving = true;
-    if (this.isDirector) {
-      this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/validar`, {}).subscribe({
-        next: (res) => {
-          this.snackBar.open('Declaración validada correctamente', 'Cerrar', { duration: 3000 });
-          this.saving = false;
-          this.cargarDeclaracion();
-        },
-        error: (err) => {
-          this.snackBar.open(err.error?.message || 'Error al validar la declaración', 'Cerrar', { duration: 3000 });
-          this.saving = false;
-        },
-      });
-    } else if (this.isDecano) {
-      this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/aprobar`, {}).subscribe({
-        next: (res) => {
-          this.snackBar.open('Declaración aprobada correctamente', 'Cerrar', { duration: 3000 });
-          this.saving = false;
-          this.cargarDeclaracion();
-        },
-        error: (err) => {
-          this.snackBar.open(err.error?.message || 'Error al aprobar la declaración', 'Cerrar', { duration: 3000 });
-          this.saving = false;
-        },
-      });
-    }
-  }
-
-  observarDeclaracion(): void {
+  guardarObservacion(): void {
     if (!this.declaracionId) return;
     if (!this.textoObservacion || this.textoObservacion.trim().length < 10) {
       this.snackBar.open('La observación debe tener al menos 10 caracteres', 'Cerrar', { duration: 3000 });
       return;
     }
     this.saving = true;
-    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/observar`, {
-      observaciones: this.textoObservacion,
+    this.api.post<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/observaciones`, {
+      observacion: this.textoObservacion,
     }).subscribe({
       next: () => {
-        this.snackBar.open('Declaración observada correctamente', 'Cerrar', { duration: 3000 });
+        this.snackBar.open('Observación guardada correctamente', 'Cerrar', { duration: 3000 });
         this.textoObservacion = '';
         this.saving = false;
         this.cargarDeclaracion();

@@ -25,6 +25,7 @@ export enum AccionAuditoriaCarga {
   APROBAR = "APROBAR",
   SUBSANAR = "SUBSANAR",
   ENVIAR = "ENVIAR",
+  CERRAR = "CERRAR",
 }
 
 @Entity("auditoria_carga")

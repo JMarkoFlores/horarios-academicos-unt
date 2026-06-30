@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -183,7 +183,7 @@ export class DeclaracionCargaHorariaService {
     if (!declaracion) {
       return {
         declaracion: null,
-        estado: EstadoDeclaracionCarga.NO_INICIADO,
+        estado: EstadoDeclaracionCarga.BORRADOR,
         docente,
         departamento: docente.departamento ?? null,
         facultad:
@@ -232,7 +232,7 @@ export class DeclaracionCargaHorariaService {
     });
 
     if (!declaracion) {
-      throw new NotFoundException(`Declaración ${id} no encontrada`);
+      throw new NotFoundException(`DeclaraciÃ³n ${id} no encontrada`);
     }
 
     if (usuario) {
@@ -275,12 +275,7 @@ export class DeclaracionCargaHorariaService {
 
     const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
     const estadosVisibles = [
-      EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-      EstadoDeclaracionCarga.OBSERVADO_DPTO,
-      EstadoDeclaracionCarga.SUBSANADO,
-      EstadoDeclaracionCarga.VALIDADO_DPTO,
-      EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
-      EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      EstadoDeclaracionCarga.CONFIRMADO,
       EstadoDeclaracionCarga.CERRADO,
     ];
 
@@ -338,7 +333,7 @@ export class DeclaracionCargaHorariaService {
     });
     if (existe) {
       throw new ConflictException(
-        `Ya existe una declaración para el docente ${docente.id} en el período activo`,
+        `Ya existe una declaraciÃ³n para el docente ${docente.id} en el perÃ­odo activo`,
       );
     }
 
@@ -429,7 +424,7 @@ export class DeclaracionCargaHorariaService {
     this.verificarPermisoDocente(usuario, declaracion.docente_id);
     this.validarTransicionEstado(
       declaracion.estado,
-      EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+      EstadoDeclaracionCarga.CONFIRMADO,
     );
 
     const estadoAnterior = declaracion.estado;
@@ -442,12 +437,12 @@ export class DeclaracionCargaHorariaService {
       if (horas > 0 && act.id !== 1) {
         if (!act.detalle || act.detalle.trim().length < 10) {
           throw new BadRequestException(
-            `No puede enviar la declaración. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
+            `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
           );
         }
         if (!act.horarios || !Array.isArray(act.horarios) || act.horarios.length === 0) {
           throw new BadRequestException(
-            `No puede enviar la declaración. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
+            `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
           );
         }
       }
@@ -469,7 +464,7 @@ export class DeclaracionCargaHorariaService {
       );
     }
 
-    declaracion.estado = EstadoDeclaracionCarga.ENVIADO_DOCENTE;
+    declaracion.estado = EstadoDeclaracionCarga.CONFIRMADO;
     declaracion.fecha_firma_docente = new Date();
     declaracion.usuario_firmante_id = usuario.id;
     if (dto.observaciones !== undefined) {
@@ -496,184 +491,59 @@ export class DeclaracionCargaHorariaService {
     return this.obtenerPorId(saved.id);
   }
 
-  async observar(
+  async cerrar(
     id: number,
     usuario: Usuario & { docenteId?: number | null },
-    dto: AccionDeclaracionCargaHorariaDto,
   ): Promise<DeclaracionVista> {
     const declaracion = await this.obtenerEntidadBase(id);
     await this.verificarAccesoDeclaracion(usuario, declaracion);
-    const estadoOrigen = declaracion.estado;
-    const estadoObjetivo = this.resolverEstadoObservacion(usuario.rol);
-    this.validarTransicionEstado(estadoOrigen, estadoObjetivo);
+    const estadoAnterior = declaracion.estado;
+    this.validarTransicionEstado(
+      estadoAnterior,
+      EstadoDeclaracionCarga.CERRADO,
+    );
 
-    // V23: No se puede observar sin texto de observación
-    if (!dto.observaciones || dto.observaciones.trim().length < 10) {
-      throw new BadRequestException(
-        "La observación debe tener al menos 10 caracteres",
-      );
-    }
-
-    declaracion.estado = estadoObjetivo;
-    declaracion.observaciones = dto.observaciones;
-    declaracion.usuario_firmante_id = usuario.id;
-    if (estadoObjetivo === EstadoDeclaracionCarga.OBSERVADO_DPTO) {
-      declaracion.fecha_firma_director = new Date();
-    }
-
+    declaracion.estado = EstadoDeclaracionCarga.CERRADO;
+    declaracion.fecha_firma_director = new Date();
     const saved = await this.declaracionRepo.save(declaracion);
 
-    // Crear registro de observación con trazabilidad
-    const observacion = this.observacionRepo.create({
-      declaracion_id: saved.id,
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
       usuario_id: usuario.id,
-      observacion: dto.observaciones,
-      estado_origen: estadoOrigen,
-      estado_destino: estadoObjetivo,
-      tipo:
-        estadoObjetivo === EstadoDeclaracionCarga.OBSERVADO_DPTO
-          ? TipoObservacion.OBSERVACION_DPTO
-          : TipoObservacion.OBSERVACION_FACULTAD,
+      accion: AccionAuditoriaCarga.CERRAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: null,
+      ip: "0.0.0.0",
+    });
+
+    return this.obtenerPorId(saved.id);
+  }
+
+  async agregarObservacion(
+    id: number,
+    texto: string,
+    usuario: Usuario & { docenteId?: number | null },
+  ): Promise<void> {
+    const declaracion = await this.obtenerEntidadBase(id);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
+    if (!texto || texto.trim().length < 10) {
+      throw new BadRequestException("La observaciÃ³n debe tener al menos 10 caracteres");
+    }
+    const observacion = this.observacionRepo.create({
+      declaracion_id: id,
+      usuario_id: usuario.id,
+      observacion: texto,
+      estado_origen: declaracion.estado,
+      estado_destino: declaracion.estado,
+      tipo: TipoObservacion.OBSERVACION_DPTO,
       subsanada: false,
     });
     await this.observacionRepo.save(observacion);
-
-    // Audit logging
-    await this.auditoriaService.registrarCarga({
-      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
-      entidad_id: saved.id,
-      usuario_id: usuario.id,
-      accion: AccionAuditoriaCarga.OBSERVAR,
-      estado_anterior: estadoOrigen,
-      estado_nuevo: saved.estado,
-      datos_anteriores: null,
-      datos_nuevos: {
-        observaciones: dto.observaciones,
-        tipo: observacion.tipo,
-      },
-      ip: "0.0.0.0",
-    });
-
-    return this.obtenerPorId(saved.id);
   }
 
-  async validar(
-    id: number,
-    usuario: Usuario & { docenteId?: number | null },
-    dto: AccionDeclaracionCargaHorariaDto,
-  ): Promise<DeclaracionVista> {
-    this.verificarRol(usuario.rol, [
-      RolUsuario.DIRECTOR_DEPARTAMENTO,
-      RolUsuario.DIRECTOR_ESCUELA,
-      RolUsuario.ADMINISTRADOR_SISTEMA,
-    ]);
-
-    const declaracion = await this.obtenerEntidadBase(id);
-    await this.verificarAccesoDeclaracion(usuario, declaracion);
-    this.validarTransicionEstado(
-      declaracion.estado,
-      EstadoDeclaracionCarga.VALIDADO_DPTO,
-    );
-
-    const estadoAnterior = declaracion.estado;
-
-    // V24: No se puede aprobar si hay observaciones sin subsanar
-    const observacionesPendientes = await this.observacionRepo.count({
-      where: {
-        declaracion_id: id,
-        subsanada: false,
-      },
-    });
-    if (observacionesPendientes > 0) {
-      throw new BadRequestException(
-        "No se puede validar mientras haya observaciones pendientes de subsanar",
-      );
-    }
-
-    declaracion.estado = EstadoDeclaracionCarga.VALIDADO_DPTO;
-    declaracion.fecha_firma_director = new Date();
-    declaracion.usuario_firmante_id = usuario.id;
-    if (dto.observaciones !== undefined) {
-      declaracion.observaciones = dto.observaciones;
-    }
-
-    const saved = await this.declaracionRepo.save(declaracion);
-
-    // Audit logging
-    await this.auditoriaService.registrarCarga({
-      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
-      entidad_id: saved.id,
-      usuario_id: usuario.id,
-      accion: AccionAuditoriaCarga.VALIDAR,
-      estado_anterior: estadoAnterior,
-      estado_nuevo: saved.estado,
-      datos_anteriores: null,
-      datos_nuevos: {
-        observaciones: dto.observaciones,
-      },
-      ip: "0.0.0.0",
-    });
-
-    return this.obtenerPorId(saved.id);
-  }
-
-  async aprobar(
-    id: number,
-    usuario: Usuario & { docenteId?: number | null },
-    dto: AccionDeclaracionCargaHorariaDto,
-  ): Promise<DeclaracionVista> {
-    this.verificarRol(usuario.rol, [
-      RolUsuario.DECANO,
-      RolUsuario.ADMINISTRADOR_SISTEMA,
-    ]);
-
-    const declaracion = await this.obtenerEntidadBase(id);
-    this.validarTransicionEstado(
-      declaracion.estado,
-      EstadoDeclaracionCarga.APROBADO_FACULTAD,
-    );
-
-    const estadoAnterior = declaracion.estado;
-
-    // V24: No se puede aprobar si hay observaciones sin subsanar
-    const observacionesPendientes = await this.observacionRepo.count({
-      where: {
-        declaracion_id: id,
-        subsanada: false,
-      },
-    });
-    if (observacionesPendientes > 0) {
-      throw new BadRequestException(
-        "No se puede aprobar mientras haya observaciones pendientes de subsanar",
-      );
-    }
-
-    declaracion.estado = EstadoDeclaracionCarga.APROBADO_FACULTAD;
-    declaracion.fecha_firma_decano = new Date();
-    declaracion.usuario_firmante_id = usuario.id;
-    if (dto.observaciones !== undefined) {
-      declaracion.observaciones = dto.observaciones;
-    }
-
-    const saved = await this.declaracionRepo.save(declaracion);
-
-    // Audit logging
-    await this.auditoriaService.registrarCarga({
-      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
-      entidad_id: saved.id,
-      usuario_id: usuario.id,
-      accion: AccionAuditoriaCarga.APROBAR,
-      estado_anterior: estadoAnterior,
-      estado_nuevo: saved.estado,
-      datos_anteriores: null,
-      datos_nuevos: {
-        observaciones: dto.observaciones,
-      },
-      ip: "0.0.0.0",
-    });
-
-    return this.obtenerPorId(saved.id);
-  }
 
   async obtenerObservaciones(
     declaracionId: number,
@@ -683,69 +553,6 @@ export class DeclaracionCargaHorariaService {
       relations: ["usuario"],
       order: { created_at: "DESC" },
     });
-  }
-
-  async subsanar(
-    id: number,
-    usuario: Usuario & { docenteId?: number | null },
-    dto: AccionDeclaracionCargaHorariaDto,
-  ): Promise<DeclaracionVista> {
-    const declaracion = await this.obtenerEntidadEditable(id);
-    this.verificarPermisoDocente(usuario, declaracion.docente_id);
-
-    // V27: Solo subsana si estado = OBSERVADO_DPTO o OBSERVADO_FACULTAD
-    if (
-      declaracion.estado !== EstadoDeclaracionCarga.OBSERVADO_DPTO &&
-      declaracion.estado !== EstadoDeclaracionCarga.OBSERVADO_FACULTAD
-    ) {
-      throw new BadRequestException(
-        "Solo puede subsanar declaraciones observadas",
-      );
-    }
-
-    const estadoAnterior = declaracion.estado;
-
-    this.validarTransicionEstado(
-      declaracion.estado,
-      EstadoDeclaracionCarga.SUBSANADO,
-    );
-
-    declaracion.estado = EstadoDeclaracionCarga.SUBSANADO;
-    declaracion.usuario_firmante_id = usuario.id;
-    if (dto.observaciones !== undefined) {
-      declaracion.observaciones = dto.observaciones;
-    }
-
-    const saved = await this.declaracionRepo.save(declaracion);
-
-    // Marcar observaciones como subsanadas
-    await this.observacionRepo.update(
-      {
-        declaracion_id: id,
-        subsanada: false,
-      },
-      {
-        subsanada: true,
-        subsanada_en: new Date(),
-      },
-    );
-
-    // Audit logging
-    await this.auditoriaService.registrarCarga({
-      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
-      entidad_id: saved.id,
-      usuario_id: usuario.id,
-      accion: AccionAuditoriaCarga.SUBSANAR,
-      estado_anterior: estadoAnterior,
-      estado_nuevo: saved.estado,
-      datos_anteriores: null,
-      datos_nuevos: {
-        observaciones: dto.observaciones,
-      },
-      ip: "0.0.0.0",
-    });
-
-    return this.obtenerPorId(saved.id);
   }
 
   async pendientesDepartamento(
@@ -759,9 +566,8 @@ export class DeclaracionCargaHorariaService {
 
     const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
     const estadosVisibles = [
-      EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-      EstadoDeclaracionCarga.OBSERVADO_DPTO,
-      EstadoDeclaracionCarga.SUBSANADO,
+      EstadoDeclaracionCarga.CONFIRMADO,
+      EstadoDeclaracionCarga.BORRADOR,
     ];
 
     const qb = this.declaracionRepo
@@ -821,7 +627,7 @@ export class DeclaracionCargaHorariaService {
         periodoId: periodoActivo.id,
       })
       .andWhere("declaracion.estado = :estado", {
-        estado: EstadoDeclaracionCarga.VALIDADO_DPTO,
+        estado: EstadoDeclaracionCarga.CONFIRMADO,
       })
       .orderBy("facultad.nombre", "ASC")
       .addOrderBy("docente.apellidos", "ASC");
@@ -852,7 +658,7 @@ export class DeclaracionCargaHorariaService {
   ): void {
     if (this.esEstadoFinal(actual)) {
       throw new BadRequestException(
-        `La declaración en estado ${actual} no permite transiciones`,
+        `La declaraciÃ³n en estado ${actual} no permite transiciones`,
       );
     }
 
@@ -860,59 +666,19 @@ export class DeclaracionCargaHorariaService {
       EstadoDeclaracionCarga,
       EstadoDeclaracionCarga[]
     > = {
-      [EstadoDeclaracionCarga.NO_INICIADO]: [
-        EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.ANULADO,
-      ],
       [EstadoDeclaracionCarga.BORRADOR]: [
-        EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.ANULADO,
+        EstadoDeclaracionCarga.CONFIRMADO,
       ],
-      [EstadoDeclaracionCarga.PENDIENTE_ENVIO]: [
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.ANULADO,
-      ],
-      [EstadoDeclaracionCarga.ENVIADO_DOCENTE]: [
-        EstadoDeclaracionCarga.OBSERVADO_DPTO,
-        EstadoDeclaracionCarga.VALIDADO_DPTO,
-        EstadoDeclaracionCarga.ANULADO,
-      ],
-      [EstadoDeclaracionCarga.OBSERVADO_DPTO]: [
-        EstadoDeclaracionCarga.SUBSANADO,
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.VALIDADO_DPTO,
-        EstadoDeclaracionCarga.ANULADO,
-      ],
-      [EstadoDeclaracionCarga.SUBSANADO]: [
-        EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.VALIDADO_DPTO,
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
-        EstadoDeclaracionCarga.ANULADO,
-      ],
-      [EstadoDeclaracionCarga.VALIDADO_DPTO]: [
-        EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
-        EstadoDeclaracionCarga.ANULADO,
-      ],
-      [EstadoDeclaracionCarga.OBSERVADO_FACULTAD]: [
-        EstadoDeclaracionCarga.SUBSANADO,
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.ANULADO,
-      ],
-      [EstadoDeclaracionCarga.APROBADO_FACULTAD]: [
+      [EstadoDeclaracionCarga.CONFIRMADO]: [
         EstadoDeclaracionCarga.CERRADO,
       ],
       [EstadoDeclaracionCarga.CERRADO]: [],
-      [EstadoDeclaracionCarga.ANULADO]: [],
     };
 
     const permitidos = transiciones[actual] ?? [];
     if (!permitidos.includes(siguiente)) {
       throw new BadRequestException(
-        `Transición inválida de ${actual} a ${siguiente}`,
+        `TransiciÃ³n invÃ¡lida de ${actual} a ${siguiente}`,
       );
     }
   }
@@ -934,7 +700,7 @@ export class DeclaracionCargaHorariaService {
     });
 
     if (!declaracion) {
-      throw new NotFoundException(`Declaración ${id} no encontrada`);
+      throw new NotFoundException(`DeclaraciÃ³n ${id} no encontrada`);
     }
 
     return declaracion;
@@ -951,14 +717,12 @@ export class DeclaracionCargaHorariaService {
   private asegurarEditable(estado: EstadoDeclaracionCarga): void {
     if (
       [
-        EstadoDeclaracionCarga.VALIDADO_DPTO,
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+        EstadoDeclaracionCarga.CONFIRMADO,
         EstadoDeclaracionCarga.CERRADO,
-        EstadoDeclaracionCarga.ANULADO,
       ].includes(estado)
     ) {
       throw new BadRequestException(
-        `La declaración en estado ${estado} es inmutable`,
+        `La declaraciÃ³n en estado ${estado} es inmutable`,
       );
     }
   }
@@ -966,21 +730,18 @@ export class DeclaracionCargaHorariaService {
   private esEstadoFinal(estado: EstadoDeclaracionCarga): boolean {
     return [
       EstadoDeclaracionCarga.CERRADO,
-      EstadoDeclaracionCarga.ANULADO,
     ].includes(estado);
   }
 
   private asegurarRegeneracionPermitida(estado: EstadoDeclaracionCarga): void {
     if (
       [
-        EstadoDeclaracionCarga.VALIDADO_DPTO,
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+        EstadoDeclaracionCarga.CONFIRMADO,
         EstadoDeclaracionCarga.CERRADO,
-        EstadoDeclaracionCarga.ANULADO,
       ].includes(estado)
     ) {
       throw new BadRequestException(
-        `La declaración en estado ${estado} no permite regenerar la carga lectiva`,
+        `La declaraciÃ³n en estado ${estado} no permite regenerar la carga lectiva`,
       );
     }
   }
@@ -1052,7 +813,7 @@ export class DeclaracionCargaHorariaService {
 
     if (usuario.docenteId !== docenteId) {
       throw new ForbiddenException(
-        "No puede actuar sobre la declaración de otro docente",
+        "No puede actuar sobre la declaraciÃ³n de otro docente",
       );
     }
   }
@@ -1067,38 +828,20 @@ export class DeclaracionCargaHorariaService {
 
     if (usuario.rol !== RolUsuario.DOCENTE) {
       throw new ForbiddenException(
-        "No tiene permisos para editar la declaración",
+        "No tiene permisos para editar la declaraciÃ³n",
       );
     }
 
     if (usuario.docenteId !== docenteId) {
       throw new ForbiddenException(
-        "No puede editar la declaración de otro docente",
+        "No puede editar la declaraciÃ³n de otro docente",
       );
     }
   }
 
-  private resolverEstadoObservacion(rol: RolUsuario): EstadoDeclaracionCarga {
-    if (
-      rol === RolUsuario.DIRECTOR_ESCUELA ||
-      rol === RolUsuario.DIRECTOR_DEPARTAMENTO ||
-      rol === RolUsuario.ADMINISTRADOR_SISTEMA
-    ) {
-      return EstadoDeclaracionCarga.OBSERVADO_DPTO;
-    }
-
-    if (rol === RolUsuario.DECANO) {
-      return EstadoDeclaracionCarga.OBSERVADO_FACULTAD;
-    }
-
-    throw new ForbiddenException(
-      "Rol no autorizado para observar la declaración",
-    );
-  }
-
   private verificarRol(rol: RolUsuario, rolesPermitidos: RolUsuario[]): void {
     if (!rolesPermitidos.includes(rol)) {
-      throw new ForbiddenException("Rol no autorizado para esta operación");
+      throw new ForbiddenException("Rol no autorizado para esta operaciÃ³n");
     }
   }
 
@@ -1136,7 +879,7 @@ export class DeclaracionCargaHorariaService {
 
     if (!facultadId || !departamentoId) {
       throw new BadRequestException(
-        "El docente debe tener departamento y facultad asociados para crear una declaración",
+        "El docente debe tener departamento y facultad asociados para crear una declaraciÃ³n",
       );
     }
 
@@ -1157,7 +900,7 @@ export class DeclaracionCargaHorariaService {
   private async obtenerPeriodoActivo(): Promise<PeriodoAcademico> {
     const periodo = await this.periodoRepo.findOne({ where: { activo: true } });
     if (!periodo) {
-      throw new NotFoundException("No existe un período académico activo");
+      throw new NotFoundException("No existe un perÃ­odo acadÃ©mico activo");
     }
     return periodo;
   }
@@ -1171,7 +914,7 @@ export class DeclaracionCargaHorariaService {
     });
     if (!periodo) {
       throw new NotFoundException(
-        `Periodo académico ${periodoId} no encontrado`,
+        `Periodo acadÃ©mico ${periodoId} no encontrado`,
       );
     }
 
@@ -1466,7 +1209,7 @@ export class DeclaracionCargaHorariaService {
     });
 
     if (!declaracion) {
-      throw new NotFoundException(`Declaración ${id} no encontrada`);
+      throw new NotFoundException(`DeclaraciÃ³n ${id} no encontrada`);
     }
 
     return declaracion;
@@ -1493,7 +1236,7 @@ export class DeclaracionCargaHorariaService {
       declaracion.docente_id !== contexto.docenteId
     ) {
       throw new ForbiddenException(
-        "No puede acceder a la declaración de otro docente",
+        "No puede acceder a la declaraciÃ³n de otro docente",
       );
     }
 
@@ -1503,7 +1246,7 @@ export class DeclaracionCargaHorariaService {
       !contexto.departamentoIds.includes(declaracion.departamento_id)
     ) {
       throw new ForbiddenException(
-        "No puede acceder a declaraciones fuera de su unidad académica",
+        "No puede acceder a declaraciones fuera de su unidad acadÃ©mica",
       );
     }
   }
@@ -1554,7 +1297,7 @@ export class DeclaracionCargaHorariaService {
     }
 
     if (!periodoId || !periodoCodigo) {
-      this.logger.warn(`No se encontró periodo: ${periodo}`);
+      this.logger.warn(`No se encontrÃ³ periodo: ${periodo}`);
       return [];
     }
 
@@ -1589,7 +1332,7 @@ export class DeclaracionCargaHorariaService {
             tipoCurso: a.curso_plan.tipo_curso || "OBLIGATORIO_GENERAL",
             secciones: new Set([a.seccion || ""]),
             escuela:
-              curso.departamento?.escuela?.nombre ?? "Ingeniería de Sistemas",
+              curso.departamento?.escuela?.nombre ?? "IngenierÃ­a de Sistemas",
             ciclo: a.curso_plan.ciclo,
             nroAlumnos: alumnos,
             hrsTeo: a.tipo_clase === "TEORIA" ? Number(a.horas_asignadas) : 0,
@@ -1656,7 +1399,7 @@ export class DeclaracionCargaHorariaService {
           tipoCurso: "",
           secciones: new Set([h.grupo.codigo || h.grupo.nombre || ""]),
           escuela:
-            h.curso.departamento?.escuela?.nombre || "Ingeniería de Sistemas",
+            h.curso.departamento?.escuela?.nombre || "IngenierÃ­a de Sistemas",
           ciclo: h.curso.ciclo || 0,
           nroAlumnos: h.grupo.cupo_maximo || 40,
           hrsTeo: h.tipo_clase === TipoClase.TEORIA ? horasBloque : 0,
@@ -1729,7 +1472,7 @@ export class DeclaracionCargaHorariaService {
     }
     if (!periodoId) {
       throw new BadRequestException(
-        "No se encontró un período académico válido",
+        "No se encontrÃ³ un perÃ­odo acadÃ©mico vÃ¡lido",
       );
     }
 
@@ -1761,13 +1504,13 @@ export class DeclaracionCargaHorariaService {
       declaracion &&
       ![
         EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.NO_INICIADO,
-        EstadoDeclaracionCarga.OBSERVADO_DPTO,
-        EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+        EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.BORRADOR,
       ].includes(declaracion.estado)
     ) {
       throw new BadRequestException(
-        "La declaración no puede ser modificada en este estado",
+        "La declaraciÃ³n no puede ser modificada en este estado",
       );
     }
 
@@ -1848,7 +1591,7 @@ export class DeclaracionCargaHorariaService {
     // CL-V2 + CL-V4: validar rubros no lectivos
     const actividades = carga_no_lectiva?.actividades ?? [];
     
-    // Validar sincronización entre horarios y horas
+    // Validar sincronizaciÃ³n entre horarios y horas
     for (const act of actividades) {
       const horasDeclaradas = Number(act.horas) || 0;
       const horasManual = act.horasManual === true;
@@ -1886,13 +1629,13 @@ export class DeclaracionCargaHorariaService {
       );
     }
 
-    // Regla Preparación y Evaluación <= 50% de lectivas
+    // Regla PreparaciÃ³n y EvaluaciÃ³n <= 50% de lectivas
     const actPreparacion = actividades.find((a: any) => a.id === 2);
     if (actPreparacion) {
       const maxPrep = Math.floor(totalLectivas * 0.5);
       if (Number(actPreparacion.horas) > maxPrep) {
         throw new BadRequestException(
-          `Las horas de Preparación y Evaluación (${actPreparacion.horas}h) no pueden exceder el 50% del Trabajo Lectivo (${maxPrep}h).`,
+          `Las horas de PreparaciÃ³n y EvaluaciÃ³n (${actPreparacion.horas}h) no pueden exceder el 50% del Trabajo Lectivo (${maxPrep}h).`,
         );
       }
     }
@@ -1935,7 +1678,7 @@ export class DeclaracionCargaHorariaService {
     }
     if (!periodoId) {
       throw new BadRequestException(
-        "No se encontró un período académico válido",
+        "No se encontrÃ³ un perÃ­odo acadÃ©mico vÃ¡lido",
       );
     }
 
@@ -1944,19 +1687,19 @@ export class DeclaracionCargaHorariaService {
     });
 
     if (!declaracion) {
-      throw new NotFoundException("No se encontró declaración para enviar");
+      throw new NotFoundException("No se encontrÃ³ declaraciÃ³n para enviar");
     }
 
     if (
       ![
         EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.NO_INICIADO,
-        EstadoDeclaracionCarga.OBSERVADO_DPTO,
-        EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+        EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.BORRADOR,
       ].includes(declaracion.estado)
     ) {
       throw new BadRequestException(
-        "La declaración ya ha sido enviada o no puede ser modificada",
+        "La declaraciÃ³n ya ha sido enviada o no puede ser modificada",
       );
     }
 
@@ -1968,12 +1711,12 @@ export class DeclaracionCargaHorariaService {
       if (horas > 0 && act.id !== 1) {
         if (!act.detalle || act.detalle.trim().length < 10) {
           throw new BadRequestException(
-            `No puede enviar la declaración. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
+            `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
           );
         }
         if (!act.horarios || !Array.isArray(act.horarios) || act.horarios.length === 0) {
           throw new BadRequestException(
-            `No puede enviar la declaración. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
+            `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
           );
         }
       }
@@ -1982,7 +1725,7 @@ export class DeclaracionCargaHorariaService {
     // Validar que no haya conflictos de horario entre actividades
     this.validarConflictosHorarios(actividades);
 
-    declaracion.estado = EstadoDeclaracionCarga.ENVIADO_DOCENTE;
+    declaracion.estado = EstadoDeclaracionCarga.CONFIRMADO;
     return this.declaracionRepo.save(declaracion);
   }
 
@@ -2101,3 +1844,4 @@ export class DeclaracionCargaHorariaService {
     return this.declaracionJuradaRepo.save(jurada);
   }
 }
+

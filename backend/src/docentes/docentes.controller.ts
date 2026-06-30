@@ -100,18 +100,30 @@ export class DocentesController {
   @ApiOperation({ summary: "Exportar todos los docentes sin paginación" })
   @ApiQuery({ name: "categoria", required: false })
   @ApiQuery({ name: "tipo_docente", required: false })
+  @ApiQuery({ name: "modalidad", required: false })
   @ApiQuery({ name: "busqueda", required: false })
+  @ApiQuery({ name: "activo", required: false })
+  @ApiQuery({ name: "departamento_id", required: false, type: Number })
+  @ApiQuery({ name: "escuela_id", required: false, type: Number })
   async exportar(
     @Query("categoria") categoria?: string,
     @Query("tipo_docente") tipo_docente?: string,
+    @Query("modalidad") modalidad?: string,
     @Query("busqueda") busqueda?: string,
+    @Query("activo") activo?: string,
+    @Query("departamento_id") departamentoId?: string,
+    @Query("escuela_id") escuelaId?: string,
     @CurrentUser() usuario?: UsuarioAutenticado,
   ) {
     const result = await this.docentesService.findAllParaExportar(
       {
         categoria,
         tipo_docente,
+        modalidad,
         busqueda,
+        activo,
+        departamento_id: departamentoId,
+        escuela_id: escuelaId,
       },
       usuario?.contextoAcademico,
     );
@@ -405,5 +417,37 @@ export class DocentesController {
       data: result,
       message: "Ambientes compatibles obtenidos correctamente",
     };
+  }
+
+  @Post(":id/foto")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: "Subir foto de perfil de docente (Cloudinary)" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiResponse({ status: 200, description: "Foto subida correctamente" })
+  async uploadFoto(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { foto_url: string },
+  ) {
+    const result = await this.docentesService.updateFoto(id, body.foto_url);
+    return { data: result, message: "Foto actualizada correctamente" };
+  }
+
+  @Post(":id/foto/upload")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DOCENTE)
+  @ApiOperation({ summary: "Subir archivo de foto de perfil a Cloudinary" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiResponse({ status: 200, description: "Foto subida correctamente" })
+  async uploadFotoFile(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { buffer: string; mimetype: string; originalname: string },
+  ) {
+    const file = {
+      buffer: Buffer.from(body.buffer, "base64"),
+      mimetype: body.mimetype,
+      originalname: body.originalname,
+    };
+    const fotoUrl = await this.docentesService.uploadFotoToCloudinary(id, file);
+    const result = await this.docentesService.updateFoto(id, fotoUrl);
+    return { data: result, message: "Foto subida correctamente" };
   }
 }

@@ -25,6 +25,7 @@ import { EntidadAuditoriaCarga, AccionAuditoriaCarga } from "../../entities/audi
 import { ContextoAcademicoService } from "../../common/services/contexto-academico.service";
 import { ContextoAcademico, UsuarioAutenticado } from "../../common/interfaces/contexto-academico.interface";
 import { Curso } from "../../entities/curso.entity";
+import { OfertaAcademica } from "../../entities/oferta-academica.entity";
 
 @Injectable()
 export class AsignacionLectivaService {
@@ -43,6 +44,8 @@ export class AsignacionLectivaService {
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(Curso)
     private readonly cursoRepo: Repository<Curso>,
+    @InjectRepository(OfertaAcademica)
+    private readonly ofertaRepo: Repository<OfertaAcademica>,
     private readonly auditoriaService: AuditoriaService,
     private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
@@ -164,6 +167,21 @@ export class AsignacionLectivaService {
       );
     }
 
+    // A1-V9: El curso debe estar ofertado en el período (OfertaAcademica)
+    const oferta = await this.ofertaRepo.findOne({
+      where: {
+        periodo_id: dto.periodo_id,
+        curso_plan_id: dto.curso_plan_id,
+        tipo_clase: dto.tipo_clase,
+        activo: true,
+      },
+    });
+    if (!oferta) {
+      throw new BadRequestException(
+        `El curso "${cursoPlan.curso?.nombre}" no está ofertado para el tipo ${dto.tipo_clase} en el período actual. Genere la oferta académica primero.`,
+      );
+    }
+
     // A1-V6: El período debe estar en estado PLANIFICACION o ASIGNACION_HORARIOS
     const periodo = await this.periodoRepo.findOne({
       where: { id: dto.periodo_id },
@@ -239,6 +257,15 @@ export class AsignacionLectivaService {
 
     // A1-V3: Validar cursos máximos
     await this.validarCursosMaximos(dto.docente_id, dto.periodo_id, docente);
+
+    // A1-V8: Validar que las horas del curso no estén ya cubiertas
+    await this.validarCoberturaCurso(
+      dto.curso_plan_id,
+      dto.periodo_id,
+      dto.tipo_clase,
+      dto.horas_asignadas,
+      horasPlan,
+    );
 
     const asignacion = this.asignacionRepo.create({
       ...dto,
@@ -604,6 +631,36 @@ export class AsignacionLectivaService {
     if (nuevosCursos > maxCursos) {
       throw new BadRequestException(
         `El número de cursos (${nuevosCursos}) excede el máximo permitido (${maxCursos}) para la modalidad ${docente.modalidad}`,
+      );
+    }
+  }
+
+  private async validarCoberturaCurso(
+    cursoPlanId: number,
+    periodoId: number,
+    tipoClase: TipoClase,
+    nuevasHoras: number,
+    horasPlan: number,
+  ) {
+    const existentes = await this.asignacionRepo.find({
+      where: {
+        curso_plan_id: cursoPlanId,
+        periodo_id: periodoId,
+        tipo_clase: tipoClase,
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+      },
+    });
+
+    const horasCubiertas = existentes.reduce(
+      (sum, a) => sum + Number(a.horas_asignadas),
+      0,
+    );
+    const total = horasCubiertas + nuevasHoras;
+
+    if (total > horasPlan) {
+      throw new BadRequestException(
+        `Las horas de ${tipoClase} ya están cubiertas (${horasCubiertas}h de ${horasPlan}h). ` +
+        `No se pueden asignar ${nuevasHoras}h adicionales.`,
       );
     }
   }

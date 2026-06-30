@@ -1,7 +1,8 @@
 <div class="dialog-header">
   <div class="dialog-title-block">
-    <div class="title-avatar">
-      <mat-icon>person</mat-icon>
+    <div class="title-avatar" [style.background-color]="docente.foto_url ? 'transparent' : '#4f46e5'">
+      <img *ngIf="docente.foto_url" [src]="docente.foto_url" class="docente-photo-header" alt="Foto docente" />
+      <mat-icon *ngIf="!docente.foto_url">person</mat-icon>
     </div>
     <div>
       <h2 mat-dialog-title class="dialog-title">
@@ -10,10 +11,13 @@
       <p class="dialog-subtitle">
         <span class="chip-periodo">{{ periodoService.periodo }}</span>
         <span class="chip-stat">
-          <mat-icon>schedule</mat-icon>{{ totalHorasSemanales }} horas/semana
+          <mat-icon>schedule</mat-icon>{{ summaryHoras }}h/semana
         </span>
         <span class="chip-stat">
-          <mat-icon>assignment</mat-icon>{{ horasAsignadas }} bloques
+          <mat-icon>view_week</mat-icon>{{ summaryBloques }} bloques
+        </span>
+        <span class="chip-stat">
+          <mat-icon>calendar_today</mat-icon>{{ summaryDias }} días
         </span>
       </p>
     </div>
@@ -25,69 +29,104 @@
 
 <mat-dialog-content class="dialog-content">
   <div *ngIf="loading" class="spinner-center">
-    <mat-spinner diameter="40"></mat-spinner>
+    <mat-spinner diameter="36"></mat-spinner>
     <span class="loading-txt">Cargando horario...</span>
   </div>
 
-  <ng-container *ngIf="!loading">
-    <div *ngIf="asignaciones.length === 0" class="empty-state">
-      <div class="empty-icon-wrap"><mat-icon>event_busy</mat-icon></div>
-      <h3>Sin asignaciones</h3>
-      <p>Este docente no tiene horario asignado para el período <strong>{{ periodoService.periodo }}</strong>.</p>
-    </div>
+  <div *ngIf="!loading && asignaciones.length === 0" class="empty-state">
+    <div class="empty-icon-wrap"><mat-icon>event_busy</mat-icon></div>
+    <h3>Sin asignaciones</h3>
+    <p>Este docente no tiene horario asignado para el período <strong>{{ periodoService.periodo }}</strong>.</p>
+  </div>
 
-    <div *ngIf="asignaciones.length > 0" class="grid-wrapper">
-      <table class="horario-grid">
-        <thead>
-          <tr>
-            <th class="hora-col">Hora</th>
-            <th *ngFor="let dia of dias">{{ dia }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let hora of horas">
-            <td class="hora-cell" [class.hora-cell-almuerzo]="esAlmuerzoHora(hora)">
-              <span class="hora-ini">{{ fmtH(hora) }}</span>
-              <span *ngIf="esAlmuerzoHora(hora)" class="almuerzo-label">ALM</span>
-            </td>
-            <ng-container *ngFor="let dNum of diasNum">
-              <ng-container *ngIf="getCell(dNum, hora) as cell">
-                <td *ngIf="!cell.skip"
-                  class="celda"
-                  [ngClass]="cls(dNum, hora)"
-                  [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null">
-                  <div *ngIf="cell.asig as a" class="celda-content">
-                    <span class="tipo-badge" [class.lab]="a.tipo_clase === 'LABORATORIO'">
-                      {{ a.tipo_clase === 'LABORATORIO' ? 'LAB' : 'TEO' }}
-                    </span>
-                    <div class="curso-txt">{{ a.curso?.nombre ?? '—' }}</div>
-                    <div class="meta-row">
-                      <mat-icon class="meta-icon">room</mat-icon>
-                      <span class="amb-txt">{{ a.ambiente?.codigo ?? '—' }}</span>
-                    </div>
-                    <div class="hora-rango">{{ a.hora_inicio }} – {{ a.hora_fin }}</div>
+  <!-- Cursos Asignados -->
+  <div *ngIf="!loading && asignaciones.length > 0 && cursosUnicosList.length > 0" class="cursos-asignados-section">
+    <h3 class="section-title">Cursos Asignados</h3>
+    <div class="cursos-grid">
+      <div *ngFor="let c of cursosUnicosList" class="curso-card">
+        <div class="curso-header" [style.background-color]="c.colorHex">
+          <span class="curso-codigo">{{ c.curso?.codigo || '—' }}</span>
+        </div>
+        <div class="curso-body">
+          <div class="curso-nombre">{{ c.curso?.nombre || '—' }}</div>
+          <div class="curso-stats">
+            <span class="stat-item"><span class="stat-label">T:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).t.toFixed(1) }}h</span></span>
+            <span class="stat-item"><span class="stat-label">P:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).p.toFixed(1) }}h</span></span>
+            <span class="stat-item"><span class="stat-label">L:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).l.toFixed(1) }}h</span></span>
+            <span class="stat-item"><span class="stat-label">G:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).grupos }}</span></span>
+            <span class="stat-item"><span class="stat-label">Total:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).total.toFixed(1) }}h</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div *ngIf="!loading && asignaciones.length > 0" class="grid-wrapper">
+    <table class="horario-grid">
+      <thead>
+        <tr>
+          <th class="hora-col">Hora</th>
+          <th *ngFor="let dia of dias">{{ dia }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let hora of horas" [class.fila-almuerzo]="esAlmuerzoHora(hora)">
+          <td class="hora-cell" [class.hora-alm]="esAlmuerzoHora(hora)">
+            <span class="hora-texto">{{ fmtH(hora) }}</span>
+            <span *ngIf="esAlmuerzoHora(hora)" class="alm-tag">ALM</span>
+          </td>
+          <ng-container *ngFor="let dNum of diasNum">
+            <ng-container *ngIf="getCell(dNum, hora) as cell">
+              <td *ngIf="!cell.skip"
+                class="celda"
+                [ngClass]="cell.asig ? 'celda-asig' : (cell.esAlmuerzo ? 'celda-almuerzo' : 'celda-vacia')"
+                [ngStyle]="cell.asig ? { 'background-color': getCursoColorHex(cell.asig.curso?.id || 0) } : {}"
+                [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null">
+                <div *ngIf="cell.asig as a" class="celda-content">
+                  <span class="tipo-badge"
+                    [class.badge-multi]="cell.mergedTipos.length > 1"
+                    [class.badge-teo]="cell.mergedTipos.includes('TEO')"
+                    [class.badge-lab]="cell.mergedTipos.includes('LAB')"
+                    [class.badge-pra]="cell.mergedTipos.includes('PRA')">
+                    [{{ cell.mergedTipos.length > 0 ? cell.mergedTipos.join('/') : 'TEO' }}]
+                  </span>
+                  <div class="curso-nombre">{{ a.curso?.nombre ?? '—' }}</div>
+                  <div class="celda-meta">
+                    <span class="amb-codigo">{{ cell.mergedAmbs.length > 0 ? cell.mergedAmbs.join(' / ') : '—' }}</span>
+                    <span class="hora-rango">{{ a.hora_inicio }}–{{ a.hora_fin }}</span>
                   </div>
-                </td>
-              </ng-container>
+                </div>
+              </td>
             </ng-container>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+          </ng-container>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-    <div class="legend">
-      <span class="legend-item"><span class="dot dot-teoria"></span> Teoría</span>
-      <span class="legend-item"><span class="dot dot-lab"></span> Laboratorio</span>
-      <span class="legend-item"><span class="dot dot-almuerzo"></span> Almuerzo ({{ fmtH(almuerzoInicio) }}–{{ fmtH(almuerzoFin) }})</span>
-      <span class="legend-spacer"></span>
-      <span class="legend-info">Las celdas fusionadas representan bloques de varias horas consecutivas</span>
+  <!-- Legend -->
+  <div *ngIf="!loading && asignaciones.length > 0" class="legend-container">
+    <div class="legend-scroll">
+      <span class="legend-item" *ngFor="let c of cursosUnicosList">
+        <span class="dot" [style.background]="c.colorHex"></span>
+        {{ c.curso?.codigo || 'Curso' }}
+      </span>
+      <span class="legend-item">
+        <span class="dot dot-alm"></span> Almuerzo ({{ fmtH(almuerzoInicio) }}–{{ fmtH(almuerzoFin) }})
+      </span>
     </div>
-  </ng-container>
+  </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end" class="dialog-actions">
   <button mat-button (click)="cerrar()" class="btn-cerrar">
     <mat-icon>close</mat-icon> Cerrar
+  </button>
+  <button mat-stroked-button class="btn-excel"
+    (click)="descargarExcel()"
+    [disabled]="descargando || asignaciones.length === 0">
+    <mat-icon>table_chart</mat-icon> Excel
   </button>
   <button mat-flat-button class="btn-pdf"
     (click)="descargarPdf()"

@@ -75,11 +75,7 @@ async function main() {
 
   const estadosRequeridos = [
     EstadoDeclaracionCarga.BORRADOR,
-    EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-    EstadoDeclaracionCarga.OBSERVADO_DPTO,
-    EstadoDeclaracionCarga.SUBSANADO,
-    EstadoDeclaracionCarga.VALIDADO_DPTO,
-    EstadoDeclaracionCarga.APROBADO_FACULTAD,
+    EstadoDeclaracionCarga.CONFIRMADO,
     EstadoDeclaracionCarga.CERRADO,
   ];
 
@@ -87,8 +83,8 @@ async function main() {
     `SELECT COUNT(DISTINCT estado)::int AS n FROM declaracion_carga_horaria`,
   );
   checks.push({
-    ok: estadosDistintos[0].n >= 5,
-    message: `Estados distintos en declaraciones: ${estadosDistintos[0].n} (mín. 5)`,
+    ok: estadosDistintos[0].n >= 2,
+    message: `Estados distintos en declaraciones: ${estadosDistintos[0].n} (mín. 2)`,
   });
 
   for (const estado of estadosRequeridos) {
@@ -99,15 +95,9 @@ async function main() {
     const minimo =
       estado === EstadoDeclaracionCarga.BORRADOR
         ? 5
-        : estado === EstadoDeclaracionCarga.ENVIADO_DOCENTE
+        : estado === EstadoDeclaracionCarga.CONFIRMADO
           ? 5
-          : estado === EstadoDeclaracionCarga.OBSERVADO_DPTO
-            ? 3
-            : estado === EstadoDeclaracionCarga.SUBSANADO
-              ? 2
-              : estado === EstadoDeclaracionCarga.VALIDADO_DPTO
-                ? 3
-                : 2;
+          : 2;
     checks.push({
       ok: row[0].n >= minimo,
       message: `Declaraciones ${estado}: ${row[0].n} (mín. ${minimo})`,

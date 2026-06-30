@@ -58,7 +58,8 @@
 
   &.active {
     color: var(--color-text);
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
     cursor: default;
     pointer-events: none;
     background: transparent !important;
@@ -70,7 +71,7 @@
   width: 16px;
   height: 16px;
   color: var(--color-text-muted);
-  opacity: 0.4;
+  opacity: 0.3;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -82,7 +83,7 @@
   width: 16px;
   height: 16px;
   margin-right: 4px;
-  color: var(--color-primary-500);
+  color: var(--sidebar-accent, var(--color-primary-500));
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;

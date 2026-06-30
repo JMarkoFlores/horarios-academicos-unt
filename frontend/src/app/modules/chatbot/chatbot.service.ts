@@ -8,6 +8,12 @@ export interface ChatMessage {
   parts: { text: string }[];
 }
 
+export interface ChatRequest {
+  message: string;
+  history?: ChatMessage[];
+  userRole?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -16,11 +22,12 @@ export class ChatbotService {
 
   constructor(private http: HttpClient) { }
 
-  sendMessage(message: string, history: ChatMessage[]): Observable<{ response: string }> {
-    return this.http.post<{ response: string }>(`${this.apiUrl}/query`, {
-      message,
-      history
-    });
+  sendMessage(message: string, history: ChatMessage[], userRole?: string): Observable<{ response: string }> {
+    const body: ChatRequest = { message, history };
+    if (userRole) {
+      body.userRole = userRole;
+    }
+    return this.http.post<{ response: string }>(`${this.apiUrl}/query`, body);
   }
 
   setChatVisibility(visible: boolean): void {

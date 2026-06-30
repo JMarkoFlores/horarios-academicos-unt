@@ -157,9 +157,6 @@ describe("DeclaracionCargaHorariaService", () => {
   describe("regeneración de carga lectiva", () => {
     it.each([
       EstadoDeclaracionCarga.BORRADOR,
-      EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-      EstadoDeclaracionCarga.OBSERVADO_DPTO,
-      EstadoDeclaracionCarga.SUBSANADO,
     ])("permite regenerar cuando la declaración está en %s", async (estado) => {
       mockDeclaracionRepo.findOne.mockResolvedValue({
         ...mockDeclaracionBase,
@@ -193,10 +190,8 @@ describe("DeclaracionCargaHorariaService", () => {
     });
 
     it.each([
-      EstadoDeclaracionCarga.VALIDADO_DPTO,
-      EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      EstadoDeclaracionCarga.CONFIRMADO,
       EstadoDeclaracionCarga.CERRADO,
-      EstadoDeclaracionCarga.ANULADO,
     ])("rechaza regenerar cuando la declaración está en %s", async (estado) => {
       mockDeclaracionRepo.findOne.mockResolvedValue({
         ...mockDeclaracionBase,
@@ -216,23 +211,8 @@ describe("DeclaracionCargaHorariaService", () => {
 
   describe("máquina de estados", () => {
     it.each([
-      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.PENDIENTE_ENVIO],
-      [
-        EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-      ],
-      [
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.VALIDADO_DPTO,
-      ],
-      [
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.OBSERVADO_DPTO,
-      ],
-      [
-        EstadoDeclaracionCarga.VALIDADO_DPTO,
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
-      ],
+      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.CONFIRMADO],
+      [EstadoDeclaracionCarga.CONFIRMADO, EstadoDeclaracionCarga.CERRADO],
     ])("permite la transición %s -> %s", (actual, siguiente) => {
       expect(() =>
         service.validarTransicionEstado(
@@ -243,16 +223,10 @@ describe("DeclaracionCargaHorariaService", () => {
     });
 
     it.each([
-      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.VALIDADO_DPTO],
-      [
-        EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
-      ],
-      [
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
-        EstadoDeclaracionCarga.BORRADOR,
-      ],
+      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.CERRADO],
+      [EstadoDeclaracionCarga.CONFIRMADO, EstadoDeclaracionCarga.BORRADOR],
       [EstadoDeclaracionCarga.CERRADO, EstadoDeclaracionCarga.BORRADOR],
+      [EstadoDeclaracionCarga.CERRADO, EstadoDeclaracionCarga.CONFIRMADO],
     ])("rechaza la transición ilegal %s -> %s", (actual, siguiente) => {
       expect(() =>
         service.validarTransicionEstado(

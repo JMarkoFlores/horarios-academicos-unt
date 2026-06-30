@@ -65,6 +65,7 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { EstadoAsignacionLectiva } from "../common/enums/estado-asignacion-lectiva.enum";
+import { OfertaAcademica } from "../entities/oferta-academica.entity";
 
 // Load environment variables
 config({ path: join(__dirname, "../../.env") });
@@ -95,13 +96,13 @@ export async function main() {
     console.log("🧹 Limpiando base de datos...");
     const tables = [
       "declaracion_observacion", "declaracion_jurada", "declaraciones_clad", "detalles_clad", "carga_adicional",
-      "asignacion_lectiva", "notificacion_docente", "cola_docentes",
+      "oferta_academica", "asignacion_lectiva", "notificacion_docente", "cola_docentes",
       "ventana_atencion", "campaña_ventanas", "curso_plan_estudios",
       "plan_estudios", "turno_config", "disponibilidad_docente",
       "declaracion_carga_horaria", "horario_asignado", "docente_curso",
       "grupo", "curso", "docente", "usuario", "departamento", "escuela",
       "facultad", "periodo_academico", "dia_activo", "turno_horario",
-      "ambiente", "configuracion_general"
+      "ambiente", "configuracion_general", "restriccion_institucional"
     ];
     for (const table of tables) {
       try {
@@ -149,6 +150,39 @@ export async function main() {
       estructura.departamentos
     );
     console.log("✅ Plan de Estudios 2027 completado.");
+
+    // 3c. Seed OfertaAcademica from CursoPlanEstudios
+    console.log("📋 Generando oferta académica desde plan de estudios...");
+    const ofertaRepo = queryRunner.manager.getRepository(OfertaAcademica);
+    const periodoActivo = await queryRunner.manager.getRepository(PeriodoAcademico).findOne({ where: { activo: true } });
+    if (!periodoActivo) throw new Error("No hay período activo para generar oferta académica");
+    const todosCursosPlan = await cursoPlanRepo.find();
+    let ofertaCount = 0;
+    for (const cp of todosCursosPlan) {
+      const tipos: { tipo: TipoClase; horas: number }[] = [
+        { tipo: TipoClase.TEORIA, horas: cp.horas_teoria },
+        { tipo: TipoClase.PRACTICA, horas: cp.horas_practica },
+        { tipo: TipoClase.LABORATORIO, horas: cp.horas_laboratorio },
+      ];
+      for (const { tipo, horas } of tipos) {
+        if (horas <= 0) continue;
+        const exists = await ofertaRepo.findOne({
+          where: { periodo_id: periodoActivo.id, curso_plan_id: cp.id, tipo_clase: tipo },
+        });
+        if (exists) continue;
+        await ofertaRepo.save(
+          ofertaRepo.create({
+            periodo_id: periodoActivo.id,
+            curso_plan_id: cp.id,
+            tipo_clase: tipo,
+            secciones: 1,
+            activo: true,
+          })
+        );
+        ofertaCount++;
+      }
+    }
+    console.log(`✅ ${ofertaCount} registros de oferta académica generados.`);
 
     // 4. Seed horarios for each cycle
     console.log("📚 Iniciando seed de horarios por ciclo...");
@@ -280,6 +314,63 @@ export async function main() {
         color_acento: CONFIG.color_acento,
       })
     );
+
+    // 8. Seed Restricciones Institucionales por defecto (con upsert para evitar duplicados)
+    const restriccionRepo = queryRunner.manager.getRepository(RestriccionInstitucional);
+    const periodoCodigo = estructura.periodoActivo.codigo;
+
+    const restriccionesDefault = [
+      {
+        tipo_restriccion: "DURACION_BLOQUE",
+        valor: { duracion_minutos: 60 },
+        periodo_academico: periodoCodigo,
+        activo: true,
+      },
+      {
+        tipo_restriccion: "FRANJA_HORARIA",
+        valor: { hora_inicio: "07:00", hora_fin: "22:00" },
+        periodo_academico: periodoCodigo,
+        activo: true,
+      },
+      {
+        tipo_restriccion: "BLOQUE_ALMUERZO",
+        valor: { hora_inicio: "13:00", hora_fin: "14:00" },
+        periodo_academico: periodoCodigo,
+        activo: true,
+      },
+      {
+        tipo_restriccion: "MAX_HORAS_DIARIAS",
+        valor: { max_horas: 8 },
+        periodo_academico: periodoCodigo,
+        activo: true,
+      },
+      {
+        tipo_restriccion: "MAX_HORAS_SEMANALES",
+        valor: { max_horas: 40 },
+        periodo_academico: periodoCodigo,
+        activo: true,
+      },
+    ];
+
+    for (const restriccionData of restriccionesDefault) {
+      const existente = await restriccionRepo.findOne({
+        where: {
+          tipo_restriccion: restriccionData.tipo_restriccion,
+          periodo_academico: restriccionData.periodo_academico,
+        },
+      });
+
+      if (existente) {
+        await restriccionRepo.save({
+          ...existente,
+          valor: restriccionData.valor,
+          activo: restriccionData.activo,
+        });
+      } else {
+        await restriccionRepo.save(restriccionRepo.create(restriccionData));
+      }
+    }
+    console.log("✅ Restricciones institucionales por defecto creadas/actualizadas.");
 
     // Commit transaction!
     await queryRunner.commitTransaction();

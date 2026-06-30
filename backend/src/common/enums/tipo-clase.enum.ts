@@ -2,4 +2,5 @@ export enum TipoClase {
   TEORIA = "TEORIA",
   PRACTICA = "PRACTICA",
   LABORATORIO = "LABORATORIO",
+  NO_LECTIVA = "NO_LECTIVA",
 }

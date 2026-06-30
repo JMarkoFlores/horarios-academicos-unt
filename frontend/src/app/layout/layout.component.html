@@ -5,6 +5,7 @@
     [opened]="!isMobile()"
     class="sidenav"
     [class.collapsed]="sidebarCollapsed() && !isMobile()"
+    [style.width]="sidebarCollapsed() && !isMobile() ? '78px' : '260px'"
   >
     <div class="logo-area">
       <div class="logo-icon-wrapper">
@@ -22,7 +23,10 @@
             (configService.config$ | async)?.nombre_institucional ||
               "Horarios UNT"
           }}</span>
-          <span class="logo-sub">Ingeniería de Sistemas</span>
+          <span class="logo-sub">{{
+            (configService.config$ | async)?.nombre_facultad ||
+              "Ingeniería de Sistemas"
+          }}</span>
         </div>
       }
       @if (!isMobile()) {
@@ -36,6 +40,7 @@
               : ('layout.collapseMenu' | translate)
           "
           matTooltipPosition="right"
+          [attr.aria-label]="sidebarCollapsed() ? 'Expandir menú' : 'Colapsar menú'"
         >
           <mat-icon class="collapse-icon">{{
             sidebarCollapsed() ? "arrow_forward_ios" : "arrow_back_ios"
@@ -73,7 +78,7 @@
               usuario?.nombre || ('layout.administrator' | translate)
             }}</span>
             <span class="user-role">{{
-              usuario?.rol || ('layout.systemAdministrator' | translate)
+              formatRol(usuario?.rol) || ('layout.systemAdministrator' | translate)
             }}</span>
           </div>
           <mat-icon class="user-chevron">unfold_more</mat-icon>
@@ -109,6 +114,7 @@
         (click)="toggleSidebarCollapsed()"
         [matTooltip]="'layout.expandMenu' | translate"
         matTooltipPosition="right"
+        aria-label="Expandir menú"
       >
         <mat-icon class="collapse-icon">arrow_forward_ios</mat-icon>
       </button>
@@ -144,16 +150,14 @@
                   mat-list-item
                   [routerLink]="item.route"
                   routerLinkActive="active-link"
+                  [routerLinkActiveOptions]="{exact: false}"
                   #rla="routerLinkActive"
                   [matTooltip]="sidebarCollapsed() ? (item.label | translate) : ''"
                   matTooltipPosition="right"
                   class="nav-item"
                 >
-                  <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
-                  <span matListItemTitle class="item-label">{{ item.label | translate }}</span>
-                  @if (rla.isActive) {
-                    <div class="active-indicator"></div>
-                  }
+                  <mat-icon matListItemIcon class="nav-icon" [style.color]="isRouteActive(item.route) ? '#4f46e5' : ''">{{ item.icon }}</mat-icon>
+                  <span matListItemTitle class="item-label" [style.color]="isRouteActive(item.route) ? '#4f46e5' : ''" [style.font-weight]="isRouteActive(item.route) ? '700' : ''">{{ item.label | translate }}</span>
                 </a>
               }
               @if (item.action) {
@@ -173,8 +177,6 @@
         </div>
       }
     </div>
-
-    <app-chatbot></app-chatbot>
   </mat-sidenav>
 
   <mat-sidenav-content [class.collapsed]="sidebarCollapsed() && !isMobile()">
@@ -341,5 +343,6 @@
     <div class="content-area animate-fadein">
       <router-outlet></router-outlet>
     </div>
+    <app-chatbot></app-chatbot>
   </mat-sidenav-content>
 </mat-sidenav-container>

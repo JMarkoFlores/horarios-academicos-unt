@@ -46,7 +46,6 @@ export class PeriodosController {
   @ApiOperation({ summary: "Listar periodos académicos paginado" })
   @ApiResponse({ status: 200, description: "Lista paginada de periodos" })
   async findAll(@Query() query: QueryPeriodoDto) {
-    console.log("Received query:", query);
     const result = await this.periodosService.findAll(query);
     return { data: result, message: "Periodos obtenidos correctamente" };
   }

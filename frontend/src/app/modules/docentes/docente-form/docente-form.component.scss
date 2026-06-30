@@ -195,6 +195,24 @@
   mat-spinner { color: var(--color-primary); }
 }
 
+// ── AUTO-GENERATE TOGGLE ─────────────────────────────────────────────────
+.auto-gen-toggle {
+  grid-column: 1 / -1;
+  margin-top: -8px;
+
+  ::ng-deep .mat-mdc-checkbox {
+    .mdc-checkbox__background {
+      border-color: var(--color-primary);
+    }
+  }
+
+  label {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+  }
+}
+
 @media (max-width: 768px) {
   .form-card-premium {
     padding: 20px !important;

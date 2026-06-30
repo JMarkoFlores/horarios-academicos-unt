@@ -8,10 +8,19 @@
   <div class="chat-window" [class.open]="isOpen">
     <div class="chat-header">
       <div class="header-info">
+        <div class="connection-status" [class.offline]="!isOnline" matTooltip="{{ isOnline ? 'Conectado' : 'Sin conexión' }}">
+          <mat-icon>{{ isOnline ? 'wifi' : 'wifi_off' }}</mat-icon>
+        </div>
         <mat-icon>smart_toy</mat-icon>
         <span>Asistente UNT</span>
       </div>
       <div class="header-actions">
+        <button mat-icon-button (click)="toggleTTS()" [class.tts-active]="ttsEnabled" title="{{ ttsEnabled ? 'Desactivar voz' : 'Activar voz' }}">
+          <mat-icon>{{ ttsEnabled ? 'volume_up' : 'volume_off' }}</mat-icon>
+        </button>
+        <button mat-icon-button (click)="clearHistory()" title="Limpiar conversación">
+          <mat-icon>delete_sweep</mat-icon>
+        </button>
         <button mat-icon-button (click)="toggleChat()" title="Minimizar">
           <mat-icon>remove</mat-icon>
         </button>
@@ -24,6 +33,15 @@
     <div class="chat-messages" #scrollContainer>
       <div class="welcome-msg" *ngIf="history.length === 0">
         ¡Hola! Soy tu asistente de IA. ¿En qué puedo ayudarte hoy con el sistema de horarios?
+      </div>
+      
+      <div class="suggestions" *ngIf="history.length === 0">
+        <button *ngFor="let suggestion of suggestions" 
+                mat-stroked-button 
+                (click)="useSuggestion(suggestion)"
+                [disabled]="isLoading">
+          {{ suggestion }}
+        </button>
       </div>
       
       <div *ngFor="let msg of history" class="message-wrapper" [class.user]="msg.role === 'user'">

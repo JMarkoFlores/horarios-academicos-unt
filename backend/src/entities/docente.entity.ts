@@ -85,6 +85,9 @@ export class Docente {
   @Column({ nullable: true, type: "text" })
   firma_url: string | null;
 
+  @Column({ nullable: true, type: "text" })
+  foto_url: string | null;
+
   @Column({ nullable: true, unique: true, name: "usuario_id" })
   usuario_id: number | null;
 

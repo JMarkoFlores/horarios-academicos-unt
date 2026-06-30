@@ -31,12 +31,8 @@ interface SeedDeclaracionesParams {
 }
 
 const ESTADOS_DEMO: Array<{ estado: EstadoDeclaracionCarga; count: number }> = [
-  { estado: EstadoDeclaracionCarga.BORRADOR, count: 5 },
-  { estado: EstadoDeclaracionCarga.ENVIADO_DOCENTE, count: 5 },
-  { estado: EstadoDeclaracionCarga.OBSERVADO_DPTO, count: 3 },
-  { estado: EstadoDeclaracionCarga.SUBSANADO, count: 2 },
-  { estado: EstadoDeclaracionCarga.VALIDADO_DPTO, count: 3 },
-  { estado: EstadoDeclaracionCarga.APROBADO_FACULTAD, count: 3 },
+  { estado: EstadoDeclaracionCarga.BORRADOR, count: 10 },
+  { estado: EstadoDeclaracionCarga.CONFIRMADO, count: 11 },
   { estado: EstadoDeclaracionCarga.CERRADO, count: 2 },
 ];
 
@@ -81,13 +77,8 @@ function fechasPorEstado(estado: EstadoDeclaracionCarga, base: Date) {
   decanoF.setDate(decanoF.getDate() + 7);
 
   switch (estado) {
-    case EstadoDeclaracionCarga.ENVIADO_DOCENTE:
-    case EstadoDeclaracionCarga.OBSERVADO_DPTO:
-    case EstadoDeclaracionCarga.SUBSANADO:
-      return { fecha_firma_docente: docente, fecha_firma_director: null, fecha_firma_decano: null };
-    case EstadoDeclaracionCarga.VALIDADO_DPTO:
+    case EstadoDeclaracionCarga.CONFIRMADO:
       return { fecha_firma_docente: docente, fecha_firma_director: director, fecha_firma_decano: null };
-    case EstadoDeclaracionCarga.APROBADO_FACULTAD:
     case EstadoDeclaracionCarga.CERRADO:
       return {
         fecha_firma_docente: docente,
@@ -151,12 +142,7 @@ export async function seedDeclaracionesDemo(
 
   for (let i = 0; i < ordenados.length; i++) {
     const doc = ordenados[i];
-    let estado = estadoPorIndice[i] ?? EstadoDeclaracionCarga.NO_INICIADO;
-    
-    const esRobert = doc.nombres.toLowerCase().includes("robert jerry") && doc.apellidos.toLowerCase().includes("sanchez ticona");
-    if (esRobert) {
-      estado = EstadoDeclaracionCarga.BORRADOR;
-    }
+    let estado = estadoPorIndice[i] ?? EstadoDeclaracionCarga.BORRADOR;
 
     let totalHoras = 40;
     if (doc.modalidad === "TIEMPO_PARCIAL_20") totalHoras = 20;
@@ -169,8 +155,7 @@ export async function seedDeclaracionesDemo(
     if (horasNoLectivas < 0) horasNoLectivas = 0;
     const fechas = fechasPorEstado(estado, new Date(baseFecha.getTime() + i * 86400000));
     const tieneCarga =
-      estado !== EstadoDeclaracionCarga.BORRADOR &&
-      estado !== EstadoDeclaracionCarga.NO_INICIADO;
+      estado !== EstadoDeclaracionCarga.BORRADOR;
 
     const declaracion = await declaracionRepo.save(
       declaracionRepo.create({
@@ -180,10 +165,7 @@ export async function seedDeclaracionesDemo(
         facultad_id: facultad.id,
         estado,
         sede: "Trujillo - Ciudad Universitaria",
-        observaciones:
-          estado === EstadoDeclaracionCarga.OBSERVADO_DPTO
-            ? "Revisar horas del rubro de investigación"
-            : null,
+        observaciones: null,
         carga_no_lectiva: tieneCarga
           ? buildCargaNoLectiva(horasLectivas, horasNoLectivas)
           : {
@@ -202,10 +184,8 @@ export async function seedDeclaracionesDemo(
 
   let observacionesCreadas = 0;
   const obsDeclaraciones = declaraciones.filter(
-    (d) =>
-      d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
-      d.estado === EstadoDeclaracionCarga.SUBSANADO,
-  );
+    (d) => d.estado === EstadoDeclaracionCarga.BORRADOR,
+  ).slice(0, 4);
 
   const textosObs = [
     "Las horas de preparación exceden el 50% permitido. Ajustar rubro 2.",
@@ -216,7 +196,6 @@ export async function seedDeclaracionesDemo(
 
   for (let i = 0; i < obsDeclaraciones.length; i++) {
     const decl = obsDeclaraciones[i];
-    const esSubsanado = decl.estado === EstadoDeclaracionCarga.SUBSANADO;
     const fecha = new Date("2026-03-20T09:00:00");
     fecha.setDate(fecha.getDate() + i * 2);
 
@@ -225,39 +204,19 @@ export async function seedDeclaracionesDemo(
         declaracion_id: decl.id,
         usuario_id: directorDpto.id,
         observacion: textosObs[i % textosObs.length],
-        estado_origen: EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        estado_destino: EstadoDeclaracionCarga.OBSERVADO_DPTO,
+        estado_origen: EstadoDeclaracionCarga.BORRADOR,
+        estado_destino: EstadoDeclaracionCarga.BORRADOR,
         tipo: TipoObservacion.OBSERVACION_DPTO,
-        subsanada: esSubsanado,
-        subsanada_en: esSubsanado ? new Date("2026-03-25T11:00:00") : null,
+        subsanada: false,
         created_at: fecha,
       }),
     );
     observacionesCreadas++;
-
-    if (i === 0) {
-      await observacionRepo.save(
-        observacionRepo.create({
-          declaracion_id: decl.id,
-          usuario_id: decano.id,
-          observacion:
-            "Observación histórica de seguimiento académico (solo referencia).",
-          estado_origen: EstadoDeclaracionCarga.OBSERVADO_DPTO,
-          estado_destino: EstadoDeclaracionCarga.OBSERVADO_DPTO,
-          tipo: TipoObservacion.OBSERVACION_DPTO,
-          subsanada: false,
-          created_at: new Date("2026-03-18T14:30:00"),
-        }),
-      );
-      observacionesCreadas++;
-    }
   }
 
   const candidatosJurada = declaraciones.filter((d) =>
     [
-      EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-      EstadoDeclaracionCarga.VALIDADO_DPTO,
-      EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      EstadoDeclaracionCarga.CONFIRMADO,
       EstadoDeclaracionCarga.CERRADO,
     ].includes(d.estado),
   );

@@ -266,6 +266,7 @@ export class PerfilComponent implements OnInit, OnDestroy {
   cambiarPassword(): void {
     if (this.passwordForm.invalid) return;
     this.loadingPassword = true;
+    const wasForced = !!this.usuario?.debe_cambiar_password;
     this.authService.cambiarPassword(this.passwordForm.value).subscribe({
       next: () => {
         this.notif.success('Contraseña cambiada exitosamente');
@@ -275,9 +276,10 @@ export class PerfilComponent implements OnInit, OnDestroy {
         });
         this.loadingPassword = false;
 
-        if (this.usuario?.debe_cambiar_password) {
+        if (wasForced) {
           this.authService.actualizarUsuarioLocal({ debe_cambiar_password: false });
-          this.usuario = { ...this.usuario, debe_cambiar_password: false };
+          this.usuario = { ...this.usuario!, debe_cambiar_password: false };
+          this.router.navigate(['/app/dashboard']);
         }
       },
       error: (err) => {

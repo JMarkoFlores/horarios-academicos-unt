@@ -206,6 +206,20 @@
   align-items: center;
   gap: 14px;
 
+  .docente-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--color-primary);
+    transition: transform var(--transition-normal);
+
+    &.inactive {
+      filter: grayscale(1);
+      opacity: 0.7;
+    }
+  }
+
   .avatar-circle {
     width: 40px;
     height: 40px;
@@ -394,21 +408,111 @@
   }
 }
 
-// ── EXPORT BUTTON ─────────────────────────────────────────────────────────
+// ── EXPORT BUTTON + FORMAT SELECTOR ────────────────────────────────────────
 .header-actions {
   display: flex;
   gap: 12px;
   align-items: center;
 
-  .btn-export {
-    height: 44px;
-    border-radius: 12px !important;
-    font-weight: 600 !important;
+  .export-group {
     display: flex;
+    gap: 8px;
     align-items: center;
-    gap: 6px;
 
-    .export-spinner { margin-right: 4px; }
+    .format-chips {
+      display: flex;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      overflow: hidden;
+
+      .format-chip {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 8px 14px;
+        border: none;
+        background: transparent;
+        color: var(--color-text-muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: inherit;
+
+        mat-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+        }
+
+        &:hover {
+          background: var(--color-primary-light);
+          color: var(--color-primary);
+        }
+
+        &.active {
+          background: var(--color-primary);
+          color: white;
+
+          &:hover {
+            background: var(--color-primary);
+            filter: brightness(1.1);
+          }
+        }
+
+        &:first-child {
+          border-right: 1px solid var(--color-border);
+        }
+      }
+    }
+
+    .btn-export {
+      height: 40px;
+      border-radius: 10px !important;
+      font-weight: 600 !important;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 20px !important;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent)) !important;
+      color: white !important;
+      border: none !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+      transition: all 0.2s ease !important;
+
+      &:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+
+      .export-spinner {
+        margin-right: 4px;
+        ::ng-deep circle {
+          stroke: white !important;
+        }
+      }
+    }
+  }
+}
+
+// ── DETAIL BUTTON ──────────────────────────────────────────────────────────
+.btn-action.detail {
+  color: #6366f1;
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
   }
 }
 

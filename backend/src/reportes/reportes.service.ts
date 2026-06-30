@@ -347,7 +347,29 @@ export class ReportesService {
       "Viernes",
       "Sábado",
     ];
-    const horas = Array.from({ length: 15 }, (_, i) => i + 7);
+
+    // Get Franja Horaria and Duración de Bloque from configuration
+    let horaInicio = 7;
+    let horaFin = 22;
+    let duracionBloque = 1; // hours
+    try {
+      const restricciones = await this.configuracionService.getRestriccionesMap(periodo);
+      const franjaHoraria = restricciones["FRANJA_HORARIA"] as any;
+      if (franjaHoraria?.hora_inicio && franjaHoraria?.hora_fin) {
+        horaInicio = parseInt(franjaHoraria.hora_inicio.split(":")[0], 10);
+        horaFin = parseInt(franjaHoraria.hora_fin.split(":")[0], 10);
+      }
+      const duracionBloqueConfig = restricciones["DURACION_BLOQUE"] as any;
+      if (duracionBloqueConfig?.duracion_minutos) {
+        duracionBloque = duracionBloqueConfig.duracion_minutos / 60;
+      } else if (duracionBloqueConfig?.valor || duracionBloqueConfig?.duracion) {
+        duracionBloque = duracionBloqueConfig.valor || duracionBloqueConfig.duracion;
+      }
+    } catch (e) {
+      this.logger.warn(`Error getting configuration for period ${periodo}: ${e.message}`);
+    }
+
+    const horas = Array.from({ length: horaFin - horaInicio }, (_, i) => i + horaInicio);
     const cellHeight = 10;
     const horaColWidth = 15;
     const gridWidth = PAGE_W - 24;
@@ -529,9 +551,23 @@ export class ReportesService {
           ) {
             const blockY = gridY + 10 + startRowIdx * cellHeight;
             const blockH = (endRowIdx - startRowIdx) * cellHeight;
-            const laneWidth = cellWidth / f.numCarriles;
-            const blockX =
-              12 + horaColWidth + diaIdx * cellWidth + f.carrilIdx * laneWidth;
+            
+            // Check if block can expand across all lanes (no conflicts)
+            let puedeExpandirse = true;
+            carriles.forEach((otros, idx) => {
+              if (idx !== f.carrilIdx) {
+                otros.forEach((o) => {
+                  const oIni = this.horaToDecimal(o.hora_inicio);
+                  const oFin = this.horaToDecimal(o.hora_fin);
+                  if (f.horaInicio < oFin && oIni < f.horaFin) puedeExpandirse = false;
+                });
+              }
+            });
+
+            const laneWidth = puedeExpandirse ? cellWidth : cellWidth / f.numCarriles;
+            const blockX = puedeExpandirse
+              ? 12 + horaColWidth + diaIdx * cellWidth
+              : 12 + horaColWidth + diaIdx * cellWidth + f.carrilIdx * laneWidth;
             const blockW = laneWidth;
 
             const color = this.getColorForProfesorCurso(
@@ -610,8 +646,8 @@ export class ReportesService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
 
-    const estadoDeclaracion = declaracion?.estado || "NO_INICIADO";
-    const estadosAprobados = ["VALIDADO_DPTO", "APROBADO_FACULTAD", "CERRADO"];
+    const estadoDeclaracion = declaracion?.estado || "BORRADOR";
+    const estadosAprobados = ["CONFIRMADO", "CERRADO"];
     const esOficial = estadosAprobados.includes(estadoDeclaracion);
     const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
@@ -1123,8 +1159,8 @@ export class ReportesService {
       ? await this.getBase64Image(docente.firma_url)
       : null;
 
-    const estadoDeclaracion = declaracion?.estado || "NO_INICIADO";
-    const estadosAprobados = ["VALIDADO_DPTO", "APROBADO_FACULTAD", "CERRADO"];
+    const estadoDeclaracion = declaracion?.estado || "BORRADOR";
+    const estadosAprobados = ["CONFIRMADO", "CERRADO"];
     const esOficial = estadosAprobados.includes(estadoDeclaracion);
     const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
@@ -2623,16 +2659,12 @@ export class ReportesService {
     const enviadas = declPeriodo.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+        this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
     );
     const aprobadas = declPeriodo.filter(
-      (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      (d) => d.estado === EstadoDeclaracionCarga.CONFIRMADO,
     );
-    const observadas = declPeriodo.filter(
-      (d) =>
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
-    );
+    const observadas: typeof declPeriodo = [];
 
     const horasArr = declPeriodo.map((d) => d.total_horas_lectivas);
     const cargaPromedio =
@@ -2662,7 +2694,7 @@ export class ReportesService {
     const envAnterior = declAnterior.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+        this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
     ).length;
     const pctAnterior =
       declAnterior.length > 0
@@ -2763,15 +2795,15 @@ export class ReportesService {
       const enviados = dDept.filter(
         (d) =>
           this.estadoValor(d.estado) >=
-          this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+          this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
       ).length;
       const validados = dDept.filter(
         (d) =>
           this.estadoValor(d.estado) >=
-          this.estadoValor(EstadoDeclaracionCarga.VALIDADO_DPTO),
+          this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
       ).length;
       const aprobados = dDept.filter(
-        (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+        (d) => d.estado === EstadoDeclaracionCarga.CONFIRMADO,
       ).length;
       const pct = total > 0 ? Math.round((enviados / total) * 100) : 0;
       const semaforo =
@@ -2857,16 +2889,12 @@ export class ReportesService {
     const enviadas = declPeriodo.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+        this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
     );
     const aprobadas = declPeriodo.filter(
-      (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      (d) => d.estado === EstadoDeclaracionCarga.CONFIRMADO,
     );
-    const observadas = declPeriodo.filter(
-      (d) =>
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
-    );
+    const observadas: typeof declPeriodo = [];
     const sinDeclarar = totalDocentes - declPeriodo.length;
 
     const horasTotales = declPeriodo.reduce(
@@ -2888,7 +2916,7 @@ export class ReportesService {
         const declarados = dd.filter(
           (dec) =>
             this.estadoValor(dec.estado) >=
-            this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+            this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
         ).length;
         const pct = total > 0 ? Math.round((declarados / total) * 100) : 0;
         const semaforo =
@@ -2986,17 +3014,9 @@ export class ReportesService {
 
   private estadoValor(estado: EstadoDeclaracionCarga): number {
     const orden: Record<string, number> = {
-      NO_INICIADO: 0,
-      BORRADOR: 1,
-      PENDIENTE_ENVIO: 2,
-      ENVIADO_DOCENTE: 3,
-      OBSERVADO_DPTO: 4,
-      SUBSANADO: 5,
-      VALIDADO_DPTO: 6,
-      OBSERVADO_FACULTAD: 7,
-      APROBADO_FACULTAD: 8,
-      CERRADO: 9,
-      ANULADO: -1,
+      BORRADOR: 0,
+      CONFIRMADO: 1,
+      CERRADO: 2,
     };
     return orden[estado] ?? 0;
   }
@@ -3034,27 +3054,13 @@ export class ReportesService {
     declaraciones: DeclaracionCargaHoraria[],
   ): { estado: string; label: string; count: number; porcentaje: number }[] {
     const labels: Record<string, string> = {
-      NO_INICIADO: "No iniciado",
       BORRADOR: "Borrador",
-      PENDIENTE_ENVIO: "Pendiente envío",
-      ENVIADO_DOCENTE: "Enviado",
-      OBSERVADO_DPTO: "Observado (dpto)",
-      SUBSANADO: "Subsanado",
-      VALIDADO_DPTO: "Validado (dpto)",
-      OBSERVADO_FACULTAD: "Observado (facultad)",
-      APROBADO_FACULTAD: "Aprobado",
+      CONFIRMADO: "Confirmado",
       CERRADO: "Cerrado",
     };
     const orden = [
-      "NO_INICIADO",
       "BORRADOR",
-      "PENDIENTE_ENVIO",
-      "ENVIADO_DOCENTE",
-      "OBSERVADO_DPTO",
-      "SUBSANADO",
-      "VALIDADO_DPTO",
-      "OBSERVADO_FACULTAD",
-      "APROBADO_FACULTAD",
+      "CONFIRMADO",
       "CERRADO",
     ];
     const total = declaraciones.length || 1;
@@ -4183,6 +4189,12 @@ export class ReportesService {
       pattern: "solid",
       fgColor: { argb: primaryDark },
     };
+    headerCell.border = {
+      top: { style: "medium", color: { argb: primaryDark } },
+      bottom: { style: "medium", color: { argb: primaryDark } },
+      left: { style: "medium", color: { argb: primaryDark } },
+      right: { style: "medium", color: { argb: primaryDark } },
+    };
 
     // 2. Tabla de Profesores
     const profesoresCursosMap = new Map<string, any>();
@@ -4266,8 +4278,8 @@ export class ReportesService {
       };
       cell.alignment = { horizontal: "center" };
       cell.border = {
-        top: { style: "thin" },
-        bottom: { style: "thin" },
+        top: { style: "medium", color: { argb: primaryDark } },
+        bottom: { style: "medium", color: { argb: primaryDark } },
         left: { style: "thin" },
         right: { style: "thin" },
       };
@@ -4411,9 +4423,9 @@ export class ReportesService {
         };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
-          top: { style: "thin" },
-          bottom: { style: "thin" },
-          left: { style: "thin" },
+          top: { style: "medium", color: { argb: primaryDark } },
+          bottom: { style: "medium", color: { argb: primaryDark } },
+          left: { style: "medium", color: { argb: primaryDark } },
           right: { style: "thin" },
         };
       } else {
@@ -4437,8 +4449,8 @@ export class ReportesService {
         };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
-          top: { style: "thin" },
-          bottom: { style: "thin" },
+          top: { style: "medium", color: { argb: primaryDark } },
+          bottom: { style: "medium", color: { argb: primaryDark } },
           left: { style: "thin" },
           right: { style: "thin" },
         };
@@ -4448,21 +4460,39 @@ export class ReportesService {
     });
     currentRow++;
 
-    const horasArr = Array.from({ length: 15 }, (_, i) => i + 7);
     const horaToRowMap = new Map<number, number>();
 
-    // Obtener almuerzo
+    // Obtener Franja Horaria, Duración de Bloque y Almuerzo
+    let horaInicio = 7;
+    let horaFin = 22;
+    let duracionBloque = 1;
     let almuerzoInicio = 13;
     let almuerzoFin = 14;
     try {
       const restricciones =
         await this.configuracionService.getRestriccionesMap(periodo);
+      const franjaHoraria = restricciones["FRANJA_HORARIA"] as any;
+      if (franjaHoraria?.hora_inicio && franjaHoraria?.hora_fin) {
+        horaInicio = parseInt(franjaHoraria.hora_inicio.split(":")[0], 10);
+        horaFin = parseInt(franjaHoraria.hora_fin.split(":")[0], 10);
+      }
+      const duracionBloqueConfig = restricciones["DURACION_BLOQUE"] as any;
+      if (duracionBloqueConfig?.duracion_minutos) {
+        duracionBloque = duracionBloqueConfig.duracion_minutos / 60;
+      } else if (duracionBloqueConfig?.valor || duracionBloqueConfig?.duracion) {
+        duracionBloque = duracionBloqueConfig.valor || duracionBloqueConfig.duracion;
+      }
       const bAlm = restricciones["BLOQUE_ALMUERZO"] as any;
       if (bAlm?.hora_inicio && bAlm?.hora_fin) {
         almuerzoInicio = parseInt(bAlm.hora_inicio.split(":")[0], 10);
         almuerzoFin = parseInt(bAlm.hora_fin.split(":")[0], 10);
       }
-    } catch (e) {}
+    } catch (e) {
+      this.logger.warn(`Error getting configuration for period ${periodo}: ${e.message}`);
+    }
+
+    // Update horasArr based on Franja Horaria
+    const horasArr = Array.from({ length: horaFin - horaInicio }, (_, i) => i + horaInicio);
 
     const startGridRow = currentRow;
     horasArr.forEach((h) => {
@@ -4479,7 +4509,7 @@ export class ReportesService {
       cellHora.border = {
         top: { style: "thin" },
         bottom: { style: "thin" },
-        left: { style: "thin" },
+        left: { style: "medium", color: { argb: primaryDark } },
         right: { style: "thin" },
       };
 

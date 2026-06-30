@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { Subscription } from 'rxjs';
 import { ChartData } from 'chart.js';
 import { ApiService } from '../../core/services/api.service';
@@ -8,14 +9,16 @@ import { AuthService } from '../../core/services/auth.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { SocketService } from '../../core/services/socket.service';
 import { TranslateService } from '@ngx-translate/core';
+import { DiasActivosService } from '../../core/services/dias-activos.service';
 import { ApiResponse, KPIs, MisKPIs, ConflictoAsignacion, CargaResumen, CargaDepartamento, CargaEstado, CargaTopDocente, CargaAvance } from '../../core/interfaces/entities';
 import {
-  defaultFunnelChartOptions,
-  defaultDeptBarChartOptions,
-  defaultAvanceChartOptions,
-  defaultBarChartOptions,
-  defaultDoughnutOptions,
+  getFunnelChartOptions,
+  getDeptBarChartOptions,
+  getAvanceChartOptions,
+  getBarChartOptions,
+  getDoughnutOptions,
 } from './dashboard-chart.config';
+import { HeatmapDetailsDialogComponent, HeatmapDetailsData } from './heatmap-details-dialog.component';
 
 @Component({
   selector: 'app-dashboard',
@@ -49,16 +52,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectedDeptCarga: number | null = null;
 
   funnelChartData: ChartData<'bar'> = { labels: [], datasets: [] };
-  funnelChartOptions = defaultFunnelChartOptions;
+  funnelChartOptions = getFunnelChartOptions();
 
   deptBarChartData: ChartData<'bar'> = { labels: [], datasets: [] };
-  deptBarChartOptions = defaultDeptBarChartOptions;
+  deptBarChartOptions = getDeptBarChartOptions();
 
   avanceChartData: ChartData<'line'> = { labels: [], datasets: [] };
-  avanceChartOptions = defaultAvanceChartOptions;
+  avanceChartOptions = getAvanceChartOptions();
 
   topDocentesColumns = ['posicion', 'nombre', 'categoria', 'horasLectivas', 'horasNoLectivas', 'totalHoras', 'estado'];
   deptColumns = ['departamento', 'totalDocentes', 'horasLectivas', 'promedio'];
+  barChartOptions = getBarChartOptions();
+  doughnutOptions = getDoughnutOptions();
 
   readonly rol = this.authService.getUsuarioActual()?.rol ?? '';
   readonly usuario = this.authService.getUsuarioActual();
@@ -76,17 +81,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
   conflictosColumns = ['tipo', 'descripcion', 'periodo', 'acciones'];
   ambienteColumns = ['codigo', 'tipo', 'capacidad', 'porcentaje'];
   diasSemana = signal<string[]>([]);
-  horasRango = Array.from(
-    { length: 15 },
-    (_, i) => {
-      const h = String(i + 7).padStart(2, '0');
-      const next = String(i + 8).padStart(2, '0');
-      return `${h}:00-${next}:00`;
-    },
-  );
+  horasRango = signal<string[]>([]);
+  heatmapConfig: any = null;
+  allHorarios: any[] = [];
+  coloresConfig: any = null;
+  private configSub?: Subscription;
 
   greeting = signal('');
-  currentDate = signal('');
+  currentDate = signal(new Intl.DateTimeFormat('es-PE', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).format(new Date()));
+
+  getOcupacionLevel(pct: number): 'low' | 'mid' | 'high' {
+    if (pct <= 60) return 'low';
+    if (pct <= 80) return 'mid';
+    return 'high';
+  }
+
+  getSystemStatusText(): string {
+    if (!this.kpis) return 'Desconocido';
+    if (this.kpis.conflictos_activos === 0) return 'Operativo';
+    if (this.kpis.conflictos_activos < 5) return 'Atención requerida';
+    return 'Crítico';
+  }
 
   displayKPIs: {
     total_docentes: number;
@@ -107,10 +127,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   };
 
   barChartData: ChartData<'bar'> = { labels: [], datasets: [] };
-  barChartOptions = defaultBarChartOptions;
 
   doughnutData: ChartData<'doughnut'> = { labels: [], datasets: [] };
-  doughnutOptions = defaultDoughnutOptions;
 
   private getLocaleCode(lang: string): string {
     const locales: Record<string, string> = {
@@ -136,16 +154,80 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private setDiasSemana(): void {
-    const keys = ['dashboard.days.lunes', 'dashboard.days.martes', 'dashboard.days.miercoles', 'dashboard.days.jueves', 'dashboard.days.viernes'];
+    const diasActivos = this.diasActivosService.nombres;
+    if (diasActivos.length === 0) {
+      // Fallback to default days
+      const keys = ['dashboard.days.lunes', 'dashboard.days.martes', 'dashboard.days.miercoles', 'dashboard.days.jueves', 'dashboard.days.viernes'];
+      this.translate.get(keys).subscribe(translations => {
+        this.diasSemana.set([
+          translations['dashboard.days.lunes'],
+          translations['dashboard.days.martes'],
+          translations['dashboard.days.miercoles'],
+          translations['dashboard.days.jueves'],
+          translations['dashboard.days.viernes']
+        ]);
+        this._heatmapCache.clear();
+      });
+      return;
+    }
+    const keys = diasActivos.map(nombre => {
+      const key = `dashboard.days.${nombre.toLowerCase().replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('á', 'a')}`;
+      return key;
+    });
     this.translate.get(keys).subscribe(translations => {
-      this.diasSemana.set([
-        translations['dashboard.days.lunes'],
-        translations['dashboard.days.martes'],
-        translations['dashboard.days.miercoles'],
-        translations['dashboard.days.jueves'],
-        translations['dashboard.days.viernes']
-      ]);
+      const translatedDays = diasActivos.map(nombre => {
+        const key = `dashboard.days.${nombre.toLowerCase().replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('á', 'a')}`;
+        return translations[key] || nombre;
+      });
+      this.diasSemana.set(translatedDays);
       this._heatmapCache.clear();
+    });
+  }
+
+  private generateHorasRangoFromConfig(config: any): void {
+    const { hora_inicio, hora_fin, duracion_bloque } = config;
+    const horas: string[] = [];
+    for (let h = hora_inicio; h < hora_fin; h += duracion_bloque) {
+      const hEnd = h + duracion_bloque;
+      // Don't create a slot if it would exceed hora_fin
+      if (hEnd > hora_fin) break;
+      const hStr = this.formatDecimalTime(h);
+      const nextStr = this.formatDecimalTime(hEnd);
+      horas.push(`${hStr}-${nextStr}`);
+    }
+    this.horasRango.set(horas);
+    this._heatmapCache.clear();
+  }
+
+  private formatDecimalTime(decimalHours: number): string {
+    const hours = Math.floor(decimalHours);
+    const minutes = Math.round((decimalHours - hours) * 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  private extractHorariosFromMapaCalor(): void {
+    // Since mapa_calor only has aggregated data, we need to fetch full horarios
+    // The endpoint has pagination, so we need to request all with a high limit
+    this.api.get<any>(`/horarios/periodo/${this.periodoService.periodo}?page=1&limit=1000`).subscribe({
+      next: (res) => {
+        // The response structure is { data: { items: [...] } }
+        if (res.data?.items && Array.isArray(res.data.items)) {
+          this.allHorarios = res.data.items;
+        } else if (Array.isArray(res.data)) {
+          this.allHorarios = res.data;
+        } else if (res.data?.horarios && Array.isArray(res.data.horarios)) {
+          this.allHorarios = res.data.horarios;
+        } else if (res.data?.data && Array.isArray(res.data.data)) {
+          this.allHorarios = res.data.data;
+        } else {
+          this.allHorarios = [];
+        }
+        console.log('[Dashboard] Horarios loaded:', this.allHorarios.length);
+      },
+      error: (err) => {
+        console.error('[Dashboard] Error loading horarios:', err);
+        this.allHorarios = [];
+      },
     });
   }
 
@@ -172,13 +254,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.setGreeting();
     this.setCurrentDate();
-    this.setDiasSemana();
+    this.diasActivosService.cargar().subscribe();
     this.sub = this.periodoService.periodo$.subscribe(() => {
       this.cargaResumen = null;
       this.cargaDepartamentos = [];
       this.cargaEstados = [];
       this.cargaTopDocentes = [];
       this.cargaAvance = [];
+      this.diasActivosService.cargar().subscribe();
       this.loadAll();
       if (this.activeTab() === 'carga') {
         this.loadCargaKPIs();
@@ -192,7 +275,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.updateChartsLabels();
     });
     // Limpiar cache del heatmap cuando cambia el tema (dark/light)
-    this._themeObserver = new MutationObserver(() => this._heatmapCache.clear());
+    this._themeObserver = new MutationObserver(() => {
+      this._heatmapCache.clear();
+      // Reapply color configuration when theme changes
+      if (this.coloresConfig) {
+        this.applyColorConfiguration(this.coloresConfig);
+      }
+      // Rebuild charts with new theme colors
+      if (this.kpis) {
+        this.buildCharts(this.kpis);
+      }
+      if (this.misKpis) {
+        this.buildDocenteCharts(this.misKpis);
+      }
+    });
     this._themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
 
@@ -202,7 +298,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     public periodoService: PeriodoService,
     private snackBar: MatSnackBar,
     private socketService: SocketService,
-    public translate: TranslateService
+    public translate: TranslateService,
+    private diasActivosService: DiasActivosService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnDestroy(): void {
@@ -268,8 +366,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.api.get<ApiResponse<KPIs>>('/dashboard/kpis', { periodo: this.periodoService.periodo })
       .subscribe({
         next: (res) => {
+          console.log('[Dashboard Frontend] KPIs received:', res.data);
+          console.log('[Dashboard Frontend] Heatmap config:', res.data.heatmap_config);
           this.kpis = res.data;
           this._heatmapCache.clear();
+          // Use heatmap config from backend
+          if (res.data.heatmap_config) {
+            this.heatmapConfig = res.data.heatmap_config;
+            this.diasSemana.set(res.data.heatmap_config.dias);
+            this.generateHorasRangoFromConfig(res.data.heatmap_config);
+            console.log('[Dashboard Frontend] Using backend config:', {
+              dias: res.data.heatmap_config.dias,
+              horaInicio: res.data.heatmap_config.hora_inicio,
+              horaFin: res.data.heatmap_config.hora_fin,
+              duracionBloque: res.data.heatmap_config.duracion_bloque,
+            });
+          } else {
+            console.log('[Dashboard Frontend] No heatmap config, using fallback');
+            // Fallback to diasActivosService
+            this.setDiasSemana();
+            this.heatmapConfig = null;
+          }
+          // Extract horarios from mapa_calor for heatmap details
+          this.extractHorariosFromMapaCalor();
+          // Apply color configuration
+          this.applyColorConfiguration(res.data.colores_config);
           this.displayKPIs = {
             total_docentes: res.data.total_docentes,
             docentes_con_horario: res.data.docentes_con_horario,
@@ -428,6 +549,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         borderWidth: 2, borderRadius: 4,
       }],
     };
+    this.funnelChartOptions = getFunnelChartOptions();
   }
 
   private buildDeptChart(deptos: CargaDepartamento[]): void {
@@ -439,6 +561,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         { label: 'Hrs no lectivas', data: sliced.map((d) => d.total_horas_no_lectivas), backgroundColor: '#10b98180', borderColor: '#10b981', borderWidth: 2, borderRadius: 4 },
       ],
     };
+    this.deptBarChartOptions = getDeptBarChartOptions();
   }
 
   private buildAvanceChart(avance: CargaAvance[]): void {
@@ -449,6 +572,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         { label: 'Enviadas', data: avance.map((a) => a.enviadas), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, pointRadius: 4, pointHoverRadius: 6 },
       ],
     };
+    this.avanceChartOptions = getAvanceChartOptions();
   }
 
   get estadoDocenteColor(): Record<string, string> {
@@ -495,6 +619,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private _buildHeatmapCache(): void {
     if (!this.kpis?.mapa_calor || this._heatmapCache.size > 0) return;
     for (const cell of this.kpis.mapa_calor) {
+      // cell.hora is now in format "HH:00-HH:00" from backend
       const key = `${cell.dia}|${cell.hora}`;
       const dayKey = `dashboard.days.${cell.dia.toLowerCase().replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('á', 'a')}`;
       const translatedDay = this.translate.instant(dayKey);
@@ -529,18 +654,127 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  private _startHour(hora: string): string {
-    return hora.split('-')[0];
+  formatHoraRango(hora: string): string {
+    return hora; // Already in format "HH:00-HH:00"
+  }
+
+  onHeatmapCellClick(dia: string, hora: string): void {
+    if (!this.kpis?.mapa_calor) return;
+    
+    // Map day name to number (1=Lunes, 2=Martes, etc.)
+    const diaNumero = this.diaNombreANumero(dia);
+    console.log('[Dashboard] Clicked cell:', { dia, diaNumero, hora });
+    
+    // Find horarios for this day and time range
+    const [horaInicio, horaFin] = hora.split('-');
+    const horariosFiltrados = this.allHorarios?.filter(h => {
+      // The horario has 'dia' as a number (1, 2, 3, etc.)
+      if (h.dia !== diaNumero) return false;
+      // Check if the horario overlaps with the selected time range
+      const hiMinutes = this.timeToMinutes(h.hora_inicio);
+      const hfMinutes = this.timeToMinutes(h.hora_fin);
+      const slotIniMinutes = this.timeToMinutes(horaInicio);
+      const slotFinMinutes = this.timeToMinutes(horaFin);
+      const overlaps = hiMinutes < slotFinMinutes && hfMinutes > slotIniMinutes;
+      return overlaps;
+    }) || [];
+
+    console.log('[Dashboard] Filtered horarios:', horariosFiltrados.length);
+
+    const dialogRef = this.dialog.open(HeatmapDetailsDialogComponent, {
+      width: '500px',
+      maxWidth: '90vw',
+      data: {
+        dia,
+        hora,
+        horarios: horariosFiltrados,
+      } as HeatmapDetailsData,
+    });
+  }
+
+  private diaNombreANumero(nombre: string): number {
+    const mapa: Record<string, number> = {
+      'Lunes': 1,
+      'Martes': 2,
+      'Miércoles': 3,
+      'Miercoles': 3,
+      'Jueves': 4,
+      'Viernes': 5,
+      'Sábado': 6,
+      'Domingo': 7,
+    };
+    return mapa[nombre] || 1;
+  }
+
+  private applyColorConfiguration(config: any): void {
+    const root = document.documentElement;
+    const isDarkMode = document.body.classList.contains('dark-theme');
+    
+    // Only apply custom colors if config exists and has theme-specific colors
+    if (config) {
+      this.coloresConfig = config;
+      const colors = isDarkMode ? config.dark : config.light;
+      
+      if (colors) {
+        // Apply only accent/brand colors, let global CSS handle background/text
+        root.style.setProperty('--color-accent', colors.dominante);
+        root.style.setProperty('--color-success', colors.exito);
+        root.style.setProperty('--color-warning', colors.advertencia);
+        root.style.setProperty('--color-danger', colors.critico);
+        
+        // Apply card gradient colors
+        if (isDarkMode) {
+          root.style.setProperty('--card-metric-gradient-start', colors.contenedores);
+          root.style.setProperty('--card-metric-gradient-end', colors.contenedores);
+          root.style.setProperty('--card-chart-gradient-start', colors.contenedores);
+          root.style.setProperty('--card-chart-gradient-end', colors.contenedores);
+          root.style.setProperty('--card-activity-gradient-start', colors.contenedores);
+          root.style.setProperty('--card-activity-gradient-end', colors.contenedores);
+          root.style.setProperty('--card-list-gradient-start', colors.contenedores);
+          root.style.setProperty('--card-list-gradient-end', colors.contenedores);
+          root.style.setProperty('--card-table-gradient-start', colors.contenedores);
+          root.style.setProperty('--card-table-gradient-end', colors.contenedores);
+          root.style.setProperty('--card-heatmap-gradient-start', colors.contenedores);
+          root.style.setProperty('--card-heatmap-gradient-end', colors.contenedores);
+          root.style.setProperty('--card-alert-gradient-start', '#2D1F1F');
+          root.style.setProperty('--card-alert-gradient-end', '#2D1F1F');
+        } else {
+          root.style.setProperty('--card-metric-gradient-start', '#FFFFFF');
+          root.style.setProperty('--card-metric-gradient-end', '#F1F5F9');
+          root.style.setProperty('--card-chart-gradient-start', '#FFFFFF');
+          root.style.setProperty('--card-chart-gradient-end', '#F8FAFC');
+          root.style.setProperty('--card-activity-gradient-start', '#FFFFFF');
+          root.style.setProperty('--card-activity-gradient-end', '#FDF4FF');
+          root.style.setProperty('--card-list-gradient-start', '#FFFFFF');
+          root.style.setProperty('--card-list-gradient-end', '#FFFBEB');
+          root.style.setProperty('--card-table-gradient-start', '#FFFFFF');
+          root.style.setProperty('--card-table-gradient-end', '#F0F9FF');
+          root.style.setProperty('--card-heatmap-gradient-start', '#FFFFFF');
+          root.style.setProperty('--card-heatmap-gradient-end', '#F0FDF4');
+          root.style.setProperty('--card-alert-gradient-start', '#FEF2F2');
+          root.style.setProperty('--card-alert-gradient-end', '#FEE2E2');
+        }
+        console.log('[Dashboard] Custom color configuration applied:', { isDarkMode, colors });
+      }
+    }
+    // Background and text colors are handled by global styles.scss theme system
+  }
+
+  private timeToMinutes(timeStr: string): number {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + (minutes || 0);
   }
 
   getHeatmapColor(dia: string, hora: string): string {
     this._buildHeatmapCache();
-    return this._heatmapCache.get(`${dia}|${this._startHour(hora)}`)?.color ?? 'transparent';
+    // hora is now in format "HH:00-HH:00", use it directly as key
+    return this._heatmapCache.get(`${dia}|${hora}`)?.color ?? 'transparent';
   }
 
   getHeatmapTooltip(dia: string, hora: string): string {
     this._buildHeatmapCache();
-    return this._heatmapCache.get(`${dia}|${this._startHour(hora)}`)?.tooltip ?? '';
+    // hora is now in format "HH:00-HH:00", use it directly as key
+    return this._heatmapCache.get(`${dia}|${hora}`)?.tooltip ?? '';
   }
 
   estadoPeriodoTexto(estado: string): string {

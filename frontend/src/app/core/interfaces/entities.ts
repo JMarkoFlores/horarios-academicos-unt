@@ -81,6 +81,15 @@ export interface Docente {
   };
   disponibilidades?: any[];
   facultad?: { id: number; nombre: string } | null;
+  foto_url?: string | null;
+}
+
+export interface Escuela {
+  id: number;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+  facultad?: { id: number; nombre: string };
 }
 
 export interface Departamento {
@@ -88,6 +97,7 @@ export interface Departamento {
   codigo: string;
   nombre: string;
   activo: boolean;
+  escuela?: Escuela;
 }
 
 export interface Curso {
@@ -525,6 +535,12 @@ export interface KPIs {
     tipo_clase: string | null;
     cursos: string[];
   }[];
+  heatmap_config?: {
+    dias: string[];
+    hora_inicio: number;
+    hora_fin: number;
+    duracion_bloque: number;
+  };
   actividad_reciente: {
     timestamp: string | Date;
     descripcion: string;
@@ -538,4 +554,24 @@ export interface KPIs {
   histograma_carga: { label: string; count: number }[];
   tiempo_promedio_resolucion_horas: number | null;
   tendencia: { asignaciones?: number; conflictos?: number; docentes?: number };
+  colores_config?: {
+    light: {
+      fondo_base: string;
+      contenedores: string;
+      texto_principal: string;
+      dominante: string;
+      exito: string;
+      advertencia: string;
+      critico: string;
+    };
+    dark: {
+      fondo_base: string;
+      contenedores: string;
+      texto_principal: string;
+      dominante: string;
+      exito: string;
+      advertencia: string;
+      critico: string;
+    };
+  };
 }

@@ -730,6 +730,14 @@
             />
           </mat-form-field>
           <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Nombre de Facultad/Unidad</mat-label>
+            <input
+              matInput
+              formControlName="nombre_facultad"
+              placeholder="Ingeniería de Sistemas"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
             <mat-label>URL del Logo</mat-label>
             <input
               matInput
@@ -741,36 +749,168 @@
               recomendado)</mat-hint
             >
           </mat-form-field>
-          <div class="form-row-two" style="margin-top: 8px">
+
+          <!-- Light Mode Colors -->
+          <div class="color-section-header" style="margin-top: 24px">
+            <mat-icon>wb_sunny</mat-icon>
+            <h3>Modo Claro</h3>
+          </div>
+          <div class="form-row-two">
             <mat-form-field appearance="outline">
-              <mat-label>Color Primario</mat-label>
+              <mat-label>Fondo Base</mat-label>
               <input
                 matInput
                 type="color"
-                formControlName="color_primario"
+                formControlName="light_fondo_base"
                 style="height: 38px; cursor: pointer"
               />
-              <mat-hint>{{ generalForm.value.color_primario }}</mat-hint>
+              <mat-hint>{{ generalForm.value.light_fondo_base }}</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline">
-              <mat-label>Color Secundario</mat-label>
+              <mat-label>Contenedores</mat-label>
               <input
                 matInput
                 type="color"
-                formControlName="color_secundario"
+                formControlName="light_contenedores"
                 style="height: 38px; cursor: pointer"
               />
-              <mat-hint>{{ generalForm.value.color_secundario }}</mat-hint>
+              <mat-hint>{{ generalForm.value.light_contenedores }}</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline">
-              <mat-label>Color Acento</mat-label>
+              <mat-label>Texto Principal</mat-label>
               <input
                 matInput
                 type="color"
-                formControlName="color_acento"
+                formControlName="light_texto_principal"
                 style="height: 38px; cursor: pointer"
               />
-              <mat-hint>{{ generalForm.value.color_acento }}</mat-hint>
+              <mat-hint>{{ generalForm.value.light_texto_principal }}</mat-hint>
+            </mat-form-field>
+          </div>
+          <div class="form-row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Dominante (Marca)</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="light_dominante"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.light_dominante }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Éxito / Operativo</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="light_exito"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.light_exito }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Advertencia</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="light_advertencia"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.light_advertencia }}</mat-hint>
+            </mat-form-field>
+          </div>
+          <div class="form-row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Crítico / Alerta</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="light_critico"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.light_critico }}</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <!-- Dark Mode Colors -->
+          <div class="color-section-header" style="margin-top: 24px">
+            <mat-icon>nightlight</mat-icon>
+            <h3>Modo Oscuro</h3>
+          </div>
+          <div class="form-row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Fondo Base</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="dark_fondo_base"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.dark_fondo_base }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Contenedores</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="dark_contenedores"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.dark_contenedores }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Texto Principal</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="dark_texto_principal"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.dark_texto_principal }}</mat-hint>
+            </mat-form-field>
+          </div>
+          <div class="form-row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Dominante (Marca)</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="dark_dominante"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.dark_dominante }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Éxito / Operativo</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="dark_exito"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.dark_exito }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Advertencia</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="dark_advertencia"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.dark_advertencia }}</mat-hint>
+            </mat-form-field>
+          </div>
+          <div class="form-row-two">
+            <mat-form-field appearance="outline">
+              <mat-label>Crítico / Alerta</mat-label>
+              <input
+                matInput
+                type="color"
+                formControlName="dark_critico"
+                style="height: 38px; cursor: pointer"
+              />
+              <mat-hint>{{ generalForm.value.dark_critico }}</mat-hint>
             </mat-form-field>
           </div>
           <div class="form-actions" style="margin-top: 16px">

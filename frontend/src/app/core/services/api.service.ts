@@ -9,11 +9,12 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  get<T>(path: string, params?: Record<string, string | number>): Observable<T> {
+  get<T>(path: string, params?: Record<string, string | number | boolean>): Observable<T> {
     let httpParams = new HttpParams();
     if (params) {
       Object.keys(params).forEach(key => {
-        httpParams = httpParams.set(key, String(params[key]));
+        const value = params[key];
+        httpParams = httpParams.set(key, typeof value === 'boolean' ? String(value) : String(value));
       });
     }
     return this.http.get<T>(`${this.baseUrl}${path}`, { params: httpParams });

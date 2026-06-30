@@ -1,5 +1,9 @@
 import { Component, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { ChatbotService, ChatMessage } from './chatbot.service';
+import DOMPurify from 'dompurify';
+import { catchError, retry } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-chatbot',
@@ -14,14 +18,57 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
   isLoading = false;
   userInput = '';
   history: ChatMessage[] = [];
+  private readonly HISTORY_KEY = 'chatbot_history';
+  private readonly MAX_HISTORY_ITEMS = 50;
+  isOnline = true;
+  suggestions = [
+    '¿Qué aulas están libres hoy?',
+    '¿Cuál es mi horario?',
+    '¿Cómo declaro mi carga?',
+    '¿Qué cursos hay disponibles?',
+  ];
+
+  private roleSuggestions: Record<string, string[]> = {
+    admin: [
+      '¿Cómo genero un reporte de horarios?',
+      '¿Cómo configuro un nuevo periodo académico?',
+      '¿Qué aulas están libres hoy?',
+      '¿Cómo gestiono los usuarios del sistema?',
+    ],
+    docente: [
+      '¿Cuál es mi horario de este semestre?',
+      '¿Cómo declaro mi carga lectiva?',
+      '¿Qué cursos me han sido asignados?',
+      '¿Cuál es mi disponibilidad actual?',
+    ],
+    coordinador: [
+      '¿Qué aulas están libres hoy?',
+      '¿Cómo asigno un horario a un docente?',
+      '¿Qué docentes tienen carga pendiente?',
+      '¿Cómo verifico las declaraciones de carga?',
+    ],
+    operador: [
+      '¿Qué aulas están libres hoy?',
+      '¿Cómo abro una ventana de asignación?',
+      '¿Qué docentes están en cola para asignar?',
+      '¿Cómo controlo el sistema de turnos?',
+    ],
+    director: [
+      '¿Qué aulas están libres hoy?',
+      '¿Cómo genero un reporte de horarios?',
+      '¿Qué docentes no han declarado su carga?',
+      '¿Cuál es el estado de la asignación?',
+    ],
+  };
 
   isListening = false;
   speechSupported = false;
   isSpeaking = false;
+  ttsEnabled = false; // Desactivado por defecto
   recognition: any;
   synth: SpeechSynthesis;
 
-  constructor(private chatbotService: ChatbotService, private cdr: ChangeDetectorRef) { 
+  constructor(private chatbotService: ChatbotService, private cdr: ChangeDetectorRef, private authService: AuthService) { 
     this.synth = window.speechSynthesis;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
@@ -68,7 +115,7 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
   }
 
   speakText(text: string) {
-    if (!this.synth) return;
+    if (!this.ttsEnabled || !this.synth) return;
     
     // Detener cualquier audio previo
     this.synth.cancel();
@@ -95,8 +142,22 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     this.synth.speak(utterance);
   }
 
+  toggleTTS(): void {
+    this.ttsEnabled = !this.ttsEnabled;
+    if (!this.ttsEnabled) {
+      this.synth.cancel();
+      this.isSpeaking = false;
+    }
+  }
+
   ngOnInit(): void {
     this.isVisible = this.chatbotService.getChatVisibility();
+    
+    // Cargar historial desde localStorage
+    this.loadHistory();
+    
+    // Cargar sugerencias según rol
+    this.loadRoleSuggestions();
     
     // Escuchar cambios de visibilidad desde el servicio (para el menú)
     window.addEventListener('storage', (event) => {
@@ -104,6 +165,77 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
         this.isVisible = this.chatbotService.getChatVisibility();
       }
     });
+    
+    // Escuchar cambios de conexión
+    this.isOnline = navigator.onLine;
+    window.addEventListener('online', () => {
+      this.isOnline = true;
+      this.cdr.detectChanges();
+    });
+    window.addEventListener('offline', () => {
+      this.isOnline = false;
+      this.cdr.detectChanges();
+    });
+  }
+
+  private loadRoleSuggestions(): void {
+    const user = this.authService.getUsuarioActual();
+    const userRole = user?.rol || 'default';
+    const normalizedRole = this.normalizeRole(userRole);
+    
+    if (this.roleSuggestions[normalizedRole]) {
+      this.suggestions = this.roleSuggestions[normalizedRole];
+    }
+  }
+
+  private normalizeRole(role: string): string {
+    const roleMap: Record<string, string> = {
+      'admin': 'admin',
+      'administrador': 'admin',
+      'administrador_sistema': 'admin',
+      'docente': 'docente',
+      'coordinador': 'coordinador',
+      'coordinador_academico': 'coordinador',
+      'operador': 'operador',
+      'operador_horarios': 'operador',
+      'director': 'director',
+      'director_escuela': 'director',
+      'director_departamento': 'director',
+      'decano': 'director',
+    };
+    
+    return roleMap[role?.toLowerCase()] || 'default';
+  }
+
+  private loadHistory(): void {
+    try {
+      const saved = localStorage.getItem(this.HISTORY_KEY);
+      if (saved) {
+        this.history = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Error al cargar historial:', e);
+      this.history = [];
+    }
+  }
+
+  private saveHistory(): void {
+    try {
+      localStorage.setItem(this.HISTORY_KEY, JSON.stringify(this.history));
+    } catch (e) {
+      console.error('Error al guardar historial:', e);
+    }
+  }
+
+  clearHistory(): void {
+    this.history = [];
+    localStorage.removeItem(this.HISTORY_KEY);
+    this.cdr.detectChanges();
+  }
+
+  useSuggestion(suggestion: string): void {
+    this.userInput = suggestion;
+    this.sendMessage();
   }
 
   ngAfterViewChecked() {
@@ -131,24 +263,51 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
 
     // Agregar al historial local
     this.history.push({ role: 'user', parts: [{ text: userMsg }] });
+    this.saveHistory();
 
-    this.chatbotService.sendMessage(userMsg, this.history.slice(0, -1)).subscribe({
+    // Obtener rol del usuario
+    const user = this.authService.getUsuarioActual();
+    const userRole = user?.rol || 'default';
+
+    this.chatbotService.sendMessage(userMsg, this.history.slice(0, -1), userRole).pipe(
+      retry(2),
+      catchError((err) => {
+        console.error('Chatbot error:', err);
+        let errorMsg = 'Lo siento, he tenido un problema técnico. Por favor, intenta de nuevo más tarde.';
+        
+        if (err.status === 429) {
+          errorMsg = 'El servicio está saturado. Por favor, espera unos minutos antes de intentar nuevamente.';
+        } else if (err.status === 401) {
+          errorMsg = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
+        } else if (!navigator.onLine) {
+          errorMsg = 'No tienes conexión a internet. Por favor, verifica tu conexión.';
+        } else if (err.status === 0) {
+          errorMsg = 'No se pudo conectar con el servidor. Por favor, verifica tu conexión.';
+        }
+        
+        this.history.push({ 
+          role: 'model', 
+          parts: [{ text: errorMsg }] 
+        });
+        this.saveHistory();
+        this.speakText(errorMsg);
+        this.isLoading = false;
+        return of({ response: errorMsg });
+      })
+    ).subscribe({
       next: (res: any) => {
         console.log('Respuesta cruda del backend:', res);
         // El backend NestJS usa un interceptor que envuelve la respuesta en { data: ... }
         const backendText = res?.data?.response || res?.response || ' ';
         this.history.push({ role: 'model', parts: [{ text: backendText }] });
+        
+        // Limitar tamaño del historial
+        if (this.history.length > this.MAX_HISTORY_ITEMS) {
+          this.history = this.history.slice(-this.MAX_HISTORY_ITEMS);
+        }
+        
+        this.saveHistory();
         this.speakText(backendText);
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Chatbot error:', err);
-        const errorMsg = 'Lo siento, he tenido un problema técnico. Por favor, intenta de nuevo más tarde.';
-        this.history.push({ 
-          role: 'model', 
-          parts: [{ text: errorMsg }] 
-        });
-        this.speakText(errorMsg);
         this.isLoading = false;
       }
     });
@@ -180,6 +339,7 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     // Convertir saltos de línea en etiquetas <br> para HTML
     html = html.replace(/\n/g, '<br>');
 
-    return html;
+    // Sanitizar HTML para prevenir XSS
+    return DOMPurify.sanitize(html);
   }
 }

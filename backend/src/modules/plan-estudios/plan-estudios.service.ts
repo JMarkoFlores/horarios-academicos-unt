@@ -37,8 +37,7 @@ export class PlanEstudiosService {
       qb.andWhere("plan.escuela_id = :escuela", { escuela: query.escuela });
     }
     if (query.activo !== undefined) {
-      const val = query.activo === "true";
-      qb.andWhere("plan.activo = :activo", { activo: val });
+      qb.andWhere("plan.activo = :activo", { activo: query.activo });
     }
     if (query.search) {
       qb.andWhere(

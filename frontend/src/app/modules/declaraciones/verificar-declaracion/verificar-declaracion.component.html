@@ -156,9 +156,21 @@
       <mat-card-header class="header-lectivas">
         <mat-card-title>1. TRABAJO LECTIVO</mat-card-title>
         <span class="subtitle">Datos completos y con claridad</span>
+        <span class="horas-label">Horas: <strong>{{ totalHorasLectivas }}</strong></span>
+        <button
+          mat-icon-button
+          type="button"
+          (click)="abrirHorarioLectivo()"
+          [disabled]="!puedeEditar || cursosLectivos.length === 0"
+          class="btn-horario-lectivo"
+          matTooltip="Gestionar horario de actividades lectivas (Drag & Drop)"
+        >
+          <mat-icon>calendar_month</mat-icon>
+          <span class="btn-horario-label">Horario</span>
+        </button>
       </mat-card-header>
       <mat-card-content>
-        <p class="plan-notice">Las horas lectivas se precargan desde las asignaciones del plan de estudios y no son editables.</p>
+        <p class="plan-notice">Las horas lectivas se precargan desde las asignaciones del plan de estudios. Use el botón "Horario" para asignar bloques de tiempo.</p>
         <table class="data-table lectivas-table">
           <thead>
             <tr>
@@ -200,6 +212,27 @@
             </tr>
           </tfoot>
         </table>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Inline drag-drop schedule panel for CHL (Lectivas) -->
+    <mat-card class="seccion-card drag-drop-panel" *ngIf="mostrarHorarioLectivo && horarioLectivoData">
+      <mat-card-header class="header-drag-drop header-drag-drop-lectivo">
+        <mat-card-title>
+          <mat-icon>drag_indicator</mat-icon>
+          Horario — Carga Horaria Lectiva
+        </mat-card-title>
+        <button mat-icon-button (click)="cerrarHorarioLectivo()" class="btn-close-panel">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-card-header>
+      <mat-card-content>
+        <app-drag-drop-schedule
+          [data]="horarioLectivoData"
+          [puedeEditar]="puedeEditar"
+          (horariosChange)="onHorarioLectivoChange($event)"
+          (horasChange)="onHorasLectivasHorarioChange($event)"
+        ></app-drag-drop-schedule>
       </mat-card-content>
     </mat-card>
 

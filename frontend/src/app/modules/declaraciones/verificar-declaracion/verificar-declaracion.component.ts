@@ -154,6 +154,11 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   actividadSeleccionada: ActividadNoLectiva | null = null;
   dragDropData: DragDropScheduleData | null = null;
 
+  // CHL schedule (teaching activities)
+  mostrarHorarioLectivo = false;
+  horarioLectivoData: DragDropScheduleData | null = null;
+  horariosLectivosAsignados: HorarioEntry[] = [];
+
   // Carga Adicional
   cargaAdicional: CargaAdicional[] = [];
   totalHorasCargaAdicional = 0;
@@ -425,9 +430,9 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     this.totalHorasLectivas = this.cursosLectivos.reduce((sum, c) => sum + (c.totalHrs || 0), 0);
 
     for (const act of this.actividadesNoLectivas) {
-      if (!act.horasManual && (!act.horas || act.horas === 0)) {
+      if (!act.horasManual) {
         const calc = this.calcularHorasDesdeHorarios(act.horarios);
-        if (calc > 0) act.horas = calc;
+        act.horas = calc;
       }
     }
 
@@ -778,6 +783,56 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     }
     this.actividadSeleccionada = null;
     this.dragDropData = null;
+  }
+
+  // --- CHL Schedule (Teaching Activities) ---
+  async abrirHorarioLectivo(): Promise<void> {
+    if (!this.horariosLectivos.length) {
+      this.cargandoHorariosLectivos = true;
+      await this.obtenerHorariosLectivos();
+      this.cargandoHorariosLectivos = false;
+    }
+
+    this.mostrarHorarioLectivo = !this.mostrarHorarioLectivo;
+    if (!this.mostrarHorarioLectivo) return;
+
+    const allActividades = this.actividadesNoLectivas.map(a => ({
+      id: a.id,
+      nombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
+      horarios: a.horarios.map(h => ({ dia: h.dia, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin })),
+    }));
+
+    this.horarioLectivoData = {
+      actividadId: 0,
+      actividadNombre: 'Carga Horaria Lectiva',
+      horarios: this.horariosLectivosAsignados.map(h => ({
+        dia: h.dia,
+        hora_inicio: h.hora_inicio,
+        hora_fin: h.hora_fin,
+      })),
+      horas: this.totalHorasLectivas,
+      totalHorasLectivas: this.totalHorasLectivas,
+      horariosLectivos: this.horariosLectivos.map(h => ({ ...h })),
+      allActividades,
+    };
+  }
+
+  cerrarHorarioLectivo(): void {
+    this.mostrarHorarioLectivo = false;
+    this.horarioLectivoData = null;
+  }
+
+  onHorarioLectivoChange(horarios: HorarioEntry[]): void {
+    this.horariosLectivosAsignados = horarios.map(h => ({
+      dia: h.dia,
+      hora_inicio: h.hora_inicio,
+      hora_fin: h.hora_fin,
+    }));
+    this.triggerAutoSave();
+  }
+
+  onHorasLectivasHorarioChange(horas: number): void {
+    // Hours are calculated from cursos, this is just for display
   }
 
   triggerAutoSave(): void {

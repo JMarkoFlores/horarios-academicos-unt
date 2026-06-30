@@ -1,197 +1,151 @@
-# Guía de Despliegue en Render
+# Despliegue en Render
 
-Esta guía explica cómo desplegar el Sistema de Horarios Académicos UNT en Render usando Docker.
-
-## Requisitos Previos
+## Requisitos
 
 1. Cuenta en [Render](https://render.com/)
 2. Repositorio en GitHub con el código del proyecto
 3. Render debe tener acceso a tu repositorio de GitHub
 
-## Estructura del Proyecto
+## Despliegue Automático (render.yaml)
 
-```
-horarios-academicos-unt/
-├── backend/
-│   ├── Dockerfile
-│   ├── .dockerignore
-│   └── .env.example
-├── frontend/
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   └── .dockerignore
-├── docker-compose.yml
-└── render.yaml
-```
-
-## Despliegue Automático con render.yaml
-
-Render puede desplegar automáticamente el proyecto usando el archivo `render.yaml`:
+El archivo `render.yaml` configura automáticamente todos los servicios en Render.
 
 ### Pasos:
 
-1. **Conectar Repositorio a Render**
-   - Ve a Render Dashboard
-   - Click en "New +" → "Web Service"
+1. **Conectar Repositorio**
+   - Ve a [Render Dashboard](https://dashboard.render.com)
+   - Click en **New +** → **Blueprint**
    - Conecta tu repositorio de GitHub
+   - Render detectará automáticamente el `render.yaml`
 
-2. **Usar render.yaml**
-   - Render detectará automáticamente el archivo `render.yaml`
-   - Configurará los servicios: backend, frontend, PostgreSQL y Redis
-   - Las variables de entorno se configuran automáticamente
+2. **Revisar Configuración**
+   - Render mostrará los servicios a crear:
+     - `horarios-db` — PostgreSQL
+     - `horarios-redis` — Redis
+     - `horarios-backend` — API NestJS (Docker)
+     - `horarios-frontend` — Angular + Nginx (Docker)
+   - Verifica que los nombres y planes sean correctos
 
-3. **Variables de Entorno Adicionales**
-   - Después del despliegue inicial, configura las siguientes variables en el servicio backend:
-     - `TELEGRAM_BOT_TOKEN`: Token del bot de Telegram
-     - `CORREO_HOST`, `CORREO_PORT`, `CORREO_USER`, `CORREO_PASS`: Configuración SMTP
-     - `ALERTA_DISTANCIA_MAX`: Distancia máxima para alertas
-     - `UMBRAL_DESEQUILIBRIO`: Umbral de desequilibrio
+3. **Aplicar**
+   - Haz click en **Apply**
+   - Render aprovisionará los servicios en orden:
+     1. PostgreSQL y Redis primero
+     2. Backend cuando la BD esté lista
+     3. Frontend cuando el backend esté listo
 
-## Despliegue Manual
+4. **Esperar**
+   - El despliegue inicial toma ~5-10 min
+   - Puedes ver logs en tiempo real desde el Dashboard
 
-Si prefieres desplegar manualmente cada servicio:
+5. **Seed Inicial**
+   - El backend ejecuta `AUTO_SEED=true` automáticamente al iniciar
+   - Puebla la BD con datos demo (23 usuarios, cursos, horarios, etc.)
+   - Todos los usuarios tienen contraseña `Admin123!` y `debe_cambiar_password: true`
 
-### 1. Desplegar PostgreSQL
+## Despliegue Manual (sin render.yaml)
 
-1. En Render Dashboard, crea un nuevo "PostgreSQL" database
-2. Configura:
-   - Database Name: `horarios_db`
-   - User: `horarios`
-   - Plan: Free (o el plan que prefieras)
-3. Anota las credenciales proporcionadas por Render
+Si prefieres crear cada servicio por separado:
 
-### 2. Desplegar Redis
+### 1. PostgreSQL
+- **New +** → **PostgreSQL**
+- Database name: `horarios_db`
+- User: `horarios`
+- Plan: Free
+- Guarda las credenciales internas
 
-1. En Render Dashboard, crea un nuevo "Redis" instance
-2. Configura:
-   - Name: `horarios-redis`
-   - Plan: Free
-   - Maxmemory Policy: `allkeys-lru`
-3. Anota las credenciales proporcionadas por Render
+### 2. Redis
+- **New +** → **Redis**
+- Name: `horarios-redis`
+- Plan: Free
+- Maxmemory Policy: `allkeys-lru`
+- Guarda la conexión interna
 
-### 3. Desplegar Backend
+### 3. Backend (Web Service - Docker)
+- **New +** → **Web Service**
+- Environment: **Docker**
+- Dockerfile Path: `./backend/Dockerfile`
+- Context: `./backend`
+- Health Check Path: `/health`
 
-1. Crea un nuevo "Web Service"
-2. Configura:
-   - Name: `horarios-backend`
-   - Environment: Docker
-   - Dockerfile Path: `./backend/Dockerfile`
-   - Context: `./backend`
-   - Branch: `main` (o tu rama principal)
-3. Variables de Entorno:
-   - `NODE_ENV`: `production`
-   - `PORT`: `3000`
-   - `DATABASE_HOST`: (de PostgreSQL)
-   - `DATABASE_PORT`: `5432`
-   - `DATABASE_NAME`: `horarios_db`
-   - `DATABASE_USER`: (de PostgreSQL)
-   - `DATABASE_PASSWORD`: (de PostgreSQL)
-   - `REDIS_HOST`: (de Redis)
-   - `REDIS_PORT`: (de Redis)
-   - `REDIS_TTL`: `1800`
-   - `JWT_SECRET`: (genera uno seguro)
-   - `JWT_EXPIRACION`: `7d`
-   - `FRONTEND_URL`: (URL del frontend después de desplegar)
-   - `TELEGRAM_BOT_TOKEN`: (tu token de Telegram)
-   - `CORREO_HOST`: (tu servidor SMTP)
-   - `CORREO_PORT`: `587`
-   - `CORREO_USER`: (tu email SMTP)
-   - `CORREO_PASS`: (tu contraseña SMTP)
-   - `ALERTA_DISTANCIA_MAX`: `50`
-   - `UMBRAL_DESEQUILIBRIO`: `4`
+**Variables de entorno:**
 
-### 4. Desplegar Frontend
+| Variable | Valor |
+|---|---|
+| `NODE_ENV` | `production` |
+| `PORT` | `3000` |
+| `DATABASE_HOST` | *(de PostgreSQL)* |
+| `DATABASE_PORT` | `5432` |
+| `DATABASE_NAME` | `horarios_db` |
+| `DATABASE_USER` | `horarios` |
+| `DATABASE_PASSWORD` | *(de PostgreSQL)* |
+| `DATABASE_SSL` | `true` |
+| `DB_SYNC` | `true` |
+| `AUTO_SEED` | `true` |
+| `JWT_SECRET` | *(generar string seguro)* |
+| `JWT_EXPIRACION` | `7d` |
+| `REDIS_HOST` | *(de Redis)* |
+| `REDIS_PORT` | `6379` |
+| `REDIS_TTL` | `1800` |
+| `FRONTEND_URL` | *(URL del frontend, se agrega después)* |
 
-1. Crea un nuevo "Web Service"
-2. Configura:
-   - Name: `horarios-frontend`
-   - Environment: Docker
-   - Dockerfile Path: `./frontend/Dockerfile`
-   - Context: `./frontend`
-   - Branch: `main` (o tu rama principal)
-3. No requiere variables de entorno adicionales
+### 4. Frontend (Web Service - Docker)
+- **New +** → **Web Service**
+- Environment: **Docker**
+- Dockerfile Path: `./frontend/Dockerfile`
+- Context: `./frontend`
+- Health Check Path: `/health`
+- No requiere variables de entorno (el API_URL se define en el Dockerfile)
 
-## Migraciones de Base de Datos
+### 5. Post-deploy: Actualizar FRONTEND_URL
+- Despliega primero el frontend y obtén su URL
+- Ve al backend en Render → Environment
+- Agrega `FRONTEND_URL` = `https://horarios-frontend.onrender.com`
+- Haz **Manual Deploy** → **Clear build cache & deploy**
 
-Después de desplegar el backend, necesitas ejecutar las migraciones de la base de datos:
+## URLs Finales
 
-1. Accede a la consola del servicio backend en Render
-2. Ejecuta:
-   ```bash
-   npm run migration:run
-   ```
+| Servicio | URL |
+|---|---|
+| Frontend | `https://horarios-frontend.onrender.com` |
+| API | `https://horarios-backend.onrender.com` |
+| Swagger Docs | `https://horarios-backend.onrender.com/api/docs` |
+| Health Check | `https://horarios-backend.onrender.com/health` |
 
-## Verificar el Despliegue
+## Usuarios Demo (seed)
 
-1. **Backend Health Check**
-   - Accede a `https://horarios-backend.onrender.com/health`
-   - Deberías ver una respuesta exitosa
+| Rol | Email |
+|---|---|
+| Admin | `admin@unt.edu.pe` |
+| Director | `director@unt.edu.pe` |
+| Coordinador | `coordinador@unt.edu.pe` |
+| Operador | `operador@unt.edu.pe` |
+| Docente | `docente1@unt.edu.pe` ... |
 
-2. **Frontend Health Check**
-   - Accede a `https://horarios-frontend.onrender.com/health`
-   - Deberías ver "healthy"
-
-3. **Aplicación**
-   - Accede a `https://horarios-frontend.onrender.com`
-   - La aplicación debería cargar correctamente
-
-## Desarrollo Local con Docker
-
-Para ejecutar el proyecto localmente usando Docker:
-
-1. Copia `.env.example` a `.env` en la raíz del backend:
-   ```bash
-   cp backend/.env.example backend/.env
-   ```
-
-2. Actualiza las variables de entorno en `.env` según sea necesario
-
-3. Ejecuta docker-compose:
-   ```bash
-   docker-compose up -d
-   ```
-
-4. Los servicios estarán disponibles en:
-   - Frontend: http://localhost:80
-   - Backend: http://localhost:3000
-   - PostgreSQL: localhost:5432
-   - Redis: localhost:6379
-   - PgAdmin: http://localhost:5050
-   - Mailhog: http://localhost:8025
-
-## Solución de Problemas
-
-### Backend no se conecta a la base de datos
-- Verifica que las variables de entorno de la base de datos sean correctas
-- Asegúrate de que la base de datos esté en estado "Available" en Render
-
-### Frontend no se conecta al backend
-- Verifica que `FRONTEND_URL` en el backend apunte a la URL correcta del frontend
-- Asegúrate de que el backend esté en estado "Available"
-
-### Migraciones no se ejecutan
-- Ejecuta las migraciones manualmente desde la consola del servicio backend
-- Verifica que las credenciales de la base de datos sean correctas
-
-### Redis connection errors
-- Verifica que las credenciales de Redis sean correctas
-- Asegúrate de que Redis esté en estado "Available"
-
-## Variables de Entorno Importantes
-
-### Backend
-- `JWT_SECRET`: Debe ser una cadena segura y única para producción
-- `DATABASE_PASSWORD`: Usar la generada por Render, no valores predeterminados
-- `TELEGRAM_BOT_TOKEN`: Obtener de @BotFather en Telegram
-- `CORREO_PASS`: Usar contraseñas de aplicación de Google, no la contraseña normal
-
-### Frontend
-- El frontend obtiene la URL del backend desde las variables de entorno del backend
+Todos: `Admin123!` | `debe_cambiar_password: true`
 
 ## Actualizaciones
 
-Para actualizar el despliegue:
-1. Haz push de los cambios a GitHub
-2. Render detectará automáticamente los cambios
-3. Reconstruirá y desplegará las actualizaciones
-4. Los servicios se reiniciarán con la nueva versión
+- Haz push a la rama conectada en GitHub
+- Render detecta el cambio, reconstruye y despliega automáticamente
+- Usa la opción **Manual Deploy** → **Clear build cache & deploy** si hay errores de caché
+
+## Solución de Problemas
+
+### Backend no arranca
+- Revisa los logs en Render Dashboard
+- Verifica que PostgreSQL y Redis estén "Available"
+- Si hay error de `relation "X" does not exist`, reinicia el backend: **Manual Deploy** → **Deploy**
+
+### Seed falla
+- Revisa que `DB_SYNC=true` (crea tablas automáticamente)
+- Si la BD está vacía, `AUTO_SEED=true` ejecuta el seed al iniciar
+- Si el seed ya se ejecutó antes, la tabla usuario tiene datos y no se repite
+
+### Conexión a BD
+- Render PostgreSQL solo acepta conexiones SSL
+- Asegúrate de que `DATABASE_SSL=true`
+- El backend usa `{ rejectUnauthorized: false }` para SSL
+
+### Frontend no carga
+- Verifica que la compilación Angular no tenga errores
+- Revisa que el `nginx.conf` use `listen 80` (Render detecta EXPOSE 80)

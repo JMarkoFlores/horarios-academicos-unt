@@ -32,6 +32,12 @@ services:
         fromDatabase:
           name: horarios-db
           property: password
+      - key: DATABASE_SSL
+        value: "true"
+      - key: DB_SYNC
+        value: "true"
+      - key: AUTO_SEED
+        value: "true"
       - key: REDIS_HOST
         fromService:
           type: redis
@@ -68,7 +74,6 @@ services:
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     healthCheckPath: /health
-    startCommand: nginx -g 'daemon off;'
 
   # Redis Instance
   - type: redis

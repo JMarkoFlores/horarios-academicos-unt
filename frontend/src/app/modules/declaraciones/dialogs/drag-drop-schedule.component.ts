@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
+import { DragDropModule, CdkDragDrop, CdkDrag, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { Subscription } from 'rxjs';
 import { DiasActivosService } from '../../../core/services/dias-activos.service';
 import { ApiService } from '../../../core/services/api.service';
@@ -41,6 +42,20 @@ export interface DragDropScheduleData {
   allActividades: ActividadHorarios[];
 }
 
+export interface BloqueDisponible {
+  id: string;
+  duracion: number;
+  label: string;
+}
+
+interface CeldaState {
+  dia: string;
+  hora: number;
+  tipo: 'vacia' | 'lectiva' | 'no-lectiva' | 'almuerzo';
+  asignacion?: HorarioLectivoRef;
+  actividadBloque?: { id: number; nombre: string };
+}
+
 const COLORES_ACTIVIDADES: Record<number, { bg: string; border: string; text: string; label: string }> = {
   2:  { bg: '#fef3c7', border: '#f59e0b', text: '#92400e', label: '2' },
   3:  { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', label: '3' },
@@ -53,14 +68,6 @@ const COLORES_ACTIVIDADES: Record<number, { bg: string; border: string; text: st
   10: { bg: '#ede9fe', border: '#8b5cf6', text: '#5b21b6', label: '10' },
 };
 
-interface CeldaState {
-  dia: string;
-  hora: number;
-  tipo: 'vacia' | 'lectiva' | 'no-lectiva' | 'almuerzo';
-  asignacion?: HorarioLectivoRef;
-  actividadBloque?: { id: number; nombre: string };
-}
-
 @Component({
   selector: 'app-drag-drop-schedule',
   standalone: true,
@@ -71,6 +78,7 @@ interface CeldaState {
     MatTooltipModule,
     MatSnackBarModule,
     MatChipsModule,
+    DragDropModule,
   ],
   template: `
     <div class="schedule-container">
@@ -96,78 +104,144 @@ interface CeldaState {
         Horas excedidas ({{ totalHoras }}h > {{ data.maxHoras }}h).
       </div>
 
-      <!-- Grid -->
-      <div class="grid-scroll">
-        <table class="horario-grid">
-          <thead>
-            <tr>
-              <th class="hora-col">Hora</th>
-              <th *ngFor="let d of diasLabels; let i = index" class="dia-col">{{ d }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let h of horas" [class.fila-almuerzo]="h >= almuerzoInicio && h < almuerzoFin">
-              <td class="hora-cell" [class.hora-alm]="h >= almuerzoInicio && h < almuerzoFin">
-                <span class="hora-texto">{{ fmtHora(h) }}</span>
-                <span *ngIf="h >= almuerzoInicio && h < almuerzoFin" class="alm-tag">ALM</span>
-              </td>
-              <ng-container *ngFor="let d of diasNum">
-                <td
-                  class="celda"
-                  [ngClass]="getCeldaClase(d, h)"
-                  [style.background]="getCeldaBg(d, h)"
-                  [style.border-color]="getCeldaBorder(d, h)"
-                  [class.celda-clickable]="puedeSeleccionar(d, h)"
-                  [class.celda-seleccionada]="estaSeleccionada(d, h)"
-                  [class.celda-otra]="esBloqueOtraActividad(d, h)"
-                  (click)="onCellClick(d, h)"
-                  [matTooltip]="getTooltipCelda(d, h)"
-                >
-                  <!-- Almuerzo -->
-                  <div *ngIf="esAlmuerzo(d, h)" class="celda-content alm-content">
-                    <mat-icon>restaurant</mat-icon>
-                    <span class="alm-label">ALMUERZO</span>
-                  </div>
+      <!-- Layout: Palette + Grid -->
+      <div class="schedule-layout" cdkDropListGroup>
+        <!-- Palette de bloques arrastrables -->
+        <div class="palette-panel" *ngIf="puedeEditar">
+          <div class="palette-title">
+            <mat-icon>drag_indicator</mat-icon>
+            Bloques
+          </div>
+          <div class="palette-blocks"
+               cdkDropList
+               [cdkDropListData]="bloquesDisponibles"
+               [id]="'palette-' + data.actividadId">
+            <div
+              *ngFor="let bloque of bloquesDisponibles"
+              class="palette-bloque"
+              cdkDrag
+              [cdkDragData]="bloque"
+              [style.border-color]="getColor(data.actividadId).border"
+              [matTooltip]="bloque.duracion + 'h — Arrastre a la grilla'"
+            >
+              <span class="bloque-duracion">{{ bloque.duracion }}h</span>
+              <span class="bloque-label">{{ bloque.label }}</span>
+              <mat-icon class="bloque-drag-icon">drag_indicator</mat-icon>
+            </div>
+          </div>
+          <div class="palette-hint">
+            <mat-icon>info</mat-icon>
+            Arrastre un bloque a la grilla para asignarlo
+          </div>
+        </div>
 
-                  <!-- Bloque lectivo -->
-                  <div *ngIf="getCelda(d, h)?.tipo === 'lectiva'" class="celda-content lectiva-content">
-                    <span class="tipo-badge badge-lectiva">[{{ getBadgeTipo(d, h) }}]</span>
-                    <div class="curso-nombre">{{ getCursoNombre(d, h) }}</div>
-                    <div class="celda-meta">
-                      <span class="amb-codigo">{{ getAmbiente(d, h) }}</span>
-                    </div>
-                  </div>
-
-                  <!-- Bloque de OTRA actividad (no editable) -->
-                  <div *ngIf="esBloqueOtraActividad(d, h)" class="celda-content otra-content">
-                    <span class="tipo-badge" [style.background]="getColor(getActividadIdBloque(d, h)).border" style="color:white">
-                      [{{ getActividadIdBloque(d, h) }}]
-                    </span>
-                    <div class="curso-nombre">{{ getNombreActividadBloque(d, h) }}</div>
-                  </div>
-
-                  <!-- Bloque de la actividad ACTUAL (seleccionable) -->
-                  <div *ngIf="estaSeleccionada(d, h)" class="celda-content seleccionada-content">
-                    <span class="tipo-badge" [style.background]="getColor(data.actividadId).border" style="color:white">
-                      [{{ data.actividadId }}]
-                    </span>
-                    <div class="curso-nombre">Seleccionada</div>
-                    <button class="remove-cell-btn" (click)="desSeleccionar(d, h); $event.stopPropagation()" matTooltip="Quitar">
-                      <mat-icon>close</mat-icon>
-                    </button>
-                  </div>
-
-                  <!-- Celda vacía -->
-                  <div *ngIf="getCelda(d, h)?.tipo === 'vacia' && !esAlmuerzo(d, h)" class="celda-content vacia-content">
-                    <span class="add-icon" *ngIf="puedeSeleccionar(d, h)">
-                      <mat-icon>add</mat-icon>
-                    </span>
-                  </div>
+        <!-- Grid scroll -->
+        <div class="grid-scroll">
+          <table class="horario-grid">
+            <thead>
+              <tr>
+                <th class="hora-col">Hora</th>
+                <th *ngFor="let d of diasLabels" class="dia-col">{{ d }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let h of horas" [class.fila-almuerzo]="h >= almuerzoInicio && h < almuerzoFin">
+                <td class="hora-cell" [class.hora-alm]="h >= almuerzoInicio && h < almuerzoFin">
+                  <span class="hora-texto">{{ fmtHora(h) }}</span>
+                  <span *ngIf="h >= almuerzoInicio && h < almuerzoFin" class="alm-tag">ALM</span>
                 </td>
-              </ng-container>
-            </tr>
-          </tbody>
-        </table>
+                <ng-container *ngFor="let d of diasNum">
+                  <td
+                    class="celda"
+                    [ngClass]="getCeldaClase(d, h)"
+                    [style.background]="getCeldaBg(d, h)"
+                    [style.border-color]="getCeldaBorder(d, h)"
+                    [class.celda-clickable]="puedeSeleccionar(d, h)"
+                    [class.celda-seleccionada]="estaSeleccionada(d, h)"
+                    [class.celda-otra]="esBloqueOtraActividad(d, h)"
+                    [class.celda-drag-over]="isDragOver(d, h)"
+                    cdkDropList
+                    [cdkDropListData]="{ dia: d, hora: h }"
+                    [id]="'cell-' + data.actividadId + '-' + d + '-' + h"
+                    (cdkDropListDropped)="onBloqueDrop($event, d, h)"
+                    (cdkDropListEntered)="onDragEnter(d, h)"
+                    (cdkDropListExited)="onDragExit(d, h)"
+                    (click)="onCellClick(d, h)"
+                    [matTooltip]="getTooltipCelda(d, h)"
+                  >
+                    <!-- Almuerzo -->
+                    <div *ngIf="esAlmuerzo(d, h)" class="celda-content alm-content">
+                      <mat-icon>restaurant</mat-icon>
+                      <span class="alm-label">ALMUERZO</span>
+                    </div>
+
+                    <!-- Bloque lectivo -->
+                    <div *ngIf="getCelda(d, h)?.tipo === 'lectiva'" class="celda-content lectiva-content">
+                      <span class="tipo-badge badge-lectiva">[{{ getBadgeTipo(d, h) }}]</span>
+                      <div class="curso-nombre">{{ getCursoNombre(d, h) }}</div>
+                      <div class="celda-meta">
+                        <span class="amb-codigo">{{ getAmbiente(d, h) }}</span>
+                      </div>
+                    </div>
+
+                    <!-- Bloque de OTRA actividad (no editable) -->
+                    <div *ngIf="esBloqueOtraActividad(d, h)" class="celda-content otra-content">
+                      <span class="tipo-badge" [style.background]="getColor(getActividadIdBloque(d, h)).border" style="color:white">
+                        [{{ getActividadIdBloque(d, h) }}]
+                      </span>
+                      <div class="curso-nombre">{{ getNombreActividadBloque(d, h) }}</div>
+                    </div>
+
+                    <!-- Bloque de la actividad ACTUAL (seleccionable) -->
+                    <div *ngIf="estaSeleccionada(d, h)" class="celda-content seleccionada-content">
+                      <span class="tipo-badge" [style.background]="getColor(data.actividadId).border" style="color:white">
+                        [{{ data.actividadId }}]
+                      </span>
+                      <div class="curso-nombre">Seleccionada</div>
+                      <button class="remove-cell-btn" (click)="desSeleccionar(d, h); $event.stopPropagation()" matTooltip="Quitar">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </div>
+
+                    <!-- Celda vacía -->
+                    <div *ngIf="getCelda(d, h)?.tipo === 'vacia' && !esAlmuerzo(d, h)" class="celda-content vacia-content">
+                      <span class="add-icon" *ngIf="puedeSeleccionar(d, h)">
+                        <mat-icon>add</mat-icon>
+                      </span>
+                    </div>
+                  </td>
+                </ng-container>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bloques asignados (resumen) -->
+      <div class="assigned-blocks" *ngIf="bloquesAsignados.length > 0 && puedeEditar">
+        <div class="assigned-title">
+          <mat-icon>check_circle</mat-icon>
+          Bloques asignados ({{ bloquesAsignados.length }})
+        </div>
+        <div cdkDropList
+             [cdkDropListData]="bloquesAsignados"
+             [cdkDropListConnectedTo]="['palette-' + data.actividadId]"
+             (cdkDropListDropped)="onReorderBloques($event)"
+             class="assigned-list">
+          <div *ngFor="let b of bloquesAsignados; let i = index"
+               class="assigned-bloque"
+               cdkDrag
+               [cdkDragData]="b"
+               [style.border-left-color]="getColor(data.actividadId).border">
+            <mat-icon class="drag-handle" cdkDragHandle>drag_indicator</mat-icon>
+            <span class="assigned-info">
+              {{ getDiaLabel(b.dia) }} {{ b.hora_inicio }}–{{ b.hora_fin }}
+            </span>
+            <button mat-icon-button class="btn-remove-assigned" (click)="removeBloqueByIndex(i)" matTooltip="Eliminar">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Conflicts -->
@@ -198,8 +272,10 @@ interface CeldaState {
       <!-- Instructions -->
       <div class="instructions" *ngIf="puedeEditar">
         <mat-icon>info</mat-icon>
-        Haga clic en celdas vacías para asignar bloques a la actividad <strong>[{{ data.actividadId }}]</strong>.
-        Los bloques de otras actividades se muestran como referencia.
+        <span>
+          <strong>Arrastre</strong> bloques desde el panel izquierdo a la grilla, o <strong>haga clic</strong> en celdas vacías para seleccionar/deseleccionar.
+          Puede reordenar los bloques asignados arrastrándolos.
+        </span>
       </div>
     </div>
   `,
@@ -234,7 +310,51 @@ interface CeldaState {
       mat-icon { color: #d97706; }
     }
 
-    .grid-scroll { overflow-x: auto; }
+    .schedule-layout {
+      display: flex; gap: 0; min-height: 400px;
+    }
+
+    /* Palette */
+    .palette-panel {
+      width: 140px; min-width: 140px; border-right: 1px solid var(--color-border, #e2e8f0);
+      background: var(--color-surface-2, #f8fafc); padding: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .palette-title {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 700; color: var(--color-text, #1e293b);
+      padding-bottom: 8px; border-bottom: 1px solid var(--color-border, #e2e8f0);
+      mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--color-primary, #1565c0); }
+    }
+    .palette-blocks {
+      display: flex; flex-direction: column; gap: 6px; flex: 1;
+    }
+    .palette-bloque {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 10px; border-radius: 6px;
+      background: white; border: 2px dashed var(--color-border, #cbd5e1);
+      cursor: grab; transition: all 0.2s; user-select: none;
+      &:hover { border-style: solid; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transform: translateY(-1px); }
+      &:active { cursor: grabbing; }
+    }
+    .bloque-duracion {
+      font-size: 13px; font-weight: 800; color: var(--color-text, #1e293b);
+      min-width: 24px;
+    }
+    .bloque-label {
+      font-size: 10px; color: var(--color-text-muted, #64748b); flex: 1;
+    }
+    .bloque-drag-icon {
+      font-size: 14px; width: 14px; height: 14px; color: var(--color-text-disabled, #94a3b8);
+    }
+    .palette-hint {
+      font-size: 10px; color: var(--color-text-muted, #64748b);
+      display: flex; align-items: flex-start; gap: 4px;
+      padding-top: 8px; border-top: 1px solid var(--color-border, #e2e8f0);
+      mat-icon { font-size: 12px; width: 12px; height: 12px; flex-shrink: 0; margin-top: 1px; }
+    }
+
+    .grid-scroll { overflow-x: auto; flex: 1; }
     .horario-grid { border-collapse: collapse; width: 100%; min-width: 720px; }
     .horario-grid th, .horario-grid td {
       border: 1px solid var(--color-border, #e2e8f0); text-align: center; vertical-align: middle;
@@ -278,6 +398,11 @@ interface CeldaState {
     .celda-seleccionada { box-shadow: inset 0 0 0 2px currentColor !important; }
     .celda-otra { box-shadow: inset 0 0 0 1px currentColor; }
 
+    .celda-drag-over {
+      background: #dbeafe !important;
+      box-shadow: inset 0 0 0 2px #3b82f6 !important;
+    }
+
     .celda-content {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 3px; padding: 8px 4px; text-align: center; min-height: 56px; position: relative;
@@ -313,6 +438,35 @@ interface CeldaState {
     .alm-content { mat-icon { font-size: 16px; color: #94a3b8; } .alm-label { font-size: 9px; font-weight: 700; color: #94a3b8; } }
     .lectiva-content, .otra-content, .seleccionada-content { cursor: default; }
 
+    /* Assigned blocks */
+    .assigned-blocks {
+      border-top: 1px solid var(--color-border, #e2e8f0); padding: 12px 16px;
+      background: var(--color-surface-2, #f8fafc);
+    }
+    .assigned-title {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 700; color: var(--color-success, #16a34a);
+      margin-bottom: 8px;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    }
+    .assigned-list {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .assigned-bloque {
+      display: flex; align-items: center; gap: 4px;
+      padding: 4px 8px; border-radius: 4px;
+      background: white; border: 1px solid var(--color-border, #e2e8f0);
+      border-left: 3px solid; font-size: 11px; cursor: grab;
+      transition: all 0.15s;
+      &:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    }
+    .drag-handle { font-size: 14px; width: 14px; height: 14px; color: var(--color-text-disabled, #94a3b8); cursor: grab; }
+    .assigned-info { font-weight: 600; color: var(--color-text, #1e293b); }
+    .btn-remove-assigned {
+      width: 20px; height: 20px; padding: 0;
+      mat-icon { font-size: 14px; width: 14px; height: 14px; color: var(--color-danger, #dc2626); }
+    }
+
     .conflicts-panel {
       display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
       padding: 8px 16px; background: #fee2e2; color: #991b1b; font-size: 12px;
@@ -333,6 +487,19 @@ interface CeldaState {
       padding: 8px 16px; background: #eff6ff; color: #1e40af; font-size: 12px;
       mat-icon { font-size: 16px; width: 16px; height: 16px; }
     }
+
+    /* CDK drag preview */
+    .cdk-drag-preview {
+      background: white; border: 2px solid #3b82f6; border-radius: 6px;
+      padding: 8px 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      font-size: 12px; font-weight: 700; color: #1e293b;
+    }
+    .cdk-drag-placeholder {
+      opacity: 0.3;
+    }
+    .cdk-drag-animating {
+      transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+    }
   `],
 })
 export class DragDropScheduleComponent implements OnChanges, OnDestroy {
@@ -343,8 +510,6 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
 
   readonly DIA_CODIGO_A_ETIQUETA = DIA_CODIGO_A_ETIQUETA;
   readonly DIA_CODIGO_A_CORTO = DIA_CODIGO_A_CORTO;
-  readonly normalizarHora = normalizarHora;
-  readonly parseInt = parseInt;
 
   diasLabels: string[] = [];
   diasNum: number[] = [];
@@ -358,8 +523,11 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
   bloquesSeleccionados = new Map<string, HorarioEntry>();
   conflictos: string[] = [];
   otrasActividades: ActividadHorarios[] = [];
+  bloquesDisponibles: BloqueDisponible[] = [];
+  bloquesAsignados: HorarioEntry[] = [];
   private diasSub?: Subscription;
   private initialized = false;
+  private dragOverCell: { dia: number; hora: number } | null = null;
 
   constructor(
     private snackBar: MatSnackBar,
@@ -381,7 +549,13 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
   }
 
   get totalHoras(): number {
-    return this.bloquesSeleccionados.size;
+    let sum = 0;
+    for (const b of this.bloquesAsignados) {
+      const ini = parseInt(b.hora_inicio?.split(':')[0], 10);
+      const fin = parseInt(b.hora_fin?.split(':')[0], 10);
+      if (!isNaN(ini) && !isNaN(fin)) sum += fin - ini;
+    }
+    return sum;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -389,12 +563,17 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
       this.otrasActividades = (this.data.allActividades || [])
         .filter(a => a.id !== this.data.actividadId);
       this.buildHours();
+      this.buildPalette();
       this.syncFromData();
     }
   }
 
   getColor(actividadId: number): { bg: string; border: string; text: string; label: string } {
     return COLORES_ACTIVIDADES[actividadId] || { bg: '#f1f5f9', border: '#64748b', text: '#334155', label: String(actividadId) };
+  }
+
+  getDiaLabel(dia: string): string {
+    return DIA_CODIGO_A_CORTO[dia] || dia;
   }
 
   private cargarConfiguracion(): void {
@@ -430,6 +609,18 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
     }
   }
 
+  private buildPalette(): void {
+    this.bloquesDisponibles = [];
+    const maxDuracion = Math.min(4, this.horas.length);
+    for (let d = 1; d <= maxDuracion; d++) {
+      this.bloquesDisponibles.push({
+        id: `bloque-${d}h`,
+        duracion: d,
+        label: d === 1 ? '1 hora' : `${d} horas`,
+      });
+    }
+  }
+
   private buildGrid(): void {
     this.grid.clear();
     for (const dNum of this.diasNum) {
@@ -453,7 +644,6 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
         } else if (this.bloquesSeleccionados.has(`${diaCod}_${h}`)) {
           tipo = 'no-lectiva';
         } else {
-          // Check other activities
           for (const act of this.otrasActividades) {
             const match = act.horarios.find(bh => {
               if (bh.dia !== diaCod) return false;
@@ -542,7 +732,6 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
     if (!this.puedeEditar) return false;
     const c = this.getCelda(diaNum, hora);
     if (!c) return false;
-    // Can select empty cells or deselect own blocks
     return c.tipo === 'vacia' || (c.tipo === 'no-lectiva' && !c.actividadBloque);
   }
 
@@ -552,6 +741,11 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
     return !c.actividadBloque && this.bloquesSeleccionados.has(`${c.dia}_${hora}`);
   }
 
+  isDragOver(diaNum: number, hora: number): boolean {
+    return this.dragOverCell?.dia === diaNum && this.dragOverCell?.hora === hora;
+  }
+
+  // --- Click handlers (kept for backward compat) ---
   onCellClick(diaNum: number, hora: number): void {
     if (!this.puedeSeleccionar(diaNum, hora)) return;
     if (this.estaSeleccionada(diaNum, hora)) {
@@ -573,6 +767,7 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
     }
 
     this.bloquesSeleccionados.set(key, { dia: diaCod, hora_inicio: ini, hora_fin: fin });
+    this.buildAssignedBlocks();
     this.buildGrid();
     this.emitChanges();
   }
@@ -580,10 +775,91 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
   desSeleccionar(diaNum: number, hora: number): void {
     const diaCod = this.diaNumToCod(diaNum);
     this.bloquesSeleccionados.delete(`${diaCod}_${hora}`);
+    this.buildAssignedBlocks();
     this.buildGrid();
     this.emitChanges();
   }
 
+  // --- Drag-and-drop handlers ---
+  onBloqueFromPalette(event: CdkDragDrop<any>): void {
+    if (!this.puedeEditar) return;
+    const bloque: BloqueDisponible = event.item.data;
+    const targetData = event.container.data;
+    if (!targetData || typeof targetData.dia !== 'number' || typeof targetData.hora !== 'number') return;
+    const diaNum = targetData.dia;
+    const hora = targetData.hora;
+    const diaCod = this.diaNumToCod(diaNum);
+
+    // Place a block of `bloque.duracion` hours starting at `hora`
+    for (let offset = 0; offset < bloque.duracion; offset++) {
+      const h = hora + offset;
+      if (h >= this.franjaFin) {
+        this.snackBar.open('El bloque excede la franja horaria', 'Cerrar', { duration: 2000 });
+        return;
+      }
+      if (h >= this.almuerzoInicio && h < this.almuerzoFin) {
+        this.snackBar.open('El bloque se superpone con el horario de almuerzo', 'Cerrar', { duration: 2000 });
+        return;
+      }
+      const ini = `${String(h).padStart(2, '0')}:00`;
+      const fin = `${String(h + 1).padStart(2, '0')}:00`;
+      if (this.data.horariosLectivos.some(l => l.dia === diaCod && seSuperponen(l.hora_inicio, l.hora_fin, ini, fin))) {
+        this.snackBar.open('Conflicto: hay carga lectiva en ese horario', 'Cerrar', { duration: 2000 });
+        return;
+      }
+      const key = `${diaCod}_${h}`;
+      if (this.bloquesSeleccionados.has(key)) {
+        this.snackBar.open('Celda ya ocupada por esta actividad', 'Cerrar', { duration: 2000 });
+        return;
+      }
+    }
+
+    // Place the block
+    for (let offset = 0; offset < bloque.duracion; offset++) {
+      const h = hora + offset;
+      const ini = `${String(h).padStart(2, '0')}:00`;
+      const fin = `${String(h + 1).padStart(2, '0')}:00`;
+      this.bloquesSeleccionados.set(`${diaCod}_${h}`, { dia: diaCod, hora_inicio: ini, hora_fin: fin });
+    }
+
+    this.buildAssignedBlocks();
+    this.buildGrid();
+    this.emitChanges();
+    this.dragOverCell = null;
+  }
+
+  onBloqueDrop(event: CdkDragDrop<any>, diaNum: number, hora: number): void {
+    if (event.item.data && event.item.data.duracion) {
+      this.onBloqueFromPalette(event);
+    }
+  }
+
+  onReorderBloques(event: CdkDragDrop<any[]>): void {
+    moveItemInArray(this.bloquesAsignados, event.previousIndex, event.currentIndex);
+  }
+
+  onDragEnter(diaNum: number, hora: number): void {
+    this.dragOverCell = { dia: diaNum, hora: hora };
+  }
+
+  onDragExit(_diaNum: number, _hora: number): void {
+    this.dragOverCell = null;
+  }
+
+  removeBloqueByIndex(index: number): void {
+    const bloque = this.bloquesAsignados[index];
+    if (!bloque) return;
+    const ini = parseInt(bloque.hora_inicio.split(':')[0], 10);
+    const fin = parseInt(bloque.hora_fin.split(':')[0], 10);
+    for (let h = ini; h < fin; h++) {
+      this.bloquesSeleccionados.delete(`${bloque.dia}_${h}`);
+    }
+    this.buildAssignedBlocks();
+    this.buildGrid();
+    this.emitChanges();
+  }
+
+  // --- Tooltip ---
   getTooltipCelda(diaNum: number, hora: number): string {
     const c = this.getCelda(diaNum, hora);
     if (!c) return '';
@@ -602,6 +878,9 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
     if (c.tipo === 'almuerzo') {
       return `${diaLabel} ${horaLabel}: Almuerzo`;
     }
+    if (this.puedeSeleccionar(diaNum, hora)) {
+      return `${diaLabel} ${horaLabel}: Disponible — Arrastre un bloque o haga clic`;
+    }
     return `${diaLabel} ${horaLabel}: Disponible`;
   }
 
@@ -618,20 +897,55 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
     this.bloquesSeleccionados.clear();
     if (this.data.horarios?.length) {
       for (const h of this.data.horarios) {
-        const hora = parseInt(h.hora_inicio.split(':')[0], 10);
-        const key = `${h.dia}_${hora}`;
-        this.bloquesSeleccionados.set(key, { dia: h.dia, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin });
+        const ini = parseInt(h.hora_inicio?.split(':')[0], 10);
+        const fin = parseInt(h.hora_fin?.split(':')[0], 10);
+        if (isNaN(ini) || isNaN(fin)) continue;
+        for (let hora = ini; hora < fin; hora++) {
+          const key = `${h.dia}_${hora}`;
+          if (!this.bloquesSeleccionados.has(key)) {
+            this.bloquesSeleccionados.set(key, {
+              dia: h.dia,
+              hora_inicio: `${String(hora).padStart(2, '0')}:00`,
+              hora_fin: `${String(hora + 1).padStart(2, '0')}:00`,
+            });
+          }
+        }
       }
     }
+    this.buildAssignedBlocks();
     this.buildGrid();
     this.initialized = true;
   }
 
+  private mergeConsecutive(entries: HorarioEntry[]): HorarioEntry[] {
+    if (entries.length <= 1) return [...entries];
+    const sorted = [...entries].sort((a, b) => {
+      if (a.dia !== b.dia) return a.dia.localeCompare(b.dia);
+      return a.hora_inicio.localeCompare(b.hora_inicio);
+    });
+    const merged: HorarioEntry[] = [];
+    let current = { ...sorted[0] };
+    for (let i = 1; i < sorted.length; i++) {
+      if (current.dia === sorted[i].dia && current.hora_fin === sorted[i].hora_inicio) {
+        current = { ...current, hora_fin: sorted[i].hora_fin };
+      } else {
+        merged.push(current);
+        current = { ...sorted[i] };
+      }
+    }
+    merged.push(current);
+    return merged;
+  }
+
+  private buildAssignedBlocks(): void {
+    this.bloquesAsignados = this.mergeConsecutive(Array.from(this.bloquesSeleccionados.values()));
+  }
+
   private emitChanges(): void {
     if (!this.initialized) return;
-    const entries = Array.from(this.bloquesSeleccionados.values());
-    this.horariosChange.emit(entries);
-    this.horasChange.emit(this.totalHoras);
+    const merged = this.mergeConsecutive(Array.from(this.bloquesSeleccionados.values()));
+    this.horariosChange.emit(merged);
+    this.horasChange.emit(merged.length);
   }
 
   private detectarConflictos(): void {

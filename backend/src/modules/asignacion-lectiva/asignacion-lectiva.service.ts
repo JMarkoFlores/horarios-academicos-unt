@@ -14,6 +14,7 @@ import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { EstadoAsignacionLectiva } from "../../common/enums/estado-asignacion-lectiva.enum";
+import { EstadoPeriodo } from "../../common/enums/estado-periodo.enum";
 import { TipoClase } from "../../common/enums/tipo-clase.enum";
 import { CreateAsignacionLectivaDto } from "./dto/create-asignacion-lectiva.dto";
 import { UpdateAsignacionLectivaDto } from "./dto/update-asignacion-lectiva.dto";
@@ -170,10 +171,14 @@ export class AsignacionLectivaService {
     if (!periodo) {
       throw new NotFoundException(`Período #${dto.periodo_id} no encontrado`);
     }
-    const estadosPermitidos = ["planificacion", "asignacionhorarios"];
+    const estadosPermitidos = [
+      EstadoPeriodo.PLANIFICACION,
+      EstadoPeriodo.ASIGNACION_HORARIOS,
+      EstadoPeriodo.EN_CURSO,
+    ];
     if (!estadosPermitidos.includes(periodo.estado)) {
       throw new BadRequestException(
-        `El período está en estado "${periodo.estado}". Solo se puede asignar en PLANIFICACION o ASIGNACION_HORARIOS`,
+        `El período está en estado "${periodo.estado}". Solo se puede asignar en PLANIFICACION, ASIGNACION_HORARIOS o EN_CURSO`,
       );
     }
 

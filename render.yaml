@@ -55,10 +55,7 @@ services:
       - key: JWT_EXPIRACION
         value: 7d
       - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: horarios-frontend
-          property: url
+        value: https://horarios-frontend.onrender.com
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

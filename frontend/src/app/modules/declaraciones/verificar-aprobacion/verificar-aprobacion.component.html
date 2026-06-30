@@ -5,7 +5,7 @@
     </button>
     <div>
       <h1 class="page-title">Verificar Aprobación</h1>
-      <p class="page-subtitle">Estado actual de la declaración del docente</p>
+      <p class="page-subtitle">Revisión y aprobación de declaración de carga horaria</p>
     </div>
   </div>
 
@@ -34,20 +34,12 @@
             </tr>
             <tr>
               <td class="info-label">Docente:</td>
-              <td class="info-value">
-                {{ docente.apellidos }}, {{ docente.nombres }}
-              </td>
+              <td class="info-value">{{ docente.apellidos }}, {{ docente.nombres }}</td>
             </tr>
             <tr>
-              <td class="info-label">IBM:</td>
-              <td class="info-value">{{ docente.ibm || "—" }}</td>
-            </tr>
-            <tr>
-              <td class="info-label">Estado de declaración:</td>
+              <td class="info-label">Estado:</td>
               <td class="info-value">
-                <span class="estado-badge {{ estadoColor }}">{{
-                  estadoLabel
-                }}</span>
+                <span class="estado-badge {{ estadoColor }}">{{ estadoLabel }}</span>
               </td>
             </tr>
             <tr>
@@ -55,7 +47,7 @@
               <td class="info-value">{{ directorValidador }}</td>
             </tr>
             <tr>
-              <td class="info-label">Fecha de validación:</td>
+              <td class="info-label">Fecha validación dpto:</td>
               <td class="info-value">{{ fechaValidacion }}</td>
             </tr>
           </tbody>
@@ -63,60 +55,55 @@
       </mat-card-content>
     </mat-card>
 
-    <!-- Documentos a Conferir -->
+    <!-- Documentos PDF -->
     <mat-card *ngIf="mostrarDocumentosConferir" class="docs-card">
       <mat-card-header class="docs-header">
         <mat-card-title>
           <mat-icon>description</mat-icon>
-          Documentos a Conferir
+          Documentos
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
         <div class="docs-list">
-          <div class="doc-item" *ngFor="let item of documentos">
+          <div class="doc-item">
             <div class="doc-info">
-              <div class="doc-icon">
-                <mat-icon>picture_as_pdf</mat-icon>
-              </div>
+              <div class="doc-icon"><mat-icon>picture_as_pdf</mat-icon></div>
               <div class="doc-details">
-                <h3 class="doc-name">{{ item.nombre }}</h3>
-                <div class="doc-meta">
-                  <span class="doc-sede">
-                    <mat-icon>location_on</mat-icon>
-                    {{ item.sede }}
-                  </span>
-                  <span class="doc-status">
-                    <mat-icon>check_circle</mat-icon>
-                    {{ item.estado }}
-                  </span>
-                </div>
+                <h3 class="doc-name">F01-CAD: Declaración de carga horaria</h3>
               </div>
             </div>
-            <button
-              mat-raised-button
-              color="primary"
-              class="btn-conferir"
-              (click)="conferirDocumento(item)"
-              [disabled]="descargandoDocumento === item.tipo"
-            >
-              <mat-icon *ngIf="descargandoDocumento !== item.tipo"
-                >download</mat-icon
-              >
-              <mat-spinner
-                *ngIf="descargandoDocumento === item.tipo"
-                diameter="20"
-              ></mat-spinner>
-              {{
-                descargandoDocumento === item.tipo ? "Generando..." : "Conferir"
-              }}
+            <button mat-raised-button color="primary" (click)="generarPdfDeclaracion()">
+              <mat-icon>download</mat-icon> Descargar
+            </button>
+          </div>
+          <div class="doc-item">
+            <div class="doc-info">
+              <div class="doc-icon"><mat-icon>picture_as_pdf</mat-icon></div>
+              <div class="doc-details">
+                <h3 class="doc-name">F03-CAD: Horario semanal docente</h3>
+              </div>
+            </div>
+            <button mat-raised-button color="primary" (click)="generarPdfHorario()">
+              <mat-icon>download</mat-icon> Descargar
+            </button>
+          </div>
+          <div class="doc-item">
+            <div class="doc-info">
+              <div class="doc-icon"><mat-icon>picture_as_pdf</mat-icon></div>
+              <div class="doc-details">
+                <h3 class="doc-name">F02-CAD: Declaración jurada de incompatibilidad</h3>
+              </div>
+            </div>
+            <button mat-raised-button color="primary" (click)="generarPdfJurada()">
+              <mat-icon>download</mat-icon> Descargar
             </button>
           </div>
         </div>
       </mat-card-content>
     </mat-card>
 
-    <!-- Acciones Decano -->
-    <mat-card *ngIf="puedeAprobar" class="docs-card acciones-card" style="margin-top: 16px;">
+    <!-- Acciones Decano: Aprobar (DEPARTAMENTO → FACULTAD) -->
+    <mat-card *ngIf="puedeAprobar" class="docs-card acciones-card">
       <mat-card-header class="docs-header">
         <mat-card-title>
           <mat-icon>gavel</mat-icon>
@@ -124,30 +111,46 @@
         </mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <div style="display: flex; gap: 16px; margin-bottom: 16px; margin-top: 16px;">
+        <div class="acciones-row">
           <button mat-raised-button color="primary" (click)="aprobar()" [disabled]="saving">
-            <mat-icon>check_circle</mat-icon>
-            Aprobar Declaración
+            <mat-icon>check_circle</mat-icon> Aprobar Declaración
           </button>
           <button mat-raised-button color="warn" (click)="toggleObservar()" [disabled]="saving">
-            <mat-icon>cancel</mat-icon>
-            Observar Declaración
+            <mat-icon>edit_note</mat-icon> Observar
           </button>
         </div>
 
-        <div *ngIf="observando" style="margin-top: 16px; padding: 16px; background: #fafafa; border-radius: 8px;">
-          <mat-form-field appearance="outline" style="width: 100%;">
+        <div *ngIf="observando" class="observacion-form">
+          <mat-form-field appearance="outline" class="observacion-field">
             <mat-label>Detalle de la observación (mínimo 10 caracteres)</mat-label>
-            <textarea matInput [(ngModel)]="textoObservacion" rows="3" placeholder="Especifique el motivo de la observación..."></textarea>
+            <textarea matInput [(ngModel)]="textoObservacion" rows="3"
+              placeholder="Especifique el motivo de la observación..."></textarea>
           </mat-form-field>
-          <div style="display: flex; gap: 12px; margin-top: 8px;">
-            <button mat-raised-button color="warn" (click)="observar()" [disabled]="saving || textoObservacion.trim().length < 10">
+          <div class="observacion-actions">
+            <button mat-raised-button color="warn" (click)="observar()"
+              [disabled]="saving || textoObservacion.trim().length < 10">
               <mat-icon>send</mat-icon> Enviar Observación
             </button>
-            <button mat-button (click)="toggleObservar()" [disabled]="saving">
-              Cancelar
-            </button>
+            <button mat-button (click)="toggleObservar()" [disabled]="saving">Cancelar</button>
           </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Acciones Decano: Cerrar (FACULTAD → CERRADO) -->
+    <mat-card *ngIf="puedeCerrar" class="docs-card acciones-card">
+      <mat-card-header class="docs-header">
+        <mat-card-title>
+          <mat-icon>lock</mat-icon>
+          Cerrar Declaración
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p class="cerrar-info">La declaración ya fue aprobada por facultad. Puede cerrarla definitivamente.</p>
+        <div class="acciones-row">
+          <button mat-raised-button color="primary" (click)="cerrar()" [disabled]="saving">
+            <mat-icon>lock</mat-icon> Cerrar Declaración
+          </button>
         </div>
       </mat-card-content>
     </mat-card>

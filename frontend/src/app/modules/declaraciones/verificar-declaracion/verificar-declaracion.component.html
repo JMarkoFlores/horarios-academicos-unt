@@ -27,7 +27,9 @@
     <span class="estado-valor {{ estadoColor }}">
       {{ estadoLabel }}
       <span *ngIf="estadoDeclaracion === 'BORRADOR'" class="estado-sufijo">(Editable)</span>
-      <span *ngIf="estadoDeclaracion === 'CONFIRMADO'" class="estado-sufijo">(Confirmado)</span>
+      <span *ngIf="estadoDeclaracion === 'ENVIADO'" class="estado-sufijo">(Enviado)</span>
+      <span *ngIf="estadoDeclaracion === 'VALIDADO_DPTO'" class="estado-sufijo">(Validado Dpto.)</span>
+      <span *ngIf="estadoDeclaracion === 'APROBADO_FACULTAD'" class="estado-sufijo">(Aprobado Facultad)</span>
       <span *ngIf="estadoDeclaracion === 'CERRADO'" class="estado-sufijo">(Cerrado)</span>
     </span>
   </div>
@@ -38,10 +40,20 @@
     <span>Complete su declaración de carga horaria. Una vez enviada, no podrá realizar modificaciones.</span>
   </div>
 
-  <!-- Aviso si está observado -->
-  <div class="aviso-confirmado" *ngIf="estadoDeclaracion === 'CONFIRMADO'">
-    <mat-icon>check_circle</mat-icon>
-    <span>La declaración ha sido confirmada y no puede ser modificada.</span>
+  <!-- Aviso si está enviado/departamento/facultad -->
+  <div class="aviso-confirmado" *ngIf="estadoDeclaracion === 'ENVIADO'">
+    <mat-icon>send</mat-icon>
+    <span>La declaración ha sido enviada al departamento. No puede realizar más ediciones hasta que sea revisada.</span>
+  </div>
+
+  <div class="aviso-confirmado aviso-departamento" *ngIf="estadoDeclaracion === 'VALIDADO_DPTO'">
+    <mat-icon>verified</mat-icon>
+    <span>La declaración ha sido validada por el departamento. Pendiente de aprobación por facultad.</span>
+  </div>
+
+  <div class="aviso-confirmado aviso-facultad" *ngIf="estadoDeclaracion === 'APROBADO_FACULTAD'">
+    <mat-icon>approval</mat-icon>
+    <span>La declaración ha sido aprobada por la facultad. Pendiente de cierre.</span>
   </div>
 
   <!-- Aviso si no es editable -->
@@ -294,6 +306,27 @@
       </mat-card-content>
     </mat-card>
 
+    <!-- Inline drag-drop schedule panel -->
+    <mat-card class="seccion-card drag-drop-panel" *ngIf="actividadSeleccionada && dragDropData">
+      <mat-card-header class="header-drag-drop">
+        <mat-card-title>
+          <mat-icon>drag_indicator</mat-icon>
+          Horario — {{ dragDropData.actividadNombre }}
+        </mat-card-title>
+        <button mat-icon-button (click)="cerrarDragDrop()" class="btn-close-panel">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-card-header>
+      <mat-card-content>
+        <app-drag-drop-schedule
+          [data]="dragDropData"
+          [puedeEditar]="puedeEditar"
+          (horariosChange)="onDragDropHorariosChange($event)"
+          (horasChange)="onDragDropHorasChange($event)"
+        ></app-drag-drop-schedule>
+      </mat-card-content>
+    </mat-card>
+
     <!-- CARGA ADICIONAL -->
     <mat-card class="seccion-card carga-adicional-card">
       <mat-card-header class="header-carga-adicional">
@@ -448,7 +481,7 @@
     </mat-card>
 
     <!-- Campo de nueva observación (Director/Decano) -->
-    <mat-card class="observacion-nueva-card" *ngIf="estadoDeclaracion === 'BORRADOR'">
+    <mat-card class="observacion-nueva-card" *ngIf="estadoDeclaracion === 'BORRADOR' && !isDocente">
       <mat-card-header class="header-nueva-observacion">
         <mat-card-title>Agregar Comentario</mat-card-title>
         <span class="subtitle">Comentario para la declaración</span>
@@ -485,9 +518,19 @@
           Confirmar
         </button>
 
-        <button *ngIf="estadoDeclaracion === 'CONFIRMADO'" mat-raised-button color="primary" class="btn-cerrar" (click)="cerrar()" [disabled]="saving">
+        <button *ngIf="estadoDeclaracion === 'VALIDADO_DPTO' && (isDirector || isAdmin)" mat-raised-button color="accent" class="btn-cerrar" (click)="validarDepartamento()" [disabled]="saving">
+          <mat-icon>verified</mat-icon>
+          Validar Departamento
+        </button>
+
+        <button *ngIf="estadoDeclaracion === 'VALIDADO_DPTO' && (isDecano || isAdmin)" mat-raised-button color="primary" class="btn-cerrar" (click)="aprobarFacultad()" [disabled]="saving">
+          <mat-icon>approval</mat-icon>
+          Aprobar Facultad
+        </button>
+
+        <button *ngIf="estadoDeclaracion === 'APROBADO_FACULTAD' && (isDecano || isAdmin)" mat-raised-button color="primary" class="btn-cerrar" (click)="cerrar()" [disabled]="saving">
           <mat-icon>lock</mat-icon>
-          Cerrar
+          Cerrar Declaración
         </button>
 
         <button *ngIf="estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="warn" class="btn-pdf" (click)="generarPDF('declaracion')" matTooltip="F01-CAD: Declaración de carga horaria">

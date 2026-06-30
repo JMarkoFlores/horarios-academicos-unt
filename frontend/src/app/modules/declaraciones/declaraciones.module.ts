@@ -8,6 +8,7 @@ import { VerificarDeclaracionComponent } from './verificar-declaracion/verificar
 import { VerificarFirmaComponent } from './verificar-firma/verificar-firma.component';
 import { VerificarAprobacionComponent } from './verificar-aprobacion/verificar-aprobacion.component';
 import { AprobacionFacultadComponent } from './aprobacion-facultad/aprobacion-facultad.component';
+import { DragDropScheduleComponent } from './dialogs/drag-drop-schedule.component';
 
 const routes: Routes = [
   { path: '', component: DeclaracionesComponent },
@@ -35,6 +36,7 @@ const routes: Routes = [
     CommonModule,
     FormsModule,
     SharedModule,
+    DragDropScheduleComponent,
     RouterModule.forChild(routes),
   ],
 })

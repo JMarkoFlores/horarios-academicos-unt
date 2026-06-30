@@ -1,108 +1,141 @@
-<div class="docente-horario-container">
-  <header class="page-header">
-    <div class="header-content">
-      <div class="title-block">
-        <div class="title-avatar">
-          <mat-icon>person</mat-icon>
-        </div>
-        <div>
-          <h1>Mi Horario Académico</h1>
-          <p class="periodo-label">Período actual: <strong>{{ periodoService.periodo }}</strong></p>
-        </div>
+<div class="page-header">
+  <div class="header-content">
+    <div class="title-block">
+      <div class="title-avatar">
+        <mat-icon>person</mat-icon>
       </div>
-      <div class="stats-block">
-        <span class="chip-stat">
-          <mat-icon>schedule</mat-icon>{{ totalHorasSemanales }} horas/semana
-        </span>
-        <span class="chip-stat">
-          <mat-icon>assignment</mat-icon>{{ horasAsignadas }} bloques
-        </span>
-        <div class="toggle-wrapper">
-          <mat-slide-toggle 
-            color="primary" 
-            [(ngModel)]="mostrarNoLectiva" 
-            (change)="toggleNoLectiva()" 
-            class="toggle-no-lectiva"
-            [disabled]="!puedeMostrarNoLectiva">
-            Mostrar Carga No Lectiva
-          </mat-slide-toggle>
-          <span *ngIf="mensajeEstadoDeclaracion && !puedeMostrarNoLectiva" class="estado-mensaje">
-            <mat-icon class="info-icon">info</mat-icon>
-            {{ mensajeEstadoDeclaracion }}
+      <div>
+        <h1 *ngIf="docenteInfo">{{ docenteInfo.apellidos }}, {{ docenteInfo.nombres }}</h1>
+        <h1 *ngIf="!docenteInfo">Mi Horario Académico</h1>
+        <p class="subtitle">
+          <span class="chip-periodo">{{ periodoService.periodo }}</span>
+          <span class="chip-stat">
+            <mat-icon>schedule</mat-icon>{{ summaryHoras }}h/semana
           </span>
+          <span class="chip-stat">
+            <mat-icon>view_week</mat-icon>{{ summaryBloques }} bloques
+          </span>
+          <span class="chip-stat">
+            <mat-icon>calendar_today</mat-icon>{{ summaryDias }} días
+          </span>
+        </p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <mat-slide-toggle
+        color="primary"
+        [(ngModel)]="mostrarNoLectiva"
+        (change)="toggleNoLectiva()"
+        class="toggle-no-lectiva"
+        [disabled]="!puedeMostrarNoLectiva">
+        Carga No Lectiva
+      </mat-slide-toggle>
+      <span *ngIf="mensajeEstadoDeclaracion && !puedeMostrarNoLectiva" class="estado-mensaje">
+        <mat-icon class="info-icon">info</mat-icon>
+        {{ mensajeEstadoDeclaracion }}
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="page-content">
+  <div *ngIf="loading" class="spinner-center">
+    <mat-spinner diameter="36"></mat-spinner>
+    <span class="loading-txt">Cargando horario...</span>
+  </div>
+
+  <div *ngIf="!loading && asignaciones.length === 0" class="empty-state">
+    <div class="empty-icon-wrap"><mat-icon>event_busy</mat-icon></div>
+    <h3>Sin asignaciones</h3>
+    <p>No tiene horario asignado para el período <strong>{{ periodoService.periodo }}</strong>.</p>
+  </div>
+
+  <!-- Cursos Asignados -->
+  <div *ngIf="!loading && asignaciones.length > 0 && cursosUnicosList.length > 0" class="cursos-asignados-section">
+    <h3 class="section-title">Cursos Asignados</h3>
+    <div class="cursos-grid">
+      <div *ngFor="let c of cursosUnicosList" class="curso-card">
+        <div class="curso-header" [style.background-color]="c.colorHex">
+          <span class="curso-codigo">{{ c.curso?.codigo || '—' }}</span>
+        </div>
+        <div class="curso-body">
+          <div class="curso-nombre">{{ c.curso?.nombre || '—' }}</div>
+          <div class="curso-stats">
+            <span class="stat-item"><span class="stat-label">T:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).t.toFixed(1) }}h</span></span>
+            <span class="stat-item"><span class="stat-label">P:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).p.toFixed(1) }}h</span></span>
+            <span class="stat-item"><span class="stat-label">L:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).l.toFixed(1) }}h</span></span>
+            <span class="stat-item"><span class="stat-label">G:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).grupos }}</span></span>
+            <span class="stat-item"><span class="stat-label">Total:</span> <span class="stat-value">{{ getStatsCurso(c.curso.id).total.toFixed(1) }}h</span></span>
+          </div>
         </div>
       </div>
     </div>
-  </header>
+  </div>
 
-  <mat-card class="horario-card">
-    <mat-card-content>
-      <div *ngIf="loading" class="spinner-center">
-        <mat-spinner diameter="40"></mat-spinner>
-        <span class="loading-txt">Cargando horario...</span>
-      </div>
+  <!-- Grid -->
+  <div *ngIf="!loading && asignaciones.length > 0" class="grid-wrapper">
+    <table class="horario-grid">
+      <thead>
+        <tr>
+          <th class="hora-col">Hora</th>
+          <th *ngFor="let dia of dias">{{ dia }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let hora of horas" [class.fila-almuerzo]="esAlmuerzoHora(hora)">
+          <td class="hora-cell" [class.hora-alm]="esAlmuerzoHora(hora)">
+            <span class="hora-texto">{{ fmtH(hora) }}</span>
+            <span *ngIf="esAlmuerzoHora(hora)" class="alm-tag">ALM</span>
+          </td>
+          <ng-container *ngFor="let dNum of diasNum">
+            <ng-container *ngIf="getCell(dNum, hora) as cell">
+              <td *ngIf="!cell.skip"
+                class="celda"
+                [ngClass]="cell.asig ? 'celda-asig' : (cell.esAlmuerzo ? 'celda-almuerzo' : 'celda-vacia')"
+                [ngStyle]="cell.asig ? { 'background-color': getCursoColorHex(cell.asig.curso?.id || 0) } : {}"
+                [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null">
+                <div *ngIf="cell.asig as a" class="celda-content">
+                  <span class="tipo-badge"
+                    [class.badge-multi]="cell.mergedTipos.length > 1"
+                    [class.badge-teo]="cell.mergedTipos.includes('TEO')"
+                    [class.badge-lab]="cell.mergedTipos.includes('LAB')"
+                    [class.badge-pra]="cell.mergedTipos.includes('PRA')">
+                    [{{ cell.mergedTipos.length > 0 ? cell.mergedTipos.join('/') : 'TEO' }}]
+                  </span>
+                  <div class="curso-nombre">{{ a.curso?.nombre ?? '—' }}</div>
+                  <div class="celda-meta">
+                    <span class="amb-codigo">{{ cell.mergedAmbs.length > 0 ? cell.mergedAmbs.join(' / ') : '—' }}</span>
+                    <span class="hora-rango">{{ a.hora_inicio }}–{{ a.hora_fin }}</span>
+                  </div>
+                </div>
+              </td>
+            </ng-container>
+          </ng-container>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-      <ng-container *ngIf="!loading">
-        <div *ngIf="asignaciones.length === 0" class="empty-state">
-          <div class="empty-icon-wrap"><mat-icon>event_busy</mat-icon></div>
-          <h3>Sin asignaciones</h3>
-          <p>No tiene horario asignado para el período <strong>{{ periodoService.periodo }}</strong>.</p>
-        </div>
+  <!-- Legend -->
+  <div *ngIf="!loading && asignaciones.length > 0" class="legend-container">
+    <div class="legend-scroll">
+      <span class="legend-item" *ngFor="let c of cursosUnicosList">
+        <span class="dot" [style.background]="c.colorHex"></span>
+        {{ c.curso?.codigo || 'Curso' }}
+      </span>
+      <span class="legend-item">
+        <span class="dot dot-alm"></span> Almuerzo ({{ fmtH(almuerzoInicio) }}–{{ fmtH(almuerzoFin) }})
+      </span>
+    </div>
+  </div>
 
-        <div *ngIf="asignaciones.length > 0" class="grid-wrapper">
-          <table class="horario-grid">
-            <thead>
-              <tr>
-                <th class="hora-col">Hora</th>
-                <th *ngFor="let dia of dias">{{ dia }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let hora of horas">
-                <td class="hora-cell" [class.hora-cell-almuerzo]="esAlmuerzoHora(hora)">
-                  <span class="hora-ini">{{ fmtH(hora) }}</span>
-                  <span *ngIf="esAlmuerzoHora(hora)" class="almuerzo-label">ALM</span>
-                </td>
-                <ng-container *ngFor="let dNum of diasNum">
-                  <ng-container *ngIf="getCell(dNum, hora) as cell">
-                    <td *ngIf="!cell.skip"
-                      class="celda"
-                      [ngClass]="cls(dNum, hora)"
-                      [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null">
-                      <div *ngIf="cell.asig as a" class="celda-content">
-                        <span class="tipo-badge" 
-                          [class.lab]="a.tipo_clase === 'LABORATORIO'"
-                          [class.no-lec]="a.tipo_clase === 'NO_LECTIVA'">
-                          {{ a.tipo_clase === 'LABORATORIO' ? 'LAB' : (a.tipo_clase === 'NO_LECTIVA' ? 'NO LEC' : 'TEO') }}
-                        </span>
-                        <div class="curso-txt">{{ a.curso?.nombre ?? '—' }}</div>
-                        <div class="meta-row">
-                          <mat-icon class="meta-icon">room</mat-icon>
-                          <span class="amb-txt">{{ a.ambiente?.codigo ?? '—' }}</span>
-                        </div>
-                        <div class="hora-rango">{{ a.hora_inicio }} – {{ a.hora_fin }}</div>
-                      </div>
-                    </td>
-                  </ng-container>
-                </ng-container>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="legend" *ngIf="asignaciones.length > 0">
-          <span class="legend-item"><span class="dot dot-teoria"></span> Teoría</span>
-          <span class="legend-item"><span class="dot dot-lab"></span> Laboratorio</span>
-          <span class="legend-item"><span class="dot dot-no-lectiva"></span> No Lectiva</span>
-          <span class="legend-item"><span class="dot dot-almuerzo"></span> Almuerzo ({{ fmtH(almuerzoInicio) }}–{{ fmtH(almuerzoFin) }})</span>
-          <span class="legend-spacer"></span>
-          <span class="legend-info">Las celdas fusionadas representan bloques de varias horas consecutivas</span>
-        </div>
-      </ng-container>
-    </mat-card-content>
-  </mat-card>
-
+  <!-- Export Actions -->
   <div class="actions-bar" *ngIf="!loading && asignaciones.length > 0">
+    <button mat-stroked-button class="btn-excel"
+      (click)="descargarExcel()"
+      [disabled]="descargandoExcel">
+      <mat-icon>table_chart</mat-icon> Excel
+    </button>
     <button mat-flat-button class="btn-pdf"
       (click)="descargarPdf()"
       [disabled]="descargandoPdf">
@@ -110,19 +143,12 @@
       <mat-icon *ngIf="!descargandoPdf">picture_as_pdf</mat-icon>
       {{ descargandoPdf ? 'Generando...' : 'Descargar PDF' }}
     </button>
-    <button mat-flat-button class="btn-excel"
-      (click)="descargarExcel()"
-      [disabled]="descargandoExcel">
-      <mat-spinner *ngIf="descargandoExcel" diameter="16" class="inline-spinner"></mat-spinner>
-      <mat-icon *ngIf="!descargandoExcel">table_view</mat-icon>
-      {{ descargandoExcel ? 'Generando...' : 'Descargar Excel' }}
-    </button>
-    <button mat-flat-button class="btn-ical"
+    <button mat-stroked-button class="btn-ical"
       (click)="descargarIcal()"
       [disabled]="descargandoIcal">
       <mat-spinner *ngIf="descargandoIcal" diameter="16" class="inline-spinner"></mat-spinner>
       <mat-icon *ngIf="!descargandoIcal">calendar_today</mat-icon>
-      {{ descargandoIcal ? 'Generando...' : 'Descargar iCalendar' }}
+      {{ descargandoIcal ? 'Generando...' : 'iCalendar' }}
     </button>
   </div>
 </div>

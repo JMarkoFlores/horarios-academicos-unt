@@ -16,6 +16,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { ConfiguracionService } from "../configuracion/configuracion.service";
 import * as https from "https";
+import * as http from "http";
 
 import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
@@ -61,9 +62,30 @@ export class ReportesService {
   }
 
   private async getBase64Image(url: string): Promise<string | null> {
+    if (!url) return null;
+    const isRelative = url.startsWith("/");
+    const fullUrl = isRelative
+      ? `http://localhost:${process.env.PORT ?? 3000}${url}`
+      : url;
+    const client = fullUrl.startsWith("https") ? https : http;
     return new Promise((resolve) => {
-      https
-        .get(url, (res) => {
+      client
+        .get(fullUrl, (res) => {
+          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            const redirect = res.headers.location;
+            const rClient = redirect.startsWith("https") ? https : http;
+            rClient.get(redirect, (res2) => {
+              const data: any[] = [];
+              res2.on("data", (chunk: any) => data.push(chunk));
+              res2.on("end", () => {
+                const buffer = Buffer.concat(data);
+                resolve(
+                  `data:${res2.headers["content-type"]};base64,${buffer.toString("base64")}`,
+                );
+              });
+            }).on("error", () => resolve(null));
+            return;
+          }
           const data: any[] = [];
           res.on("data", (chunk) => data.push(chunk));
           res.on("end", () => {
@@ -74,7 +96,7 @@ export class ReportesService {
           });
         })
         .on("error", (err) => {
-          this.logger.error(`Error al cargar imagen del logo: ${err.message}`);
+          this.logger.error(`Error al cargar imagen: ${fullUrl} — ${err.message}`);
           resolve(null);
         });
     });
@@ -647,8 +669,8 @@ export class ReportesService {
       .getMany();
 
     const estadoDeclaracion = declaracion?.estado || "BORRADOR";
-    const estadosAprobados = ["CONFIRMADO", "CERRADO"];
-    const esOficial = estadosAprobados.includes(estadoDeclaracion);
+    const estadosOficiales = ["APROBADO_FACULTAD", "CERRADO"];
+    const esOficial = estadosOficiales.includes(estadoDeclaracion);
     const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
 
@@ -673,7 +695,7 @@ export class ReportesService {
       : "";
 
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
-    const ibm = docente.ibm || 0;
+    const dni = docente.dni || "";
     const categoriaLabel =
       docente.categoria === "PRINCIPAL"
         ? "Principal"
@@ -859,10 +881,10 @@ export class ReportesService {
               <td colspan="3" style="font-size:9px; border-right:none;">Facultad / Filial: <b>${docente.facultad?.nombre || "—"}</b></td>
               <td colspan="2" style="font-size:9px; border-left:none;">Dpto. Académico: <b>${docente.departamento?.nombre || "—"}</b></td>
             </tr>
-            <!-- Fila 2: DNI | IBM | Docente | Categoría — total 5 cols -->
+            <!-- Fila 2: DNI | Docente | Categoría — total 5 cols -->
             <tr>
               <td style="width:8%; font-size:8px; font-weight:bold; text-align:center;">DNI</td>
-              <td style="width:14%; text-align:center; font-weight:bold;">${ibm}</td>
+              <td style="width:14%; text-align:center; font-weight:bold;">${dni}</td>
               <td style="width:46%;">Docente: <b>${nombreCompleto}</b></td>
               <td colspan="2" style="width:22%; text-align:center; vertical-align:middle;">
                 <div class="cat-box">${categoriaDisplay}<br>${modalidadShort[docente.modalidad] || ""}</div>
@@ -979,7 +1001,7 @@ export class ReportesService {
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
     const departamento = docente.departamento?.nombre || "No asignado";
     const facultad = docente.facultad?.nombre || "No asignada";
-    const ibm = docente.ibm || 0;
+    const dni = docente.dni || "";
 
     const fechaActual = new Date().toLocaleDateString("es-PE", {
       day: "numeric",
@@ -1023,7 +1045,7 @@ export class ReportesService {
         </div>
 
         <p class="intro">
-          Yo, <b>${nombreCompleto}</b>, identificado(a) con DNI N° <b>${ibm}</b>, adscrito al Departamento Académico de
+          Yo, <b>${nombreCompleto}</b>, identificado(a) con DNI N° <b>${dni}</b>, adscrito al Departamento Académico de
           <b>${departamento}</b> de la Facultad de <b>${facultad}</b>; en el marco de la Ley Universitaria 30220,
           D.S. N° 418-2017-EF, Estatuto Reformado 2021 y el reglamento de asignación de la Carga Académica de los
           Docentes de la UNT, <b>DECLARO BAJO JURAMENTO Y EN HONOR A LA VERDAD</b>, que:
@@ -1088,7 +1110,7 @@ export class ReportesService {
           }
           <div class="firma-line"></div>
           <div class="firma-label">${nombreCompleto}</div>
-          <div class="firma-label" style="margin-top:4px;">DNI N° ${ibm}</div>
+          <div class="firma-label" style="margin-top:4px;">DNI N° ${dni}</div>
         </div>
       </body>
       </html>
@@ -1160,8 +1182,8 @@ export class ReportesService {
       : null;
 
     const estadoDeclaracion = declaracion?.estado || "BORRADOR";
-    const estadosAprobados = ["CONFIRMADO", "CERRADO"];
-    const esOficial = estadosAprobados.includes(estadoDeclaracion);
+    const estadosOficiales = ["APROBADO_FACULTAD", "CERRADO"];
+    const esOficial = estadosOficiales.includes(estadoDeclaracion);
     const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
 
@@ -1170,7 +1192,7 @@ export class ReportesService {
     const semestre = partesPeriodo[1] || "I";
 
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
-    const ibm = docente.ibm || 0;
+    const dni = docente.dni || "";
     const categoriaLabel: Record<string, string> = { PRINCIPAL: "Principal", ASOCIADO: "Asociado", AUXILIAR: "Auxiliar", SIN_CATEGORIA: "Sin categoría" };
     const contratoLabel: Record<string, string> = { NOMBRADO: "Nombrado", CONTRATADO: "Contratado" };
     const modalidadLabel: Record<string, string> = {
@@ -1360,7 +1382,7 @@ export class ReportesService {
               <th colspan="2" class="info-label text-center">MODALIDAD</th>
             </tr>
             <tr>
-              <td class="text-center">${ibm}</td>
+              <td class="text-center">${dni}</td>
               <td colspan="4" class="text-center fw-bold">${nombreCompleto}</td>
               <td colspan="2" class="text-center">${contratoLabel[docente.tipo_contrato] || docente.tipo_contrato}</td>
               <td colspan="2" class="text-center">${categoriaLabel[docente.categoria] || docente.categoria}</td>
@@ -2659,10 +2681,10 @@ export class ReportesService {
     const enviadas = declPeriodo.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
     );
     const aprobadas = declPeriodo.filter(
-      (d) => d.estado === EstadoDeclaracionCarga.CONFIRMADO,
+      (d) => d.estado === EstadoDeclaracionCarga.ENVIADO,
     );
     const observadas: typeof declPeriodo = [];
 
@@ -2694,7 +2716,7 @@ export class ReportesService {
     const envAnterior = declAnterior.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
     ).length;
     const pctAnterior =
       declAnterior.length > 0
@@ -2795,15 +2817,15 @@ export class ReportesService {
       const enviados = dDept.filter(
         (d) =>
           this.estadoValor(d.estado) >=
-          this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
+          this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
       ).length;
       const validados = dDept.filter(
         (d) =>
           this.estadoValor(d.estado) >=
-          this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
+          this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
       ).length;
       const aprobados = dDept.filter(
-        (d) => d.estado === EstadoDeclaracionCarga.CONFIRMADO,
+        (d) => d.estado === EstadoDeclaracionCarga.ENVIADO,
       ).length;
       const pct = total > 0 ? Math.round((enviados / total) * 100) : 0;
       const semaforo =
@@ -2889,10 +2911,10 @@ export class ReportesService {
     const enviadas = declPeriodo.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
     );
     const aprobadas = declPeriodo.filter(
-      (d) => d.estado === EstadoDeclaracionCarga.CONFIRMADO,
+      (d) => d.estado === EstadoDeclaracionCarga.ENVIADO,
     );
     const observadas: typeof declPeriodo = [];
     const sinDeclarar = totalDocentes - declPeriodo.length;
@@ -2916,7 +2938,7 @@ export class ReportesService {
         const declarados = dd.filter(
           (dec) =>
             this.estadoValor(dec.estado) >=
-            this.estadoValor(EstadoDeclaracionCarga.CONFIRMADO),
+            this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
         ).length;
         const pct = total > 0 ? Math.round((declarados / total) * 100) : 0;
         const semaforo =
@@ -3015,8 +3037,13 @@ export class ReportesService {
   private estadoValor(estado: EstadoDeclaracionCarga): number {
     const orden: Record<string, number> = {
       BORRADOR: 0,
-      CONFIRMADO: 1,
-      CERRADO: 2,
+      ENVIADO: 1,
+      VALIDADO_DPTO: 2,
+      OBSERVADO_DPTO: 2,
+      APROBADO_FACULTAD: 3,
+      OBSERVADO_FACULTAD: 3,
+      REABIERTO: 5,
+      CERRADO: 4,
     };
     return orden[estado] ?? 0;
   }
@@ -3055,12 +3082,22 @@ export class ReportesService {
   ): { estado: string; label: string; count: number; porcentaje: number }[] {
     const labels: Record<string, string> = {
       BORRADOR: "Borrador",
-      CONFIRMADO: "Confirmado",
+      ENVIADO: "Enviado",
+      VALIDADO_DPTO: "Validado Dpto.",
+      OBSERVADO_DPTO: "Observado Dpto.",
+      APROBADO_FACULTAD: "Aprobado Facultad",
+      OBSERVADO_FACULTAD: "Observado Facultad",
+      REABIERTO: "Reabierto",
       CERRADO: "Cerrado",
     };
     const orden = [
       "BORRADOR",
-      "CONFIRMADO",
+      "ENVIADO",
+      "VALIDADO_DPTO",
+      "OBSERVADO_DPTO",
+      "APROBADO_FACULTAD",
+      "OBSERVADO_FACULTAD",
+      "REABIERTO",
       "CERRADO",
     ];
     const total = declaraciones.length || 1;

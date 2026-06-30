@@ -67,7 +67,7 @@ export class VerificarFirmaComponent implements OnInit {
     this.api
       .get<
         ApiResponse<{ firma_url: string | null }>
-      >(`/declaraciones/firma/${this.docenteId}`)
+      >(`/declaraciones/firma/mi-firma`)
       .subscribe({
         next: (res) => {
           const url = res.data?.firma_url || null;
@@ -149,7 +149,6 @@ export class VerificarFirmaComponent implements OnInit {
 
     const formData = new FormData();
     formData.append('firma', this.firma.archivo);
-    formData.append('docente_id', this.docenteId.toString());
 
     this.api
       .post<ApiResponse<any>>('/declaraciones/firma', formData)

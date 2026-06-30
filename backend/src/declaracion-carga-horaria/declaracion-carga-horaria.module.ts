@@ -12,6 +12,7 @@ import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { DeclaracionObservacion } from "../entities/declaracion-observacion.entity";
 import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
 import { CargaAdicional } from "../entities/carga-adicional.entity";
+import { Usuario } from "../entities/usuario.entity";
 import { DeclaracionCargaHorariaService } from "./declaracion-carga-horaria.service";
 import { DeclaracionCargaHorariaController } from "./declaracion-carga-horaria.controller";
 import { CargaAdicionalService } from "./carga-adicional.service";
@@ -33,6 +34,7 @@ import { AuditoriaModule } from "../modules/auditoria/auditoria.module";
       DeclaracionObservacion,
       DeclaracionJurada,
       CargaAdicional,
+      Usuario,
     ]),
     AuditoriaModule,
   ],

@@ -38,6 +38,7 @@ import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
+import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
@@ -98,6 +99,20 @@ export class HorariosController {
   @ApiResponse({ status: 201, description: "Horario generado correctamente" })
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   async generarHorario(@Body() dto: GenerarHorarioDto) {
+    const periodo = await this.periodoRepo.findOne({
+      where: { codigo: dto.periodo },
+    });
+    if (!periodo) {
+      throw new NotFoundException(
+        `Periodo académico ${dto.periodo} no encontrado`,
+      );
+    }
+    if (periodo.modo_asignacion === ModoAsignacion.VENTANAS) {
+      throw new BadRequestException(
+        "El período está en modo VENTANAS. No se permite la generación automática de horarios.",
+      );
+    }
+
     const resultado = await this.asignacionService.generarHorario(dto.periodo);
     await this.horariosService.invalidateHorariosCache();
     return {
@@ -177,9 +192,16 @@ export class HorariosController {
   async getPorDocente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
+    @CurrentUser() usuario: Usuario,
     @Query("page") page?: string,
     @Query("limit") limit?: string,
   ) {
+    if (usuario.rol === RolUsuario.DOCENTE) {
+      const docenteId = (usuario as Usuario & { docenteId?: number | null }).docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new BadRequestException("No tiene permisos para ver el horario de otro docente");
+      }
+    }
     const data = await this.horariosService.findByDocente(
       id,
       periodo,
@@ -293,11 +315,17 @@ export class HorariosController {
       typeof (usuario as Usuario & { docenteId?: number | null }).docenteId ===
       "number"
     ) {
-      const data = await this.horariosService.findHorariosByDocenteId(
-        (usuario as Usuario & { docenteId: number }).docenteId,
+      const docenteId = (usuario as Usuario & { docenteId: number }).docenteId;
+      const horarios = await this.horariosService.findHorariosByDocenteId(
+        docenteId,
         periodo,
       );
-      return { data, message: "Horario obtenido", statusCode: HttpStatus.OK };
+      const docente = await this.horariosService.getDocenteById(docenteId);
+      return {
+        data: { horarios, docente },
+        message: "Horario obtenido",
+        statusCode: HttpStatus.OK,
+      };
     }
 
     if (!usuario.email) throw new BadRequestException("Usuario sin correo");
@@ -338,8 +366,8 @@ export class HorariosController {
         );
       }
 
-      // Obtener el docenteId del primer horario
-      const docenteId = horarios[0].docente?.id;
+      // Obtener el docenteId del docente encontrado
+      const docenteId = horarios.docente?.id;
       if (!docenteId) {
         throw new NotFoundException("No se pudo identificar el docente");
       }
@@ -739,9 +767,16 @@ export class HorariosController {
   async exportarICalendar(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
+    @CurrentUser() usuario: Usuario,
     @Res() res: any,
     @Headers() headers: any,
   ) {
+    if (usuario.rol === RolUsuario.DOCENTE) {
+      const docenteId = (usuario as Usuario & { docenteId?: number | null }).docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new BadRequestException("No tiene permisos para exportar el horario de otro docente");
+      }
+    }
     try {
       const icsContent = await this.icalendarService.generarICalendarDocente(
         id,

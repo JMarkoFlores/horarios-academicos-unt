@@ -1,8 +1,9 @@
 <div class="declaraciones-page animate-fadein">
   <div class="page-header-premium">
     <div class="title-section">
-      <h1 class="gradient-text">Gestión de Declaraciones Normativas</h1>
-      <p class="subtitle">Seleccione un docente para verificar sus declaraciones</p>
+      <h1 class="gradient-text">Declaraciones Normativas</h1>
+      <p class="subtitle" *ngIf="isDocente">Gestione su declaración de carga horaria</p>
+      <p class="subtitle" *ngIf="!isDocente">Seleccione un docente para verificar sus declaraciones</p>
     </div>
   </div>
 
@@ -31,7 +32,6 @@
               class="custom-select"
               panelClass="docentes-dropdown-panel"
             >
-              <!-- Input de Búsqueda -->
               <div class="dropdown-search-box" (keydown.space)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
                 <mat-icon class="search-icon">search</mat-icon>
                 <input matInput [formControl]="searchCtrl" placeholder="Buscar por apellidos, nombres o código..." autocomplete="off">
@@ -73,19 +73,21 @@
       </mat-card-content>
     </mat-card>
 
+    <!-- Loading state para docente -->
     <div class="loading-state" *ngIf="loading && isDocente">
       <mat-spinner diameter="40"></mat-spinner>
-      <p>Cargando información de su carga horaria...</p>
+      <p>Cargando información de su declaración...</p>
     </div>
 
-    <!-- Stepper de Estados (Informativo) -->
-    <div class="stepper-wrapper" *ngIf="selectedDocente && !loadingEstado && estadoDeclaracion">
+    <!-- Stepper de Estados -->
+    <div class="stepper-wrapper" *ngIf="selectedDocente && !loadingEstado">
       <div class="stepper-container">
         <div class="stepper-track"></div>
         <div
           class="stepper-item"
           *ngFor="let etapa of stepperEtapas"
           [ngClass]="getStepClass(etapa)"
+          [class.step-active]="getStepActive(etapa)"
           [title]="etapa.description"
         >
           <div class="step-circle" [style.background-color]="getStepClass(etapa) !== 'step-pending' ? etapa.color : ''">
@@ -94,11 +96,15 @@
           <div class="step-label">{{ etapa.label }}</div>
         </div>
       </div>
-      <div class="estado-actual-banner">
-        <span class="label">Estado de la declaración:</span>
-        <span class="value" [ngClass]="'badge-' + estadoDeclaracion.toLowerCase()">
+      <div class="estado-actual-banner" *ngIf="estadoDeclaracion">
+        <span class="label">Estado:</span>
+        <span class="value" [ngClass]="estadoBadgeClass">
           {{ estadoLabelActual }}
         </span>
+      </div>
+      <div class="estado-actual-banner" *ngIf="!estadoDeclaracion && isDocente">
+        <span class="label">Estado:</span>
+        <span class="value badge-sin-estado">Sin declaración</span>
       </div>
     </div>
 
@@ -114,7 +120,6 @@
         </div>
       </mat-card-header>
       <mat-card-content class="card-content">
-        <!-- Encabezado del docente -->
         <div class="docente-header">
           <div class="docente-avatar-large">
             {{ selectedDocente.apellidos.charAt(0) }}{{ selectedDocente.nombres.charAt(0) }}
@@ -125,12 +130,9 @@
           </div>
         </div>
 
-        <!-- Grid de información -->
         <div class="info-grid">
           <div class="info-item">
-            <div class="info-item-icon">
-              <mat-icon>calendar_today</mat-icon>
-            </div>
+            <div class="info-item-icon"><mat-icon>calendar_today</mat-icon></div>
             <div class="info-item-content">
               <div class="info-item-label">Semestre Académico</div>
               <div class="info-item-value">{{ periodoActivo }}</div>
@@ -138,9 +140,7 @@
           </div>
 
           <div class="info-item">
-            <div class="info-item-icon">
-              <mat-icon>business</mat-icon>
-            </div>
+            <div class="info-item-icon"><mat-icon>business</mat-icon></div>
             <div class="info-item-content">
               <div class="info-item-label">Departamento</div>
               <div class="info-item-value">{{ departamentoDocente }}</div>
@@ -148,9 +148,7 @@
           </div>
 
           <div class="info-item">
-            <div class="info-item-icon">
-              <mat-icon>school</mat-icon>
-            </div>
+            <div class="info-item-icon"><mat-icon>school</mat-icon></div>
             <div class="info-item-content">
               <div class="info-item-label">Facultad</div>
               <div class="info-item-value">{{ facultadDocente }}</div>
@@ -158,9 +156,7 @@
           </div>
 
           <div class="info-item">
-            <div class="info-item-icon">
-              <mat-icon>work</mat-icon>
-            </div>
+            <div class="info-item-icon"><mat-icon>work</mat-icon></div>
             <div class="info-item-content">
               <div class="info-item-label">Condición</div>
               <div class="info-item-value">{{ condicionDocente }}</div>
@@ -168,9 +164,7 @@
           </div>
 
           <div class="info-item">
-            <div class="info-item-icon">
-              <mat-icon>star</mat-icon>
-            </div>
+            <div class="info-item-icon"><mat-icon>star</mat-icon></div>
             <div class="info-item-content">
               <div class="info-item-label">Categoría</div>
               <div class="info-item-value">{{ categoriaDocente }}</div>
@@ -178,9 +172,7 @@
           </div>
 
           <div class="info-item">
-            <div class="info-item-icon">
-              <mat-icon>schedule</mat-icon>
-            </div>
+            <div class="info-item-icon"><mat-icon>schedule</mat-icon></div>
             <div class="info-item-content">
               <div class="info-item-label">Dedicación</div>
               <div class="info-item-value">{{ dedicacionDocente }}</div>
@@ -188,18 +180,17 @@
           </div>
         </div>
 
-        <!-- Botones de acción -->
         <div class="action-buttons">
           <button
             mat-raised-button
-            class="action-btn btn-verificar"
+            class="action-btn btn-principal"
             *ngIf="puedeVerDeclaracion"
-            [routerLink]="['/app/declaraciones/verificar', selectedDocente.id]"
+            (click)="irADeclaracion()"
           >
-            <mat-icon>description</mat-icon>
-            <span>Verificar Declaración</span>
+            <mat-icon>{{ botonAccionIcon }}</mat-icon>
+            <span>{{ botonAccionLabel }}</span>
           </button>
-          
+
           <button
             mat-raised-button
             class="action-btn btn-firma"
@@ -209,7 +200,7 @@
             <mat-icon>verified</mat-icon>
             <span>Verificar Firma</span>
           </button>
-          
+
           <button
             mat-raised-button
             class="action-btn btn-aprobacion"

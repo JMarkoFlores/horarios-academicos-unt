@@ -75,7 +75,9 @@ async function main() {
 
   const estadosRequeridos = [
     EstadoDeclaracionCarga.BORRADOR,
-    EstadoDeclaracionCarga.CONFIRMADO,
+    EstadoDeclaracionCarga.ENVIADO,
+    EstadoDeclaracionCarga.VALIDADO_DPTO,
+    EstadoDeclaracionCarga.APROBADO_FACULTAD,
     EstadoDeclaracionCarga.CERRADO,
   ];
 
@@ -95,9 +97,13 @@ async function main() {
     const minimo =
       estado === EstadoDeclaracionCarga.BORRADOR
         ? 5
-        : estado === EstadoDeclaracionCarga.CONFIRMADO
+        : estado === EstadoDeclaracionCarga.ENVIADO
           ? 5
-          : 2;
+          : estado === EstadoDeclaracionCarga.VALIDADO_DPTO
+            ? 5
+            : estado === EstadoDeclaracionCarga.APROBADO_FACULTAD
+              ? 5
+              : 3;
     checks.push({
       ok: row[0].n >= minimo,
       message: `Declaraciones ${estado}: ${row[0].n} (mín. ${minimo})`,

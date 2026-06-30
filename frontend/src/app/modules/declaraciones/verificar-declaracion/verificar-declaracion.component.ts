@@ -10,6 +10,7 @@ import { PeriodoService } from '../../../core/services/periodo.service';
 import { CargaAdicionalService, CargaAdicional } from '../../../core/services/carga-adicional.service';
 import { Docente, ApiResponse, DeclaracionObservacion } from '../../../core/interfaces/entities';
 import { GestionarHorarioDialogComponent, GestionarHorarioData, HorarioEntry as HorarioEntryType } from '../dialogs/gestionar-horario-dialog.component';
+import { DragDropScheduleComponent, DragDropScheduleData, HorarioEntry } from '../dialogs/drag-drop-schedule.component';
 import {
   DIA_CODIGO_A_CORTO,
   diaNumericoACodigo,
@@ -81,15 +82,19 @@ const MINIMO_NORMATIVO: Record<string, number> = {
 };
 
 const ESTADOS_CONFIG: Record<string, EstadoConfig> = {
-  BORRADOR: { label: 'Borrador', color: 'estado-borrador', editable: true, etapa: 0 },
-  CONFIRMADO: { label: 'Confirmado', color: 'estado-enviado', editable: false, etapa: 1 },
-  CERRADO: { label: 'Cerrado', color: 'estado-cerrado', editable: false, etapa: 2 },
+  BORRADOR:     { label: 'Borrador',      color: 'estado-borrador',     editable: true,  etapa: 0 },
+  ENVIADO:      { label: 'Enviado',       color: 'estado-enviado',      editable: false, etapa: 1 },
+  VALIDADO_DPTO: { label: 'Validado Dpto.',   color: 'estado-departamento', editable: false, etapa: 2 },
+  APROBADO_FACULTAD: { label: 'Aprobado Facultad', color: 'estado-facultad',     editable: false, etapa: 3 },
+  CERRADO:      { label: 'Cerrado',        color: 'estado-cerrado',      editable: false, etapa: 4 },
 };
 
 const STEPPER_ETAPAS = [
-  { key: 'BORRADOR', label: 'Borrador', icon: 'edit_note' },
-  { key: 'CONFIRMADO', label: 'Confirmado', icon: 'check_circle' },
-  { key: 'CERRADO', label: 'Cerrado', icon: 'lock' },
+  { key: 'BORRADOR',     label: 'Borrador',      icon: 'edit_note' },
+  { key: 'ENVIADO',      label: 'Enviado',       icon: 'send' },
+  { key: 'VALIDADO_DPTO', label: 'Validado Dpto.',   icon: 'verified' },
+  { key: 'APROBADO_FACULTAD', label: 'Aprobado Facultad', icon: 'approval' },
+  { key: 'CERRADO',      label: 'Cerrado',        icon: 'lock' },
 ];
 
 @Component({
@@ -144,6 +149,10 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   generandoDeclaracionJurada = false;
 
   stepperEtapas = STEPPER_ETAPAS;
+
+  // Inline drag-drop schedule editing
+  actividadSeleccionada: ActividadNoLectiva | null = null;
+  dragDropData: DragDropScheduleData | null = null;
 
   // Carga Adicional
   cargaAdicional: CargaAdicional[] = [];
@@ -298,7 +307,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
         next: (res) => {
           if (res.data) {
             this.declaracionId = res.data.id;
-            const estadosValidos = ['BORRADOR', 'CONFIRMADO', 'CERRADO'];
+            const estadosValidos = ['BORRADOR', 'ENVIADO', 'VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO', 'OBSERVADO_DPTO', 'OBSERVADO_FACULTAD', 'REABIERTO'];
       this.estadoDeclaracion = estadosValidos.includes(res.data.estado) ? res.data.estado : 'BORRADOR';
             if (res.data.periodo_academico) {
               const p = res.data.periodo_academico;
@@ -401,8 +410,10 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     if (etapaIdx === -1) return 'pendiente';
     const estadosMap: Record<string, number> = {
       BORRADOR: 0,
-      CONFIRMADO: 1,
-      CERRADO: 2,
+      ENVIADO: 1,
+      VALIDADO_DPTO: 2,
+      APROBADO_FACULTAD: 3,
+      CERRADO: 4,
     };
     const current = estadosMap[this.estadoDeclaracion] ?? 0;
     if (current > etapaIdx) return 'completada';
@@ -445,9 +456,31 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
   getHorarioSummary(horarios: HorarioEntryType[]): string {
     if (!horarios || horarios.length === 0) return 'Sin horario';
-    return horarios.map(h =>
-      `${DIA_CODIGO_A_CORTO[h.dia] || h.dia} ${normalizarHora(h.hora_inicio)}-${normalizarHora(h.hora_fin)}`
-    ).join(', ');
+    const porDia = new Map<string, HorarioEntryType[]>();
+    for (const h of horarios) {
+      const arr = porDia.get(h.dia) || [];
+      arr.push(h);
+      porDia.set(h.dia, arr);
+    }
+    const partes: string[] = [];
+    for (const [dia, bloques] of porDia) {
+      const ordenados = bloques
+        .map(b => ({ ini: normalizarHora(b.hora_inicio), fin: normalizarHora(b.hora_fin) }))
+        .sort((a, b) => a.ini.localeCompare(b.ini));
+      let merged: { ini: string; fin: string }[] = [];
+      for (const b of ordenados) {
+        const last = merged[merged.length - 1];
+        if (last && last.fin === b.ini) {
+          last.fin = b.fin;
+        } else {
+          merged.push({ ...b });
+        }
+      }
+      for (const r of merged) {
+        partes.push(`${DIA_CODIGO_A_CORTO[dia] || dia} ${r.ini}–${r.fin}`);
+      }
+    }
+    return partes.join(', ');
   }
 
   cargarHorariosLectivos(): void {
@@ -684,68 +717,67 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       this.cargandoHorariosLectivos = false;
     }
 
-    // Guardar el valor original de horas para no sobreescribir si el usuario las ingresó manualmente
-    const horasOriginales = actividad.horas;
-    const horasManualOriginal = actividad.horasManual;
+    // Toggle off if same activity
+    if (this.actividadSeleccionada?.id === actividad.id) {
+      this.actividadSeleccionada = null;
+      this.dragDropData = null;
+      return;
+    }
 
-    const allHorarios = this.actividadesNoLectivas
-      .filter(a => a.id !== actividad.id && a.horarios && a.horarios.length > 0)
-      .map(a => ({
-        actividadId: a.id,
-        actividadNombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
-        horarios: [...a.horarios],
-      }));
+    // Save current activity's schedule before switching
+    if (this.actividadSeleccionada) {
+      this.triggerAutoSave();
+    }
 
-    // Calcular maxHoras para preparación y evaluación (50% de lectivas)
     let maxHoras: number | undefined;
     if (actividad.id === 2) {
       maxHoras = Math.floor(this.totalHorasLectivas * 0.5);
     }
 
-    const data: GestionarHorarioData = {
+    this.actividadSeleccionada = actividad;
+
+    const allActividades = this.actividadesNoLectivas.map(a => ({
+      id: a.id,
+      nombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
+      horarios: a.horarios.map(h => ({ dia: h.dia, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin })),
+    }));
+
+    this.dragDropData = {
       actividadId: actividad.id,
-      actividadNombre: actividad.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
-      horarios: actividad.horarios.map(h => ({ ...h })),
+      actividadNombre: allActividades.find(a => a.id === actividad.id)?.nombre || actividad.descripcion,
+      horarios: actividad.horarios.map(h => ({ dia: h.dia, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin })),
       horas: actividad.horas,
-      horasManual: actividad.horasManual,
-      allHorarios,
-      horariosLectivos: this.horariosLectivos.map(h => ({ ...h })),
       maxHoras,
       totalHorasLectivas: this.totalHorasLectivas,
+      horariosLectivos: this.horariosLectivos.map(h => ({ ...h })),
+      allActividades,
     };
+  }
 
-    const ref = this.dialog.open(GestionarHorarioDialogComponent, {
-      width: '720px',
-      maxWidth: '95vw',
-      data,
-      disableClose: true,
-    });
+  onDragDropHorariosChange(horarios: HorarioEntry[]): void {
+    if (!this.actividadSeleccionada) return;
+    this.actividadSeleccionada.horarios = horarios.map(h => ({
+      dia: h.dia,
+      hora_inicio: h.hora_inicio,
+      hora_fin: h.hora_fin,
+    }));
+    this.calcularTotales();
+    this.triggerAutoSave();
+  }
 
-    ref.afterClosed().subscribe((result: GestionarHorarioData | null) => {
-      if (!result) return;
-      actividad.horarios = result.horarios;
-      actividad.horasManual = result.horasManual;
-      
-      // Solo actualizar horas si:
-      // - El usuario activó modo manual en el diálogo, O
-      // - Las horas estaban vacías (0) antes de abrir el diálogo, O
-      // - El usuario presionó ACTUALIZAR explícitamente (horasActualizadas flag)
-      if (!horasManualOriginal && (!horasOriginales || horasOriginales === 0)) {
-        actividad.horas = result.horas;
-      }
-      // Si el usuario tenía horas ingresadas manualmente, mantenerlas
-      // Solo actualizar si el usuario las modificó explícitamente en el diálogo (horasManual cambió a true)
-      else if (result.horasManual && !horasManualOriginal) {
-        actividad.horas = result.horas;
-      }
-      // Si el usuario presionó ACTUALIZAR en el snackBar de discrepancia
-      else if (result.horasActualizadas) {
-        actividad.horas = result.horas;
-      }
-      
-      this.calcularTotales();
+  onDragDropHorasChange(horas: number): void {
+    if (!this.actividadSeleccionada) return;
+    this.actividadSeleccionada.horas = horas;
+    this.calcularTotales();
+    this.triggerAutoSave();
+  }
+
+  cerrarDragDrop(): void {
+    if (this.actividadSeleccionada) {
       this.triggerAutoSave();
-    });
+    }
+    this.actividadSeleccionada = null;
+    this.dragDropData = null;
   }
 
   triggerAutoSave(): void {
@@ -851,13 +883,13 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       this.saving = true;
       this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/enviar`, {}).subscribe({
         next: () => {
-          this.estadoDeclaracion = 'CONFIRMADO';
-          this.snackBar.open('Declaración confirmada correctamente', 'Cerrar', { duration: 3000 });
+          this.estadoDeclaracion = 'ENVIADO';
+          this.snackBar.open('Declaración enviada correctamente', 'Cerrar', { duration: 3000 });
           this.saving = false;
           this.cargarDeclaracion();
         },
         error: (err) => {
-          this.snackBar.open(err.error?.message || 'Error al confirmar la declaración', 'Cerrar', { duration: 3000 });
+          this.snackBar.open(err.error?.message || 'Error al enviar la declaración', 'Cerrar', { duration: 3000 });
           this.saving = false;
         },
       });
@@ -866,8 +898,8 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       this.api.post<ApiResponse<any>>(`/declaraciones/docentes/${this.docenteId}/enviar`, { periodo: this.periodoActivo })
         .subscribe({
           next: () => {
-            this.estadoDeclaracion = 'CONFIRMADO';
-            this.snackBar.open('Declaración confirmada correctamente', 'Cerrar', { duration: 3000 });
+            this.estadoDeclaracion = 'ENVIADO';
+            this.snackBar.open('Declaración enviada correctamente', 'Cerrar', { duration: 3000 });
             this.saving = false;
             this.cargarDeclaracion();
           },
@@ -882,14 +914,46 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   cerrar(): void {
     if (!this.declaracionId) return;
     this.saving = true;
-    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/cerrar`, {}).subscribe({
+    this.api.post<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/cerrar`, {}).subscribe({
       next: () => {
-        this.snackBar.open('Declaración cerrada correctamente', 'Cerrar', { duration: 3000 });
+        this.snackBar.open('Declaración aprobada y cerrada correctamente', 'Cerrar', { duration: 3000 });
         this.saving = false;
         this.cargarDeclaracion();
       },
       error: (err) => {
         this.snackBar.open(err.error?.message || 'Error al cerrar la declaración', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
+  }
+
+  validarDepartamento(): void {
+    if (!this.declaracionId) return;
+    this.saving = true;
+    this.api.post<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/validar-departamento`, {}).subscribe({
+      next: () => {
+        this.snackBar.open('Declaración validada por departamento', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+        this.cargarDeclaracion();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al validar la declaración', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
+  }
+
+  aprobarFacultad(): void {
+    if (!this.declaracionId) return;
+    this.saving = true;
+    this.api.post<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/validar-facultad`, {}).subscribe({
+      next: () => {
+        this.snackBar.open('Declaración aprobada por facultad', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+        this.cargarDeclaracion();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al aprobar la declaración', 'Cerrar', { duration: 3000 });
         this.saving = false;
       },
     });

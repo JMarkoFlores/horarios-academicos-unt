@@ -114,9 +114,9 @@ export class DocumentacionDetalleComponent implements OnInit {
     if (!this.data?.declaracion) return;
     this.saving = true;
     this.api
-      .patch<ApiResponse<DeclaracionVista>>(
-        `/declaraciones/${this.data.declaracion.id}/validar`,
-        { observaciones: 'Validado por director de escuela' },
+      .post<ApiResponse<DeclaracionVista>>(
+        `/declaraciones/${this.data.declaracion.id}/validar-departamento`,
+        {},
       )
       .subscribe({
         next: (res) => {
@@ -148,9 +148,9 @@ export class DocumentacionDetalleComponent implements OnInit {
     }
     this.saving = true;
     this.api
-      .patch<ApiResponse<DeclaracionVista>>(
-        `/declaraciones/${this.data.declaracion.id}/observar`,
-        { observaciones: this.textoObservacion },
+      .post<ApiResponse<DeclaracionVista>>(
+        `/declaraciones/${this.data.declaracion.id}/observar-departamento`,
+        { motivo: this.textoObservacion },
       )
       .subscribe({
         next: (res) => {
@@ -175,7 +175,7 @@ export class DocumentacionDetalleComponent implements OnInit {
   }
 
   puedeValidar(): boolean {
-    return this.data?.estado === 'ENVIADO_DOCENTE' || this.data?.estado === 'OBSERVADO_DPTO' || this.data?.estado === 'SUBSANADO';
+    return this.data?.estado === 'ENVIADO' || this.data?.estado === 'OBSERVADO_DPTO' || this.data?.estado === 'REABIERTO';
   }
 
   puedeObservar(): boolean {
@@ -229,32 +229,29 @@ export class DocumentacionDetalleComponent implements OnInit {
 
   get estadoLabel(): string {
     const labels: Record<string, string> = {
-      NO_INICIADO: 'No iniciado',
       BORRADOR: 'Borrador',
-      PENDIENTE_ENVIO: 'Pendiente de envío',
-      ENVIADO_DOCENTE: 'Enviado por docente',
+      ENVIADO: 'Enviado por docente',
       OBSERVADO_DPTO: 'Observado por departamento',
-      SUBSANADO: 'Subsanado',
       VALIDADO_DPTO: 'Validado por departamento',
       OBSERVADO_FACULTAD: 'Observado por facultad',
       APROBADO_FACULTAD: 'Aprobado por facultad',
       CERRADO: 'Cerrado',
-      ANULADO: 'Anulado',
-      SIN_DECLARACION: 'Sin declaracion',
+      REABIERTO: 'Reabierto',
+      SIN_DECLARACION: 'Sin declaración',
     };
     return labels[this.estado] || this.estado;
   }
 
   get estadoColorClass(): string {
     const colors: Record<string, string> = {
-      ENVIADO_DOCENTE: 'estado-enviado',
+      BORRADOR: 'estado-borrador',
+      ENVIADO: 'estado-enviado',
       OBSERVADO_DPTO: 'estado-observado',
-      SUBSANADO: 'estado-subsanado',
       VALIDADO_DPTO: 'estado-validado',
       OBSERVADO_FACULTAD: 'estado-observado-facultad',
       APROBADO_FACULTAD: 'estado-aprobado',
       CERRADO: 'estado-cerrado',
-      BORRADOR: 'estado-borrador',
+      REABIERTO: 'estado-reabierto',
       SIN_DECLARACION: 'estado-cerrado',
     };
     return colors[this.estado] || 'estado-cerrado';

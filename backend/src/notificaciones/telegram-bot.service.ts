@@ -170,7 +170,7 @@ export class TelegramBotService {
           where: { docente_id: docenteId, periodo_academico_id: periodoId },
         });
         this.logger.log(`📋 Declaración encontrada: ${declaracion?.id}, estado: ${declaracion?.estado}`);
-        const estadosConfirmados = ['CONFIRMADO', 'VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO'];
+        const estadosConfirmados = ['ENVIADO', 'VALIDADO_DPTO', 'OBSERVADO_DPTO', 'APROBADO_FACULTAD', 'OBSERVADO_FACULTAD', 'CERRADO', 'REABIERTO'];
         puedeMostrarNoLectiva = declaracion?.estado && estadosConfirmados.includes(declaracion.estado);
         this.logger.log(`✅ Puede mostrar no lectiva: ${puedeMostrarNoLectiva}`);
         cargaNoLectiva = declaracion?.carga_no_lectiva;

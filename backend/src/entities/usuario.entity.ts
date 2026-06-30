@@ -42,6 +42,9 @@ export class Usuario {
   @Column({ type: "varchar", length: 5, default: "es" })
   idioma: string;
 
+  @Column({ length: 500, nullable: true, name: "firma_url" })
+  firma_url: string | null;
+
   @Column({ type: "varchar", length: 255, nullable: true, default: null })
   reset_token: string | null;
 

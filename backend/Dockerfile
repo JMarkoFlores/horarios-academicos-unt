@@ -50,6 +50,9 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nestjs -u 1001
 
+# Create uploads directory with correct ownership
+RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app/uploads
+
 # Copy package files
 COPY package*.json ./
 

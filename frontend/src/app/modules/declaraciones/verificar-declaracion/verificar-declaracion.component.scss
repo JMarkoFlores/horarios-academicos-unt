@@ -1,7 +1,6 @@
 .verificar-container {
   padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: 100%;
 }
 
 .page-header {
@@ -226,6 +225,35 @@
   background: var(--color-danger-bg);
   border: 1px solid var(--color-danger-light);
   color: var(--color-danger);
+}
+
+.aviso-confirmado {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-light);
+  color: var(--color-info);
+
+  mat-icon {
+    flex-shrink: 0;
+  }
+}
+
+.aviso-departamento {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.aviso-facultad {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
 }
 
 .loading-center {
@@ -906,7 +934,7 @@
 
 .estado-anulado {
   background: var(--color-surface-3);
-  color: white;
+  color: var(--color-text);
 }
 
 /* Observaciones */
@@ -916,13 +944,13 @@
 
 .header-observaciones {
   background: var(--color-surface-3);
-  color: white;
+  color: var(--color-text);
   margin: -16px -16px 16px -16px;
   padding: 12px 16px;
   border-radius: 4px 4px 0 0;
 
   .mat-card-title {
-    color: white;
+    color: var(--color-text);
     font-size: 14px;
     font-weight: 600;
     margin: 0;
@@ -930,7 +958,7 @@
 
   .subtitle {
     font-size: 12px;
-    opacity: 0.9;
+    opacity: 0.8;
     margin-left: 8px;
   }
 }
@@ -938,8 +966,9 @@
 .observaciones-table {
   th {
     background: var(--color-surface-3);
-    color: white;
+    color: var(--color-text);
     font-size: 11px;
+    font-weight: 600;
   }
 
   td {
@@ -1049,10 +1078,11 @@
 
 .horario-cell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
-  gap: 2px;
+  gap: 4px;
   min-height: 32px;
+  flex-wrap: wrap;
 }
 
 .no-lectivas-table .col-horario {
@@ -1071,7 +1101,8 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
   line-height: 1.4;
 }
 
@@ -1125,6 +1156,42 @@
 }
 
 /* Declaración Jurada F02-CAD */
+.drag-drop-panel {
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--color-accent);
+
+  .header-drag-drop {
+    background: var(--color-accent);
+    color: white;
+    margin: -16px -16px 16px -16px;
+    padding: 12px 16px;
+    border-radius: 4px 4px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .mat-card-title {
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+    }
+  }
+
+  .btn-close-panel {
+    color: white;
+  }
+}
+
 .header-jurada {
   background: var(--color-accent);
   color: white;

@@ -1,0 +1,197 @@
+<div class="panel-overlay">
+  <!-- Header -->
+  <div class="panel-header">
+    <h3 class="panel-title">
+      <mat-icon>calendar_view_week</mat-icon>
+      Horario Semanal
+    </h3>
+    <div class="header-actions">
+      <button
+        mat-stroked-button
+        color="warn"
+        (click)="limpiarHorariosNoLectivos()"
+        [disabled]="!puedeEditar"
+        class="btn-limpiar"
+      >
+        <mat-icon>clear_all</mat-icon>
+        Limpiar No Lectivas
+      </button>
+      <button mat-icon-button (click)="onCerrar()" class="btn-cerrar">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="panel-body">
+    <!-- Paleta de actividades (solo las que tienen horas declaradas) -->
+    <aside class="paleta" *ngIf="puedeEditar">
+      <div class="paleta-header">
+        <mat-icon>drag_indicator</mat-icon>
+        <span>Arrastre una actividad</span>
+      </div>
+      <div class="paleta-items">
+        <div
+          *ngFor="let act of actividadesPaleta"
+          class="paleta-item"
+          [class.paleta-completa]="getHorasAsignadas(act.id) >= act.horas"
+          cdkDrag
+          [cdkDragData]="act"
+          [cdkDragDisabled]="getHorasAsignadas(act.id) >= act.horas"
+          (cdkDragReleased)="onPaletaDragReleased($event, act)"
+          [style.border-left-color]="getColorPorRubro(act.id)"
+        >
+          <span class="item-nro">{{ act.id }}</span>
+          <span class="item-text" [matTooltip]="act.descripcion">
+            {{ getDescripcionCorta(act) }}
+          </span>
+          <span class="item-hrs">
+            {{ getHorasAsignadas(act.id) }} / {{ act.horas }}h
+          </span>
+        </div>
+
+        <div *ngIf="actividadesPaleta.length === 0" class="paleta-vacio">
+          <mat-icon>info</mat-icon>
+          <span>Primero declare las horas arriba en la tabla para poder arrastrar actividades aquí.</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Área de gradilla -->
+    <div class="gradilla-area">
+      <!-- Leyenda -->
+      <div class="leyenda">
+        <span class="leyenda-item">
+          <span class="dot" style="background: #c5cae9"></span> Lectivo
+        </span>
+        <span class="leyenda-item">
+          <span class="dot" style="background: #e91e63"></span> Preparación
+        </span>
+        <span class="leyenda-item">
+          <span class="dot" style="background: #2196f3"></span> Investigación
+        </span>
+        <span class="leyenda-item">
+          <span class="dot" style="background: #ff9800"></span> Gestión
+        </span>
+      </div>
+
+      <div class="gradilla-wrapper">
+        <div class="gradilla" #gradillaRef>
+          <!-- Esquina -->
+          <div class="cell header corner">Hora</div>
+
+          <!-- Días header -->
+          <div
+            *ngFor="let dia of dias; let col = index"
+            class="cell header dia-header"
+            [style.grid-column]="col + 2"
+          >
+            {{ etiquetaDia(dia) }}
+          </div>
+
+          <!-- Filas de horas + celdas drop -->
+          <ng-container *ngFor="let hora of horasRange; let row = index">
+            <div class="cell header hora-label" [style.grid-row]="row + 2">
+              {{ hora }}:00
+            </div>
+
+            <div
+              *ngFor="let dia of dias; let col = index"
+              class="cell drop-cell"
+              [attr.data-dia]="dia"
+              [attr.data-hora]="hora"
+              [id]="getDropListId(dia, hora)"
+              [style.grid-row]="row + 2"
+              [style.grid-column]="col + 2"
+            ></div>
+          </ng-container>
+
+          <!-- Bloques -->
+          <ng-container *ngFor="let bloque of bloques; trackBy: trackByBloqueId">
+            <div
+              class="bloque"
+              [class.bloque-lectivo]="bloque.tipo === 'lectivo'"
+              [class.bloque-no-lectivo]="bloque.tipo === 'no-lectivo'"
+              [style.grid-column]="getCol(bloque.dia) + 2"
+              [style.grid-row]="
+                (getRow(bloque.horaInicio) + 2) + ' / span ' + bloque.duracion
+              "
+              [style.background-color]="bloque.color"
+              [style.border-color]="bloque.color"
+              cdkDrag
+              [cdkDragBoundary]="'.gradilla'"
+              [cdkDragDisabled]="!puedeEditar || bloque.tipo === 'lectivo'"
+              (cdkDragStarted)="onDragStarted($event, bloque)"
+              (cdkDragEnded)="onDragEnded($event, bloque)"
+            >
+              <div class="bloque-content">
+                <span class="bloque-title">{{ bloque.titulo }}</span>
+                <span class="bloque-time">
+                  {{ bloque.horaInicio }}:00-{{ bloque.horaInicio +
+                  bloque.duracion }}:00
+                </span>
+              </div>
+
+              <!-- Controles del bloque (solo no lectivos editables) -->
+              <div
+                *ngIf="bloque.tipo === 'no-lectivo' && puedeEditar"
+                class="bloque-actions"
+                (mousedown)="$event.stopPropagation()"
+              >
+                <button
+                  class="btn-action"
+                  (click)="extenderBloque(bloque, 1, $event)"
+                  title="Aumentar 1h"
+                >
+                  +
+                </button>
+                <button
+                  class="btn-action"
+                  (click)="extenderBloque(bloque, -1, $event)"
+                  title="Reducir 1h"
+                >
+                  −
+                </button>
+                <button
+                  class="btn-action btn-remove"
+                  (click)="eliminarBloque(bloque, $event)"
+                  title="Eliminar"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="panel-footer">
+    <div class="footer-stats">
+      <span class="stat">
+        No Lectivas:
+        <strong>{{ totalNoLectivas }}h</strong>
+      </span>
+      <span class="stat">
+        Lectivas:
+        <strong>{{ totalHorasLectivas }}h</strong>
+      </span>
+      <span class="stat">
+        Total:
+        <strong [class.excede]="excedeLimite">
+          {{ totalGeneral }}h / {{ horasModalidad }}h
+        </strong>
+      </span>
+      <span *ngIf="excedeLimite" class="alert-badge">
+        <mat-icon>warning</mat-icon>
+        Excede límite
+      </span>
+      <span *ngIf="preparacionExcede" class="alert-badge prep">
+        <mat-icon>warning</mat-icon>
+        Prep. &gt; 50%
+      </span>
+    </div>
+  </div>
+</div>

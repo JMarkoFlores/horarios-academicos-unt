@@ -197,6 +197,15 @@
         <mat-card-title>2. CARGA NO LECTIVA</mat-card-title>
         <span class="subtitle">Rubros del F01-CAD</span>
         <span class="horas-label">Horas: <strong>{{ totalHorasNoLectivas }}</strong></span>
+        <button
+          mat-raised-button
+          color="accent"
+          class="btn-horario-grafico"
+          (click)="toggleHorarioGrafico()"
+        >
+          <mat-icon>calendar_view_week</mat-icon>
+          Horario
+        </button>
       </mat-card-header>
       <mat-card-content>
         <table class="data-table no-lectivas-table">
@@ -291,6 +300,20 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- PANEL HORARIO GRAFICO -->
+        <div class="horario-grafico-wrapper" *ngIf="mostrandoHorarioGrafico">
+          <app-horario-grafico-panel
+            [actividades]="actividadesNoLectivas"
+            [horariosLectivos]="horariosLectivos"
+            [puedeEditar]="puedeEditar"
+            [totalHorasLectivas]="totalHorasLectivas"
+            [horasModalidad]="horasModalidad"
+            [totalHorasCargaAdicional]="totalHorasCargaAdicional"
+            (actividadesChange)="onHorarioGraficoChange($event)"
+            (cerrar)="mostrandoHorarioGrafico = false"
+          ></app-horario-grafico-panel>
+        </div>
       </mat-card-content>
     </mat-card>
 

@@ -10,6 +10,7 @@ import { PeriodoService } from '../../../core/services/periodo.service';
 import { CargaAdicionalService, CargaAdicional } from '../../../core/services/carga-adicional.service';
 import { Docente, ApiResponse, DeclaracionObservacion } from '../../../core/interfaces/entities';
 import { GestionarHorarioDialogComponent, GestionarHorarioData, HorarioEntry as HorarioEntryType } from '../dialogs/gestionar-horario-dialog.component';
+import { ActividadNoLectivaInput } from '../horario-grafico-panel/horario-grafico-panel.component';
 import {
   DIA_CODIGO_A_CORTO,
   diaNumericoACodigo,
@@ -149,6 +150,9 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   cargaAdicional: CargaAdicional[] = [];
   totalHorasCargaAdicional = 0;
   mostrandoCargaAdicional = false;
+
+  // Horario grafico
+  mostrandoHorarioGrafico = false;
 
   private autoSaveSubject = new Subject<void>();
   private autoSaveSub?: Subscription;
@@ -1048,6 +1052,26 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
           this.snackBar.open('Error al descargar el PDF', 'Cerrar', { duration: 3000 });
         },
       });
+  }
+
+  toggleHorarioGrafico(): void {
+    this.mostrandoHorarioGrafico = !this.mostrandoHorarioGrafico;
+    if (this.mostrandoHorarioGrafico && !this.horariosLectivos.length) {
+      this.cargarHorariosLectivos();
+    }
+  }
+
+  onHorarioGraficoChange(actividadesActualizadas: ActividadNoLectivaInput[]): void {
+    actividadesActualizadas.forEach((actSrc) => {
+      const actDest = this.actividadesNoLectivas.find((a) => a.id === actSrc.id);
+      if (actDest) {
+        actDest.horarios = actSrc.horarios.map((h) => ({ ...h }));
+        actDest.horas = actSrc.horas;
+        actDest.horasManual = actSrc.horasManual;
+      }
+    });
+    this.calcularTotales();
+    this.triggerAutoSave();
   }
 
   volver(): void {

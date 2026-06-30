@@ -190,7 +190,9 @@ describe("DeclaracionCargaHorariaService", () => {
     });
 
     it.each([
-      EstadoDeclaracionCarga.CONFIRMADO,
+      EstadoDeclaracionCarga.ENVIADO,
+      EstadoDeclaracionCarga.VALIDADO_DPTO,
+      EstadoDeclaracionCarga.APROBADO_FACULTAD,
       EstadoDeclaracionCarga.CERRADO,
     ])("rechaza regenerar cuando la declaración está en %s", async (estado) => {
       mockDeclaracionRepo.findOne.mockResolvedValue({
@@ -211,8 +213,10 @@ describe("DeclaracionCargaHorariaService", () => {
 
   describe("máquina de estados", () => {
     it.each([
-      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.CONFIRMADO],
-      [EstadoDeclaracionCarga.CONFIRMADO, EstadoDeclaracionCarga.CERRADO],
+      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.ENVIADO],
+      [EstadoDeclaracionCarga.ENVIADO, EstadoDeclaracionCarga.VALIDADO_DPTO],
+      [EstadoDeclaracionCarga.VALIDADO_DPTO, EstadoDeclaracionCarga.APROBADO_FACULTAD],
+      [EstadoDeclaracionCarga.APROBADO_FACULTAD, EstadoDeclaracionCarga.CERRADO],
     ])("permite la transición %s -> %s", (actual, siguiente) => {
       expect(() =>
         service.validarTransicionEstado(
@@ -224,9 +228,9 @@ describe("DeclaracionCargaHorariaService", () => {
 
     it.each([
       [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.CERRADO],
-      [EstadoDeclaracionCarga.CONFIRMADO, EstadoDeclaracionCarga.BORRADOR],
+      [EstadoDeclaracionCarga.ENVIADO, EstadoDeclaracionCarga.BORRADOR],
       [EstadoDeclaracionCarga.CERRADO, EstadoDeclaracionCarga.BORRADOR],
-      [EstadoDeclaracionCarga.CERRADO, EstadoDeclaracionCarga.CONFIRMADO],
+      [EstadoDeclaracionCarga.CERRADO, EstadoDeclaracionCarga.ENVIADO],
     ])("rechaza la transición ilegal %s -> %s", (actual, siguiente) => {
       expect(() =>
         service.validarTransicionEstado(

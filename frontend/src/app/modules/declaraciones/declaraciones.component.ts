@@ -1,7 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, FormControl } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subject, Subscription } from 'rxjs';
+import { Subject } from 'rxjs';
 import { debounceTime, takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
 import { ROLES } from '../../core/constants/roles';
@@ -9,7 +10,6 @@ import { AuthService } from '../../core/services/auth.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { Docente, ApiResponse } from '../../core/interfaces/entities';
 
-// Configuración de estados del stepper
 interface EstadoDeclaracion {
   key: string;
   label: string;
@@ -20,26 +20,19 @@ interface EstadoDeclaracion {
 }
 
 const ESTADOS_STEPPER: EstadoDeclaracion[] = [
-  { key: 'BORRADOR',         label: 'Borrador',      icon: 'edit_note', etapa: 1, color: '#1565c0', description: 'El docente está completando su declaración' },
-  { key: 'ENVIADO_DOCENTE',  label: 'Enviado',       icon: 'send',      etapa: 2, color: '#e65100', description: 'Declaración enviada al departamento para revisión' },
-  { key: 'VALIDADO_DPTO',    label: 'Departamento',  icon: 'verified',  etapa: 3, color: '#2e7d32', description: 'Validada por el director de departamento' },
-  { key: 'APROBADO_FACULTAD',label: 'Facultad',      icon: 'approval',  etapa: 4, color: '#4a148c', description: 'Aprobada por el decano de facultad' },
-  { key: 'CERRADO',          label: 'Cerrado',       icon: 'lock',      etapa: 5, color: '#37474f', description: 'Proceso finalizado y cerrado' },
+  { key: 'BORRADOR',    label: 'Borrador',      icon: 'edit_note',  etapa: 1, color: '#1565c0', description: 'Declaración en borrador - complete los datos' },
+  { key: 'ENVIADO',     label: 'Enviado',       icon: 'send',       etapa: 2, color: '#e65100', description: 'Enviada al departamento para revisión' },
+  { key: 'VALIDADO_DPTO',label: 'Validado Dpto.',   icon: 'verified',   etapa: 3, color: '#2e7d32', description: 'Validada por el director de departamento' },
+  { key: 'APROBADO_FACULTAD',    label: 'Aprobado Facultad',       icon: 'approval',   etapa: 4, color: '#4a148c', description: 'Aprobada por el decano de facultad' },
+  { key: 'CERRADO',     label: 'Cerrado',        icon: 'lock',       etapa: 5, color: '#37474f', description: 'Proceso finalizado y cerrado' },
 ];
 
-// Estados que mapean a cada etapa del stepper
 const ESTADO_A_ETAPA: Record<string, number> = {
-  NO_INICIADO:       0,
-  BORRADOR:          1,
-  PENDIENTE_ENVIO:   1,
-  ENVIADO_DOCENTE:   2,
-  OBSERVADO_DPTO:    2,
-  SUBSANADO:         2,
-  VALIDADO_DPTO:     3,
-  OBSERVADO_FACULTAD:3,
-  APROBADO_FACULTAD: 4,
-  CERRADO:           5,
-  ANULADO:          -1,
+  BORRADOR:     1,
+  ENVIADO:      2,
+  VALIDADO_DPTO: 3,
+  APROBADO_FACULTAD:     4,
+  CERRADO:      5,
 };
 
 @Component({
@@ -58,7 +51,8 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
   loadingEstado = false;
 
   selectedDocente: Docente | null = null;
-  estadoDeclaracion: string = 'NO_INICIADO';
+  estadoDeclaracion: string = '';
+  declaracionId: number | null = null;
   periodoActivo = '';
 
   stepperEtapas = ESTADOS_STEPPER;
@@ -71,6 +65,7 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private authService: AuthService,
     private periodoService: PeriodoService,
+    private router: Router,
   ) {
     this.declaracionesForm = this.fb.group({
       docenteSeleccionado: [{ value: null, disabled: true }],
@@ -85,7 +80,6 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
       this.cargarDocentes();
     }
 
-    // Suscribirse a cambios del buscador
     this.searchCtrl.valueChanges.pipe(
       debounceTime(150),
       takeUntil(this.destroy$),
@@ -96,8 +90,6 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
-  // ── Filtrado ────────────────────────────────────────────────────────────────
 
   filtrarDocentes(query: string): void {
     if (!query.trim()) {
@@ -112,14 +104,12 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Carga de datos ──────────────────────────────────────────────────────────
-
   cargarDatosDocenteActual(): void {
     const user = this.authService.getUsuarioActual();
     if (user?.docenteId) {
       this.loading = true;
       this.apiService
-        .get<ApiResponse<Docente>>(`/declaraciones/docentes/${user.docenteId}`)
+        .get<ApiResponse<Docente>>(`/docentes/${user.docenteId}`)
         .subscribe({
           next: (response) => {
             this.selectedDocente = response.data;
@@ -128,6 +118,7 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
           },
           error: () => {
             this.loading = false;
+            this.snackBar.open('Error al cargar información del docente', 'Cerrar', { duration: 3000 });
           },
         });
     }
@@ -153,7 +144,8 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
 
   onDocenteSeleccionado(docenteId: number): void {
     this.selectedDocente = this.docentes.find((d) => d.id === docenteId) || null;
-    this.estadoDeclaracion = 'NO_INICIADO';
+    this.estadoDeclaracion = '';
+    this.declaracionId = null;
     if (this.selectedDocente) {
       this.cargarEstadoDeclaracion(docenteId);
     }
@@ -165,17 +157,23 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
       .get<ApiResponse<any>>(`/declaraciones/docentes/${docenteId}/declaracion?periodo=${this.periodoActivo}`)
       .subscribe({
         next: (res) => {
-          this.estadoDeclaracion = res.data?.estado || 'NO_INICIADO';
+          this.estadoDeclaracion = res.data?.estado || '';
+          this.declaracionId = res.data?.id || null;
           this.loadingEstado = false;
         },
         error: () => {
-          this.estadoDeclaracion = 'NO_INICIADO';
+          this.estadoDeclaracion = '';
+          this.declaracionId = null;
           this.loadingEstado = false;
         },
       });
   }
 
-  // ── Roles ───────────────────────────────────────────────────────────────────
+  irADeclaracion(): void {
+    if (this.selectedDocente) {
+      this.router.navigate(['/app/declaraciones/verificar', this.selectedDocente.id]);
+    }
+  }
 
   get isDocente(): boolean {
     return this.authService.hasRole(ROLES.DOCENTE);
@@ -193,40 +191,32 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
     return this.authService.hasRole(ROLES.ADMINISTRADOR_SISTEMA);
   }
 
-  /** Puede ver la propia declaración del docente / abrir verificar-declaracion */
   get puedeVerDeclaracion(): boolean {
-    return true; // todos los roles
+    return true;
   }
 
-  /** Director, Coordinador, Decano, Admin */
   get puedeVerificarFirma(): boolean {
-    return this.isDirectorOrCoord || this.isDecano || this.isAdmin;
+    return this.isDocente;
   }
 
-  /** Solo Decano y Admin */
   get puedeVerificarAprobacion(): boolean {
     return this.isDecano || this.isAdmin;
   }
-
-  // ── Stepper ─────────────────────────────────────────────────────────────────
 
   get etapaActual(): number {
     return ESTADO_A_ETAPA[this.estadoDeclaracion] ?? 0;
   }
 
-  get estadoEsAnulado(): boolean {
-    return this.estadoDeclaracion === 'ANULADO';
-  }
-
   getStepClass(etapa: EstadoDeclaracion): string {
-    if (this.estadoEsAnulado) return 'step-anulado';
     const actual = this.etapaActual;
     if (actual >= etapa.etapa) return 'step-done';
-    if (actual === etapa.etapa - 1) return 'step-active'; // próximo
+    if (actual === 0) return 'step-pending';
     return 'step-pending';
   }
 
-  // ── Getters de info del docente ─────────────────────────────────────────────
+  getStepActive(etapa: EstadoDeclaracion): boolean {
+    return this.etapaActual === etapa.etapa;
+  }
 
   get nombreCompletoDocente(): string {
     if (!this.selectedDocente) return '';
@@ -270,18 +260,45 @@ export class DeclaracionesComponent implements OnInit, OnDestroy {
 
   get estadoLabelActual(): string {
     const labels: Record<string, string> = {
-      NO_INICIADO: 'No Iniciado',
       BORRADOR: 'Borrador',
-      PENDIENTE_ENVIO: 'Pendiente de Envío',
-      ENVIADO_DOCENTE: 'Enviado por Docente',
-      OBSERVADO_DPTO: 'Observado (Departamento)',
-      SUBSANADO: 'Subsanado',
-      VALIDADO_DPTO: 'Validado por Departamento',
-      OBSERVADO_FACULTAD: 'Observado (Facultad)',
-      APROBADO_FACULTAD: 'Aprobado por Facultad',
+      ENVIADO: 'Enviado',
+      VALIDADO_DPTO: 'Validado Dpto.',
+      APROBADO_FACULTAD: 'Aprobado Facultad',
       CERRADO: 'Cerrado',
-      ANULADO: 'Anulado',
     };
-    return labels[this.estadoDeclaracion] || this.estadoDeclaracion;
+    return labels[this.estadoDeclaracion] || 'Sin declaración';
+  }
+
+  get estadoBadgeClass(): string {
+    const classes: Record<string, string> = {
+      BORRADOR: 'badge-borrador',
+      ENVIADO: 'badge-enviado',
+      VALIDADO_DPTO: 'badge-departamento',
+      APROBADO_FACULTAD: 'badge-facultad',
+      CERRADO: 'badge-cerrado',
+    };
+    return classes[this.estadoDeclaracion] || 'badge-sin-estado';
+  }
+
+  get botonAccionLabel(): string {
+    const labels: Record<string, string> = {
+      BORRADOR: 'Continuar Declaración',
+      ENVIADO: 'Ver Declaración',
+      VALIDADO_DPTO: 'Ver Declaración',
+      APROBADO_FACULTAD: 'Ver Declaración',
+      CERRADO: 'Ver Declaración',
+    };
+    return labels[this.estadoDeclaracion] || 'Crear Declaración';
+  }
+
+  get botonAccionIcon(): string {
+    const icons: Record<string, string> = {
+      BORRADOR: 'edit_note',
+      ENVIADO: 'visibility',
+      VALIDADO_DPTO: 'visibility',
+      APROBADO_FACULTAD: 'visibility',
+      CERRADO: 'visibility',
+    };
+    return icons[this.estadoDeclaracion] || 'add_circle_outline';
   }
 }

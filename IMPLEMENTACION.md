@@ -690,6 +690,31 @@ Mejorar el módulo existente de declaración de carga (`verificar-declaracion.co
 | F2-4 | 🟡 Medio | Nested subscriptions en `generarDeclaracionJuradaPDF()` — Callbacks anidados sin `switchMap`. | `verificar-declaracion.component.ts` | ✅ Refactorizado a `pipe(tap(), switchMap())` |
 | F2-5 | 🟡 Medio | Empty error handlers en suscripciones HTTP — Errores silenciados sin notificación al usuario. | `dashboard.component.ts`, `horarios.component.ts` | ✅ Agregados `snackBar.open()` / `notif.error()` |
 | F2-6 | 🟢 Info | Componente `verificar-declaracion.component.ts` tiene 1084 líneas — Extremadamente grande. Necesita refactorización en sub-componentes. | `verificar-declaracion.component.ts` | Pendiente (refactor mayor) |
+| F2-7 | 🟡 Medio | Asignación de horarios no lectivos via modal `GestionarHorarioDialogComponent` — UX confusa, difícil visualizar conflicto con carga lectiva. | `gestionar-horario-dialog.component.ts` | ✅ Reemplazado por `DragDropScheduleComponent` inline con grid semanal y drag-and-drop |
+
+---
+
+#### 4.2.15 Drag-and-Drop para Horarios No Lectivos (F2-7)
+
+**Problema:** El modal `GestionarHorarioDialogComponent` mostraba una tabla de filas para agregar horarios, lo cual era poco intuitivo y dificultaba visualizar la relación con la carga lectiva existente.
+
+**Solución:** Nuevo componente `DragDropScheduleComponent` (`declaraciones/dialogs/drag-drop-schedule.component.ts`) que reemplaza el modal con un panel inline:
+
+- **Grid semanal** (LU-SA, 7:00-22:00) con celdas interactivas
+- **Bloques lectivos** (azul) como referencia no editable — el docente ve dónde tiene cursos
+- **Bloques no lectivos** (ámbar) arrastrables — drag-and-drop para reubicar
+- **Almuerzo** (12:00-14:00) bloqueado con patrón visual
+- **Controles rápidos**: selector de bloque (1h/2h/3h), día y hora para agregar sin drag
+- **Detección de conflictos** en tiempo real (superposición entre bloques no lectivos o con carga lectiva)
+- **Límite de horas** visual con badge rojo si excede máximo (50% para preparación)
+
+**Integración:** El componente se muestra inline en `verificar-declaracion` (debajo de la tabla de rubros) cuando el docente hace clic en el ícono de horario de una actividad. Se reemplaza el `MatDialog.open()` por un estado `actividadSeleccionada` + `dragDropData`.
+
+**Archivos:**
+- `frontend/src/app/modules/declaraciones/dialogs/drag-drop-schedule.component.ts` — Componente standalone
+- `frontend/src/app/modules/declaraciones/verificar-declaracion/verificar-declaracion.component.ts` — Métodos `abrirGestionHorario()`, `onDragDropHorariosChange()`, `onDragDropHorasChange()`, `cerrarDragDrop()`
+- `frontend/src/app/modules/declaraciones/verificar-declaracion/verificar-declaracion.component.html` — Panel inline `app-drag-drop-schedule`
+- `frontend/src/app/modules/declaraciones/declaraciones.module.ts` — Import de `DragDropScheduleComponent`
 
 ---
 
@@ -1889,6 +1914,61 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 - ✅ Reportes pre-generados como respaldo (por si la generación falla)
 - ✅ Checklist de funcionalidades marcado como completo
 - ✅ Documentación impresa o accesible
+
+---
+
+## Cambios Recientes — Flujo de Declaraciones
+
+### Estado de la Máquina de Estados (Corregido)
+
+El enum `EstadoDeclaracionCarga` ahora tiene **5 estados** alineados con el stepper visual:
+
+```
+BORRADOR → ENVIADO → DEPARTAMENTO → FACULTAD → CERRADO
+```
+
+| Estado | Descripción | Quién actúa |
+|--------|-------------|-------------|
+| `BORRADOR` | Declaración en edición | Docente |
+| `ENVIADO` | Enviada al departamento | Docente (envía) |
+| `DEPARTAMENTO` | Validada por director | Director de departamento |
+| `FACULTAD` | Aprobada por decano | Decano de facultad |
+| `CERRADO` | Proceso finalizado | Decano (cierra) |
+
+### Cambios en Backend
+
+1. **Enum** (`estado-declaracion-carga.enum.ts`): Reemplazado `CONFIRMADO` por `ENVIADO`, agregados `DEPARTAMENTO` y `FACULTAD`
+2. **Service** (`declaracion-carga-horaria.service.ts`):
+   - `enviar()`: BORRADOR → ENVIADO
+   - `validarDepartamento()`: ENVIADO → DEPARTAMENTO (nuevo método)
+   - `cerrar()`: FACULTAD → CERRADO (antes era CONFIRMADO → CERRADO)
+   - `validarTransicionEstado()`: máquina de estados actualizada
+   - `asegurarEditable()`: solo BORRADOR es editable
+   - `pendientesFacultad()`: filtra por DEPARTAMENTO (antes filtraba por ENVIADO)
+3. **Controller**: Nuevo endpoint `POST /declaraciones/:id/validar-departamento` (solo DirectorDepartamento y Admin)
+4. **Seed** (`seed-declaraciones-demo.ts`): Distribución 5+5+5+5+3 = 23 declaraciones en todos los estados
+5. **Todos los servicios** (reportes, dashboard, periodos, verify-seed, telegram-bot): Actualizadas referencias a CONFIRMADO → ENVIADO
+
+### Cambios en Frontend
+
+1. **`declaraciones.component.ts`**: Para rol docente, muestra directamente su propia declaración con stepper y botón de acción
+2. **`declaraciones.component.html`**: Layout diferente para docente (sin selector de docente) vs admin/director (con selector)
+3. **`verificar-declaracion.component.ts`**:
+   - Stepper de 3 → 5 etapas
+   - `ESTADOS_CONFIG` con los 5 nuevos estados
+   - Botón "Validar Departamento" visible para Director
+   - Botón "Aprobar Facultad" visible para Decano
+   - `validarDepartamento()` método nuevo
+4. **`verificar-declaracion.component.html`**: Avisos informativos para ENVIADO, DEPARTAMENTO, FACULTAD
+
+### Flujo por Rol
+
+| Rol | Puede hacer |
+|-----|-------------|
+| **Docente** | Crear borrador, editar, enviar (BORRADOR → ENVIADO) |
+| **Director Dpto** | Validar departamento (ENVIADO → DEPARTAMENTO), agregar observaciones |
+| **Decano** | Aprobar facultad (DEPARTAMENTO → FACULTAD), cerrar (FACULTAD → CERRADO) |
+| **Admin** | Todo |
 
 ---
 

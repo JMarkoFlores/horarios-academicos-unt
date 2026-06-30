@@ -109,6 +109,7 @@ export class LayoutComponent implements OnInit {
       expanded: true,
       items: [
         { icon: 'schedule', label: 'sidebar.schedules', route: '/app/horarios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'calendar_view_week', label: 'sidebar.mySchedules', route: '/app/mis-horarios', roles: [ROLES.DOCENTE] },
       ],
     },
     {

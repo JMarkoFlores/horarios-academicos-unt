@@ -31,41 +31,14 @@ interface SeedDeclaracionesParams {
 }
 
 const ESTADOS_DEMO: Array<{ estado: EstadoDeclaracionCarga; count: number }> = [
-  { estado: EstadoDeclaracionCarga.BORRADOR, count: 10 },
-  { estado: EstadoDeclaracionCarga.CONFIRMADO, count: 11 },
-  { estado: EstadoDeclaracionCarga.CERRADO, count: 2 },
+  { estado: EstadoDeclaracionCarga.BORRADOR, count: 23 },
 ];
 
-function buildCargaNoLectiva(horasLectivas: number, horasNoLectivas: number) {
-  const prep = Math.min(Math.floor(horasLectivas * 0.5), horasNoLectivas);
-  const inv = Math.max(0, Math.floor((horasNoLectivas - prep) / 2));
-  const gest = Math.max(0, horasNoLectivas - prep - inv);
+function buildCargaNoLectiva() {
   return {
-    actividades: [
-      { 
-        id: 2, 
-        descripcion: "PREPARACIÓN DE CLASES Y EVALUACIÓN", 
-        horas: prep,
-        detalle: "Preparación de material didáctico, sílabos y evaluación continua.",
-        horarios: prep > 0 ? [{ dia: "Lunes", inicio: "08:00", fin: "10:00" }] : []
-      },
-      { 
-        id: 3, 
-        descripcion: "INVESTIGACIÓN (BÁSICA Y/O APLICADA)", 
-        horas: inv,
-        detalle: "Desarrollo de proyecto de investigación en PIC.",
-        horarios: inv > 0 ? [{ dia: "Miércoles", inicio: "14:00", fin: "16:00" }] : []
-      },
-      { 
-        id: 7, 
-        descripcion: "ACTIVIDADES DE GESTIÓN INSTITUCIONAL", 
-        horas: gest,
-        detalle: "Reuniones de comité directivo y coordinación académica.",
-        horarios: gest > 0 ? [{ dia: "Jueves", inicio: "16:00", fin: "18:00" }] : []
-      },
-    ],
-    total_horas_lectivas: horasLectivas,
-    total_horas_no_lectivas: horasNoLectivas,
+    actividades: [],
+    total_horas_lectivas: 0,
+    total_horas_no_lectivas: 0,
   };
 }
 
@@ -77,7 +50,7 @@ function fechasPorEstado(estado: EstadoDeclaracionCarga, base: Date) {
   decanoF.setDate(decanoF.getDate() + 7);
 
   switch (estado) {
-    case EstadoDeclaracionCarga.CONFIRMADO:
+    case EstadoDeclaracionCarga.ENVIADO:
       return { fecha_firma_docente: docente, fecha_firma_director: director, fecha_firma_decano: null };
     case EstadoDeclaracionCarga.CERRADO:
       return {
@@ -154,8 +127,6 @@ export async function seedDeclaracionesDemo(
     let horasNoLectivas = totalHoras - horasLectivas;
     if (horasNoLectivas < 0) horasNoLectivas = 0;
     const fechas = fechasPorEstado(estado, new Date(baseFecha.getTime() + i * 86400000));
-    const tieneCarga =
-      estado !== EstadoDeclaracionCarga.BORRADOR;
 
     const declaracion = await declaracionRepo.save(
       declaracionRepo.create({
@@ -166,16 +137,10 @@ export async function seedDeclaracionesDemo(
         estado,
         sede: "Trujillo - Ciudad Universitaria",
         observaciones: null,
-        carga_no_lectiva: tieneCarga
-          ? buildCargaNoLectiva(horasLectivas, horasNoLectivas)
-          : {
-              actividades: [],
-              total_horas_lectivas: 0,
-              total_horas_no_lectivas: 0,
-            },
-        total_horas_lectivas: tieneCarga ? horasLectivas : 0,
-        total_horas_no_lectivas: tieneCarga ? horasNoLectivas : 0,
-        total_horas_general: tieneCarga ? horasLectivas + horasNoLectivas : 0,
+        carga_no_lectiva: buildCargaNoLectiva(),
+        total_horas_lectivas: horasLectivas,
+        total_horas_no_lectivas: 0,
+        total_horas_general: horasLectivas,
         ...fechas,
       }),
     );
@@ -216,7 +181,9 @@ export async function seedDeclaracionesDemo(
 
   const candidatosJurada = declaraciones.filter((d) =>
     [
-      EstadoDeclaracionCarga.CONFIRMADO,
+      EstadoDeclaracionCarga.ENVIADO,
+      EstadoDeclaracionCarga.VALIDADO_DPTO,
+      EstadoDeclaracionCarga.APROBADO_FACULTAD,
       EstadoDeclaracionCarga.CERRADO,
     ].includes(d.estado),
   );

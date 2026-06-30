@@ -155,7 +155,7 @@
           <div class="tab-panel firma-panel">
             <div class="firma-card">
               <div class="firma-preview-area">
-                <div class="firma-preview" *ngIf="firmaUrl" [style.background-image]="'url(' + firmaUrl + ')'"></div>
+                <div class="firma-preview" *ngIf="firmaUrl" [style.background-image]="'url(' + firmaFullUrl + ')'"></div>
                 <div class="firma-empty" *ngIf="!firmaUrl && !cargandoFirma">
                   <div class="empty-icon"><mat-icon>signature</mat-icon></div>
                   <h4>Sin firma digital</h4>

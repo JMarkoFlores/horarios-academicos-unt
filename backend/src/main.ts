@@ -38,6 +38,7 @@ async function bootstrap() {
         },
       },
       crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: false,
     }),
   );
 

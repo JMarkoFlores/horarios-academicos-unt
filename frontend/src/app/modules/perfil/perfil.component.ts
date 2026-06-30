@@ -9,6 +9,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { NotifToastService } from '../../core/services/notif-toast.service';
 import { BreadcrumbComponent } from '../../layout/components/breadcrumb/breadcrumb.component';
+import { environment } from '../../../environments/environment';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCardModule } from '@angular/material/card';
@@ -61,6 +62,12 @@ export class PerfilComponent implements OnInit, OnDestroy {
   fotoUrl: string | null = null;
   firmaUrl: string | null = null;
   cargandoFirma = false;
+
+  get firmaFullUrl(): string | null {
+    if (!this.firmaUrl) return null;
+    if (this.firmaUrl.startsWith('http')) return this.firmaUrl;
+    return environment.apiUrl + this.firmaUrl;
+  }
 
   selectedIndex = 0;
 
@@ -210,8 +217,7 @@ export class PerfilComponent implements OnInit, OnDestroy {
   // --- FIRMA DIGITAL ---
 
   cargarFirmaDigital(): void {
-    if (!this.usuario?.docenteId) return;
-    this.api.get<{data: {firma_url: string}}>('/declaraciones/firma/' + this.usuario.docenteId)
+    this.api.get<{data: {firma_url: string}}>('/declaraciones/firma/mi-firma')
       .subscribe({
         next: (res) => {
           if (res.data?.firma_url) {
@@ -229,15 +235,9 @@ export class PerfilComponent implements OnInit, OnDestroy {
     input.onchange = (e: any) => {
       const file = e.target?.files?.[0];
       if (file) {
-        if (!this.usuario?.docenteId) {
-          this.notif.error('Usuario no tiene ID de docente asociado');
-          return;
-        }
-
         this.cargandoFirma = true;
         const formData = new FormData();
         formData.append('firma', file);
-        formData.append('docente_id', this.usuario.docenteId.toString());
 
         this.api.post<{data: {firma_url: string}}>('/declaraciones/firma', formData)
           .subscribe({

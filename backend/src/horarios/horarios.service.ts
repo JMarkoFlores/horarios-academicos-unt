@@ -19,6 +19,7 @@ import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
+import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
 import { ValidacionesService as CommonValidacionesService } from "../common/services/validaciones.service";
@@ -168,6 +169,19 @@ export class HorariosService {
         codigo: docente.codigo,
         email: docente.email,
       },
+    };
+  }
+
+  async getDocenteById(docenteId: number) {
+    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    if (!docente) throw new NotFoundException("Docente no encontrado");
+    return {
+      id: docente.id,
+      nombres: docente.nombres,
+      apellidos: docente.apellidos,
+      codigo: docente.codigo,
+      email: docente.email,
+      categoria: docente.categoria,
     };
   }
 
@@ -431,6 +445,7 @@ export class HorariosService {
       tipo_clase: dto.tipo_clase,
       periodo: dto.periodo_academico,
       estado: EstadoHorario.BORRADOR,
+      origen: OrigenHorario.AJUSTE_MANUAL,
     });
 
     const saved = await this.horarioRepo.save(nuevaAsignacion);

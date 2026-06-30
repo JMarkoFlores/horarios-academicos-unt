@@ -329,4 +329,117 @@
       }
     </div>
   }
+
+  <!-- Docente Dashboard -->
+  @if (!loading() && !error && misKpis && isDocente()) {
+    <header class="dashboard-header">
+      <div class="header-left">
+        <h1>Mi Panel</h1>
+        <p class="header-subtitle">{{ greeting() }} {{ usuario?.nombre || "Docente" }}</p>
+        <p class="header-date">{{ currentDate() }}</p>
+      </div>
+      <div class="header-right">
+        <button mat-icon-button [matTooltip]="'dashboard.refresh' | translate" (click)="loadAll()" [disabled]="loading()">
+          <mat-icon>refresh</mat-icon>
+        </button>
+      </div>
+    </header>
+
+    <div class="bento-grid">
+      <div class="bento-card bento-card-metric">
+        <div class="metric-header">
+          <div class="metric-icon-wrap color-docentes">
+            <mat-icon>schedule</mat-icon>
+          </div>
+          <span>Horas Asignadas</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number">{{ misKpis.total_horas }}</span>
+          <span class="metric-sub">horas/semana</span>
+        </div>
+      </div>
+
+      <div class="bento-card bento-card-metric">
+        <div class="metric-header">
+          <div class="metric-icon-wrap color-ocupacion">
+            <mat-icon>menu_book</mat-icon>
+          </div>
+          <span>Cursos</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number">{{ misKpis.total_cursos }}</span>
+          <span class="metric-sub">cursos asignados</span>
+        </div>
+      </div>
+
+      <div class="bento-card bento-card-metric">
+        <div class="metric-header">
+          <div class="metric-icon-wrap color-asignados">
+            <mat-icon>meeting_room</mat-icon>
+          </div>
+          <span>Ambientes</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number">{{ misKpis.total_ambientes }}</span>
+          <span class="metric-sub">ambientes</span>
+        </div>
+      </div>
+
+      <div class="bento-card bento-card-metric">
+        <div class="metric-header">
+          <div class="metric-icon-wrap color-conflictos">
+            <mat-icon>event</mat-icon>
+          </div>
+          <span>Días con Clase</span>
+        </div>
+        <div class="metric-body">
+          <span class="metric-number">{{ misKpis.dias_con_clase }}</span>
+          <span class="metric-sub">días a la semana</span>
+        </div>
+      </div>
+
+      @if (misKpis.distribucion_dia && misKpis.distribucion_dia.length) {
+        <div class="bento-card bento-card-chart">
+          <div class="card-header">
+            <h2>Carga por Día</h2>
+          </div>
+          <div class="card-content chart-wrapper">
+            <canvas baseChart
+              [data]="barChartData"
+              [options]="barChartOptions"
+              [type]="'bar'">
+            </canvas>
+          </div>
+        </div>
+      }
+
+      @if (misKpis.proximas_clases && misKpis.proximas_clases.length) {
+        <div class="bento-card bento-card-table">
+          <div class="card-header">
+            <h2>Próximas Clases</h2>
+          </div>
+          <div class="card-content">
+            <table class="compact-table">
+              <thead>
+                <tr>
+                  <th>Día</th>
+                  <th>Horario</th>
+                  <th>Curso</th>
+                  <th>Ambiente</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let c of misKpis.proximas_clases">
+                  <td>{{ c.diaNombre }}</td>
+                  <td>{{ c.hora_inicio }} - {{ c.hora_fin }}</td>
+                  <td>{{ c.curso }}</td>
+                  <td>{{ c.ambiente }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </div>
+  }
 </div>

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { ApiService } from './api.service';
 
 export type EntityType = 'cursos' | 'ambientes' | 'docentes' | 'grupos' | 'docente_curso' | 'curso_ambiente';
@@ -34,7 +35,7 @@ export interface ImportResult {
   providedIn: 'root',
 })
 export class ImportadorService {
-  private apiUrl = '/api/data-import';
+  private apiUrl = `${environment.apiUrl}/data-import`;
 
   constructor(private http: HttpClient, private apiService: ApiService) {}
 

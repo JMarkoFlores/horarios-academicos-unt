@@ -93,6 +93,9 @@ export class DeclaracionCargaHoraria {
   @Column({ type: "text", nullable: true })
   observaciones: string | null;
 
+  @Column({ type: "text", nullable: true, name: "motivo_observacion" })
+  motivo_observacion: string | null;
+
   @Column({ type: "jsonb", nullable: true, name: "carga_no_lectiva" })
   carga_no_lectiva: Record<string, unknown> | null;
 
@@ -108,14 +111,47 @@ export class DeclaracionCargaHoraria {
   @Column({ type: "smallint", default: 0, name: "total_horas_general" })
   total_horas_general: number;
 
+  @Column({ type: "smallint", default: 1, name: "version" })
+  version: number;
+
   @Column({ type: "timestamp", nullable: true, name: "fecha_firma_docente" })
   fecha_firma_docente: Date | null;
+
+  @Column({ length: 500, nullable: true, name: "firma_docente_url" })
+  firma_docente_url: string | null;
+
+  @Column({ nullable: true, name: "firma_docente_user_id" })
+  firma_docente_user_id: number | null;
+
+  @ManyToOne(() => Usuario, { nullable: true, eager: false, onDelete: "SET NULL" })
+  @JoinColumn({ name: "firma_docente_user_id" })
+  firma_docente_user: Usuario | null;
 
   @Column({ type: "timestamp", nullable: true, name: "fecha_firma_director" })
   fecha_firma_director: Date | null;
 
+  @Column({ length: 500, nullable: true, name: "firma_director_url" })
+  firma_director_url: string | null;
+
+  @Column({ nullable: true, name: "firma_director_user_id" })
+  firma_director_user_id: number | null;
+
+  @ManyToOne(() => Usuario, { nullable: true, eager: false, onDelete: "SET NULL" })
+  @JoinColumn({ name: "firma_director_user_id" })
+  firma_director_user: Usuario | null;
+
   @Column({ type: "timestamp", nullable: true, name: "fecha_firma_decano" })
   fecha_firma_decano: Date | null;
+
+  @Column({ length: 500, nullable: true, name: "firma_decano_url" })
+  firma_decano_url: string | null;
+
+  @Column({ nullable: true, name: "firma_decano_user_id" })
+  firma_decano_user_id: number | null;
+
+  @ManyToOne(() => Usuario, { nullable: true, eager: false, onDelete: "SET NULL" })
+  @JoinColumn({ name: "firma_decano_user_id" })
+  firma_decano_user: Usuario | null;
 
   @Column({ nullable: true, name: "usuario_firmante_id" })
   usuario_firmante_id: number | null;

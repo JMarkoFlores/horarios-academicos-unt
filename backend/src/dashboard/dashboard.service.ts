@@ -879,10 +879,10 @@ export class DashboardService {
     ]);
 
     const enviadas = declaraciones.filter(
-      (d) => this.estadoNumero(d.estado) >= this.estadoNumero(EstadoDeclaracionCarga.CONFIRMADO),
+      (d) => this.estadoNumero(d.estado) >= this.estadoNumero(EstadoDeclaracionCarga.ENVIADO),
     );
     const aprobadas = declaraciones.filter(
-      (d) => d.estado === EstadoDeclaracionCarga.CONFIRMADO,
+      (d) => d.estado === EstadoDeclaracionCarga.ENVIADO,
     );
     const observadas: typeof declaraciones = [];
     const conDeclaracion = new Set(declaraciones.map((d) => d.docente_id));
@@ -981,13 +981,20 @@ export class DashboardService {
 
     const ordenEstados = [
       EstadoDeclaracionCarga.BORRADOR,
-      EstadoDeclaracionCarga.CONFIRMADO,
+      EstadoDeclaracionCarga.ENVIADO,
+      EstadoDeclaracionCarga.VALIDADO_DPTO,
+      EstadoDeclaracionCarga.APROBADO_FACULTAD,
       EstadoDeclaracionCarga.CERRADO,
     ];
 
     const labels: Record<string, string> = {
       BORRADOR: "Borrador",
-      CONFIRMADO: "Confirmado",
+      ENVIADO: "Enviado",
+      VALIDADO_DPTO: "Validado Dpto.",
+      OBSERVADO_DPTO: "Observado Dpto.",
+      APROBADO_FACULTAD: "Aprobado Facultad",
+      OBSERVADO_FACULTAD: "Observado Facultad",
+      REABIERTO: "Reabierto",
       CERRADO: "Cerrado",
     };
 
@@ -1071,7 +1078,7 @@ export class DashboardService {
       grupo.total++;
       if (
         this.estadoNumero(d.estado) >=
-        this.estadoNumero(EstadoDeclaracionCarga.CONFIRMADO)
+        this.estadoNumero(EstadoDeclaracionCarga.ENVIADO)
       ) {
         grupo.enviadas++;
       }
@@ -1102,8 +1109,13 @@ export class DashboardService {
   private estadoNumero(estado: EstadoDeclaracionCarga): number {
     const orden: Record<string, number> = {
       BORRADOR: 0,
-      CONFIRMADO: 1,
-      CERRADO: 2,
+      ENVIADO: 1,
+      VALIDADO_DPTO: 2,
+      OBSERVADO_DPTO: 2,
+      APROBADO_FACULTAD: 3,
+      OBSERVADO_FACULTAD: 3,
+      REABIERTO: 5,
+      CERRADO: 4,
     };
     return orden[estado] ?? 0;
   }

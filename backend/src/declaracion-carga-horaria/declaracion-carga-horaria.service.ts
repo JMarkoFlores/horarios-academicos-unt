@@ -155,6 +155,8 @@ export class DeclaracionCargaHorariaService {
     private readonly declaracionJuradaRepo: Repository<DeclaracionJurada>,
     @InjectRepository(CargaAdicional)
     private readonly cargaAdicionalRepo: Repository<CargaAdicional>,
+    @InjectRepository(Usuario)
+    private readonly usuarioRepo: Repository<Usuario>,
     private readonly auditoriaService: AuditoriaService,
     private readonly cargaAdicionalService: CargaAdicionalService,
     private readonly contextoAcademicoService: ContextoAcademicoService,
@@ -275,7 +277,11 @@ export class DeclaracionCargaHorariaService {
 
     const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
     const estadosVisibles = [
-      EstadoDeclaracionCarga.CONFIRMADO,
+      EstadoDeclaracionCarga.ENVIADO,
+      EstadoDeclaracionCarga.OBSERVADO_DPTO,
+      EstadoDeclaracionCarga.VALIDADO_DPTO,
+      EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+      EstadoDeclaracionCarga.APROBADO_FACULTAD,
       EstadoDeclaracionCarga.CERRADO,
     ];
 
@@ -424,7 +430,7 @@ export class DeclaracionCargaHorariaService {
     this.verificarPermisoDocente(usuario, declaracion.docente_id);
     this.validarTransicionEstado(
       declaracion.estado,
-      EstadoDeclaracionCarga.CONFIRMADO,
+      EstadoDeclaracionCarga.ENVIADO,
     );
 
     const estadoAnterior = declaracion.estado;
@@ -464,9 +470,22 @@ export class DeclaracionCargaHorariaService {
       );
     }
 
-    declaracion.estado = EstadoDeclaracionCarga.CONFIRMADO;
+    declaracion.estado = EstadoDeclaracionCarga.ENVIADO;
     declaracion.fecha_firma_docente = new Date();
     declaracion.usuario_firmante_id = usuario.id;
+
+    // Capturar firma del docente desde su perfil de usuario
+    const usuarioEntity = await this.usuarioRepo.findOne({ where: { id: usuario.id } });
+
+    if (!usuarioEntity?.firma_url) {
+      throw new BadRequestException(
+        "No puede enviar la declaración sin firma digital. Suba su firma en Mi Perfil primero.",
+      );
+    }
+
+    declaracion.firma_docente_url = usuarioEntity.firma_url;
+    declaracion.firma_docente_user_id = usuario.id;
+
     if (dto.observaciones !== undefined) {
       declaracion.observaciones = dto.observaciones;
     }
@@ -504,7 +523,7 @@ export class DeclaracionCargaHorariaService {
     );
 
     declaracion.estado = EstadoDeclaracionCarga.CERRADO;
-    declaracion.fecha_firma_director = new Date();
+    declaracion.fecha_firma_decano = new Date();
     const saved = await this.declaracionRepo.save(declaracion);
 
     await this.auditoriaService.registrarCarga({
@@ -522,6 +541,194 @@ export class DeclaracionCargaHorariaService {
     return this.obtenerPorId(saved.id);
   }
 
+  async validarDepartamento(
+    id: number,
+    usuario: Usuario & { docenteId?: number | null },
+  ): Promise<DeclaracionVista> {
+    const declaracion = await this.obtenerEntidadBase(id);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
+    const estadoAnterior = declaracion.estado;
+    this.validarTransicionEstado(
+      estadoAnterior,
+      EstadoDeclaracionCarga.VALIDADO_DPTO,
+    );
+
+    declaracion.estado = EstadoDeclaracionCarga.VALIDADO_DPTO;
+    declaracion.fecha_firma_director = new Date();
+
+    // Capturar firma del director desde su perfil de usuario
+    const usuarioEntity = await this.usuarioRepo.findOne({ where: { id: usuario.id } });
+
+    if (!usuarioEntity?.firma_url) {
+      throw new BadRequestException(
+        "No puede validar sin firma digital. Suba su firma en Mi Perfil primero.",
+      );
+    }
+
+    declaracion.firma_director_url = usuarioEntity.firma_url;
+    declaracion.firma_director_user_id = usuario.id;
+
+    const saved = await this.declaracionRepo.save(declaracion);
+
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.VALIDAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: null,
+      ip: "0.0.0.0",
+    });
+
+    return this.obtenerPorId(saved.id);
+  }
+
+  async observarDepartamento(
+    id: number,
+    usuario: Usuario & { docenteId?: number | null },
+    motivo: string,
+  ): Promise<DeclaracionVista> {
+    const declaracion = await this.obtenerEntidadBase(id);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
+    const estadoAnterior = declaracion.estado;
+    this.validarTransicionEstado(
+      estadoAnterior,
+      EstadoDeclaracionCarga.OBSERVADO_DPTO,
+    );
+
+    declaracion.estado = EstadoDeclaracionCarga.OBSERVADO_DPTO;
+    declaracion.motivo_observacion = motivo;
+    const saved = await this.declaracionRepo.save(declaracion);
+
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.OBSERVAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: { motivo_observacion: motivo },
+      ip: "0.0.0.0",
+    });
+
+    return this.obtenerPorId(saved.id);
+  }
+
+  async reabrir(
+    id: number,
+    usuario: Usuario & { docenteId?: number | null },
+  ): Promise<DeclaracionVista> {
+    const declaracion = await this.obtenerEntidadBase(id);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
+    const estadoAnterior = declaracion.estado;
+    this.validarTransicionEstado(
+      estadoAnterior,
+      EstadoDeclaracionCarga.REABIERTO,
+    );
+
+    declaracion.estado = EstadoDeclaracionCarga.REABIERTO;
+    declaracion.motivo_observacion = null;
+    // Invalidar firma del docente al reabrir
+    declaracion.fecha_firma_docente = null;
+    declaracion.firma_docente_url = null;
+    declaracion.firma_docente_user_id = null;
+    declaracion.version = (declaracion.version || 1) + 1;
+    const saved = await this.declaracionRepo.save(declaracion);
+
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.REABRIR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: null,
+      ip: "0.0.0.0",
+    });
+
+    return this.obtenerPorId(saved.id);
+  }
+
+  async validarFacultad(
+    id: number,
+    usuario: Usuario & { docenteId?: number | null },
+  ): Promise<DeclaracionVista> {
+    const declaracion = await this.obtenerEntidadBase(id);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
+    const estadoAnterior = declaracion.estado;
+    this.validarTransicionEstado(
+      estadoAnterior,
+      EstadoDeclaracionCarga.APROBADO_FACULTAD,
+    );
+
+    declaracion.estado = EstadoDeclaracionCarga.APROBADO_FACULTAD;
+    declaracion.fecha_firma_decano = new Date();
+
+    // Capturar firma del decano desde su perfil de usuario
+    const usuarioEntity = await this.usuarioRepo.findOne({ where: { id: usuario.id } });
+
+    if (!usuarioEntity?.firma_url) {
+      throw new BadRequestException(
+        "No puede aprobar sin firma digital. Suba su firma en Mi Perfil primero.",
+      );
+    }
+
+    declaracion.firma_decano_url = usuarioEntity.firma_url;
+    declaracion.firma_decano_user_id = usuario.id;
+
+    const saved = await this.declaracionRepo.save(declaracion);
+
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.VALIDAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: null,
+      ip: "0.0.0.0",
+    });
+
+    return this.obtenerPorId(saved.id);
+  }
+
+  async observarFacultad(
+    id: number,
+    usuario: Usuario & { docenteId?: number | null },
+    motivo: string,
+  ): Promise<DeclaracionVista> {
+    const declaracion = await this.obtenerEntidadBase(id);
+    await this.verificarAccesoDeclaracion(usuario, declaracion);
+    const estadoAnterior = declaracion.estado;
+    this.validarTransicionEstado(
+      estadoAnterior,
+      EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+    );
+
+    declaracion.estado = EstadoDeclaracionCarga.OBSERVADO_FACULTAD;
+    declaracion.motivo_observacion = motivo;
+    const saved = await this.declaracionRepo.save(declaracion);
+
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.DECLARACION_CARGA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.OBSERVAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: null,
+      datos_nuevos: { motivo_observacion: motivo },
+      ip: "0.0.0.0",
+    });
+
+    return this.obtenerPorId(saved.id);
+  }
+
   async agregarObservacion(
     id: number,
     texto: string,
@@ -530,7 +737,13 @@ export class DeclaracionCargaHorariaService {
     const declaracion = await this.obtenerEntidadBase(id);
     await this.verificarAccesoDeclaracion(usuario, declaracion);
     if (!texto || texto.trim().length < 10) {
-      throw new BadRequestException("La observaciÃ³n debe tener al menos 10 caracteres");
+      throw new BadRequestException("La observación debe tener al menos 10 caracteres");
+    }
+    if (
+      usuario.rol === RolUsuario.DOCENTE &&
+      declaracion.docente_id === (usuario as any).docenteId
+    ) {
+      throw new BadRequestException("No puede observar su propia declaración");
     }
     const observacion = this.observacionRepo.create({
       declaracion_id: id,
@@ -566,8 +779,7 @@ export class DeclaracionCargaHorariaService {
 
     const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
     const estadosVisibles = [
-      EstadoDeclaracionCarga.CONFIRMADO,
-      EstadoDeclaracionCarga.BORRADOR,
+      EstadoDeclaracionCarga.ENVIADO,
     ];
 
     const qb = this.declaracionRepo
@@ -627,7 +839,7 @@ export class DeclaracionCargaHorariaService {
         periodoId: periodoActivo.id,
       })
       .andWhere("declaracion.estado = :estado", {
-        estado: EstadoDeclaracionCarga.CONFIRMADO,
+        estado: EstadoDeclaracionCarga.VALIDADO_DPTO,
       })
       .orderBy("facultad.nombre", "ASC")
       .addOrderBy("docente.apellidos", "ASC");
@@ -658,7 +870,7 @@ export class DeclaracionCargaHorariaService {
   ): void {
     if (this.esEstadoFinal(actual)) {
       throw new BadRequestException(
-        `La declaraciÃ³n en estado ${actual} no permite transiciones`,
+        `La declaración en estado ${actual} no permite transiciones`,
       );
     }
 
@@ -667,9 +879,26 @@ export class DeclaracionCargaHorariaService {
       EstadoDeclaracionCarga[]
     > = {
       [EstadoDeclaracionCarga.BORRADOR]: [
-        EstadoDeclaracionCarga.CONFIRMADO,
+        EstadoDeclaracionCarga.ENVIADO,
       ],
-      [EstadoDeclaracionCarga.CONFIRMADO]: [
+      [EstadoDeclaracionCarga.ENVIADO]: [
+        EstadoDeclaracionCarga.OBSERVADO_DPTO,
+        EstadoDeclaracionCarga.VALIDADO_DPTO,
+      ],
+      [EstadoDeclaracionCarga.OBSERVADO_DPTO]: [
+        EstadoDeclaracionCarga.REABIERTO,
+      ],
+      [EstadoDeclaracionCarga.REABIERTO]: [
+        EstadoDeclaracionCarga.ENVIADO,
+      ],
+      [EstadoDeclaracionCarga.VALIDADO_DPTO]: [
+        EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      ],
+      [EstadoDeclaracionCarga.OBSERVADO_FACULTAD]: [
+        EstadoDeclaracionCarga.REABIERTO,
+      ],
+      [EstadoDeclaracionCarga.APROBADO_FACULTAD]: [
         EstadoDeclaracionCarga.CERRADO,
       ],
       [EstadoDeclaracionCarga.CERRADO]: [],
@@ -678,7 +907,7 @@ export class DeclaracionCargaHorariaService {
     const permitidos = transiciones[actual] ?? [];
     if (!permitidos.includes(siguiente)) {
       throw new BadRequestException(
-        `TransiciÃ³n invÃ¡lida de ${actual} a ${siguiente}`,
+        `Transición inválida de ${actual} a ${siguiente}`,
       );
     }
   }
@@ -717,12 +946,16 @@ export class DeclaracionCargaHorariaService {
   private asegurarEditable(estado: EstadoDeclaracionCarga): void {
     if (
       [
-        EstadoDeclaracionCarga.CONFIRMADO,
+        EstadoDeclaracionCarga.ENVIADO,
+        EstadoDeclaracionCarga.OBSERVADO_DPTO,
+        EstadoDeclaracionCarga.VALIDADO_DPTO,
+        EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
         EstadoDeclaracionCarga.CERRADO,
       ].includes(estado)
     ) {
       throw new BadRequestException(
-        `La declaraciÃ³n en estado ${estado} es inmutable`,
+        `La declaración en estado ${estado} es inmutable`,
       );
     }
   }
@@ -736,12 +969,16 @@ export class DeclaracionCargaHorariaService {
   private asegurarRegeneracionPermitida(estado: EstadoDeclaracionCarga): void {
     if (
       [
-        EstadoDeclaracionCarga.CONFIRMADO,
+        EstadoDeclaracionCarga.ENVIADO,
+        EstadoDeclaracionCarga.OBSERVADO_DPTO,
+        EstadoDeclaracionCarga.VALIDADO_DPTO,
+        EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
         EstadoDeclaracionCarga.CERRADO,
       ].includes(estado)
     ) {
       throw new BadRequestException(
-        `La declaraciÃ³n en estado ${estado} no permite regenerar la carga lectiva`,
+        `La declaración en estado ${estado} no permite regeneración`,
       );
     }
   }
@@ -1504,13 +1741,11 @@ export class DeclaracionCargaHorariaService {
       declaracion &&
       ![
         EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.REABIERTO,
       ].includes(declaracion.estado)
     ) {
       throw new BadRequestException(
-        "La declaraciÃ³n no puede ser modificada en este estado",
+        "La declaración no puede ser modificada en este estado",
       );
     }
 
@@ -1725,7 +1960,7 @@ export class DeclaracionCargaHorariaService {
     // Validar que no haya conflictos de horario entre actividades
     this.validarConflictosHorarios(actividades);
 
-    declaracion.estado = EstadoDeclaracionCarga.CONFIRMADO;
+    declaracion.estado = EstadoDeclaracionCarga.ENVIADO;
     return this.declaracionRepo.save(declaracion);
   }
 
@@ -1842,6 +2077,29 @@ export class DeclaracionCargaHorariaService {
     });
 
     return this.declaracionJuradaRepo.save(jurada);
+  }
+
+  async obtenerFirmaDocente(usuarioId: number): Promise<string | null> {
+    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new NotFoundException(`Usuario ${usuarioId} no encontrado`);
+    }
+    return usuario.firma_url || null;
+  }
+
+  async actualizarFirmaDocente(usuarioId: number, firmaUrl: string): Promise<void> {
+    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new NotFoundException(`Usuario ${usuarioId} no encontrado`);
+    }
+    usuario.firma_url = firmaUrl;
+    await this.usuarioRepo.save(usuario);
+
+    const docente = await this.docenteRepo.findOne({ where: { usuario_id: usuarioId } });
+    if (docente) {
+      docente.firma_url = firmaUrl;
+      await this.docenteRepo.save(docente);
+    }
   }
 }
 

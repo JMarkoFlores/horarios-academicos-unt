@@ -10,6 +10,7 @@ import { VerificarFirmaComponent } from './verificar-firma/verificar-firma.compo
 import { VerificarAprobacionComponent } from './verificar-aprobacion/verificar-aprobacion.component';
 import { AprobacionFacultadComponent } from './aprobacion-facultad/aprobacion-facultad.component';
 import { HorarioGraficoPanelComponent } from './horario-grafico-panel/horario-grafico-panel.component';
+import { DragDropScheduleComponent } from './dialogs/drag-drop-schedule.component';
 
 const routes: Routes = [
   { path: '', component: DeclaracionesComponent },
@@ -39,6 +40,7 @@ const routes: Routes = [
     SharedModule,
     DragDropModule,
     HorarioGraficoPanelComponent,
+    DragDropScheduleComponent,
     RouterModule.forChild(routes),
   ],
 })

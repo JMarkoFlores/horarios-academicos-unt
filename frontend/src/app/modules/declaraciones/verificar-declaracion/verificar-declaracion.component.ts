@@ -10,6 +10,7 @@ import { PeriodoService } from '../../../core/services/periodo.service';
 import { CargaAdicionalService, CargaAdicional } from '../../../core/services/carga-adicional.service';
 import { Docente, ApiResponse, DeclaracionObservacion } from '../../../core/interfaces/entities';
 import { GestionarHorarioDialogComponent, GestionarHorarioData, HorarioEntry as HorarioEntryType } from '../dialogs/gestionar-horario-dialog.component';
+import { DragDropScheduleData, HorarioEntry } from '../dialogs/drag-drop-schedule.component';
 import { ActividadNoLectivaInput } from '../horario-grafico-panel/horario-grafico-panel.component';
 import {
   DIA_CODIGO_A_CORTO,
@@ -153,6 +154,12 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
   // Horario grafico
   mostrandoHorarioGrafico = false;
+
+  // Drag & drop inline
+  mostrarHorarioLectivo = false;
+  horarioLectivoData: DragDropScheduleData | null = null;
+  actividadSeleccionada: ActividadNoLectiva | null = null;
+  dragDropData: DragDropScheduleData | null = null;
 
   private autoSaveSubject = new Subject<void>();
   private autoSaveSub?: Subscription;
@@ -1085,5 +1092,128 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     return ca.horario_semanal
       .map((h) => `${h.dia} ${h.hora_inicio}-${h.hora_fin}`)
       .join(', ');
+  }
+
+  // ---------- Drag & Drop inline ----------
+
+  abrirHorarioLectivo(): void {
+    this.cerrarDragDrop();
+    this.mostrarHorarioLectivo = true;
+    this.horarioLectivoData = {
+      actividadId: 1,
+      actividadNombre: 'Carga Horaria Lectiva',
+      horarios: this.horariosLectivos.map((h) => ({
+        dia: h.dia,
+        hora_inicio: h.hora_inicio,
+        hora_fin: h.hora_fin,
+      })),
+      horas: this.totalHorasLectivas,
+      horariosLectivos: this.horariosLectivos,
+      allActividades: this.actividadesNoLectivas
+        .filter((a) => a.horarios && a.horarios.length > 0)
+        .map((a) => ({
+          id: a.id,
+          nombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
+          horarios: a.horarios.map((h) => ({ ...h })),
+        })),
+    };
+  }
+
+  cerrarHorarioLectivo(): void {
+    this.mostrarHorarioLectivo = false;
+    this.horarioLectivoData = null;
+  }
+
+  onHorarioLectivoChange(horarios: HorarioEntry[]): void {
+    this.horariosLectivos = horarios.map((h) => ({
+      dia: h.dia,
+      hora_inicio: h.hora_inicio,
+      hora_fin: h.hora_fin,
+      codigoCurso: '',
+      nombreCurso: '',
+      tipoClase: '',
+      seccion: '',
+    }));
+    this.calcularTotales();
+  }
+
+  onHorasLectivasHorarioChange(horas: number): void {
+    this.totalHorasLectivas = horas;
+    this.calcularTotales();
+  }
+
+  seleccionarActividadDragDrop(actividad: ActividadNoLectiva): void {
+    this.cerrarHorarioLectivo();
+    this.actividadSeleccionada = actividad;
+    const maxHoras = actividad.id === 2 ? Math.floor(this.totalHorasLectivas * 0.5) : undefined;
+    this.dragDropData = {
+      actividadId: actividad.id,
+      actividadNombre: actividad.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
+      horarios: actividad.horarios.map((h) => ({ ...h })),
+      horas: actividad.horas,
+      maxHoras,
+      totalHorasLectivas: this.totalHorasLectivas,
+      horariosLectivos: this.horariosLectivos,
+      allActividades: this.actividadesNoLectivas
+        .filter((a) => a.id !== actividad.id && a.horarios && a.horarios.length > 0)
+        .map((a) => ({
+          id: a.id,
+          nombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
+          horarios: a.horarios.map((h) => ({ ...h })),
+        })),
+    };
+  }
+
+  cerrarDragDrop(): void {
+    this.actividadSeleccionada = null;
+    this.dragDropData = null;
+  }
+
+  onDragDropHorariosChange(horarios: HorarioEntry[]): void {
+    if (!this.actividadSeleccionada) return;
+    this.actividadSeleccionada.horarios = horarios.map((h) => ({ ...h }));
+    this.calcularTotales();
+    this.triggerAutoSave();
+  }
+
+  onDragDropHorasChange(horas: number): void {
+    if (!this.actividadSeleccionada) return;
+    this.actividadSeleccionada.horas = horas;
+    this.calcularTotales();
+    this.triggerAutoSave();
+  }
+
+  // ---------- Flujo de aprobación ----------
+
+  validarDepartamento(): void {
+    if (!this.declaracionId) return;
+    this.saving = true;
+    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/validar-departamento`, {}).subscribe({
+      next: () => {
+        this.snackBar.open('Declaración validada por departamento correctamente', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+        this.cargarDeclaracion();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al validar la declaración', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
+  }
+
+  aprobarFacultad(): void {
+    if (!this.declaracionId) return;
+    this.saving = true;
+    this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/aprobar-facultad`, {}).subscribe({
+      next: () => {
+        this.snackBar.open('Declaración aprobada por facultad correctamente', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+        this.cargarDeclaracion();
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Error al aprobar la declaración', 'Cerrar', { duration: 3000 });
+        this.saving = false;
+      },
+    });
   }
 }

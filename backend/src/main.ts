@@ -100,13 +100,6 @@ async function bootstrap() {
     });
     logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
   }
-  app
-    .getHttpAdapter()
-    .getInstance()
-    .get("/health", (_req: any, res: any) => {
-      res.status(200).json({ status: "ok" });
-    });
-
   // Servir archivos subidos (firmas, etc.)
   const uploadsPath = path.join(process.cwd(), "uploads");
   app.use("/uploads", express.static(uploadsPath));

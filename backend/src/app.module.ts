@@ -35,6 +35,7 @@ import { PlanEstudiosModule } from "./modules/plan-estudios/plan-estudios.module
 import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion-lectiva.module";
 import { OfertaAcademicaModule } from "./modules/oferta-academica/oferta-academica.module";
 import { CladModule } from "./clad/clad.module";
+import { HealthController } from "./health/health.controller";
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ import { CladModule } from "./clad/clad.module";
     OfertaAcademicaModule,
     CladModule,
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_GUARD,

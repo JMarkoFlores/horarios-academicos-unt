@@ -84,13 +84,17 @@ const MINIMO_NORMATIVO: Record<string, number> = {
 
 const ESTADOS_CONFIG: Record<string, EstadoConfig> = {
   BORRADOR: { label: 'Borrador', color: 'estado-borrador', editable: true, etapa: 0 },
-  CONFIRMADO: { label: 'Confirmado', color: 'estado-enviado', editable: false, etapa: 1 },
-  CERRADO: { label: 'Cerrado', color: 'estado-cerrado', editable: false, etapa: 2 },
+  ENVIADO: { label: 'Enviado', color: 'estado-enviado', editable: false, etapa: 1 },
+  VALIDADO_DPTO: { label: 'Validado Dpto.', color: 'estado-validado', editable: false, etapa: 2 },
+  APROBADO_FACULTAD: { label: 'Aprobado Facultad', color: 'estado-aprobado', editable: false, etapa: 3 },
+  CERRADO: { label: 'Cerrado', color: 'estado-cerrado', editable: false, etapa: 4 },
 };
 
 const STEPPER_ETAPAS = [
   { key: 'BORRADOR', label: 'Borrador', icon: 'edit_note' },
-  { key: 'CONFIRMADO', label: 'Confirmado', icon: 'check_circle' },
+  { key: 'ENVIADO', label: 'Enviado', icon: 'send' },
+  { key: 'VALIDADO_DPTO', label: 'Validado Dpto.', icon: 'verified' },
+  { key: 'APROBADO_FACULTAD', label: 'Aprobado Facultad', icon: 'approval' },
   { key: 'CERRADO', label: 'Cerrado', icon: 'lock' },
 ];
 
@@ -309,7 +313,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
         next: (res) => {
           if (res.data) {
             this.declaracionId = res.data.id;
-            const estadosValidos = ['BORRADOR', 'CONFIRMADO', 'CERRADO'];
+            const estadosValidos = ['BORRADOR', 'ENVIADO', 'VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO', 'OBSERVADO_DPTO', 'OBSERVADO_FACULTAD', 'REABIERTO'];
       this.estadoDeclaracion = estadosValidos.includes(res.data.estado) ? res.data.estado : 'BORRADOR';
             if (res.data.periodo_academico) {
               const p = res.data.periodo_academico;
@@ -412,8 +416,10 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     if (etapaIdx === -1) return 'pendiente';
     const estadosMap: Record<string, number> = {
       BORRADOR: 0,
-      CONFIRMADO: 1,
-      CERRADO: 2,
+      ENVIADO: 1,
+      VALIDADO_DPTO: 2,
+      APROBADO_FACULTAD: 3,
+      CERRADO: 4,
     };
     const current = estadosMap[this.estadoDeclaracion] ?? 0;
     if (current > etapaIdx) return 'completada';
@@ -862,13 +868,13 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       this.saving = true;
       this.api.patch<ApiResponse<any>>(`/declaraciones/${this.declaracionId}/enviar`, {}).subscribe({
         next: () => {
-          this.estadoDeclaracion = 'CONFIRMADO';
-          this.snackBar.open('Declaración confirmada correctamente', 'Cerrar', { duration: 3000 });
+          this.estadoDeclaracion = 'ENVIADO';
+          this.snackBar.open('Declaración enviada correctamente', 'Cerrar', { duration: 3000 });
           this.saving = false;
           this.cargarDeclaracion();
         },
         error: (err) => {
-          this.snackBar.open(err.error?.message || 'Error al confirmar la declaración', 'Cerrar', { duration: 3000 });
+          this.snackBar.open(err.error?.message || 'Error al enviar la declaración', 'Cerrar', { duration: 3000 });
           this.saving = false;
         },
       });
@@ -877,8 +883,8 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       this.api.post<ApiResponse<any>>(`/declaraciones/docentes/${this.docenteId}/enviar`, { periodo: this.periodoActivo })
         .subscribe({
           next: () => {
-            this.estadoDeclaracion = 'CONFIRMADO';
-            this.snackBar.open('Declaración confirmada correctamente', 'Cerrar', { duration: 3000 });
+            this.estadoDeclaracion = 'ENVIADO';
+            this.snackBar.open('Declaración enviada correctamente', 'Cerrar', { duration: 3000 });
             this.saving = false;
             this.cargarDeclaracion();
           },

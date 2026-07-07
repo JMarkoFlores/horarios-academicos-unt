@@ -228,6 +228,28 @@
   color: var(--color-danger);
 }
 
+.aviso-confirmado {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.aviso-departamento {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-light);
+  color: var(--color-success);
+}
+
+.aviso-facultad {
+  background: var(--color-accent-bg-light);
+  border: 1px solid var(--color-accent-light);
+  color: var(--color-accent);
+}
+
 .loading-center {
   display: block;
   margin: 60px auto;

@@ -3,7 +3,7 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-ARG API_URL=https://horarios-backend.onrender.com
+ARG API_URL=https://horarios-backend-bxkb.onrender.com
 
 # Copy package files
 COPY package*.json ./
@@ -15,7 +15,7 @@ RUN npm ci
 COPY . .
 
 # Build with API_URL (defaults to Render backend if not provided)
-RUN sed -i "s|https://horarios-backend.onrender.com|${API_URL}|g" src/environments/environment.prod.ts && npm run build
+RUN sed -i "s|https://horarios-backend-bxkb.onrender.com|${API_URL}|g" src/environments/environment.prod.ts && npm run build
 
 # Production stage
 FROM nginx:alpine AS production

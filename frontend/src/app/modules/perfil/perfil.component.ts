@@ -24,11 +24,16 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 const ROL_LABELS: Record<string, string> = {
   administradorsistema: 'Administrador del Sistema',
   directorescuela: 'Director de Escuela',
+  directordepartamento: 'Director de Departamento',
   coordinadoracademico: 'Coordinador Académico',
+  decano: 'Decano',
   secretaria: 'Secretaria',
+  operadorhorarios: 'Operador de Horarios',
   docente: 'Docente',
   visualizador: 'Visualizador',
 };
+
+const ROLES_FIRMA = ['docente', 'directordepartamento', 'decano'];
 
 function passwordsCoinciden(group: AbstractControl): ValidationErrors | null {
   const nueva = group.get('password_nueva')?.value;
@@ -80,6 +85,10 @@ export class PerfilComponent implements OnInit, OnDestroy {
   perfilForm: FormGroup;
   editandoPerfil = false;
   loadingPerfil = false;
+
+  get puedeVerFirma(): boolean {
+    return !!this.usuario && ROLES_FIRMA.includes(this.usuario.rol);
+  }
 
   get memberSince(): string {
     return '2025'; // simplified — could come from backend
@@ -139,7 +148,7 @@ export class PerfilComponent implements OnInit, OnDestroy {
       this.authService.profilePhoto$.pipe(takeUntil(this.destroy$)).subscribe(photo => {
         this.fotoUrl = photo;
       });
-      if (this.usuario.docenteId) {
+      if (this.usuario.docenteId || ROLES_FIRMA.includes(this.usuario.rol)) {
         this.cargarFirmaDigital();
       }
       
@@ -152,7 +161,7 @@ export class PerfilComponent implements OnInit, OnDestroy {
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       if (params['tab'] === 'password') {
-        this.selectedIndex = this.usuario?.docenteId ? 2 : 1;
+        this.selectedIndex = this.puedeVerFirma ? 2 : 1;
       } else {
         this.selectedIndex = 0;
       }
@@ -166,7 +175,7 @@ export class PerfilComponent implements OnInit, OnDestroy {
 
   onTabChange(index: number): void {
     this.selectedIndex = index;
-    const isPasswordTab = this.usuario?.docenteId ? index === 2 : index === 1;
+    const isPasswordTab = this.puedeVerFirma ? index === 2 : index === 1;
 
     this.router.navigate([], {
       relativeTo: this.route,

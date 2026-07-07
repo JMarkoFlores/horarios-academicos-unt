@@ -146,8 +146,8 @@
           </div>
         </mat-tab>
 
-        <!-- Tab 2: Firma Digital (solo docentes) -->
-        <mat-tab *ngIf="usuario?.docenteId">
+        <!-- Tab 2: Firma Digital (docentes, directores de departamento y decanos) -->
+        <mat-tab *ngIf="puedeVerFirma">
           <ng-template mat-tab-label>
             <mat-icon class="tab-icon">draw</mat-icon>
             <span class="tab-label-text">Firma Digital</span>

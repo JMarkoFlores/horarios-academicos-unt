@@ -200,7 +200,7 @@ export class VerificarAprobacionComponent implements OnInit {
   }
 
   get mostrarDocumentosConferir(): boolean {
-    return ['VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO', 'OBSERVADO_DPTO', 'OBSERVADO_FACULTAD', 'REABIERTO'].includes(this.estado);
+    return ['ENVIADO', 'VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO', 'OBSERVADO_DPTO', 'OBSERVADO_FACULTAD', 'REABIERTO'].includes(this.estado);
   }
 
   get puedeAprobar(): boolean {

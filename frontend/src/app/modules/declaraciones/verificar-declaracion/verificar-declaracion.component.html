@@ -448,7 +448,7 @@
     </div>
 
     <!-- DECLARACIÓN JURADA F02-CAD -->
-    <mat-card class="seccion-card declaracion-jurada-card" *ngIf="estadoDeclaracion !== 'BORRADOR'">
+    <mat-card class="seccion-card declaracion-jurada-card" *ngIf="declaracionId">
       <mat-card-header class="header-jurada">
         <mat-card-title>
           <mat-icon>gavel</mat-icon>
@@ -589,11 +589,11 @@
           Cerrar Declaración
         </button>
 
-        <button *ngIf="estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="warn" class="btn-pdf" (click)="generarPDF('declaracion')" matTooltip="F01-CAD: Declaración de carga horaria">
+        <button *ngIf="declaracionId" mat-raised-button color="warn" class="btn-pdf" (click)="generarPDF('declaracion')" matTooltip="F01-CAD: Declaración de carga horaria">
           <mat-icon>description</mat-icon>
           F01-CAD
         </button>
-        <button *ngIf="estadoDeclaracion !== 'BORRADOR'" mat-raised-button color="primary" class="btn-f03" (click)="generarPDF('f03cad')" matTooltip="F03-CAD: Horario semanal docente">
+        <button *ngIf="declaracionId" mat-raised-button color="primary" class="btn-f03" (click)="generarPDF('f03cad')" matTooltip="F03-CAD: Horario semanal docente">
           <mat-icon>calendar_month</mat-icon>
           F03-CAD
         </button>

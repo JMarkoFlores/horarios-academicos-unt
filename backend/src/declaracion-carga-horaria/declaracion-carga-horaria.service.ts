@@ -255,8 +255,24 @@ export class DeclaracionCargaHorariaService {
       declaracion.id,
     );
 
+    // Asegurar que carga_no_lectiva tenga total_horas calculado
+    let cargaNoLectiva = declaracion.carga_no_lectiva as any;
+    if (cargaNoLectiva && Array.isArray(cargaNoLectiva.actividades)) {
+      const totalHoras = cargaNoLectiva.actividades.reduce(
+        (sum: number, a: any) => sum + (Number(a.horas) || 0),
+        0
+      );
+      cargaNoLectiva = {
+        ...cargaNoLectiva,
+        total_horas: totalHoras,
+      };
+    }
+
     return {
-      declaracion,
+      declaracion: {
+        ...declaracion,
+        carga_no_lectiva: cargaNoLectiva,
+      },
       estado: declaracion.estado,
       docente: declaracion.docente,
       departamento: declaracion.departamento,
@@ -453,15 +469,16 @@ export class DeclaracionCargaHorariaService {
             `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
           );
         }
-        if (
-          !act.horarios ||
-          !Array.isArray(act.horarios) ||
-          act.horarios.length === 0
-        ) {
-          throw new BadRequestException(
-            `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
-          );
-        }
+        // Validación de horarios deshabilitada por solicitud del usuario
+        // if (
+        //   !act.horarios ||
+        //   !Array.isArray(act.horarios) ||
+        //   act.horarios.length === 0
+        // ) {
+        //   throw new BadRequestException(
+        //     `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
+        //   );
+        // }
       }
     }
 
@@ -1574,13 +1591,47 @@ export class DeclaracionCargaHorariaService {
       this.logger.debug(
         `Asignaciones para docente ${docenteId} en ${periodoCodigo}: ${asignaciones.length}`,
       );
+      
+      // Log detallado de cada asignación para depuración
+      for (const a of asignaciones) {
+        this.logger.debug(`Asignación: curso=${a.curso_plan?.curso?.codigo}, tipo=${a.tipo_clase}, horas=${a.horas_asignadas}, seccion=${a.seccion}, grupo=${a.grupo?.codigo}`);
+      }
+      
+      // Obtener horarios para contar grupos de laboratorio
+      const horarios = await this.horarioRepo
+        .createQueryBuilder("horario")
+        .leftJoinAndSelect("horario.curso", "curso")
+        .leftJoinAndSelect("horario.grupo", "grupo")
+        .where("horario.docente_id = :docenteId", { docenteId })
+        .andWhere("horario.periodo = :periodo", { periodo: periodoCodigo })
+        .getMany();
+      
+      this.logger.debug(`Horarios para contar grupos: ${horarios.length}`);
+      
+      // Contar horarios de laboratorio por curso (cada horario = un grupo)
+      const numGruposLabPorCurso = new Map<number, number>();
+      for (const h of horarios) {
+        if (!h.curso) continue;
+        if (h.tipo_clase === TipoClase.LABORATORIO) {
+          const cursoId = h.curso_id;
+          numGruposLabPorCurso.set(
+            cursoId,
+            (numGruposLabPorCurso.get(cursoId) || 0) + 1,
+          );
+        }
+      }
+      
+      this.logger.debug(`Grupos de laboratorio por curso (desde horarios): ${JSON.stringify(Array.from(numGruposLabPorCurso.entries()))}`);
+      
       const cursosMap = new Map<string, any>();
+      
       for (const a of asignaciones) {
         if (!a.curso_plan?.curso) continue;
         const curso = a.curso_plan.curso;
         const key = `${curso.id}`;
         // Usar nro_alumnos de la asignacion o fallback a cupo_maximo del grupo
         const alumnos = a.nro_alumnos || a.grupo?.cupo_maximo || 0;
+        
         if (!cursosMap.has(key)) {
           cursosMap.set(key, {
             id: curso.id,
@@ -1589,29 +1640,39 @@ export class DeclaracionCargaHorariaService {
             tipoCurso: a.curso_plan.tipo_curso || "OBLIGATORIO_GENERAL",
             secciones: new Set([a.seccion || ""]),
             escuela:
-              curso.departamento?.escuela?.nombre ?? "IngenierÃ­a de Sistemas",
+              curso.departamento?.escuela?.nombre ?? "Ingeniería de Sistemas",
             ciclo: a.curso_plan.ciclo,
             nroAlumnos: alumnos,
-            hrsTeo: a.tipo_clase === "TEORIA" ? Number(a.horas_asignadas) : 0,
-            hrsPra: a.tipo_clase === "PRACTICA" ? Number(a.horas_asignadas) : 0,
-            hrsLab:
-              a.tipo_clase === "LABORATORIO" ? Number(a.horas_asignadas) : 0,
-            totalHrs: Number(a.horas_asignadas),
+            hrsTeo: 0,
+            hrsPra: 0,
+            hrsLab: 0,
+            totalHrs: 0,
             plan_hours: true,
           });
-        } else {
-          const entry = cursosMap.get(key);
-          if (a.seccion) entry.secciones.add(a.seccion);
-          if (a.tipo_clase === "TEORIA")
-            entry.hrsTeo += Number(a.horas_asignadas);
-          if (a.tipo_clase === "PRACTICA")
-            entry.hrsPra += Number(a.horas_asignadas);
-          if (a.tipo_clase === "LABORATORIO")
-            entry.hrsLab += Number(a.horas_asignadas);
-          entry.totalHrs += Number(a.horas_asignadas);
-          entry.nroAlumnos = Math.max(entry.nroAlumnos, alumnos);
         }
+        
+        const entry = cursosMap.get(key);
+        if (a.seccion) entry.secciones.add(a.seccion);
+        
+        // Sumar horas por tipo de clase
+        const horasAsignadas = Number(a.horas_asignadas) || 0;
+        if (a.tipo_clase === "TEORIA") {
+          entry.hrsTeo += horasAsignadas;
+          entry.totalHrs += horasAsignadas;
+        } else if (a.tipo_clase === "PRACTICA") {
+          entry.hrsPra += horasAsignadas;
+          entry.totalHrs += horasAsignadas;
+        } else if (a.tipo_clase === "LABORATORIO") {
+          // Para laboratorio, multiplicar por el número de grupos (desde horarios)
+          const numGruposLab = numGruposLabPorCurso.get(curso.id) || 1;
+          const horasConMultiplicacion = horasAsignadas * numGruposLab;
+          entry.hrsLab += horasConMultiplicacion;
+          entry.totalHrs += horasConMultiplicacion;
+          this.logger.debug(`Lab: ${curso.codigo}, horas: ${horasAsignadas}, grupos: ${numGruposLab}, total: ${horasConMultiplicacion}`);
+        }
+        entry.nroAlumnos = Math.max(entry.nroAlumnos, alumnos);
       }
+      
       // Convertir Set de secciones a string plano para el frontend
       const resultado = Array.from(cursosMap.values());
       for (const entry of resultado) {
@@ -1641,6 +1702,19 @@ export class DeclaracionCargaHorariaService {
     );
 
     const cursosMap = new Map<string, any>();
+    
+    // Contar horarios de laboratorio por curso (cada horario = un grupo)
+    const numHorariosLabPorCurso = new Map<number, number>();
+    for (const h of horarios) {
+      if (!h.curso || !h.grupo) continue;
+      if (h.tipo_clase === TipoClase.LABORATORIO) {
+        const cursoId = h.curso_id;
+        numHorariosLabPorCurso.set(
+          cursoId,
+          (numHorariosLabPorCurso.get(cursoId) || 0) + 1,
+        );
+      }
+    }
 
     for (const h of horarios) {
       if (!h.curso || !h.grupo) continue;
@@ -1656,27 +1730,39 @@ export class DeclaracionCargaHorariaService {
           tipoCurso: "",
           secciones: new Set([h.grupo.codigo || h.grupo.nombre || ""]),
           escuela:
-            h.curso.departamento?.escuela?.nombre || "IngenierÃ­a de Sistemas",
+            h.curso.departamento?.escuela?.nombre || "Ingeniería de Sistemas",
           ciclo: h.curso.ciclo || 0,
           nroAlumnos: h.grupo.cupo_maximo || 40,
-          hrsTeo: h.tipo_clase === TipoClase.TEORIA ? horasBloque : 0,
-          hrsPra: h.tipo_clase === TipoClase.PRACTICA ? horasBloque : 0,
-          hrsLab: h.tipo_clase === TipoClase.LABORATORIO ? horasBloque : 0,
-          totalHrs: horasBloque,
+          hrsTeo: 0,
+          hrsPra: 0,
+          hrsLab: 0,
+          totalHrs: 0,
         });
-      } else {
-        const entry = cursosMap.get(key);
-        const seccion = h.grupo.codigo || h.grupo.nombre || "";
-        if (seccion) entry.secciones.add(seccion);
-        if (h.tipo_clase === TipoClase.TEORIA) entry.hrsTeo += horasBloque;
-        if (h.tipo_clase === TipoClase.PRACTICA) entry.hrsPra += horasBloque;
-        if (h.tipo_clase === TipoClase.LABORATORIO) entry.hrsLab += horasBloque;
-        entry.totalHrs += horasBloque;
-        entry.nroAlumnos = Math.max(
-          entry.nroAlumnos,
-          h.grupo.cupo_maximo || 40,
-        );
       }
+      
+      const entry = cursosMap.get(key);
+      const seccion = h.grupo.codigo || h.grupo.nombre || "";
+      if (seccion) entry.secciones.add(seccion);
+      
+      if (h.tipo_clase === TipoClase.TEORIA) {
+        entry.hrsTeo += horasBloque;
+        entry.totalHrs += horasBloque;
+      }
+      if (h.tipo_clase === TipoClase.PRACTICA) {
+        entry.hrsPra += horasBloque;
+        entry.totalHrs += horasBloque;
+      }
+      if (h.tipo_clase === TipoClase.LABORATORIO) {
+        // Para laboratorio, multiplicar por el número de horarios (grupos)
+        const numGruposLab = numHorariosLabPorCurso.get(h.curso_id) || 1;
+        entry.hrsLab += horasBloque * numGruposLab;
+        entry.totalHrs += horasBloque * numGruposLab;
+      }
+      
+      entry.nroAlumnos = Math.max(
+        entry.nroAlumnos,
+        h.grupo.cupo_maximo || 40,
+      );
     }
 
     const resultado = Array.from(cursosMap.values());
@@ -1791,11 +1877,46 @@ export class DeclaracionCargaHorariaService {
     // Fallback a HorarioAsignado si no hay asignaciones lectivas
     const asignaciones = await this.asignacionLectivaRepo.find({
       where: { docente_id, periodo_id: periodoId },
+      relations: ["curso_plan", "curso_plan.curso"],
     });
-    let totalLectivas = asignaciones.reduce(
-      (sum, a) => sum + Number(a.horas_asignadas),
-      0,
-    );
+    
+    // Obtener horarios para contar grupos de laboratorio por curso
+    let numGruposLabPorCurso = new Map<number, number>();
+    const periodoObj = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+    if (periodoObj) {
+      const horarios = await this.horarioRepo
+        .createQueryBuilder("horario")
+        .leftJoinAndSelect("horario.curso", "curso")
+        .where("horario.docente_id = :docente_id", { docente_id })
+        .andWhere("horario.periodo = :periodo", { periodo: periodoObj.codigo })
+        .getMany();
+      
+      for (const h of horarios) {
+        if (!h.curso) continue;
+        if (h.tipo_clase === TipoClase.LABORATORIO) {
+          const cursoId = h.curso_id;
+          numGruposLabPorCurso.set(
+            cursoId,
+            (numGruposLabPorCurso.get(cursoId) || 0) + 1,
+          );
+        }
+      }
+    }
+    
+    let totalLectivas = 0;
+    for (const a of asignaciones) {
+      const horasAsignadas = Number(a.horas_asignadas) || 0;
+      if (a.tipo_clase === "LABORATORIO" && a.curso_plan?.curso) {
+        const numGrupos = numGruposLabPorCurso.get(a.curso_plan.curso.id) || 1;
+        totalLectivas += horasAsignadas * numGrupos;
+      } else {
+        totalLectivas += horasAsignadas;
+      }
+    }
+    
+    this.logger.debug(`Carga lectiva calculada con multiplicación de grupos: ${totalLectivas}h para docente ${docente_id}`);
 
     // Fallback: calcular desde HorarioAsignado si no hay asignaciones lectivas
     if (totalLectivas === 0) {
@@ -1902,18 +2023,18 @@ export class DeclaracionCargaHorariaService {
         );
       }
 
-      // Validar que si hay horas, haya horarios (excepto rubro 1) - ahora es advertencia, no error bloqueante
-      if (
-        horasDeclaradas > 0 &&
-        act.id !== 1 &&
-        (!act.horarios ||
-          !Array.isArray(act.horarios) ||
-          act.horarios.length === 0)
-      ) {
-        this.logger.warn(
-          `Advertencia: El rubro "${act.descripcion || act.id}" tiene ${horasDeclaradas}h pero no tiene horarios registrados. Se recomienda asignar horarios.`,
-        );
-      }
+      // Validar que si hay horas, haya horarios (excepto rubro 1) - advertencia deshabilitada por solicitud del usuario
+      // if (
+      //   horasDeclaradas > 0 &&
+      //   act.id !== 1 &&
+      //   (!act.horarios ||
+      //     !Array.isArray(act.horarios) ||
+      //     act.horarios.length === 0)
+      // ) {
+      //   this.logger.warn(
+      //     `Advertencia: El rubro "${act.descripcion || act.id}" tiene ${horasDeclaradas}h pero no tiene horarios registrados. Se recomienda asignar horarios.`,
+      //   );
+      // }
     }
 
     const totalNoLectivas = actividades.reduce(

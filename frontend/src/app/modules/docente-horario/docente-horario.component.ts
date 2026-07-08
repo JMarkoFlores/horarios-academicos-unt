@@ -149,14 +149,26 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
           const raw: HorarioAsignado[] = result?.horarios ?? result?.items ?? r.data ?? [];
           this.docenteInfo = result?.docente ?? null;
 
+          console.log(`[DocenteHorario] Horarios recibidos: ${raw.length}`);
+          console.log(`[DocenteHorario] Horarios con tipo NO_LECTIVA: ${raw.filter(a => a.tipo_clase === 'NO_LECTIVA').length}`);
+
           this.asignaciones = raw.map((a) => {
-            const diaVal: number = (a as any).dia ?? a.dia_semana;
+            const diaVal: number = this.normalizeDia((a as any).dia ?? a.dia_semana);
             return {
               ...a,
               dia_semana: diaVal,
               hora_inicio: this.normalizeHora(a.hora_inicio),
               hora_fin: this.normalizeHora(a.hora_fin),
             };
+          });
+
+          console.log(`[DocenteHorario] Asignaciones procesadas: ${this.asignaciones.length}`);
+          console.log(`[DocenteHorario] mostrarNoLectiva: ${this.mostrarNoLectiva}, puedeMostrarNoLectiva: ${this.puedeMostrarNoLectiva}`);
+          
+          const noLectivas = this.asignaciones.filter(a => a.tipo_clase === 'NO_LECTIVA');
+          console.log(`[DocenteHorario] Asignaciones NO_LECTIVA: ${noLectivas.length}`);
+          noLectivas.forEach(a => {
+            console.log(`[DocenteHorario] NO_LECTIVA: dia=${a.dia_semana}, hora_inicio=${a.hora_inicio}, hora_fin=${a.hora_fin}`);
           });
 
           this.setupCourseColors();
@@ -212,6 +224,27 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
       });
   }
 
+  private normalizeDia(dia: any): number {
+    if (typeof dia === 'number') return dia;
+    const diaMap: Record<string, number> = {
+      'LU': 1,
+      'MA': 2,
+      'MI': 3,
+      'JU': 4,
+      'VI': 5,
+      'SA': 6,
+      'DO': 7,
+      'LUNES': 1,
+      'MARTES': 2,
+      'MIERCOLES': 3,
+      'JUEVES': 4,
+      'VIERNES': 5,
+      'SABADO': 6,
+      'DOMINGO': 7,
+    };
+    return diaMap[String(dia).toUpperCase()] || 1;
+  }
+
   private normalizeHora(hora: string | undefined): string {
     if (!hora) return '';
     return hora.length >= 5 ? hora.substring(0, 5) : hora;
@@ -240,6 +273,7 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
   }
 
   private buildGrid(): void {
+    console.log(`[DocenteHorario] buildGrid llamado: mostrarNoLectiva=${this.mostrarNoLectiva}`);
     this._grid.clear();
     for (const dia of this.diasNum) {
       for (const hora of this.horas) {
@@ -247,11 +281,28 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
         const asigMatches = this.asignaciones.filter(
           (a) => a.dia_semana === dia && a.hora_inicio === this.fmtHStr(hora)
         );
-        let asig: HorarioAsignado | null = asigMatches.find(a => a.tipo_clase !== 'NO_LECTIVA') ?? asigMatches[0] ?? null;
+        
+        let asig: HorarioAsignado | null = null;
+        if (this.mostrarNoLectiva) {
+          // Priorizar NO_LECTIVA cuando el toggle está activo
+          asig = asigMatches.find(a => a.tipo_clase === 'NO_LECTIVA') ?? asigMatches[0] ?? null;
+        } else {
+          // Priorizar asignaciones que NO son NO_LECTIVA
+          asig = asigMatches.find(a => a.tipo_clase !== 'NO_LECTIVA') ?? asigMatches[0] ?? null;
+        }
 
         if (asig && asig.tipo_clase === 'NO_LECTIVA' && !this.mostrarNoLectiva) {
           asig = null;
         }
+        
+        if (this.mostrarNoLectiva && asigMatches.length > 0) {
+          console.log(`[DocenteHorario] dia=${dia}, hora=${hora}, asigMatches=${asigMatches.length}, tipos=${asigMatches.map(a => a.tipo_clase).join(',')}, asig=${asig?.tipo_clase}`);
+        }
+        
+        if (asig && asig.tipo_clase === 'NO_LECTIVA') {
+          console.log(`[DocenteHorario] Bloque NO_LECTIVA agregado: dia=${dia}, hora=${hora}, mostrarNoLectiva=${this.mostrarNoLectiva}`);
+        }
+        
         let rowspan = 1;
         if (asig?.hora_fin) {
           const finH = parseInt(asig.hora_fin.split(':')[0], 10);
@@ -304,6 +355,13 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
       : 'celda-teoria';
   }
 
+  getNombreAsignacion(a: any): string {
+    if (a.tipo_clase === 'NO_LECTIVA') {
+      return (a as any).actividad_nombre || 'Carga No Lectiva';
+    }
+    return a.curso?.nombre ?? '—';
+  }
+
   getCursoColorHex(cursoId: number): string {
     return this.exportService.getCursoColorHex(this.courseColorsHexMap, cursoId);
   }
@@ -314,6 +372,7 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
   }
 
   toggleNoLectiva(): void {
+    console.log(`[DocenteHorario] toggleNoLectiva llamado: mostrarNoLectiva=${this.mostrarNoLectiva}`);
     this.buildGrid();
   }
 

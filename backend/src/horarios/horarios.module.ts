@@ -12,6 +12,7 @@ import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Preasignacion } from "../entities/preasignacion.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { AsignacionService } from "./asignacion.service";
 import { HorariosService } from "./horarios.service";
 import { HorariosGateway } from "./horarios.gateway";
@@ -40,6 +41,7 @@ import { ValidacionesModule } from "../validaciones/validaciones.module";
       Preasignacion,
       DocenteCurso,
       ParametrosCarga,
+      DeclaracionCargaHoraria,
     ]),
     DocentesModule,
     CommonModule,

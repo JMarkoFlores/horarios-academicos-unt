@@ -6,8 +6,20 @@ import {
   IsString,
   IsObject,
   ValidateNested,
+  IsBoolean,
 } from "class-validator";
 import { Type } from "class-transformer";
+
+class HorarioInput {
+  @IsString()
+  dia: string;
+
+  @IsString()
+  hora_inicio: string;
+
+  @IsString()
+  hora_fin: string;
+}
 
 class ActividadNoLectivaInput {
   @IsInt()
@@ -25,9 +37,12 @@ class ActividadNoLectivaInput {
   horas?: number;
 
   @IsOptional()
-  horarios?: any[];
+  @ValidateNested({ each: true })
+  @Type(() => HorarioInput)
+  horarios?: HorarioInput[];
 
   @IsOptional()
+  @IsBoolean()
   horasManual?: boolean;
 }
 

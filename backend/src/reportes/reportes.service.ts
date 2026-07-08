@@ -657,6 +657,14 @@ export class ReportesService {
       where: { docente_id: docenteId, periodo_academico_id: periodoObj.id },
     });
 
+    const firmaDirectorBase64 = declaracion?.firma_director_url
+      ? await this.getBase64Image(declaracion.firma_director_url)
+      : null;
+
+    const firmaDecanoBase64 = declaracion?.firma_decano_url
+      ? await this.getBase64Image(declaracion.firma_decano_url)
+      : null;
+
     const horarios = await this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.curso", "curso")
@@ -671,7 +679,7 @@ export class ReportesService {
     const estadoDeclaracion = declaracion?.estado || "BORRADOR";
     const estadosOficiales = ["APROBADO_FACULTAD", "CERRADO"];
     const esOficial = estadosOficiales.includes(estadoDeclaracion);
-    const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
+    const watermarkText = esOficial ? "DOCUMENTO\nOFICIAL" : "BORRADOR";
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
 
     const modalidadLabel: Record<string, string> = {
@@ -939,11 +947,17 @@ export class ReportesService {
               <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              ${firmaDirectorBase64
+                ? `<img src="${firmaDirectorBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma director" />`
+                : `<div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>`
+              }
               <div class="firma-label">FIRMA Y SELLO DEL DIRECTOR DE DPTO.ACADEMICO</div>
             </div>
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              ${firmaDecanoBase64
+                ? `<img src="${firmaDecanoBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma decano" />`
+                : `<div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>`
+              }
               <div class="firma-label">V°B° DECANO</div>
             </div>
           </div>
@@ -1009,6 +1023,25 @@ export class ReportesService {
       year: "numeric",
     });
 
+    // Obtener estado de la declaración para determinar la marca de agua
+    const declaracion = await this.declaracionRepo.findOne({
+      where: { docente_id: docenteId, periodo_academico_id: periodoObj.id },
+    });
+    
+    const estadoDeclaracion = declaracion?.estado || "BORRADOR";
+    const estadosOficiales = ["APROBADO_FACULTAD", "CERRADO"];
+    const esOficial = estadosOficiales.includes(estadoDeclaracion);
+    const watermarkText = esOficial ? "DOCUMENTO\nOFICIAL" : "BORRADOR";
+    const watermarkOpacity = esOficial ? "0.08" : "0.12";
+
+    const firmaDirectorBase64 = declaracion?.firma_director_url
+      ? await this.getBase64Image(declaracion.firma_director_url)
+      : null;
+
+    const firmaDecanoBase64 = declaracion?.firma_decano_url
+      ? await this.getBase64Image(declaracion.firma_decano_url)
+      : null;
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -1016,7 +1049,24 @@ export class ReportesService {
         <meta charset="UTF-8">
         <style>
           * { box-sizing: border-box; }
-          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 11px; color: #334155; margin: 0; padding: 30px 45px; line-height: 1.7; text-align: justify; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 11px; color: #334155; margin: 0; padding: 30px 45px; line-height: 1.7; text-align: justify; position: relative; }
+          
+          .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 100px;
+            font-weight: bold;
+            color: rgba(0, 0, 0, ${watermarkOpacity});
+            z-index: 0;
+            white-space: pre;
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: 10px;
+          }
+          
+          .container { position: relative; z-index: 1; }
 
           .title { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 25px; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
 
@@ -1039,10 +1089,12 @@ export class ReportesService {
         </style>
       </head>
       <body>
-        <div class="title">
-          DECLARACION JURADA DE NO ESTAR INCURSO EN CAUSALES<br>
-          DE INCOMPATIBILIDAD O IMPEDIMENTO LABORAL (F02-CAD)
-        </div>
+        <div class="watermark">${watermarkText}</div>
+        <div class="container">
+          <div class="title">
+            DECLARACION JURADA DE NO ESTAR INCURSO EN CAUSALES<br>
+            DE INCOMPATIBILIDAD O IMPEDIMENTO LABORAL (F02-CAD)
+          </div>
 
         <p class="intro">
           Yo, <b>${nombreCompleto}</b>, identificado(a) con DNI N° <b>${dni}</b>, adscrito al Departamento Académico de
@@ -1181,10 +1233,18 @@ export class ReportesService {
       ? await this.getBase64Image(docente.firma_url)
       : null;
 
+    const firmaDirectorBase64 = declaracion?.firma_director_url
+      ? await this.getBase64Image(declaracion.firma_director_url)
+      : null;
+
+    const firmaDecanoBase64 = declaracion?.firma_decano_url
+      ? await this.getBase64Image(declaracion.firma_decano_url)
+      : null;
+
     const estadoDeclaracion = declaracion?.estado || "BORRADOR";
     const estadosOficiales = ["APROBADO_FACULTAD", "CERRADO"];
     const esOficial = estadosOficiales.includes(estadoDeclaracion);
-    const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
+    const watermarkText = esOficial ? "DOCUMENTO\nOFICIAL" : "BORRADOR";
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
 
     const partesPeriodo = periodo.split("-");
@@ -1273,16 +1333,15 @@ export class ReportesService {
       { id: 2, num: "1", text: "1. PREPARACION Y EVALUACION", defaultDetail: "ACTIVIDADES DE PLANIFICACION, IMPLEMENTACION Y EVALUACION DE LAS ACTIVIDADES LECTIVAS." },
       { id: 3, num: "2", text: "2. TUTORIA Y CONSEJERIA", defaultDetail: "PARA ALUMNOS DE LAS ASIGNATURAS CURRICULARES ASIGNADAS EN EL PRESENTE SEMESTRE." },
       { id: 4, num: "3", text: "3. INVESTIGACION:", defaultDetail: "" },
-      { id: 9, num: "4", text: "4. RESPONSABILIDAD SOCIAL UNIVERSITARIA", defaultDetail: "" },
+      { id: 5, num: "4", text: "4. FORMACION ACADEMICA Y CAPACITACION", defaultDetail: "" },
       { id: 8, num: "5", text: "5. ASESORIA DE TESIS Y EXAMENES PROFESIONALES", defaultDetail: "" },
-      { id: 5, num: "6", text: "6. FORMACION ACADEMICA Y CAPACITACION", defaultDetail: "" },
-      { id: 1, num: "7", text: "7. AUTOEVALUACION Y/O ACREDITACION DE LA ESCUELA PROFESIONAL", defaultDetail: "" }
+      { id: 9, num: "6", text: "6. RESPONSABILIDAD SOCIAL UNIVERSITARIA", defaultDetail: "" }
     ];
 
     const labelsAdmin = [
-      { id: 10, num: "8", text: "8. COMITES O COMISIONES ESPECIALES", defaultDetail: "" },
-      { id: 6, num: "9", text: "9. ACTIVIDADES DE GOBIERNO O DE AUTORIDAD", defaultDetail: "" },
-      { id: 7, num: "10", text: "10. ACTIVIDADES DE GESTION INSTITUCIONAL", defaultDetail: "" }
+      { id: 6, num: "7", text: "7. ACTIVIDADES DE GOBIERNO O DE AUTORIDAD", defaultDetail: "" },
+      { id: 7, num: "8", text: "8. ACTIVIDADES DE GESTION INSTITUCIONAL", defaultDetail: "" },
+      { id: 10, num: "9", text: "9. COMITES O COMISIONES ESPECIALES", defaultDetail: "" }
     ];
 
     const actividadesRegistradas = new Map<number, any>();
@@ -1322,8 +1381,24 @@ export class ReportesService {
         <meta charset="UTF-8">
         <style>
           * { box-sizing: border-box; }
-          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 7.5px; color: #334155; margin: 0; padding: 0; line-height: 1.1; }
-          .container { width: 100%; margin: 0 auto; padding: 10px 10px; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 7.5px; color: #334155; margin: 0; padding: 0; line-height: 1.1; position: relative; }
+          .container { width: 100%; margin: 0 auto; padding: 10px 10px; position: relative; z-index: 1; }
+          
+          .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 100px;
+            font-weight: bold;
+            color: rgba(0, 0, 0, ${watermarkOpacity});
+            z-index: 0;
+            white-space: pre;
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: 10px;
+          }
+          
           .main-title { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 12px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
           
           table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #94a3b8; table-layout: fixed; word-wrap: break-word; word-break: break-all; overflow-wrap: break-word; }
@@ -1353,6 +1428,7 @@ export class ReportesService {
         </style>
       </head>
       <body>
+        <div class="watermark">${watermarkText}</div>
         <div class="container">
           <div class="main-title">DECLARACION DE LA CARGA ACADEMICA DOCENTE (F01-CAD)</div>
           
@@ -1451,11 +1527,17 @@ export class ReportesService {
               <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              ${firmaDirectorBase64
+                ? `<img src="${firmaDirectorBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma director" />`
+                : `<div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>`
+              }
               <div class="firma-label">FIRMA Y SELLO DEL DIRECTOR DE DPTO.ACADEMICO</div>
             </div>
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              ${firmaDecanoBase64
+                ? `<img src="${firmaDecanoBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma decano" />`
+                : `<div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>`
+              }
               <div class="firma-label">V°B° DECANO</div>
             </div>
           </div>

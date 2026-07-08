@@ -392,7 +392,6 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
               hora_fin: h.hora_fin || '10:00',
             }));
           } else if (a.horario) {
-            // backward compatibility: parse old string format
             act.horarios = this.parseHorarioString(a.horario);
           }
         }
@@ -696,13 +695,14 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (actividad.horas > 0 && (!actividad.horarios || actividad.horarios.length === 0)) {
-      this.snackBar.open(
-        `El rubro ${actividad.id} tiene ${actividad.horas}h pero no tiene horario registrado.`,
-        'OK',
-        { duration: 4000, panelClass: ['snackbar-warning'] },
-      );
-    }
+    // Validación de horarios deshabilitada por solicitud del usuario
+    // if (actividad.horas > 0 && (!actividad.horarios || actividad.horarios.length === 0)) {
+    //   this.snackBar.open(
+    //     `El rubro ${actividad.id} tiene ${actividad.horas}h pero no tiene horario registrado.`,
+    //     'OK',
+    //     { duration: 4000, panelClass: ['snackbar-warning'] },
+    //   );
+    // }
     
     // Validación: si horas es 0 pero hay horarios asignados
     if (actividad.horas === 0 && actividad.horarios && actividad.horarios.length > 0) {
@@ -750,15 +750,22 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
     return new Promise((resolve) => {
       this.api.post<ApiResponse<any>>('/declaraciones/guardar', payload).subscribe({
-        next: () => {
+        next: (res) => {
           this.lastSaved = new Date();
           this.autoSaveStatus = 'Guardado';
           this.autoSaving = false;
+          if (res.data?.id) {
+            this.declaracionId = res.data.id;
+          }
+          if (res.data?.estado && res.data.estado !== this.estadoDeclaracion) {
+            this.estadoDeclaracion = res.data.estado;
+          }
           resolve();
         },
-        error: () => {
+        error: (err) => {
           this.autoSaveStatus = 'Error al guardar';
           this.autoSaving = false;
+          console.error('Error en auto-save:', err);
           resolve();
         },
       });

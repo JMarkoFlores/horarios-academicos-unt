@@ -68,8 +68,9 @@ export class HorarioExportService {
     return { colorMap, hexMap, cursosList };
   }
 
-  getNombreAsignacion(a: any): string {
-    if (a.tipo_clase === 'NO_LECTIVA') {
+  getNombreAsignacion(a: any, mergedTipos?: string[]): string {
+    const isNoLectiva = a.tipo_clase === 'NO_LECTIVA' || mergedTipos?.includes('NO_LECTIVA');
+    if (isNoLectiva) {
       let nombre = a.actividad_nombre || 'Carga No Lectiva';
       nombre = nombre.replace(/^\d+\.\s*/, '');
       nombre = nombre.replace(/\s*\(.*\)\s*$/, '');
@@ -398,13 +399,13 @@ export class HorarioExportService {
         if (!cell || cell.skip) return;
 
         if (cell.asig) {
-          const isNoLectiva = cell.asig.tipo_clase === 'NO_LECTIVA';
+          const isNoLectiva = cell.asig.tipo_clase === 'NO_LECTIVA' || cell.mergedTipos?.includes('NO_LECTIVA');
           const pf = `[${cell.mergedTipos?.join('/') ?? 'TEO'}]`;
           const ambStr = isNoLectiva ? '' : (cell.mergedAmbs?.length ? cell.mergedAmbs.join(' / ') : '—');
           const bg = isNoLectiva ? [255, 251, 235] as [number, number, number] : this.getCursoColorRGB(colorMap, cell.asig.curso?.id || 0);
           const fg = ink;
           const blockH = baseCellH * cell.rowspan;
-          const asigName = this.getNombreAsignacion(cell.asig);
+          const asigName = this.getNombreAsignacion(cell.asig, cell.mergedTipos);
           const timeStr = isNoLectiva ? `${cell.asig.hora_inicio}–${cell.asig.hora_fin}` : `${ambStr}  ${cell.asig.hora_inicio}–${cell.asig.hora_fin}`;
           draw(x, y, DAY_W, blockH, bg, fg, [pf, asigName, timeStr], 'bold', 6.5);
         } else if (cell.esAlmuerzo) {
@@ -579,10 +580,10 @@ export class HorarioExportService {
         }
 
         if (cell?.asig) {
-          const isNoLectiva = cell.asig.tipo_clase === 'NO_LECTIVA';
+          const isNoLectiva = cell.asig.tipo_clase === 'NO_LECTIVA' || cell.mergedTipos?.includes('NO_LECTIVA');
           const pf = `[${cell.mergedTipos?.join('/') ?? 'TEO'}]`;
           const ambStr = isNoLectiva ? '' : (cell.mergedAmbs?.length ? cell.mergedAmbs.join(' / ') : '—');
-          const asigName = this.getNombreAsignacion(cell.asig);
+          const asigName = this.getNombreAsignacion(cell.asig, cell.mergedTipos);
           const timeStr = isNoLectiva ? `${cell.asig.hora_inicio}-${cell.asig.hora_fin}` : `${ambStr}  ${cell.asig.hora_inicio}-${cell.asig.hora_fin}`;
           row.push(`${pf}\n${asigName}\n${timeStr}`);
           if (cell.rowspan > 1) {

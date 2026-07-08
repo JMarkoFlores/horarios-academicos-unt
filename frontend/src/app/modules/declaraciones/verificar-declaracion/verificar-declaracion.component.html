@@ -69,7 +69,7 @@
       <div class="gauge-bar-bg">
         <div class="gauge-bar-fill" [style.width.%]="gaugePercent" [class.gauge-warn]="gaugePercent > 100"></div>
       </div>
-      <div class="gauge-text">Usas {{ totalHoras }}h de {{ horasModalidad }}h disponibles ({{ gaugePercent }}%)</div>
+      <div class="gauge-text">Usas {{ totalHorasRegulares }}h de {{ horasModalidad }}h disponibles ({{ gaugePercent }}%)</div>
     </div>
     <div class="progress-wrapper">
       <div class="progress-label">Rubros completos:</div>
@@ -416,12 +416,18 @@
     </mat-card>
 
     <!-- TOTAL HORAS -->
-    <div class="total-horas-bar" [class.total-excede]="totalHoras > horasModalidad">
-      <span class="total-label">Total General (Lectivas + No Lectivas + Adicional):</span>
-      <span class="total-value">{{ totalHoras }}h</span>
+    <div class="total-horas-bar" [class.total-excede]="totalHorasRegulares > horasModalidad">
+      <span class="total-label">Trabajo Universitario (Lectivas + No Lectivas):</span>
+      <span class="total-value">{{ totalHorasRegulares }}h</span>
       <span class="total-modalidad">de {{ horasModalidad }}h disponibles ({{ gaugePercent }}%)</span>
-      <mat-icon *ngIf="totalHoras > horasModalidad" class="total-warn-icon">warning</mat-icon>
-      <span *ngIf="totalHoras > horasModalidad" class="total-warn-text">Excede la modalidad del docente</span>
+      <mat-icon *ngIf="totalHorasRegulares > horasModalidad" class="total-warn-icon">warning</mat-icon>
+      <span *ngIf="totalHorasRegulares > horasModalidad" class="total-warn-text">Excede la modalidad del docente</span>
+      
+      <!-- Si hay carga adicional, mostramos el Gran Total abajo en pequeño -->
+      <div *ngIf="totalHorasCargaAdicional > 0" class="gran-total-adicional">
+        <span class="gt-label">Total General (con Adicional):</span>
+        <span class="gt-value">{{ totalHoras }}h</span>
+      </div>
     </div>
 
     <!-- DECLARACIÓN JURADA F02-CAD -->

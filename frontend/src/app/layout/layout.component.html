@@ -156,8 +156,8 @@
                   matTooltipPosition="right"
                   class="nav-item"
                 >
-                  <mat-icon matListItemIcon class="nav-icon" [style.color]="isRouteActive(item.route) ? '#4f46e5' : ''">{{ item.icon }}</mat-icon>
-                  <span matListItemTitle class="item-label" [style.color]="isRouteActive(item.route) ? '#4f46e5' : ''" [style.font-weight]="isRouteActive(item.route) ? '700' : ''">{{ item.label | translate }}</span>
+                  <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
+                  <span matListItemTitle class="item-label">{{ item.label | translate }}</span>
                 </a>
               }
               @if (item.action) {

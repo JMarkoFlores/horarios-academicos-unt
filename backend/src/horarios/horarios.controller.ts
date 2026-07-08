@@ -43,6 +43,7 @@ import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { Usuario } from "../entities/usuario.entity";
+import { UsuarioAutenticado } from "../common/interfaces/contexto-academico.interface";
 import { AsignacionService } from "./asignacion.service";
 import { GeneracionAutomaticaService } from "./generacion-automatica.service";
 import { ICalendarService } from "./icalendar.service";
@@ -197,7 +198,7 @@ export class HorariosController {
     @Query("limit") limit?: string,
   ) {
     if (usuario.rol === RolUsuario.DOCENTE) {
-      const docenteId = (usuario as Usuario & { docenteId?: number | null }).docenteId;
+      const docenteId = (usuario as UsuarioAutenticado).docenteId;
       if (!docenteId || docenteId !== id) {
         throw new BadRequestException("No tiene permisos para ver el horario de otro docente");
       }
@@ -312,7 +313,7 @@ export class HorariosController {
     @Query("periodo") periodo: string,
   ) {
     if (
-      typeof (usuario as Usuario & { docenteId?: number | null }).docenteId ===
+      typeof (usuario as UsuarioAutenticado).docenteId ===
       "number"
     ) {
       const docenteId = (usuario as Usuario & { docenteId: number }).docenteId;
@@ -772,7 +773,7 @@ export class HorariosController {
     @Headers() headers: any,
   ) {
     if (usuario.rol === RolUsuario.DOCENTE) {
-      const docenteId = (usuario as Usuario & { docenteId?: number | null }).docenteId;
+      const docenteId = (usuario as UsuarioAutenticado).docenteId;
       if (!docenteId || docenteId !== id) {
         throw new BadRequestException("No tiene permisos para exportar el horario de otro docente");
       }

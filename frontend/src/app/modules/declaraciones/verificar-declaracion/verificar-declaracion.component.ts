@@ -9,17 +9,19 @@ import { AuthService } from '../../../core/services/auth.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { CargaAdicionalService, CargaAdicional } from '../../../core/services/carga-adicional.service';
 import { Docente, ApiResponse, DeclaracionObservacion } from '../../../core/interfaces/entities';
-import { GestionarHorarioDialogComponent, GestionarHorarioData, HorarioEntry as HorarioEntryType } from '../dialogs/gestionar-horario-dialog.component';
-import { DragDropScheduleData, HorarioEntry } from '../dialogs/drag-drop-schedule.component';
+import { HorarioEntry as HorarioEntryType } from '../dialogs/gestionar-horario-dialog.component';
 import { ActividadNoLectivaInput } from '../horario-grafico-panel/horario-grafico-panel.component';
 import {
   DIA_CODIGO_A_CORTO,
+  codigoDiaANumero,
   diaNumericoACodigo,
   esHorarioIdentico,
   HorarioLectivoRef,
   normalizarHora,
   seSuperponen,
 } from '../horario.utils';
+import { ScheduleBlock, PaletteBlock } from '../../../shared/components/schedule-grid/schedule-grid.models';
+import { ScheduleConfigService } from '../../../core/services/schedule-config.service';
 
 interface CursoLectivo {
   id: number;
@@ -159,11 +161,12 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   // Horario grafico
   mostrandoHorarioGrafico = false;
 
-  // Drag & drop inline
+  // Unified grid
   mostrarHorarioLectivo = false;
-  horarioLectivoData: DragDropScheduleData | null = null;
   actividadSeleccionada: ActividadNoLectiva | null = null;
-  dragDropData: DragDropScheduleData | null = null;
+  unifiedGridBlocks: ScheduleBlock[] = [];
+  unifiedGridPalette: PaletteBlock[] = [];
+  unifiedGridActivityId: number | null = null;
 
   private autoSaveSubject = new Subject<void>();
   private autoSaveSub?: Subscription;
@@ -177,9 +180,11 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
     private cargaAdicionalService: CargaAdicionalService,
+    private scheduleConfig: ScheduleConfigService,
   ) { }
 
   ngOnInit(): void {
+    this.scheduleConfig.cargar();
     this.docenteId = Number(this.route.snapshot.paramMap.get('id'));
     this.periodoActivo = this.periodoService.periodo;
     this.inicializarActividadesNoLectivas();
@@ -201,6 +206,13 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
   get estadoConfig(): EstadoConfig {
     return ESTADOS_CONFIG[this.estadoDeclaracion] || ESTADOS_CONFIG['BORRADOR'];
+  }
+
+  get gridTitle(): string {
+    if (!this.unifiedGridActivityId) return 'Horario — Carga Horaria Lectiva';
+    const desc = this.actividadSeleccionada?.descripcion || '';
+    const clean = desc.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim();
+    return `Horario — ${clean}`;
   }
 
   get estadoLabel(): string {
@@ -559,13 +571,25 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
   actividadTieneConflictoLectiva(act: ActividadNoLectiva): boolean {
     if (!act.horarios?.length || !this.horariosLectivos.length) return false;
-    return act.horarios.some((h) =>
-      this.horariosLectivos.some(
+
+    const config = this.scheduleConfig.config;
+    const almuerzoInicio = config.almuerzo.inicio;
+    const almuerzoFin = config.almuerzo.fin;
+
+    return act.horarios.some((h) => {
+      const hInicioNum = parseInt(h.hora_inicio.split(':')[0], 10);
+      const hFinNum = parseInt(h.hora_fin.split(':')[0], 10);
+      const enFranjaAlmuerzo = hInicioNum < almuerzoFin && hFinNum > almuerzoInicio;
+
+      // Si está en franja de almuerzo, no considerar conflicto
+      if (enFranjaAlmuerzo) return false;
+
+      return this.horariosLectivos.some(
         (lec) =>
           h.dia === lec.dia &&
           seSuperponen(h.hora_inicio, h.hora_fin, lec.hora_inicio, lec.hora_fin),
-      ),
-    );
+      );
+    });
   }
 
   actividadNecesitaDetalle(act: ActividadNoLectiva): boolean {
@@ -694,77 +718,6 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     this.triggerAutoSave();
   }
 
-  async abrirGestionHorario(actividad: ActividadNoLectiva): Promise<void> {
-    if (!this.horariosLectivos.length) {
-      this.cargandoHorariosLectivos = true;
-      await this.obtenerHorariosLectivos();
-      this.cargandoHorariosLectivos = false;
-    }
-
-    // Guardar el valor original de horas para no sobreescribir si el usuario las ingresó manualmente
-    const horasOriginales = actividad.horas;
-    const horasManualOriginal = actividad.horasManual;
-
-    const allHorarios = this.actividadesNoLectivas
-      .filter(a => a.id !== actividad.id && a.horarios && a.horarios.length > 0)
-      .map(a => ({
-        actividadId: a.id,
-        actividadNombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
-        horarios: [...a.horarios],
-      }));
-
-    // Calcular maxHoras para preparación y evaluación (50% de lectivas)
-    let maxHoras: number | undefined;
-    if (actividad.id === 2) {
-      maxHoras = Math.floor(this.totalHorasLectivas * 0.5);
-    }
-
-    const data: GestionarHorarioData = {
-      actividadId: actividad.id,
-      actividadNombre: actividad.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
-      horarios: actividad.horarios.map(h => ({ ...h })),
-      horas: actividad.horas,
-      horasManual: actividad.horasManual,
-      allHorarios,
-      horariosLectivos: this.horariosLectivos.map(h => ({ ...h })),
-      maxHoras,
-      totalHorasLectivas: this.totalHorasLectivas,
-    };
-
-    const ref = this.dialog.open(GestionarHorarioDialogComponent, {
-      width: '720px',
-      maxWidth: '95vw',
-      data,
-      disableClose: true,
-    });
-
-    ref.afterClosed().subscribe((result: GestionarHorarioData | null) => {
-      if (!result) return;
-      actividad.horarios = result.horarios;
-      actividad.horasManual = result.horasManual;
-      
-      // Solo actualizar horas si:
-      // - El usuario activó modo manual en el diálogo, O
-      // - Las horas estaban vacías (0) antes de abrir el diálogo, O
-      // - El usuario presionó ACTUALIZAR explícitamente (horasActualizadas flag)
-      if (!horasManualOriginal && (!horasOriginales || horasOriginales === 0)) {
-        actividad.horas = result.horas;
-      }
-      // Si el usuario tenía horas ingresadas manualmente, mantenerlas
-      // Solo actualizar si el usuario las modificó explícitamente en el diálogo (horasManual cambió a true)
-      else if (result.horasManual && !horasManualOriginal) {
-        actividad.horas = result.horas;
-      }
-      // Si el usuario presionó ACTUALIZAR en el snackBar de discrepancia
-      else if (result.horasActualizadas) {
-        actividad.horas = result.horas;
-      }
-      
-      this.calcularTotales();
-      this.triggerAutoSave();
-    });
-  }
-
   triggerAutoSave(): void {
     if (this.esEditable && !this.tieneErroresDetalle()) {
       this.autoSaveSubject.next();
@@ -845,11 +798,19 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
     }
 
     this.api.post<ApiResponse<any>>('/declaraciones/guardar', payload).subscribe({
-      next: () => {
+      next: (res) => {
         this.lastSaved = new Date();
         this.snackBar.open('Declaración guardada correctamente', 'Cerrar', { duration: 3000 });
         this.saving = false;
-        this.cargarDeclaracion();
+        // Actualizar el ID de la declaración si es nueva
+        if (res.data?.id) {
+          this.declaracionId = res.data.id;
+        }
+        // No recargar la declaración completa para evitar perder cambios locales
+        // Solo recargar si es necesario (por ejemplo, si cambió el estado)
+        if (res.data?.estado && res.data.estado !== this.estadoDeclaracion) {
+          this.estadoDeclaracion = res.data.estado;
+        }
       },
       error: (err) => {
         this.snackBar.open(err.error?.message || 'Error al guardar la declaración', 'Cerrar', { duration: 3000 });
@@ -1100,93 +1061,116 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
       .join(', ');
   }
 
-  // ---------- Drag & Drop inline ----------
+  // ---------- Unified Grid ----------
 
-  abrirHorarioLectivo(): void {
-    this.cerrarDragDrop();
+  abrirGridUnificado(actividad?: ActividadNoLectiva): void {
+    if (!this.horariosLectivos.length) {
+      this.obtenerHorariosLectivos();
+    }
+
+    this.unifiedGridBlocks = this.buildLectivaBlocks();
+
+    if (actividad) {
+      this.actividadSeleccionada = actividad;
+      this.unifiedGridActivityId = actividad.id;
+      this.unifiedGridBlocks = [
+        ...this.unifiedGridBlocks,
+        ...this.buildNoLectivaBlocks(actividad),
+      ];
+      this.unifiedGridPalette = this.buildNoLectivaPalette(actividad);
+    } else {
+      this.unifiedGridActivityId = null;
+      this.unifiedGridPalette = [];
+    }
+
     this.mostrarHorarioLectivo = true;
-    this.horarioLectivoData = {
-      actividadId: 1,
-      actividadNombre: 'Carga Horaria Lectiva',
-      horarios: this.horariosLectivos.map((h) => ({
-        dia: h.dia,
-        hora_inicio: h.hora_inicio,
-        hora_fin: h.hora_fin,
-      })),
-      horas: this.totalHorasLectivas,
-      horariosLectivos: this.horariosLectivos,
-      allActividades: this.actividadesNoLectivas
-        .filter((a) => a.horarios && a.horarios.length > 0)
-        .map((a) => ({
-          id: a.id,
-          nombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
-          horarios: a.horarios.map((h) => ({ ...h })),
-        })),
-    };
   }
 
-  cerrarHorarioLectivo(): void {
+  cerrarGridUnificado(): void {
     this.mostrarHorarioLectivo = false;
-    this.horarioLectivoData = null;
-  }
-
-  onHorarioLectivoChange(horarios: HorarioEntry[]): void {
-    this.horariosLectivos = horarios.map((h) => ({
-      dia: h.dia,
-      hora_inicio: h.hora_inicio,
-      hora_fin: h.hora_fin,
-      codigoCurso: '',
-      nombreCurso: '',
-      tipoClase: '',
-      seccion: '',
-    }));
-    this.calcularTotales();
-  }
-
-  onHorasLectivasHorarioChange(horas: number): void {
-    this.totalHorasLectivas = horas;
-    this.calcularTotales();
-  }
-
-  seleccionarActividadDragDrop(actividad: ActividadNoLectiva): void {
-    this.cerrarHorarioLectivo();
-    this.actividadSeleccionada = actividad;
-    const maxHoras = actividad.id === 2 ? Math.floor(this.totalHorasLectivas * 0.5) : undefined;
-    this.dragDropData = {
-      actividadId: actividad.id,
-      actividadNombre: actividad.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
-      horarios: actividad.horarios.map((h) => ({ ...h })),
-      horas: actividad.horas,
-      maxHoras,
-      totalHorasLectivas: this.totalHorasLectivas,
-      horariosLectivos: this.horariosLectivos,
-      allActividades: this.actividadesNoLectivas
-        .filter((a) => a.id !== actividad.id && a.horarios && a.horarios.length > 0)
-        .map((a) => ({
-          id: a.id,
-          nombre: a.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
-          horarios: a.horarios.map((h) => ({ ...h })),
-        })),
-    };
-  }
-
-  cerrarDragDrop(): void {
     this.actividadSeleccionada = null;
-    this.dragDropData = null;
+    this.unifiedGridBlocks = [];
+    this.unifiedGridPalette = [];
+    this.unifiedGridActivityId = null;
   }
 
-  onDragDropHorariosChange(horarios: HorarioEntry[]): void {
-    if (!this.actividadSeleccionada) return;
-    this.actividadSeleccionada.horarios = horarios.map((h) => ({ ...h }));
-    this.calcularTotales();
-    this.triggerAutoSave();
+  onUnifiedGridBlocksChange(blocks: ScheduleBlock[]): void {
+    if (this.unifiedGridActivityId && this.actividadSeleccionada) {
+      const noLectivaBlocks = blocks.filter(b => b.tipo === 'no-lectiva');
+      this.actividadSeleccionada.horarios = noLectivaBlocks.map(b => ({
+        dia: diaNumericoACodigo(b.dia),
+        hora_inicio: b.hora_inicio,
+        hora_fin: b.hora_fin,
+      }));
+      if (!this.actividadSeleccionada.horasManual) {
+        const calc = this.calcularHorasDesdeHorarios(this.actividadSeleccionada.horarios);
+        if (calc > 0) this.actividadSeleccionada.horas = calc;
+      }
+      this.calcularTotales();
+      this.triggerAutoSave();
+    }
   }
 
-  onDragDropHorasChange(horas: number): void {
-    if (!this.actividadSeleccionada) return;
-    this.actividadSeleccionada.horas = horas;
-    this.calcularTotales();
-    this.triggerAutoSave();
+  private horaToBlockRange(horaInicio: string, horaFin: string): { ini: number; fin: number; duracion: number } | null {
+    const iniParts = normalizarHora(horaInicio).split(':').map(Number);
+    const finParts = normalizarHora(horaFin).split(':').map(Number);
+    const ini = iniParts[0];
+    const fin = finParts[0] + (finParts[1] > 0 ? 1 : 0);
+    if (isNaN(ini) || isNaN(fin) || fin <= ini) return null;
+    return { ini, fin, duracion: fin - ini };
+  }
+
+  private buildLectivaBlocks(): ScheduleBlock[] {
+    const blocks: ScheduleBlock[] = [];
+    for (const h of this.horariosLectivos) {
+      const diaNum = codigoDiaANumero(h.dia);
+      const range = this.horaToBlockRange(h.hora_inicio, h.hora_fin);
+      if (isNaN(diaNum) || !range) continue;
+      blocks.push({
+        id: `lect_${diaNum}_${range.ini}`,
+        tipo: 'lectiva',
+        dia: diaNum,
+        hora_inicio: `${String(range.ini).padStart(2, '0')}:00`,
+        hora_fin: `${String(range.fin).padStart(2, '0')}:00`,
+        duracion: range.duracion,
+        label: h.nombreCurso || h.codigoCurso || 'Carga Lectiva',
+        sublabel: `${h.tipoClase || ''} ${h.seccion || ''}`.trim(),
+        badge: h.tipoClase?.substring(0, 3).toUpperCase() || 'TEO',
+        readOnly: true,
+        tooltip: `${h.nombreCurso || ''} (${h.hora_inicio}-${h.hora_fin})`,
+      });
+    }
+    return blocks;
+  }
+
+  private buildNoLectivaBlocks(actividad: ActividadNoLectiva): ScheduleBlock[] {
+    const blocks: ScheduleBlock[] = [];
+    for (const h of (actividad.horarios || [])) {
+      const diaNum = codigoDiaANumero(h.dia);
+      const range = this.horaToBlockRange(h.hora_inicio, h.hora_fin);
+      if (isNaN(diaNum) || !range) continue;
+      blocks.push({
+        id: `nl_${actividad.id}_${diaNum}_${range.ini}`,
+        tipo: 'no-lectiva',
+        dia: diaNum,
+        hora_inicio: `${String(range.ini).padStart(2, '0')}:00`,
+        hora_fin: `${String(range.fin).padStart(2, '0')}:00`,
+        duracion: range.duracion,
+        label: actividad.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim(),
+        colorKey: String(actividad.id),
+        tooltip: `${actividad.descripcion} (${h.hora_inicio}-${h.hora_fin})`,
+      });
+    }
+    return blocks;
+  }
+
+  private buildNoLectivaPalette(actividad: ActividadNoLectiva): PaletteBlock[] {
+    const dur = actividad.id === 2 ? 1 : 2;
+    const label = actividad.descripcion.replace(/^[0-9]+\.\s*/, '').split(':')[0].trim();
+    return [
+      { id: `pal_${actividad.id}_1h`, duracion: 1, label: `${label} (1h)`, tipo: 'no-lectiva', colorKey: String(actividad.id) },
+      { id: `pal_${actividad.id}_2h`, duracion: dur, label: `${label} (${dur}h)`, tipo: 'no-lectiva', colorKey: String(actividad.id) },
+    ];
   }
 
   // ---------- Flujo de aprobación ----------

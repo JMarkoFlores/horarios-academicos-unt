@@ -4,6 +4,7 @@ import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
 import { Curso } from "../entities/curso.entity";
 import { Departamento } from "../entities/departamento.entity";
 import { TipoCursoPlan } from "../common/enums/tipo-curso-plan.enum";
+import { EstadoCursoPlan } from "../common/enums/estado-curso-plan.enum";
 import { Escuela } from "../entities/escuela.entity";
 
 const normalize = (s: string) =>
@@ -12,7 +13,7 @@ const normalize = (s: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
-const TIPO_MAP: Record<string, string> = {
+const TIPO_MAP: Record<string, TipoCursoPlan> = {
   S: TipoCursoPlan.ESPECIALIDAD,
   OB: TipoCursoPlan.OBLIGATORIO_GENERAL,
   OP: TipoCursoPlan.OBLIGATORIO_PROFESIONAL,
@@ -184,7 +185,7 @@ export async function seedPlanEstudios2027(
         horas_practica: c.hp,
         horas_laboratorio: c.hl,
         creditos: c.creditos,
-        estado: "ACTIVO",
+        estado: EstadoCursoPlan.ACTIVO,
       })
     );
 

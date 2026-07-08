@@ -17,6 +17,7 @@ import { Usuario } from "./usuario.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
 import { DeclaracionJurada } from "./declaracion-jurada.entity";
 import { CargaAdicional } from "./carga-adicional.entity";
+import { ActividadNoLectiva } from "./actividad-no-lectiva.entity";
 
 @Entity("declaracion_carga_horaria")
 @Unique("UQ_declaracion_carga_docente_periodo", [
@@ -89,6 +90,9 @@ export class DeclaracionCargaHoraria {
 
   @OneToMany(() => CargaAdicional, (ca) => ca.declaracion)
   carga_adicional: CargaAdicional[];
+
+  @OneToMany(() => ActividadNoLectiva, (anl) => anl.declaracion)
+  actividades_no_lectivas: ActividadNoLectiva[];
 
   @Column({ type: "text", nullable: true })
   observaciones: string | null;

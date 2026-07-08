@@ -8,6 +8,7 @@ import { CreateOfertaAcademicaDto } from "./dto/create-oferta-academica.dto";
 import { UpdateOfertaAcademicaDto } from "./dto/update-oferta-academica.dto";
 import { QueryOfertaAcademicaDto } from "./dto/query-oferta-academica.dto";
 import { TipoClase } from "../../common/enums/tipo-clase.enum";
+import { EstadoCursoPlan } from "../../common/enums/estado-curso-plan.enum";
 
 @Injectable()
 export class OfertaAcademicaService {
@@ -119,7 +120,7 @@ export class OfertaAcademicaService {
     }
 
     const cursosPlan = await this.cursoPlanRepo.find({
-      where: { plan_estudios_id: planId, estado: "ACTIVO" },
+      where: { plan_estudios_id: planId, estado: EstadoCursoPlan.ACTIVO },
       relations: ["curso"],
     });
 

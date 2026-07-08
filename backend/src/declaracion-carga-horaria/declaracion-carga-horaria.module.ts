@@ -13,10 +13,14 @@ import { DeclaracionObservacion } from "../entities/declaracion-observacion.enti
 import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
 import { CargaAdicional } from "../entities/carga-adicional.entity";
 import { Usuario } from "../entities/usuario.entity";
+import { ActividadNoLectiva } from "../entities/actividad-no-lectiva.entity";
+import { HorarioNoLectivo } from "../entities/horario-no-lectivo.entity";
 import { DeclaracionCargaHorariaService } from "./declaracion-carga-horaria.service";
 import { DeclaracionCargaHorariaController } from "./declaracion-carga-horaria.controller";
 import { CargaAdicionalService } from "./carga-adicional.service";
 import { CargaAdicionalController } from "./carga-adicional.controller";
+import { CargaNoLectivaService } from "../modules/declaraciones/carga-no-lectiva.service";
+import { CargaNoLectivaController } from "../modules/declaraciones/carga-no-lectiva.controller";
 import { AuditoriaModule } from "../modules/auditoria/auditoria.module";
 
 @Module({
@@ -35,11 +39,25 @@ import { AuditoriaModule } from "../modules/auditoria/auditoria.module";
       DeclaracionJurada,
       CargaAdicional,
       Usuario,
+      ActividadNoLectiva,
+      HorarioNoLectivo,
     ]),
     AuditoriaModule,
   ],
-  controllers: [DeclaracionCargaHorariaController, CargaAdicionalController],
-  providers: [DeclaracionCargaHorariaService, CargaAdicionalService],
-  exports: [DeclaracionCargaHorariaService, CargaAdicionalService],
+  controllers: [
+    DeclaracionCargaHorariaController,
+    CargaAdicionalController,
+    CargaNoLectivaController,
+  ],
+  providers: [
+    DeclaracionCargaHorariaService,
+    CargaAdicionalService,
+    CargaNoLectivaService,
+  ],
+  exports: [
+    DeclaracionCargaHorariaService,
+    CargaAdicionalService,
+    CargaNoLectivaService,
+  ],
 })
 export class DeclaracionCargaHorariaModule {}

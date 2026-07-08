@@ -24,7 +24,7 @@ export class CreateCursoPlanDto {
 
   @ApiProperty({ enum: TipoCursoPlan, default: TipoCursoPlan.ESPECIALIDAD })
   @IsEnum(TipoCursoPlan)
-  tipo_curso: string;
+  tipo_curso: TipoCursoPlan;
 
   @ApiPropertyOptional({ default: 0 })
   @IsOptional()

@@ -1,4 +1,4 @@
-﻿import {
+import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -32,7 +32,10 @@ import { CreateDeclaracionCargaHorariaDto } from "./dto/create-declaracion-carga
 import { UpdateDeclaracionCargaHorariaDto } from "./dto/update-declaracion-carga-horaria.dto";
 import { AccionDeclaracionCargaHorariaDto } from "./dto/accion-declaracion-carga-horaria.dto";
 import { AuditoriaService } from "../modules/auditoria/auditoria.service";
-import { EntidadAuditoriaCarga, AccionAuditoriaCarga } from "../entities/auditoria-carga.entity";
+import {
+  EntidadAuditoriaCarga,
+  AccionAuditoriaCarga,
+} from "../entities/auditoria-carga.entity";
 import { CargaAdicionalService } from "./carga-adicional.service";
 import { ContextoAcademicoService } from "../common/services/contexto-academico.service";
 import { UsuarioAutenticado } from "../common/interfaces/contexto-academico.interface";
@@ -197,7 +200,9 @@ export class DeclaracionCargaHorariaService {
       };
     }
 
-    const cargaAdicional = await this.cargaAdicionalService.findAll(declaracion.id);
+    const cargaAdicional = await this.cargaAdicionalService.findAll(
+      declaracion.id,
+    );
 
     return {
       declaracion,
@@ -246,7 +251,9 @@ export class DeclaracionCargaHorariaService {
       declaracion.periodo_academico_id,
     );
 
-    const cargaAdicional = await this.cargaAdicionalService.findAll(declaracion.id);
+    const cargaAdicional = await this.cargaAdicionalService.findAll(
+      declaracion.id,
+    );
 
     return {
       declaracion,
@@ -446,7 +453,11 @@ export class DeclaracionCargaHorariaService {
             `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
           );
         }
-        if (!act.horarios || !Array.isArray(act.horarios) || act.horarios.length === 0) {
+        if (
+          !act.horarios ||
+          !Array.isArray(act.horarios) ||
+          act.horarios.length === 0
+        ) {
           throw new BadRequestException(
             `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
           );
@@ -470,12 +481,25 @@ export class DeclaracionCargaHorariaService {
       );
     }
 
+    // Regla Preparación y Evaluación <= 50% de lectivas
+    const actPreparacion = actividades.find((a: any) => a.id === 2);
+    if (actPreparacion) {
+      const maxPrep = Math.floor(totalLectivas * 0.5);
+      if (Number(actPreparacion.horas) > maxPrep) {
+        throw new BadRequestException(
+          `Las horas de Preparación y Evaluación (${actPreparacion.horas}h) no pueden exceder el 50% del Trabajo Lectivo (${maxPrep}h).`,
+        );
+      }
+    }
+
     declaracion.estado = EstadoDeclaracionCarga.ENVIADO;
     declaracion.fecha_firma_docente = new Date();
     declaracion.usuario_firmante_id = usuario.id;
 
     // Capturar firma del docente desde su perfil de usuario
-    const usuarioEntity = await this.usuarioRepo.findOne({ where: { id: usuario.id } });
+    const usuarioEntity = await this.usuarioRepo.findOne({
+      where: { id: usuario.id },
+    });
 
     if (!usuarioEntity?.firma_url) {
       throw new BadRequestException(
@@ -557,7 +581,9 @@ export class DeclaracionCargaHorariaService {
     declaracion.fecha_firma_director = new Date();
 
     // Capturar firma del director desde su perfil de usuario
-    const usuarioEntity = await this.usuarioRepo.findOne({ where: { id: usuario.id } });
+    const usuarioEntity = await this.usuarioRepo.findOne({
+      where: { id: usuario.id },
+    });
 
     if (!usuarioEntity?.firma_url) {
       throw new BadRequestException(
@@ -669,7 +695,9 @@ export class DeclaracionCargaHorariaService {
     declaracion.fecha_firma_decano = new Date();
 
     // Capturar firma del decano desde su perfil de usuario
-    const usuarioEntity = await this.usuarioRepo.findOne({ where: { id: usuario.id } });
+    const usuarioEntity = await this.usuarioRepo.findOne({
+      where: { id: usuario.id },
+    });
 
     if (!usuarioEntity?.firma_url) {
       throw new BadRequestException(
@@ -737,11 +765,13 @@ export class DeclaracionCargaHorariaService {
     const declaracion = await this.obtenerEntidadBase(id);
     await this.verificarAccesoDeclaracion(usuario, declaracion);
     if (!texto || texto.trim().length < 10) {
-      throw new BadRequestException("La observación debe tener al menos 10 caracteres");
+      throw new BadRequestException(
+        "La observación debe tener al menos 10 caracteres",
+      );
     }
     if (
       usuario.rol === RolUsuario.DOCENTE &&
-      declaracion.docente_id === (usuario as any).docenteId
+      declaracion.docente_id === usuario.docenteId
     ) {
       throw new BadRequestException("No puede observar su propia declaración");
     }
@@ -756,7 +786,6 @@ export class DeclaracionCargaHorariaService {
     });
     await this.observacionRepo.save(observacion);
   }
-
 
   async obtenerObservaciones(
     declaracionId: number,
@@ -778,9 +807,7 @@ export class DeclaracionCargaHorariaService {
     ]);
 
     const periodoActivo = await this.resolverPeriodoPorCodigo(periodo);
-    const estadosVisibles = [
-      EstadoDeclaracionCarga.ENVIADO,
-    ];
+    const estadosVisibles = [EstadoDeclaracionCarga.ENVIADO];
 
     const qb = this.declaracionRepo
       .createQueryBuilder("declaracion")
@@ -878,9 +905,7 @@ export class DeclaracionCargaHorariaService {
       EstadoDeclaracionCarga,
       EstadoDeclaracionCarga[]
     > = {
-      [EstadoDeclaracionCarga.BORRADOR]: [
-        EstadoDeclaracionCarga.ENVIADO,
-      ],
+      [EstadoDeclaracionCarga.BORRADOR]: [EstadoDeclaracionCarga.ENVIADO],
       [EstadoDeclaracionCarga.ENVIADO]: [
         EstadoDeclaracionCarga.OBSERVADO_DPTO,
         EstadoDeclaracionCarga.VALIDADO_DPTO,
@@ -888,9 +913,7 @@ export class DeclaracionCargaHorariaService {
       [EstadoDeclaracionCarga.OBSERVADO_DPTO]: [
         EstadoDeclaracionCarga.REABIERTO,
       ],
-      [EstadoDeclaracionCarga.REABIERTO]: [
-        EstadoDeclaracionCarga.ENVIADO,
-      ],
+      [EstadoDeclaracionCarga.REABIERTO]: [EstadoDeclaracionCarga.ENVIADO],
       [EstadoDeclaracionCarga.VALIDADO_DPTO]: [
         EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
         EstadoDeclaracionCarga.APROBADO_FACULTAD,
@@ -912,7 +935,9 @@ export class DeclaracionCargaHorariaService {
     }
   }
 
-  private async obtenerEntidadBase(id: number): Promise<DeclaracionCargaHoraria> {
+  private async obtenerEntidadBase(
+    id: number,
+  ): Promise<DeclaracionCargaHoraria> {
     const declaracion = await this.declaracionRepo.findOne({
       where: { id },
       relations: [
@@ -961,9 +986,7 @@ export class DeclaracionCargaHorariaService {
   }
 
   private esEstadoFinal(estado: EstadoDeclaracionCarga): boolean {
-    return [
-      EstadoDeclaracionCarga.CERRADO,
-    ].includes(estado);
+    return [EstadoDeclaracionCarga.CERRADO].includes(estado);
   }
 
   private asegurarRegeneracionPermitida(estado: EstadoDeclaracionCarga): void {
@@ -978,7 +1001,7 @@ export class DeclaracionCargaHorariaService {
       ].includes(estado)
     ) {
       throw new BadRequestException(
-        `La declaración en estado ${estado} no permite regeneración`,
+        `La declaración en estado ${estado} no permite regeneración de carga lectiva`,
       );
     }
   }
@@ -1468,10 +1491,7 @@ export class DeclaracionCargaHorariaService {
       return;
     }
 
-    if (
-      contexto.docenteId &&
-      declaracion.docente_id !== contexto.docenteId
-    ) {
+    if (contexto.docenteId && declaracion.docente_id !== contexto.docenteId) {
       throw new ForbiddenException(
         "No puede acceder a la declaraciÃ³n de otro docente",
       );
@@ -1652,7 +1672,10 @@ export class DeclaracionCargaHorariaService {
         if (h.tipo_clase === TipoClase.PRACTICA) entry.hrsPra += horasBloque;
         if (h.tipo_clase === TipoClase.LABORATORIO) entry.hrsLab += horasBloque;
         entry.totalHrs += horasBloque;
-        entry.nroAlumnos = Math.max(entry.nroAlumnos, h.grupo.cupo_maximo || 40);
+        entry.nroAlumnos = Math.max(
+          entry.nroAlumnos,
+          h.grupo.cupo_maximo || 40,
+        );
       }
     }
 
@@ -1690,7 +1713,7 @@ export class DeclaracionCargaHorariaService {
   }
 
   async guardarDeclaracion(
-    dto: any,
+    dto: { docente_id: number; periodo: string; estado?: string; carga_no_lectiva?: any; sede?: string; observaciones?: string },
     usuario?: Usuario & { docenteId?: number | null },
   ): Promise<DeclaracionCargaHoraria> {
     const { docente_id, periodo, estado, carga_no_lectiva } = dto;
@@ -1766,7 +1789,7 @@ export class DeclaracionCargaHorariaService {
 
     // CL-V1: Carga lectiva SIEMPRE desde AsignacionLectiva (source of truth)
     // Fallback a HorarioAsignado si no hay asignaciones lectivas
-    let asignaciones = await this.asignacionLectivaRepo.find({
+    const asignaciones = await this.asignacionLectivaRepo.find({
       where: { docente_id, periodo_id: periodoId },
     });
     let totalLectivas = asignaciones.reduce(
@@ -1776,23 +1799,30 @@ export class DeclaracionCargaHorariaService {
 
     // Fallback: calcular desde HorarioAsignado si no hay asignaciones lectivas
     if (totalLectivas === 0) {
-      const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+      const periodo = await this.periodoRepo.findOne({
+        where: { id: periodoId },
+      });
       if (periodo) {
         const horarios = await this.horarioRepo
           .createQueryBuilder("horario")
           .where("horario.docente_id = :docente_id", { docente_id })
           .andWhere("horario.periodo = :periodo", { periodo: periodo.codigo })
           .getMany();
-        
+
         totalLectivas = horarios.reduce((sum, h) => {
-          const horasBloque = this.calcularHorasBloque(h.hora_inicio, h.hora_fin);
+          const horasBloque = this.calcularHorasBloque(
+            h.hora_inicio,
+            h.hora_fin,
+          );
           return sum + horasBloque;
         }, 0);
-        
-        this.logger.debug(`Carga lectiva calculada desde HorarioAsignado: ${totalLectivas}h para docente ${docente_id}`);
+
+        this.logger.debug(
+          `Carga lectiva calculada desde HorarioAsignado: ${totalLectivas}h para docente ${docente_id}`,
+        );
       }
     }
-    
+
     const totalCursosAsignados =
       asignaciones.length > 0
         ? new Set(asignaciones.map((a) => a.curso_plan_id)).size
@@ -1823,28 +1853,69 @@ export class DeclaracionCargaHorariaService {
     declaracion.carga_lectiva_json = cargaLectivaSnapshot;
     declaracion.total_horas_lectivas = totalLectivas;
 
+    // Validar estructura de carga_no_lectiva
+    if (carga_no_lectiva && carga_no_lectiva.actividades) {
+      if (!Array.isArray(carga_no_lectiva.actividades)) {
+        throw new BadRequestException(
+          "La estructura de carga_no_lectiva es inválida: actividades debe ser un array.",
+        );
+      }
+      for (const act of carga_no_lectiva.actividades) {
+        if (!act.id || typeof act.id !== 'number') {
+          throw new BadRequestException(
+            `Actividad inválida: falta el campo "id" numérico.`,
+          );
+        }
+        if (act.horas !== undefined && typeof act.horas !== 'number') {
+          throw new BadRequestException(
+            `Actividad ${act.id}: el campo "horas" debe ser un número.`,
+          );
+        }
+        if (act.detalle !== undefined && typeof act.detalle !== 'string') {
+          throw new BadRequestException(
+            `Actividad ${act.id}: el campo "detalle" debe ser una cadena de texto.`,
+          );
+        }
+        if (act.horarios && !Array.isArray(act.horarios)) {
+          throw new BadRequestException(
+            `Actividad ${act.id}: el campo "horarios" debe ser un array.`,
+          );
+        }
+      }
+    }
+
     // CL-V2 + CL-V4: validar rubros no lectivos
     const actividades = carga_no_lectiva?.actividades ?? [];
-    
+
     // Validar sincronizaciÃ³n entre horarios y horas
     for (const act of actividades) {
       const horasDeclaradas = Number(act.horas) || 0;
       const horasManual = act.horasManual === true;
-      
-      if (horasDeclaradas > 0 && act.id !== 1 && (!act.detalle || act.detalle.trim().length < 10)) {
+
+      if (
+        horasDeclaradas > 0 &&
+        act.id !== 1 &&
+        (!act.detalle || act.detalle.trim().length < 10)
+      ) {
         throw new BadRequestException(
           `El rubro "${act.descripcion || act.id}" tiene ${horasDeclaradas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
         );
       }
-      
+
       // Validar que si hay horas, haya horarios (excepto rubro 1) - ahora es advertencia, no error bloqueante
-      if (horasDeclaradas > 0 && act.id !== 1 && (!act.horarios || !Array.isArray(act.horarios) || act.horarios.length === 0)) {
+      if (
+        horasDeclaradas > 0 &&
+        act.id !== 1 &&
+        (!act.horarios ||
+          !Array.isArray(act.horarios) ||
+          act.horarios.length === 0)
+      ) {
         this.logger.warn(
           `Advertencia: El rubro "${act.descripcion || act.id}" tiene ${horasDeclaradas}h pero no tiene horarios registrados. Se recomienda asignar horarios.`,
         );
       }
     }
-    
+
     const totalNoLectivas = actividades.reduce(
       (sum: number, a: any) => sum + (Number(a.horas) || 0),
       0,
@@ -1876,7 +1947,9 @@ export class DeclaracionCargaHorariaService {
     }
 
     declaracion.total_horas_general = totalLectivas + totalNoLectivas;
-    declaracion.estado = estado || EstadoDeclaracionCarga.BORRADOR;
+    if (estado && Object.values(EstadoDeclaracionCarga).includes(estado as EstadoDeclaracionCarga)) {
+      declaracion.estado = estado as EstadoDeclaracionCarga;
+    }
 
     return this.declaracionRepo.save(declaracion);
   }
@@ -1889,10 +1962,16 @@ export class DeclaracionCargaHorariaService {
       where: { modalidad, periodo_academico: String(periodoId) },
     });
     if (params?.horas_max_semanal) return params.horas_max_semanal;
-    const match = modalidad.match(/(\d+)$/);
-    if (match) return parseInt(match[1], 10);
-    if (modalidad === "DEDICACION_EXCLUSIVA") return 40;
-    return 40;
+
+    const MODALIDAD_HORAS_MAP: Record<string, number> = {
+      DEDICACION_EXCLUSIVA: 40,
+      TIEMPO_COMPLETO_40: 40,
+      TIEMPO_PARCIAL_20: 20,
+      TIEMPO_PARCIAL_12: 12,
+      TIEMPO_PARCIAL_10: 10,
+      TIEMPO_PARCIAL_8: 8,
+    };
+    return MODALIDAD_HORAS_MAP[modalidad] ?? 40;
   }
 
   async enviarDeclaracionDocente(
@@ -1913,7 +1992,7 @@ export class DeclaracionCargaHorariaService {
     }
     if (!periodoId) {
       throw new BadRequestException(
-        "No se encontrÃ³ un perÃ­odo acadÃ©mico vÃ¡lido",
+        "No se encontró un período académico válido",
       );
     }
 
@@ -1922,46 +2001,42 @@ export class DeclaracionCargaHorariaService {
     });
 
     if (!declaracion) {
-      throw new NotFoundException("No se encontrÃ³ declaraciÃ³n para enviar");
+      throw new NotFoundException("No se encontró declaración para enviar");
     }
 
     if (
       ![
         EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.BORRADOR,
-        EstadoDeclaracionCarga.BORRADOR,
+        EstadoDeclaracionCarga.REABIERTO,
       ].includes(declaracion.estado)
     ) {
       throw new BadRequestException(
-        "La declaraciÃ³n ya ha sido enviada o no puede ser modificada",
+        "La declaración solo puede enviarse desde estado BORRADOR o REABIERTO",
       );
     }
 
-    // CL-V4: validar que todos los rubros con horas tengan detalle al enviar
-    const actividades =
-      (declaracion.carga_no_lectiva as any)?.actividades ?? [];
-    for (const act of actividades) {
-      const horas = Number(act.horas) || 0;
-      if (horas > 0 && act.id !== 1) {
-        if (!act.detalle || act.detalle.trim().length < 10) {
-          throw new BadRequestException(
-            `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero su detalle descriptivo debe tener al menos 10 caracteres.`,
-          );
-        }
-        if (!act.horarios || !Array.isArray(act.horarios) || act.horarios.length === 0) {
-          throw new BadRequestException(
-            `No puede enviar la declaraciÃ³n. El rubro "${act.nombre || act.id}" tiene ${horas}h pero no tiene horario registrado.`,
-          );
-        }
-      }
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
+
+    let usuarioFirmante: Usuario | null = null;
+    if (docente?.usuario_id) {
+      usuarioFirmante = await this.usuarioRepo.findOne({
+        where: { id: docente.usuario_id },
+      });
     }
 
-    // Validar que no haya conflictos de horario entre actividades
-    this.validarConflictosHorarios(actividades);
+    const usuarioSimulado = {
+      id: usuarioFirmante?.id ?? 0,
+      rol: RolUsuario.DOCENTE,
+      docenteId,
+    } as UsuarioAutenticado;
 
-    declaracion.estado = EstadoDeclaracionCarga.ENVIADO;
-    return this.declaracionRepo.save(declaracion);
+    await this.enviar(declaracion.id, usuarioSimulado, {});
+
+    return this.declaracionRepo.findOne({
+      where: { id: declaracion.id },
+    }) as Promise<DeclaracionCargaHoraria>;
   }
 
   private toMinutes(hora: string): number {
@@ -2080,26 +2155,34 @@ export class DeclaracionCargaHorariaService {
   }
 
   async obtenerFirmaDocente(usuarioId: number): Promise<string | null> {
-    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId } });
+    const usuario = await this.usuarioRepo.findOne({
+      where: { id: usuarioId },
+    });
     if (!usuario) {
       throw new NotFoundException(`Usuario ${usuarioId} no encontrado`);
     }
     return usuario.firma_url || null;
   }
 
-  async actualizarFirmaDocente(usuarioId: number, firmaUrl: string): Promise<void> {
-    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId } });
+  async actualizarFirmaDocente(
+    usuarioId: number,
+    firmaUrl: string,
+  ): Promise<void> {
+    const usuario = await this.usuarioRepo.findOne({
+      where: { id: usuarioId },
+    });
     if (!usuario) {
       throw new NotFoundException(`Usuario ${usuarioId} no encontrado`);
     }
     usuario.firma_url = firmaUrl;
     await this.usuarioRepo.save(usuario);
 
-    const docente = await this.docenteRepo.findOne({ where: { usuario_id: usuarioId } });
+    const docente = await this.docenteRepo.findOne({
+      where: { usuario_id: usuarioId },
+    });
     if (docente) {
       docente.firma_url = firmaUrl;
       await this.docenteRepo.save(docente);
     }
   }
 }
-

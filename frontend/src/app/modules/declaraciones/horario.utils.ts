@@ -27,6 +27,15 @@ export const DIA_CODIGO_A_CORTO: Record<string, string> = {
   SA: 'Sáb',
 };
 
+export const DIA_CODIGO_A_NUMERO: Record<string, number> = {
+  LU: 1,
+  MA: 2,
+  MI: 3,
+  JU: 4,
+  VI: 5,
+  SA: 6,
+};
+
 export interface HorarioBloque {
   dia: string;
   hora_inicio: string;
@@ -79,6 +88,16 @@ export function diaNumericoACodigo(dia: number | string): string {
   }
 
   return DIA_NUMERO_A_CODIGO[dia] ?? String(dia);
+}
+
+/** Convierte día numérico (1-6) o código (LU, MA, …) a número de columna de grilla. */
+export function codigoDiaANumero(dia: number | string | null | undefined): number {
+  if (dia === null || dia === undefined || dia === '') return NaN;
+  if (typeof dia === 'number') {
+    return dia >= 1 && dia <= 6 ? dia : NaN;
+  }
+  const codigo = diaNumericoACodigo(dia);
+  return DIA_CODIGO_A_NUMERO[codigo] ?? NaN;
 }
 
 export function seSuperponen(

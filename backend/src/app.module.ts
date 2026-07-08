@@ -29,7 +29,7 @@ import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
 import { FacultadesModule } from "./facultades/facultades.module";
 import { DataImportModule } from "./modules/data-import/data-import.module";
 import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/declaracion-carga-horaria.module";
-import { DeclaracionesModule } from "./modules/declaraciones/declaraciones.module";
+// DeclaracionesModule removido — funcionalidad consolidada en DeclaracionCargaHorariaModule
 import { ChatbotModule } from "./chatbot/chatbot.module";
 import { PlanEstudiosModule } from "./modules/plan-estudios/plan-estudios.module";
 import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion-lectiva.module";
@@ -121,7 +121,6 @@ import { HealthController } from "./health/health.controller";
     FacultadesModule,
     DataImportModule,
     DeclaracionCargaHorariaModule,
-    DeclaracionesModule,
     ChatbotModule,
     PlanEstudiosModule,
     AsignacionLectivaModule,

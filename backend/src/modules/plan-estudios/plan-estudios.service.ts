@@ -9,6 +9,8 @@ import { Repository, In } from "typeorm";
 import { PlanEstudios } from "../../entities/plan-estudios.entity";
 import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { Curso } from "../../entities/curso.entity";
+import { EstadoCursoPlan } from "../../common/enums/estado-curso-plan.enum";
+import { TipoCursoPlan } from "../../common/enums/tipo-curso-plan.enum";
 import { CreatePlanEstudiosDto } from "./dto/create-plan-estudios.dto";
 import { UpdatePlanEstudiosDto } from "./dto/update-plan-estudios.dto";
 import { CreateCursoPlanDto } from "./dto/create-curso-plan.dto";
@@ -269,7 +271,7 @@ export class PlanEstudiosService {
       throw new NotFoundException(
         `Curso en plan #${cursoPlanId} no encontrado`,
       );
-    cp.estado = "ELIMINADO";
+    cp.estado = EstadoCursoPlan.ELIMINADO;
     return this.cursoPlanRepo.save(cp);
   }
 
@@ -281,7 +283,7 @@ export class PlanEstudiosService {
       throw new NotFoundException(
         `Curso en plan #${cursoPlanId} no encontrado`,
       );
-    cp.estado = cp.estado === "ACTIVO" ? "DESACTUALIZADO" : "ACTIVO";
+    cp.estado = cp.estado === EstadoCursoPlan.ACTIVO ? EstadoCursoPlan.DESACTUALIZADO : EstadoCursoPlan.ACTIVO;
     return this.cursoPlanRepo.save(cp);
   }
 

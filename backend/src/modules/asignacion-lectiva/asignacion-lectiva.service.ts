@@ -22,6 +22,7 @@ import { QueryAsignacionLectivaDto } from "./dto/query-asignacion-lectiva.dto";
 import { ResumenCoberturaDto } from "./dto/resumen-cobertura.dto";
 import { AuditoriaService } from "../auditoria/auditoria.service";
 import { EntidadAuditoriaCarga, AccionAuditoriaCarga } from "../../entities/auditoria-carga.entity";
+import { EstadoCursoPlan } from "../../common/enums/estado-curso-plan.enum";
 import { ContextoAcademicoService } from "../../common/services/contexto-academico.service";
 import { ContextoAcademico, UsuarioAutenticado } from "../../common/interfaces/contexto-academico.interface";
 import { Curso } from "../../entities/curso.entity";
@@ -161,7 +162,7 @@ export class AsignacionLectivaService {
         `Curso en plan #${dto.curso_plan_id} no encontrado`,
       );
     }
-    if (cursoPlan.estado !== "ACTIVO") {
+    if (cursoPlan.estado !== EstadoCursoPlan.ACTIVO) {
       throw new BadRequestException(
         "El curso no está activo en el plan de estudios",
       );
@@ -529,6 +530,19 @@ export class AsignacionLectivaService {
     result.sin_docente = 0;
     result.total_horas_asignadas = totalHoras;
     result.total_docentes = docentesUnicos;
+
+    if (planId && periodoId) {
+      const cursosPlan = await this.cursoPlanRepo.find({
+        where: { plan_estudios_id: planId, estado: "ACTIVO" as any },
+      });
+      const cursosConAsignacion = new Set(
+        asignaciones.map((a) => a.curso_plan_id),
+      );
+      result.sin_docente = cursosPlan.filter(
+        (cp) => !cursosConAsignacion.has(cp.id),
+      ).length;
+    }
+
     return result;
   }
 

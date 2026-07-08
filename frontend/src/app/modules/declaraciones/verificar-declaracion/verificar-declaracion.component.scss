@@ -1,17 +1,38 @@
+@use '../declaraciones' as *;
+
 .verificar-container {
   padding: 24px;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
+  font-family: inherit;
+  background: var(--color-surface);
+  min-height: 100vh;
 }
-
 .page-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: var(--color-surface-2);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
 
   .btn-back {
     color: var(--color-primary);
+    background: var(--color-primary-bg);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: var(--color-primary);
+      color: white;
+    }
   }
 
   .page-title {
@@ -36,7 +57,7 @@
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 12px 20px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 
   .estado-label {
     font-weight: 500;
@@ -208,7 +229,7 @@
   gap: 12px;
   padding: 12px 20px;
   border-radius: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   font-size: 14px;
 
   mat-icon {
@@ -234,7 +255,7 @@
   gap: 12px;
   padding: 12px 20px;
   border-radius: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   font-size: 14px;
 }
 
@@ -342,6 +363,10 @@
 
 .docente-card {
   box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  margin-bottom: 20px;
 
   .info-table {
     width: 100%;
@@ -373,35 +398,50 @@
 
 .seccion-card {
   box-shadow: var(--shadow-sm);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  margin-bottom: 20px;
 
   .header-lectivas,
   .header-no-lectivas {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: $dec-spacing-sm;
     background: var(--color-primary);
     color: white;
     margin: -16px -16px 16px -16px;
     padding: 12px 16px;
     border-radius: 4px 4px 0 0;
 
-    .mat-card-title {
+    .mat-card-title,
+    mat-card-title {
       color: white;
       font-size: 14px;
       font-weight: 600;
       margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .subtitle {
       font-size: 12px;
       opacity: 0.9;
-      margin-left: 8px;
     }
 
     .horas-label {
       margin-left: auto;
       font-size: 13px;
+      padding: 2px 10px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
     }
 
     .btn-horario-grafico {
-      margin-left: 12px;
+      margin-left: 0;
       font-size: 12px;
       line-height: 28px;
 
@@ -412,31 +452,46 @@
         margin-right: 4px;
       }
     }
+
+    .btn-horario-lectivo {
+      margin-left: 8px;
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 8px;
+      padding: 0 8px;
+
+      .btn-horario-label {
+        font-size: 11px;
+        font-weight: 600;
+      }
+    }
   }
 
   .header-no-lectivas {
     background: var(--color-accent);
   }
 }
-
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
 
   th {
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
-    padding: 8px 6px;
+    padding: 10px 8px;
     font-weight: 600;
     text-align: center;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-text);
   }
 
   td {
     border: 1px solid var(--color-border);
-    padding: 6px;
+    padding: 8px;
     text-align: center;
     color: var(--color-text);
   }
@@ -554,7 +609,8 @@
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 14px 24px;
+  padding: 12px 20px;
+  margin-bottom: 20px;
 
   .total-label {
     font-weight: 600;
@@ -580,6 +636,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 0;
+  margin-top: 8px;
 
   .btn-volver {
     display: flex;
@@ -601,20 +658,30 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 24px;
-    border-radius: 24px;
-    background: linear-gradient(135deg, var(--color-success), var(--color-success-light));
+    padding: 8px 20px;
+    border-radius: 8px;
+    background: var(--color-success);
     color: white;
+    font-weight: 500;
+
+    &:hover {
+      background: var(--color-success-dark, #059669);
+    }
   }
 
   .btn-enviar {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 24px;
-    border-radius: 24px;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-600));
+    padding: 8px 20px;
+    border-radius: 8px;
+    background: var(--color-primary);
     color: white;
+    font-weight: 500;
+
+    &:hover {
+      background: var(--color-primary-dark, #1d4ed8);
+    }
   }
 }
 
@@ -665,8 +732,8 @@
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 10px 20px;
-  margin-bottom: 16px;
+  padding: 12px 20px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
@@ -853,7 +920,7 @@
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px 24px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
   overflow-x: auto;
 }
 
@@ -1259,17 +1326,135 @@
   border: 1px solid var(--color-success-light);
 }
 
-/* ── Horario Gráfico Panel ───────────────────────────────────────── */
+/* ── Horario Gráfico Panel (card dedicada) ───────────────────────── */
+
+.horario-grafico-card {
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  animation: slideDown 0.25s ease-out;
+
+  .header-horario-grafico {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #1565c0, #42a5f5);
+    color: white;
+    margin: -16px -16px 0 -16px;
+    padding: 12px 16px;
+
+    mat-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0;
+
+      mat-icon {
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+      }
+    }
+
+    .btn-close-panel {
+      color: rgba(255, 255, 255, 0.85);
+
+      &:hover {
+        color: white;
+        background: rgba(255, 255, 255, 0.12);
+      }
+    }
+  }
+
+  .horario-grafico-content {
+    padding: 0 !important;
+    height: min(72vh, 640px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Grid unificado (lectivo / no lectivo) ───────────────────────── */
+
+.drag-drop-panel {
+  border: 1px solid var(--color-primary-light, #90caf9);
+  box-shadow: var(--shadow-md);
+
+  .header-drag-drop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: white;
+    margin: -16px -16px 16px -16px;
+    padding: 12px 16px;
+
+    mat-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    &.header-drag-drop-lectivo {
+      background: linear-gradient(135deg, var(--color-primary), #42a5f5);
+    }
+
+    .btn-close-panel {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+.grid-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+}
 
 .horario-grafico-wrapper {
   margin-top: 16px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  overflow: hidden;
   min-height: 520px;
-  max-height: 720px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-
 .jurada-info {
   p {
     margin: 4px 0;

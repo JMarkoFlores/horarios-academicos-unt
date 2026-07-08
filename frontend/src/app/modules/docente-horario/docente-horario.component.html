@@ -92,19 +92,21 @@
               <td *ngIf="!cell.skip"
                 class="celda"
                 [ngClass]="cell.asig ? 'celda-asig' : (cell.esAlmuerzo ? 'celda-almuerzo' : 'celda-vacia')"
-                [ngStyle]="cell.asig ? { 'background-color': getCursoColorHex(cell.asig.curso?.id || 0) } : {}"
+                [class.celda-no-lectiva]="cell.asig?.tipo_clase === 'NO_LECTIVA'"
+                [ngStyle]="cell.asig && cell.asig.tipo_clase !== 'NO_LECTIVA' ? { 'background-color': getCursoColorHex(cell.asig.curso?.id || 0) } : {}"
                 [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null">
                 <div *ngIf="cell.asig as a" class="celda-content">
                   <span class="tipo-badge"
                     [class.badge-multi]="cell.mergedTipos.length > 1"
                     [class.badge-teo]="cell.mergedTipos.includes('TEO')"
                     [class.badge-lab]="cell.mergedTipos.includes('LAB')"
-                    [class.badge-pra]="cell.mergedTipos.includes('PRA')">
+                    [class.badge-pra]="cell.mergedTipos.includes('PRA')"
+                    [class.badge-no-lect]="cell.mergedTipos.includes('NO_LECTIVA')">
                     [{{ cell.mergedTipos.length > 0 ? cell.mergedTipos.join('/') : 'TEO' }}]
                   </span>
-                  <div class="curso-nombre">{{ a.curso?.nombre ?? '—' }}</div>
+                  <div class="curso-nombre">{{ getNombreAsignacion(a) }}</div>
                   <div class="celda-meta">
-                    <span class="amb-codigo">{{ cell.mergedAmbs.length > 0 ? cell.mergedAmbs.join(' / ') : '—' }}</span>
+                    <span class="amb-codigo">{{ a.tipo_clase === 'NO_LECTIVA' ? '' : (cell.mergedAmbs.length > 0 ? cell.mergedAmbs.join(' / ') : '—') }}</span>
                     <span class="hora-rango">{{ a.hora_inicio }}–{{ a.hora_fin }}</span>
                   </div>
                 </div>

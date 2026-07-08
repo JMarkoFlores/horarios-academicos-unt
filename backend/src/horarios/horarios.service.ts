@@ -17,7 +17,9 @@ import { Curso } from "../entities/curso.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
+import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
@@ -44,6 +46,8 @@ export class HorariosService {
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
+    @InjectRepository(DeclaracionCargaHoraria)
+    private readonly declaracionRepo: Repository<DeclaracionCargaHoraria>,
     private readonly commonValidacionesService: CommonValidacionesService,
     private readonly validacionesService: GlobalValidacionesService,
   ) {}
@@ -188,7 +192,7 @@ export class HorariosService {
   }
 
   async findHorariosByDocenteId(docenteId: number, periodo: string) {
-    return await this.horarioRepo
+    const horarios: any[] = await this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.docente", "docente")
       .leftJoinAndSelect("horario.curso", "curso")
@@ -199,6 +203,54 @@ export class HorariosService {
       .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
+    
+    console.log(`[HorariosService] Horarios lectivos encontrados: ${horarios.length}`);
+    
+    // Obtener carga no lectiva de la declaración si existe
+    const declaracion = await this.declaracionRepo.findOne({
+      where: { docente_id: docenteId },
+      relations: ['periodo_academico'],
+    });
+    
+    if (declaracion) {
+      console.log(`[HorariosService] Declaración encontrada: estado=${declaracion.estado}, periodo=${declaracion.periodo_academico?.codigo}`);
+    } else {
+      console.log(`[HorariosService] No se encontró declaración para docente ${docenteId}`);
+    }
+    
+    if (declaracion && declaracion.periodo_academico?.codigo === periodo) {
+      const estadosAprobados = ['VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO'];
+      if (estadosAprobados.includes(declaracion.estado)) {
+        const cargaNoLectiva = (declaracion.carga_no_lectiva as any)?.actividades || [];
+        console.log(`[HorariosService] Actividades no lectivas: ${cargaNoLectiva.length}`);
+        for (const actividad of cargaNoLectiva) {
+          if (actividad.horarios && Array.isArray(actividad.horarios)) {
+            console.log(`[HorariosService] Actividad ${actividad.id} tiene ${actividad.horarios.length} horarios`);
+            for (const h of actividad.horarios) {
+              horarios.push({
+                id: 0,
+                dia: h.dia,
+                dia_semana: h.dia,
+                hora_inicio: h.hora_inicio,
+                hora_fin: h.hora_fin,
+                tipo_clase: TipoClase.NO_LECTIVA,
+                curso: null,
+                ambiente: null,
+                grupo: null,
+                docente: null,
+                periodo: periodo,
+                actividad_nombre: actividad.descripcion || actividad.nombre || `Actividad ${actividad.id}`,
+              });
+            }
+          }
+        }
+      } else {
+        console.log(`[HorariosService] Estado ${declaracion.estado} no está en estados aprobados`);
+      }
+    }
+    
+    console.log(`[HorariosService] Total horarios (lectivos + no lectivos): ${horarios.length}`);
+    return horarios;
   }
 
   async getOcupacionHeatmap(periodo: string) {

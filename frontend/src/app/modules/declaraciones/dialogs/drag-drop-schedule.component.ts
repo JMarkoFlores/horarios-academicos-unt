@@ -761,9 +761,13 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
     const ini = `${String(hora).padStart(2, '0')}:00`;
     const fin = `${String(hora + 1).padStart(2, '0')}:00`;
 
-    if (this.data.horariosLectivos.some(l => l.dia === diaCod && seSuperponen(l.hora_inicio, l.hora_fin, ini, fin))) {
-      this.snackBar.open('Conflicto: hay carga lectiva en ese horario', 'Cerrar', { duration: 2000 });
-      return;
+    // Si está en franja de almuerzo, no validar conflicto con lectivos
+    const enFranjaAlmuerzo = hora < this.almuerzoFin && (hora + 1) > this.almuerzoInicio;
+    if (!enFranjaAlmuerzo) {
+      if (this.data.horariosLectivos.some(l => l.dia === diaCod && seSuperponen(l.hora_inicio, l.hora_fin, ini, fin))) {
+        this.snackBar.open('Conflicto: hay carga lectiva en ese horario', 'Cerrar', { duration: 2000 });
+        return;
+      }
     }
 
     this.bloquesSeleccionados.set(key, { dia: diaCod, hora_inicio: ini, hora_fin: fin });
@@ -797,16 +801,18 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
         this.snackBar.open('El bloque excede la franja horaria', 'Cerrar', { duration: 2000 });
         return;
       }
-      if (h >= this.almuerzoInicio && h < this.almuerzoFin) {
-        this.snackBar.open('El bloque se superpone con el horario de almuerzo', 'Cerrar', { duration: 2000 });
-        return;
-      }
       const ini = `${String(h).padStart(2, '0')}:00`;
       const fin = `${String(h + 1).padStart(2, '0')}:00`;
-      if (this.data.horariosLectivos.some(l => l.dia === diaCod && seSuperponen(l.hora_inicio, l.hora_fin, ini, fin))) {
-        this.snackBar.open('Conflicto: hay carga lectiva en ese horario', 'Cerrar', { duration: 2000 });
-        return;
+
+      // Si está en franja de almuerzo, no validar conflicto con lectivos
+      const enFranjaAlmuerzo = h < this.almuerzoFin && (h + 1) > this.almuerzoInicio;
+      if (!enFranjaAlmuerzo) {
+        if (this.data.horariosLectivos.some(l => l.dia === diaCod && seSuperponen(l.hora_inicio, l.hora_fin, ini, fin))) {
+          this.snackBar.open('Conflicto: hay carga lectiva en ese horario', 'Cerrar', { duration: 2000 });
+          return;
+        }
       }
+
       const key = `${diaCod}_${h}`;
       if (this.bloquesSeleccionados.has(key)) {
         this.snackBar.open('Celda ya ocupada por esta actividad', 'Cerrar', { duration: 2000 });

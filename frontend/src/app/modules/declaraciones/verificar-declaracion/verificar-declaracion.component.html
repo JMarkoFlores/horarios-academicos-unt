@@ -157,20 +157,9 @@
         <mat-card-title>1. TRABAJO LECTIVO</mat-card-title>
         <span class="subtitle">Datos completos y con claridad</span>
         <span class="horas-label">Horas: <strong>{{ totalHorasLectivas }}</strong></span>
-        <button
-          mat-icon-button
-          type="button"
-          (click)="abrirHorarioLectivo()"
-          [disabled]="!puedeEditar || cursosLectivos.length === 0"
-          class="btn-horario-lectivo"
-          matTooltip="Gestionar horario de actividades lectivas (Drag & Drop)"
-        >
-          <mat-icon>calendar_month</mat-icon>
-          <span class="btn-horario-label">Horario</span>
-        </button>
       </mat-card-header>
       <mat-card-content>
-        <p class="plan-notice">Las horas lectivas se precargan desde las asignaciones del plan de estudios. Use el botón "Horario" para asignar bloques de tiempo.</p>
+        <p class="plan-notice">Las horas lectivas se precargan desde las asignaciones del plan de estudios.</p>
         <table class="data-table lectivas-table">
           <thead>
             <tr>
@@ -215,24 +204,34 @@
       </mat-card-content>
     </mat-card>
 
-    <!-- Inline drag-drop schedule panel for CHL (Lectivas) -->
-    <mat-card class="seccion-card drag-drop-panel" *ngIf="mostrarHorarioLectivo && horarioLectivoData">
-      <mat-card-header class="header-drag-drop header-drag-drop-lectivo">
+    <!-- Unified schedule grid -->
+    <mat-card class="seccion-card drag-drop-panel" *ngIf="mostrarHorarioLectivo">
+      <mat-card-header class="header-drag-drop" [class.header-drag-drop-lectivo]="!unifiedGridActivityId">
         <mat-card-title>
           <mat-icon>drag_indicator</mat-icon>
-          Horario — Carga Horaria Lectiva
+          {{ gridTitle }}
         </mat-card-title>
-        <button mat-icon-button (click)="cerrarHorarioLectivo()" class="btn-close-panel">
+        <button mat-icon-button (click)="cerrarGridUnificado()" class="btn-close-panel">
           <mat-icon>close</mat-icon>
         </button>
       </mat-card-header>
       <mat-card-content>
-        <app-drag-drop-schedule
-          [data]="horarioLectivoData"
-          [puedeEditar]="puedeEditar"
-          (horariosChange)="onHorarioLectivoChange($event)"
-          (horasChange)="onHorasLectivasHorarioChange($event)"
-        ></app-drag-drop-schedule>
+        <app-schedule-grid
+          [blocks]="unifiedGridBlocks"
+          [paletteBlocks]="unifiedGridPalette"
+          [editable]="puedeEditar"
+          (blocksChange)="onUnifiedGridBlocksChange($event)"
+        >
+          <div headerRight>
+            <span class="grid-legend" *ngIf="unifiedGridActivityId">
+              <span class="legend-item"><span class="legend-dot" style="background:#5c6bc0"></span> Lectivo</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span> No Lectivo</span>
+            </span>
+            <span class="grid-legend" *ngIf="!unifiedGridActivityId">
+              <span class="legend-item"><span class="legend-dot" style="background:#5c6bc0"></span> Lectivo (solo lectura)</span>
+            </span>
+          </div>
+        </app-schedule-grid>
       </mat-card-content>
     </mat-card>
 
@@ -276,26 +275,14 @@
                 <textarea [(ngModel)]="act.detalle" (ngModelChange)="onActividadChange(act)" [disabled]="!puedeEditar" class="cell-textarea" [class.input-warning]="actividadDetalleInvalido(act)" rows="2" placeholder="Ingrese detalle de la actividad..."></textarea>
               </td>
               <td class="col-horario">
-                <div class="horario-cell">
-                  <span
-                    class="horario-summary"
-                    [class.horario-empty]="!act.horarios || act.horarios.length === 0"
-                    [class.horario-conflicto]="actividadTieneConflictoInterno(act) || actividadTieneConflictoLectiva(act)"
-                    [matTooltip]="getTooltipConflictoHorario(act)"
-                  >
-                    {{ act.horarios && act.horarios.length > 0 ? getHorarioSummary(act.horarios) : 'Sin horario' }}
-                  </span>
-                  <button
-                    mat-icon-button
-                    type="button"
-                    (click)="abrirGestionHorario(act)"
-                    [disabled]="!puedeEditar"
-                    class="btn-horario-edit"
-                    matTooltip="Gestionar horario"
-                  >
-                    <mat-icon>schedule</mat-icon>
-                  </button>
-                </div>
+                <span
+                  class="horario-summary"
+                  [class.horario-empty]="!act.horarios || act.horarios.length === 0"
+                  [class.horario-conflicto]="actividadTieneConflictoInterno(act) || actividadTieneConflictoLectiva(act)"
+                  [matTooltip]="getTooltipConflictoHorario(act)"
+                >
+                  {{ act.horarios && act.horarios.length > 0 ? getHorarioSummary(act.horarios) : 'Sin horario' }}
+                </span>
               </td>
               <td>
                 <input type="number" [(ngModel)]="act.horas" (ngModelChange)="onActividadChange(act)" (keydown)="preventNegative($event)" (blur)="onActividadChange(act)" [disabled]="!puedeEditar" class="cell-input small" [class.input-error]="act.excede" [max]="totalHorasLectivas" min="0" />
@@ -345,41 +332,31 @@
             </tr>
           </tbody>
         </table>
-
-        <!-- PANEL HORARIO GRAFICO -->
-        <div class="horario-grafico-wrapper" *ngIf="mostrandoHorarioGrafico">
-          <app-horario-grafico-panel
-            [actividades]="actividadesNoLectivas"
-            [horariosLectivos]="horariosLectivos"
-            [puedeEditar]="puedeEditar"
-            [totalHorasLectivas]="totalHorasLectivas"
-            [horasModalidad]="horasModalidad"
-            [totalHorasCargaAdicional]="totalHorasCargaAdicional"
-            (actividadesChange)="onHorarioGraficoChange($event)"
-            (cerrar)="mostrandoHorarioGrafico = false"
-          ></app-horario-grafico-panel>
-        </div>
       </mat-card-content>
     </mat-card>
 
-    <!-- Inline drag-drop schedule panel -->
-    <mat-card class="seccion-card drag-drop-panel" *ngIf="actividadSeleccionada && dragDropData">
-      <mat-card-header class="header-drag-drop">
+    <!-- Panel horario gráfico (fuera de la tabla para evitar superposiciones) -->
+    <mat-card class="seccion-card horario-grafico-card" *ngIf="mostrandoHorarioGrafico">
+      <mat-card-header class="header-horario-grafico">
         <mat-card-title>
-          <mat-icon>drag_indicator</mat-icon>
-          Horario — {{ dragDropData.actividadNombre }}
+          <mat-icon>calendar_view_week</mat-icon>
+          Horario Semanal — Carga No Lectiva
         </mat-card-title>
-        <button mat-icon-button (click)="cerrarDragDrop()" class="btn-close-panel">
+        <button mat-icon-button (click)="mostrandoHorarioGrafico = false" class="btn-close-panel" matTooltip="Cerrar horario">
           <mat-icon>close</mat-icon>
         </button>
       </mat-card-header>
-      <mat-card-content>
-        <app-drag-drop-schedule
-          [data]="dragDropData"
+      <mat-card-content class="horario-grafico-content">
+        <app-horario-grafico-panel
+          [actividades]="actividadesNoLectivas"
+          [horariosLectivos]="horariosLectivos"
           [puedeEditar]="puedeEditar"
-          (horariosChange)="onDragDropHorariosChange($event)"
-          (horasChange)="onDragDropHorasChange($event)"
-        ></app-drag-drop-schedule>
+          [totalHorasLectivas]="totalHorasLectivas"
+          [horasModalidad]="horasModalidad"
+          [totalHorasCargaAdicional]="totalHorasCargaAdicional"
+          (actividadesChange)="onHorarioGraficoChange($event)"
+          (cerrar)="mostrandoHorarioGrafico = false"
+        ></app-horario-grafico-panel>
       </mat-card-content>
     </mat-card>
 

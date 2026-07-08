@@ -10,6 +10,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { ScheduleConfigService } from '../../../core/services/schedule-config.service';
 import {
   DIAS_SEMANA,
   DIA_CODIGO_A_ETIQUETA,
@@ -358,6 +359,7 @@ export class GestionarHorarioDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: GestionarHorarioData,
     private snackBar: MatSnackBar,
     private fb: FormBuilder,
+    private scheduleConfigService: ScheduleConfigService,
   ) { }
 
   ngOnInit(): void {
@@ -525,15 +527,27 @@ export class GestionarHorarioDialogComponent implements OnInit {
       }
     }
 
-    for (const lec of this.data.horariosLectivos) {
-      const lecDia = this.diaNormalizada(lec.dia);
-      if (currentDia !== lecDia) continue;
-      if (seSuperponen(currentInicio, currentFin, normalizarHora(lec.hora_inicio), normalizarHora(lec.hora_fin))) {
-        const curso = lec.codigoCurso ? `${lec.codigoCurso} — ${lec.nombreCurso}` : lec.nombreCurso;
-        alertas.push({
-          tipo: 'lectiva',
-          mensaje: `Carga lectiva ocupada: ${DIA_CODIGO_A_ETIQUETA[lecDia] || lecDia} ${normalizarHora(lec.hora_inicio)}-${normalizarHora(lec.hora_fin)} (${curso})`,
-        });
+    const config = this.scheduleConfigService.config;
+    const almuerzoInicio = config.almuerzo.inicio;
+    const almuerzoFin = config.almuerzo.fin;
+
+    // Verificar si el horario actual está en franja de almuerzo
+    const currentInicioNum = parseInt(currentInicio.split(':')[0], 10);
+    const currentFinNum = parseInt(currentFin.split(':')[0], 10);
+    const enFranjaAlmuerzo = currentInicioNum < almuerzoFin && currentFinNum > almuerzoInicio;
+
+    // Si no está en franja de almuerzo, validar conflicto con lectivos
+    if (!enFranjaAlmuerzo) {
+      for (const lec of this.data.horariosLectivos) {
+        const lecDia = this.diaNormalizada(lec.dia);
+        if (currentDia !== lecDia) continue;
+        if (seSuperponen(currentInicio, currentFin, normalizarHora(lec.hora_inicio), normalizarHora(lec.hora_fin))) {
+          const curso = lec.codigoCurso ? `${lec.codigoCurso} — ${lec.nombreCurso}` : lec.nombreCurso;
+          alertas.push({
+            tipo: 'lectiva',
+            mensaje: `Carga lectiva ocupada: ${DIA_CODIGO_A_ETIQUETA[lecDia] || lecDia} ${normalizarHora(lec.hora_inicio)}-${normalizarHora(lec.hora_fin)} (${curso})`,
+          });
+        }
       }
     }
 
@@ -545,6 +559,10 @@ export class GestionarHorarioDialogComponent implements OnInit {
     this.conflictosLectiva = [];
     const horariosActuales = this.horariosFormArray.value as HorarioEntry[];
     const filaConflictoLectiva = new Array(horariosActuales.length).fill(false);
+
+    const config = this.scheduleConfigService.config;
+    const almuerzoInicio = config.almuerzo.inicio;
+    const almuerzoFin = config.almuerzo.fin;
 
     for (const otro of this.data.allHorarios) {
       if (otro.actividadId === this.data.actividadId) continue;
@@ -567,15 +585,24 @@ export class GestionarHorarioDialogComponent implements OnInit {
       const h1Dia = this.diaNormalizada(h1.dia);
       const h1Inicio = normalizarHora(h1.hora_inicio);
       const h1Fin = normalizarHora(h1.hora_fin);
-      for (const lec of this.data.horariosLectivos) {
-        const lecDia = this.diaNormalizada(lec.dia);
-        if (h1Dia !== lecDia) continue;
-        if (seSuperponen(h1Inicio, h1Fin, normalizarHora(lec.hora_inicio), normalizarHora(lec.hora_fin))) {
-          filaConflictoLectiva[index] = true;
-          const curso = lec.codigoCurso ? `${lec.codigoCurso} (${lec.nombreCurso})` : lec.nombreCurso;
-          this.conflictosLectiva.push(
-            `${formatearBloqueHorario({ dia: h1Dia, hora_inicio: h1Inicio, hora_fin: h1Fin })} coincide con lectiva ${normalizarHora(lec.hora_inicio)}-${normalizarHora(lec.hora_fin)} — ${curso}`,
-          );
+
+      // Verificar si el horario está en la franja de almuerzo
+      const h1InicioNum = parseInt(h1Inicio.split(':')[0], 10);
+      const h1FinNum = parseInt(h1Fin.split(':')[0], 10);
+      const enFranjaAlmuerzo = h1InicioNum < almuerzoFin && h1FinNum > almuerzoInicio;
+
+      // Si no está en la franja de almuerzo, validar conflicto con lectivos
+      if (!enFranjaAlmuerzo) {
+        for (const lec of this.data.horariosLectivos) {
+          const lecDia = this.diaNormalizada(lec.dia);
+          if (h1Dia !== lecDia) continue;
+          if (seSuperponen(h1Inicio, h1Fin, normalizarHora(lec.hora_inicio), normalizarHora(lec.hora_fin))) {
+            filaConflictoLectiva[index] = true;
+            const curso = lec.codigoCurso ? `${lec.codigoCurso} (${lec.nombreCurso})` : lec.nombreCurso;
+            this.conflictosLectiva.push(
+              `${formatearBloqueHorario({ dia: h1Dia, hora_inicio: h1Inicio, hora_fin: h1Fin })} coincide con lectiva ${normalizarHora(lec.hora_inicio)}-${normalizarHora(lec.hora_fin)} — ${curso}`,
+            );
+          }
         }
       }
     });

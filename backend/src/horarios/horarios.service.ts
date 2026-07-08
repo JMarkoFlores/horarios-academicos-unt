@@ -204,28 +204,18 @@ export class HorariosService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
     
-    console.log(`[HorariosService] Horarios lectivos encontrados: ${horarios.length}`);
-    
     // Obtener carga no lectiva de la declaración si existe
     const declaracion = await this.declaracionRepo.findOne({
       where: { docente_id: docenteId },
       relations: ['periodo_academico'],
     });
     
-    if (declaracion) {
-      console.log(`[HorariosService] Declaración encontrada: estado=${declaracion.estado}, periodo=${declaracion.periodo_academico?.codigo}`);
-    } else {
-      console.log(`[HorariosService] No se encontró declaración para docente ${docenteId}`);
-    }
-    
     if (declaracion && declaracion.periodo_academico?.codigo === periodo) {
       const estadosAprobados = ['VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO'];
       if (estadosAprobados.includes(declaracion.estado)) {
         const cargaNoLectiva = (declaracion.carga_no_lectiva as any)?.actividades || [];
-        console.log(`[HorariosService] Actividades no lectivas: ${cargaNoLectiva.length}`);
         for (const actividad of cargaNoLectiva) {
           if (actividad.horarios && Array.isArray(actividad.horarios)) {
-            console.log(`[HorariosService] Actividad ${actividad.id} tiene ${actividad.horarios.length} horarios`);
             for (const h of actividad.horarios) {
               horarios.push({
                 id: 0,
@@ -244,12 +234,9 @@ export class HorariosService {
             }
           }
         }
-      } else {
-        console.log(`[HorariosService] Estado ${declaracion.estado} no está en estados aprobados`);
       }
     }
     
-    console.log(`[HorariosService] Total horarios (lectivos + no lectivos): ${horarios.length}`);
     return horarios;
   }
 

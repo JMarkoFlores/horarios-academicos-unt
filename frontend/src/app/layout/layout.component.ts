@@ -82,12 +82,6 @@ export class LayoutComponent implements OnInit {
       expanded: true,
       items: [
         { icon: 'dashboard', label: 'sidebar.dashboard', route: '/app/dashboard' },
-        { 
-          icon: 'smart_toy', 
-          label: 'sidebar.aiAssistant', 
-          action: () => this.showChatbot(),
-          roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE, ROLES.DIRECTOR_ESCUELA, ROLES.DECANO, ROLES.SECRETARIA, ROLES.OPERADOR_HORARIOS]
-        },
       ],
     },
     {
@@ -265,15 +259,10 @@ export class LayoutComponent implements OnInit {
   }
 
   private _computeVisibleNavGroups(): void {
-    const isChatbotHidden = localStorage.getItem('chatbot_visible') === 'false';
-
     this._visibleNavGroups = this.navGroups
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => {
-          // Si es el ítem del chatbot y ya es visible en la pantalla, no lo mostramos en el menú
-          if (item.label === 'Asistente IA' && !isChatbotHidden) return false;
-
           if (!item.roles || item.roles.length === 0) return true;
           return this.authService.hasRole(...item.roles);
         }),
@@ -283,10 +272,13 @@ export class LayoutComponent implements OnInit {
 
   showChatbot(): void {
     localStorage.setItem('chatbot_visible', 'true');
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'chatbot_visible',
-      newValue: 'true'
-    }));
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'chatbot_visible',
+        newValue: 'true',
+      }),
+    );
+    window.dispatchEvent(new Event('openChatbot'));
     this._computeVisibleNavGroups();
   }
 

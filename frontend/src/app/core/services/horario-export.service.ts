@@ -68,6 +68,20 @@ export class HorarioExportService {
     return { colorMap, hexMap, cursosList };
   }
 
+  getNombreAsignacion(a: any): string {
+    if (a.tipo_clase === 'NO_LECTIVA') {
+      let nombre = a.actividad_nombre || 'Carga No Lectiva';
+      nombre = nombre.replace(/^\d+\.\s*/, '');
+      nombre = nombre.replace(/\s*\(.*\)\s*$/, '');
+      const colonIdx = nombre.indexOf(':');
+      if (colonIdx > 0) {
+        nombre = nombre.substring(0, colonIdx);
+      }
+      return nombre.trim();
+    }
+    return a.curso?.nombre ?? '—';
+  }
+
   getCursoColorHex(hexMap: Map<number, string>, cursoId: number): string {
     return hexMap.get(cursoId) || '#F8FAFC';
   }
@@ -384,12 +398,15 @@ export class HorarioExportService {
         if (!cell || cell.skip) return;
 
         if (cell.asig) {
+          const isNoLectiva = cell.asig.tipo_clase === 'NO_LECTIVA';
           const pf = `[${cell.mergedTipos?.join('/') ?? 'TEO'}]`;
-          const ambStr = cell.mergedAmbs?.length ? cell.mergedAmbs.join(' / ') : '—';
-          const bg = this.getCursoColorRGB(colorMap, cell.asig.curso?.id || 0);
+          const ambStr = isNoLectiva ? '' : (cell.mergedAmbs?.length ? cell.mergedAmbs.join(' / ') : '—');
+          const bg = isNoLectiva ? [255, 251, 235] as [number, number, number] : this.getCursoColorRGB(colorMap, cell.asig.curso?.id || 0);
           const fg = ink;
           const blockH = baseCellH * cell.rowspan;
-          draw(x, y, DAY_W, blockH, bg, fg, [pf, cell.asig.curso?.nombre ?? '—', `${ambStr}  ${cell.asig.hora_inicio}–${cell.asig.hora_fin}`], 'bold', 6.5);
+          const asigName = this.getNombreAsignacion(cell.asig);
+          const timeStr = isNoLectiva ? `${cell.asig.hora_inicio}–${cell.asig.hora_fin}` : `${ambStr}  ${cell.asig.hora_inicio}–${cell.asig.hora_fin}`;
+          draw(x, y, DAY_W, blockH, bg, fg, [pf, asigName, timeStr], 'bold', 6.5);
         } else if (cell.esAlmuerzo) {
           const blockH = baseCellH * cell.rowspan;
           draw(x, y, DAY_W, blockH, almBg, almTx, ['Almuerzo'], 'italic', 6.5);
@@ -562,9 +579,12 @@ export class HorarioExportService {
         }
 
         if (cell?.asig) {
+          const isNoLectiva = cell.asig.tipo_clase === 'NO_LECTIVA';
           const pf = `[${cell.mergedTipos?.join('/') ?? 'TEO'}]`;
-          const ambStr = cell.mergedAmbs?.length ? cell.mergedAmbs.join(' / ') : '—';
-          row.push(`${pf}\n${cell.asig.curso?.nombre ?? ''}\n${ambStr}  ${cell.asig.hora_inicio}-${cell.asig.hora_fin}`);
+          const ambStr = isNoLectiva ? '' : (cell.mergedAmbs?.length ? cell.mergedAmbs.join(' / ') : '—');
+          const asigName = this.getNombreAsignacion(cell.asig);
+          const timeStr = isNoLectiva ? `${cell.asig.hora_inicio}-${cell.asig.hora_fin}` : `${ambStr}  ${cell.asig.hora_inicio}-${cell.asig.hora_fin}`;
+          row.push(`${pf}\n${asigName}\n${timeStr}`);
           if (cell.rowspan > 1) {
             merges.push({ s: { r: headerRow + 1 + hi, c: 1 + di }, e: { r: headerRow + 1 + hi + cell.rowspan - 1, c: 1 + di } });
           }
@@ -730,7 +750,11 @@ export class HorarioExportService {
           }
 
           if (origenData?.asig) {
-            bgColor = this.getCursoColorHex(hexMap, origenData.asig.curso?.id || 0).replace('#', '');
+            if (origenData.asig.tipo_clase === 'NO_LECTIVA') {
+              bgColor = 'FFFBEB';
+            } else {
+              bgColor = this.getCursoColorHex(hexMap, origenData.asig.curso?.id || 0).replace('#', '');
+            }
             isBold = true;
           } else if (origenData?.esAlmuerzo) {
             bgColor = 'F1F5F9';

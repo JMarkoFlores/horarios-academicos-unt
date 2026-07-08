@@ -93,7 +93,7 @@
                 class="celda"
                 [ngClass]="cell.asig ? 'celda-asig' : (cell.esAlmuerzo ? 'celda-almuerzo' : 'celda-vacia')"
                 [class.celda-no-lectiva]="cell.asig?.tipo_clase === 'NO_LECTIVA'"
-                [ngStyle]="cell.asig && cell.asig.tipo_clase !== 'NO_LECTIVA' ? { 'background-color': getCursoColorHex(cell.asig.curso?.id || 0) } : {}"
+                [ngStyle]="cell.asig ? getAsignacionStyle(cell.asig) : {}"
                 [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null">
                 <div *ngIf="cell.asig as a" class="celda-content">
                   <span class="tipo-badge"
@@ -125,6 +125,12 @@
         <span class="dot" [style.background]="c.colorHex"></span>
         {{ c.curso?.codigo || 'Curso' }}
       </span>
+      <ng-container *ngIf="mostrarNoLectiva">
+        <span class="legend-item" *ngFor="let nl of noLectivaList">
+          <span class="dot dot-no-lect" [style.background]="nl.colorHex" [style.border-color]="nl.borderHex"></span>
+          {{ nl.nombre }}
+        </span>
+      </ng-container>
       <span class="legend-item">
         <span class="dot dot-alm"></span> Almuerzo ({{ fmtH(almuerzoInicio) }}–{{ fmtH(almuerzoFin) }})
       </span>

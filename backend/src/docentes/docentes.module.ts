@@ -13,6 +13,7 @@ import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Grupo } from "../entities/grupo.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { DocentesService } from "./docentes.service";
 import { DocentesController } from "./docentes.controller";
 
@@ -31,6 +32,7 @@ import { DocentesController } from "./docentes.controller";
       PeriodoAcademico,
       ParametrosCarga,
       Grupo,
+      AsignacionLectiva,
     ]),
     CacheModule.register(),
   ],

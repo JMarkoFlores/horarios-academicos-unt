@@ -308,25 +308,29 @@ export class ChatbotService {
 
   private normalizeRole(role: string): string {
     const roleMap: Record<string, string> = {
-      'admin': 'admin',
-      'administrador': 'admin',
-      'administrador_sistema': 'admin',
-      'docente': 'docente',
-      'coordinador': 'coordinador',
-      'coordinador_academico': 'coordinador',
-      'operador': 'operador',
-      'operador_horarios': 'operador',
-      'director': 'director',
-      'director_escuela': 'director',
-      'director_departamento': 'director',
-      'decano': 'director',
+      admin: "admin",
+      administrador: "admin",
+      administrador_sistema: "admin",
+      docente: "docente",
+      coordinador: "coordinador",
+      coordinador_academico: "coordinador",
+      operador: "operador",
+      operador_horarios: "operador",
+      director: "director",
+      director_escuela: "director",
+      director_departamento: "director",
+      decano: "director",
     };
-    
-    const normalized = roleMap[role?.toLowerCase()] || 'default';
-    return this.systemPrompts[normalized] ? normalized : 'default';
+
+    const normalized = roleMap[role?.toLowerCase()] || "default";
+    return this.systemPrompts[normalized] ? normalized : "default";
   }
 
-  async chat(message: string, history: any[] = [], userRole: string = 'default') {
+  async chat(
+    message: string,
+    history: any[] = [],
+    userRole: string = "default",
+  ) {
     const apiKey = this.configService.get<string>("GROQ_API_KEY");
     if (!apiKey || apiKey === "tu_api_key_aqui") {
       throw new InternalServerErrorException(
@@ -339,7 +343,8 @@ export class ChatbotService {
 
     // Normalizar el rol (mapear roles similares)
     const normalizedRole = this.normalizeRole(userRole);
-    const systemPrompt = this.systemPrompts[normalizedRole] || this.systemPrompts.default;
+    const systemPrompt =
+      this.systemPrompts[normalizedRole] || this.systemPrompts.default;
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },

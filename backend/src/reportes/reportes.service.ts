@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Not } from "typeorm";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
@@ -71,19 +76,26 @@ export class ReportesService {
     return new Promise((resolve) => {
       client
         .get(fullUrl, (res) => {
-          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          if (
+            res.statusCode &&
+            res.statusCode >= 300 &&
+            res.statusCode < 400 &&
+            res.headers.location
+          ) {
             const redirect = res.headers.location;
             const rClient = redirect.startsWith("https") ? https : http;
-            rClient.get(redirect, (res2) => {
-              const data: any[] = [];
-              res2.on("data", (chunk: any) => data.push(chunk));
-              res2.on("end", () => {
-                const buffer = Buffer.concat(data);
-                resolve(
-                  `data:${res2.headers["content-type"]};base64,${buffer.toString("base64")}`,
-                );
-              });
-            }).on("error", () => resolve(null));
+            rClient
+              .get(redirect, (res2) => {
+                const data: any[] = [];
+                res2.on("data", (chunk: any) => data.push(chunk));
+                res2.on("end", () => {
+                  const buffer = Buffer.concat(data);
+                  resolve(
+                    `data:${res2.headers["content-type"]};base64,${buffer.toString("base64")}`,
+                  );
+                });
+              })
+              .on("error", () => resolve(null));
             return;
           }
           const data: any[] = [];
@@ -96,7 +108,9 @@ export class ReportesService {
           });
         })
         .on("error", (err) => {
-          this.logger.error(`Error al cargar imagen: ${fullUrl} — ${err.message}`);
+          this.logger.error(
+            `Error al cargar imagen: ${fullUrl} — ${err.message}`,
+          );
           resolve(null);
         });
     });
@@ -375,7 +389,8 @@ export class ReportesService {
     let horaFin = 22;
     let duracionBloque = 1; // hours
     try {
-      const restricciones = await this.configuracionService.getRestriccionesMap(periodo);
+      const restricciones =
+        await this.configuracionService.getRestriccionesMap(periodo);
       const franjaHoraria = restricciones["FRANJA_HORARIA"] as any;
       if (franjaHoraria?.hora_inicio && franjaHoraria?.hora_fin) {
         horaInicio = parseInt(franjaHoraria.hora_inicio.split(":")[0], 10);
@@ -384,14 +399,23 @@ export class ReportesService {
       const duracionBloqueConfig = restricciones["DURACION_BLOQUE"] as any;
       if (duracionBloqueConfig?.duracion_minutos) {
         duracionBloque = duracionBloqueConfig.duracion_minutos / 60;
-      } else if (duracionBloqueConfig?.valor || duracionBloqueConfig?.duracion) {
-        duracionBloque = duracionBloqueConfig.valor || duracionBloqueConfig.duracion;
+      } else if (
+        duracionBloqueConfig?.valor ||
+        duracionBloqueConfig?.duracion
+      ) {
+        duracionBloque =
+          duracionBloqueConfig.valor || duracionBloqueConfig.duracion;
       }
     } catch (e) {
-      this.logger.warn(`Error getting configuration for period ${periodo}: ${e.message}`);
+      this.logger.warn(
+        `Error getting configuration for period ${periodo}: ${e.message}`,
+      );
     }
 
-    const horas = Array.from({ length: horaFin - horaInicio }, (_, i) => i + horaInicio);
+    const horas = Array.from(
+      { length: horaFin - horaInicio },
+      (_, i) => i + horaInicio,
+    );
     const cellHeight = 10;
     const horaColWidth = 15;
     const gridWidth = PAGE_W - 24;
@@ -573,7 +597,7 @@ export class ReportesService {
           ) {
             const blockY = gridY + 10 + startRowIdx * cellHeight;
             const blockH = (endRowIdx - startRowIdx) * cellHeight;
-            
+
             // Check if block can expand across all lanes (no conflicts)
             let puedeExpandirse = true;
             carriles.forEach((otros, idx) => {
@@ -581,15 +605,21 @@ export class ReportesService {
                 otros.forEach((o) => {
                   const oIni = this.horaToDecimal(o.hora_inicio);
                   const oFin = this.horaToDecimal(o.hora_fin);
-                  if (f.horaInicio < oFin && oIni < f.horaFin) puedeExpandirse = false;
+                  if (f.horaInicio < oFin && oIni < f.horaFin)
+                    puedeExpandirse = false;
                 });
               }
             });
 
-            const laneWidth = puedeExpandirse ? cellWidth : cellWidth / f.numCarriles;
+            const laneWidth = puedeExpandirse
+              ? cellWidth
+              : cellWidth / f.numCarriles;
             const blockX = puedeExpandirse
               ? 12 + horaColWidth + diaIdx * cellWidth
-              : 12 + horaColWidth + diaIdx * cellWidth + f.carrilIdx * laneWidth;
+              : 12 +
+                horaColWidth +
+                diaIdx * cellWidth +
+                f.carrilIdx * laneWidth;
             const blockW = laneWidth;
 
             const color = this.getColorForProfesorCurso(
@@ -704,47 +734,101 @@ export class ReportesService {
           : docente.categoria === "AUXILIAR"
             ? "Auxiliar"
             : docente.categoria || "";
-    const modalidadDisplay = modalidadLabel[docente.modalidad] || docente.modalidad || "TC";
+    const modalidadDisplay =
+      modalidadLabel[docente.modalidad] || docente.modalidad || "TC";
 
     // --- HORARIO LECTIVO: agrupar por curso, separar T y P/L ---
     const diasNom = ["LU", "MA", "MI", "JU", "VI", "SA", "DO"];
 
     // Map: cursoId â†’ { teo: horarios[], pra: horarios[], lab: horarios[] }
-    const cursoHorariosMap = new Map<number, { curso: any; grupo: any; ambiente: any; teo: any[]; pra: any[]; lab: any[] }>();
+    const cursoHorariosMap = new Map<
+      number,
+      {
+        curso: any;
+        grupo: any;
+        ambiente: any;
+        teo: any[];
+        pra: any[];
+        lab: any[];
+      }
+    >();
     horarios.forEach((h) => {
       if (!h.curso) return;
       if (!cursoHorariosMap.has(h.curso.id)) {
-        cursoHorariosMap.set(h.curso.id, { curso: h.curso, grupo: h.grupo, ambiente: h.ambiente, teo: [], pra: [], lab: [] });
+        cursoHorariosMap.set(h.curso.id, {
+          curso: h.curso,
+          grupo: h.grupo,
+          ambiente: h.ambiente,
+          teo: [],
+          pra: [],
+          lab: [],
+        });
       }
       const entry = cursoHorariosMap.get(h.curso.id)!;
       const diaStr = diasNom[(h.dia || h.dia_semana || 1) - 1];
-      const rango = `${h.hora_inicio.substring(0,5)}-${h.hora_fin.substring(0,5)}`;
+      const rango = `${h.hora_inicio.substring(0, 5)}-${h.hora_fin.substring(0, 5)}`;
       const slot = `${diaStr}(${rango})`;
-      if (h.tipo_clase === TipoClase.TEORIA) entry.teo.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
-      else if (h.tipo_clase === TipoClase.PRACTICA) entry.pra.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
-      else entry.lab.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
+      if (h.tipo_clase === TipoClase.TEORIA)
+        entry.teo.push({
+          slot,
+          dur:
+            this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio),
+          ambiente: h.ambiente,
+          grupo: h.grupo,
+        });
+      else if (h.tipo_clase === TipoClase.PRACTICA)
+        entry.pra.push({
+          slot,
+          dur:
+            this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio),
+          ambiente: h.ambiente,
+          grupo: h.grupo,
+        });
+      else
+        entry.lab.push({
+          slot,
+          dur:
+            this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio),
+          ambiente: h.ambiente,
+          grupo: h.grupo,
+        });
     });
 
     let trsCHL = "";
     let totalCargaLectiva = 0;
 
     cursoHorariosMap.forEach((entry) => {
-      const teoSlots = entry.teo.map(x => x.slot).join(", ");
-      const praSlots = [...entry.pra, ...entry.lab].map(x => x.slot).join(", ");
+      const teoSlots = entry.teo.map((x) => x.slot).join(", ");
+      const praSlots = [...entry.pra, ...entry.lab]
+        .map((x) => x.slot)
+        .join(", ");
       const horarioCell = [
         teoSlots ? `<b>T:</b> ${teoSlots}` : "",
         praSlots ? `<b>P:</b> ${praSlots}` : "",
-      ].filter(Boolean).join("<br>");
+      ]
+        .filter(Boolean)
+        .join("<br>");
 
       const totalTeo = entry.teo.reduce((s, x) => s + x.dur, 0);
-      const totalPra = [...entry.pra, ...entry.lab].reduce((s, x) => s + x.dur, 0);
+      const totalPra = [...entry.pra, ...entry.lab].reduce(
+        (s, x) => s + x.dur,
+        0,
+      );
       const total = totalTeo + totalPra;
       totalCargaLectiva += total;
 
-      const ambiente = entry.teo[0]?.ambiente || entry.pra[0]?.ambiente || entry.lab[0]?.ambiente || null;
+      const ambiente =
+        entry.teo[0]?.ambiente ||
+        entry.pra[0]?.ambiente ||
+        entry.lab[0]?.ambiente ||
+        null;
       const lugarCod = ambiente?.codigo?.substring(0, 3) || "F11";
       const aulaNombre = ambiente?.nombre || ambiente?.codigo || "—";
-      const grupoCod = entry.grupo?.codigo || entry.teo[0]?.grupo?.codigo || entry.pra[0]?.grupo?.codigo || "";
+      const grupoCod =
+        entry.grupo?.codigo ||
+        entry.teo[0]?.grupo?.codigo ||
+        entry.pra[0]?.grupo?.codigo ||
+        "";
       const ciclo = entry.curso.ciclo ? `${entry.curso.ciclo}0-C` : "";
       const cursoLabel = `${entry.curso.nombre}<br><small>${ciclo} ${grupoCod}</small>`;
 
@@ -764,7 +848,8 @@ export class ReportesService {
       <tr><td style="font-size:8px;padding:4px;"><b>T:</b><br><b>P:</b></td><td></td><td></td><td></td><td></td></tr>`;
 
     if (!cursoHorariosMap.size) {
-      trsCHL = '<tr><td colspan="5" class="text-center" style="color:#999; padding:8px;">Sin carga lectiva asignada</td></tr>';
+      trsCHL =
+        '<tr><td colspan="5" class="text-center" style="color:#999; padding:8px;">Sin carga lectiva asignada</td></tr>';
     }
 
     // --- HORARIO NO LECTIVO ---
@@ -786,7 +871,10 @@ export class ReportesService {
     const ordenNoLectiva = [2, 3, 4, 9, 8, 5, 1, 10, 6, 7];
 
     const actividadesMap = new Map<number, any>();
-    if (declaracion?.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
+    if (
+      declaracion?.carga_no_lectiva &&
+      Array.isArray((declaracion.carga_no_lectiva as any).actividades)
+    ) {
       (declaracion.carga_no_lectiva as any).actividades.forEach((a: any) => {
         actividadesMap.set(a.id, a);
       });
@@ -800,7 +888,10 @@ export class ReportesService {
       let horarioStr = "";
       if (a && Array.isArray(a.horarios) && a.horarios.length > 0) {
         horarioStr = a.horarios
-          .map((ha: any) => `${ha.dia || ""}(${(ha.hora_inicio || "").substring(0,5)}-${(ha.hora_fin || "").substring(0,5)})`)
+          .map(
+            (ha: any) =>
+              `${ha.dia || ""}(${(ha.hora_inicio || "").substring(0, 5)}-${(ha.hora_fin || "").substring(0, 5)})`,
+          )
           .join(", ");
       } else if (a?.horario) {
         horarioStr = a.horario;
@@ -818,10 +909,14 @@ export class ReportesService {
 
     const totalAcademica = totalCargaLectiva + totalCargaNoLectiva;
 
-    const categoriaDisplay = docente.categoria === "PRINCIPAL" ? "PRINCIPAL"
-      : docente.categoria === "ASOCIADO" ? "ASOCIADO"
-      : docente.categoria === "AUXILIAR" ? "AUXILIAR"
-      : docente.categoria || "";
+    const categoriaDisplay =
+      docente.categoria === "PRINCIPAL"
+        ? "PRINCIPAL"
+        : docente.categoria === "ASOCIADO"
+          ? "ASOCIADO"
+          : docente.categoria === "AUXILIAR"
+            ? "AUXILIAR"
+            : docente.categoria || "";
 
     const modalidadShort: Record<string, string> = {
       DEDICACION_EXCLUSIVA: "DE",
@@ -932,9 +1027,10 @@ export class ReportesService {
 
           <div class="firma-section">
             <div class="firma-box">
-              ${firmaBase64
-                ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
-                : `<div class="firma-rect"><span>Firma</span><span>Digital</span></div>`
+              ${
+                firmaBase64
+                  ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                  : `<div class="firma-rect"><span>Firma</span><span>Digital</span></div>`
               }
               <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
@@ -953,10 +1049,17 @@ export class ReportesService {
     `;
 
     const puppeteer = await import("puppeteer");
-    this.logger.log(`Iniciando Puppeteer para generar PDF F03-CAD para docente ${docenteId}`);
+    this.logger.log(
+      `Iniciando Puppeteer para generar PDF F03-CAD para docente ${docenteId}`,
+    );
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+      ],
     });
     try {
       const page = await browser.newPage();
@@ -968,16 +1071,20 @@ export class ReportesService {
         printBackground: true,
         margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" },
       });
-      this.logger.log(`PDF F03-CAD generado exitosamente para docente ${docenteId}`);
+      this.logger.log(
+        `PDF F03-CAD generado exitosamente para docente ${docenteId}`,
+      );
       return Buffer.from(buffer);
     } catch (error) {
-      this.logger.error(`Error generando PDF F03-CAD para docente ${docenteId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error generando PDF F03-CAD para docente ${docenteId}: ${error.message}`,
+        error.stack,
+      );
       throw error;
     } finally {
       await browser.close();
     }
   }
-
 
   async generarReporteDeclaracionF02CADPDF(
     docenteId: number,
@@ -1104,9 +1211,10 @@ export class ReportesService {
           <span class="fecha-text">Trujillo, ${fechaActual}</span>
         </div>
         <div style="text-align: center;">
-          ${firmaBase64
-            ? `<img src="${firmaBase64}" style="max-width:160px; max-height:70px; display:block; margin:0 auto;" alt="Firma docente" />`
-            : `<div class="firma-box"><span>Firma</span><span>Digital</span></div>`
+          ${
+            firmaBase64
+              ? `<img src="${firmaBase64}" style="max-width:160px; max-height:70px; display:block; margin:0 auto;" alt="Firma docente" />`
+              : `<div class="firma-box"><span>Firma</span><span>Digital</span></div>`
           }
           <div class="firma-line"></div>
           <div class="firma-label">${nombreCompleto}</div>
@@ -1117,10 +1225,17 @@ export class ReportesService {
     `;
 
     const puppeteer = await import("puppeteer");
-    this.logger.log(`Iniciando Puppeteer para generar PDF F02-CAD para docente ${docenteId}`);
+    this.logger.log(
+      `Iniciando Puppeteer para generar PDF F02-CAD para docente ${docenteId}`,
+    );
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+      ],
     });
     try {
       const page = await browser.newPage();
@@ -1131,16 +1246,20 @@ export class ReportesService {
         printBackground: true,
         margin: { top: "15mm", bottom: "15mm", left: "15mm", right: "15mm" },
       });
-      this.logger.log(`PDF F02-CAD generado exitosamente para docente ${docenteId}`);
+      this.logger.log(
+        `PDF F02-CAD generado exitosamente para docente ${docenteId}`,
+      );
       return Buffer.from(buffer);
     } catch (error) {
-      this.logger.error(`Error generando PDF F02-CAD para docente ${docenteId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error generando PDF F02-CAD para docente ${docenteId}: ${error.message}`,
+        error.stack,
+      );
       throw error;
     } finally {
       await browser.close();
     }
   }
-
 
   async generarReporteF01CADPDF(
     docenteId: number,
@@ -1173,7 +1292,8 @@ export class ReportesService {
       .getMany();
 
     const config = await this.configuracionService.getConfiguracionGeneral();
-    const logoUrl = config?.logo_url ||
+    const logoUrl =
+      config?.logo_url ||
       "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
     const logoBase64 = await this.getBase64Image(logoUrl);
 
@@ -1193,27 +1313,50 @@ export class ReportesService {
 
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
     const dni = docente.dni || "";
-    const categoriaLabel: Record<string, string> = { PRINCIPAL: "Principal", ASOCIADO: "Asociado", AUXILIAR: "Auxiliar", SIN_CATEGORIA: "Sin categoría" };
-    const contratoLabel: Record<string, string> = { NOMBRADO: "Nombrado", CONTRATADO: "Contratado" };
+    const categoriaLabel: Record<string, string> = {
+      PRINCIPAL: "Principal",
+      ASOCIADO: "Asociado",
+      AUXILIAR: "Auxiliar",
+      SIN_CATEGORIA: "Sin categoría",
+    };
+    const contratoLabel: Record<string, string> = {
+      NOMBRADO: "Nombrado",
+      CONTRATADO: "Contratado",
+    };
     const modalidadLabel: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
-      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H", TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
-      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H", TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
+      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva",
+      TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
+      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H",
+      TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
+      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H",
+      TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
     };
 
-    const dateIni = periodoObj.fecha_inicio ? new Date(periodoObj.fecha_inicio).toLocaleDateString("es-PE") : "";
-    const dateFin = periodoObj.fecha_fin ? new Date(periodoObj.fecha_fin).toLocaleDateString("es-PE") : "";
-    const fechaGen = new Date().toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" });
+    const dateIni = periodoObj.fecha_inicio
+      ? new Date(periodoObj.fecha_inicio).toLocaleDateString("es-PE")
+      : "";
+    const dateFin = periodoObj.fecha_fin
+      ? new Date(periodoObj.fecha_fin).toLocaleDateString("es-PE")
+      : "";
+    const fechaGen = new Date().toLocaleDateString("es-PE", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
     // Build carga lectiva rows from horarios
     let trsLectiva = "";
-    let totalHorasTeo = 0, totalHorasPra = 0, totalHorasLab = 0, totalGeneral = 0;
+    let totalHorasTeo = 0,
+      totalHorasPra = 0,
+      totalHorasLab = 0,
+      totalGeneral = 0;
     const cursoMap = new Map<string, any>();
 
     horarios.forEach((h) => {
       if (!h.curso) return;
       const key = `${h.curso.id}`;
-      const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
+      const dur =
+        this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
       const isTeo = h.tipo_clase === TipoClase.TEORIA;
       const isPra = h.tipo_clase === TipoClase.PRACTICA;
       const isLab = h.tipo_clase === TipoClase.LABORATORIO;
@@ -1261,7 +1404,8 @@ export class ReportesService {
     });
 
     if (trsLectiva === "") {
-      trsLectiva = '<tr><td colspan="11" class="text-center no-data">Sin carga lectiva asignada</td></tr>';
+      trsLectiva =
+        '<tr><td colspan="11" class="text-center no-data">Sin carga lectiva asignada</td></tr>';
     }
 
     // Build carga no lectiva
@@ -1270,23 +1414,73 @@ export class ReportesService {
     let totalNoLectiva = 0;
 
     const labelsComp = [
-      { id: 2, num: "1", text: "1. PREPARACION Y EVALUACION", defaultDetail: "ACTIVIDADES DE PLANIFICACION, IMPLEMENTACION Y EVALUACION DE LAS ACTIVIDADES LECTIVAS." },
-      { id: 3, num: "2", text: "2. TUTORIA Y CONSEJERIA", defaultDetail: "PARA ALUMNOS DE LAS ASIGNATURAS CURRICULARES ASIGNADAS EN EL PRESENTE SEMESTRE." },
+      {
+        id: 2,
+        num: "1",
+        text: "1. PREPARACION Y EVALUACION",
+        defaultDetail:
+          "ACTIVIDADES DE PLANIFICACION, IMPLEMENTACION Y EVALUACION DE LAS ACTIVIDADES LECTIVAS.",
+      },
+      {
+        id: 3,
+        num: "2",
+        text: "2. TUTORIA Y CONSEJERIA",
+        defaultDetail:
+          "PARA ALUMNOS DE LAS ASIGNATURAS CURRICULARES ASIGNADAS EN EL PRESENTE SEMESTRE.",
+      },
       { id: 4, num: "3", text: "3. INVESTIGACION:", defaultDetail: "" },
-      { id: 9, num: "4", text: "4. RESPONSABILIDAD SOCIAL UNIVERSITARIA", defaultDetail: "" },
-      { id: 8, num: "5", text: "5. ASESORIA DE TESIS Y EXAMENES PROFESIONALES", defaultDetail: "" },
-      { id: 5, num: "6", text: "6. FORMACION ACADEMICA Y CAPACITACION", defaultDetail: "" },
-      { id: 1, num: "7", text: "7. AUTOEVALUACION Y/O ACREDITACION DE LA ESCUELA PROFESIONAL", defaultDetail: "" }
+      {
+        id: 9,
+        num: "4",
+        text: "4. RESPONSABILIDAD SOCIAL UNIVERSITARIA",
+        defaultDetail: "",
+      },
+      {
+        id: 8,
+        num: "5",
+        text: "5. ASESORIA DE TESIS Y EXAMENES PROFESIONALES",
+        defaultDetail: "",
+      },
+      {
+        id: 5,
+        num: "6",
+        text: "6. FORMACION ACADEMICA Y CAPACITACION",
+        defaultDetail: "",
+      },
+      {
+        id: 1,
+        num: "7",
+        text: "7. AUTOEVALUACION Y/O ACREDITACION DE LA ESCUELA PROFESIONAL",
+        defaultDetail: "",
+      },
     ];
 
     const labelsAdmin = [
-      { id: 10, num: "8", text: "8. COMITES O COMISIONES ESPECIALES", defaultDetail: "" },
-      { id: 6, num: "9", text: "9. ACTIVIDADES DE GOBIERNO O DE AUTORIDAD", defaultDetail: "" },
-      { id: 7, num: "10", text: "10. ACTIVIDADES DE GESTION INSTITUCIONAL", defaultDetail: "" }
+      {
+        id: 10,
+        num: "8",
+        text: "8. COMITES O COMISIONES ESPECIALES",
+        defaultDetail: "",
+      },
+      {
+        id: 6,
+        num: "9",
+        text: "9. ACTIVIDADES DE GOBIERNO O DE AUTORIDAD",
+        defaultDetail: "",
+      },
+      {
+        id: 7,
+        num: "10",
+        text: "10. ACTIVIDADES DE GESTION INSTITUCIONAL",
+        defaultDetail: "",
+      },
     ];
 
     const actividadesRegistradas = new Map<number, any>();
-    if (declaracion?.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
+    if (
+      declaracion?.carga_no_lectiva &&
+      Array.isArray((declaracion.carga_no_lectiva as any).actividades)
+    ) {
       const actividades = (declaracion.carga_no_lectiva as any).actividades;
       actividades.forEach((a: any) => {
         actividadesRegistradas.set(a.id, a);
@@ -1444,9 +1638,10 @@ export class ReportesService {
 
           <div class="firma-section">
             <div class="firma-box">
-              ${firmaBase64
-                ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
-                : `<div class="firma-rect"><span>Firma</span><span>Digital</span></div>`
+              ${
+                firmaBase64
+                  ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                  : `<div class="firma-rect"><span>Firma</span><span>Digital</span></div>`
               }
               <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
@@ -1465,10 +1660,17 @@ export class ReportesService {
     `;
 
     const puppeteer = await import("puppeteer");
-    this.logger.log(`Iniciando Puppeteer para generar PDF F01-CAD para docente ${docenteId}`);
+    this.logger.log(
+      `Iniciando Puppeteer para generar PDF F01-CAD para docente ${docenteId}`,
+    );
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+      ],
     });
     try {
       const page = await browser.newPage();
@@ -1479,10 +1681,15 @@ export class ReportesService {
         printBackground: true,
         margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
       });
-      this.logger.log(`PDF F01-CAD generado exitosamente para docente ${docenteId}`);
+      this.logger.log(
+        `PDF F01-CAD generado exitosamente para docente ${docenteId}`,
+      );
       return Buffer.from(buffer);
     } catch (error) {
-      this.logger.error(`Error generando PDF F01-CAD para docente ${docenteId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error generando PDF F01-CAD para docente ${docenteId}: ${error.message}`,
+        error.stack,
+      );
       throw error;
     } finally {
       await browser.close();
@@ -1513,12 +1720,17 @@ export class ReportesService {
     const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
 
     const modalidadLabel: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "DE", TIEMPO_COMPLETO_40: "TC40",
-      TIEMPO_PARCIAL_20: "TP20", TIEMPO_PARCIAL_12: "TP12",
-      TIEMPO_PARCIAL_10: "TP10", TIEMPO_PARCIAL_8: "TP8",
+      DEDICACION_EXCLUSIVA: "DE",
+      TIEMPO_COMPLETO_40: "TC40",
+      TIEMPO_PARCIAL_20: "TP20",
+      TIEMPO_PARCIAL_12: "TP12",
+      TIEMPO_PARCIAL_10: "TP10",
+      TIEMPO_PARCIAL_8: "TP8",
     };
 
-    let totalLectivas = 0, totalNoLectivas = 0, totalGeneral = 0;
+    let totalLectivas = 0,
+      totalNoLectivas = 0,
+      totalGeneral = 0;
     let trsBody = "";
     let deptActual = "";
 
@@ -1582,19 +1794,25 @@ export class ReportesService {
 
     const puppeteer = await import("puppeteer");
     const browser = await puppeteer.default.launch({
-      headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
     });
     try {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "load" });
-      const buffer = await page.pdf({ format: "A4", landscape: true, printBackground: true, margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" } });
+      const buffer = await page.pdf({
+        format: "A4",
+        landscape: true,
+        printBackground: true,
+        margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
+      });
       return Buffer.from(buffer);
-    } finally { await browser.close(); }
+    } finally {
+      await browser.close();
+    }
   }
 
-  async generarReporteCargaPorModalidadPDF(
-    periodo: string,
-  ): Promise<Buffer> {
+  async generarReporteCargaPorModalidadPDF(periodo: string): Promise<Buffer> {
     const periodoObj = await this.periodoRepo.findOne({
       where: [{ codigo: periodo }, { nombre: periodo }],
     });
@@ -1607,15 +1825,27 @@ export class ReportesService {
     const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
 
     const modalidadLabels: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
-      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H", TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
-      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H", TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
+      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva",
+      TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
+      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H",
+      TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
+      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H",
+      TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
     };
 
-    const modalidadData = new Map<string, { count: number; sumLect: number; sumNoLect: number; sumTotal: number }>();
+    const modalidadData = new Map<
+      string,
+      { count: number; sumLect: number; sumNoLect: number; sumTotal: number }
+    >();
     docentes.forEach((d) => {
       const mod = d.modalidad || "SIN_MODALIDAD";
-      if (!modalidadData.has(mod)) modalidadData.set(mod, { count: 0, sumLect: 0, sumNoLect: 0, sumTotal: 0 });
+      if (!modalidadData.has(mod))
+        modalidadData.set(mod, {
+          count: 0,
+          sumLect: 0,
+          sumNoLect: 0,
+          sumTotal: 0,
+        });
       const data = modalidadData.get(mod)!;
       data.count++;
       const decl = declMap.get(d.id);
@@ -1625,11 +1855,13 @@ export class ReportesService {
     });
 
     let trsBody = "";
-    let totalDocs = 0, totalSum = 0;
+    let totalDocs = 0,
+      totalSum = 0;
     modalidadData.forEach((data, mod) => {
       totalDocs += data.count;
       totalSum += data.sumTotal;
-      const avg = data.count > 0 ? (data.sumTotal / data.count).toFixed(1) : "0";
+      const avg =
+        data.count > 0 ? (data.sumTotal / data.count).toFixed(1) : "0";
       trsBody += `
         <tr>
           <td>${modalidadLabels[mod] || mod}</td>
@@ -1672,14 +1904,21 @@ export class ReportesService {
 
     const puppeteer = await import("puppeteer");
     const browser = await puppeteer.default.launch({
-      headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
     });
     try {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "load" });
-      const buffer = await page.pdf({ format: "A4", printBackground: true, margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" } });
+      const buffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
+      });
       return Buffer.from(buffer);
-    } finally { await browser.close(); }
+    } finally {
+      await browser.close();
+    }
   }
 
   async generarReporteConsolidadoCargaExcel(
@@ -1702,7 +1941,11 @@ export class ReportesService {
 
     const headerRow = sheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1A237E" } };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF1A237E" },
+    };
 
     const periodoObj = await this.periodoRepo.findOne({
       where: [{ codigo: periodo }, { nombre: periodo }],
@@ -1723,8 +1966,10 @@ export class ReportesService {
 
     headerRow.eachCell((cell) => {
       cell.border = {
-        top: { style: "thin" as any }, left: { style: "thin" as any },
-        bottom: { style: "thin" as any }, right: { style: "thin" as any }
+        top: { style: "thin" as any },
+        left: { style: "thin" as any },
+        bottom: { style: "thin" as any },
+        right: { style: "thin" as any },
       };
     });
 
@@ -1742,8 +1987,10 @@ export class ReportesService {
       });
       row.eachCell((cell) => {
         cell.border = {
-          top: { style: "thin" as any }, left: { style: "thin" as any },
-          bottom: { style: "thin" as any }, right: { style: "thin" as any }
+          top: { style: "thin" as any },
+          left: { style: "thin" as any },
+          bottom: { style: "thin" as any },
+          right: { style: "thin" as any },
         };
       });
     });
@@ -2121,11 +2368,11 @@ export class ReportesService {
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 8;
-    if (yPos + (15 * 8) + 15 > PAGE_H) {
+    if (yPos + 15 * 8 + 15 > PAGE_H) {
       doc.addPage();
       yPos = 15;
     }
-    
+
     // Grid de Horarios
     const dias = [
       "Lunes",
@@ -2672,10 +2919,14 @@ export class ReportesService {
       ]);
 
     const declPeriodo = declaraciones.filter(
-        (d) => d.periodo_academico?.codigo === periodo || d.periodo_academico?.nombre === periodo,
+      (d) =>
+        d.periodo_academico?.codigo === periodo ||
+        d.periodo_academico?.nombre === periodo,
     );
     const declAnterior = declaraciones.filter(
-      (d) => d.periodo_academico?.codigo === this.periodoAnterior(periodo) || d.periodo_academico?.nombre === this.periodoAnterior(periodo),
+      (d) =>
+        d.periodo_academico?.codigo === this.periodoAnterior(periodo) ||
+        d.periodo_academico?.nombre === this.periodoAnterior(periodo),
     );
 
     const enviadas = declPeriodo.filter(
@@ -2722,14 +2973,15 @@ export class ReportesService {
       declAnterior.length > 0
         ? Math.round((envAnterior / declAnterior.length) * 100)
         : 0;
-    const variacion = pctAnterior > 0
-      ? Math.round(
-          ((enviadas.length / Math.max(declPeriodo.length, 1)) * 100 -
-            pctAnterior) /
-            pctAnterior *
-            100,
-        )
-      : 0;
+    const variacion =
+      pctAnterior > 0
+        ? Math.round(
+            (((enviadas.length / Math.max(declPeriodo.length, 1)) * 100 -
+              pctAnterior) /
+              pctAnterior) *
+              100,
+          )
+        : 0;
 
     const html = this.htmlWrapper(`
       <div class="content-header">
@@ -2747,7 +2999,7 @@ export class ReportesService {
           <div class="kpi-card"><span>Docentes con Observaciones</span><strong>${observadas.length}</strong></div>
           <div class="kpi-card"><span>Carga Lectiva Promedio</span><strong>${cargaPromedio.toFixed(1)}h</strong></div>
           <div class="kpi-card"><span>Tiempo Promedio Proceso</span><strong>${tiempoPromedioHoras}h</strong></div>
-          <div class="kpi-card"><span>Variación vs Período Anterior</span><strong style="color: ${variacion >= 0 ? '#10b981' : '#ef4444'}">${variacion >= 0 ? '+' : ''}${variacion}%</strong></div>
+          <div class="kpi-card"><span>Variación vs Período Anterior</span><strong style="color: ${variacion >= 0 ? "#10b981" : "#ef4444"}">${variacion >= 0 ? "+" : ""}${variacion}%</strong></div>
         </div>
       </div>
 
@@ -2766,7 +3018,12 @@ export class ReportesService {
         <table>
           <thead><tr><th>Estado</th><th>Cantidad</th><th>% del Total</th></tr></thead>
           <tbody>
-            ${this.estadosConLabels(declPeriodo).map((e) => `<tr><td>${e.label}</td><td>${e.count}</td><td>${e.porcentaje.toFixed(1)}%</td></tr>`).join("")}
+            ${this.estadosConLabels(declPeriodo)
+              .map(
+                (e) =>
+                  `<tr><td>${e.label}</td><td>${e.count}</td><td>${e.porcentaje.toFixed(1)}%</td></tr>`,
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
@@ -3048,18 +3305,17 @@ export class ReportesService {
     return orden[estado] ?? 0;
   }
 
-  private agruparPorCategoria(
-    declaraciones: DeclaracionCargaHoraria[],
-  ): { categoria: string; docentes: number; horas: number; promedio: number }[] {
-    const map = new Map<
-      string,
-      { docentes: Set<number>; horas: number }
-    >();
+  private agruparPorCategoria(declaraciones: DeclaracionCargaHoraria[]): {
+    categoria: string;
+    docentes: number;
+    horas: number;
+    promedio: number;
+  }[] {
+    const map = new Map<string, { docentes: Set<number>; horas: number }>();
     for (const d of declaraciones) {
       if (!d.docente) continue;
       const cat = d.docente.categoria || "Sin categoría";
-      if (!map.has(cat))
-        map.set(cat, { docentes: new Set(), horas: 0 });
+      if (!map.has(cat)) map.set(cat, { docentes: new Set(), horas: 0 });
       const grupo = map.get(cat);
       grupo.docentes.add(d.docente_id);
       grupo.horas += d.total_horas_lectivas;
@@ -3114,9 +3370,7 @@ export class ReportesService {
       .filter((e) => e.count > 0);
   }
 
-  private async obtenerIdPeriodo(
-    periodo: string,
-  ): Promise<number | null> {
+  private async obtenerIdPeriodo(periodo: string): Promise<number | null> {
     try {
       const p = await this.periodoRepo.findOne({
         where: { codigo: periodo },
@@ -4516,8 +4770,12 @@ export class ReportesService {
       const duracionBloqueConfig = restricciones["DURACION_BLOQUE"] as any;
       if (duracionBloqueConfig?.duracion_minutos) {
         duracionBloque = duracionBloqueConfig.duracion_minutos / 60;
-      } else if (duracionBloqueConfig?.valor || duracionBloqueConfig?.duracion) {
-        duracionBloque = duracionBloqueConfig.valor || duracionBloqueConfig.duracion;
+      } else if (
+        duracionBloqueConfig?.valor ||
+        duracionBloqueConfig?.duracion
+      ) {
+        duracionBloque =
+          duracionBloqueConfig.valor || duracionBloqueConfig.duracion;
       }
       const bAlm = restricciones["BLOQUE_ALMUERZO"] as any;
       if (bAlm?.hora_inicio && bAlm?.hora_fin) {
@@ -4525,11 +4783,16 @@ export class ReportesService {
         almuerzoFin = parseInt(bAlm.hora_fin.split(":")[0], 10);
       }
     } catch (e) {
-      this.logger.warn(`Error getting configuration for period ${periodo}: ${e.message}`);
+      this.logger.warn(
+        `Error getting configuration for period ${periodo}: ${e.message}`,
+      );
     }
 
     // Update horasArr based on Franja Horaria
-    const horasArr = Array.from({ length: horaFin - horaInicio }, (_, i) => i + horaInicio);
+    const horasArr = Array.from(
+      { length: horaFin - horaInicio },
+      (_, i) => i + horaInicio,
+    );
 
     const startGridRow = currentRow;
     horasArr.forEach((h) => {
@@ -5325,71 +5588,81 @@ export class ReportesService {
     const clad = await this.cladRepo.findOne({
       where: { id },
       relations: [
-        'docente',
-        'docente.departamento',
-        'docente.facultad',
-        'periodo_academico',
-        'detalles',
+        "docente",
+        "docente.departamento",
+        "docente.facultad",
+        "periodo_academico",
+        "detalles",
       ],
     });
 
-    if (!clad) throw new NotFoundException('Declaración CLAD no encontrada');
+    if (!clad) throw new NotFoundException("Declaración CLAD no encontrada");
 
-    const configuracion = await this.configuracionService.getConfiguracionGeneral();
-    const logoUrl = configuracion.logo_url || "https://upload.wikimedia.org/wikipedia/commons/e/e0/Escudo_de_la_Universidad_Nacional_de_Trujillo.png";
+    const configuracion =
+      await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl =
+      configuracion.logo_url ||
+      "https://upload.wikimedia.org/wikipedia/commons/e/e0/Escudo_de_la_Universidad_Nacional_de_Trujillo.png";
     const logoBase64 = await this.getBase64Image(logoUrl);
 
     const firmaBase64 = clad.docente?.firma_url
       ? await this.getBase64Image(clad.docente.firma_url)
       : null;
 
-    const isRegular = ['NOMBRADO'].includes(clad.docente.tipo_contrato || '');
+    const isRegular = ["NOMBRADO"].includes(clad.docente.tipo_contrato || "");
     const isContratado = !isRegular;
 
-    const isPrincipal = clad.docente.categoria === 'PRINCIPAL';
-    const isAsociado = clad.docente.categoria === 'ASOCIADO';
-    const isAuxiliar = clad.docente.categoria === 'AUXILIAR';
+    const isPrincipal = clad.docente.categoria === "PRINCIPAL";
+    const isAsociado = clad.docente.categoria === "ASOCIADO";
+    const isAuxiliar = clad.docente.categoria === "AUXILIAR";
 
-    const isDE = clad.docente.modalidad === 'DEDICACION_EXCLUSIVA';
-    const isTC = (clad.docente.modalidad || '').startsWith('TIEMPO_COMPLETO');
-    const isTP = (clad.docente.modalidad || '').startsWith('TIEMPO_PARCIAL');
+    const isDE = clad.docente.modalidad === "DEDICACION_EXCLUSIVA";
+    const isTC = (clad.docente.modalidad || "").startsWith("TIEMPO_COMPLETO");
+    const isTP = (clad.docente.modalidad || "").startsWith("TIEMPO_PARCIAL");
 
-    const check = '(  X  )';
-    const uncheck = '(      )';
+    const check = "(  X  )";
+    const uncheck = "(      )";
 
     const periodoInicio = clad.periodo_academico?.fecha_inicio
-      ? new Date(clad.periodo_academico.fecha_inicio).toLocaleDateString('es-PE')
-      : '';
+      ? new Date(clad.periodo_academico.fecha_inicio).toLocaleDateString(
+          "es-PE",
+        )
+      : "";
     const periodoFin = clad.periodo_academico?.fecha_fin
-      ? new Date(clad.periodo_academico.fecha_fin).toLocaleDateString('es-PE')
-      : '';
-    const anoAcademico = clad.periodo_academico?.codigo?.split('-')[0] || '';
-    const semestre = clad.periodo_academico?.codigo?.split('-')[1] || '';
+      ? new Date(clad.periodo_academico.fecha_fin).toLocaleDateString("es-PE")
+      : "";
+    const anoAcademico = clad.periodo_academico?.codigo?.split("-")[0] || "";
+    const semestre = clad.periodo_academico?.codigo?.split("-")[1] || "";
 
     const nombresCompletos = `${clad.docente.apellidos}, ${clad.docente.nombres}`;
 
-    const fechaHoy = new Date().toLocaleDateString('es-PE', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    const fechaHoy = new Date().toLocaleDateString("es-PE", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
 
-    let filasCursos = '';
+    let filasCursos = "";
     clad.detalles.forEach((det, i) => {
-      let horarioStr = '';
+      let horarioStr = "";
       if (det.horario) {
         const h = det.horario as any;
-        const diaNombre = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'][h.dia] || h.dia;
+        const diaNombre =
+          ["DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB"][h.dia] || h.dia;
         horarioStr = `${diaNombre}<br>${h.hora_inicio} - ${h.hora_fin}`;
       }
 
-      const fechaInicio = det.fecha_inicio ? new Date(det.fecha_inicio).toLocaleDateString('es-PE') : '';
-      const fechaFin = det.fecha_fin ? new Date(det.fecha_fin).toLocaleDateString('es-PE') : '';
+      const fechaInicio = det.fecha_inicio
+        ? new Date(det.fecha_inicio).toLocaleDateString("es-PE")
+        : "";
+      const fechaFin = det.fecha_fin
+        ? new Date(det.fecha_fin).toLocaleDateString("es-PE")
+        : "";
 
       filasCursos += `
         <tr>
           <td>${det.nombre_curso}</td>
-          <td>${clad.tipo_dependencia.replace('_', ' ')}</td>
+          <td>${clad.tipo_dependencia.replace("_", " ")}</td>
           <td style="font-size:9px;">
             F.I.: ${fechaInicio}<br>
             F.T.: ${fechaFin}
@@ -5400,9 +5673,15 @@ export class ReportesService {
       `;
     });
 
-    const firmaDocenteStr = clad.firma_docente ? `Firmado digitalmente el ${new Date((clad.firma_docente as any).fecha).toLocaleDateString('es-PE')}` : '';
-    const firmaDptoStr = clad.firma_director_dpto ? `Firmado digitalmente el ${new Date((clad.firma_director_dpto as any).fecha).toLocaleDateString('es-PE')}` : '';
-    const firmaDecanoStr = clad.firma_decano ? `Firmado digitalmente el ${new Date((clad.firma_decano as any).fecha).toLocaleDateString('es-PE')}` : '';
+    const firmaDocenteStr = clad.firma_docente
+      ? `Firmado digitalmente el ${new Date((clad.firma_docente as any).fecha).toLocaleDateString("es-PE")}`
+      : "";
+    const firmaDptoStr = clad.firma_director_dpto
+      ? `Firmado digitalmente el ${new Date((clad.firma_director_dpto as any).fecha).toLocaleDateString("es-PE")}`
+      : "";
+    const firmaDecanoStr = clad.firma_decano
+      ? `Firmado digitalmente el ${new Date((clad.firma_decano as any).fecha).toLocaleDateString("es-PE")}`
+      : "";
 
     const html = `
       <!DOCTYPE html>
@@ -5439,8 +5718,8 @@ export class ReportesService {
           <div class="title-main">DECLARACIÓN DE CARGA HORARIA LECTIVA ASIGNADA EN FILIALES,<br>POSTGRADO, SEGUNDAS ESPECIALIDADES Y CENTROS DE<br>PRODUCCIÓN Y EXTENSIÓN UNIVERSITARIA</div>
 
           <div class="info-header">
-            <div><span>FACULTAD:</span> ${clad.docente.facultad?.nombre || ''}</div>
-            <div><span>DPTO. ACADÉMICO:</span> ${clad.docente.departamento?.nombre || ''}</div>
+            <div><span>FACULTAD:</span> ${clad.docente.facultad?.nombre || ""}</div>
+            <div><span>DPTO. ACADÉMICO:</span> ${clad.docente.departamento?.nombre || ""}</div>
           </div>
 
           <div class="info-header" style="margin-bottom:5px;">
@@ -5460,7 +5739,7 @@ export class ReportesService {
               <tr>
                 <td style="height:45px;">
                   <strong>${nombresCompletos}</strong><br><br>
-                  <strong>CÓDIGO:</strong> ${clad.docente.codigo || ''}
+                  <strong>CÓDIGO:</strong> ${clad.docente.codigo || ""}
                 </td>
                 <td>
                   REGULAR ${isRegular ? check : uncheck}<br>
@@ -5512,9 +5791,10 @@ export class ReportesService {
 
           <div class="signatures">
             <div class="signature-box wide">
-              ${firmaBase64
-                ? `<img src="${firmaBase64}" style="max-height:50px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
-                : ''
+              ${
+                firmaBase64
+                  ? `<img src="${firmaBase64}" style="max-height:50px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                  : ""
               }
               <div class="signature-line">Firma del Profesor</div>
             </div>
@@ -5537,4 +5817,3 @@ export class ReportesService {
     return this.generarPDF(html);
   }
 }
-

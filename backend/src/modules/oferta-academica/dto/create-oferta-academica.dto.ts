@@ -1,4 +1,11 @@
-import { IsInt, IsNotEmpty, IsEnum, IsOptional, IsString, Min } from "class-validator";
+import {
+  IsInt,
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Min,
+} from "class-validator";
 import { TipoClase } from "../../../common/enums/tipo-clase.enum";
 
 export class CreateOfertaAcademicaDto {

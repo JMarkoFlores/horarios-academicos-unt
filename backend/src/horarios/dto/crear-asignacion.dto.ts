@@ -59,4 +59,3 @@ export class CrearAsignacionDto {
   @IsString()
   periodo_academico: string;
 }
-

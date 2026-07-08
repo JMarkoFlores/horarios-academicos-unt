@@ -85,10 +85,7 @@ export class AsignacionLectivaController {
     RolUsuario.SECRETARIA,
   )
   @RequiereAlcance()
-  findOne(
-    @Param("id") id: string,
-    @CurrentUser() usuario: UsuarioAutenticado,
-  ) {
+  findOne(@Param("id") id: string, @CurrentUser() usuario: UsuarioAutenticado) {
     return this.service.findOne(Number(id), usuario.contextoAcademico);
   }
 
@@ -157,10 +154,7 @@ export class AsignacionLectivaController {
     RolUsuario.SECRETARIA,
   )
   @RequiereAlcance()
-  remove(
-    @Param("id") id: string,
-    @CurrentUser() usuario: UsuarioAutenticado,
-  ) {
+  remove(@Param("id") id: string, @CurrentUser() usuario: UsuarioAutenticado) {
     return this.service.remove(Number(id), usuario);
   }
 }

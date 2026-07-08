@@ -11,7 +11,7 @@ export class QueryPlanEstudiosDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @Transform(({ value }) => value === "true" || value === true)
   activo?: boolean;
 
   @ApiPropertyOptional()

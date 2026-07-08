@@ -1,6 +1,15 @@
-import { IsString, IsEnum, IsOptional, IsArray, ValidateNested, IsNumber, IsDateString, IsObject } from 'class-validator';
-import { Type } from 'class-transformer';
-import { TipoDependenciaClad } from '../../common/enums/tipo-dependencia-clad.enum';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  IsDateString,
+  IsObject,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { TipoDependenciaClad } from "../../common/enums/tipo-dependencia-clad.enum";
 
 export class CreateHorarioDto {
   @IsNumber()

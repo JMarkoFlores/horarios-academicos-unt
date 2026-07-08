@@ -487,7 +487,9 @@ export class NotificacionesService {
     try {
       if (canal === CanalNotificacion.CORREO) {
         const to = overrideEmail || docente.email;
-        this.logger.log(`[EnviarNotificacion] overrideEmail=${overrideEmail}, docente.email=${docente.email}, to=${to}`);
+        this.logger.log(
+          `[EnviarNotificacion] overrideEmail=${overrideEmail}, docente.email=${docente.email}, to=${to}`,
+        );
         this.logger.log(`[EnviarNotificacion] Enviando EMAIL a: ${to}`);
         await this.mailService.sendMail(to, subject, content);
         this.logger.log(
@@ -590,7 +592,9 @@ export class NotificacionesService {
     // Notificación por correo
     if (prefs.canal_correo) {
       const destinatario = prefs.correo_alternativo || docente.email;
-      this.logger.log(`[EMAIL] Canal habilitado, intentando enviar a ${destinatario}...`);
+      this.logger.log(
+        `[EMAIL] Canal habilitado, intentando enviar a ${destinatario}...`,
+      );
       try {
         await this.enviarNotificacion(
           docente,
@@ -601,9 +605,7 @@ export class NotificacionesService {
           destinatario,
         );
         resultados.emailEnviado = true;
-        this.logger.log(
-          `[EMAIL] ✅ Enviado exitosamente a ${destinatario}`,
-        );
+        this.logger.log(`[EMAIL] ✅ Enviado exitosamente a ${destinatario}`);
       } catch (error: any) {
         resultados.errores.push(`Email: ${error.message}`);
         this.logger.error(`[EMAIL] ❌ Error: ${error.message}`);
@@ -685,12 +687,19 @@ export class NotificacionesService {
     if (dto.canal_telegram !== undefined)
       prefs.canal_telegram = dto.canal_telegram;
     if (dto.telegram_chat_id !== undefined)
-      prefs.telegram_chat_id = dto.telegram_chat_id ? dto.telegram_chat_id : null;
+      prefs.telegram_chat_id = dto.telegram_chat_id
+        ? dto.telegram_chat_id
+        : null;
     if (dto.correo_alternativo !== undefined)
-      prefs.correo_alternativo = dto.correo_alternativo ? dto.correo_alternativo : null;
+      prefs.correo_alternativo = dto.correo_alternativo
+        ? dto.correo_alternativo
+        : null;
 
     await this.preferenciasRepo.save(prefs);
-    this.logger.log(`Preferencias guardadas para docente ${docenteId}:`, JSON.stringify(prefs));
+    this.logger.log(
+      `Preferencias guardadas para docente ${docenteId}:`,
+      JSON.stringify(prefs),
+    );
     return prefs;
   }
 

@@ -175,7 +175,9 @@ async function main() {
   await AppDataSource.destroy();
 
   if (fallos > 0) {
-    console.log(`\n❌ Verificación fallida: ${fallos} chequeo(s) no cumplido(s).`);
+    console.log(
+      `\n❌ Verificación fallida: ${fallos} chequeo(s) no cumplido(s).`,
+    );
     process.exit(1);
   }
 

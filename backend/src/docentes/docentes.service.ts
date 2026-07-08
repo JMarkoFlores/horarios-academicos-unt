@@ -23,6 +23,8 @@ import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Grupo } from "../entities/grupo.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
+import { EstadoAsignacionLectiva } from "../common/enums/estado-asignacion-lectiva.enum";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
@@ -89,6 +91,8 @@ export class DocentesService {
     private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
     @InjectRepository(Grupo)
     private readonly grupoRepo: Repository<Grupo>,
+    @InjectRepository(AsignacionLectiva)
+    private readonly asignacionLectivaRepo: Repository<AsignacionLectiva>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
@@ -309,7 +313,7 @@ export class DocentesService {
     }
 
     qb.addSelect(
-        `CASE
+      `CASE
           WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'PRINCIPAL'  THEN 1
           WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'ASOCIADO'   THEN 2
           WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'AUXILIAR'   THEN 3
@@ -317,8 +321,8 @@ export class DocentesService {
           WHEN docente.tipo_docente = 'JEFE_PRACTICA_CONTRATADO'                       THEN 5
           ELSE 6
         END`,
-        "orden_jerarquia",
-      )
+      "orden_jerarquia",
+    )
       .orderBy("orden_jerarquia", "ASC")
       .addOrderBy("docente.fecha_ingreso", "ASC");
 
@@ -557,14 +561,16 @@ export class DocentesService {
   }
 
   async create(dto: CreateDocenteDto): Promise<Docente> {
-    const codigo = dto.codigo || await this.generarCodigoUnico();
+    const codigo = dto.codigo || (await this.generarCodigoUnico());
 
     if (dto.email) {
       const emailExistente = await this.docenteRepo.findOne({
         where: { email: dto.email },
       });
       if (emailExistente) {
-        throw new ConflictException(`El email '${dto.email}' ya está registrado`);
+        throw new ConflictException(
+          `El email '${dto.email}' ya está registrado`,
+        );
       }
     }
 
@@ -584,9 +590,7 @@ export class DocentesService {
         where: { dni: dto.dni },
       });
       if (dniExistente) {
-        throw new ConflictException(
-          `El DNI '${dto.dni}' ya está registrado`,
-        );
+        throw new ConflictException(`El DNI '${dto.dni}' ya está registrado`);
       }
     }
 
@@ -595,9 +599,7 @@ export class DocentesService {
         where: { ibm: dto.ibm },
       });
       if (ibmExistente) {
-        throw new ConflictException(
-          `El IBM '${dto.ibm}' ya está registrado`,
-        );
+        throw new ConflictException(`El IBM '${dto.ibm}' ya está registrado`);
       }
     }
 
@@ -652,7 +654,11 @@ export class DocentesService {
     return saved;
   }
 
-  async update(id: number, dto: UpdateDocenteDto, contexto?: ContextoAcademico): Promise<Docente> {
+  async update(
+    id: number,
+    dto: UpdateDocenteDto,
+    contexto?: ContextoAcademico,
+  ): Promise<Docente> {
     const docente = await this.findOne(id, contexto);
 
     if (dto.usuario_id && dto.usuario_id !== docente.usuario_id) {
@@ -767,7 +773,9 @@ export class DocentesService {
       const existe = await this.docenteRepo.findOne({ where: { codigo } });
       if (!existe) return codigo;
     }
-    throw new BadRequestException('No se pudo generar un código único. Intente escribirlo manualmente.');
+    throw new BadRequestException(
+      "No se pudo generar un código único. Intente escribirlo manualmente.",
+    );
   }
 
   private async invalidarCacheDocentes(id?: number): Promise<void> {
@@ -891,6 +899,59 @@ export class DocentesService {
       if (periodo) periodoId = periodo.id;
     }
 
+    // Prioridad 1: leer desde asignacion_lectiva (source of truth del plan)
+    // Se incluyen asignaciones PENDIENTE y CONFIRMADO para que el docente pueda
+    // declarar su horario incluso antes de que la secretaría confirme formalmente
+    // la asignación lectiva. Las RECHAZADAS se excluyen explícitamente.
+    const asignacionesQb = this.asignacionLectivaRepo
+      .createQueryBuilder("al")
+      .leftJoinAndSelect("al.curso_plan", "curso_plan")
+      .leftJoinAndSelect("curso_plan.curso", "curso")
+      .leftJoinAndSelect("curso.ambientes", "ambientes")
+      .where("al.docente_id = :docenteId", { docenteId })
+      .andWhere("al.estado IN (:...estadosAsignacion)", {
+        estadosAsignacion: [
+          EstadoAsignacionLectiva.PENDIENTE,
+          EstadoAsignacionLectiva.CONFIRMADO,
+        ],
+      })
+      .andWhere("curso_plan.estado = :activo", { activo: "ACTIVO" });
+
+    if (tipoClase) {
+      asignacionesQb.andWhere("al.tipo_clase = :tipoClase", { tipoClase });
+    }
+    if (periodoId !== null) {
+      asignacionesQb.andWhere("al.periodo_id = :periodoId", { periodoId });
+    }
+
+    const asignaciones = await asignacionesQb
+      .orderBy("curso.nombre", "ASC")
+      .getMany();
+
+    if (asignaciones.length > 0) {
+      let filteredAsignaciones = asignaciones;
+      if (periodoCodigo) {
+        const isPeriodoImpar = this.esPeriodoImpar(periodoCodigo);
+        filteredAsignaciones = asignaciones.filter((item) => {
+          return isPeriodoImpar
+            ? item.curso_plan.ciclo % 2 !== 0
+            : item.curso_plan.ciclo % 2 === 0;
+        });
+      }
+
+      return filteredAsignaciones.map((item) => {
+        const gruposReales = item.tipo_clase === TipoClase.LABORATORIO ? 1 : 1;
+        return {
+          id: item.id,
+          cursoId: item.curso_plan.curso_id,
+          tipo_clase: item.tipo_clase,
+          curso: item.curso_plan.curso,
+          grupos: gruposReales,
+        };
+      });
+    }
+
+    // Fallback: leer desde docente_curso para compatibilidad con datos antiguos
     const qb = this.docenteCursoRepo
       .createQueryBuilder("dc")
       .leftJoinAndSelect("dc.curso", "curso")

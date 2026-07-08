@@ -14,14 +14,17 @@ export async function seedCladDemo(
   cargaAdicionalRepo: Repository<CargaAdicional>,
   declaracionRepo: Repository<DeclaracionCargaHoraria>,
   docentes: Docente[],
-  periodoActivo: PeriodoAcademico
+  periodoActivo: PeriodoAcademico,
 ) {
-  const docente = docentes.find((d) =>
-    d.nombres.toLowerCase().includes("marcelino") &&
-    d.apellidos.toLowerCase().includes("torres")
+  const docente = docentes.find(
+    (d) =>
+      d.nombres.toLowerCase().includes("marcelino") &&
+      d.apellidos.toLowerCase().includes("torres"),
   );
   if (!docente) {
-    console.warn("⚠️ Docente Marcelino Torres no encontrado, saltando seed CLAD");
+    console.warn(
+      "⚠️ Docente Marcelino Torres no encontrado, saltando seed CLAD",
+    );
     return;
   }
 
@@ -30,7 +33,9 @@ export async function seedCladDemo(
   });
 
   if (!declaracionCarga) {
-    console.warn("⚠️ DeclaracionCargaHoraria no encontrada para Marcelino, saltando seed CLAD");
+    console.warn(
+      "⚠️ DeclaracionCargaHoraria no encontrada para Marcelino, saltando seed CLAD",
+    );
     return;
   }
 
@@ -40,10 +45,25 @@ export async function seedCladDemo(
       periodo_academico_id: periodoActivo.id,
       tipo_dependencia: TipoDependenciaClad.POSGRADO,
       nombre_dependencia: "Posgrado - Maestría en Ingeniería de Sistemas",
-      firma_docente: { nombre: `${docente.nombres} ${docente.apellidos}`, fecha: "2026-04-10" },
-      firma_director_dpto: { nombre: "Director de Departamento", fecha: "2026-04-12", cargo: "Director del Departamento de Ingeniería de Sistemas" },
-      firma_director_dependencia: { nombre: "Director de Posgrado FI", fecha: "2026-04-14", cargo: "Director de Posgrado - Facultad de Ingeniería" },
-      firma_decano: { nombre: "Decano de Ingeniería", fecha: "2026-04-18", cargo: "Decano de la Facultad de Ingeniería" },
+      firma_docente: {
+        nombre: `${docente.nombres} ${docente.apellidos}`,
+        fecha: "2026-04-10",
+      },
+      firma_director_dpto: {
+        nombre: "Director de Departamento",
+        fecha: "2026-04-12",
+        cargo: "Director del Departamento de Ingeniería de Sistemas",
+      },
+      firma_director_dependencia: {
+        nombre: "Director de Posgrado FI",
+        fecha: "2026-04-14",
+        cargo: "Director de Posgrado - Facultad de Ingeniería",
+      },
+      firma_decano: {
+        nombre: "Decano de Ingeniería",
+        fecha: "2026-04-18",
+        cargo: "Decano de la Facultad de Ingeniería",
+      },
       estado: EstadoClad.APROBADO_FINAL,
       observaciones: null,
       total_horas: 8,
@@ -51,7 +71,7 @@ export async function seedCladDemo(
       fecha_validacion_dpto: new Date("2026-04-12"),
       fecha_validacion_dependencia: new Date("2026-04-14"),
       fecha_aprobacion_final: new Date("2026-04-18"),
-    })
+    }),
   );
 
   const detallesData = [
@@ -106,7 +126,7 @@ export async function seedCladDemo(
         fecha_fin: det.fecha_fin,
         horario: det.horario,
         horas_semanales: det.horas_semanales,
-      })
+      }),
     );
   }
 
@@ -127,8 +147,10 @@ export async function seedCladDemo(
       unidad_academica: "Posgrado - Facultad de Ingeniería",
       resolucion: "R.N° 045-2026-POS-FI-UNT",
       observaciones: "Carga horaria adicional aprobada por Consejo de Facultad",
-    })
+    }),
   );
 
-  console.log(`✅ CLAD demo para Marcelino Torres: 1 DeclaracionClad (APROBADO_FINAL), 3 Detalles, 1 CargaAdicional`);
+  console.log(
+    `✅ CLAD demo para Marcelino Torres: 1 DeclaracionClad (APROBADO_FINAL), 3 Detalles, 1 CargaAdicional`,
+  );
 }

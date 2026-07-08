@@ -111,267 +111,277 @@ export class GeneracionAutomaticaService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-    if (previos.length > 0) {
-      this.logger.log(
-        `[GeneraciÃ³n] Eliminando ${previos.length} horarios auto-generados previos`,
-      );
+      if (previos.length > 0) {
+        this.logger.log(
+          `[GeneraciÃ³n] Eliminando ${previos.length} horarios auto-generados previos`,
+        );
         await queryRunner.manager.remove(previos);
-    }
+      }
 
-    const resultado: ResultadoGeneracion = {
-      totalDocentes: 0,
-      docentesAtendidos: 0,
-      horariosGenerados: 0,
-      conflictos: [],
-      detallePorDocente: [],
-    };
-
-    // Obtener docentes activos ordenados por jerarquÃ­a: categorÃ­a luego tipo_contrato luego fecha_ingreso
-    const docentes = await this.docenteRepo.find({
-      where: { activo: true },
-      order: {
-        categoria: "ASC",
-        tipo_contrato: "ASC",
-        fecha_ingreso: "ASC",
-      },
-    });
-
-    resultado.totalDocentes = docentes.length;
-
-    // Obtener todos los grupos del perÃ­odo
-    const grupos = await this.grupoRepo.find({
-      where: { periodo_academico: { id: periodo.id } },
-      relations: ["curso"],
-    });
-
-    // Obtener disponibilidades del perÃ­odo
-    const disponibilidades = await this.disponibilidadRepo.find({
-      where: { periodo_academico: periodoCodigo },
-    });
-
-    // Obtener horarios existentes (para evitar cruces)
-    const horariosExistentes = await this.horarioRepo.find({
-      where: { periodo: periodoCodigo },
-      relations: ["docente", "ambiente", "grupo"],
-    });
-
-    // Cargar parÃ¡metros de carga para el perÃ­odo
-    const parametrosCarga = await this.parametrosCargaRepo.find({
-      where: { periodo_academico: periodoCodigo },
-    });
-    const parametrosMap = new Map<string, ParametrosCarga>();
-    for (const p of parametrosCarga) {
-      parametrosMap.set(
-        `${p.tipo_docente}_${p.categoria}_${p.modalidad ?? ""}`,
-        p,
-      );
-    }
-
-    // Rastreo de horas semanales y cursos por docente en este perÃ­odo
-    const horasSemanalesDocente = new Map<number, number>();
-    const cursosDocenteSet = new Map<number, Set<number>>();
-
-    // Para cada docente, generar horarios
-    for (const docente of docentes) {
-      const detalle: DetalleDocente = {
-        docenteId: docente.id,
-        nombre: `${docente.apellidos}, ${docente.nombres}`,
+      const resultado: ResultadoGeneracion = {
+        totalDocentes: 0,
+        docentesAtendidos: 0,
         horariosGenerados: 0,
-        horariosPendientes: 0,
-        errores: [],
+        conflictos: [],
+        detallePorDocente: [],
       };
 
-      // Obtener parÃ¡metros para este docente
-      const pKey = `${docente.tipo_docente}_${docente.categoria}_${docente.modalidad ?? ""}`;
-      const parametro = parametrosMap.get(pKey);
-      const maxHorasSemanal = parametro?.horas_max_semanal ?? 999;
-      const maxCursos = parametro?.cursos_max_docente ?? 999;
+      // Obtener docentes activos ordenados por jerarquÃ­a: categorÃ­a luego tipo_contrato luego fecha_ingreso
+      const docentes = await this.docenteRepo.find({
+        where: { activo: true },
+        order: {
+          categoria: "ASC",
+          tipo_contrato: "ASC",
+          fecha_ingreso: "ASC",
+        },
+      });
 
-      if (!horasSemanalesDocente.has(docente.id))
-        horasSemanalesDocente.set(docente.id, 0);
-      if (!cursosDocenteSet.has(docente.id))
-        cursosDocenteSet.set(docente.id, new Set());
+      resultado.totalDocentes = docentes.length;
 
-      // Obtener cursos asignados al docente en este perÃ­odo
-      const docenteCursos = await this.docenteCursoRepo.find({
-        where: { docenteId: docente.id, periodoId: periodo.id },
+      // Obtener todos los grupos del perÃ­odo
+      const grupos = await this.grupoRepo.find({
+        where: { periodo_academico: { id: periodo.id } },
         relations: ["curso"],
       });
 
-      if (docenteCursos.length === 0) {
-        detalle.errores.push("No tiene cursos asignados");
-        resultado.detallePorDocente.push(detalle);
-        continue;
+      // Obtener disponibilidades del perÃ­odo
+      const disponibilidades = await this.disponibilidadRepo.find({
+        where: { periodo_academico: periodoCodigo },
+      });
+
+      // Obtener horarios existentes (para evitar cruces)
+      const horariosExistentes = await this.horarioRepo.find({
+        where: { periodo: periodoCodigo },
+        relations: ["docente", "ambiente", "grupo"],
+      });
+
+      // Cargar parÃ¡metros de carga para el perÃ­odo
+      const parametrosCarga = await this.parametrosCargaRepo.find({
+        where: { periodo_academico: periodoCodigo },
+      });
+      const parametrosMap = new Map<string, ParametrosCarga>();
+      for (const p of parametrosCarga) {
+        parametrosMap.set(
+          `${p.tipo_docente}_${p.categoria}_${p.modalidad ?? ""}`,
+          p,
+        );
       }
 
-      for (const dc of docenteCursos) {
-        const curso = dc.curso;
-        const tipoClase = dc.tipo_clase;
+      // Rastreo de horas semanales y cursos por docente en este perÃ­odo
+      const horasSemanalesDocente = new Map<number, number>();
+      const cursosDocenteSet = new Map<number, Set<number>>();
 
-        // Obtener ambientes compatibles para este curso
-        const cursoConAmbientes = await this.cursoRepo.findOne({
-          where: { id: curso.id },
-          relations: ["ambientes"],
+      // Para cada docente, generar horarios
+      for (const docente of docentes) {
+        const detalle: DetalleDocente = {
+          docenteId: docente.id,
+          nombre: `${docente.apellidos}, ${docente.nombres}`,
+          horariosGenerados: 0,
+          horariosPendientes: 0,
+          errores: [],
+        };
+
+        // Obtener parÃ¡metros para este docente
+        const pKey = `${docente.tipo_docente}_${docente.categoria}_${docente.modalidad ?? ""}`;
+        const parametro = parametrosMap.get(pKey);
+        const maxHorasSemanal = parametro?.horas_max_semanal ?? 999;
+        const maxCursos = parametro?.cursos_max_docente ?? 999;
+
+        if (!horasSemanalesDocente.has(docente.id))
+          horasSemanalesDocente.set(docente.id, 0);
+        if (!cursosDocenteSet.has(docente.id))
+          cursosDocenteSet.set(docente.id, new Set());
+
+        // Obtener cursos asignados al docente en este perÃ­odo
+        const docenteCursos = await this.docenteCursoRepo.find({
+          where: { docenteId: docente.id, periodoId: periodo.id },
+          relations: ["curso"],
         });
-        const cursoAmbientes = (cursoConAmbientes?.ambientes ?? []).map((a) => ({ ambiente: a }));
 
-        if (cursoAmbientes.length === 0) {
-          detalle.errores.push(
-            `Curso ${curso.nombre}: no tiene ambientes para ${tipoClase}`,
-          );
+        if (docenteCursos.length === 0) {
+          detalle.errores.push("No tiene cursos asignados");
+          resultado.detallePorDocente.push(detalle);
           continue;
         }
 
-        // Buscar grupo del curso en este perÃ­odo
-        const gruposCurso = grupos.filter((g) => g.curso.id === curso.id);
-        if (gruposCurso.length === 0) {
-          detalle.errores.push(
-            `Curso ${curso.nombre}: no hay grupos en este perÃ­odo`,
+        for (const dc of docenteCursos) {
+          const curso = dc.curso;
+          const tipoClase = dc.tipo_clase;
+
+          // Obtener ambientes compatibles para este curso
+          const cursoConAmbientes = await this.cursoRepo.findOne({
+            where: { id: curso.id },
+            relations: ["ambientes"],
+          });
+          const cursoAmbientes = (cursoConAmbientes?.ambientes ?? []).map(
+            (a) => ({ ambiente: a }),
           );
-          continue;
-        }
 
-        // Para cada grupo, asignar slots
-        for (const grupo of gruposCurso) {
-          // Determinar cuÃ¡ntas horas necesita
-          const horasRequeridas =
-            tipoClase === TipoClase.TEORIA
-              ? curso.horas_teoria || 0
-              : curso.horas_laboratorio || 0;
+          if (cursoAmbientes.length === 0) {
+            detalle.errores.push(
+              `Curso ${curso.nombre}: no tiene ambientes para ${tipoClase}`,
+            );
+            continue;
+          }
 
-          if (horasRequeridas === 0) continue;
+          // Buscar grupo del curso en este perÃ­odo
+          const gruposCurso = grupos.filter((g) => g.curso.id === curso.id);
+          if (gruposCurso.length === 0) {
+            detalle.errores.push(
+              `Curso ${curso.nombre}: no hay grupos en este perÃ­odo`,
+            );
+            continue;
+          }
 
-          const bloquesNecesarios = Math.ceil(
-            horasRequeridas / this.DURACION_BLOQUE,
-          );
-          let bloquesAsignados = 0;
+          // Para cada grupo, asignar slots
+          for (const grupo of gruposCurso) {
+            // Determinar cuÃ¡ntas horas necesita
+            const horasRequeridas =
+              tipoClase === TipoClase.TEORIA
+                ? curso.horas_teoria || 0
+                : curso.horas_laboratorio || 0;
 
-          for (const dia of this.DIAS_SEMANA) {
-            if (bloquesAsignados >= bloquesNecesarios) break;
+            if (horasRequeridas === 0) continue;
 
-            for (const hora of this.HORAS_INICIO) {
+            const bloquesNecesarios = Math.ceil(
+              horasRequeridas / this.DURACION_BLOQUE,
+            );
+            let bloquesAsignados = 0;
+
+            for (const dia of this.DIAS_SEMANA) {
               if (bloquesAsignados >= bloquesNecesarios) break;
 
-              const horaFin = this.sumarHoras(hora, this.DURACION_BLOQUE);
+              for (const hora of this.HORAS_INICIO) {
+                if (bloquesAsignados >= bloquesNecesarios) break;
 
-              // Validar disponibilidad del docente
-              const dispDocente = disponibilidades.filter(
-                (d) =>
-                  d.docente.id === docente.id &&
-                  d.dia_semana === dia &&
-                  d.hora_inicio <= hora &&
-                  d.hora_fin >= horaFin &&
-                  d.disponible,
-              );
-              // Si tiene disponibilidades registradas pero ninguna cubre este slot, saltar
-              const tieneDisponibilidades = disponibilidades.some(
-                (d) => d.docente.id === docente.id,
-              );
-              if (tieneDisponibilidades && dispDocente.length === 0) continue;
+                const horaFin = this.sumarHoras(hora, this.DURACION_BLOQUE);
 
-              // Validar lÃ­mite de horas semanales segÃºn ParametrosCarga
-              const horasActuales = horasSemanalesDocente.get(docente.id) ?? 0;
-              if (horasActuales + this.DURACION_BLOQUE > maxHorasSemanal) break;
+                // Validar disponibilidad del docente
+                const dispDocente = disponibilidades.filter(
+                  (d) =>
+                    d.docente.id === docente.id &&
+                    d.dia_semana === dia &&
+                    d.hora_inicio <= hora &&
+                    d.hora_fin >= horaFin &&
+                    d.disponible,
+                );
+                // Si tiene disponibilidades registradas pero ninguna cubre este slot, saltar
+                const tieneDisponibilidades = disponibilidades.some(
+                  (d) => d.docente.id === docente.id,
+                );
+                if (tieneDisponibilidades && dispDocente.length === 0) continue;
 
-              // Validar lÃ­mite de cursos segÃºn ParametrosCarga
-              const cursosSet = cursosDocenteSet.get(docente.id) ?? new Set();
-              const esCursoNuevo = !cursosSet.has(curso.id);
-              if (esCursoNuevo && cursosSet.size >= maxCursos) break;
+                // Validar lÃ­mite de horas semanales segÃºn ParametrosCarga
+                const horasActuales =
+                  horasSemanalesDocente.get(docente.id) ?? 0;
+                if (horasActuales + this.DURACION_BLOQUE > maxHorasSemanal)
+                  break;
 
-              // Validar cruce de docente
-              const cruceDocente = horariosExistentes.some(
-                (h) =>
-                  h.docente.id === docente.id &&
-                  h.dia === dia &&
-                  h.hora_inicio < horaFin &&
-                  h.hora_fin > hora,
-              );
-              if (cruceDocente) continue;
+                // Validar lÃ­mite de cursos segÃºn ParametrosCarga
+                const cursosSet = cursosDocenteSet.get(docente.id) ?? new Set();
+                const esCursoNuevo = !cursosSet.has(curso.id);
+                if (esCursoNuevo && cursosSet.size >= maxCursos) break;
 
-              // Buscar ambiente libre
-              let ambienteAsignado: Ambiente | null = null;
-              for (const ca of cursoAmbientes) {
-                const amb = ca.ambiente;
-                const cruceAmbiente = horariosExistentes.some(
+                // Validar cruce de docente
+                const cruceDocente = horariosExistentes.some(
                   (h) =>
-                    h.ambiente.id === amb.id &&
+                    h.docente.id === docente.id &&
                     h.dia === dia &&
                     h.hora_inicio < horaFin &&
                     h.hora_fin > hora,
                 );
-                if (!cruceAmbiente) {
-                  ambienteAsignado = amb;
-                  break;
+                if (cruceDocente) continue;
+
+                // Buscar ambiente libre
+                let ambienteAsignado: Ambiente | null = null;
+                for (const ca of cursoAmbientes) {
+                  const amb = ca.ambiente;
+                  const cruceAmbiente = horariosExistentes.some(
+                    (h) =>
+                      h.ambiente.id === amb.id &&
+                      h.dia === dia &&
+                      h.hora_inicio < horaFin &&
+                      h.hora_fin > hora,
+                  );
+                  if (!cruceAmbiente) {
+                    ambienteAsignado = amb;
+                    break;
+                  }
                 }
+
+                if (!ambienteAsignado) {
+                  continue; // NingÃºn ambiente libre
+                }
+
+                // Validar cruce de grupo
+                const cruceGrupo = horariosExistentes.some(
+                  (h) =>
+                    h.grupo.id === grupo.id &&
+                    h.dia === dia &&
+                    h.hora_inicio < horaFin &&
+                    h.hora_fin > hora,
+                );
+                if (cruceGrupo) continue;
+
+                // Crear horario
+                const nuevoHorario = queryRunner.manager.create(
+                  HorarioAsignado,
+                  {
+                    docente_id: docente.id,
+                    curso_id: curso.id,
+                    grupo_id: grupo.id,
+                    ambiente_id: ambienteAsignado.id,
+                    periodo: periodoCodigo,
+                    dia,
+                    hora_inicio: hora,
+                    hora_fin: horaFin,
+                    tipo_clase: tipoClase,
+                    estado: EstadoHorario.BORRADOR,
+                    origen: OrigenHorario.GENERACION_AUTOMATICA,
+                  },
+                );
+
+                const guardado = await queryRunner.manager.save(nuevoHorario);
+                horariosExistentes.push(guardado as any);
+                horasSemanalesDocente.set(
+                  docente.id,
+                  (horasSemanalesDocente.get(docente.id) ?? 0) +
+                    this.DURACION_BLOQUE,
+                );
+                cursosDocenteSet.get(docente.id).add(curso.id);
+                detalle.horariosGenerados++;
+                resultado.horariosGenerados++;
+                bloquesAsignados++;
               }
+            }
 
-              if (!ambienteAsignado) {
-                continue; // NingÃºn ambiente libre
-              }
-
-              // Validar cruce de grupo
-              const cruceGrupo = horariosExistentes.some(
-                (h) =>
-                  h.grupo.id === grupo.id &&
-                  h.dia === dia &&
-                  h.hora_inicio < horaFin &&
-                  h.hora_fin > hora,
+            if (bloquesAsignados < bloquesNecesarios) {
+              detalle.horariosPendientes +=
+                bloquesNecesarios - bloquesAsignados;
+              detalle.errores.push(
+                `Curso ${curso.nombre} (${tipoClase}): solo se asignaron ${bloquesAsignados * this.DURACION_BLOQUE}h de ${horasRequeridas}h`,
               );
-              if (cruceGrupo) continue;
-
-              // Crear horario
-              const nuevoHorario = queryRunner.manager.create(HorarioAsignado, {
-                docente_id: docente.id,
-                curso_id: curso.id,
-                grupo_id: grupo.id,
-                ambiente_id: ambienteAsignado.id,
-                periodo: periodoCodigo,
-                dia,
-                hora_inicio: hora,
-                hora_fin: horaFin,
-                tipo_clase: tipoClase,
-                estado: EstadoHorario.BORRADOR,
-                origen: OrigenHorario.GENERACION_AUTOMATICA,
-              });
-
-              const guardado = await queryRunner.manager.save(nuevoHorario);
-              horariosExistentes.push(guardado as any);
-              horasSemanalesDocente.set(
-                docente.id,
-                (horasSemanalesDocente.get(docente.id) ?? 0) +
-                  this.DURACION_BLOQUE,
-              );
-              cursosDocenteSet.get(docente.id).add(curso.id);
-              detalle.horariosGenerados++;
-              resultado.horariosGenerados++;
-              bloquesAsignados++;
             }
           }
-
-          if (bloquesAsignados < bloquesNecesarios) {
-            detalle.horariosPendientes += bloquesNecesarios - bloquesAsignados;
-            detalle.errores.push(
-              `Curso ${curso.nombre} (${tipoClase}): solo se asignaron ${bloquesAsignados * this.DURACION_BLOQUE}h de ${horasRequeridas}h`,
-            );
-          }
         }
+
+        if (detalle.horariosGenerados > 0) {
+          resultado.docentesAtendidos++;
+        }
+        resultado.detallePorDocente.push(detalle);
       }
 
-      if (detalle.horariosGenerados > 0) {
-        resultado.docentesAtendidos++;
-      }
-      resultado.detallePorDocente.push(detalle);
-    }
+      this.logger.log(
+        `[GeneraciÃ³n] Finalizado: ${resultado.horariosGenerados} horarios para ${resultado.docentesAtendidos} docentes`,
+      );
 
-    this.logger.log(
-      `[GeneraciÃ³n] Finalizado: ${resultado.horariosGenerados} horarios para ${resultado.docentesAtendidos} docentes`,
-    );
-
-    await queryRunner.commitTransaction();
-    return resultado;
+      await queryRunner.commitTransaction();
+      return resultado;
     } catch (txError) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`[Generación] Error en transacción: ${txError.message}`);
+      this.logger.error(
+        `[Generación] Error en transacción: ${txError.message}`,
+      );
       throw txError;
     } finally {
       await queryRunner.release();
@@ -398,4 +408,3 @@ export class GeneracionAutomaticaService {
     return `${total.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
   }
 }
-

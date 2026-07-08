@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { OfertaAcademica } from "../../entities/oferta-academica.entity";
@@ -31,7 +35,9 @@ export class OfertaAcademicaService {
       qb.andWhere("o.periodo_id = :periodoId", { periodoId: query.periodo_id });
     }
     if (query.plan_id) {
-      qb.andWhere("curso_plan.plan_estudios_id = :planId", { planId: query.plan_id });
+      qb.andWhere("curso_plan.plan_estudios_id = :planId", {
+        planId: query.plan_id,
+      });
     }
     if (query.ciclo) {
       qb.andWhere("curso_plan.ciclo = :ciclo", { ciclo: query.ciclo });
@@ -64,7 +70,9 @@ export class OfertaAcademicaService {
       relations: ["curso", "plan_estudios"],
     });
     if (!cursoPlan) {
-      throw new NotFoundException(`Curso en plan #${dto.curso_plan_id} no encontrado`);
+      throw new NotFoundException(
+        `Curso en plan #${dto.curso_plan_id} no encontrado`,
+      );
     }
 
     const periodo = await this.periodoRepo.findOne({
@@ -112,8 +120,13 @@ export class OfertaAcademicaService {
     return this.ofertaRepo.remove(oferta);
   }
 
-  async generarDesdePlan(periodoId: number, planId: number): Promise<OfertaAcademica[]> {
-    const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+  async generarDesdePlan(
+    periodoId: number,
+    planId: number,
+  ): Promise<OfertaAcademica[]> {
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
     if (!periodo) {
       throw new NotFoundException(`Período #${periodoId} no encontrado`);
     }
@@ -125,7 +138,11 @@ export class OfertaAcademicaService {
 
     const creadas: OfertaAcademica[] = [];
     for (const cp of cursosPlan) {
-      for (const tipo of [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO]) {
+      for (const tipo of [
+        TipoClase.TEORIA,
+        TipoClase.PRACTICA,
+        TipoClase.LABORATORIO,
+      ]) {
         const horas = this.getHorasPorTipo(cp, tipo);
         if (horas <= 0) continue;
 
@@ -166,11 +183,17 @@ export class OfertaAcademicaService {
     });
   }
 
-  private getHorasPorTipo(cursoPlan: CursoPlanEstudios, tipo: TipoClase): number {
+  private getHorasPorTipo(
+    cursoPlan: CursoPlanEstudios,
+    tipo: TipoClase,
+  ): number {
     switch (tipo) {
-      case TipoClase.TEORIA: return cursoPlan.horas_teoria;
-      case TipoClase.PRACTICA: return cursoPlan.horas_practica;
-      case TipoClase.LABORATORIO: return cursoPlan.horas_laboratorio;
+      case TipoClase.TEORIA:
+        return cursoPlan.horas_teoria;
+      case TipoClase.PRACTICA:
+        return cursoPlan.horas_practica;
+      case TipoClase.LABORATORIO:
+        return cursoPlan.horas_laboratorio;
     }
   }
 }

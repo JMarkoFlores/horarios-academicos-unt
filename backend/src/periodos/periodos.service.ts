@@ -152,7 +152,9 @@ export class PeriodosService {
     const periodo = await this.findOne(id);
 
     if (!periodo.activo) {
-      throw new BadRequestException("El periodo ya se encuentra inactivo o finalizado");
+      throw new BadRequestException(
+        "El periodo ya se encuentra inactivo o finalizado",
+      );
     }
 
     // 1. Marcar el periodo como inactivo y actualizar su estado a FINALIZADO
@@ -163,10 +165,13 @@ export class PeriodosService {
     // 2. Cerrar las declaraciones confirmadas
     await this.declaracionRepo.update(
       { periodo_academico_id: id, estado: EstadoDeclaracionCarga.ENVIADO },
-      { estado: EstadoDeclaracionCarga.CERRADO }
+      { estado: EstadoDeclaracionCarga.CERRADO },
     );
 
-    return { success: true, message: "Periodo finalizado, declaraciones cerradas." };
+    return {
+      success: true,
+      message: "Periodo finalizado, declaraciones cerradas.",
+    };
   }
 
   async remove(id: number) {

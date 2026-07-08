@@ -87,12 +87,18 @@ export class TurnoConfigController {
   @HttpCode(HttpStatus.OK)
   async eliminarTurno(@Param("id") id: string) {
     await this.turnoConfigService.eliminarTurnoConfig(Number(id));
-    return { data: null, message: "Turno eliminado", statusCode: HttpStatus.OK };
+    return {
+      data: null,
+      message: "Turno eliminado",
+      statusCode: HttpStatus.OK,
+    };
   }
 
   @Post("aplicar")
   @Roles(RolUsuario.DOCENTE, RolUsuario.SECRETARIA)
-  @ApiOperation({ summary: "Aplicar turnos seleccionados a disponibilidad de docente" })
+  @ApiOperation({
+    summary: "Aplicar turnos seleccionados a disponibilidad de docente",
+  })
   @ApiResponse({ status: 200, description: "Turnos aplicados correctamente" })
   async aplicarTurnos(
     @Body()

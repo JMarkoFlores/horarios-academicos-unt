@@ -173,7 +173,9 @@ export class HorariosService {
   }
 
   async getDocenteById(docenteId: number) {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
     if (!docente) throw new NotFoundException("Docente no encontrado");
     return {
       id: docente.id,

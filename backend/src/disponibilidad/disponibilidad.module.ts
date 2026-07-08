@@ -23,7 +23,11 @@ import { TurnoConfigController } from "./turno-config.controller";
       TurnoConfig,
     ]),
   ],
-  controllers: [DisponibilidadController, PeriodosController, TurnoConfigController],
+  controllers: [
+    DisponibilidadController,
+    PeriodosController,
+    TurnoConfigController,
+  ],
   providers: [DisponibilidadService, TurnoConfigService],
   exports: [DisponibilidadService, TurnoConfigService],
 })

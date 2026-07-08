@@ -30,7 +30,7 @@ import { DeclaracionesService } from "./declaraciones.service";
 export class DeclaracionesController {
   constructor(private readonly declaracionesService: DeclaracionesService) {}
 
-  @Get('docentes')
+  @Get("docentes")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,

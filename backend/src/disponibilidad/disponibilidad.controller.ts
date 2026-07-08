@@ -117,10 +117,7 @@ export class DisponibilidadController {
   }
 
   @Delete("docente/:id")
-  @Roles(
-    RolUsuario.ADMINISTRADOR_SISTEMA,
-    RolUsuario.COORDINADOR_ACADEMICO,
-  )
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Eliminar disponibilidad de un docente en un perÃ­odo",
@@ -137,7 +134,9 @@ export class DisponibilidadController {
 
   @Post("restricciones")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Crear o actualizar una restricciÃ³n institucional" })
+  @ApiOperation({
+    summary: "Crear o actualizar una restricciÃ³n institucional",
+  })
   async upsertRestriccion(@Body() dto: CreateRestriccionDto) {
     const result = await this.disponibilidadService.upsertRestriccion(dto);
     return { data: result, message: "RestricciÃ³n guardada correctamente" };

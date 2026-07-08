@@ -197,9 +197,12 @@ export class HorariosController {
     @Query("limit") limit?: string,
   ) {
     if (usuario.rol === RolUsuario.DOCENTE) {
-      const docenteId = (usuario as Usuario & { docenteId?: number | null }).docenteId;
+      const docenteId = (usuario as Usuario & { docenteId?: number | null })
+        .docenteId;
       if (!docenteId || docenteId !== id) {
-        throw new BadRequestException("No tiene permisos para ver el horario de otro docente");
+        throw new BadRequestException(
+          "No tiene permisos para ver el horario de otro docente",
+        );
       }
     }
     const data = await this.horariosService.findByDocente(
@@ -533,7 +536,9 @@ export class HorariosController {
             motivo: "Eliminaci\u00F3n desde modo edici\u00F3n",
           }),
         );
-        this.logger.log(`[deleteAsignacion] Auditor\u00EDa guardada exitosamente`);
+        this.logger.log(
+          `[deleteAsignacion] Auditor\u00EDa guardada exitosamente`,
+        );
 
         await queryRunner.manager.delete(HorarioAsignado, { id });
         await queryRunner.commitTransaction();
@@ -647,7 +652,9 @@ export class HorariosController {
   @Post("generar-automatico")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Generar horarios automÃ¡ticamente para un perÃ­odo" })
+  @ApiOperation({
+    summary: "Generar horarios automÃ¡ticamente para un perÃ­odo",
+  })
   @ApiResponse({ status: 201, description: "Horarios generados correctamente" })
   async generarAutomatico(@Body() dto: GenerarAutomaticoDto) {
     const resultado = await this.generacionService.generarHorarios(dto.periodo);
@@ -772,9 +779,12 @@ export class HorariosController {
     @Headers() headers: any,
   ) {
     if (usuario.rol === RolUsuario.DOCENTE) {
-      const docenteId = (usuario as Usuario & { docenteId?: number | null }).docenteId;
+      const docenteId = (usuario as Usuario & { docenteId?: number | null })
+        .docenteId;
       if (!docenteId || docenteId !== id) {
-        throw new BadRequestException("No tiene permisos para exportar el horario de otro docente");
+        throw new BadRequestException(
+          "No tiene permisos para exportar el horario de otro docente",
+        );
       }
     }
     try {
@@ -840,5 +850,3 @@ export class HorariosController {
     };
   }
 }
-
-

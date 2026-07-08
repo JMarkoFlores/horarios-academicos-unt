@@ -199,7 +199,9 @@ export class VentanasController {
 
   @Get("mis-ventanas")
   @Roles(RolUsuario.DOCENTE)
-  @ApiOperation({ summary: "Obtener ventanas de atención asignadas al docente autenticado" })
+  @ApiOperation({
+    summary: "Obtener ventanas de atención asignadas al docente autenticado",
+  })
   @ApiQuery({ name: "periodo", required: true, type: String })
   async getMisVentanas(
     @CurrentUser() user: Usuario,
@@ -251,6 +253,31 @@ export class VentanasController {
     return {
       data,
       message: "Docentes candidatos obtenidos",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get("diagnostico-docente")
+  @ApiOperation({
+    summary:
+      "Diagnostica por qué un docente aparece o no en una ventana de atención",
+  })
+  @ApiQuery({ name: "docente_id", required: true, type: Number })
+  @ApiQuery({ name: "periodo", required: true, type: String })
+  @ApiQuery({ name: "proposito", required: true, type: String })
+  async diagnosticarDocente(
+    @Query("docente_id") docenteId: string,
+    @Query("periodo") periodo: string,
+    @Query("proposito") proposito: string,
+  ) {
+    const data = await this.ventanasService.diagnosticarElegibilidadDocente(
+      Number(docenteId),
+      periodo,
+      proposito,
+    );
+    return {
+      data,
+      message: "Diagnóstico de elegibilidad obtenido",
       statusCode: HttpStatus.OK,
     };
   }

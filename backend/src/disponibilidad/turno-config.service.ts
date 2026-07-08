@@ -108,7 +108,11 @@ export class TurnoConfigService {
     const intervalo = turno.intervalo_minutos || 60;
 
     for (const dia of dias) {
-      for (let minutos = inicioMinutos; minutos < finMinutos; minutos += intervalo) {
+      for (
+        let minutos = inicioMinutos;
+        minutos < finMinutos;
+        minutos += intervalo
+      ) {
         const hInicio = Math.floor(minutos / 60);
         const mInicio = minutos % 60;
         const hFin = Math.floor((minutos + intervalo) / 60);
@@ -129,7 +133,9 @@ export class TurnoConfigService {
   /**
    * Elimina slots duplicados basados en día, hora_inicio y hora_fin
    */
-  private eliminarDuplicados(slots: SlotDisponibilidad[]): SlotDisponibilidad[] {
+  private eliminarDuplicados(
+    slots: SlotDisponibilidad[],
+  ): SlotDisponibilidad[] {
     const mapa = new Map<string, SlotDisponibilidad>();
 
     for (const slot of slots) {
@@ -181,7 +187,11 @@ export class TurnoConfigService {
     docenteId: number,
     periodo: string,
   ): Promise<void> {
-    const slots = await this.convertirTurnosASlots(turnoIds, docenteId, periodo);
+    const slots = await this.convertirTurnosASlots(
+      turnoIds,
+      docenteId,
+      periodo,
+    );
     await this.guardarSlotsDisponibilidad(slots, docenteId, periodo);
   }
 
@@ -191,7 +201,9 @@ export class TurnoConfigService {
   async inicializarTurnosPorDefecto(): Promise<void> {
     const existeConfig = await this.turnoConfigRepo.count();
     if (existeConfig > 0) {
-      this.logger.log("Ya existe configuración de turnos, omitiendo inicialización");
+      this.logger.log(
+        "Ya existe configuración de turnos, omitiendo inicialización",
+      );
       return;
     }
 

@@ -1240,13 +1240,13 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         let docenteNoDisponible = false;
         if (docenteId && disponibilidadDocente.length > 0) {
           // Check if there's any disponibilidad slot that covers this time and is not disponible
-          docenteNoDisponible = disponibilidadDocente.some(d => {
+          docenteNoDisponible = disponibilidadDocente.some((d) => {
             if (d.dia_semana !== dia) return false;
             // Check if times overlap
-            const slotInicio = parseInt(horaInicio.split(':')[0]);
-            const slotFin = parseInt(horaFin.split(':')[0]);
-            const dispInicio = parseInt(d.hora_inicio.split(':')[0]);
-            const dispFin = parseInt(d.hora_fin.split(':')[0]);
+            const slotInicio = parseInt(horaInicio.split(":")[0]);
+            const slotFin = parseInt(horaFin.split(":")[0]);
+            const dispInicio = parseInt(d.hora_inicio.split(":")[0]);
+            const dispFin = parseInt(d.hora_fin.split(":")[0]);
             const overlap = !(slotFin <= dispInicio || slotInicio >= dispFin);
             return overlap && !d.disponible;
           });

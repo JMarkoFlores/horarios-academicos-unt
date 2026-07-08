@@ -2,7 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { AuditoriaHorario } from "../../entities/auditoria-horario.entity";
-import { AuditoriaCarga, EntidadAuditoriaCarga, AccionAuditoriaCarga } from "../../entities/auditoria-carga.entity";
+import {
+  AuditoriaCarga,
+  EntidadAuditoriaCarga,
+  AccionAuditoriaCarga,
+} from "../../entities/auditoria-carga.entity";
 
 @Injectable()
 export class AuditoriaService {

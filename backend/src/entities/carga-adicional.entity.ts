@@ -20,7 +20,10 @@ export class CargaAdicional {
   @Column({ name: "declaracion_id" })
   declaracion_id: number;
 
-  @ManyToOne(() => DeclaracionCargaHoraria, { nullable: false, onDelete: "CASCADE" })
+  @ManyToOne(() => DeclaracionCargaHoraria, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
   @JoinColumn({ name: "declaracion_id" })
   declaracion: DeclaracionCargaHoraria;
 
@@ -44,7 +47,11 @@ export class CargaAdicional {
   fecha_fin: Date;
 
   @Column({ type: "jsonb", name: "horario_semanal", nullable: true })
-  horario_semanal: Array<{ dia: string; hora_inicio: string; hora_fin: string }> | null;
+  horario_semanal: Array<{
+    dia: string;
+    hora_inicio: string;
+    hora_fin: string;
+  }> | null;
 
   @Column({ type: "smallint", name: "total_horas" })
   total_horas: number;

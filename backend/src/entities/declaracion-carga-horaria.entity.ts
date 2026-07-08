@@ -123,7 +123,11 @@ export class DeclaracionCargaHoraria {
   @Column({ nullable: true, name: "firma_docente_user_id" })
   firma_docente_user_id: number | null;
 
-  @ManyToOne(() => Usuario, { nullable: true, eager: false, onDelete: "SET NULL" })
+  @ManyToOne(() => Usuario, {
+    nullable: true,
+    eager: false,
+    onDelete: "SET NULL",
+  })
   @JoinColumn({ name: "firma_docente_user_id" })
   firma_docente_user: Usuario | null;
 
@@ -136,7 +140,11 @@ export class DeclaracionCargaHoraria {
   @Column({ nullable: true, name: "firma_director_user_id" })
   firma_director_user_id: number | null;
 
-  @ManyToOne(() => Usuario, { nullable: true, eager: false, onDelete: "SET NULL" })
+  @ManyToOne(() => Usuario, {
+    nullable: true,
+    eager: false,
+    onDelete: "SET NULL",
+  })
   @JoinColumn({ name: "firma_director_user_id" })
   firma_director_user: Usuario | null;
 
@@ -149,7 +157,11 @@ export class DeclaracionCargaHoraria {
   @Column({ nullable: true, name: "firma_decano_user_id" })
   firma_decano_user_id: number | null;
 
-  @ManyToOne(() => Usuario, { nullable: true, eager: false, onDelete: "SET NULL" })
+  @ManyToOne(() => Usuario, {
+    nullable: true,
+    eager: false,
+    onDelete: "SET NULL",
+  })
   @JoinColumn({ name: "firma_decano_user_id" })
   firma_decano_user: Usuario | null;
 

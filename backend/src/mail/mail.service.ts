@@ -44,7 +44,10 @@ export class MailService {
   async sendMail(to: string, subject: string, html: string): Promise<void> {
     try {
       const info = await this.transporter.sendMail({
-        from: this.configService.get<string>("CORREO_FROM", "noreply@unt.edu.pe"),
+        from: this.configService.get<string>(
+          "CORREO_FROM",
+          "noreply@unt.edu.pe",
+        ),
         to,
         subject,
         html,

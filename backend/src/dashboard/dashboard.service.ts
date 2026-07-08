@@ -61,17 +61,25 @@ export class DashboardService {
   private formatTime(decimalHours: number): string {
     const hours = Math.floor(decimalHours);
     const minutes = Math.round((decimalHours - hours) * 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
   }
 
   private timeToMinutes(timeStr: string): number {
-    const [hours, minutes] = timeStr.split(':').map(Number);
+    const [hours, minutes] = timeStr.split(":").map(Number);
     return hours * 60 + (minutes || 0);
   }
 
-  async getKPIs(periodo: string, usuario?: UsuarioAutenticado, top = 5, recent = 10) {
+  async getKPIs(
+    periodo: string,
+    usuario?: UsuarioAutenticado,
+    top = 5,
+    recent = 10,
+  ) {
     const ctx = usuario?.contextoAcademico;
-    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+    const deptoIds =
+      !ctx?.verTodo && ctx?.departamentoIds?.length
+        ? ctx.departamentoIds
+        : null;
 
     // Temporarily disable cache to ensure configuration is always respected
     // const cacheKey = `dashboard_kpis_${periodo}_${top}_${recent}_${deptoIds?.join(',') ?? 'all'}`;
@@ -82,9 +90,9 @@ export class DashboardService {
     if (deptoIds) {
       const docentesDepto = await this.docenteRepo.find({
         where: { activo: true, departamento_id: In(deptoIds) },
-        select: ['id'],
+        select: ["id"],
       });
-      deptoDocenteIds = docentesDepto.map(d => d.id);
+      deptoDocenteIds = docentesDepto.map((d) => d.id);
     }
 
     let horarios: HorarioAsignado[] = [];
@@ -116,9 +124,12 @@ export class DashboardService {
     ] = await Promise.all([
       fetchSection(
         "totalDocentes",
-        () => this.docenteRepo.count({
-          where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
-        }),
+        () =>
+          this.docenteRepo.count({
+            where: deptoDocenteIds
+              ? { activo: true, id: In(deptoDocenteIds) }
+              : { activo: true },
+          }),
         0,
       ),
       fetchSection(
@@ -173,7 +184,9 @@ export class DashboardService {
             .select("COUNT(DISTINCT d.docente_id)", "count")
             .where("d.periodo_academico = :periodo", { periodo });
           if (deptoDocenteIds) {
-            qb = qb.andWhere("d.docente_id IN (:...ids)", { ids: deptoDocenteIds });
+            qb = qb.andWhere("d.docente_id IN (:...ids)", {
+              ids: deptoDocenteIds,
+            });
           }
           return qb.getRawOne().then((r) => Number(r?.count ?? 0));
         },
@@ -213,17 +226,27 @@ export class DashboardService {
           .leftJoinAndSelect("horario.grupo", "grupo")
           .where("horario.periodo = :periodo", { periodo });
         if (deptoDocenteIds) {
-          qb = qb.andWhere("horario.docente_id IN (:...ids)", { ids: deptoDocenteIds });
+          qb = qb.andWhere("horario.docente_id IN (:...ids)", {
+            ids: deptoDocenteIds,
+          });
         }
-        return qb.cache(`horarios_periodo_${periodo}_dashboard_kpis_${deptoDocenteIds?.join(',') ?? 'all'}`, 60000).getMany();
+        return qb
+          .cache(
+            `horarios_periodo_${periodo}_dashboard_kpis_${deptoDocenteIds?.join(",") ?? "all"}`,
+            60000,
+          )
+          .getMany();
       },
       [],
     );
     docentes = await fetchSection(
       "docentes",
-      () => this.docenteRepo.find({
-        where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
-      }),
+      () =>
+        this.docenteRepo.find({
+          where: deptoDocenteIds
+            ? { activo: true, id: In(deptoDocenteIds) }
+            : { activo: true },
+        }),
       [],
     );
     ambientes = await fetchSection(
@@ -348,9 +371,15 @@ export class DashboardService {
         where: { activo: true },
         order: { dia_semana: "ASC" },
       });
-      console.log('[Dashboard] Días activos encontrados:', diasActivos.map(d => ({ nombre: d.nombre, dia_semana: d.dia_semana })));
+      console.log(
+        "[Dashboard] Días activos encontrados:",
+        diasActivos.map((d) => ({
+          nombre: d.nombre,
+          dia_semana: d.dia_semana,
+        })),
+      );
     } catch (e) {
-      console.error('[Dashboard] Error cargando días activos:', e);
+      console.error("[Dashboard] Error cargando días activos:", e);
       // Fallback to default days
       diasActivos = [
         { id: 1, nombre: "Lunes", dia_semana: 1, activo: true } as any,
@@ -362,7 +391,7 @@ export class DashboardService {
     }
 
     if (diasActivos.length === 0) {
-      console.log('[Dashboard] No hay días activos, usando defaults');
+      console.log("[Dashboard] No hay días activos, usando defaults");
       diasActivos = [
         { id: 1, nombre: "Lunes", dia_semana: 1, activo: true } as any,
         { id: 2, nombre: "Martes", dia_semana: 2, activo: true } as any,
@@ -387,8 +416,14 @@ export class DashboardService {
           const [hi] = valor.hora_inicio.split(":").map(Number);
           const [hf, hfMin] = valor.hora_fin.split(":").map(Number);
           horaInicio = hi;
-          horaFin = hf + (hfMin / 60);
-          console.log('[Dashboard] Franja horaria desde restricción:', horaInicio, '-', horaFin, '(decimal)');
+          horaFin = hf + hfMin / 60;
+          console.log(
+            "[Dashboard] Franja horaria desde restricción:",
+            horaInicio,
+            "-",
+            horaFin,
+            "(decimal)",
+          );
         }
       } else {
         // Fallback to turnos if no restriction found
@@ -396,23 +431,45 @@ export class DashboardService {
           where: { activo: true },
           order: { hora_inicio: "ASC" },
         });
-        console.log('[Dashboard] Turnos horarios encontrados:', turnos.map(t => ({ nombre: t.nombre, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin })));
+        console.log(
+          "[Dashboard] Turnos horarios encontrados:",
+          turnos.map((t) => ({
+            nombre: t.nombre,
+            hora_inicio: t.hora_inicio,
+            hora_fin: t.hora_fin,
+          })),
+        );
         if (turnos.length > 0) {
           const [hi] = turnos[0].hora_inicio.split(":").map(Number);
-          const [hf, hfMin] = turnos[turnos.length - 1].hora_fin.split(":").map(Number);
+          const [hf, hfMin] = turnos[turnos.length - 1].hora_fin
+            .split(":")
+            .map(Number);
           horaInicio = hi;
-          horaFin = hf + (hfMin / 60); // Include minutes in decimal
-          console.log('[Dashboard] Franja horaria desde turnos:', horaInicio, '-', horaFin, '(decimal)');
+          horaFin = hf + hfMin / 60; // Include minutes in decimal
+          console.log(
+            "[Dashboard] Franja horaria desde turnos:",
+            horaInicio,
+            "-",
+            horaFin,
+            "(decimal)",
+          );
         }
       }
     } catch (e) {
-      console.error('[Dashboard] Error cargando configuración de franja horaria:', e);
+      console.error(
+        "[Dashboard] Error cargando configuración de franja horaria:",
+        e,
+      );
       // Keep defaults
     }
 
     try {
       // Try multiple possible type names for duration block
-      const tipos = ["DURACION_BLOQUE", "duracion_bloque_estandar", "duracion_bloque"];
+      const tipos = [
+        "DURACION_BLOQUE",
+        "duracion_bloque_estandar",
+        "duracion_bloque",
+      ];
       let restriccion = null;
       for (const tipo of tipos) {
         restriccion = await this.restriccionRepo.findOne({
@@ -424,7 +481,7 @@ export class DashboardService {
         });
         if (restriccion) break;
       }
-      console.log('[Dashboard] Restricción duración bloque:', restriccion);
+      console.log("[Dashboard] Restricción duración bloque:", restriccion);
       if (restriccion && restriccion.valor) {
         // valor is jsonb, could be number or object
         const valor = restriccion.valor as any;
@@ -435,17 +492,23 @@ export class DashboardService {
           if (valor.duracion_minutos) {
             duracionBloque = valor.duracion_minutos / 60; // Convert minutes to hours
           } else {
-            duracionBloque = valor.valor || valor.duracion || valor.duracion_bloque || 1;
+            duracionBloque =
+              valor.valor || valor.duracion || valor.duracion_bloque || 1;
           }
         }
-        console.log('[Dashboard] Duración bloque (en horas):', duracionBloque);
+        console.log("[Dashboard] Duración bloque (en horas):", duracionBloque);
       }
     } catch (e) {
-      console.error('[Dashboard] Error cargando restricción:', e);
+      console.error("[Dashboard] Error cargando restricción:", e);
       // Keep default
     }
 
-    console.log('[Dashboard] Config final usada:', { dias: diasActivos.map(d => d.nombre), horaInicio, horaFin, duracionBloque });
+    console.log("[Dashboard] Config final usada:", {
+      dias: diasActivos.map((d) => d.nombre),
+      horaInicio,
+      horaFin,
+      duracionBloque,
+    });
 
     const diasNombre: Record<number, string> = {};
     diasActivos.forEach((d) => {
@@ -457,27 +520,46 @@ export class DashboardService {
 
     for (const diaActivo of diasActivos) {
       const dia = diaActivo.dia_semana;
-      console.log('[Dashboard] Generando slots para día', dia, 'con horaInicio:', horaInicio, 'horaFin:', horaFin, 'duracionBloque:', duracionBloque);
+      console.log(
+        "[Dashboard] Generando slots para día",
+        dia,
+        "con horaInicio:",
+        horaInicio,
+        "horaFin:",
+        horaFin,
+        "duracionBloque:",
+        duracionBloque,
+      );
       for (let hora = horaInicio; hora < horaFin; hora += duracionBloque) {
         // Support minute-based blocks (e.g., 0.5 for 30 minutes, 0.75 for 45 minutes)
         const hDecimal = hora;
         const hEndDecimal = hora + duracionBloque;
-        
+
         // Don't create a slot if it would exceed horaFin
         // Allow slots that end exactly at horaFin (use > instead of >=)
         if (hEndDecimal > horaFin) {
-          console.log('[Dashboard] Skipping slot', hDecimal, '-', hEndDecimal, 'because hEndDecimal > horaFin:', horaFin);
+          console.log(
+            "[Dashboard] Skipping slot",
+            hDecimal,
+            "-",
+            hEndDecimal,
+            "because hEndDecimal > horaFin:",
+            horaFin,
+          );
           break;
         }
-        
+
         // Format hours with minutes support
         const hStr = this.formatTime(hDecimal);
         const sig = this.formatTime(hEndDecimal);
         const rangoHora = `${hStr}-${sig}`; // Full range for frontend
         const [slotIni, slotFin] = [hDecimal, hEndDecimal];
-        console.log('[Dashboard] Creating slot:', rangoHora);
+        console.log("[Dashboard] Creating slot:", rangoHora);
         const asig = horarios.filter(
-          (h) => h.dia === dia && this.timeToMinutes(h.hora_fin) > this.timeToMinutes(hStr) && this.timeToMinutes(h.hora_inicio) < this.timeToMinutes(sig),
+          (h) =>
+            h.dia === dia &&
+            this.timeToMinutes(h.hora_fin) > this.timeToMinutes(hStr) &&
+            this.timeToMinutes(h.hora_inicio) < this.timeToMinutes(sig),
         );
         let totalHoras = 0,
           labHoras = 0;
@@ -486,7 +568,9 @@ export class DashboardService {
           const hfMinutes = this.timeToMinutes(h.hora_fin);
           const slotIniMinutes = this.timeToMinutes(hStr);
           const slotFinMinutes = this.timeToMinutes(sig);
-          const overlap = Math.min(hfMinutes, slotFinMinutes) - Math.max(hiMinutes, slotIniMinutes);
+          const overlap =
+            Math.min(hfMinutes, slotFinMinutes) -
+            Math.max(hiMinutes, slotIniMinutes);
           const contribucion = Math.max(0, overlap) / 60; // Convert minutes to hours
           totalHoras += contribucion;
           if (h.tipo_clase === TipoClase.LABORATORIO) labHoras += contribucion;
@@ -634,7 +718,7 @@ export class DashboardService {
       ocupacion_por_ambiente: ocupacionAmbiente,
       mapa_calor: mapaCalor,
       heatmap_config: {
-        dias: diasActivos.map(d => d.nombre),
+        dias: diasActivos.map((d) => d.nombre),
         hora_inicio: horaInicio,
         hora_fin: horaFin,
         duracion_bloque: duracionBloque,
@@ -657,15 +741,18 @@ export class DashboardService {
 
   async getAlerts(periodo: string, usuario?: UsuarioAutenticado) {
     const ctx = usuario?.contextoAcademico;
-    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+    const deptoIds =
+      !ctx?.verTodo && ctx?.departamentoIds?.length
+        ? ctx.departamentoIds
+        : null;
 
     let deptoDocenteIds: number[] | null = null;
     if (deptoIds) {
       const docentesDepto = await this.docenteRepo.find({
         where: { activo: true, departamento_id: In(deptoIds) },
-        select: ['id'],
+        select: ["id"],
       });
-      deptoDocenteIds = docentesDepto.map(d => d.id);
+      deptoDocenteIds = docentesDepto.map((d) => d.id);
     }
 
     const fetchSection = async <T>(
@@ -682,9 +769,12 @@ export class DashboardService {
     const [totalDocentes, totalCursos, conflictos, horarios] =
       await Promise.all([
         fetchSection(
-          () => this.docenteRepo.count({
-            where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
-          }),
+          () =>
+            this.docenteRepo.count({
+              where: deptoDocenteIds
+                ? { activo: true, id: In(deptoDocenteIds) }
+                : { activo: true },
+            }),
           0,
         ),
         fetchSection(
@@ -704,19 +794,16 @@ export class DashboardService {
             }),
           [],
         ),
-        fetchSection(
-          () => {
-            const whereClause: any = { periodo };
-            if (deptoDocenteIds) {
-              whereClause.docente_id = In(deptoDocenteIds);
-            }
-            return this.horarioRepo.find({
-              where: whereClause,
-              select: ["docente_id", "curso_id"],
-            });
-          },
-          [],
-        ),
+        fetchSection(() => {
+          const whereClause: any = { periodo };
+          if (deptoDocenteIds) {
+            whereClause.docente_id = In(deptoDocenteIds);
+          }
+          return this.horarioRepo.find({
+            where: whereClause,
+            select: ["docente_id", "curso_id"],
+          });
+        }, []),
       ]);
 
     const docentesConHorario = new Set(
@@ -851,20 +938,25 @@ export class DashboardService {
     if (!periodoId) return this.cargaVacia();
 
     const ctx = usuario?.contextoAcademico;
-    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+    const deptoIds =
+      !ctx?.verTodo && ctx?.departamentoIds?.length
+        ? ctx.departamentoIds
+        : null;
 
     let deptoDocenteIds: number[] | null = null;
     if (deptoIds) {
       const docentesDepto = await this.docenteRepo.find({
         where: { activo: true, departamento_id: In(deptoIds) },
-        select: ['id'],
+        select: ["id"],
       });
-      deptoDocenteIds = docentesDepto.map(d => d.id);
+      deptoDocenteIds = docentesDepto.map((d) => d.id);
     }
 
     const [totalDocentes, declaraciones, docentes] = await Promise.all([
       this.docenteRepo.count({
-        where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
+        where: deptoDocenteIds
+          ? { activo: true, id: In(deptoDocenteIds) }
+          : { activo: true },
       }),
       this.declaracionRepo.find({
         where: {
@@ -874,12 +966,16 @@ export class DashboardService {
         relations: ["docente"],
       }),
       this.docenteRepo.find({
-        where: deptoDocenteIds ? { activo: true, id: In(deptoDocenteIds) } : { activo: true }
+        where: deptoDocenteIds
+          ? { activo: true, id: In(deptoDocenteIds) }
+          : { activo: true },
       }),
     ]);
 
     const enviadas = declaraciones.filter(
-      (d) => this.estadoNumero(d.estado) >= this.estadoNumero(EstadoDeclaracionCarga.ENVIADO),
+      (d) =>
+        this.estadoNumero(d.estado) >=
+        this.estadoNumero(EstadoDeclaracionCarga.ENVIADO),
     );
     const aprobadas = declaraciones.filter(
       (d) => d.estado === EstadoDeclaracionCarga.ENVIADO,
@@ -920,7 +1016,9 @@ export class DashboardService {
     const periodoId = await this.obtenerPeriodoId(periodo);
     if (!periodoId) return [];
 
-    const deptos = await this.departamentoRepo.find({ where: { activo: true } });
+    const deptos = await this.departamentoRepo.find({
+      where: { activo: true },
+    });
     const declaraciones = await this.declaracionRepo.find({
       where: { periodo_academico_id: periodoId },
     });
@@ -961,15 +1059,18 @@ export class DashboardService {
     if (!periodoId) return [];
 
     const ctx = usuario?.contextoAcademico;
-    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+    const deptoIds =
+      !ctx?.verTodo && ctx?.departamentoIds?.length
+        ? ctx.departamentoIds
+        : null;
 
     let deptoDocenteIds: number[] | null = null;
     if (deptoIds) {
       const docentesDepto = await this.docenteRepo.find({
         where: { activo: true, departamento_id: In(deptoIds) },
-        select: ['id'],
+        select: ["id"],
       });
-      deptoDocenteIds = docentesDepto.map(d => d.id);
+      deptoDocenteIds = docentesDepto.map((d) => d.id);
     }
 
     const declaraciones = await this.declaracionRepo.find({
@@ -1007,20 +1108,27 @@ export class DashboardService {
       .filter((e) => e.count > 0);
   }
 
-  async getCargaTopDocentes(periodo: string, limit = 5, usuario?: UsuarioAutenticado) {
+  async getCargaTopDocentes(
+    periodo: string,
+    limit = 5,
+    usuario?: UsuarioAutenticado,
+  ) {
     const periodoId = await this.obtenerPeriodoId(periodo);
     if (!periodoId) return [];
 
     const ctx = usuario?.contextoAcademico;
-    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+    const deptoIds =
+      !ctx?.verTodo && ctx?.departamentoIds?.length
+        ? ctx.departamentoIds
+        : null;
 
     let deptoDocenteIds: number[] | null = null;
     if (deptoIds) {
       const docentesDepto = await this.docenteRepo.find({
         where: { activo: true, departamento_id: In(deptoIds) },
-        select: ['id'],
+        select: ["id"],
       });
-      deptoDocenteIds = docentesDepto.map(d => d.id);
+      deptoDocenteIds = docentesDepto.map((d) => d.id);
     }
 
     const declaraciones = await this.declaracionRepo.find({
@@ -1052,15 +1160,18 @@ export class DashboardService {
     if (!periodoId) return [];
 
     const ctx = usuario?.contextoAcademico;
-    const deptoIds = (!ctx?.verTodo && ctx?.departamentoIds?.length) ? ctx.departamentoIds : null;
+    const deptoIds =
+      !ctx?.verTodo && ctx?.departamentoIds?.length
+        ? ctx.departamentoIds
+        : null;
 
     let deptoDocenteIds: number[] | null = null;
     if (deptoIds) {
       const docentesDepto = await this.docenteRepo.find({
         where: { activo: true, departamento_id: In(deptoIds) },
-        select: ['id'],
+        select: ["id"],
       });
-      deptoDocenteIds = docentesDepto.map(d => d.id);
+      deptoDocenteIds = docentesDepto.map((d) => d.id);
     }
 
     const declaraciones = await this.declaracionRepo.find({
@@ -1155,47 +1266,47 @@ export class DashboardService {
         // Return default colors if no config exists
         return {
           light: {
-            fondo_base: '#F8FAFC',
-            contenedores: '#FFFFFF',
-            texto_principal: '#0F172A',
-            dominante: '#2563EB',
-            exito: '#10B981',
-            advertencia: '#D97706',
-            critico: '#EF4444',
+            fondo_base: "#F8FAFC",
+            contenedores: "#FFFFFF",
+            texto_principal: "#0F172A",
+            dominante: "#2563EB",
+            exito: "#10B981",
+            advertencia: "#D97706",
+            critico: "#EF4444",
           },
           dark: {
-            fondo_base: '#0F172A',
-            contenedores: '#1E293B',
-            texto_principal: '#F8FAFC',
-            dominante: '#38BDF8',
-            exito: '#34D399',
-            advertencia: '#FBBF24',
-            critico: '#F87171',
+            fondo_base: "#0F172A",
+            contenedores: "#1E293B",
+            texto_principal: "#F8FAFC",
+            dominante: "#38BDF8",
+            exito: "#34D399",
+            advertencia: "#FBBF24",
+            critico: "#F87171",
           },
         };
       }
       return {
         light: {
-          fondo_base: config.light_fondo_base || '#F8FAFC',
-          contenedores: config.light_contenedores || '#FFFFFF',
-          texto_principal: config.light_texto_principal || '#0F172A',
-          dominante: config.light_dominante || '#2563EB',
-          exito: config.light_exito || '#10B981',
-          advertencia: config.light_advertencia || '#D97706',
-          critico: config.light_critico || '#EF4444',
+          fondo_base: config.light_fondo_base || "#F8FAFC",
+          contenedores: config.light_contenedores || "#FFFFFF",
+          texto_principal: config.light_texto_principal || "#0F172A",
+          dominante: config.light_dominante || "#2563EB",
+          exito: config.light_exito || "#10B981",
+          advertencia: config.light_advertencia || "#D97706",
+          critico: config.light_critico || "#EF4444",
         },
         dark: {
-          fondo_base: config.dark_fondo_base || '#0F172A',
-          contenedores: config.dark_contenedores || '#1E293B',
-          texto_principal: config.dark_texto_principal || '#F8FAFC',
-          dominante: config.dark_dominante || '#38BDF8',
-          exito: config.dark_exito || '#34D399',
-          advertencia: config.dark_advertencia || '#FBBF24',
-          critico: config.dark_critico || '#F87171',
+          fondo_base: config.dark_fondo_base || "#0F172A",
+          contenedores: config.dark_contenedores || "#1E293B",
+          texto_principal: config.dark_texto_principal || "#F8FAFC",
+          dominante: config.dark_dominante || "#38BDF8",
+          exito: config.dark_exito || "#34D399",
+          advertencia: config.dark_advertencia || "#FBBF24",
+          critico: config.dark_critico || "#F87171",
         },
       };
     } catch (e) {
-      console.error('[Dashboard] Error loading color configuration:', e);
+      console.error("[Dashboard] Error loading color configuration:", e);
       return null;
     }
   }

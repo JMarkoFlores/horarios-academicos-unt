@@ -1,13 +1,24 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn, Unique, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Unique,
+  Index,
 } from "typeorm";
 import { PeriodoAcademico } from "./periodo-academico.entity";
 import { CursoPlanEstudios } from "./curso-plan-estudios.entity";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 
 @Entity("oferta_academica")
-@Unique("uq_oferta_periodo_curso_tipo", ["periodo_id", "curso_plan_id", "tipo_clase"])
+@Unique("uq_oferta_periodo_curso_tipo", [
+  "periodo_id",
+  "curso_plan_id",
+  "tipo_clase",
+])
 @Index("idx_oferta_periodo", ["periodo_id"])
 @Index("idx_oferta_curso_plan", ["curso_plan_id"])
 export class OfertaAcademica {

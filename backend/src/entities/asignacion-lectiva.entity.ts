@@ -43,14 +43,20 @@ export class AsignacionLectiva {
   @Column({ name: "curso_plan_id" })
   curso_plan_id: number;
 
-  @ManyToOne(() => CursoPlanEstudios, (cursoPlan) => cursoPlan.asignaciones, { eager: true })
+  @ManyToOne(() => CursoPlanEstudios, (cursoPlan) => cursoPlan.asignaciones, {
+    eager: true,
+  })
   @JoinColumn({ name: "curso_plan_id" })
   curso_plan: CursoPlanEstudios;
 
   @Column({ name: "periodo_id" })
   periodo_id: number;
 
-  @ManyToOne(() => PeriodoAcademico, (periodo) => periodo.asignaciones_lectivas, { eager: false })
+  @ManyToOne(
+    () => PeriodoAcademico,
+    (periodo) => periodo.asignaciones_lectivas,
+    { eager: false },
+  )
   @JoinColumn({ name: "periodo_id" })
   periodo: PeriodoAcademico;
 
@@ -75,7 +81,11 @@ export class AsignacionLectiva {
   horas_asignadas: number;
 
   @Index("idx_asig_lectiva_estado")
-  @Column({ type: "enum", enum: EstadoAsignacionLectiva, default: EstadoAsignacionLectiva.PENDIENTE })
+  @Column({
+    type: "enum",
+    enum: EstadoAsignacionLectiva,
+    default: EstadoAsignacionLectiva.PENDIENTE,
+  })
   estado: EstadoAsignacionLectiva;
 
   @Column({ type: "text", nullable: true })

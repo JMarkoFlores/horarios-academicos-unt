@@ -12,10 +12,10 @@ import { TipoObservacion } from "../common/enums/tipo-observacion.enum";
 
 /** DNIs de 8 dígitos (formato peruano) para los 28 docentes del seed */
 export const DNIS_DOCENTES = [
-  17893456, 42567891, 72345612, 19876543, 45671234, 56782345, 67893456, 78904567,
-  89015678, 90126789, 12345678, 23456789, 34567890, 45678901, 56789012, 67890123,
-  78901234, 89012345, 90123456, 10234567, 21345678, 32456789, 43567890, 54678901,
-  65789012, 76890123, 42471234, 87901234,
+  17893456, 42567891, 72345612, 19876543, 45671234, 56782345, 67893456,
+  78904567, 89015678, 90126789, 12345678, 23456789, 34567890, 45678901,
+  56789012, 67890123, 78901234, 89012345, 90123456, 10234567, 21345678,
+  32456789, 43567890, 54678901, 65789012, 76890123, 42471234, 87901234,
 ];
 
 interface SeedDeclaracionesParams {
@@ -51,7 +51,11 @@ function fechasPorEstado(estado: EstadoDeclaracionCarga, base: Date) {
 
   switch (estado) {
     case EstadoDeclaracionCarga.ENVIADO:
-      return { fecha_firma_docente: docente, fecha_firma_director: director, fecha_firma_decano: null };
+      return {
+        fecha_firma_docente: docente,
+        fecha_firma_director: director,
+        fecha_firma_decano: null,
+      };
     case EstadoDeclaracionCarga.CERRADO:
       return {
         fecha_firma_docente: docente,
@@ -59,7 +63,11 @@ function fechasPorEstado(estado: EstadoDeclaracionCarga, base: Date) {
         fecha_firma_decano: decanoF,
       };
     default:
-      return { fecha_firma_docente: null, fecha_firma_director: null, fecha_firma_decano: null };
+      return {
+        fecha_firma_docente: null,
+        fecha_firma_director: null,
+        fecha_firma_decano: null,
+      };
   }
 }
 
@@ -101,9 +109,9 @@ export async function seedDeclaracionesDemo(
 
   const horarioRepo = declaracionRepo.manager.getRepository("HorarioAsignado");
   const horariosDB = await horarioRepo.find({
-    where: { periodo: periodoActivo.codigo }
+    where: { periodo: periodoActivo.codigo },
   });
-  
+
   const horasPorDocente = new Map<number, number>();
   for (const h of horariosDB) {
     const [hIni] = (h as any).hora_inicio.split(":");
@@ -115,18 +123,21 @@ export async function seedDeclaracionesDemo(
 
   for (let i = 0; i < ordenados.length; i++) {
     const doc = ordenados[i];
-    let estado = estadoPorIndice[i] ?? EstadoDeclaracionCarga.BORRADOR;
+    const estado = estadoPorIndice[i] ?? EstadoDeclaracionCarga.BORRADOR;
 
     let totalHoras = 40;
     if (doc.modalidad === "TIEMPO_PARCIAL_20") totalHoras = 20;
     else if (doc.modalidad === "TIEMPO_PARCIAL_12") totalHoras = 12;
     else if (doc.modalidad === "TIEMPO_PARCIAL_10") totalHoras = 10;
     else if (doc.modalidad === "TIEMPO_PARCIAL_8") totalHoras = 8;
-    
+
     const horasLectivas = horasPorDocente.get(doc.id) || 0;
     let horasNoLectivas = totalHoras - horasLectivas;
     if (horasNoLectivas < 0) horasNoLectivas = 0;
-    const fechas = fechasPorEstado(estado, new Date(baseFecha.getTime() + i * 86400000));
+    const fechas = fechasPorEstado(
+      estado,
+      new Date(baseFecha.getTime() + i * 86400000),
+    );
 
     const declaracion = await declaracionRepo.save(
       declaracionRepo.create({
@@ -148,9 +159,9 @@ export async function seedDeclaracionesDemo(
   }
 
   let observacionesCreadas = 0;
-  const obsDeclaraciones = declaraciones.filter(
-    (d) => d.estado === EstadoDeclaracionCarga.BORRADOR,
-  ).slice(0, 4);
+  const obsDeclaraciones = declaraciones
+    .filter((d) => d.estado === EstadoDeclaracionCarga.BORRADOR)
+    .slice(0, 4);
 
   const textosObs = [
     "Las horas de preparación exceden el 50% permitido. Ajustar rubro 2.",
@@ -210,7 +221,10 @@ export async function seedDeclaracionesDemo(
           periodo: periodoActivo.codigo,
           fechaGeneracion: new Date().toISOString(),
         },
-        estado: decl.estado === EstadoDeclaracionCarga.CERRADO ? "FIRMADA" : "PENDIENTE",
+        estado:
+          decl.estado === EstadoDeclaracionCarga.CERRADO
+            ? "FIRMADA"
+            : "PENDIENTE",
         fecha_firma:
           decl.estado === EstadoDeclaracionCarga.CERRADO
             ? new Date("2026-04-01T12:00:00")

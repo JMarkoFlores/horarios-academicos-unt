@@ -65,14 +65,11 @@ export class ReportesController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
-    RolUsuario.DOCENTE
+    RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "PDF Anexo 04 CLAD" })
   @ApiParam({ name: "id", type: Number })
-  async cladPDF(
-    @Param("id", ParseIntPipe) id: number,
-    @Res() res: Response,
-  ) {
+  async cladPDF(@Param("id", ParseIntPipe) id: number, @Res() res: Response) {
     const buffer = await this.reportesService.generarReporteCLAD(id);
     res.set({
       "Content-Type": "application/pdf",
@@ -123,7 +120,9 @@ export class ReportesController {
     RolUsuario.DECANO,
     RolUsuario.DOCENTE,
   )
-  @ApiOperation({ summary: "PDF del Formato F01-CAD (Declaración de Carga Académica Docente)" })
+  @ApiOperation({
+    summary: "PDF del Formato F01-CAD (Declaración de Carga Académica Docente)",
+  })
   @ApiParam({ name: "docenteId", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async f01CadPDF(
@@ -150,7 +149,9 @@ export class ReportesController {
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
   )
-  @ApiOperation({ summary: "PDF consolidado de carga académica por departamento" })
+  @ApiOperation({
+    summary: "PDF consolidado de carga académica por departamento",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "departamento_id", required: false, type: Number })
   async consolidadoCargaPDF(
@@ -183,9 +184,8 @@ export class ReportesController {
     @Query("periodo") periodo: string,
     @Res() res?: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteCargaPorModalidadPDF(
-      periodo,
-    );
+    const buffer =
+      await this.reportesService.generarReporteCargaPorModalidadPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=carga-por-modalidad-${periodo}.pdf`,
@@ -209,12 +209,14 @@ export class ReportesController {
     @Query("departamento_id") departamentoId?: string,
     @Res() res?: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteConsolidadoCargaExcel(
-      periodo,
-      departamentoId ? parseInt(departamentoId, 10) : undefined,
-    );
+    const buffer =
+      await this.reportesService.generarReporteConsolidadoCargaExcel(
+        periodo,
+        departamentoId ? parseInt(departamentoId, 10) : undefined,
+      );
     res.set({
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename=consolidado-carga-${periodo}.xlsx`,
       "Content-Length": buffer.length,
     });
@@ -231,7 +233,9 @@ export class ReportesController {
     RolUsuario.DECANO,
     RolUsuario.DOCENTE,
   )
-  @ApiOperation({ summary: "PDF del Formato F03-CAD mejorado (Horario Semanal Docente)" })
+  @ApiOperation({
+    summary: "PDF del Formato F03-CAD mejorado (Horario Semanal Docente)",
+  })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async docenteF03CadPDF(
@@ -239,10 +243,11 @@ export class ReportesController {
     @Query("periodo") periodo: string,
     @Res() res: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteDeclaracionF03CADPDF(
-      id,
-      periodo,
-    );
+    const buffer =
+      await this.reportesService.generarReporteDeclaracionF03CADPDF(
+        id,
+        periodo,
+      );
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=f03-cad_docente_${id}_${periodo}.pdf`,
@@ -261,7 +266,10 @@ export class ReportesController {
     RolUsuario.DECANO,
     RolUsuario.DOCENTE,
   )
-  @ApiOperation({ summary: "PDF del Formato F02-CAD de Declaración Jurada de Incompatibilidad" })
+  @ApiOperation({
+    summary:
+      "PDF del Formato F02-CAD de Declaración Jurada de Incompatibilidad",
+  })
   @ApiParam({ name: "docenteId", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async declaracionF02CadPDF(
@@ -448,8 +456,12 @@ export class ReportesController {
   )
   @ApiOperation({ summary: "Reporte de gestión de carga académica (Fase 8)" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  async gestionCargaPDF(@Query("periodo") periodo: string, @Res() res: Response) {
-    const buffer = await this.reportesService.generarReporteGestionCargaPDF(periodo);
+  async gestionCargaPDF(
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer =
+      await this.reportesService.generarReporteGestionCargaPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=gestion-carga-${periodo}.pdf`,
@@ -465,10 +477,16 @@ export class ReportesController {
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
   )
-  @ApiOperation({ summary: "Reporte de cumplimiento por departamento (Fase 8)" })
+  @ApiOperation({
+    summary: "Reporte de cumplimiento por departamento (Fase 8)",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  async cumplimientoPDF(@Query("periodo") periodo: string, @Res() res: Response) {
-    const buffer = await this.reportesService.generarReporteCumplimientoPDF(periodo);
+  async cumplimientoPDF(
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer =
+      await this.reportesService.generarReporteCumplimientoPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=cumplimiento-${periodo}.pdf`,
@@ -484,10 +502,13 @@ export class ReportesController {
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
   )
-  @ApiOperation({ summary: "Reporte ejecutivo para decano con semáforo (Fase 8)" })
+  @ApiOperation({
+    summary: "Reporte ejecutivo para decano con semáforo (Fase 8)",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async ejecutivoPDF(@Query("periodo") periodo: string, @Res() res: Response) {
-    const buffer = await this.reportesService.generarReporteEjecutivoPDF(periodo);
+    const buffer =
+      await this.reportesService.generarReporteEjecutivoPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=ejecutivo-${periodo}.pdf`,

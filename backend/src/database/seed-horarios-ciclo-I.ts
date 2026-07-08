@@ -62,10 +62,16 @@ export async function seedHorariosCicloI(manager?: EntityManager) {
 
   const docenteRepo = (manager ?? AppDataSource.manager).getRepository(Docente);
   const cursoRepo = (manager ?? AppDataSource.manager).getRepository(Curso);
-  const ambienteRepo = (manager ?? AppDataSource.manager).getRepository(Ambiente);
+  const ambienteRepo = (manager ?? AppDataSource.manager).getRepository(
+    Ambiente,
+  );
   const grupoRepo = (manager ?? AppDataSource.manager).getRepository(Grupo);
-  const horarioRepo = (manager ?? AppDataSource.manager).getRepository(HorarioAsignado);
-  const periodoRepo = (manager ?? AppDataSource.manager).getRepository(PeriodoAcademico);
+  const horarioRepo = (manager ?? AppDataSource.manager).getRepository(
+    HorarioAsignado,
+  );
+  const periodoRepo = (manager ?? AppDataSource.manager).getRepository(
+    PeriodoAcademico,
+  );
 
   const periodo = "2026-I";
   const dbPeriodo = await periodoRepo.findOne({ where: { codigo: periodo } });

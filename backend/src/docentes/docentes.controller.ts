@@ -238,7 +238,11 @@ export class DocentesController {
     @Body() dto: UpdateDocenteDto,
     @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.docentesService.update(id, dto, usuario.contextoAcademico);
+    const result = await this.docentesService.update(
+      id,
+      dto,
+      usuario.contextoAcademico,
+    );
     return { data: result, message: "Docente actualizado correctamente" };
   }
 
@@ -265,7 +269,10 @@ export class DocentesController {
     @Param("id", ParseIntPipe) id: number,
     @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.docentesService.reactivar(id, usuario.contextoAcademico);
+    const result = await this.docentesService.reactivar(
+      id,
+      usuario.contextoAcademico,
+    );
     return { data: result, message: "Docente reactivado correctamente" };
   }
 
@@ -433,7 +440,11 @@ export class DocentesController {
   }
 
   @Post(":id/foto/upload")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DOCENTE,
+  )
   @ApiOperation({ summary: "Subir archivo de foto de perfil a Cloudinary" })
   @ApiParam({ name: "id", type: Number, description: "ID del docente" })
   @ApiResponse({ status: 200, description: "Foto subida correctamente" })

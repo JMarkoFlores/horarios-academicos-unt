@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Ambiente } from "../../entities/ambiente.entity";
+import { AsignacionLectiva } from "../../entities/asignacion-lectiva.entity";
 import { CampañaVentanas } from "../../entities/campaña-ventanas.entity";
 import { ColaDocente } from "../../entities/cola-docentes.entity";
 import { Curso } from "../../entities/curso.entity";
@@ -37,6 +38,7 @@ import { SincronizacionRedisService } from "./sincronizacion-redis.service";
       PeriodoAcademico,
       Grupo,
       HorarioAsignado,
+      AsignacionLectiva,
       Ambiente,
       Curso,
       ParametrosCarga,

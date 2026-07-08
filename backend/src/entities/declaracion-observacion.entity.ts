@@ -22,11 +22,15 @@ export class DeclaracionObservacion {
   @Column({ name: "declaracion_id" })
   declaracion_id: number;
 
-  @ManyToOne(() => DeclaracionCargaHoraria, (declaracion) => declaracion.observacion_items, {
-    nullable: false,
-    eager: false,
-    onDelete: "CASCADE",
-  })
+  @ManyToOne(
+    () => DeclaracionCargaHoraria,
+    (declaracion) => declaracion.observacion_items,
+    {
+      nullable: false,
+      eager: false,
+      onDelete: "CASCADE",
+    },
+  )
   @JoinColumn({ name: "declaracion_id" })
   declaracion: DeclaracionCargaHoraria;
 
@@ -47,7 +51,11 @@ export class DeclaracionObservacion {
   @Column({ type: "enum", enum: EstadoDeclaracionCarga, name: "estado_origen" })
   estado_origen: EstadoDeclaracionCarga;
 
-  @Column({ type: "enum", enum: EstadoDeclaracionCarga, name: "estado_destino" })
+  @Column({
+    type: "enum",
+    enum: EstadoDeclaracionCarga,
+    name: "estado_destino",
+  })
   estado_destino: EstadoDeclaracionCarga;
 
   @Column({ type: "enum", enum: TipoObservacion })

@@ -155,39 +155,40 @@ describe("DeclaracionCargaHorariaService", () => {
   });
 
   describe("regeneración de carga lectiva", () => {
-    it.each([
-      EstadoDeclaracionCarga.BORRADOR,
-    ])("permite regenerar cuando la declaración está en %s", async (estado) => {
-      mockDeclaracionRepo.findOne.mockResolvedValue({
-        ...mockDeclaracionBase,
-        estado,
-      });
-      mockQueryBuilder.getMany.mockResolvedValue([
-        crearHorario(
-          1,
-          EstadoHorario.CONFIRMADO,
-          "08:00",
-          "10:00",
-          10,
-          20,
-          TipoClase.TEORIA,
-        ),
-      ]);
-      mockDeclaracionRepo.save.mockResolvedValue({
-        ...mockDeclaracionBase,
-        estado: EstadoDeclaracionCarga.BORRADOR,
-        carga_no_lectiva: { generado: true },
-      });
+    it.each([EstadoDeclaracionCarga.BORRADOR])(
+      "permite regenerar cuando la declaración está en %s",
+      async (estado) => {
+        mockDeclaracionRepo.findOne.mockResolvedValue({
+          ...mockDeclaracionBase,
+          estado,
+        });
+        mockQueryBuilder.getMany.mockResolvedValue([
+          crearHorario(
+            1,
+            EstadoHorario.CONFIRMADO,
+            "08:00",
+            "10:00",
+            10,
+            20,
+            TipoClase.TEORIA,
+          ),
+        ]);
+        mockDeclaracionRepo.save.mockResolvedValue({
+          ...mockDeclaracionBase,
+          estado: EstadoDeclaracionCarga.BORRADOR,
+          carga_no_lectiva: { generado: true },
+        });
 
-      const result = await service.actualizarCargaLectivaDeclaracion(
-        44,
-        mockUsuario as any,
-      );
+        const result = await service.actualizarCargaLectivaDeclaracion(
+          44,
+          mockUsuario as any,
+        );
 
-      expect(result.declaracionId).toBe(44);
-      expect(mockDeclaracionRepo.save).toHaveBeenCalledTimes(1);
-      expect(result.cargaLectiva.resumen.totalHoras).toBe(2);
-    });
+        expect(result.declaracionId).toBe(44);
+        expect(mockDeclaracionRepo.save).toHaveBeenCalledTimes(1);
+        expect(result.cargaLectiva.resumen.totalHoras).toBe(2);
+      },
+    );
 
     it.each([
       EstadoDeclaracionCarga.ENVIADO,
@@ -215,8 +216,14 @@ describe("DeclaracionCargaHorariaService", () => {
     it.each([
       [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.ENVIADO],
       [EstadoDeclaracionCarga.ENVIADO, EstadoDeclaracionCarga.VALIDADO_DPTO],
-      [EstadoDeclaracionCarga.VALIDADO_DPTO, EstadoDeclaracionCarga.APROBADO_FACULTAD],
-      [EstadoDeclaracionCarga.APROBADO_FACULTAD, EstadoDeclaracionCarga.CERRADO],
+      [
+        EstadoDeclaracionCarga.VALIDADO_DPTO,
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      ],
+      [
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+        EstadoDeclaracionCarga.CERRADO,
+      ],
     ])("permite la transición %s -> %s", (actual, siguiente) => {
       expect(() =>
         service.validarTransicionEstado(

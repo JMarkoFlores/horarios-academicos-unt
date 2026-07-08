@@ -11,7 +11,7 @@ import {
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import Redis from "ioredis";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, Repository, In } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 import { EstadoHorario } from "../../common/enums/estado-horario.enum";
 import { ModoAsignacion } from "../../common/enums/modo-asignacion.enum";
@@ -28,6 +28,8 @@ import {
 import { ValidacionesService } from "../../common/services/validaciones.service";
 import { ColaDocente, EstadoCola } from "../../entities/cola-docentes.entity";
 import { Docente } from "../../entities/docente.entity";
+import { AsignacionLectiva } from "../../entities/asignacion-lectiva.entity";
+import { EstadoAsignacionLectiva } from "../../common/enums/estado-asignacion-lectiva.enum";
 import { HorariosGateway } from "../../horarios/horarios.gateway";
 import { CreateVentanaDto } from "./dto/create-ventana.dto";
 import { UpdateVentanaDto } from "./dto/update-ventana.dto";
@@ -61,6 +63,8 @@ export class VentanasService
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
+    @InjectRepository(AsignacionLectiva)
+    private readonly asignacionLectivaRepo: Repository<AsignacionLectiva>,
     private readonly gateway: HorariosGateway,
     private readonly gestorSeleccionService: GestorSeleccionTemporalService,
     private readonly sincronizacionRedisService: SincronizacionRedisService,
@@ -1185,6 +1189,9 @@ export class VentanasService
 
     const qb = this.docenteRepo.createQueryBuilder("docente");
 
+    // Solo docentes activos pueden ser atendidos en una ventana
+    qb.andWhere("docente.activo = :activo", { activo: true });
+
     // Si el propósito es uno de los tipos operativos (DECLARACION, SUBSANACION, CAMBIO, CONTINGENCIA),
     // la lógica depende de si el docente ya tiene horario o no en el período dado.
     if (
@@ -1207,13 +1214,50 @@ export class VentanasService
         this.logger.log(`[buscarDocentesElegibles] Subquery: ${subQueryStr}`);
 
         if (proposito === "DECLARACION") {
-          // Para declaración inicial: docentes que NO tienen horario aún
+          // Para declaración inicial: docentes con carga lectiva asignada (PENDIENTE o CONFIRMADO)
+          // en el período y que aún NO tienen horario asignado. Esto evita incluir docentes sin
+          // carga lectiva y evita que docentes que ya completaron su horario vuelvan a aparecer.
+          const periodoEntity = await this.periodoRepo.findOne({
+            where: { codigo: periodo },
+          });
+
+          if (periodoEntity) {
+            const subQbAsignaciones = this.asignacionLectivaRepo
+              .createQueryBuilder("al")
+              .select("DISTINCT al.docente_id", "docente_id")
+              .where("al.periodo_id = :periodoId", {
+                periodoId: periodoEntity.id,
+              })
+              .andWhere("al.estado IN (:...estadosAsignacion)", {
+                estadosAsignacion: [
+                  EstadoAsignacionLectiva.PENDIENTE,
+                  EstadoAsignacionLectiva.CONFIRMADO,
+                ],
+              });
+
+            const subQueryAsignacionesStr = subQbAsignaciones.getQuery();
+            const subQueryAsignacionesParams =
+              subQbAsignaciones.getParameters();
+            this.logger.log(
+              `[buscarDocentesElegibles] Subquery asignaciones: ${subQueryAsignacionesStr}`,
+            );
+
+            qb.andWhere(
+              `docente.id IN (${subQueryAsignacionesStr})`,
+              subQueryAsignacionesParams,
+            );
+          } else {
+            this.logger.warn(
+              `[buscarDocentesElegibles] No se encontró período ${periodo}; no se puede filtrar por asignaciones lectivas`,
+            );
+          }
+
           qb.andWhere(
             `docente.id NOT IN (${subQueryStr})`,
             subQb.getParameters(),
           );
           this.logger.log(
-            `[buscarDocentesElegibles] Filtrando docentes SIN horario`,
+            `[buscarDocentesElegibles] Filtrando docentes SIN horario y CON carga lectiva asignada`,
           );
         } else if (
           proposito === "SUBSANACION" ||
@@ -1528,7 +1572,115 @@ export class VentanasService
     return minutosFin - minutosInicio;
   }
 
-  async obtenerVentanasPorDocente(docenteId: number, periodo: string): Promise<VentanaAtencion[]> {
+  async diagnosticarElegibilidadDocente(
+    docenteId: number,
+    periodo: string,
+    proposito: string,
+  ): Promise<{
+    docente: {
+      id: number;
+      nombre: string;
+      activo: boolean;
+      categoria: string;
+    };
+    elegible: boolean;
+    motivos: string[];
+    tieneAsignacionesLectivas: boolean;
+    estadosAsignaciones: string[];
+    tieneHorarioAsignado: boolean;
+    recomendacion: string;
+  }> {
+    this.logger.log(
+      `[diagnosticarElegibilidadDocente] docenteId=${docenteId}, periodo=${periodo}, proposito=${proposito}`,
+    );
+
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
+    if (!docente) {
+      throw new NotFoundException(`Docente ${docenteId} no encontrado`);
+    }
+
+    const motivos: string[] = [];
+
+    if (!docente.activo) {
+      motivos.push("El docente no está activo");
+    }
+
+    const periodoEntity = await this.periodoRepo.findOne({
+      where: { codigo: periodo },
+    });
+    if (!periodoEntity) {
+      motivos.push(`No existe el período académico ${periodo}`);
+    }
+
+    let tieneAsignacionesLectivas = false;
+    const estadosAsignaciones: string[] = [];
+
+    if (periodoEntity) {
+      const asignaciones = await this.asignacionLectivaRepo.find({
+        where: {
+          docente_id: docenteId,
+          periodo_id: periodoEntity.id,
+          estado: In([
+            EstadoAsignacionLectiva.PENDIENTE,
+            EstadoAsignacionLectiva.CONFIRMADO,
+          ]),
+        },
+      });
+
+      tieneAsignacionesLectivas = asignaciones.length > 0;
+      estadosAsignaciones.push(...asignaciones.map((a) => a.estado));
+
+      if (!tieneAsignacionesLectivas) {
+        motivos.push(
+          "El docente no tiene carga lectiva asignada (PENDIENTE o CONFIRMADO) en el período",
+        );
+      }
+    }
+
+    const horarios = await this.horarioRepo.find({
+      where: { docente_id: docenteId, periodo },
+    });
+    const tieneHorarioAsignado = horarios.length > 0;
+
+    if (tieneHorarioAsignado && proposito === "DECLARACION") {
+      motivos.push(
+        "El docente ya tiene horario asignado en el período. Para modificarlo use SUBSANACION o CAMBIO",
+      );
+    }
+
+    const elegible =
+      proposito === "DECLARACION"
+        ? motivos.length === 0 &&
+          tieneAsignacionesLectivas &&
+          !tieneHorarioAsignado
+        : true;
+
+    const recomendacion = elegible
+      ? "El docente cumple los criterios para aparecer en una ventana de declaración inicial."
+      : motivos.join(". ");
+
+    return {
+      docente: {
+        id: docente.id,
+        nombre: `${docente.apellidos}, ${docente.nombres}`,
+        activo: docente.activo,
+        categoria: docente.categoria,
+      },
+      elegible,
+      motivos,
+      tieneAsignacionesLectivas,
+      estadosAsignaciones,
+      tieneHorarioAsignado,
+      recomendacion,
+    };
+  }
+
+  async obtenerVentanasPorDocente(
+    docenteId: number,
+    periodo: string,
+  ): Promise<VentanaAtencion[]> {
     // Obtener ventanas donde el docente está en la cola
     const colas = await this.colaRepo.find({
       where: { docente_id: docenteId },

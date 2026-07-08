@@ -8,7 +8,11 @@ import { OfertaAcademicaController } from "./oferta-academica.controller";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([OfertaAcademica, CursoPlanEstudios, PeriodoAcademico]),
+    TypeOrmModule.forFeature([
+      OfertaAcademica,
+      CursoPlanEstudios,
+      PeriodoAcademico,
+    ]),
   ],
   controllers: [OfertaAcademicaController],
   providers: [OfertaAcademicaService],

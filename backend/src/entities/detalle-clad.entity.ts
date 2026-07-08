@@ -4,12 +4,12 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
-  Index
-} from 'typeorm';
-import { DeclaracionClad } from './declaracion-clad.entity';
+  Index,
+} from "typeorm";
+import { DeclaracionClad } from "./declaracion-clad.entity";
 
-@Entity('detalles_clad')
-@Index('idx_detalle_clad_declaracion', ['declaracion_clad_id'])
+@Entity("detalles_clad")
+@Index("idx_detalle_clad_declaracion", ["declaracion_clad_id"])
 export class DetalleClad {
   @PrimaryGeneratedColumn()
   id: number;
@@ -17,8 +17,10 @@ export class DetalleClad {
   @Column()
   declaracion_clad_id: number;
 
-  @ManyToOne(() => DeclaracionClad, (clad) => clad.detalles, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'declaracion_clad_id' })
+  @ManyToOne(() => DeclaracionClad, (clad) => clad.detalles, {
+    onDelete: "CASCADE",
+  })
+  @JoinColumn({ name: "declaracion_clad_id" })
   declaracion: DeclaracionClad;
 
   @Column()
@@ -27,15 +29,15 @@ export class DetalleClad {
   @Column({ nullable: true })
   codigo_curso: string;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha_inicio: Date;
 
-  @Column({ type: 'date' })
+  @Column({ type: "date" })
   fecha_fin: Date;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: "jsonb" })
   horario: object; // { dia: number, hora_inicio: string, hora_fin: string, lugar: string }[]
 
-  @Column({ type: 'decimal', precision: 5, scale: 2 })
+  @Column({ type: "decimal", precision: 5, scale: 2 })
   horas_semanales: number;
 }

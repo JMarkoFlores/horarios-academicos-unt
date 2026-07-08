@@ -17,7 +17,10 @@ import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
 
 export class CreateDocenteDto {
-  @ApiProperty({ example: "DOC001", description: "Código único del docente. Se autogenera si se envía vacío" })
+  @ApiProperty({
+    example: "DOC001",
+    description: "Código único del docente. Se autogenera si se envía vacío",
+  })
   @IsOptional()
   @IsString()
   @MaxLength(20)
@@ -57,7 +60,9 @@ export class CreateDocenteDto {
 
   @ApiProperty({ example: "jperez@unt.edu.pe" })
   @IsEmail({}, { message: "Email inválido" })
-  @Matches(/@unt\.edu\.pe$/, { message: "El email debe ser del dominio @unt.edu.pe" })
+  @Matches(/@unt\.edu\.pe$/, {
+    message: "El email debe ser del dominio @unt.edu.pe",
+  })
   @IsNotEmpty({ message: "El email no puede estar vacío" })
   @MaxLength(150)
   email: string;
@@ -65,7 +70,9 @@ export class CreateDocenteDto {
   @ApiPropertyOptional({ example: "944123456" })
   @IsOptional()
   @IsString()
-  @Matches(/^\d{9}$/, { message: "El teléfono debe tener exactamente 9 dígitos" })
+  @Matches(/^\d{9}$/, {
+    message: "El teléfono debe tener exactamente 9 dígitos",
+  })
   telefono?: string;
 
   @ApiProperty({ enum: TipoDocente, example: TipoDocente.ORDINARIO })

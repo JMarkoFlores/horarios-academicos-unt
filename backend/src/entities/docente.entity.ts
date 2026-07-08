@@ -32,7 +32,11 @@ import { DeclaracionClad } from "./declaracion-clad.entity";
 @Index("idx_docente_tipo_docente", ["tipo_docente"])
 @Index("idx_docente_modalidad", ["modalidad"])
 @Index("idx_docente_activo", ["activo"])
-@Index("idx_docente_categoria_tipo_modalidad", ["categoria", "tipo_docente", "modalidad"])
+@Index("idx_docente_categoria_tipo_modalidad", [
+  "categoria",
+  "tipo_docente",
+  "modalidad",
+])
 export class Docente {
   @PrimaryGeneratedColumn()
   id: number;

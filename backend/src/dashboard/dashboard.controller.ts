@@ -66,7 +66,10 @@ export class DashboardController {
     @Query("periodo") periodo: string,
     @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.dashboardService.getAlerts(periodo ?? "", usuario);
+    const result = await this.dashboardService.getAlerts(
+      periodo ?? "",
+      usuario,
+    );
     return { data: result, message: "Alertas obtenidas correctamente" };
   }
 
@@ -93,7 +96,10 @@ export class DashboardController {
     @Query("periodo") periodo: string,
     @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.dashboardService.getCargaResumen(periodo ?? "", usuario);
+    const result = await this.dashboardService.getCargaResumen(
+      periodo ?? "",
+      usuario,
+    );
     return { data: result, message: "Resumen de carga obtenido" };
   }
 
@@ -101,7 +107,9 @@ export class DashboardController {
   @ApiOperation({ summary: "Carga académica agrupada por departamento" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async getCargaDepartamentos(@Query("periodo") periodo: string) {
-    const result = await this.dashboardService.getCargaDepartamentos(periodo ?? "");
+    const result = await this.dashboardService.getCargaDepartamentos(
+      periodo ?? "",
+    );
     return { data: result, message: "Departamentos obtenidos" };
   }
 
@@ -112,7 +120,10 @@ export class DashboardController {
     @Query("periodo") periodo: string,
     @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.dashboardService.getCargaEstados(periodo ?? "", usuario);
+    const result = await this.dashboardService.getCargaEstados(
+      periodo ?? "",
+      usuario,
+    );
     return { data: result, message: "Distribución por estado obtenida" };
   }
 
@@ -140,7 +151,10 @@ export class DashboardController {
     @Query("periodo") periodo: string,
     @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.dashboardService.getCargaAvance(periodo ?? "", usuario);
+    const result = await this.dashboardService.getCargaAvance(
+      periodo ?? "",
+      usuario,
+    );
     return { data: result, message: "Avance temporal obtenido" };
   }
 }

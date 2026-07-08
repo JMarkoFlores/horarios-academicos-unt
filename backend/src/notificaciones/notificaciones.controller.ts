@@ -73,7 +73,9 @@ export class NotificacionesController {
     @Param("docenteId", ParseIntPipe) docenteId: number,
     @Body() dto: UpdatePreferenciasDto,
   ) {
-    this.logger.log(`Recibiendo DTO para guardar preferencias: ${JSON.stringify(dto)}`);
+    this.logger.log(
+      `Recibiendo DTO para guardar preferencias: ${JSON.stringify(dto)}`,
+    );
     const result = await this.notificacionesService.upsertPreferencias(
       docenteId,
       dto,
@@ -127,11 +129,14 @@ export class NotificacionesController {
       if (token) {
         this.logger?.log("📤 Enviando mensaje a Telegram...");
         try {
-          const result = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(response),
-          });
+          const result = await fetch(
+            `https://api.telegram.org/bot${token}/sendMessage`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            },
+          );
           const data = await result.json();
           this.logger?.log(`✅ Mensaje enviado: ${JSON.stringify(data)}`);
         } catch (error) {

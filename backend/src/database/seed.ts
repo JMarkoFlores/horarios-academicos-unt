@@ -1,4 +1,3 @@
-
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { config } from "dotenv";
@@ -48,7 +47,13 @@ import { CargaAdicional } from "../entities/carga-adicional.entity";
 // Import our modular seed functions
 import { seedTurnosPorDefecto, generarSlotsDesdeTurno } from "./seed-turnos";
 import { seedDisponibilidadesDocentes } from "./seed-disponibilidades";
-import { seedEstructura, normalize, diaANumero, parsearRangoHoras, mapAmbienteCode } from "./seed-estructura";
+import {
+  seedEstructura,
+  normalize,
+  diaANumero,
+  parsearRangoHoras,
+  mapAmbienteCode,
+} from "./seed-estructura";
 import { seedPlanEstudios } from "./seed-plan-estudios";
 import { seedPlanEstudios2027 } from "./seed-plan-estudios-2027";
 import { seedHorariosCicloI } from "./seed-horarios-ciclo-I";
@@ -56,7 +61,10 @@ import { seedHorariosCicloIII } from "./seed-horarios-ciclo-III";
 import { seedHorariosCicloV } from "./seed-horarios-ciclo-V";
 import { seedHorariosCicloVII } from "./seed-horarios-ciclo-VII";
 import { seedHorariosCicloIX } from "./seed-horarios-ciclo-IX";
-import { seedDeclaracionesDemo, DNIS_DOCENTES } from "./seed-declaraciones-demo";
+import {
+  seedDeclaracionesDemo,
+  DNIS_DOCENTES,
+} from "./seed-declaraciones-demo";
 import { seedCladDemo } from "./seed-clad-demo";
 
 // Enums
@@ -95,18 +103,43 @@ export async function main() {
     // Truncation outside transaction (DDL operation)
     console.log("🧹 Limpiando base de datos...");
     const tables = [
-      "declaracion_observacion", "declaracion_jurada", "declaraciones_clad", "detalles_clad", "carga_adicional",
-      "oferta_academica", "asignacion_lectiva", "notificacion_docente", "cola_docentes",
-      "ventana_atencion", "campaña_ventanas", "curso_plan_estudios",
-      "plan_estudios", "turno_config", "disponibilidad_docente",
-      "declaracion_carga_horaria", "horario_asignado", "docente_curso",
-      "grupo", "curso", "docente", "usuario", "departamento", "escuela",
-      "facultad", "periodo_academico", "dia_activo", "turno_horario",
-      "ambiente", "configuracion_general", "restriccion_institucional"
+      "declaracion_observacion",
+      "declaracion_jurada",
+      "declaraciones_clad",
+      "detalles_clad",
+      "carga_adicional",
+      "oferta_academica",
+      "asignacion_lectiva",
+      "notificacion_docente",
+      "cola_docentes",
+      "ventana_atencion",
+      "campaña_ventanas",
+      "curso_plan_estudios",
+      "plan_estudios",
+      "turno_config",
+      "disponibilidad_docente",
+      "declaracion_carga_horaria",
+      "horario_asignado",
+      "docente_curso",
+      "grupo",
+      "curso",
+      "docente",
+      "usuario",
+      "departamento",
+      "escuela",
+      "facultad",
+      "periodo_academico",
+      "dia_activo",
+      "turno_horario",
+      "ambiente",
+      "configuracion_general",
+      "restriccion_institucional",
     ];
     for (const table of tables) {
       try {
-        await queryRunner.query(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`);
+        await queryRunner.query(
+          `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`,
+        );
       } catch (error: any) {
         if (error.code === "42P01") {
           console.log(`⚠️  Tabla "${table}" no existe, saltando...`);
@@ -138,7 +171,7 @@ export async function main() {
       cursoRepo,
       cursoPlanRepo,
       estructura.escuela,
-      estructura.departamentos
+      estructura.departamentos,
     );
 
     // 3b. Seed Plan de Estudios 2027 (reuses existing Curso records)
@@ -147,15 +180,18 @@ export async function main() {
       cursoRepo,
       cursoPlanRepo,
       estructura.escuela,
-      estructura.departamentos
+      estructura.departamentos,
     );
     console.log("✅ Plan de Estudios 2027 completado.");
 
     // 3c. Seed OfertaAcademica from CursoPlanEstudios
     console.log("📋 Generando oferta académica desde plan de estudios...");
     const ofertaRepo = queryRunner.manager.getRepository(OfertaAcademica);
-    const periodoActivo = await queryRunner.manager.getRepository(PeriodoAcademico).findOne({ where: { activo: true } });
-    if (!periodoActivo) throw new Error("No hay período activo para generar oferta académica");
+    const periodoActivo = await queryRunner.manager
+      .getRepository(PeriodoAcademico)
+      .findOne({ where: { activo: true } });
+    if (!periodoActivo)
+      throw new Error("No hay período activo para generar oferta académica");
     const todosCursosPlan = await cursoPlanRepo.find();
     let ofertaCount = 0;
     for (const cp of todosCursosPlan) {
@@ -167,7 +203,11 @@ export async function main() {
       for (const { tipo, horas } of tipos) {
         if (horas <= 0) continue;
         const exists = await ofertaRepo.findOne({
-          where: { periodo_id: periodoActivo.id, curso_plan_id: cp.id, tipo_clase: tipo },
+          where: {
+            periodo_id: periodoActivo.id,
+            curso_plan_id: cp.id,
+            tipo_clase: tipo,
+          },
         });
         if (exists) continue;
         await ofertaRepo.save(
@@ -177,7 +217,7 @@ export async function main() {
             tipo_clase: tipo,
             secciones: 1,
             activo: true,
-          })
+          }),
         );
         ofertaCount++;
       }
@@ -201,13 +241,17 @@ export async function main() {
     console.log("📋 Derivando asignaciones lectivas desde horarios...");
     const horarioRepo = queryRunner.manager.getRepository(HorarioAsignado);
     const docenteCursoRepo = queryRunner.manager.getRepository(DocenteCurso);
-    const asignacionLectivaRepo = queryRunner.manager.getRepository(AsignacionLectiva);
-    const allHorarios = await horarioRepo.find({ where: { periodo: estructura.periodoActivo.codigo } });
+    const asignacionLectivaRepo =
+      queryRunner.manager.getRepository(AsignacionLectiva);
+    const allHorarios = await horarioRepo.find({
+      where: { periodo: estructura.periodoActivo.codigo },
+    });
     const periodo = estructura.periodoActivo;
 
     const seenDC = new Set<string>();
     const seenAL = new Set<string>();
-    let dcCount = 0, alCount = 0;
+    let dcCount = 0,
+      alCount = 0;
 
     for (const h of allHorarios) {
       const startH = parseInt((h as any).hora_inicio.split(":")[0], 10);
@@ -230,7 +274,7 @@ export async function main() {
             tipo_clase: tc as TipoClase,
             periodoId: periodo.id,
             grupos: 1,
-          })
+          }),
         );
         dcCount++;
       }
@@ -249,23 +293,35 @@ export async function main() {
             horas_asignadas: horas,
             estado: EstadoAsignacionLectiva.CONFIRMADO,
             asignado_por_id: estructura.admin.id,
-          })
+          }),
         );
         alCount++;
       }
     }
-    console.log(`✅ ${dcCount} DocenteCurso y ${alCount} AsignacionLectiva derivados de horarios`);
+    console.log(
+      `✅ ${dcCount} DocenteCurso y ${alCount} AsignacionLectiva derivados de horarios`,
+    );
 
     // 5. Seed disponibilidad docente (now aware of assigned horarios!)
-    const disponibilidadRepo = queryRunner.manager.getRepository(DisponibilidadDocente);
+    const disponibilidadRepo = queryRunner.manager.getRepository(
+      DisponibilidadDocente,
+    );
     const docenteRepo = queryRunner.manager.getRepository(Docente);
     await seedDisponibilidadesDocentes(
-      disponibilidadRepo, docenteRepo, horarioRepo, turnoConfigRepo, estructura.periodoActivo
+      disponibilidadRepo,
+      docenteRepo,
+      horarioRepo,
+      turnoConfigRepo,
+      estructura.periodoActivo,
     );
 
     // 6. Seed declaraciones demo
-    const declaracionRepo = queryRunner.manager.getRepository(DeclaracionCargaHoraria);
-    const observacionRepo = queryRunner.manager.getRepository(DeclaracionObservacion);
+    const declaracionRepo = queryRunner.manager.getRepository(
+      DeclaracionCargaHoraria,
+    );
+    const observacionRepo = queryRunner.manager.getRepository(
+      DeclaracionObservacion,
+    );
     const juradaRepo = queryRunner.manager.getRepository(DeclaracionJurada);
     await seedDeclaracionesDemo({
       declaracionRepo,
@@ -283,14 +339,15 @@ export async function main() {
     // 6b. Seed CLAD demo for Marcelino Torres
     const cladRepo = queryRunner.manager.getRepository(DeclaracionClad);
     const detalleCladRepo = queryRunner.manager.getRepository(DetalleClad);
-    const cargaAdicionalRepo = queryRunner.manager.getRepository(CargaAdicional);
+    const cargaAdicionalRepo =
+      queryRunner.manager.getRepository(CargaAdicional);
     await seedCladDemo(
       cladRepo,
       detalleCladRepo,
       cargaAdicionalRepo,
       declaracionRepo,
       estructura.docentes,
-      estructura.periodoActivo
+      estructura.periodoActivo,
     );
     console.log("✅ CLAD demo completado.");
 
@@ -312,11 +369,13 @@ export async function main() {
         color_primario: CONFIG.color_primario,
         color_secundario: CONFIG.color_secundario,
         color_acento: CONFIG.color_acento,
-      })
+      }),
     );
 
     // 8. Seed Restricciones Institucionales por defecto (con upsert para evitar duplicados)
-    const restriccionRepo = queryRunner.manager.getRepository(RestriccionInstitucional);
+    const restriccionRepo = queryRunner.manager.getRepository(
+      RestriccionInstitucional,
+    );
     const periodoCodigo = estructura.periodoActivo.codigo;
 
     const restriccionesDefault = [
@@ -370,7 +429,9 @@ export async function main() {
         await restriccionRepo.save(restriccionRepo.create(restriccionData));
       }
     }
-    console.log("✅ Restricciones institucionales por defecto creadas/actualizadas.");
+    console.log(
+      "✅ Restricciones institucionales por defecto creadas/actualizadas.",
+    );
 
     // Commit transaction!
     await queryRunner.commitTransaction();
@@ -393,4 +454,3 @@ if (require.main === module) {
     process.exit(1);
   });
 }
-

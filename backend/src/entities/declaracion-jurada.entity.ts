@@ -33,11 +33,11 @@ export class DeclaracionJurada {
   @Column({ name: "docente_id" })
   docente_id: number;
 
-  @ManyToOne(
-    () => Docente,
-    (docente) => docente.declaraciones_juradas,
-    { nullable: false, eager: false, onDelete: "RESTRICT" },
-  )
+  @ManyToOne(() => Docente, (docente) => docente.declaraciones_juradas, {
+    nullable: false,
+    eager: false,
+    onDelete: "RESTRICT",
+  })
   @JoinColumn({ name: "docente_id" })
   docente: Docente;
 

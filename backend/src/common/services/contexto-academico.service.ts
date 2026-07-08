@@ -151,7 +151,11 @@ export class ContextoAcademicoService {
   }
 
   assertAlcanceAsignado(contexto: ContextoAcademico): void {
-    if (contexto.verTodo || contexto.docenteId || contexto.departamentoIds.length) {
+    if (
+      contexto.verTodo ||
+      contexto.docenteId ||
+      contexto.departamentoIds.length
+    ) {
       return;
     }
     throw new ForbiddenException(
@@ -229,7 +233,9 @@ export class ContextoAcademicoService {
     }
 
     if (!facultad) {
-      throw new ForbiddenException("No tiene una facultad asignada como decano");
+      throw new ForbiddenException(
+        "No tiene una facultad asignada como decano",
+      );
     }
 
     const departamentos = await this.departamentoRepo

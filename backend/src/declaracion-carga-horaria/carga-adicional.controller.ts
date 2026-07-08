@@ -50,7 +50,11 @@ export class CargaAdicionalController {
       declaracionId ? Number(declaracionId) : undefined,
       docenteId ? Number(docenteId) : undefined,
     );
-    return { data, message: "Carga adicional obtenida", statusCode: HttpStatus.OK };
+    return {
+      data,
+      message: "Carga adicional obtenida",
+      statusCode: HttpStatus.OK,
+    };
   }
 
   @Get(":id")
@@ -66,7 +70,11 @@ export class CargaAdicionalController {
   @ApiResponse({ status: 200, description: "Carga adicional encontrada" })
   async findOne(@Param("id") id: string) {
     const data = await this.service.findOne(Number(id));
-    return { data, message: "Carga adicional encontrada", statusCode: HttpStatus.OK };
+    return {
+      data,
+      message: "Carga adicional encontrada",
+      statusCode: HttpStatus.OK,
+    };
   }
 
   @Post()

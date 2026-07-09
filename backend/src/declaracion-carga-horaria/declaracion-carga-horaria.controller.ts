@@ -176,6 +176,8 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({ summary: "Guardar declaración de carga horaria" })
   async guardarDeclaracion(
@@ -218,6 +220,8 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
     RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({
     summary: "Obtener documentaciones enviadas por docentes para revisión",
@@ -241,6 +245,8 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DOCENTE,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({ summary: "Obtener una declaración por ID" })
   @ApiParam({ name: "id", type: Number })
@@ -261,6 +267,8 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DECANO,
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({
     summary: "Obtener la carga lectiva institucional de una declaración",
@@ -287,7 +295,16 @@ export class DeclaracionCargaHorariaController {
   }
 
   @Post(":id/generar-carga-lectiva")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @ApiOperation({
     summary:
       "Regenerar y guardar el snapshot de carga lectiva en una declaración",
@@ -321,7 +338,16 @@ export class DeclaracionCargaHorariaController {
   }
 
   @Post()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @ApiOperation({ summary: "Crear una declaración de carga horaria" })
   @ApiResponse({ status: 201, description: "Declaración creada correctamente" })
   async crear(
@@ -337,7 +363,16 @@ export class DeclaracionCargaHorariaController {
   }
 
   @Patch(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @ApiOperation({ summary: "Actualizar una declaración en borrador" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Declaración actualizada" })
@@ -531,6 +566,9 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
     RolUsuario.DOCENTE,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({ summary: "Agregar comentario a una declaración" })
   @ApiParam({ name: "id", type: Number })
@@ -554,6 +592,9 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({
     summary: "Obtener historial de observaciones de una declaración",
@@ -574,6 +615,7 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DECANO,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
     RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Obtener declaración jurada de un docente" })
@@ -606,6 +648,7 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
     RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
     RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Generar declaración jurada de un docente" })

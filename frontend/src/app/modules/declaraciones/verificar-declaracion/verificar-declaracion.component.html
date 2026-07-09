@@ -547,7 +547,7 @@
         Volver
       </button>
       <div class="right-buttons">
-        <button *ngIf="puedeEditar" mat-raised-button color="primary" class="btn-guardar" (click)="guardar()" [disabled]="saving || tieneErroresDetalle() || tieneHorasIncompletas()">
+        <button *ngIf="puedeEditar" mat-raised-button color="primary" class="btn-guardar" (click)="guardar()" [disabled]="saving">
           <mat-icon>save</mat-icon>
           Guardar
         </button>

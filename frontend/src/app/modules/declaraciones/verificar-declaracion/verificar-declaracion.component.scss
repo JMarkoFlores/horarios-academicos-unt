@@ -690,8 +690,14 @@
     color: white;
     font-weight: 500;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: var(--color-success-dark, #059669);
+    }
+
+    &:disabled {
+      background: #cbd5e1 !important;
+      color: #94a3b8 !important;
+      cursor: not-allowed;
     }
   }
 
@@ -705,8 +711,14 @@
     color: white;
     font-weight: 500;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: var(--color-primary-dark, #1d4ed8);
+    }
+
+    &:disabled {
+      background: #cbd5e1 !important;
+      color: #94a3b8 !important;
+      cursor: not-allowed;
     }
   }
 }

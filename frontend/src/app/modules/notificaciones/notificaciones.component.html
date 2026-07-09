@@ -9,6 +9,59 @@
 
     <!-- Vista para Administrador -->
     <div *ngIf="isAdmin">
+      <!-- Configuración del Bot de Telegram (solo admin) -->
+      <mat-card class="card-webhook-config">
+        <mat-card-header>
+          <mat-card-title>🤖 Configuración del Bot de Telegram</mat-card-title>
+          <mat-card-subtitle>Gestiona la conexión del bot de Telegram</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="cargandoBotInfo" class="loading-spinner">
+            <mat-spinner diameter="32"></mat-spinner>
+            <p>Cargando información del bot...</p>
+          </div>
+          <div *ngIf="!cargandoBotInfo && telegramBotInfo" class="bot-info">
+            <p><strong>ID:</strong> {{ telegramBotInfo.id }}</p>
+            <p><strong>Nombre:</strong> {{ telegramBotInfo.first_name }}</p>
+            <p *ngIf="telegramBotInfo.username"><strong>Username:</strong> &#64;{{ telegramBotInfo.username }}</p>
+          </div>
+          
+          <mat-divider class="divider"></mat-divider>
+          
+          <div class="webhook-section">
+            <h3>Webhook</h3>
+            <form [formGroup]="webhookForm" (ngSubmit)="configurarWebhook()">
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>URL del Webhook</mat-label>
+                  <input matInput 
+                         formControlName="url" 
+                         placeholder="https://tu-backend.com/notificaciones/telegram/webhook" />
+                  <mat-hint>URL donde Telegram enviará las actualizaciones del bot</mat-hint>
+                </mat-form-field>
+              </div>
+              
+              <div *ngIf="telegramWebhookInfo" class="webhook-status">
+                <p><strong>URL actual:</strong> {{ telegramWebhookInfo.url || 'Ninguna' }}</p>
+                <p><strong>Actualizaciones pendientes:</strong> {{ telegramWebhookInfo.pending_update_count }}</p>
+                <p *ngIf="telegramWebhookInfo.last_error_message" class="error-text">
+                  <strong>Último error:</strong> {{ telegramWebhookInfo.last_error_message }}
+                </p>
+              </div>
+              
+              <div class="actions">
+                <button mat-raised-button color="primary" type="submit" [disabled]="configurandoWebhook">
+                  {{ configurandoWebhook ? 'Configurando...' : 'Configurar Webhook' }}
+                </button>
+                <button mat-stroked-button type="button" (click)="cargarTelegramWebhookInfo()">
+                  Actualizar Estado
+                </button>
+              </div>
+            </form>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <mat-card class="card-seleccion-docente" *ngIf="!docenteId">
         <mat-card-header>
           <mat-card-title>Seleccionar Docente</mat-card-title>

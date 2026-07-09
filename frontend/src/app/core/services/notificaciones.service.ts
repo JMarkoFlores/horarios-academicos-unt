@@ -26,6 +26,21 @@ export interface EstadisticasNotificacion {
   porCanal: Record<string, number>;
 }
 
+export interface TelegramBotInfo {
+  id: number;
+  first_name: string;
+  username?: string;
+  is_bot: boolean;
+}
+
+export interface TelegramWebhookInfo {
+  url: string;
+  has_custom_certificate: boolean;
+  pending_update_count: number;
+  last_error_date?: number;
+  last_error_message?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class NotificacionesService {
   constructor(private api: ApiService) {}
@@ -49,5 +64,17 @@ export class NotificacionesService {
   getEstadisticas(periodo?: string): Observable<{ data: EstadisticasNotificacion }> {
     const params: Record<string, string> = periodo ? { periodo } : {};
     return this.api.get('/notificaciones/estadisticas', params);
+  }
+
+  getTelegramBotInfo(): Observable<{ data: TelegramBotInfo }> {
+    return this.api.get('/notificaciones/telegram/me');
+  }
+
+  setTelegramWebhook(url: string): Observable<{ data: any; message: string }> {
+    return this.api.post('/notificaciones/telegram/webhook/set', { url });
+  }
+
+  getTelegramWebhookInfo(): Observable<{ data: TelegramWebhookInfo }> {
+    return this.api.get('/notificaciones/telegram/webhook/info');
   }
 }

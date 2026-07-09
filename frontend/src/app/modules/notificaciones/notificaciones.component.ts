@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { ROLES } from '../../core/constants/roles';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
-import { NotificacionesService, PreferenciasNotificacion, NotificacionItem } from '../../core/services/notificaciones.service';
+import { NotificacionesService, PreferenciasNotificacion, NotificacionItem, TelegramBotInfo, TelegramWebhookInfo } from '../../core/services/notificaciones.service';
 import { NotifToastService } from '../../core/services/notif-toast.service';
 
 @Component({
@@ -13,6 +13,7 @@ import { NotifToastService } from '../../core/services/notif-toast.service';
 })
 export class NotificacionesComponent implements OnInit {
   preferenciasForm!: FormGroup;
+  webhookForm!: FormGroup;
   preferencias: PreferenciasNotificacion | null = null;
   historial: NotificacionItem[] = [];
   totalHistorial = 0;
@@ -26,6 +27,10 @@ export class NotificacionesComponent implements OnInit {
   isAdmin = false;
   estadisticas: any = null;
   telegramBotUsername = 'BhorariosUNT_bot'; // Username del bot oficial de UNT
+  telegramBotInfo: TelegramBotInfo | null = null;
+  telegramWebhookInfo: TelegramWebhookInfo | null = null;
+  cargandoBotInfo = false;
+  configurandoWebhook = false;
   docentes: any[] = []; // Lista de docentes para autocomplete
   buscandoDocentes = false;
 
@@ -54,6 +59,10 @@ export class NotificacionesComponent implements OnInit {
       correo_alternativo: [''],
     });
 
+    this.webhookForm = this.fb.group({
+      url: [''],
+    });
+
     if (this.docenteId) {
       this.cargarDatosDocente();
       this.cargarPreferencias();
@@ -64,6 +73,8 @@ export class NotificacionesComponent implements OnInit {
 
     if (this.isAdmin) {
       this.cargarEstadisticas();
+      this.cargarTelegramBotInfo();
+      this.cargarTelegramWebhookInfo();
     }
   }
 
@@ -199,6 +210,58 @@ export class NotificacionesComponent implements OnInit {
         this.estadisticas = res.data;
       },
       error: () => this.toast.error('Error al cargar estadísticas'),
+    });
+  }
+
+  cargarTelegramBotInfo(): void {
+    this.cargandoBotInfo = true;
+    this.notifService.getTelegramBotInfo().subscribe({
+      next: (res) => {
+        this.telegramBotInfo = res.data;
+        if (res.data.username) {
+          this.telegramBotUsername = res.data.username;
+        }
+        this.cargandoBotInfo = false;
+      },
+      error: (err) => {
+        console.error('Error al cargar info del bot:', err);
+        this.cargandoBotInfo = false;
+      },
+    });
+  }
+
+  cargarTelegramWebhookInfo(): void {
+    this.notifService.getTelegramWebhookInfo().subscribe({
+      next: (res) => {
+        this.telegramWebhookInfo = res.data;
+        this.webhookForm.patchValue({
+          url: res.data.url || '',
+        });
+      },
+      error: (err) => {
+        console.error('Error al cargar info del webhook:', err);
+      },
+    });
+  }
+
+  configurarWebhook(): void {
+    const url = this.webhookForm.value.url;
+    if (!url) {
+      this.toast.error('Por favor ingresa la URL del webhook');
+      return;
+    }
+    this.configurandoWebhook = true;
+    this.notifService.setTelegramWebhook(url).subscribe({
+      next: (res) => {
+        this.toast.success(res.message);
+        this.configurandoWebhook = false;
+        this.cargarTelegramWebhookInfo();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || err?.message || 'Error al configurar webhook';
+        this.toast.error(msg);
+        this.configurandoWebhook = false;
+      },
     });
   }
 

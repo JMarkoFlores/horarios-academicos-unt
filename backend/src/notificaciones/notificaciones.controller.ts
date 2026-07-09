@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Logger,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -16,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
+  ApiBody,
 } from "@nestjs/swagger";
 import { NotificacionesService } from "./notificaciones.service";
 import { TelegramBotService } from "./telegram-bot.service";
@@ -26,6 +28,7 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
+import { ConfigService } from "@nestjs/config";
 
 @ApiTags("notificaciones")
 @Controller("notificaciones")
@@ -35,6 +38,7 @@ export class NotificacionesController {
   constructor(
     private readonly notificacionesService: NotificacionesService,
     private readonly telegramBotService: TelegramBotService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Get("docente/:id")
@@ -124,7 +128,7 @@ export class NotificacionesController {
     this.logger?.log("📨 Webhook de Telegram recibido!");
     const response = await this.telegramBotService.handleUpdate(update);
     if (response) {
-      const token = process.env.TELEGRAM_BOT_TOKEN;
+      const token = this.configService.get<string>("TELEGRAM_BOT_TOKEN");
       this.logger?.log(`🔑 Token encontrado: ${token ? "SI" : "NO"}`);
       if (token) {
         this.logger?.log("📤 Enviando mensaje a Telegram...");
@@ -145,5 +149,94 @@ export class NotificacionesController {
       }
     }
     return { ok: true };
+  }
+
+  @Get("telegram/me")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Obtener información del bot de Telegram" })
+  async getTelegramBotInfo() {
+    const token = this.configService.get<string>("TELEGRAM_BOT_TOKEN");
+    if (!token) {
+      throw new BadRequestException("TELEGRAM_BOT_TOKEN no configurado");
+    }
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${token}/getMe`,
+      );
+      const data = await response.json();
+      if (!data.ok) {
+        throw new BadRequestException(`Error de Telegram: ${data.description}`);
+      }
+      return { data: data.result, message: "Información del bot obtenida" };
+    } catch (error) {
+      throw new BadRequestException(`Error al obtener info del bot: ${error}`);
+    }
+  }
+
+  @Post("telegram/webhook/set")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Configurar el webhook del bot de Telegram" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "URL del webhook (ej: https://tu-backend.com/notificaciones/telegram/webhook)" },
+      },
+      required: ["url"],
+    },
+  })
+  async setTelegramWebhook(@Body() body: { url: string }) {
+    const token = this.configService.get<string>("TELEGRAM_BOT_TOKEN");
+    if (!token) {
+      throw new BadRequestException("TELEGRAM_BOT_TOKEN no configurado");
+    }
+    if (!body.url) {
+      throw new BadRequestException("URL del webhook es requerida");
+    }
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${token}/setWebhook`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: body.url }),
+        },
+      );
+      const data = await response.json();
+      if (!data.ok) {
+        throw new BadRequestException(`Error de Telegram: ${data.description}`);
+      }
+      return { data: data.result, message: "Webhook configurado exitosamente" };
+    } catch (error) {
+      throw new BadRequestException(`Error al configurar webhook: ${error}`);
+    }
+  }
+
+  @Get("telegram/webhook/info")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Obtener información del webhook configurado" })
+  async getTelegramWebhookInfo() {
+    const token = this.configService.get<string>("TELEGRAM_BOT_TOKEN");
+    if (!token) {
+      throw new BadRequestException("TELEGRAM_BOT_TOKEN no configurado");
+    }
+    try {
+      const response = await fetch(
+        `https://api.telegram.org/bot${token}/getWebhookInfo`,
+      );
+      const data = await response.json();
+      if (!data.ok) {
+        throw new BadRequestException(`Error de Telegram: ${data.description}`);
+      }
+      return { data: data.result, message: "Información del webhook obtenida" };
+    } catch (error) {
+      throw new BadRequestException(`Error al obtener info del webhook: ${error}`);
+    }
   }
 }

@@ -952,7 +952,7 @@ export class HorarioGraficoPanelComponent implements OnInit, OnChanges, OnDestro
       0
     );
     const totalProyectado =
-      this.totalHorasLectivas + totalNoLectivasDeclaradas + this.totalHorasCargaAdicional;
+      this.totalHorasLectivas + totalNoLectivasDeclaradas;
     if (totalProyectado > this.horasModalidad) {
       this.snackBar.open(`Excedería ${this.horasModalidad}h totales (actual: ${totalProyectado}h)`, 'OK', {
         duration: 4000,

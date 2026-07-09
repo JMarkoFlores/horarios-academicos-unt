@@ -12,7 +12,12 @@ import { DataSource } from "typeorm";
 
 async function bootstrap() {
   const start = Date.now();
-  const app = await NestFactory.create(AppModule);
+  const isProduction = process.env.NODE_ENV === "production";
+  const app = await NestFactory.create(AppModule, {
+    logger: isProduction
+      ? ["log", "warn", "error"]
+      : ["log", "warn", "error", "debug"],
+  });
   const logger = new Logger("Bootstrap");
   const frontendUrl = process.env.FRONTEND_URL;
 

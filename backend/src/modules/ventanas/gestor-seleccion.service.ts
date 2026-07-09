@@ -1195,10 +1195,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     }
 
     this.logger.debug(
-      `Horarios confirmados encontrados: ${horariosConfirmados.length} para ambiente=${ambienteId}, periodo=${periodo}`,
-    );
-    this.logger.debug(
-      `Datos de horarios confirmados: ${JSON.stringify(horariosConfirmados.map((h) => ({ id: h.id, dia: h.dia, hora_inicio: h.hora_inicio, docente_id: h.docente_id, grupo_id: h.grupo_id })))}`,
+      `Horarios confirmados: ${horariosConfirmados.length} para ambiente=${ambienteId}, periodo=${periodo}`,
     );
 
     const matriz = [];
@@ -1304,9 +1301,6 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
             periodo,
           );
           const enRedis = await this.redis.get(claveRedis);
-          this.logger.debug(
-            `[obtenerDisponibilidadMatriz] Redis clave=${claveRedis}, enRedis=${!!enRedis}`,
-          );
 
           let seleccionesTemporales: SeleccionTemporalRedis[] = [];
           if (enRedis) {

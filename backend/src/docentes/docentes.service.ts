@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Inject,
   InternalServerErrorException,
+  Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -96,6 +97,9 @@ export class DocentesService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
+
+  private readonly logger = new Logger(DocentesService.name);
+
 
   async findAll(query: QueryDocenteDto, contexto?: ContextoAcademico) {
     const {
@@ -1041,11 +1045,8 @@ export class DocentesService {
     cursoId: number,
     tipoClase: string,
   ): Promise<Ambiente[]> {
-    console.log(
-      "[findAmbientesCompatibles] cursoId:",
-      cursoId,
-      "tipoClase:",
-      tipoClase,
+    this.logger.debug(
+      `[findAmbientesCompatibles] cursoId=${cursoId}, tipoClase=${tipoClase}`,
     );
 
     const curso = await this.cursoRepo.findOne({
@@ -1053,9 +1054,8 @@ export class DocentesService {
       relations: ["ambientes"],
     });
     let ambientes = curso?.ambientes ?? [];
-    console.log(
-      "[findAmbientesCompatibles] ambientes del curso:",
-      ambientes.length,
+    this.logger.debug(
+      `[findAmbientesCompatibles] ambientes directos del curso: ${ambientes.length}`,
     );
 
     // Fallback: si el curso no tiene ambientes asignados, buscar otros cursos
@@ -1063,9 +1063,8 @@ export class DocentesService {
     // de estudio) y reutilizar sus ambientes. Esto mantiene el principio de que
     // los ambientes dependen del curso, no del plan de estudios.
     if (ambientes.length === 0 && curso) {
-      console.log(
-        "[findAmbientesCompatibles] curso sin ambientes; buscando por codigo:",
-        curso.codigo,
+      this.logger.debug(
+        `[findAmbientesCompatibles] sin ambientes directos; fallback por codigo=${curso.codigo}`,
       );
       const cursosSimilares = await this.cursoRepo.find({
         where: { codigo: curso.codigo, activo: true },
@@ -1080,9 +1079,8 @@ export class DocentesService {
           }
         }
       }
-      console.log(
-        "[findAmbientesCompatibles] ambientes encontrados por codigo:",
-        ambientes.length,
+      this.logger.debug(
+        `[findAmbientesCompatibles] ambientes encontrados por codigo: ${ambientes.length}`,
       );
     }
 
@@ -1097,11 +1095,8 @@ export class DocentesService {
       tiposPermitidos.includes(a.tipo),
     );
 
-    console.log(
-      "[findAmbientesCompatibles] ambientes compatibles (",
-      tipoClase,
-      "):",
-      filtrados.length,
+    this.logger.debug(
+      `[findAmbientesCompatibles] compatibles (${tipoClase}): ${filtrados.length}`,
     );
 
     return filtrados;

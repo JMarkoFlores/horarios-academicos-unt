@@ -351,6 +351,7 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
     @Query("periodo") periodo: string,
     @Res() res: any,
+    @Query("mostrarNoLectiva") mostrarNoLectiva?: string,
   ) {
     try {
       if (!usuario.email) throw new BadRequestException("Usuario sin correo");
@@ -373,9 +374,14 @@ export class HorariosController {
         throw new NotFoundException("No se pudo identificar el docente");
       }
 
+      const horariosToExport = mostrarNoLectiva === 'true'
+        ? horarios.horarios
+        : horarios.horarios.filter(h => h.tipo_clase !== 'NO_LECTIVA');
+
       const icsContent = await this.icalendarService.generarICalendarDocente(
         docenteId,
         periodo,
+        horariosToExport
       );
 
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");
@@ -771,6 +777,7 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
     @Res() res: any,
     @Headers() headers: any,
+    @Query("mostrarNoLectiva") mostrarNoLectiva?: string,
   ) {
     if (usuario.rol === RolUsuario.DOCENTE) {
       const docenteId = (usuario as UsuarioAutenticado).docenteId;
@@ -779,9 +786,19 @@ export class HorariosController {
       }
     }
     try {
+      const horariosArray = await this.horariosService.findHorariosByDocenteId(
+        id,
+        periodo
+      );
+      
+      const horariosToExport = mostrarNoLectiva === 'true'
+        ? horariosArray
+        : horariosArray.filter(h => h.tipo_clase !== 'NO_LECTIVA');
+
       const icsContent = await this.icalendarService.generarICalendarDocente(
         id,
         periodo,
+        horariosToExport
       );
 
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");

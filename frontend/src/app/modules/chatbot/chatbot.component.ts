@@ -165,6 +165,13 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
         this.isVisible = this.chatbotService.getChatVisibility();
       }
     });
+    // Escuchar evento para abrir explícitamente desde el topbar
+    window.addEventListener('openChatbot', () => {
+      this.isVisible = true;
+      this.isOpen = true;
+      this.chatbotService.setChatVisibility(true);
+      this.cdr.detectChanges();
+    });
     
     // Escuchar cambios de conexión
     this.isOnline = navigator.onLine;

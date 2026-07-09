@@ -126,7 +126,8 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   subtotalGestion = 0;
   cargandoHorariosLectivos = false;
 
-  totalHoras = 0;
+  totalHorasRegulares = 0; // Lectivas + No Lectivas (sometidas a la modalidad)
+  totalHoras = 0; // Lectivas + No Lectivas + Adicional (no sometida a límite)
   esEditable = true;
 
   horasModalidad = 0;
@@ -450,8 +451,9 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
     this.totalHorasNoLectivas = this.actividadesNoLectivas
       .reduce((sum, a) => sum + (Number(a.horas) || 0), 0);
+    this.totalHorasRegulares = this.totalHorasLectivas + this.totalHorasNoLectivas;
     this.totalHorasCargaAdicional = this.cargaAdicional.reduce((sum, c) => sum + (c.total_horas || 0), 0);
-    this.totalHoras = this.totalHorasLectivas + this.totalHorasNoLectivas + this.totalHorasCargaAdicional;
+    this.totalHoras = this.totalHorasRegulares + this.totalHorasCargaAdicional;
 
     this.subtotalPreparacion = this.actividadesNoLectivas.filter(a => a.id === 2).reduce((s, a) => s + (Number(a.horas) || 0), 0);
     this.subtotalInvestigacion = this.actividadesNoLectivas.filter(a => a.id >= 3 && a.id <= 5).reduce((s, a) => s + (Number(a.horas) || 0), 0);
@@ -610,7 +612,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
   }
 
   tieneHorasIncompletas(): boolean {
-    return Math.abs(this.totalHoras - this.horasModalidad) > 0.01;
+    return Math.abs(this.totalHorasRegulares - this.horasModalidad) > 0.01;
   }
 
   tieneErroresEnviar(): boolean {
@@ -632,7 +634,7 @@ export class VerificarDeclaracionComponent implements OnInit, OnDestroy {
 
   actualizarGauge(): void {
     if (this.horasModalidad > 0) {
-      this.gaugePercent = Math.min(100, Math.round((this.totalHoras / this.horasModalidad) * 100));
+      this.gaugePercent = Math.min(100, Math.round((this.totalHorasRegulares / this.horasModalidad) * 100));
     }
   }
 

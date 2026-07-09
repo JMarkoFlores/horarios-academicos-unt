@@ -144,7 +144,7 @@
                   <span class="results-count">
                     <mat-icon>{{ tipo.icon }}</mat-icon>
                     <strong>{{ tipo.label }}</strong>
-                    <span class="hour-tag" [class.theory]="tipo.clave === 'TEORIA'" [class.practice]="tipo.clave === 'TEORIA' && tipo.label === 'Práctica'" [class.lab]="tipo.clave === 'LABORATORIO'" style="margin-left:8px">
+                    <span class="hour-tag" [class.theory]="tipo.clave === 'TEORIA'" [class.practice]="tipo.clave === 'PRACTICA'" [class.lab]="tipo.clave === 'LABORATORIO'" style="margin-left:8px">
                       {{ tipo.obtenerHoras(currentEntry) }}h
                     </span>
                   </span>

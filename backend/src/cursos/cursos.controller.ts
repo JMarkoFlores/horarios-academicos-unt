@@ -82,6 +82,47 @@ export class CursosController {
     return { data: result, message: "Ambientes del curso obtenidos" };
   }
 
+  @Get(":id/ambientes-diagnostico")
+  @ApiOperation({
+    summary: "Diagnóstico de ambientes asignados a un curso",
+    description:
+      "Devuelve información detallada sobre los ambientes del curso, incluyendo fallback por código.",
+  })
+  @ApiParam({ name: "id", type: Number })
+  @ApiQuery({ name: "tipo_clase", enum: TipoClase, required: false })
+  async getAmbientesDiagnostico(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("tipo_clase") tipoClase?: TipoClase,
+  ) {
+    const result = await this.cursosService.diagnosticarAmbientes(
+      id,
+      tipoClase,
+    );
+    return {
+      data: result,
+      message: "Diagnóstico de ambientes obtenido",
+    };
+  }
+
+  @Post("asignar-ambientes-por-defecto")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
+  @ApiOperation({
+    summary: "Asignar ambientes por defecto a todos los cursos",
+    description:
+      "Asigna automáticamente ambientes a los cursos activos según sus horas de teoría, práctica o laboratorio. No sobrescribe ambientes ya asignados.",
+  })
+  async asignarAmbientesPorDefecto() {
+    const result = await this.cursosService.ejecutarAsignacionAmbientesPorDefecto();
+    return {
+      data: result,
+      message: "Ambientes por defecto asignados correctamente",
+    };
+  }
+
   @Post()
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear nuevo curso" })

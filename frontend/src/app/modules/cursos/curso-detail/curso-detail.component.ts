@@ -78,7 +78,7 @@ export class CursoDetailComponent implements OnInit {
     { clave: 'TEORIA' as const, label: 'Teoría', icon: 'meeting_room',
       obtenerHoras: (e: CursoPlanEntry | null) => e?.horas_teoria ?? 0,
       obtenerAmbientes: (ctx: CursoDetailComponent) => ctx.ambientesTeoria() },
-    { clave: 'TEORIA' as const, label: 'Práctica', icon: 'build',
+    { clave: 'PRACTICA' as const, label: 'Práctica', icon: 'build',
       obtenerHoras: (e: CursoPlanEntry | null) => e?.horas_practica ?? 0,
       obtenerAmbientes: (ctx: CursoDetailComponent) => ctx.ambientesTeoria() },
     { clave: 'LABORATORIO' as const, label: 'Laboratorio', icon: 'biotech',
@@ -164,7 +164,7 @@ export class CursoDetailComponent implements OnInit {
     return (this.curso?.ambientes ?? []).filter(a => a.tipo === 'LABORATORIO');
   }
 
-  asignarAmbientes(tipo: 'TEORIA' | 'LABORATORIO'): void {
+  asignarAmbientes(tipo: 'TEORIA' | 'PRACTICA' | 'LABORATORIO'): void {
     if (!this.curso) return;
     this.dialog.open(AsignarAmbientesDialogComponent, {
       width: '540px', maxWidth: '95vw', data: { curso: this.curso, tipo_clase: tipo },

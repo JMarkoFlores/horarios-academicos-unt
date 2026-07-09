@@ -56,6 +56,7 @@ import {
 } from "./seed-estructura";
 import { seedPlanEstudios } from "./seed-plan-estudios";
 import { seedPlanEstudios2027 } from "./seed-plan-estudios-2027";
+import { asignarAmbientesPorDefecto } from "./asignar-ambientes-por-defecto.helper";
 import { seedHorariosCicloI } from "./seed-horarios-ciclo-I";
 import { seedHorariosCicloIII } from "./seed-horarios-ciclo-III";
 import { seedHorariosCicloV } from "./seed-horarios-ciclo-V";
@@ -183,6 +184,10 @@ export async function main() {
       estructura.departamentos,
     );
     console.log("✅ Plan de Estudios 2027 completado.");
+
+    // 3b. Asignar ambientes por defecto a los cursos
+    console.log("🏠 Asignando ambientes por defecto a cursos...");
+    await asignarAmbientesPorDefecto(queryRunner.manager);
 
     // 3c. Seed OfertaAcademica from CursoPlanEstudios
     console.log("📋 Generando oferta académica desde plan de estudios...");

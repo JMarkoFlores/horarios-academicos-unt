@@ -10,7 +10,7 @@ import {
 
 export interface AsignarAmbientesData {
   curso: Curso;
-  tipo_clase: 'TEORIA' | 'LABORATORIO';
+  tipo_clase: 'TEORIA' | 'PRACTICA' | 'LABORATORIO';
 }
 
 @Component({
@@ -33,9 +33,9 @@ export class AsignarAmbientesDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.loading = true;
-    const tiposReq = this.data.tipo_clase === 'TEORIA' 
-      ? ['AULA', 'TALLER'] 
-      : ['LABORATORIO'];
+    const tiposReq = this.data.tipo_clase === 'LABORATORIO'
+      ? ['LABORATORIO']
+      : ['AULA', 'TALLER'];
 
     this.api
       .get<ApiResponse<any>>('/ambientes', { limit: 100, activo: 'true' })
@@ -71,9 +71,12 @@ export class AsignarAmbientesDialogComponent implements OnInit {
   }
 
   get titulo(): string {
-    return this.data.tipo_clase === 'TEORIA'
-      ? 'Ambientes de Teoría'
-      : 'Ambientes de Laboratorio';
+    const titulos: Record<string, string> = {
+      TEORIA: 'Ambientes de Teoría',
+      PRACTICA: 'Ambientes de Práctica',
+      LABORATORIO: 'Ambientes de Laboratorio',
+    };
+    return titulos[this.data.tipo_clase] ?? 'Ambientes';
   }
 
   toggleSeleccion(id: number): void {

@@ -33,6 +33,7 @@ export class CursosListComponent implements OnInit {
   currentPage = 0;
   loading     = false;
   exportando  = false;
+  asignandoAmbientes = false;
 
   searchControl      = new FormControl('');
   cicloFilter: number | '' = '';
@@ -276,6 +277,38 @@ export class CursosListComponent implements OnInit {
       this.api.patch<ApiResponse<any>>(`/cursos/${curso.id}/reactivar`, {}).subscribe({
         next: () => { this.snackBar.open('Curso reactivado', 'OK', { duration: 2500 }); this.loadCursos(); },
         error: (err) => { this.snackBar.open(err?.error?.message ?? 'Error al reactivar', 'Cerrar', { duration: 4000 }); },
+      });
+    });
+  }
+
+  asignarAmbientesPorDefecto(): void {
+    this.dialog.open(ConfirmDialogComponent, {
+      width: '460px',
+      data: {
+        title: 'Asignar ambientes por defecto',
+        message: 'Se asignarán automáticamente ambientes a todos los cursos activos según sus horas de teoría, práctica y laboratorio.',
+        detail: 'No sobrescribirá ambientes ya asignados manualmente.',
+        confirmText: 'Asignar',
+        confirmColor: 'primary',
+      },
+    }).afterClosed().subscribe((ok: boolean) => {
+      if (!ok) return;
+      this.asignandoAmbientes = true;
+      this.api.post<ApiResponse<any>>('/cursos/asignar-ambientes-por-defecto', {}).subscribe({
+        next: (res) => {
+          this.asignandoAmbientes = false;
+          const data = res.data ?? {};
+          this.snackBar.open(
+            `Ambientes asignados: ${data.relacionesCreadas ?? 0} relaciones en ${data.cursosProcesados ?? 0} cursos`,
+            'OK',
+            { duration: 4000 },
+          );
+          this.loadCursos();
+        },
+        error: (err) => {
+          this.asignandoAmbientes = false;
+          this.snackBar.open(err?.error?.message ?? 'Error al asignar ambientes', 'Cerrar', { duration: 4000 });
+        },
       });
     });
   }

@@ -1052,14 +1052,59 @@ export class DocentesService {
       where: { id: cursoId },
       relations: ["ambientes"],
     });
-    const ambientes = curso?.ambientes ?? [];
+    let ambientes = curso?.ambientes ?? [];
     console.log(
-      "[findAmbientesCompatibles] ambientes:",
-      ambientes.map((a) => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })),
+      "[findAmbientesCompatibles] ambientes del curso:",
+      ambientes.length,
     );
 
-    // Ya no filtramos por tipo de clase porque hay casos donde laboratorios se dan en aulas
-    return ambientes;
+    // Fallback: si el curso no tiene ambientes asignados, buscar otros cursos
+    // con el mismo código (pueden ser versiones del mismo curso en otros planes
+    // de estudio) y reutilizar sus ambientes. Esto mantiene el principio de que
+    // los ambientes dependen del curso, no del plan de estudios.
+    if (ambientes.length === 0 && curso) {
+      console.log(
+        "[findAmbientesCompatibles] curso sin ambientes; buscando por codigo:",
+        curso.codigo,
+      );
+      const cursosSimilares = await this.cursoRepo.find({
+        where: { codigo: curso.codigo, activo: true },
+        relations: ["ambientes"],
+      });
+      const idsVistos = new Set<number>();
+      for (const c of cursosSimilares) {
+        for (const a of c.ambientes ?? []) {
+          if (!idsVistos.has(a.id)) {
+            idsVistos.add(a.id);
+            ambientes.push(a);
+          }
+        }
+      }
+      console.log(
+        "[findAmbientesCompatibles] ambientes encontrados por codigo:",
+        ambientes.length,
+      );
+    }
+
+    // Práctica comparte ambientes con teoría (AULA/TALLER).
+    // Laboratorio solo puede usar ambientes de tipo LABORATORIO.
+    const tiposPermitidos =
+      tipoClase === TipoClase.LABORATORIO
+        ? [TipoAmbiente.LABORATORIO]
+        : [TipoAmbiente.AULA, TipoAmbiente.TALLER];
+
+    const filtrados = ambientes.filter((a) =>
+      tiposPermitidos.includes(a.tipo),
+    );
+
+    console.log(
+      "[findAmbientesCompatibles] ambientes compatibles (",
+      tipoClase,
+      "):",
+      filtrados.length,
+    );
+
+    return filtrados;
   }
 
   async updateFoto(docenteId: number, fotoUrl: string): Promise<Docente> {

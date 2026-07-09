@@ -12,6 +12,11 @@
       </p>
     </div>
     <div class="header-actions">
+      <button mat-stroked-button class="btn-export" (click)="asignarAmbientesPorDefecto()" [disabled]="asignandoAmbientes">
+        <mat-spinner diameter="14" *ngIf="asignandoAmbientes"></mat-spinner>
+        <mat-icon *ngIf="!asignandoAmbientes">meeting_room</mat-icon>
+        <span>{{ asignandoAmbientes ? 'Asignando…' : 'Ambientes por defecto' }}</span>
+      </button>
       <button mat-stroked-button class="btn-export" (click)="exportarPDF()" [disabled]="exportando">
         <mat-spinner diameter="14" *ngIf="exportando"></mat-spinner>
         <mat-icon *ngIf="!exportando">picture_as_pdf</mat-icon>

@@ -11,6 +11,7 @@ import { Ambiente } from "../entities/ambiente.entity";
 import { PlanEstudios } from "../entities/plan-estudios.entity";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { asignarAmbientesPorDefecto } from "../database/asignar-ambientes-por-defecto.helper";
 import { CreateCursoDto } from "./dto/create-curso.dto";
 import { UpdateCursoDto } from "./dto/update-curso.dto";
 import { QueryCursoDto } from "./dto/query-curso.dto";
@@ -169,7 +170,6 @@ export class CursosService {
       .leftJoinAndSelect("curso.ambientes", "ambientes")
       .leftJoinAndSelect("curso.departamento", "departamento")
       .where("curso.id = :id", { id })
-      .cache(`curso_${id}_detalle`, 60000)
       .getOne();
 
     if (!curso) {
@@ -287,7 +287,6 @@ export class CursosService {
       .createQueryBuilder("curso")
       .leftJoinAndSelect("curso.ambientes", "ambientes")
       .where("curso.id = :cursoId", { cursoId })
-      .cache(`curso_${cursoId}_ambientes`, 60000)
       .getOne();
 
     if (!curso) {
@@ -312,7 +311,6 @@ export class CursosService {
       .createQueryBuilder("curso")
       .leftJoinAndSelect("curso.ambientes", "ambientes")
       .where("curso.id = :cursoId", { cursoId })
-      .cache(`curso_${cursoId}_ambientes_compatibles`, 60000)
       .getOne();
 
     if (!curso) {
@@ -320,5 +318,102 @@ export class CursosService {
     }
 
     return curso.ambientes.filter((a) => tiposRequeridos.includes(a.tipo));
+  }
+
+  async diagnosticarAmbientes(cursoId: number, tipoClase?: TipoClase) {
+    const curso = await this.cursoRepo.findOne({
+      where: { id: cursoId },
+      relations: ["ambientes"],
+    });
+
+    if (!curso) {
+      throw new NotFoundException(`Curso con ID ${cursoId} no encontrado`);
+    }
+
+    const ambientesDirectos = curso.ambientes ?? [];
+
+    // Fallback por código: buscar cursos con el mismo código en otros planes
+    const cursosSimilares = await this.cursoRepo.find({
+      where: { codigo: curso.codigo, activo: true },
+      relations: ["ambientes"],
+    });
+
+    const idsVistos = new Set<number>();
+    const ambientesPorCodigo: Ambiente[] = [];
+    for (const c of cursosSimilares) {
+      for (const a of c.ambientes ?? []) {
+        if (!idsVistos.has(a.id)) {
+          idsVistos.add(a.id);
+          ambientesPorCodigo.push(a);
+        }
+      }
+    }
+
+    const todosLosAmbientes = [...ambientesDirectos];
+    for (const a of ambientesPorCodigo) {
+      if (!idsVistos.has(a.id)) {
+        idsVistos.add(a.id);
+        todosLosAmbientes.push(a);
+      }
+    }
+
+    let compatibles: Ambiente[] = todosLosAmbientes;
+    if (tipoClase) {
+      const tiposRequeridos =
+        tipoClase === TipoClase.LABORATORIO
+          ? [TipoAmbiente.LABORATORIO]
+          : [TipoAmbiente.AULA, TipoAmbiente.TALLER];
+      compatibles = todosLosAmbientes.filter((a) =>
+        tiposRequeridos.includes(a.tipo),
+      );
+    }
+
+    return {
+      curso: {
+        id: curso.id,
+        codigo: curso.codigo,
+        nombre: curso.nombre,
+        activo: curso.activo,
+      },
+      tipoClaseSolicitado: tipoClase ?? null,
+      totalAmbientesDirectos: ambientesDirectos.length,
+      totalAmbientesPorCodigo: ambientesPorCodigo.length,
+      totalAmbientesUnicos: todosLosAmbientes.length,
+      totalAmbientesCompatibles: compatibles.length,
+      ambientesDirectos: ambientesDirectos.map((a) => ({
+        id: a.id,
+        codigo: a.codigo,
+        nombre: a.nombre,
+        tipo: a.tipo,
+      })),
+      cursosMismoCodigo: cursosSimilares.map((c) => ({
+        id: c.id,
+        codigo: c.codigo,
+        nombre: c.nombre,
+        ambientes: (c.ambientes ?? []).map((a) => ({
+          id: a.id,
+          codigo: a.codigo,
+          nombre: a.nombre,
+          tipo: a.tipo,
+        })),
+      })),
+      ambientesCompatibles: compatibles.map((a) => ({
+        id: a.id,
+        codigo: a.codigo,
+        nombre: a.nombre,
+        tipo: a.tipo,
+      })),
+    };
+  }
+
+  async ejecutarAsignacionAmbientesPorDefecto(): Promise<{
+    cursosProcesados: number;
+    relacionesCreadas: number;
+  }> {
+    return this.dataSource.transaction(async (manager) => {
+      const resultado = await asignarAmbientesPorDefecto(manager);
+      await this.invalidateCache();
+      return resultado;
+    });
   }
 }

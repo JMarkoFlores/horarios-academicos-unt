@@ -15,23 +15,23 @@ export class CargaLectivaApiService {
   constructor(private api: ApiService) {}
 
   getCursosPendientes(periodoId: number): Observable<CursoPendiente[]> {
-    return this.api.get<CursoPendiente[]>(`asignador/cursos-pendientes`, { periodo_id: periodoId });
+    return this.api.get<CursoPendiente[]>(`asignador/cursos-pendientes/${periodoId}`);
   }
 
   getDocentes(periodoId: number): Observable<DocenteAsignador[]> {
-    return this.api.get<DocenteAsignador[]>(`asignador/docentes`, { periodo_id: periodoId });
+    return this.api.get<DocenteAsignador[]>(`asignador/docentes/${periodoId}`);
   }
 
   getHorarioDocente(docenteId: number, periodo: string): Observable<BloqueHorario[]> {
-    return this.api.get<BloqueHorario[]>(`asignador/docente/${docenteId}/horario`, { periodo });
+    return this.api.get<BloqueHorario[]>(`asignador/horario-docente/${docenteId}`, { periodo });
   }
 
-  getAmbientes(periodo: string): Observable<AmbienteDisponible[]> {
-    return this.api.get<AmbienteDisponible[]>(`asignador/ambientes`, { periodo });
+  getAmbientes(periodoCodigo: string): Observable<AmbienteDisponible[]> {
+    return this.api.get<AmbienteDisponible[]>(`asignador/ambientes/${periodoCodigo}`);
   }
 
   getOcupacionAmbiente(ambienteId: number, periodo: string): Observable<any> {
-    return this.api.get<any>(`asignador/ambiente/${ambienteId}/ocupacion`, { periodo });
+    return this.api.get<any>(`asignador/ocupacion-ambiente/${ambienteId}`, { periodo });
   }
 
   validar(datos: any): Observable<ValidacionDrop> {
@@ -43,7 +43,7 @@ export class CargaLectivaApiService {
   }
 
   mover(id: number, datos: any): Observable<{ id: number; mensaje: string }> {
-    return this.api.patch<{ id: number; mensaje: string }>(`asignador/mover/${id}`, datos);
+    return this.api.put<{ id: number; mensaje: string }>(`asignador/mover/${id}`, datos);
   }
 
   eliminar(id: number): Observable<{ mensaje: string }> {

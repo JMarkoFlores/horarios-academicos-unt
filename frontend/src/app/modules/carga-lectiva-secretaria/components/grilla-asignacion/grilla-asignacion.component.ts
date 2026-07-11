@@ -36,9 +36,16 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
            (cdkDropListDropped)="onDrop($event)"
            (cdkDropListEntered)="onCellEnter($event)">
         <div class="grilla-grid" [style.--cols]="dias.length">
-          <div class="g-cell g-cell--corner">Hora</div>
-          @for (d of diasLabels; track d) {
-            <div class="g-cell g-cell--header">{{ d }}</div>
+          <div class="g-cell g-cell--corner">
+            <span class="g-corner-text">Hora</span>
+          </div>
+          @for (d of diasLabels; track d; let i = $index) {
+            <div class="g-cell g-cell--header" [class.g-cell--header-today]="isToday(i)">
+              {{ d }}
+              @if (isToday(i)) {
+                <span class="g-today-dot"></span>
+              }
+            </div>
           }
 
           @if (almuerzoDuracion > 0) {
@@ -47,7 +54,7 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
                  style="grid-column: 2 / -1">
               <div class="g-almuerzo-band__inner">
                 <mat-icon>restaurant</mat-icon>
-                <span>ALMUERZO · {{ fmtHora(almuerzoInicio) }}–{{ fmtHora(almuerzoFin) }}</span>
+                <span>ALMUERZO · {{ fmtHora(almuerzoInicio) }} – {{ fmtHora(almuerzoFin) }}</span>
               </div>
             </div>
           }
@@ -62,7 +69,10 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
               <div class="g-cell g-cell--body"
                    [class.g-cell--almuerzo]="isAlmuerzo(d, h)"
                    [class.g-cell--drop-target]="puedeSoltar(d, h)"
+                   [class.g-cell--drop-target-active]="puedeSoltar(d, h) && cursoArrastrando"
                    [class.g-cell--no-drop]="!puedeSoltar(d, h) && !isAlmuerzo(d, h)"
+                   [class.g-cell--occupied]="getCellBlocks(d, h).length > 0"
+                   [class.g-cell--today]="isTodayCol(d)"
                    [style.--cell-bg]="getCellBg(d, h)"
                    [attr.data-dia]="d"
                    [attr.data-hora]="h"
@@ -84,13 +94,17 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
                          [style.--blk-text]="getBlockColor(blk).text"
                          cdkDrag
                          [cdkDragData]="blk"
-                         [class.g-cell__block--readonly]="blk.readOnly">
+                         [class.g-cell__block--readonly]="blk.readOnly"
+                         [matTooltip]="getBlockTooltip(blk)">
                       <span class="g-block__badge" [style.background]="getBlockColor(blk).border">
                         {{ blk.badge || 'TEO' }}
                       </span>
                       <span class="g-block__name">{{ blk.label }}</span>
                       @if (blk.sublabel) {
                         <span class="g-block__sub">{{ blk.sublabel }}</span>
+                      }
+                      @if (blk.grupoCodigo) {
+                        <span class="g-block__grupo">G{{ blk.grupoCodigo }}</span>
                       }
                       @if (!blk.readOnly && !readonly) {
                         <button class="g-block__remove" (click)="onRemove(blk); $event.stopPropagation(); $event.preventDefault()"
@@ -103,8 +117,9 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
 
                   @if (getCellBlocks(d, h).length === 0 && !isAlmuerzo(d, h)) {
                     <div class="g-cell__empty">
-                      @if (cursoArrastrando) {
+                      @if (cursoArrastrando && puedeSoltar(d, h)) {
                         <mat-icon class="g-cell__preview">add_circle</mat-icon>
+                        <span class="g-cell__preview-text">Soltar aquí</span>
                       }
                     </div>
                   }
@@ -119,6 +134,18 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
         <div class="g-conflicts">
           <mat-icon>warning</mat-icon>
           <span>{{ conflicts.length }} conflicto(s) detectado(s)</span>
+          <div class="g-conflicts__list">
+            @for (c of conflicts; track $index) {
+              <span class="g-conflict-item">{{ c.mensaje }}</span>
+            }
+          </div>
+        </div>
+      }
+
+      @if (cursoArrastrando) {
+        <div class="g-drag-hint">
+          <mat-icon>info</mat-icon>
+          <span>Arrastra el bloque a la celda deseada en la grilla</span>
         </div>
       }
     </div>
@@ -133,6 +160,7 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
     .grilla-grid-wrap {
       overflow: auto; border: 1px solid var(--color-border, #e2e8f0);
       border-radius: 10px; background: var(--color-border, #e2e8f0);
+      max-height: calc(100vh - 320px);
     }
     .grilla-grid {
       display: grid; grid-template-columns: 56px repeat(var(--cols, 6), 1fr);
@@ -155,44 +183,79 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
     .g-almuerzo-band__inner mat-icon { font-size: 12px; width: 12px; height: 12px; }
 
     .g-cell {
-      background: var(--color-surface, #fff); min-height: 44px; display: flex;
+      background: var(--color-surface, #fff); min-height: 48px; display: flex;
       align-items: center; justify-content: center; position: relative;
       transition: background 100ms ease, box-shadow 100ms ease;
     }
-    .g-cell--corner { background: var(--color-surface-2, #f8fafc); font-size: 12px; font-weight: 700; color: var(--color-text-muted, #94a3b8); }
-    .g-cell--header { background: var(--color-surface-2, #f8fafc); font-size: 12px; font-weight: 700; color: var(--color-text-secondary, #64748b); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 4px; text-align: center; }
-    .g-cell--hour { background: var(--color-surface-2, #f8fafc); flex-direction: column; gap: 2px; padding: 4px; }
+    .g-cell--corner {
+      background: var(--color-surface-2, #f8fafc);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .g-corner-text { font-size: 11px; font-weight: 700; color: var(--color-text-muted, #94a3b8); }
+    .g-cell--header {
+      background: var(--color-surface-2, #f8fafc); font-size: 11px; font-weight: 700;
+      color: var(--color-text-secondary, #64748b); text-transform: uppercase;
+      letter-spacing: 0.04em; padding: 8px 4px; text-align: center;
+      flex-direction: column; gap: 2px;
+    }
+    .g-cell--header-today { color: var(--color-primary, #6366f1); background: var(--color-primary-bg, #eef2ff); }
+    .g-today-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--color-primary, #6366f1); }
+
+    .g-cell--hour {
+      background: var(--color-surface-2, #f8fafc); flex-direction: column; gap: 2px; padding: 4px;
+    }
     .g-cell--almuerzo {
       background: repeating-linear-gradient(-45deg, #fff8e1, #fff8e1 6px, #ffecb3 6px, #ffecb3 12px) !important;
       cursor: not-allowed;
     }
-    .g-cell--body { padding: 2px; cursor: pointer; min-height: 44px; flex-direction: column; align-items: stretch; justify-content: flex-start; }
+    .g-cell--body {
+      padding: 2px; cursor: pointer; min-height: 48px; flex-direction: column;
+      align-items: stretch; justify-content: flex-start;
+    }
+    .g-cell--today { background: rgba(99,102,241,0.02); }
     .g-cell--drop-target { background: #eef2ff !important; box-shadow: inset 0 0 0 2px rgba(99,102,241,0.3); }
+    .g-cell--drop-target-active {
+      background: #e0e7ff !important; box-shadow: inset 0 0 0 2px rgba(99,102,241,0.5);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: inset 0 0 0 2px rgba(99,102,241,0.3); }
+      50% { box-shadow: inset 0 0 0 3px rgba(99,102,241,0.6); }
+    }
     .g-cell--no-drop { cursor: not-allowed; opacity: 0.6; }
     .g-cell--no-drop:hover { background: rgba(239,68,68,0.05) !important; box-shadow: inset 0 0 0 2px rgba(239,68,68,0.3); }
+    .g-cell--occupied { background: rgba(0,0,0,0.01); }
 
     .g-hour-text { font-size: 10px; font-weight: 600; color: var(--color-text-muted, #94a3b8); font-family: 'SF Mono', monospace; }
     .g-cell__content { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: var(--color-text-muted, #94a3b8); }
     .g-cell__content mat-icon { font-size: 12px; width: 12px; height: 12px; }
-    .g-cell__empty { display: flex; align-items: center; justify-content: center; height: 100%; min-height: 36px; }
+    .g-cell__empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; min-height: 36px; gap: 2px;
+    }
     .g-cell__preview { color: var(--color-primary, #6366f1); opacity: 0; font-size: 20px; transition: opacity 150ms ease; }
-    .g-cell--drop-target .g-cell__preview { opacity: 0.6; }
+    .g-cell__preview-text { font-size: 8px; color: var(--color-primary, #6366f1); opacity: 0; transition: opacity 150ms ease; white-space: nowrap; }
+    .g-cell--drop-target-active .g-cell__preview,
+    .g-cell--drop-target-active .g-cell__preview-text { opacity: 0.8; }
 
     .g-cell__block {
       background: var(--blk-bg, #e8eaf6); border: 1px solid var(--blk-border, #5c6bc0);
       color: var(--blk-text, #283593); border-radius: 4px; padding: 3px 6px;
       font-size: 10px; line-height: 1.2; display: flex; flex-direction: column;
-      gap: 1px; position: relative; min-height: 28px; cursor: grab;
+      gap: 1px; position: relative; min-height: 32px; cursor: grab;
       transition: box-shadow 150ms ease, transform 100ms ease;
     }
-    .g-cell__block:hover { box-shadow: 0 1px 2px rgba(0,0,0,0.05); z-index: 2; }
+    .g-cell__block:hover { box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 2; transform: scale(1.02); }
     .g-cell__block--readonly { cursor: default; opacity: 0.85; }
+    .g-cell__block--readonly:hover { transform: none; box-shadow: none; }
+
     .g-block__badge {
       font-size: 8px; font-weight: 800; color: white; padding: 1px 5px;
       border-radius: 3px; align-self: flex-start; line-height: 1.4;
     }
     .g-block__name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; }
     .g-block__sub { font-size: 9px; opacity: 0.8; }
+    .g-block__grupo { font-size: 8px; opacity: 0.7; font-style: italic; }
     .g-block__remove {
       position: absolute; top: 2px; right: 2px; width: 16px; height: 16px;
       border: none; background: rgba(255,255,255,0.3); color: inherit;
@@ -204,14 +267,24 @@ import { BloqueHorario, COLORES_TIPO_CLASE } from '../../models/asignador.models
     .g-cell__block--readonly .g-block__remove { display: none; }
 
     .g-conflicts {
-      display: flex; align-items: center; gap: 4px; padding: 8px 16px;
+      display: flex; align-items: center; gap: 8px; padding: 8px 16px;
       background: #fef2f2; border: 1px solid #ef4444; border-radius: 6px;
       font-size: 12px; color: #ef4444; font-weight: 600;
     }
-    .g-conflicts mat-icon { color: #ef4444; }
+    .g-conflicts mat-icon { color: #ef4444; flex-shrink: 0; }
+    .g-conflicts__list { display: flex; flex-direction: column; gap: 2px; }
+    .g-conflict-item { font-size: 10px; font-weight: 500; }
+
+    .g-drag-hint {
+      display: flex; align-items: center; gap: 6px; padding: 8px 16px;
+      background: var(--color-primary-bg, #eef2ff); border: 1px solid var(--color-primary, #6366f1);
+      border-radius: 6px; font-size: 12px; color: var(--color-primary, #6366f1); font-weight: 600;
+      animation: fadeIn 200ms ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     .grilla--readonly .g-cell__block { cursor: default; }
-    .grilla--readonly .g-cell__block:hover { box-shadow: none; }
+    .grilla--readonly .g-cell__block:hover { box-shadow: none; transform: none; }
     .grilla--readonly .g-cell--body { cursor: default; }
 
     .grilla-grid-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -236,6 +309,7 @@ export class GrillaAsignacionComponent implements OnChanges, OnDestroy {
   franjaInicio = 7;
   franjaFin = 22;
   conflicts: any[] = [];
+  todayDia = -1;
 
   private grid = new Map<string, BloqueHorario[]>();
   private destroy$ = new Subject<void>();
@@ -247,6 +321,7 @@ export class GrillaAsignacionComponent implements OnChanges, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.setToday();
     this.configService.cargar();
     const cfg = this.configService.config;
     if (cfg.loaded) {
@@ -272,6 +347,20 @@ export class GrillaAsignacionComponent implements OnChanges, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {}
+
+  private setToday(): void {
+    const day = new Date().getDay();
+    this.todayDia = day === 0 ? 7 : day;
+  }
+
+  isToday(diaIndex: number): boolean {
+    if (diaIndex < 0 || diaIndex >= this.dias.length) return false;
+    return this.dias[diaIndex] === this.todayDia;
+  }
+
+  isTodayCol(dia: number): boolean {
+    return dia === this.todayDia;
+  }
 
   private applyConfig(cfg: Partial<ScheduleConfig>): void {
     if (cfg.diasNumeros) this.dias = cfg.diasNumeros;
@@ -318,8 +407,16 @@ export class GrillaAsignacionComponent implements OnChanges, OnDestroy {
 
   getCellTooltip(dia: number, hora: number): string {
     const blocks = this.getCellBlocks(dia, hora);
-    if (blocks.length === 0) return '';
-    return blocks.map(b => `${b.label} (${b.horaInicio}-${b.horaFin})`).join(' | ');
+    if (blocks.length === 0) return this.puedeSoltar(dia, hora) ? 'Clic para asignar' : '';
+    return blocks.map(b => `${b.label} (${b.horaInicio}-${b.horaFin}) — ${b.badge || ''}`).join('\n');
+  }
+
+  getBlockTooltip(blk: BloqueHorario): string {
+    let tip = `${blk.label}`;
+    if (blk.sublabel) tip += ` — ${blk.sublabel}`;
+    if (blk.grupoCodigo) tip += ` (G${blk.grupoCodigo})`;
+    tip += `\n${blk.horaInicio} - ${blk.horaFin}`;
+    return tip;
   }
 
   isAlmuerzo(dia: number, hora: number): boolean {

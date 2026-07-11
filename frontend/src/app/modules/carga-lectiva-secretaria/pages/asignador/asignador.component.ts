@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PeriodoService } from '../../../../core/services/periodo.service';
 import { PeriodoAcademico } from '../../../../core/interfaces/entities';
@@ -34,11 +35,12 @@ import {
     CommonModule, FormsModule, TranslateModule,
     MatIconModule, MatButtonModule, MatSelectModule, MatFormFieldModule,
     MatInputModule, MatTooltipModule, MatSnackBarModule, MatProgressSpinnerModule,
+    MatChipsModule,
     BancoCursosComponent, GrillaAsignacionComponent, PanelAmbientesComponent,
     BarraProgresoComponent, IndicadorCargaComponent, MiniFormularioComponent,
   ],
   template: `
-    <div class="asignador">
+    <div class="asignador" [class.asignador--loading]="svc.cargando()">
       <header class="asignador__hero">
         <div class="asignador__hero-content">
           <mat-icon class="asignador__hero-icon">assignment_ind</mat-icon>
@@ -48,10 +50,16 @@ import {
           </div>
         </div>
         <div class="asignador__hero-actions">
-          <button mat-stroked-button (click)="cargarDatos()" [disabled]="svc.cargando()">
+          <button mat-stroked-button (click)="cargarDatos()" [disabled]="svc.cargando()"
+                  matTooltip="Actualizar datos (Ctrl+R)">
             <mat-icon>refresh</mat-icon> Actualizar
           </button>
-          <button mat-flat-button color="primary" [disabled]="svc.cargando()" (click)="guardarTodo()">
+          <button mat-stroked-button (click)="deshacer()" [disabled]="!svc.undoDisponible()"
+                  matTooltip="Deshacer última acción (Ctrl+Z)">
+            <mat-icon>undo</mat-icon> Deshacer
+          </button>
+          <button mat-flat-button color="primary" [disabled]="svc.cargando()" (click)="guardarTodo()"
+                  matTooltip="Guardar borrador">
             <mat-icon>save</mat-icon> Guardar
           </button>
         </div>
@@ -78,7 +86,10 @@ import {
               <mat-select [(ngModel)]="docenteSeleccionadoId" (selectionChange)="onDocenteChange()">
                 @for (d of svc.docentes(); track d.id) {
                   <mat-option [value]="d.id">
-                    {{ d.apellido }}, {{ d.nombre }} — {{ d.horasLectivasAsignadas }}/{{ d.horasLectivasMax }}h
+                    <div class="docente-option">
+                      <span class="docente-option__name">{{ d.apellido }}, {{ d.nombre }}</span>
+                      <span class="docente-option__load">{{ d.horasLectivasAsignadas }}/{{ d.horasLectivasMax }}h</span>
+                    </div>
                   </mat-option>
                 }
               </mat-select>
@@ -127,6 +138,7 @@ import {
   `,
   styles: [`
     .asignador { display: flex; flex-direction: column; min-height: 100%; position: relative; }
+    .asignador--loading { opacity: 0.7; pointer-events: none; }
 
     .asignador__hero {
       display: flex; align-items: center; justify-content: space-between;
@@ -142,7 +154,7 @@ import {
     .asignador__toolbar { padding: 12px 24px; }
 
     .asignador__main {
-      display: grid; grid-template-columns: 300px 1fr 260px;
+      display: grid; grid-template-columns: 320px 1fr 280px;
       gap: 0; flex: 1; min-height: 0;
     }
     .asignador__left, .asignador__right {
@@ -157,6 +169,10 @@ import {
     }
     .asignador__docente-field { flex: 1; max-width: 400px; }
     .asignador__grid-area { flex: 1; min-height: 0; }
+
+    .docente-option { display: flex; justify-content: space-between; width: 100%; }
+    .docente-option__name { font-weight: 600; }
+    .docente-option__load { font-size: 11px; color: #64748b; margin-left: 8px; }
 
     .asignador__loading {
       position: fixed; inset: 0; background: rgba(255,255,255,0.7);
@@ -320,6 +336,14 @@ export class AsignadorComponent implements OnInit, OnDestroy {
     } else {
       this.snackBar.open('Error en la asignación', 'Cerrar', { duration: 4000, panelClass: 'snackbar-error' });
     }
+  }
+
+  deshacer(): void {
+    this.svc.deshacer().then(ok => {
+      if (ok) {
+        this.snackBar.open('Acción deshecha', 'OK', { duration: 2000 });
+      }
+    });
   }
 
   guardarTodo(): void {

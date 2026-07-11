@@ -130,4 +130,27 @@ export class AsignadorService {
     const progreso = await this.api.getProgreso(periodoId).toPromise();
     this.progreso.set(progreso || null);
   }
+
+  async deshacer(): Promise<boolean> {
+    const historial = this.historial();
+    if (historial.length === 0) return false;
+
+    const ultimaAccion = historial[historial.length - 1];
+    this.cargando.set(true);
+
+    try {
+      if (ultimaAccion.tipo === 'asignar' && ultimaAccion.horarioId) {
+        await this.api.eliminar(ultimaAccion.horarioId).toPromise();
+      } else if (ultimaAccion.tipo === 'eliminar' && ultimaAccion.datosAnteriores) {
+        await this.api.asignar(ultimaAccion.datosAnteriores).toPromise();
+      }
+      this.historial.update(h => h.slice(0, -1));
+      this.refresh$.next();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      this.cargando.set(false);
+    }
+  }
 }

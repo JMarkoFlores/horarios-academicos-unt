@@ -2,124 +2,125 @@ import {
   Controller,
   Get,
   Post,
-  Patch,
+  Put,
   Delete,
   Body,
   Param,
   Query,
   UseGuards,
+  Request,
+  ParseIntPipe,
+  HttpCode,
+  HttpStatus,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../../auth/guards/roles.guard";
 import { Roles } from "../../auth/decorators/roles.decorator";
-import { RequiereAlcance } from "../../auth/decorators/requiere-alcance.decorator";
-import { CurrentUser } from "../../auth/decorators/current-user.decorator";
-import { RolUsuario } from "../../common/enums/rol-usuario.enum";
-import { UsuarioAutenticado } from "../../common/interfaces/contexto-academico.interface";
 import { AsignadorLectivoService } from "./asignador-lectivo.service";
 import { CrearHorarioLectivoDto } from "./dto/crear-horario-lectivo.dto";
 import { ValidarAsignacionDto } from "./dto/validar-asignacion.dto";
+import { RolUsuario } from "../../common/enums/rol-usuario.enum";
 
 @Controller("asignador")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AsignadorLectivoController {
-  constructor(private readonly service: AsignadorLectivoService) {}
+  constructor(
+    private readonly servicio: AsignadorLectivoService,
+  ) {}
 
-  @Get("cursos-pendientes")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  @RequiereAlcance()
-  getCursosPendientes(
-    @Query("periodo_id") periodoId: string,
-    @CurrentUser() usuario: UsuarioAutenticado,
+  @Get("cursos-pendientes/:periodoId")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  async getCursosPendientes(
+    @Param("periodoId", ParseIntPipe) periodoId: number,
+    @Request() req: { user: any },
   ) {
-    return this.service.getCursosPendientes(Number(periodoId), usuario.contextoAcademico);
+    return this.servicio.getCursosPendientes(periodoId, req.user.contextoAcademico);
   }
 
-  @Get("docentes")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  @RequiereAlcance()
-  getDocentes(
-    @Query("periodo_id") periodoId: string,
-    @CurrentUser() usuario: UsuarioAutenticado,
+  @Get("docentes/:periodoId")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  async getDocentes(
+    @Param("periodoId", ParseIntPipe) periodoId: number,
+    @Request() req: { user: any },
   ) {
-    return this.service.getDocentes(Number(periodoId), usuario.contextoAcademico);
+    return this.servicio.getDocentes(periodoId, req.user.contextoAcademico);
   }
 
-  @Get("docente/:id/horario")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  getHorarioDocente(
-    @Param("id") id: string,
+  @Get("horario-docente/:docenteId")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO, RolUsuario.DOCENTE)
+  async getHorarioDocente(
+    @Param("docenteId", ParseIntPipe) docenteId: number,
+    @Query("periodo") periodo: string,
+    @Request() req: { user: any },
+  ) {
+    if (req.user.rol === RolUsuario.DOCENTE && (req.user as any).docenteId !== docenteId) {
+      throw new Error("No autorizado");
+    }
+    return this.servicio.getHorarioDocente(docenteId, periodo);
+  }
+
+  @Get("ambientes/:periodoCodigo")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  async getAmbientes(
+    @Param("periodoCodigo") periodoCodigo: string,
+    @Request() req: { user: any },
+  ) {
+    return this.servicio.getAmbientes(periodoCodigo, req.user.contextoAcademico);
+  }
+
+  @Get("ocupacion-ambiente/:ambienteId")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  async getOcupacionAmbiente(
+    @Param("ambienteId", ParseIntPipe) ambienteId: number,
     @Query("periodo") periodo: string,
   ) {
-    return this.service.getHorarioDocente(Number(id), periodo);
-  }
-
-  @Get("ambientes")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  @RequiereAlcance()
-  getAmbientes(
-    @Query("periodo") periodo: string,
-    @CurrentUser() usuario: UsuarioAutenticado,
-  ) {
-    return this.service.getAmbientes(periodo, usuario.contextoAcademico);
-  }
-
-  @Get("ambiente/:id/ocupacion")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  getOcupacionAmbiente(
-    @Param("id") id: string,
-    @Query("periodo") periodo: string,
-  ) {
-    return this.service.getOcupacionAmbiente(Number(id), periodo);
-  }
-
-  @Post("validar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  validar(
-    @Body() dto: ValidarAsignacionDto,
-    @CurrentUser() usuario: UsuarioAutenticado,
-  ) {
-    return this.service.validar(dto, usuario.contextoAcademico);
-  }
-
-  @Post("asignar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  @RequiereAlcance()
-  asignar(
-    @Body() dto: CrearHorarioLectivoDto,
-    @CurrentUser() usuario: UsuarioAutenticado,
-  ) {
-    return this.service.asignar(dto, usuario);
-  }
-
-  @Patch("mover/:id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  @RequiereAlcance()
-  mover(
-    @Param("id") id: string,
-    @Body() dto: CrearHorarioLectivoDto,
-    @CurrentUser() usuario: UsuarioAutenticado,
-  ) {
-    return this.service.mover(Number(id), dto, usuario);
-  }
-
-  @Delete("eliminar/:id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  @RequiereAlcance()
-  eliminar(
-    @Param("id") id: string,
-    @CurrentUser() usuario: UsuarioAutenticado,
-  ) {
-    return this.service.eliminar(Number(id), usuario);
+    return this.servicio.getOcupacionAmbiente(ambienteId, periodo);
   }
 
   @Get("progreso/:periodoId")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.COORDINADOR_ACADEMICO)
-  @RequiereAlcance()
-  getProgreso(
-    @Param("periodoId") periodoId: string,
-    @CurrentUser() usuario: UsuarioAutenticado,
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  async getProgreso(
+    @Param("periodoId", ParseIntPipe) periodoId: number,
+    @Request() req: { user: any },
   ) {
-    return this.service.getProgreso(Number(periodoId), usuario.contextoAcademico);
+    return this.servicio.getProgreso(periodoId, req.user.contextoAcademico);
+  }
+
+  @Post("validar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  async validar(
+    @Body() dto: ValidarAsignacionDto,
+    @Request() req: { user: any },
+  ) {
+    return this.servicio.validar(dto, req.user.contextoAcademico);
+  }
+
+  @Post("asignar")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA)
+  @HttpCode(HttpStatus.CREATED)
+  async asignar(
+    @Body() dto: CrearHorarioLectivoDto,
+    @Request() req: { user: any },
+  ) {
+    return this.servicio.asignar(dto, req.user);
+  }
+
+  @Put("mover/:id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA)
+  async mover(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: CrearHorarioLectivoDto,
+    @Request() req: { user: any },
+  ) {
+    return this.servicio.mover(id, dto, req.user);
+  }
+
+  @Delete("eliminar/:id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA)
+  async eliminar(
+    @Param("id", ParseIntPipe) id: number,
+    @Request() req: { user: any },
+  ) {
+    return this.servicio.eliminar(id, req.user);
   }
 }

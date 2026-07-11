@@ -5,7 +5,7 @@ import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private baseUrl = environment.apiUrl;
+  private baseUrl = environment.apiUrl.endsWith('/') ? environment.apiUrl : environment.apiUrl + '/';
 
   constructor(private http: HttpClient) {}
 

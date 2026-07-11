@@ -51,6 +51,7 @@
     "planEstudios": "Plano de Estudos",
     "ofertaAcademica": "Oferta Acadêmica",
     "asignacionLectiva": "Atribuição Letiva",
+    "asignadorCarga": "Atribuição de Carga",
     "disponibilidad": "Disponibilidade",
     "availability": "Disponibilidade",
     "reportes": "Relatórios",
@@ -136,6 +137,7 @@
     "planEstudios": "Plano de Estudos",
     "planEstudios_detalle": "Detalhe",
     "asignacionLectiva": "Atribuição Letiva",
+    "asignadorCarga": "Atribuição de Carga",
     "perfil": "Meu Perfil"
   },
   "planEstudios": {
@@ -301,5 +303,26 @@
     "labsOcupadas": "Labs Ocupados",
     "labsLibres": "Labs Libres",
     "description": "Descrição"
+  },
+  "asignador": {
+    "title": "Atribuição de Carga Letiva",
+    "subtitle": "Atribua cursos a docentes arrastar e soltar",
+    "cursosPendientes": "Cursos Pendentes",
+    "seleccionarDocente": "Selecionar Docente",
+    "ambientes": "Salas",
+    "avance": "Progresso da Atribuição",
+    "guardar": "Salvar",
+    "actualizar": "Atualizar",
+    "asignar": "Atribuir",
+    "cancelar": "Cancelar",
+    "eliminar": "Excluir",
+    "completos": "Completos",
+    "incompletos": "Incompletos",
+    "pendientes": "Pendentes",
+    "porAsignar": "Para atribuir",
+    "todosAsignados": "Todos os cursos estão atribuídos",
+    "conflictoHorario": "Conflito de horário",
+    "cargaExcedida": "Carga excedida",
+    "aulaOcupada": "Sala ocupada"
   }
 }

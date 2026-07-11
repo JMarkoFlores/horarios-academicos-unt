@@ -51,6 +51,7 @@
     "planEstudios": "Study Plan",
     "ofertaAcademica": "Academic Offer",
     "asignacionLectiva": "Teaching Assignment",
+    "asignadorCarga": "Load Assignment",
     "disponibilidad": "Availability",
     "availability": "Availability",
     "reportes": "Reports",
@@ -136,6 +137,7 @@
     "planEstudios": "Study Plan",
     "planEstudios_detalle": "Detail",
     "asignacionLectiva": "Teaching Assignment",
+    "asignadorCarga": "Load Assignment",
     "perfil": "My Profile"
   },
   "planEstudios": {
@@ -301,5 +303,26 @@
     "labsOcupadas": "Occupied Labs",
     "labsLibres": "Free Labs",
     "description": "Description"
+  },
+  "asignador": {
+    "title": "Teaching Load Assignment",
+    "subtitle": "Assign courses to teachers via drag and drop",
+    "cursosPendientes": "Pending Courses",
+    "seleccionarDocente": "Select Teacher",
+    "ambientes": "Classrooms",
+    "avance": "Assignment Progress",
+    "guardar": "Save",
+    "actualizar": "Refresh",
+    "asignar": "Assign",
+    "cancelar": "Cancel",
+    "eliminar": "Delete",
+    "completos": "Complete",
+    "incompletos": "Incomplete",
+    "pendientes": "Pending",
+    "porAsignar": "To assign",
+    "todosAsignados": "All courses are assigned",
+    "conflictoHorario": "Schedule conflict",
+    "cargaExcedida": "Load exceeded",
+    "aulaOcupada": "Classroom occupied"
   }
 }

@@ -94,6 +94,7 @@ export class LayoutComponent implements OnInit {
       { icon: 'auto_stories', label: 'sidebar.planEstudios', route: '/app/plan-estudios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
       { icon: 'book_online', label: 'sidebar.ofertaAcademica', route: '/app/oferta-academica', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
       { icon: 'assignment', label: 'sidebar.asignacionLectiva', route: '/app/asignacion-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
+        { icon: 'assignment_ind', label: 'sidebar.asignadorCarga', route: '/app/asignador-carga', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.SECRETARIA] },
         { icon: 'event_available', label: 'sidebar.availability', route: '/app/disponibilidad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE] },
         { icon: 'school', label: 'sidebar.teacherFaculty', route: '/app/docente-facultad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       ],
@@ -161,7 +162,7 @@ export class LayoutComponent implements OnInit {
   }
 
   private _rutasSinPeriodo = new Set([
-    'docentes', 'cursos', 'ambientes', 'plan-estudios', 'asignacion-lectiva',
+    'docentes', 'cursos', 'ambientes', 'plan-estudios', 'asignacion-lectiva', 'asignador-carga',
     'configuracion', 'periodos', 'campaigns',
     'usuarios', 'notificaciones', 'analisis-carga',
     'declaraciones', 'documentaciones', 'docente-facultad',

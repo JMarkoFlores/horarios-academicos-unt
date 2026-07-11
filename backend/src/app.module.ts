@@ -35,6 +35,7 @@ import { PlanEstudiosModule } from "./modules/plan-estudios/plan-estudios.module
 import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion-lectiva.module";
 import { OfertaAcademicaModule } from "./modules/oferta-academica/oferta-academica.module";
 import { CladModule } from "./clad/clad.module";
+import { AsignadorLectivoModule } from "./modules/asignador-lectivo/asignador-lectivo.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -126,6 +127,7 @@ import { HealthController } from "./health/health.controller";
     AsignacionLectivaModule,
     OfertaAcademicaModule,
     CladModule,
+    AsignadorLectivoModule,
   ],
   controllers: [HealthController],
   providers: [

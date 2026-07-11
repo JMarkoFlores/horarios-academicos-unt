@@ -137,6 +137,7 @@
     "planEstudios": "Plan de Estudios",
     "planEstudios_detalle": "Detalle",
     "asignacionLectiva": "Asignación Lectiva",
+    "asignadorCarga": "Asignación de Carga",
     "perfil": "Mi Perfil"
   },
   "planEstudios": {
@@ -302,5 +303,26 @@
     "labsOcupadas": "Labs Ocupados",
     "labsLibres": "Labs Libres",
     "description": "Descripción"
+  },
+  "asignador": {
+    "title": "Asignación de Carga Lectiva",
+    "subtitle": "Asigne cursos a docentes mediante arrastrar y soltar",
+    "cursosPendientes": "Cursos Pendientes",
+    "seleccionarDocente": "Seleccionar Docente",
+    "ambientes": "Ambientes",
+    "avance": "Avance de Asignación",
+    "guardar": "Guardar",
+    "actualizar": "Actualizar",
+    "asignar": "Asignar",
+    "cancelar": "Cancelar",
+    "eliminar": "Eliminar",
+    "completos": "Completos",
+    "incompletos": "Incompletos",
+    "pendientes": "Pendientes",
+    "porAsignar": "Por asignar",
+    "todosAsignados": "Todos los cursos están asignados",
+    "conflictoHorario": "Conflicto de horario",
+    "cargaExcedida": "Carga excedida",
+    "aulaOcupada": "Aula ocupada"
   }
 }

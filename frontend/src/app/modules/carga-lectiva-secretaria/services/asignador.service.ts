@@ -38,15 +38,15 @@ export class AsignadorService {
     this.cargando.set(true);
     try {
       const [cursos, docentes, ambientes, progreso] = await Promise.all([
-        this.api.getCursosPendientes(periodoId).toPromise(),
-        this.api.getDocentes(periodoId).toPromise(),
-        this.api.getAmbientes(periodoCodigo).toPromise(),
-        this.api.getProgreso(periodoId).toPromise(),
+        this.api.getCursosPendientes(periodoId).toPromise().catch(() => []),
+        this.api.getDocentes(periodoId).toPromise().catch(() => []),
+        this.api.getAmbientes(periodoCodigo).toPromise().catch(() => []),
+        this.api.getProgreso(periodoId).toPromise().catch(() => null),
       ]);
-      this.cursosPendientes.set(cursos || []);
-      this.docentes.set(docentes || []);
-      this.ambientes.set(ambientes || []);
-      this.progreso.set(progreso || null);
+      this.cursosPendientes.set(Array.isArray(cursos) ? cursos : []);
+      this.docentes.set(Array.isArray(docentes) ? docentes : []);
+      this.ambientes.set(Array.isArray(ambientes) ? ambientes : []);
+      this.progreso.set(progreso && typeof progreso === 'object' ? progreso : null);
     } finally {
       this.cargando.set(false);
     }
@@ -54,8 +54,8 @@ export class AsignadorService {
 
   async seleccionarDocente(docente: DocenteAsignador, periodo: string): Promise<void> {
     this.docenteSeleccionado.set(docente);
-    const bloques = await this.api.getHorarioDocente(docente.id, periodo).toPromise();
-    this.bloquesDocente.set(bloques || []);
+    const bloques = await this.api.getHorarioDocente(docente.id, periodo).toPromise().catch(() => []);
+    this.bloquesDocente.set(Array.isArray(bloques) ? bloques : []);
   }
 
   getBloquesAmbiente(ambienteId: number): BloqueHorario[] {

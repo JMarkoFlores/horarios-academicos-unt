@@ -291,7 +291,7 @@
           <span class="dropdown-title">Seleccionar Semestre</span>
         </div>
         <mat-divider></mat-divider>
-        @for (p of (periodoService.periodos$ | async); track p.codigo) {
+        @for (p of (periodoService.periodos$ | async) || []; track p.codigo) {
           <button mat-menu-item (click)="periodoService.cambiarPeriodo(p.codigo)" [class.active-item]="p.codigo === selectedPeriodoCodigo()">
             <mat-icon [class.active-icon]="p.codigo === selectedPeriodoCodigo()">
               {{ p.codigo === selectedPeriodoCodigo() ? 'radio_button_checked' : 'radio_button_unchecked' }}

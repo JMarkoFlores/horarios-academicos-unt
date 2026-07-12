@@ -36,12 +36,14 @@ export class AmbientesListComponent implements OnInit {
   busqueda = '';
   pabellonFilter = '';
   sedeFilter = '';
+  edificioFilter = '';
   capacidadMin?: number;
   capacidadMax?: number;
 
   // Opciones únicas para filtros (se cargan dinámicamente)
   pabellones: string[] = [];
   sedes: string[] = [];
+  edificios: string[] = [];
 
   // Mapa de ocupación por ambiente (se calcula al cargar)
   ocupacionMap: Record<number, number> = {};
@@ -69,6 +71,7 @@ export class AmbientesListComponent implements OnInit {
     if (this.busqueda.trim()) params['busqueda'] = this.busqueda.trim();
     if (this.pabellonFilter) params['pabellon'] = this.pabellonFilter;
     if (this.sedeFilter) params['sede'] = this.sedeFilter;
+    if (this.edificioFilter) params['edificio'] = this.edificioFilter;
     if (this.capacidadMin !== undefined && this.capacidadMin !== null) params['capacidadMin'] = this.capacidadMin;
     if (this.capacidadMax !== undefined && this.capacidadMax !== null) params['capacidadMax'] = this.capacidadMax;
 
@@ -93,12 +96,15 @@ export class AmbientesListComponent implements OnInit {
   private extraerOpcionesFiltro(): void {
     const pabs = new Set<string>();
     const seds = new Set<string>();
+    const edis = new Set<string>();
     for (const a of this.dataSource) {
       if (a.pabellon) pabs.add(a.pabellon);
       if (a.sede) seds.add(a.sede);
+      if (a.edificio) edis.add(a.edificio);
     }
     this.pabellones = Array.from(pabs).sort();
     this.sedes = Array.from(seds).sort();
+    this.edificios = Array.from(edis).sort();
   }
 
   onPageChange(e: PageEvent): void {
@@ -130,6 +136,7 @@ export class AmbientesListComponent implements OnInit {
     this.busqueda = '';
     this.pabellonFilter = '';
     this.sedeFilter = '';
+    this.edificioFilter = '';
     this.capacidadMin = undefined;
     this.capacidadMax = undefined;
     this.currentPage = 0;

@@ -61,6 +61,26 @@
               <mat-error *ngIf="form.get('creditos')?.hasError('max')">Máximo 12 créditos</mat-error>
             </mat-form-field>
 
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Tipo de Curso</mat-label>
+              <mat-select formControlName="tipo_curso">
+                <mat-option *ngFor="let t of tiposCurso" [value]="t.value">{{ t.label }}</mat-option>
+              </mat-select>
+              <mat-icon matPrefix>category</mat-icon>
+              <mat-error *ngIf="form.get('tipo_curso')?.hasError('required')">Campo requerido</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Departamento</mat-label>
+              <mat-select formControlName="departamento_id">
+                <mat-option [value]="null">Sin departamento</mat-option>
+                <mat-option *ngFor="let d of departamentos" [value]="d.id">
+                  {{ d.nombre }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>business</mat-icon>
+            </mat-form-field>
+
           </div>
         </div>
 
@@ -129,14 +149,17 @@
           <div class="fields-grid single-col">
 
             <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Aulas de Teoría</mat-label>
+              <mat-label>Aulas de Teoría / Talleres</mat-label>
               <mat-select formControlName="ambientes_teoria_ids" multiple>
                 <mat-option *ngFor="let a of aulas" [value]="a.id">
                   {{ a.codigo }} — {{ a.nombre }} (Cap. {{ a.capacidad }})
                 </mat-option>
+                <mat-option *ngFor="let a of talleres" [value]="a.id">
+                  {{ a.codigo }} — {{ a.nombre }} (Cap. {{ a.capacidad }})
+                </mat-option>
               </mat-select>
               <mat-icon matPrefix>meeting_room</mat-icon>
-              <mat-hint>Selecciona las aulas donde puede dictarse este curso</mat-hint>
+              <mat-hint>Selecciona las aulas y talleres donde puede dictarse este curso</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field" *ngIf="tieneLab">

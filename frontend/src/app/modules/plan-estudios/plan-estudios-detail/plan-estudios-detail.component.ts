@@ -3,35 +3,9 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
-import { ApiResponse } from '../../../core/interfaces/entities';
-import { PlanEstudios } from '../plan-estudios-list/plan-estudios-list.component';
+import { ApiResponse, CursoPlanEstudios, PlanEstudios } from '../../../core/interfaces/entities';
 import { CursoPlanDialogComponent } from '../dialogs/curso-plan-dialog/curso-plan-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/confirm-dialog.component';
-
-export interface CursoPlan {
-  id: number;
-  curso_id: number;
-  plan_estudios_id: number;
-  ciclo: number;
-  tipo_curso: string;
-  horas_teoria: number;
-  horas_practica: number;
-  horas_laboratorio: number;
-  creditos: number;
-  prerequisitos: number[];
-  estado: string;
-  curso: {
-    id: number;
-    codigo: string;
-    nombre: string;
-    creditos: number;
-    departamento?: {
-      id: number;
-      nombre: string;
-      codigo: string;
-    };
-  };
-}
 
 @Component({
   selector: 'app-plan-estudios-detail',
@@ -41,11 +15,11 @@ export interface CursoPlan {
 export class PlanEstudiosDetailComponent implements OnInit {
   displayedColumns = ['codigo', 'nombre', 'tipo', 'departamento', 'horas', 'creditos', 'prerequisitos', 'estado', 'acciones'];
   plan: PlanEstudios | null = null;
-  cursos: CursoPlan[] = [];
+  cursos: CursoPlanEstudios[] = [];
   loading = true;
   ciclos = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   selectedCiclo = 0;
-  cursosFiltrados: CursoPlan[] = [];
+  cursosFiltrados: CursoPlanEstudios[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -62,7 +36,7 @@ export class PlanEstudiosDetailComponent implements OnInit {
 
   loadPlan(id: number): void {
     this.loading = true;
-    this.api.get<ApiResponse<PlanEstudios & { cursos: CursoPlan[] }>>(`/plan-estudios/${id}`).subscribe({
+    this.api.get<ApiResponse<PlanEstudios & { cursos: CursoPlanEstudios[] }>>(`/plan-estudios/${id}`).subscribe({
       next: (res) => {
         const data = res.data;
         this.plan = {
@@ -110,7 +84,7 @@ export class PlanEstudiosDetailComponent implements OnInit {
     }).afterClosed().subscribe((r: boolean) => { if (r) this.loadPlan(this.plan!.id); });
   }
 
-  abrirEditarCurso(cp: CursoPlan): void {
+  abrirEditarCurso(cp: CursoPlanEstudios): void {
     if (!this.plan) return;
     this.dialog.open(CursoPlanDialogComponent, {
       width: '600px', maxWidth: '95vw',
@@ -118,14 +92,14 @@ export class PlanEstudiosDetailComponent implements OnInit {
     }).afterClosed().subscribe((r: boolean) => { if (r) this.loadPlan(this.plan!.id); });
   }
 
-  toggleCursoEstado(cp: CursoPlan): void {
+  toggleCursoEstado(cp: CursoPlanEstudios): void {
     if (!this.plan) return;
     const accion = cp.estado === 'ACTIVO' ? 'Desactivar' : 'Activar';
     this.dialog.open(ConfirmDialogComponent, {
       width: '420px',
       data: {
         title: `${accion} Curso en Plan`,
-        message: `¿${accion} "${cp.curso.nombre}" en este plan?`,
+        message: `¿${accion} "${cp.curso?.nombre}" en este plan?`,
         confirmText: accion,
         confirmColor: cp.estado === 'ACTIVO' ? 'warn' : 'primary',
       },
@@ -141,16 +115,16 @@ export class PlanEstudiosDetailComponent implements OnInit {
     });
   }
 
-  getPrerequisitosResumen(cp: CursoPlan): string {
+  getPrerequisitosResumen(cp: CursoPlanEstudios): string {
     if (!cp.prerequisitos || cp.prerequisitos.length === 0) return '—';
     const cursosRelacionados = this.cursos.filter(c => cp.prerequisitos!.includes(c.curso_id));
-    return cursosRelacionados.map(c => c.curso.codigo).join(', ');
+    return cursosRelacionados.map(c => c.curso?.codigo).join(', ');
   }
 
-  getPrerequisitosNombres(cp: CursoPlan): string {
+  getPrerequisitosNombres(cp: CursoPlanEstudios): string {
     if (!cp.prerequisitos || cp.prerequisitos.length === 0) return '—';
     const cursosRelacionados = this.cursos.filter(c => cp.prerequisitos!.includes(c.curso_id));
-    return cursosRelacionados.map(c => c.curso.nombre).join(', ');
+    return cursosRelacionados.map(c => c.curso?.nombre).join(', ');
   }
 
   totalCursosPorCiclo(ciclo: number): number {

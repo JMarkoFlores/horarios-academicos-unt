@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { Repository, DeepPartial } from "typeorm";
 import { PlanEstudios } from "../entities/plan-estudios.entity";
 import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
 import { Curso } from "../entities/curso.entity";
@@ -1130,7 +1130,14 @@ export async function seedPlanEstudios(
         horas_laboratorio: c.hl,
         creditos: c.creditos,
         estado: EstadoCursoPlan.ACTIVO,
-      }),
+        prerequisitos: c.prereq
+          ? c.prereq
+              .split(";")
+              .map((p) => p.trim().split(" ")[0])
+              .filter((code) => code && !isNaN(parseInt(code, 10)))
+              .map((code) => parseInt(code, 10))
+          : [],
+      } as DeepPartial<CursoPlanEstudios>),
     );
 
     dbCursos.push(curso);

@@ -36,9 +36,12 @@ export class AmbienteFormComponent implements OnInit {
       capacidad: [null, [Validators.required, Validators.min(1), Validators.max(500)]],
       piso: [null, [Validators.min(-2), Validators.max(20)]],
       pabellon: ['', Validators.maxLength(50)],
+      edificio: ['', Validators.maxLength(100)],
       sede: ['', Validators.maxLength(100)],
       equipamiento: [''],
       estado: ['ACTIVO', Validators.required],
+      coordX: [null, [Validators.min(-180), Validators.max(180)]],
+      coordY: [null, [Validators.min(-90), Validators.max(90)]],
     });
 
     const id = this.route.snapshot.paramMap.get('id');

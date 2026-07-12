@@ -79,6 +79,12 @@
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Edificio</mat-label>
+              <input matInput formControlName="edificio" placeholder="Ej. Edificio A - Posgrado">
+              <mat-icon matPrefix>apartment</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Pabellón</mat-label>
               <input matInput formControlName="pabellon" placeholder="Ej. Pabellón B">
               <mat-icon matPrefix>apartment</mat-icon>
@@ -89,6 +95,20 @@
               <input matInput type="number" formControlName="piso" placeholder="1" min="-2" max="20">
               <mat-icon matPrefix>layers</mat-icon>
               <mat-hint>-2 a 20</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Coordenada X (Longitud)</mat-label>
+              <input matInput type="number" formControlName="coordX" step="0.0001" placeholder="-79.0287">
+              <mat-icon matPrefix>map</mat-icon>
+              <mat-hint>-180 a 180</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Coordenada Y (Latitud)</mat-label>
+              <input matInput type="number" formControlName="coordY" step="0.0001" placeholder="-8.1116">
+              <mat-icon matPrefix>map</mat-icon>
+              <mat-hint>-90 a 90</mat-hint>
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">

@@ -83,6 +83,11 @@ export class CursosController {
   }
 
   @Get(":id/ambientes-diagnostico")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({
     summary: "Diagnóstico de ambientes asignados a un curso",
     description:

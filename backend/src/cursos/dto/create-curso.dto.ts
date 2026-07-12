@@ -10,6 +10,7 @@ import {
   MaxLength,
 } from "class-validator";
 import { Transform } from "class-transformer";
+import { TipoCursoPlan } from "../../common/enums/tipo-curso-plan.enum";
 
 export class CreateCursoDto {
   @ApiProperty({ example: "CS101" })
@@ -64,4 +65,18 @@ export class CreateCursoDto {
   @IsOptional()
   @IsString()
   prerequisitos?: string;
+
+  @ApiPropertyOptional({
+    enum: TipoCursoPlan,
+    example: TipoCursoPlan.OBLIGATORIO_GENERAL,
+  })
+  @IsOptional()
+  @IsString()
+  tipo_curso?: TipoCursoPlan = TipoCursoPlan.OBLIGATORIO_GENERAL;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  departamento_id?: number;
 }

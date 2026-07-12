@@ -99,7 +99,10 @@ export class CsvMapperService {
         ciclo: parseInt(record.ciclo, 10),
         cupo_maximo: parseInt(record.cupo_maximo, 10),
         curso_id: parseInt(record.curso_id, 10),
-        periodo_academico_id: parseInt(record.periodo_academico_id || record.periodo_id, 10),
+        periodo_academico_id: parseInt(
+          record.periodo_academico_id || record.periodo_id,
+          10,
+        ),
       });
       return dto;
     });
@@ -111,7 +114,9 @@ export class CsvMapperService {
         docente_id: parseInt(record.docente_id, 10),
         curso_id: parseInt(record.curso_id, 10),
         tipo_clase: record.tipo_clase?.toUpperCase(),
-        periodo_id: record.periodo_id ? parseInt(record.periodo_id, 10) : undefined,
+        periodo_id: record.periodo_id
+          ? parseInt(record.periodo_id, 10)
+          : undefined,
       };
     });
   }

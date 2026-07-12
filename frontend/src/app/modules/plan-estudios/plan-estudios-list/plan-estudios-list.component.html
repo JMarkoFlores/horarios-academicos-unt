@@ -46,7 +46,7 @@
           <td mat-cell *matCellDef="let p">
             <div class="plan-name-cell">
               <span class="plan-title">{{ p.nombre }}</span>
-              <span class="plan-desc" *ngIf="p.descripcion">{{ p.descripcion }}</span>
+              <span class="plan-desc" @if="p.descripcion">{{ p.descripcion }}</span>
             </div>
           </td>
         </ng-container>
@@ -100,14 +100,16 @@
           class="premium-row" [style.animation-delay]="i * 40 + 'ms'"></tr>
       </table>
 
-      <div *ngIf="dataSource.length === 0 && !loading" class="empty-state-premium">
-        <div class="empty-illustration"><mat-icon>auto_stories</mat-icon></div>
-        <h3>Sin resultados</h3>
-        <p>No hay planes de estudio registrados.</p>
-        <button mat-stroked-button (click)="abrirCrearPlan()">
-          <mat-icon>add</mat-icon> Crear primer plan
-        </button>
-      </div>
+      @if (dataSource.length === 0 && !loading) {
+        <div class="empty-state-premium">
+          <div class="empty-illustration"><mat-icon>auto_stories</mat-icon></div>
+          <h3>Sin resultados</h3>
+          <p>No hay planes de estudio registrados.</p>
+          <button mat-stroked-button (click)="abrirCrearPlan()">
+            <mat-icon>add</mat-icon> Crear primer plan
+          </button>
+        </div>
+      }
     </div>
   </mat-card>
 </div>

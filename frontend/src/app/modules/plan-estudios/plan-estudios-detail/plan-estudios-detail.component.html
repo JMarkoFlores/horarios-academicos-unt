@@ -1,4 +1,4 @@
-<div class="plan-detail-page animate-fadein" *ngIf="plan; else loadingState">
+<div class="plan-detail-page animate-fadein" @if="plan; @else loadingState">
 
   <div class="page-header-premium">
     <div class="title-section">
@@ -30,13 +30,15 @@
 
   <div class="tabs-container">
     <div class="ciclo-tabs">
-      <button *ngFor="let c of ciclos" class="ciclo-tab"
-        [class.active]="selectedCiclo === c"
-        [style.--tab-color]="cicloColor(c)"
-        (click)="selectCiclo(c)">
-        <span class="ciclo-label">{{ cicloLabel(c) }}</span>
-        <span class="ciclo-badge" *ngIf="totalCursosPorCiclo(c) > 0">{{ totalCursosPorCiclo(c) }}</span>
-      </button>
+      @for (c of ciclos; track c) {
+        <button class="ciclo-tab"
+          [class.active]="selectedCiclo === c"
+          [style.--tab-color]="cicloColor(c)"
+          (click)="selectCiclo(c)">
+          <span class="ciclo-label">{{ cicloLabel(c) }}</span>
+          <span class="ciclo-badge" @if="totalCursosPorCiclo(c) > 0">{{ totalCursosPorCiclo(c) }}</span>
+        </button>
+      }
       <button class="ciclo-tab" [class.active]="selectedCiclo === 0" (click)="selectCiclo(0)">
         <span class="ciclo-label">Todos</span>
         <span class="ciclo-badge">{{ cursos.length }}</span>
@@ -157,15 +159,17 @@
           class="premium-row" [style.animation-delay]="i * 40 + 'ms'"></tr>
       </table>
 
-      <div *ngIf="cursosFiltrados.length === 0" class="empty-state-premium">
-        <div class="empty-illustration"><mat-icon>auto_stories</mat-icon></div>
-        <h3 *ngIf="selectedCiclo === 0">Sin cursos en el plan</h3>
-        <h3 *ngIf="selectedCiclo > 0">Sin cursos en ciclo {{ cicloLabel(selectedCiclo) }}</h3>
-        <p>Agregue cursos desde el catálogo para construir la malla curricular.</p>
-        <button mat-stroked-button (click)="abrirAgregarCurso()">
-          <mat-icon>add</mat-icon> Agregar curso
-        </button>
-      </div>
+      @if (cursosFiltrados.length === 0) {
+        <div class="empty-state-premium">
+          <div class="empty-illustration"><mat-icon>auto_stories</mat-icon></div>
+          <h3 @if="selectedCiclo === 0">Sin cursos en el plan</h3>
+          <h3 @if="selectedCiclo > 0">Sin cursos en ciclo {{ cicloLabel(selectedCiclo) }}</h3>
+          <p>Agregue cursos desde el catálogo para construir la malla curricular.</p>
+          <button mat-stroked-button (click)="abrirAgregarCurso()">
+            <mat-icon>add</mat-icon> Agregar curso
+          </button>
+        </div>
+      }
     </div>
   </mat-card>
 </div>

@@ -23,7 +23,7 @@
     <div class="search-row">
       <mat-form-field appearance="outline" class="search-field">
         <mat-icon matPrefix>search</mat-icon>
-        <input matInput [(ngModel)]="busqueda" (input)="onBusquedaInput()" placeholder="Buscar por código, nombre, pabellón o equipamiento...">
+        <input matInput [(ngModel)]="busqueda" (input)="onBusquedaInput()" placeholder="Buscar por código, nombre, pabellón, edificio o equipamiento...">
         <button mat-icon-button matSuffix *ngIf="busqueda" (click)="busqueda=''; onBusquedaInput()">
           <mat-icon>close</mat-icon>
         </button>
@@ -76,6 +76,14 @@
 
     <div class="filter-grid secondary-filters">
       <mat-form-field appearance="outline" class="filter-field">
+        <mat-label>Edificio</mat-label>
+        <mat-select [(ngModel)]="edificioFilter" (ngModelChange)="onFilterChange()">
+          <mat-option [value]="''">Todos</mat-option>
+          <mat-option *ngFor="let e of edificios" [value]="e">{{ e }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="filter-field">
         <mat-label>Pabellón</mat-label>
         <mat-select [(ngModel)]="pabellonFilter" (ngModelChange)="onFilterChange()">
           <mat-option [value]="''">Todos</mat-option>
@@ -125,8 +133,8 @@
           <td mat-cell *matCellDef="let a">
             <div class="env-name-cell">
               <span class="env-title">{{ a.nombre }}</span>
-              <span class="env-location" *ngIf="a.pabellon || a.piso || a.sede">
-                {{ a.sede ? a.sede + ' • ' : '' }}{{ a.pabellon }}{{ a.pabellon && a.piso ? ' • Piso ' : '' }}{{ a.piso }}
+              <span class="env-location" *ngIf="a.edificio || a.pabellon || a.piso || a.sede">
+                {{ a.edificio ? a.edificio + ' • ' : '' }}{{ a.sede ? a.sede + ' • ' : '' }}{{ a.pabellon }}{{ a.pabellon && a.piso ? ' • Piso ' : '' }}{{ a.piso }}
               </span>
             </div>
           </td>

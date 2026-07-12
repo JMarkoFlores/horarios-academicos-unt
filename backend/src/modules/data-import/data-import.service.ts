@@ -58,6 +58,7 @@ export interface ImportSession {
 export interface ImportResult {
   success: number;
   failed: number;
+  skipped: number;
   errors: ImportError[];
   message: string;
 }
@@ -450,17 +451,19 @@ export class DataImportService {
 
       let successCount = 0;
       let failureCount = 0;
+      let skippedCount = 0;
       const errors: ImportError[] = [];
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         try {
           switch (entityType) {
-            case "cursos":
-              await queryRunner.manager.query(
+            case "cursos": {
+              const result = await queryRunner.manager.query(
                 `INSERT INTO curso (codigo, nombre, creditos, horas_teoria, horas_practica, horas_laboratorio, ciclo, tiene_laboratorio, prerequisitos, activo, departamento_id)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                 ON CONFLICT DO NOTHING`,
+                 ON CONFLICT (codigo) DO NOTHING
+                 RETURNING codigo`,
                 [
                   row.data.codigo,
                   row.data.nombre,
@@ -475,14 +478,25 @@ export class DataImportService {
                   row.data.departamento_id,
                 ],
               );
-              successCount++;
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "codigo",
+                  error: `Curso con código ${row.data.codigo} ya existe`,
+                });
+              }
               break;
+            }
 
-            case "ambientes":
-              await queryRunner.manager.query(
+            case "ambientes": {
+              const result = await queryRunner.manager.query(
                 `INSERT INTO ambiente (codigo, nombre, tipo, capacidad, estado, activo, piso, pabellon, sede, equipamiento, edificio, coord_x, coord_y)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                 ON CONFLICT DO NOTHING`,
+                 ON CONFLICT (codigo) DO NOTHING
+                 RETURNING codigo`,
                 [
                   row.data.codigo,
                   row.data.nombre,
@@ -499,14 +513,25 @@ export class DataImportService {
                   row.data.coordY,
                 ],
               );
-              successCount++;
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "codigo",
+                  error: `Ambiente con código ${row.data.codigo} ya existe`,
+                });
+              }
               break;
+            }
 
-            case "docentes":
-              await queryRunner.manager.query(
+            case "docentes": {
+              const result = await queryRunner.manager.query(
                 `INSERT INTO docente (codigo, nombres, apellidos, email, telefono, tipo_docente, categoria, tipo_contrato, modalidad, fecha_ingreso, activo, horas_asignadas, dni, ibm, facultad_id, departamento_id, usuario_id, foto_url, firma_url, firebase_token)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-                 ON CONFLICT DO NOTHING`,
+                 ON CONFLICT (email) DO NOTHING
+                 RETURNING email`,
                 [
                   row.data.codigo,
                   row.data.nombres,
@@ -530,14 +555,25 @@ export class DataImportService {
                   row.data.firebase_token,
                 ],
               );
-              successCount++;
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "email",
+                  error: `Docente con email ${row.data.email} ya existe`,
+                });
+              }
               break;
+            }
 
-            case "grupos":
-              await queryRunner.manager.query(
+            case "grupos": {
+              const result = await queryRunner.manager.query(
                 `INSERT INTO grupo (codigo, nombre, tipo, ciclo, cupo_maximo, periodo_id, curso_id)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
-                 ON CONFLICT DO NOTHING`,
+                 ON CONFLICT (codigo) DO NOTHING
+                 RETURNING codigo`,
                 [
                   row.data.codigo,
                   row.data.nombre,
@@ -548,14 +584,25 @@ export class DataImportService {
                   row.data.curso_id,
                 ],
               );
-              successCount++;
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "codigo",
+                  error: `Grupo con código ${row.data.codigo} ya existe`,
+                });
+              }
               break;
+            }
 
-            case "docente_curso":
-              await queryRunner.manager.query(
+            case "docente_curso": {
+              const result = await queryRunner.manager.query(
                 `INSERT INTO docente_curso (docente_id, curso_id, tipo_clase, periodo_id, grupos)
                  VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT DO NOTHING`,
+                 ON CONFLICT (docente_id, curso_id, tipo_clase, periodo_id) DO NOTHING
+                 RETURNING docente_id`,
                 [
                   row.data.docente_id,
                   row.data.curso_id,
@@ -564,16 +611,39 @@ export class DataImportService {
                   row.data.grupos || 1,
                 ],
               );
-              successCount++;
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "docente_id,curso_id,tipo_clase,periodo_id",
+                  error: `Asignación docente-curso ya existe`,
+                });
+              }
               break;
+            }
 
-            case "curso_ambiente":
-              await queryRunner.manager.query(
-                "INSERT INTO curso_ambiente (curso_id, ambiente_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            case "curso_ambiente": {
+              const result = await queryRunner.manager.query(
+                `INSERT INTO curso_ambiente (curso_id, ambiente_id)
+                 VALUES ($1, $2)
+                 ON CONFLICT (curso_id, ambiente_id) DO NOTHING
+                 RETURNING curso_id`,
                 [row.data.curso_id, row.data.ambiente_id],
               );
-              successCount++;
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "curso_id,ambiente_id",
+                  error: `Relación curso-ambiente ya existe`,
+                });
+              }
               break;
+            }
           }
         } catch (error) {
           failureCount++;
@@ -616,9 +686,10 @@ export class DataImportService {
 
       return {
         success: successCount,
-        failed: failureCount,
+        failed: failureCount + skippedCount,
+        skipped: skippedCount,
         errors,
-        message: `${successCount} registros importados exitosamente${failureCount > 0 ? `, ${failureCount} fallaron` : ""}`,
+        message: `${successCount} registros importados exitosamente${skippedCount > 0 ? `, ${skippedCount} omitidos (ya existían)` : ""}${failureCount > 0 ? `, ${failureCount} fallaron` : ""}`,
       };
     } catch (error) {
       if (transactionStarted) {

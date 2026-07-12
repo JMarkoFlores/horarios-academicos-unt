@@ -97,7 +97,8 @@ export class CursoDetailComponent implements OnInit {
     this.api.get<ApiResponse<Curso>>(`/cursos/${id}`).subscribe({
       next: (res) => {
         this.curso = res.data;
-        this.loadEntries(id);
+        // Use planes_estudio from the course data instead of N+1 queries
+        this.processEntries(res.data);
         this.loadGrupos(id);
       },
       error: () => {
@@ -107,34 +108,33 @@ export class CursoDetailComponent implements OnInit {
     });
   }
 
-  private loadEntries(cursoId: number): void {
-    this.api.get<ApiResponse<any>>('/plan-estudios', {}).subscribe({
-      next: (res) => {
-        const planes = Array.isArray(res.data) ? res.data : [];
-        const allEntries: CursoPlanEntry[] = [];
-        let loaded = 0;
-        if (planes.length === 0) { this.loading = false; return; }
-        for (const plan of planes) {
-          this.api.get<ApiResponse<any[]>>(`/plan-estudios/${plan.id}/cursos`).subscribe({
-            next: (resp) => {
-              const items = Array.isArray(resp.data) ? resp.data : [];
-              const entry = items.find((c: any) => c.curso_id === cursoId);
-              if (entry) {
-                allEntries.push({ ...entry, plan_estudios: { id: plan.id, nombre: plan.nombre, codigo: plan.codigo, activo: plan.activo } });
-              }
-            },
-            complete: () => {
-              loaded++;
-              if (loaded === planes.length) {
-                this.entries = allEntries;
-                this.loading = false;
-              }
+  private processEntries(curso: Curso): void {
+    // Build entries from the loaded planes_estudio relation
+    const entries: CursoPlanEntry[] = [];
+    if (curso.planes_estudio && Array.isArray(curso.planes_estudio)) {
+      for (const cpe of curso.planes_estudio) {
+        if (cpe.plan_estudios) {
+          entries.push({
+            id: cpe.id,
+            plan_estudios_id: cpe.plan_estudios_id,
+            ciclo: cpe.ciclo,
+            tipo_curso: cpe.tipo_curso,
+            horas_teoria: cpe.horas_teoria,
+            horas_practica: cpe.horas_practica,
+            horas_laboratorio: cpe.horas_laboratorio,
+            creditos: cpe.creditos,
+            plan_estudios: {
+              id: cpe.plan_estudios.id,
+              nombre: cpe.plan_estudios.nombre,
+              codigo: cpe.plan_estudios.codigo,
+              activo: cpe.plan_estudios.activo,
             },
           });
         }
-      },
-      error: () => { this.loading = false; },
-    });
+      }
+    }
+    this.entries = entries;
+    this.loading = false;
   }
 
   private loadGrupos(cursoId: number): void {

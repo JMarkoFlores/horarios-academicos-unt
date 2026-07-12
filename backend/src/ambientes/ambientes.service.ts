@@ -363,8 +363,8 @@ export class AmbientesService {
     return {
       data: horarios.map((h) => ({
         id: h.id,
-        dia_semana: h.dia_semana,
-        dia_nombre: DIAS_NOMBRE[h.dia_semana] ?? `Día ${h.dia_semana}`,
+        dia_semana: h.dia,
+        dia_nombre: DIAS_NOMBRE[h.dia] ?? `Día ${h.dia}`,
         hora_inicio: h.hora_inicio,
         hora_fin: h.hora_fin,
         tipo_clase: h.tipo_clase,

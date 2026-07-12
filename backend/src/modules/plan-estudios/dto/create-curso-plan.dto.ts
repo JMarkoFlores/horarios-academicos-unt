@@ -22,9 +22,12 @@ export class CreateCursoPlanDto {
   @Max(10)
   ciclo: number;
 
-  @ApiProperty({ enum: TipoCursoPlan, default: TipoCursoPlan.ESPECIALIDAD })
+  @ApiProperty({
+    enum: TipoCursoPlan,
+    default: TipoCursoPlan.OBLIGATORIO_GENERAL,
+  })
   @IsEnum(TipoCursoPlan)
-  tipo_curso: TipoCursoPlan;
+  tipo_curso: TipoCursoPlan = TipoCursoPlan.OBLIGATORIO_GENERAL;
 
   @ApiPropertyOptional({ default: 0 })
   @IsOptional()

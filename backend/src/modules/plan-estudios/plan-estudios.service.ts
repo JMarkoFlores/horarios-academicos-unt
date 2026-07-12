@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In } from "typeorm";
+import { Repository, In, DeepPartial } from "typeorm";
 import { PlanEstudios } from "../../entities/plan-estudios.entity";
 import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { Curso } from "../../entities/curso.entity";
@@ -217,10 +217,11 @@ export class PlanEstudiosService {
       );
     }
 
-    const cp = this.cursoPlanRepo.create({
+const cp = this.cursoPlanRepo.create({
       ...dto,
       plan_estudios_id: planId,
-    });
+      prerequisitos: dto.prerequisitos?.map(Number) ?? [],
+    } as DeepPartial<CursoPlanEstudios>);
     return this.cursoPlanRepo.save(cp);
   }
 

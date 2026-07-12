@@ -18,6 +18,9 @@ export interface PlanEstudios {
   anio: number;
   activo: boolean;
   escuela_id: number;
+  escuela?: { id: number; nombre: string; codigo: string };
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CursoPlanEstudios {
@@ -31,6 +34,7 @@ export interface CursoPlanEstudios {
   horas_laboratorio: number;
   creditos: number;
   prerequisitos?: number[];
+  estado: string;
   curso?: Curso;
 }
 
@@ -152,6 +156,7 @@ export interface Ambiente {
   capacidad: number;
   piso?: number;
   pabellon?: string;
+  edificio?: string;
   sede?: string;
   equipamiento?: string;
   estado?: 'ACTIVO' | 'MANTENIMIENTO' | 'RESERVADO' | 'INACTIVO';
@@ -168,6 +173,8 @@ export interface AmbienteMapa {
   piso?: number | null;
   pabellon?: string | null;
   sede?: string | null;
+  equipamiento?: string;
+  estado?: 'ACTIVO' | 'MANTENIMIENTO' | 'RESERVADO' | 'INACTIVO';
 }
 
 export interface DisponibilidadDocente {

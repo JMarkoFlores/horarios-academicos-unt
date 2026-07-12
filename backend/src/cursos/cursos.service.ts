@@ -5,12 +5,15 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In, DataSource } from "typeorm";
+import { Repository, In, DataSource, DeepPartial } from "typeorm";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { PlanEstudios } from "../entities/plan-estudios.entity";
+import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { TipoCursoPlan } from "../common/enums/tipo-curso-plan.enum";
+import { EstadoCursoPlan } from "../common/enums/estado-curso-plan.enum";
 import { asignarAmbientesPorDefecto } from "../database/asignar-ambientes-por-defecto.helper";
 import { CreateCursoDto } from "./dto/create-curso.dto";
 import { UpdateCursoDto } from "./dto/update-curso.dto";
@@ -25,6 +28,8 @@ export class CursosService {
     private readonly ambienteRepo: Repository<Ambiente>,
     @InjectRepository(PlanEstudios)
     private readonly planRepo: Repository<PlanEstudios>,
+    @InjectRepository(CursoPlanEstudios)
+    private readonly cursoPlanRepo: Repository<CursoPlanEstudios>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -74,7 +79,7 @@ export class CursosService {
         "cpe",
         "cpe.plan_estudios_id = :planId",
         { planId: activePlan.id },
-      );
+      ).leftJoinAndSelect("cpe.plan_estudios", "plan_estudios");
     }
 
     if (activo !== undefined) {
@@ -100,8 +105,14 @@ export class CursosService {
       );
     }
 
-    // First get all items without pagination so we can sort by tipo_curso priority
-    const allItems = await qb.getMany();
+    // Add ordering
+    qb.orderBy(orderCol, orderDir);
+
+    // Apply pagination at database level
+    const [items, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
     // Define tipo_curso priority: S (ESPECIALIDAD) > OB (OBLIGATORIO_GENERAL) > OP (OBLIGATORIO_PROFESIONAL) > EL (ELECTIVO)
     const tipoCursoPriority: Record<string, number> = {
@@ -111,11 +122,10 @@ export class CursosService {
       ELECTIVO: 4,
     };
 
-    // Sort the items
-    const sortedItems = [...allItems];
-    if (sortBy === "tipo_curso") {
-      sortedItems.sort((a, b) => {
-        // Get tipo_curso from the first (and only, since it's active plan) plan in a.planes_estudio
+    // If sorting by tipo_curso, we need to re-sort in memory because it's from a joined table
+    let sortedItems = items;
+    if (sortBy === "tipo_curso" && activePlan) {
+      sortedItems = [...items].sort((a, b) => {
         const tipoA = a.planes_estudio?.[0]?.tipo_curso;
         const tipoB = b.planes_estudio?.[0]?.tipo_curso;
         const priorityA = tipoCursoPriority[tipoA] || 99;
@@ -130,35 +140,11 @@ export class CursosService {
         // If same tipo_curso, sort by nombre ASC
         return a.nombre.localeCompare(b.nombre);
       });
-    } else {
-      // For other sort fields, use the query builder's ordering logic
-      // Since we have all items, let's implement the sorting here too
-      sortedItems.sort((a, b) => {
-        const valA: any = (a as any)[sortBy];
-        const valB: any = (b as any)[sortBy];
-
-        // For string fields (like nombre, codigo), use localeCompare
-        if (typeof valA === "string" && typeof valB === "string") {
-          return orderDir === "ASC"
-            ? valA.localeCompare(valB)
-            : valB.localeCompare(valA);
-        }
-
-        // For numeric fields
-        if (orderDir === "ASC") {
-          return valA - valB;
-        } else {
-          return valB - valA;
-        }
-      });
     }
 
-    // Now apply pagination
-    const paginatedItems = sortedItems.slice((page - 1) * limit, page * limit);
-
     return {
-      items: paginatedItems,
-      total: allItems.length,
+      items: sortedItems,
+      total,
       page,
       limit,
     };
@@ -169,6 +155,8 @@ export class CursosService {
       .createQueryBuilder("curso")
       .leftJoinAndSelect("curso.ambientes", "ambientes")
       .leftJoinAndSelect("curso.departamento", "departamento")
+      .leftJoinAndSelect("curso.planes_estudio", "planes_estudio")
+      .leftJoinAndSelect("planes_estudio.plan_estudios", "plan_estudios")
       .where("curso.id = :id", { id })
       .getOne();
 
@@ -198,12 +186,52 @@ export class CursosService {
       );
     }
 
+    // Get active plan
+    const activePlan = await this.planRepo.findOne({ where: { activo: true } });
+
+    const { tipo_curso, departamento_id, ...cursoData } = dto;
     const curso = this.cursoRepo.create({
-      ...dto,
+      ...cursoData,
       codigo: dto.codigo.toUpperCase().trim(),
       activo: true,
+      departamento_id: departamento_id ?? null,
     });
     const saved = await this.cursoRepo.save(curso);
+
+    // Create CursoPlanEstudios entry if active plan exists
+    if (activePlan) {
+      // Convert prerequisite codes to IDs
+      const prereqIds: number[] = [];
+      if (dto.prerequisitos) {
+        const codes = dto.prerequisitos
+          .split(",")
+          .map((c) => c.trim())
+          .filter((c) => c);
+        for (const code of codes) {
+          const prereqCurso = await this.cursoRepo.findOne({
+            where: { codigo: code.toUpperCase() },
+          });
+          if (prereqCurso) {
+            prereqIds.push(prereqCurso.id);
+          }
+        }
+      }
+
+      const cpe = this.cursoPlanRepo.create({
+        plan_estudios_id: activePlan.id,
+        curso_id: saved.id,
+        ciclo: dto.ciclo,
+        tipo_curso: tipo_curso ?? TipoCursoPlan.OBLIGATORIO_GENERAL,
+        horas_teoria: dto.horas_teoria,
+        horas_practica: dto.horas_practica ?? 0,
+        horas_laboratorio: dto.horas_laboratorio ?? 0,
+        creditos: dto.creditos,
+        estado: EstadoCursoPlan.ACTIVO,
+        prerequisitos: prereqIds,
+      } as DeepPartial<CursoPlanEstudios>);
+      await this.cursoPlanRepo.save(cpe);
+    }
+
     await this.invalidateCache();
     return saved;
   }
@@ -233,8 +261,70 @@ export class CursosService {
       }
     }
 
-    const actualizado = this.cursoRepo.merge(curso, dto);
+    // Get active plan
+    const activePlan = await this.planRepo.findOne({ where: { activo: true } });
+
+    const { tipo_curso, departamento_id, ...cursoData } = dto;
+    const actualizado = this.cursoRepo.merge(curso, {
+      ...cursoData,
+      departamento_id: departamento_id ?? curso.departamento_id,
+    });
     const saved = await this.cursoRepo.save(actualizado);
+
+    // Update or create CursoPlanEstudios entry
+    if (activePlan) {
+      let cpe = await this.cursoPlanRepo.findOne({
+        where: { plan_estudios_id: activePlan.id, curso_id: saved.id },
+      });
+
+      // Convert prerequisite codes to IDs if provided
+      let prereqIds: number[] | undefined;
+      if (dto.prerequisitos !== undefined) {
+        prereqIds = [];
+        if (dto.prerequisitos) {
+          const codes = dto.prerequisitos
+            .split(",")
+            .map((c) => c.trim())
+            .filter((c) => c);
+          for (const code of codes) {
+            const prereqCurso = await this.cursoRepo.findOne({
+              where: { codigo: code.toUpperCase() },
+            });
+            if (prereqCurso) {
+              prereqIds.push(prereqCurso.id);
+            }
+          }
+        }
+      }
+
+      if (cpe) {
+        if (tipo_curso) cpe.tipo_curso = tipo_curso;
+        if (dto.ciclo) cpe.ciclo = dto.ciclo;
+        if (dto.horas_teoria) cpe.horas_teoria = dto.horas_teoria;
+        if (dto.horas_practica !== undefined)
+          cpe.horas_practica = dto.horas_practica;
+        if (dto.horas_laboratorio !== undefined)
+          cpe.horas_laboratorio = dto.horas_laboratorio;
+        if (dto.creditos) cpe.creditos = dto.creditos;
+        if (prereqIds !== undefined) cpe.prerequisitos = prereqIds;
+        await this.cursoPlanRepo.save(cpe);
+      } else {
+        cpe = this.cursoPlanRepo.create({
+          plan_estudios_id: activePlan.id,
+          curso_id: saved.id,
+          ciclo: dto.ciclo ?? curso.ciclo,
+          tipo_curso: tipo_curso ?? TipoCursoPlan.OBLIGATORIO_GENERAL,
+          horas_teoria: dto.horas_teoria ?? curso.horas_teoria,
+          horas_practica: dto.horas_practica ?? curso.horas_practica,
+          horas_laboratorio: dto.horas_laboratorio ?? curso.horas_laboratorio,
+          creditos: dto.creditos ?? curso.creditos,
+          estado: EstadoCursoPlan.ACTIVO,
+          prerequisitos: prereqIds ?? [],
+        } as DeepPartial<CursoPlanEstudios>);
+        await this.cursoPlanRepo.save(cpe);
+      }
+    }
+
     await this.invalidateCache();
     return saved;
   }

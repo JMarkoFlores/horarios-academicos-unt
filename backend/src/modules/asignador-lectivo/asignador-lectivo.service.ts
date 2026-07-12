@@ -289,7 +289,9 @@ export class AsignadorLectivoService {
     return resultado;
   }
 
-  async getHorarioDocente(docenteId: number, periodoCodigo: string) {
+  async getHorarioDocente(docenteId: number, periodoId: number) {
+    const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+    const periodoCodigo = periodo?.codigo || "";
     const horarios = await this.horarioRepo.find({
       where: { docente_id: docenteId, periodo: periodoCodigo },
       relations: ["curso", "ambiente", "grupo"],
@@ -316,7 +318,9 @@ export class AsignadorLectivoService {
     }));
   }
 
-  async getAmbientes(periodoCodigo: string, contexto?: ContextoAcademico) {
+  async getAmbientes(periodoId: number, contexto?: ContextoAcademico) {
+    const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+    const periodoCodigo = periodo?.codigo || "";
     const ambientes = await this.ambienteRepo.find({
       where: { activo: true },
       order: { codigo: "ASC" },
@@ -374,7 +378,9 @@ export class AsignadorLectivoService {
     return resultado;
   }
 
-  async getOcupacionAmbiente(ambienteId: number, periodoCodigo: string) {
+  async getOcupacionAmbiente(ambienteId: number, periodoId: number) {
+    const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+    const periodoCodigo = periodo?.codigo || "";
     const ambiente = await this.ambienteRepo.findOne({
       where: { id: ambienteId },
     });
@@ -515,6 +521,37 @@ export class AsignadorLectivoService {
       }
       if (nuevaTotal < 16 && horasLectivasActuales === 0) {
         advertencias.push(`Carga menor al mínimo: ${nuevaTotal}h < 16h`);
+      }
+    }
+
+    // Validar cobertura del curso (horas del plan de estudios)
+    if (dto.curso_plan_id && dto.tipo_clase) {
+      const cursoPlan = await this.cursoPlanRepo.findOne({
+        where: { id: dto.curso_plan_id },
+        relations: ["curso"],
+      });
+      if (cursoPlan && cursoPlan.estado === EstadoCursoPlan.ACTIVO) {
+        const horasPlan = this.getHorasPorTipo(cursoPlan, dto.tipo_clase as TipoClase);
+        if (horasPlan > 0) {
+          const existentes = await this.asignacionRepo.find({
+            where: {
+              curso_plan_id: dto.curso_plan_id,
+              periodo_id: periodoId,
+              tipo_clase: dto.tipo_clase,
+              estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+            },
+          });
+          const horasCubiertas = existentes.reduce(
+            (sum, a) => sum + Number(a.horas_asignadas),
+            0,
+          );
+          const total = horasCubiertas + duracionHoras;
+          if (total > horasPlan) {
+            errores.push(
+              `Las horas de ${dto.tipo_clase} ya están cubiertas (${horasCubiertas}h de ${horasPlan}h). No se pueden asignar ${duracionHoras}h adicionales.`,
+            );
+          }
+        }
       }
     }
 
@@ -830,6 +867,19 @@ export class AsignadorLectivoService {
         return "NL";
       default:
         return "??";
+    }
+  }
+
+  private getHorasPorTipo(cursoPlan: CursoPlanEstudios, tipoClase: TipoClase): number {
+    switch (tipoClase) {
+      case TipoClase.TEORIA:
+        return cursoPlan.horas_teoria;
+      case TipoClase.PRACTICA:
+        return cursoPlan.horas_practica;
+      case TipoClase.LABORATORIO:
+        return cursoPlan.horas_laboratorio;
+      default:
+        return 0;
     }
   }
 }

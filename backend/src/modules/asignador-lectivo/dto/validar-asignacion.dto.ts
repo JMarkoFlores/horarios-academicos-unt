@@ -19,6 +19,10 @@ export class ValidarAsignacionDto {
   curso_id: number;
 
   @IsInt()
+  @IsOptional()
+  curso_plan_id?: number;
+
+  @IsInt()
   @IsNotEmpty()
   ambiente_id: number;
 
@@ -54,6 +58,11 @@ export class ValidarAsignacionDto {
   @Min(1)
   @IsOptional()
   nro_alumnos?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(10)
+  seccion?: string;
 }
 
 export interface ValidacionResultado {

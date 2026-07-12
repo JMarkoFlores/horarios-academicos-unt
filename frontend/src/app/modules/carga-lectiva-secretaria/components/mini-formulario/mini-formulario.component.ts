@@ -273,6 +273,8 @@ export class MiniFormularioComponent implements OnInit, OnChanges {
     if (this.form.invalid || !this.data()) return;
     this.guardando.set(true);
     const vals = this.form.value;
+    const grupo = this.data()!.grupos.find((g: GrupoInfo) => g.id === vals.grupo_id);
+    const seccion = grupo ? `G${grupo.codigo.slice(-1)}` : 'G1';
     this.confirmar.emit({
       docente_id: this.data()!.docente.id,
       curso_id: this.data()!.curso.cursoId,
@@ -284,7 +286,7 @@ export class MiniFormularioComponent implements OnInit, OnChanges {
       hora_fin: this.data()!.horaFin,
       tipo_clase: this.data()!.tipoClase,
       curso_plan_id: this.data()!.curso.cursoPlanId,
-      seccion: this.data()!.curso.codigo,
+      seccion: seccion,
       nro_alumnos: vals.nro_alumnos,
     });
   }

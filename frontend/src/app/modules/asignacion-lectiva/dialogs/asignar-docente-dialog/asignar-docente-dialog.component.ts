@@ -25,6 +25,7 @@ interface CoberturaTipo {
   plan: number;
   cubierto: number;
   restante: number;
+  isNoLectiva?: boolean;
 }
 
 function maxHorasValidator(max: number): ValidatorFn {
@@ -65,17 +66,22 @@ function maxHorasValidator(max: number): ValidatorFn {
           <div class="cobertura-bars">
             <div class="cobertura-item" *ngFor="let c of cobertura" (click)="seleccionarTipo(c.tipo)">
               <span class="cobertura-label">{{ c.tipo | titlecase }}</span>
-              <div class="bar-container">
+              <div class="bar-container" *ngIf="c.plan > 0; else noLectivaBar">
                 <div class="bar-fill" [style.width.%]="porcentaje(c)" [class.completo]="c.restante <= 0"></div>
               </div>
-              <span class="cobertura-num" [class.completo]="c.restante <= 0">
+              <ng-template #noLectivaBar>
+                <div class="bar-container no-lectiva">
+                  <div class="bar-fill completo" style="width: 100%"></div>
+                </div>
+              </ng-template>
+              <span class="cobertura-num" [class.completo]="c.restante <= 0 || c.isNoLectiva">
                 {{ c.cubierto }}h / {{ c.plan }}h
               </span>
-              <span class="cobertura-restante" *ngIf="c.restante > 0">
+              <span class="cobertura-restante" *ngIf="c.restante > 0 && !c.isNoLectiva">
                 {{ c.restante }}h libres
               </span>
-              <span class="cobertura-completo" *ngIf="c.restante <= 0">
-                Completo
+              <span class="cobertura-completo" *ngIf="c.restante <= 0 || c.isNoLectiva">
+                {{ c.isNoLectiva ? 'No lectiva' : 'Completo' }}
               </span>
             </div>
           </div>
@@ -177,6 +183,7 @@ function maxHorasValidator(max: number): ValidatorFn {
     .cobertura-item { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 3px 0; }
     .cobertura-label { font-size: 0.75rem; font-weight: 600; width: 70px; color: #333; }
     .bar-container { flex: 1; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; }
+    .bar-container.no-lectiva { background: #e8eaf6; }
     .bar-fill { height: 100%; background: #1565c0; border-radius: 4px; transition: width 0.3s ease; }
     .bar-fill.completo { background: #43a047; }
     .cobertura-num { font-size: 0.75rem; font-weight: 600; width: 60px; text-align: right; color: #555; }
@@ -288,13 +295,13 @@ export class AsignarDocenteDialogComponent implements OnInit, OnDestroy {
           && a.estado !== 'RECHAZADO');
 
         this.cobertura = [];
-        for (const tipo of ['TEORIA', 'PRACTICA', 'LABORATORIO']) {
+        for (const tipo of ['TEORIA', 'PRACTICA', 'LABORATORIO', 'NO_LECTIVA']) {
           const plan = this.getHorasPorTipo(tipo);
-          if (plan === 0) continue;
+          if (plan === 0 && tipo !== 'NO_LECTIVA') continue;
           const cubierto = delCurso
             .filter((a: any) => a.tipo_clase === tipo)
             .reduce((s: number, a: any) => s + Number(a.horas_asignadas), 0);
-          this.cobertura.push({ tipo, plan, cubierto, restante: plan - cubierto });
+          this.cobertura.push({ tipo, plan, cubierto, restante: plan - cubierto, isNoLectiva: tipo === 'NO_LECTIVA' });
         }
 
         this.actualizarOpcionesTipo();
@@ -312,6 +319,7 @@ export class AsignarDocenteDialogComponent implements OnInit, OnDestroy {
       { valor: 'TEORIA', label: 'Teoría', restante: this.getRestante('TEORIA') },
       { valor: 'PRACTICA', label: 'Práctica', restante: this.getRestante('PRACTICA') },
       { valor: 'LABORATORIO', label: 'Laboratorio', restante: this.getRestante('LABORATORIO') },
+      { valor: 'NO_LECTIVA', label: 'No Lectiva', restante: this.getRestante('NO_LECTIVA') },
     ];
   }
 
@@ -387,6 +395,7 @@ export class AsignarDocenteDialogComponent implements OnInit, OnDestroy {
       case 'TEORIA': return this.cursoPlanData.horas_teoria;
       case 'PRACTICA': return this.cursoPlanData.horas_practica;
       case 'LABORATORIO': return this.cursoPlanData.horas_laboratorio;
+      case 'NO_LECTIVA': return 0;
       default: return 0;
     }
   }

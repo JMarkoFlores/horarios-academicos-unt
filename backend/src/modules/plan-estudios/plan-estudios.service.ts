@@ -217,7 +217,7 @@ export class PlanEstudiosService {
       );
     }
 
-const cp = this.cursoPlanRepo.create({
+    const cp = this.cursoPlanRepo.create({
       ...dto,
       plan_estudios_id: planId,
       prerequisitos: dto.prerequisitos?.map(Number) ?? [],

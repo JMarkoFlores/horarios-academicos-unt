@@ -115,7 +115,7 @@ const routes: Routes = [
             (m) => m.CargaLectivaSecretariaModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.SECRETARIA] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
       },
       {
             path: 'periodos',

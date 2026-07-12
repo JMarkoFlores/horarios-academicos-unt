@@ -34,18 +34,18 @@ export class CargaLectivaApiService {
       .pipe(map(res => this.unwrap(res)));
   }
 
-  getHorarioDocente(docenteId: number, periodo: string): Observable<BloqueHorario[]> {
-    return this.api.get<StandardResponse<BloqueHorario[]>>(`asignador/horario-docente/${docenteId}`, { periodo })
+  getHorarioDocente(docenteId: number, periodoId: number): Observable<BloqueHorario[]> {
+    return this.api.get<StandardResponse<BloqueHorario[]>>(`asignador/horario-docente/${docenteId}`, { periodoId })
       .pipe(map(res => this.unwrap(res)));
   }
 
-  getAmbientes(periodoCodigo: string): Observable<AmbienteDisponible[]> {
-    return this.api.get<StandardResponse<AmbienteDisponible[]>>(`asignador/ambientes/${periodoCodigo}`)
+  getAmbientes(periodoId: number): Observable<AmbienteDisponible[]> {
+    return this.api.get<StandardResponse<AmbienteDisponible[]>>(`asignador/ambientes/${periodoId}`)
       .pipe(map(res => this.unwrap(res)));
   }
 
-  getOcupacionAmbiente(ambienteId: number, periodo: string): Observable<any> {
-    return this.api.get<StandardResponse<any>>(`asignador/ocupacion-ambiente/${ambienteId}`, { periodo })
+  getOcupacionAmbiente(ambienteId: number, periodoId: number): Observable<any> {
+    return this.api.get<StandardResponse<any>>(`asignador/ocupacion-ambiente/${ambienteId}`, { periodoId })
       .pipe(map(res => this.unwrap(res)));
   }
 

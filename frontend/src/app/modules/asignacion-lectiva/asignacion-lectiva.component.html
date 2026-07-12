@@ -139,10 +139,11 @@
                             <span class="tipo-clase">{{ a.tipo_clase }}</span>
                             <span class="seccion">{{ a.seccion }}</span>
                             <span class="horas">{{ a.horas_asignadas }} horas</span>
-                            <span class="estado-badge" [class.pendiente]="a.estado === 'PENDIENTE'"
-                                  [class.asignado]="a.estado === 'CONFIRMADO'">
-                              {{ a.estado === 'PENDIENTE' ? 'Pendiente' : 'Confirmado' }}
-                            </span>
+<span class="estado-badge" [class.pendiente]="a.estado === 'PENDIENTE'"
+                                   [class.asignado]="a.estado === 'CONFIRMADO'"
+                                   [class.rechazado]="a.estado === 'RECHAZADO'">
+                               {{ a.estado === 'PENDIENTE' ? 'Pendiente' : a.estado === 'CONFIRMADO' ? 'Confirmado' : 'Rechazado' }}
+                             </span>
                           </div>
                         </div>
                         <div class="asignacion-actions">

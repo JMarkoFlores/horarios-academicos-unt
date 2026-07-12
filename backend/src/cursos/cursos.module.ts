@@ -8,7 +8,14 @@ import { CursosService } from "./cursos.service";
 import { CursosController } from "./cursos.controller";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Curso, Ambiente, PlanEstudios, CursoPlanEstudios])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Curso,
+      Ambiente,
+      PlanEstudios,
+      CursoPlanEstudios,
+    ]),
+  ],
   controllers: [CursosController],
   providers: [CursosService],
   exports: [CursosService],

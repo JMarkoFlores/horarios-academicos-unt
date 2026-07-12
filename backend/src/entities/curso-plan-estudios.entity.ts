@@ -12,6 +12,7 @@ import {
 } from "typeorm";
 import { Curso } from "./curso.entity";
 import { PlanEstudios } from "./plan-estudios.entity";
+import { AsignacionLectiva } from "./asignacion-lectiva.entity";
 import { TipoCursoPlan } from "../common/enums/tipo-curso-plan.enum";
 import { EstadoCursoPlan } from "../common/enums/estado-curso-plan.enum";
 
@@ -58,8 +59,8 @@ export class CursoPlanEstudios {
   @Column({ type: "decimal", precision: 3, scale: 1 })
   creditos: number;
 
-  @OneToMany("AsignacionLectiva", "curso_plan")
-  asignaciones: import("./asignacion-lectiva.entity").AsignacionLectiva[];
+  @OneToMany(() => AsignacionLectiva, (asignacion) => asignacion.curso_plan)
+  asignaciones: AsignacionLectiva[];
 
   @Column({ type: "jsonb", nullable: true })
   prerequisitos: number[];

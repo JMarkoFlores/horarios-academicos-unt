@@ -64,7 +64,7 @@ export class AsignadorLectivoController {
   )
   async getHorarioDocente(
     @Param("docenteId", ParseIntPipe) docenteId: number,
-    @Query("periodo") periodo: string,
+    @Query("periodoId", ParseIntPipe) periodoId: number,
     @Request() req: { user: any },
   ) {
     if (
@@ -73,21 +73,21 @@ export class AsignadorLectivoController {
     ) {
       throw new Error("No autorizado");
     }
-    return this.servicio.getHorarioDocente(docenteId, periodo);
+    return this.servicio.getHorarioDocente(docenteId, periodoId);
   }
 
-  @Get("ambientes/:periodoCodigo")
+  @Get("ambientes/:periodoId")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.SECRETARIA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
   )
   async getAmbientes(
-    @Param("periodoCodigo") periodoCodigo: string,
+    @Param("periodoId", ParseIntPipe) periodoId: number,
     @Request() req: { user: any },
   ) {
     return this.servicio.getAmbientes(
-      periodoCodigo,
+      periodoId,
       req.user.contextoAcademico,
     );
   }
@@ -100,9 +100,9 @@ export class AsignadorLectivoController {
   )
   async getOcupacionAmbiente(
     @Param("ambienteId", ParseIntPipe) ambienteId: number,
-    @Query("periodo") periodo: string,
+    @Query("periodoId", ParseIntPipe) periodoId: number,
   ) {
-    return this.servicio.getOcupacionAmbiente(ambienteId, periodo);
+    return this.servicio.getOcupacionAmbiente(ambienteId, periodoId);
   }
 
   @Get("progreso/:periodoId")

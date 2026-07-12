@@ -459,8 +459,12 @@ export class AsignadorComponent implements OnInit, OnDestroy {
     const doc = this.svc.docentes().find((d: DocenteAsignador) => d.id === id);
     if (!doc) return;
 
+    const periodos = this.periodoService.periodos;
     const codigo = this.periodoService.periodo;
-    await this.svc.seleccionarDocente(doc, codigo);
+    const activo = periodos.find((p: PeriodoAcademico) => p.codigo === codigo);
+    const periodoId = activo?.id ?? 0;
+    
+    await this.svc.seleccionarDocente(doc, periodoId);
     this.vm.update(v => ({ ...v, grillaReadonly: false }));
     this.recalculateBlocks();
   }

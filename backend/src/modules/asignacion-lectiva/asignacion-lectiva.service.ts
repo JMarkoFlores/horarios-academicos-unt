@@ -233,15 +233,20 @@ export class AsignacionLectivaService {
     }
 
     // Validar unicidad
+    const whereCondition: any = {
+      docente_id: dto.docente_id,
+      curso_plan_id: dto.curso_plan_id,
+      periodo_id: dto.periodo_id,
+      tipo_clase: dto.tipo_clase,
+      seccion: dto.seccion,
+    };
+    if (dto.grupo_id === undefined || dto.grupo_id === null) {
+      whereCondition.grupo_id = IsNull();
+    } else {
+      whereCondition.grupo_id = dto.grupo_id;
+    }
     const existing = await this.asignacionRepo.findOne({
-      where: {
-        docente_id: dto.docente_id,
-        curso_plan_id: dto.curso_plan_id,
-        periodo_id: dto.periodo_id,
-        tipo_clase: dto.tipo_clase,
-        seccion: dto.seccion,
-        grupo_id: dto.grupo_id ?? IsNull(),
-      },
+      where: whereCondition,
     });
     if (existing) {
       throw new ConflictException(
@@ -590,6 +595,10 @@ export class AsignacionLectivaService {
         return cursoPlan.horas_practica;
       case TipoClase.LABORATORIO:
         return cursoPlan.horas_laboratorio;
+      case TipoClase.NO_LECTIVA:
+        return 0;
+      default:
+        return 0;
     }
   }
 
@@ -613,10 +622,23 @@ export class AsignacionLectivaService {
     );
     const totalHoras = horasActuales + nuevasHoras;
 
+    if (!docente.modalidad) {
+      throw new BadRequestException(
+        "El docente no tiene modalidad asignada. No se puede validar la carga máxima.",
+      );
+    }
+
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+    if (!periodo) {
+      throw new NotFoundException(`Período #${periodoId} no encontrado`);
+    }
+
     // Buscar ParametrosCarga para la modalidad del docente
     const params = await this.paramsRepo.findOne({
       where: {
-        periodo_academico: String(periodoId),
+        periodo_academico: periodo.codigo,
         modalidad: docente.modalidad,
       },
     });
@@ -647,9 +669,22 @@ export class AsignacionLectivaService {
     ).size;
     const nuevosCursos = cursosDistintos + 1;
 
+    if (!docente.modalidad) {
+      throw new BadRequestException(
+        "El docente no tiene modalidad asignada. No se puede validar el máximo de cursos.",
+      );
+    }
+
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+    if (!periodo) {
+      throw new NotFoundException(`Período #${periodoId} no encontrado`);
+    }
+
     const params = await this.paramsRepo.findOne({
       where: {
-        periodo_academico: String(periodoId),
+        periodo_academico: periodo.codigo,
         modalidad: docente.modalidad,
       },
     });

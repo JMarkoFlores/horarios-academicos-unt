@@ -44,7 +44,7 @@ export class AsignadorService {
       const [cursos, docentes, ambientes, progreso] = await Promise.all([
         this.api.getCursosPendientes(periodoId).toPromise().catch(() => []),
         this.api.getDocentes(periodoId).toPromise().catch(() => []),
-        this.api.getAmbientes(periodoCodigo).toPromise().catch(() => []),
+        this.api.getAmbientes(periodoId).toPromise().catch(() => []),
         this.api.getProgreso(periodoId).toPromise().catch(() => null),
       ]);
 
@@ -129,13 +129,13 @@ export class AsignadorService {
     }));
   }
 
-  async seleccionarDocente(docente: DocenteAsignador, periodo: string): Promise<void> {
+  async seleccionarDocente(docente: DocenteAsignador, periodoId: number): Promise<void> {
     const docenteSanitizado = this.docentes().find((d) => d.id === docente.id);
     if (docenteSanitizado) {
       this.docenteSeleccionado.set(docenteSanitizado);
     }
 
-    const bloques = await this.api.getHorarioDocente(docente.id, periodo).toPromise().catch(() => []);
+    const bloques = await this.api.getHorarioDocente(docente.id, periodoId).toPromise().catch(() => []);
     const bloquesSanitizados = this.sanitizarBloques(bloques ?? []);
     this.bloquesDocente.set(Array.isArray(bloquesSanitizados) ? bloquesSanitizados : []);
   }

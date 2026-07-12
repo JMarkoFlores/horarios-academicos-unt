@@ -163,6 +163,43 @@ export async function main() {
     await seedTurnosPorDefecto(turnoConfigRepo);
     console.log("✅ Turnos por defecto creados.");
 
+    // 2b. Seed ParametrosCarga for active period
+    const parametrosCargaRepo = queryRunner.manager.getRepository(ParametrosCarga);
+    const modalidades = ["TC", "TP", "TIEMPO_COMPLETO", "MEDIO_TIEMPO", "HORAS_CATEDRA"];
+    const categorias = ["PRINCIPAL", "ASOCIADO", "AUXILIAR", "INSTRUCTOR"];
+    const tiposDocente = ["ORDINARIO", "CONTRATADO"];
+    let paramsCount = 0;
+    for (const modalidad of modalidades) {
+      for (const categoria of categorias) {
+        for (const tipoDocente of tiposDocente) {
+          const exists = await parametrosCargaRepo.findOne({
+            where: {
+              periodo_academico: estructura.periodoActivo.codigo,
+              modalidad,
+              categoria,
+              tipo_docente: tipoDocente,
+            },
+          });
+          if (!exists) {
+            await parametrosCargaRepo.save(
+              parametrosCargaRepo.create({
+                periodo_academico: estructura.periodoActivo.codigo,
+                modalidad,
+                categoria,
+                tipo_docente: tipoDocente,
+                horas_min_semanal: 4,
+                horas_max_semanal: modalidad === "TC" || modalidad === "TIEMPO_COMPLETO" ? 40 : 24,
+                cursos_min_docente: 1,
+                cursos_max_docente: modalidad === "TC" || modalidad === "TIEMPO_COMPLETO" ? 8 : 5,
+              }),
+            );
+            paramsCount++;
+          }
+        }
+      }
+    }
+    console.log(`✅ ${paramsCount} parámetros de carga creados.`);
+
     // 3. Seed course plan (Plan de Estudios 2018)
     const planRepo = queryRunner.manager.getRepository(PlanEstudios);
     const cursoPlanRepo = queryRunner.manager.getRepository(CursoPlanEstudios);
@@ -250,11 +287,12 @@ export async function main() {
       queryRunner.manager.getRepository(AsignacionLectiva);
     const allHorarios = await horarioRepo.find({
       where: { periodo: estructura.periodoActivo.codigo },
+      relations: ["grupo"],
     });
     const periodo = estructura.periodoActivo;
 
     const seenDC = new Set<string>();
-    const seenAL = new Set<string>();
+    const seenAL = new Map<string, { horas: number; grupoId: number | null; seccion: string }>();
     let dcCount = 0,
       alCount = 0;
 
@@ -284,24 +322,47 @@ export async function main() {
         dcCount++;
       }
 
-      const alKey = `${(h as any).docente_id}-${cursoPlan.id}-${tc}`;
+      const grupoId = (h as any).grupo_id ?? null;
+      const seccion = grupoId ? `G${grupoId}` : "U";
+      const alKey = `${(h as any).docente_id}-${cursoPlan.id}-${tc}-${seccion}`;
+      
       if (!seenAL.has(alKey)) {
-        seenAL.add(alKey);
-        await asignacionLectivaRepo.save(
-          asignacionLectivaRepo.create({
-            docente_id: (h as any).docente_id,
-            curso_plan_id: cursoPlan.id,
-            periodo_id: periodo.id,
-            tipo_clase: tc as TipoClase,
-            seccion: "A",
-            nro_alumnos: 25,
-            horas_asignadas: horas,
-            estado: EstadoAsignacionLectiva.CONFIRMADO,
-            asignado_por_id: estructura.admin.id,
-          }),
-        );
-        alCount++;
+        seenAL.set(alKey, { horas, grupoId, seccion });
+      } else {
+        // Sum hours for same docente/curso/tipo/seccion
+        seenAL.get(alKey)!.horas += horas;
       }
+    }
+    
+    // Now save all unique AsignacionLectiva entries
+    for (const [alKey, data] of seenAL.entries()) {
+      const [docenteId, cursoPlanId, tc, seccion] = alKey.split('-');
+      
+      // Vary nro_alumnos based on tipo_clase (lab typically smaller)
+      let nroAlumnos = 25;
+      if (tc === "LABORATORIO") {
+        nroAlumnos = Math.floor(Math.random() * 15) + 20; // 20-34
+      } else if (tc === "PRACTICA") {
+        nroAlumnos = Math.floor(Math.random() * 20) + 25; // 25-44
+      } else {
+        nroAlumnos = Math.floor(Math.random() * 30) + 25; // 25-54
+      }
+      
+      await asignacionLectivaRepo.save(
+        asignacionLectivaRepo.create({
+          docente_id: parseInt(docenteId),
+          curso_plan_id: parseInt(cursoPlanId),
+          periodo_id: periodo.id,
+          grupo_id: data.grupoId,
+          tipo_clase: tc as TipoClase,
+          seccion: seccion,
+          nro_alumnos: nroAlumnos,
+          horas_asignadas: data.horas,
+          estado: EstadoAsignacionLectiva.CONFIRMADO,
+          asignado_por_id: estructura.admin.id,
+        }),
+      );
+      alCount++;
     }
     console.log(
       `✅ ${dcCount} DocenteCurso y ${alCount} AsignacionLectiva derivados de horarios`,

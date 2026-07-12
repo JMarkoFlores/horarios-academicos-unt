@@ -14,13 +14,35 @@ export interface AsignacionLectiva {
   docente_id: number;
   curso_plan_id: number;
   periodo_id: number;
-  grupo_id?: number;
+  grupo_id: number | null;
   tipo_clase: string;
   seccion: string;
   nro_alumnos: number;
   horas_asignadas: number;
   estado: string;
-  docente: { id: number; nombres: string; apellidos: string; codigo: string };
+  observaciones: string | null;
+  docente: { 
+    id: number; 
+    nombres: string; 
+    apellidos: string; 
+    codigo: string;
+    modalidad: string | null;
+    categoria: string | null;
+  };
+  curso_plan: {
+    id: number;
+    curso: { id: number; codigo: string; nombre: string };
+    horas_teoria: number;
+    horas_practica: number;
+    horas_laboratorio: number;
+  };
+  periodo: { id: number; codigo: string; nombre: string };
+  grupo: { id: number; codigo: string; nombre: string } | null;
+  asignado_por: { id: number; email: string };
+  confirmado_por: { id: number; email: string } | null;
+  confirmado_en: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 @Component({
@@ -136,6 +158,7 @@ export class AsignacionLectivaComponent implements OnInit {
   getEstado(cursoPlan: CursoPlanEstudios): { label: string; class: string } {
     const asigs = this.getAsignaciones(cursoPlan);
     if (asigs.length === 0) return { label: 'Sin docente', class: 'sin-docente' };
+    if (asigs.some((a) => a.estado === 'RECHAZADO')) return { label: 'Rechazado', class: 'rechazado' };
     if (asigs.some((a) => a.estado === 'PENDIENTE')) return { label: 'Pendiente', class: 'pendiente' };
     if (asigs.every((a) => a.estado === 'CONFIRMADO')) return { label: 'Asignado', class: 'asignado' };
     return { label: 'Mixto', class: 'mixto' };

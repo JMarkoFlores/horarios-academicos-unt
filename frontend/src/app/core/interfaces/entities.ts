@@ -48,6 +48,7 @@ export interface ContextoAcademico {
 export interface Usuario {
   id: number;
   email: string;
+  email_alternativo?: string | null;
   nombre: string;
   rol: string;
   docenteId?: number;
@@ -98,6 +99,13 @@ export interface Departamento {
   nombre: string;
   activo: boolean;
   escuela?: Escuela;
+}
+
+export interface Facultad {
+  id: number;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
 }
 
 export interface Curso {
@@ -485,6 +493,7 @@ export interface CargaAvance {
 
 export interface KPIs {
   total_docentes: number;
+  total_horarios_asignados: number;
   docentes_con_horario: number;
   docentes_pendientes: number;
   porcentaje_docentes_asignados: number;
@@ -499,6 +508,11 @@ export interface KPIs {
   total_cursos: number;
   cursos_asignados: number;
   cursos_sin_asignar: number;
+  distribucion_por_modalidad: {
+    modalidad: string;
+    total: number;
+    con_horario: number;
+  }[];
   conflictos_activos: number;
   conflictos_resueltos: number;
   total_conflictos: number;

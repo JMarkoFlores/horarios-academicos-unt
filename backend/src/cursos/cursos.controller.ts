@@ -116,7 +116,8 @@ export class CursosController {
       "Asigna automáticamente ambientes a los cursos activos según sus horas de teoría, práctica o laboratorio. No sobrescribe ambientes ya asignados.",
   })
   async asignarAmbientesPorDefecto() {
-    const result = await this.cursosService.ejecutarAsignacionAmbientesPorDefecto();
+    const result =
+      await this.cursosService.ejecutarAsignacionAmbientesPorDefecto();
     return {
       data: result,
       message: "Ambientes por defecto asignados correctamente",

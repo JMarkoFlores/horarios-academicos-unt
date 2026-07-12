@@ -1,5 +1,13 @@
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min, Max } from 'class-validator';
-import { TipoActividadNoLectiva } from '../../../common/enums/tipo-actividad-no-lectiva.enum';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  Max,
+} from "class-validator";
+import { TipoActividadNoLectiva } from "../../../common/enums/tipo-actividad-no-lectiva.enum";
 
 export class CreateActividadNoLectivaDto {
   @IsEnum(TipoActividadNoLectiva)

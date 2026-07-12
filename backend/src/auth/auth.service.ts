@@ -83,6 +83,7 @@ export class AuthService {
         id: usuario.id,
         nombre: usuario.nombre,
         email: usuario.email,
+        email_alternativo: usuario.email_alternativo,
         rol: usuario.rol,
         docenteId: docente?.id ?? null,
         debe_cambiar_password: usuario.debe_cambiar_password,
@@ -97,6 +98,7 @@ export class AuthService {
     id: number;
     nombre: string;
     email: string;
+    email_alternativo: string | null;
     rol: RolUsuario;
     docenteId: number | null;
     debe_cambiar_password: boolean;
@@ -120,6 +122,7 @@ export class AuthService {
       id: usuario.id,
       nombre: usuario.nombre,
       email: usuario.email,
+      email_alternativo: usuario.email_alternativo,
       rol: usuario.rol,
       docenteId,
       debe_cambiar_password: usuario.debe_cambiar_password,
@@ -195,14 +198,14 @@ export class AuthService {
     dto: CambiarPasswordDto,
   ): Promise<void> {
     if (dto.password_nueva !== dto.confirmar_password) {
-      throw new BadRequestException("Las contraseÃ±as no coinciden");
+      throw new BadRequestException("Las contraseñas no coinciden");
     }
     const valida = await this.comparePassword(
       dto.password_actual,
       usuario.password_hash,
     );
     if (!valida) {
-      throw new UnauthorizedException("ContraseÃ±a actual incorrecta");
+      throw new BadRequestException("Contraseña actual incorrecta");
     }
     usuario.password_hash = await this.hashPassword(dto.password_nueva);
     usuario.debe_cambiar_password = false;
@@ -216,9 +219,10 @@ export class AuthService {
     id: number;
     nombre: string;
     email: string;
+    email_alternativo: string | null;
     debe_cambiar_password: boolean;
   }> {
-    if (!dto.nombre && !dto.email) {
+    if (!dto.nombre && !dto.email && !dto.email_alternativo) {
       throw new BadRequestException(
         "Debe proporcionar al menos un campo a actualizar",
       );
@@ -238,19 +242,38 @@ export class AuthService {
       usuario.email = dto.email;
     }
 
+    if (dto.email_alternativo !== undefined) {
+      if (dto.email_alternativo !== null && dto.email_alternativo !== "") {
+        // Validar que el email alternativo no esté ya usado como email principal por otro usuario
+        const existente = await this.usuarioRepository.findOne({
+          where: { email: dto.email_alternativo },
+        });
+        if (existente && existente.id !== usuario.id) {
+          throw new ConflictException(
+            "El correo alternativo ya está registrado como principal por otro usuario",
+          );
+        }
+        usuario.email_alternativo = dto.email_alternativo;
+      } else {
+        usuario.email_alternativo = null;
+      }
+    }
+
     await this.usuarioRepository.save(usuario);
 
     return {
       id: usuario.id,
       nombre: usuario.nombre,
       email: usuario.email,
+      email_alternativo: usuario.email_alternativo,
       debe_cambiar_password: usuario.debe_cambiar_password,
     };
   }
 
   async recuperarPassword(dto: RecuperarPasswordDto): Promise<void> {
+    // Buscar por email principal O email alternativo
     const usuario = await this.usuarioRepository.findOne({
-      where: { email: dto.email },
+      where: [{ email: dto.email }, { email_alternativo: dto.email }],
     });
     if (usuario) {
       const token = crypto.randomUUID();
@@ -259,6 +282,7 @@ export class AuthService {
       usuario.reset_token = token;
       usuario.reset_token_expira = expira;
       await this.usuarioRepository.save(usuario);
+      // Enviar al email que se proporcionó (puede ser principal o alternativo)
       await this.mailService.sendPasswordReset(dto.email, token);
     }
   }

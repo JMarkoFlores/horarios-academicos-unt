@@ -171,4 +171,16 @@ export class AuthService {
       payload,
     );
   }
+
+  recuperarPassword(email: string): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/auth/recuperar-password`, { email });
+  }
+
+  resetPassword(token: string, password_nueva: string, confirmar_password: string): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/auth/reset-password`, {
+      token,
+      password_nueva,
+      confirmar_password,
+    });
+  }
 }

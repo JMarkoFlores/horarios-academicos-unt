@@ -1,7 +1,8 @@
+@use '../../../shared/design-system/form-mixins' as forms;
+@use '../../../shared/design-system/responsive-mixins' as resp;
+
 .curso-form-page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  @include forms.form-page-container;
 }
 
 // ── HEADER PREMIUM ────────────────────────────────────────────────────────
@@ -20,6 +21,7 @@
       color: var(--color-text-muted);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
+
       &:hover {
         background: var(--color-primary-light);
         color: var(--color-primary);
@@ -36,6 +38,7 @@
       margin: 0;
       letter-spacing: -0.02em;
     }
+
     .subtitle {
       color: var(--color-text-muted);
       margin: 2px 0 0 0;
@@ -46,27 +49,19 @@
 
 // ── FORM CARD PREMIUM ─────────────────────────────────────────────────────
 .form-card-premium {
-  padding: 32px !important;
-  border-radius: var(--radius-lg) !important;
-  border: 1px solid var(--color-border) !important;
-  background: var(--color-surface) !important;
-  box-shadow: var(--shadow-md) !important;
+  @include forms.form-card-container;
   max-width: 100%;
 
   .form-sections-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: var(--space-8);
   }
 
   .form-section {
     .section-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid var(--color-background);
+      @include forms.form-section-header;
+      border-bottom: 1px solid var(--color-border-light);
 
       mat-icon {
         color: var(--color-primary);
@@ -74,21 +69,10 @@
         width: 20px;
         height: 20px;
       }
-
-      h3 {
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--color-text);
-        margin: 0;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
     }
 
     .fields-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
+      @include resp.responsive-grid-2-col;
 
       &.single-col {
         grid-template-columns: 1fr;
@@ -104,7 +88,7 @@
 // ── PREMIUM FIELD STYLING ─────────────────────────────────────────────────
 .premium-field {
   width: 100%;
-  
+
   &.full-width-field {
     grid-column: 1 / -1;
   }
@@ -114,7 +98,7 @@
       background-color: var(--color-background) !important;
       border-radius: 12px !important;
       transition: all var(--transition-fast) !important;
-      
+
       &:hover {
         background-color: var(--color-primary-light) !important;
       }
@@ -150,7 +134,7 @@
 }
 
 .premium-checkbox {
-  ::ng-deep .mdc-checkbox__native-control:enabled:checked ~ .mdc-checkbox__background {
+  ::ng-deep .mdc-checkbox__native-control:enabled:checked~.mdc-checkbox__background {
     background-color: var(--color-primary) !important;
     border-color: var(--color-primary) !important;
   }
@@ -163,7 +147,12 @@
   font-weight: 600;
   color: var(--color-text);
 
-  mat-icon { font-size: 16px; width: 16px; height: 16px; color: var(--color-accent); }
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--color-accent);
+  }
 }
 
 .checkbox-hint {
@@ -192,6 +181,7 @@
     border-radius: 10px !important;
     font-weight: 600 !important;
     color: var(--color-text-muted);
+
     &:hover {
       background: var(--color-background);
     }
@@ -213,7 +203,9 @@
       filter: brightness(1.1);
     }
 
-    mat-icon { margin-right: 8px; }
+    mat-icon {
+      margin-right: 8px;
+    }
   }
 }
 

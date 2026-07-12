@@ -215,7 +215,24 @@
     "loggingIn": "LOGGING IN...",
     "loginToSystem": "LOGIN TO SYSTEM",
     "academicManagementSystem": "ACADEMIC MANAGEMENT SYSTEM &bull; EIS",
-    "unt": "National University of Trujillo"
+    "unt": "National University of Trujillo",
+    "forgotPassword": "Forgot your password?",
+    "recoverPassword": "Recover Password",
+    "enterEmail": "Enter your institutional or alternate email",
+    "sendResetLink": "Send recovery link",
+    "resetLinkSent": "If the email exists, you will receive a recovery link",
+    "backToLogin": "Back to login",
+    "resetPassword": "Reset Password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "passwordMinLength": "Minimum 8 characters",
+    "passwordsMustMatch": "Passwords must match",
+    "resetSuccess": "Password reset successfully",
+    "invalidToken": "Invalid or expired token",
+    "requestNewLink": "Request new link",
+    "alternateEmail": "Alternate email (optional)",
+    "alternateEmailHint": "Used for notifications and password recovery",
+    "alternateEmailInvalid": "Invalid alternate email"
   },
   "dashboard": {
     "compactMode": "Compact mode",
@@ -295,6 +312,7 @@
     },
     "classTypes": {
       "teoria": "Theory",
+      "practica": "Practice",
       "laboratorio": "Laboratory",
       "mixto": "Mixed"
     },
@@ -324,5 +342,18 @@
     "conflictoHorario": "Schedule conflict",
     "cargaExcedida": "Load exceeded",
     "aulaOcupada": "Classroom occupied"
+  },
+  "error": {
+    "pageNotFound": "Page not found",
+    "pageNotFoundMsg": "The page you are looking for doesn't exist or has been moved.",
+    "accessDenied": "Access denied",
+    "accessDeniedMsg": "You don't have permission to access this section.",
+    "serverError": "Server error",
+    "serverErrorMsg": "An unexpected error occurred. Our team has been notified.",
+    "sessionExpired": "Session expired",
+    "sessionExpiredMsg": "Your session has expired. Please log in again.",
+    "goHome": "Go home",
+    "goLogin": "Log in",
+    "helpText": "If you believe this is an error, contact the system administrator."
   }
 }

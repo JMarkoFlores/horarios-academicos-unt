@@ -54,6 +54,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
 
   // Tab 4 — Gestión
   generando = false;
+  publicando = false;
   limpiando = false;
   resultadoGeneracion: any = null;
   debugResult: any = null;
@@ -1037,18 +1038,42 @@ export class HorariosComponent implements OnInit, OnDestroy {
       return;
 
     this.generando = true;
+    this.resultadoGeneracion = null;
     this.api
       .post<any>('/horarios/generar', { periodo: this.periodoService.periodo })
       .subscribe({
         next: (r) => {
           this.generando = false;
           this.resultadoGeneracion = r.data;
-          this.notif.success('Horario generado exitosamente');
+          this.notif.success(`Horario generado: ${r.data.horariosGenerados} asignaciones para ${r.data.docentesAtendidos} docentes`);
           this.loadConflictos();
         },
-        error: () => {
+        error: (err) => {
           this.generando = false;
-          this.notif.error('Error al generar horario');
+          this.notif.error(err?.error?.message ?? 'Error al generar horario');
+        },
+      });
+  }
+
+  publicarHorariosAutoGenerados(): void {
+    if (!confirm('¿Publicar los horarios auto-generados (estado BORRADOR → PUBLICADO)?'))
+      return;
+
+    this.publicando = true;
+    this.api
+      .post<any>('/horarios/publicar-auto-generados', { periodo: this.periodoService.periodo })
+      .subscribe({
+        next: (r) => {
+          this.publicando = false;
+          this.notif.success(`${r.data.publicados} horarios publicados`);
+          if (this.resultadoGeneracion) {
+            this.resultadoGeneracion.horariosGenerados = 0; // Se actualizará al recargar
+          }
+          this.loadConflictos();
+        },
+        error: (err) => {
+          this.publicando = false;
+          this.notif.error(err?.error?.message ?? 'Error al publicar horarios');
         },
       });
   }

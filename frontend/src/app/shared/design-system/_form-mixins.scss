@@ -1,0 +1,193 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FORM MIXINS · _form-mixins.scss
+// Reusable SCSS mixins for form styling using design tokens.
+// Import with: @use 'src/app/shared/design-system/form-mixins' as forms;
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── PREMIUM FORM FIELD ────────────────────────────────────────────────────
+@mixin premium-form-field {
+    width: 100%;
+
+    ::ng-deep {
+        .mat-mdc-text-field-wrapper {
+            background-color: var(--color-surface-2);
+            border-radius: var(--radius-md);
+            transition: background var(--transition-fast), box-shadow var(--transition-fast);
+
+            &:hover {
+                background-color: var(--color-surface-3);
+            }
+        }
+
+        .mat-mdc-form-field-focus-overlay {
+            background-color: transparent !important;
+        }
+
+        .mdc-text-field--focused {
+            .mat-mdc-text-field-wrapper {
+                background-color: var(--color-surface);
+                box-shadow: 0 0 0 4px var(--color-primary-light);
+                border: 1px solid var(--color-primary);
+            }
+        }
+
+        .mat-mdc-form-field-subscript-wrapper {
+            font-size: var(--font-size-xs);
+        }
+
+        mat-icon[matPrefix] {
+            color: var(--color-text-muted);
+            margin-right: var(--space-2);
+            font-size: 20px;
+            width: 20px;
+            height: 20px;
+        }
+    }
+}
+
+// ── FORM PAGE CONTAINER ───────────────────────────────────────────────────
+@mixin form-page-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+// ── FORM CARD CONTAINER ───────────────────────────────────────────────────
+@mixin form-card-container {
+    padding: var(--space-8);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-md);
+    width: 100%;
+}
+
+// ── FORM SECTION HEADER ────────────────────────────────────────────────────
+@mixin form-section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-3);
+    border-bottom: 2px solid var(--color-border-light);
+
+    h3,
+    .section-title {
+        font-size: var(--font-size-base);
+        font-weight: 700;
+        color: var(--color-text);
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    mat-icon {
+        color: var(--color-primary);
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+    }
+}
+
+// ── FORM FOOTER ────────────────────────────────────────────────────────────
+@mixin form-footer {
+    margin-top: var(--space-12);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-4);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+}
+
+// ── BUTTON CANCEL (inside form footer) ────────────────────────────────────
+@mixin button-cancel {
+    height: 48px;
+    padding: 0 var(--space-6) !important;
+    border-radius: var(--radius-lg) !important;
+    font-weight: 600 !important;
+    color: var(--color-text-muted);
+    transition: background var(--transition-fast), color var(--transition-fast);
+
+    &:hover {
+        background: var(--color-surface-2);
+        color: var(--color-text);
+    }
+}
+
+// ── BUTTON SUBMIT (inside form footer) ────────────────────────────────────
+@mixin button-submit {
+    height: 48px;
+    padding: 0 var(--space-8) !important;
+    border-radius: var(--radius-lg) !important;
+    background-color: var(--color-primary) !important;
+    color: white !important;
+    font-weight: 700 !important;
+    box-shadow: var(--shadow-md) !important;
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal) !important;
+
+    &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg) !important;
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    mat-icon {
+        margin-right: var(--space-2);
+    }
+}
+
+// ── FORM FIELDS GRID ───────────────────────────────────────────────────────
+@mixin form-fields-grid($columns: 2) {
+    display: grid;
+    grid-template-columns: repeat($columns, 1fr);
+    gap: var(--space-5);
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+// ── FORM LOADING STATE ────────────────────────────────────────────────────
+@mixin form-loading-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-20) 0;
+    gap: var(--space-5);
+    color: var(--color-text-muted);
+}
+
+// ── ERROR MESSAGE ──────────────────────────────────────────────────────────
+@mixin form-error-message {
+    font-size: var(--font-size-sm);
+    color: var(--color-danger);
+    margin-top: var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+}
+
+// ── HELPER TEXT ────────────────────────────────────────────────────────────
+@mixin form-helper-text {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-top: var(--space-2);
+}
+
+// ── REQUIRED INDICATOR ────────────────────────────────────────────────────
+@mixin form-required-indicator {
+    color: var(--color-danger);
+    font-weight: 700;
+    margin-left: 2px;
+}

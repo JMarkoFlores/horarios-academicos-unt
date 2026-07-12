@@ -1,4 +1,5 @@
-import { IsString, IsEmail, IsOptional } from "class-validator";
+import { IsString, IsEmail, IsOptional, ValidateIf } from "class-validator";
+import { Transform } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class ActualizarPerfilDto {
@@ -11,4 +12,11 @@ export class ActualizarPerfilDto {
   @IsEmail()
   @IsOptional()
   email?: string;
+
+  @ApiPropertyOptional({ example: "juan.personal@gmail.com", nullable: true })
+  @IsEmail()
+  @IsOptional()
+  @Transform(({ value }) => (value === "" ? null : value))
+  @ValidateIf((o) => o.email_alternativo !== null && o.email_alternativo !== "")
+  email_alternativo?: string | null;
 }

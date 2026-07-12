@@ -48,7 +48,6 @@ import { AsignacionService } from "./asignacion.service";
 import { GeneracionAutomaticaService } from "./generacion-automatica.service";
 import { ICalendarService } from "./icalendar.service";
 import { GenerarHorarioDto } from "./dto/generar-horario.dto";
-import { GenerarAutomaticoDto } from "./dto/generar-automatico.dto";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
 import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
@@ -96,7 +95,7 @@ export class HorariosController {
 
   @Post("generar")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Generar horario para un perÃ­odo" })
+  @ApiOperation({ summary: "Generar horario automático para un período" })
   @ApiResponse({ status: 201, description: "Horario generado correctamente" })
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   async generarHorario(@Body() dto: GenerarHorarioDto) {
@@ -114,7 +113,7 @@ export class HorariosController {
       );
     }
 
-    const resultado = await this.asignacionService.generarHorario(dto.periodo);
+    const resultado = await this.generacionService.generarHorarios(dto.periodo);
     await this.horariosService.invalidateHorariosCache();
     return {
       data: resultado,
@@ -200,7 +199,9 @@ export class HorariosController {
     if (usuario.rol === RolUsuario.DOCENTE) {
       const docenteId = (usuario as UsuarioAutenticado).docenteId;
       if (!docenteId || docenteId !== id) {
-        throw new BadRequestException("No tiene permisos para ver el horario de otro docente");
+        throw new BadRequestException(
+          "No tiene permisos para ver el horario de otro docente",
+        );
       }
     }
     const data = await this.horariosService.findByDocente(
@@ -312,10 +313,7 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
     @Query("periodo") periodo: string,
   ) {
-    if (
-      typeof (usuario as UsuarioAutenticado).docenteId ===
-      "number"
-    ) {
+    if (typeof (usuario as UsuarioAutenticado).docenteId === "number") {
       const docenteId = (usuario as Usuario & { docenteId: number }).docenteId;
       const horarios = await this.horariosService.findHorariosByDocenteId(
         docenteId,
@@ -374,14 +372,15 @@ export class HorariosController {
         throw new NotFoundException("No se pudo identificar el docente");
       }
 
-      const horariosToExport = mostrarNoLectiva === 'true'
-        ? horarios.horarios
-        : horarios.horarios.filter(h => h.tipo_clase !== 'NO_LECTIVA');
+      const horariosToExport =
+        mostrarNoLectiva === "true"
+          ? horarios.horarios
+          : horarios.horarios.filter((h) => h.tipo_clase !== "NO_LECTIVA");
 
       const icsContent = await this.icalendarService.generarICalendarDocente(
         docenteId,
         periodo,
-        horariosToExport
+        horariosToExport,
       );
 
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");
@@ -540,7 +539,9 @@ export class HorariosController {
             motivo: "Eliminaci\u00F3n desde modo edici\u00F3n",
           }),
         );
-        this.logger.log(`[deleteAsignacion] Auditor\u00EDa guardada exitosamente`);
+        this.logger.log(
+          `[deleteAsignacion] Auditor\u00EDa guardada exitosamente`,
+        );
 
         await queryRunner.manager.delete(HorarioAsignado, { id });
         await queryRunner.commitTransaction();
@@ -651,27 +652,12 @@ export class HorariosController {
     };
   }
 
-  @Post("generar-automatico")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Generar horarios automÃ¡ticamente para un perÃ­odo" })
-  @ApiResponse({ status: 201, description: "Horarios generados correctamente" })
-  async generarAutomatico(@Body() dto: GenerarAutomaticoDto) {
-    const resultado = await this.generacionService.generarHorarios(dto.periodo);
-    await this.horariosService.invalidateHorariosCache();
-    return {
-      data: resultado,
-      message: "GeneraciÃ³n automÃ¡tica completada",
-      statusCode: HttpStatus.CREATED,
-    };
-  }
-
   @Post("publicar-auto-generados")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Publicar horarios auto-generados de un perÃ­odo" })
+  @ApiOperation({ summary: "Publicar horarios auto-generados de un período" })
   @ApiResponse({ status: 200, description: "Horarios publicados" })
-  async publicarAutoGenerados(@Body() dto: GenerarAutomaticoDto) {
+  async publicarAutoGenerados(@Body() dto: GenerarHorarioDto) {
     const resultado =
       await this.generacionService.publicarHorariosAutoGenerados(dto.periodo);
     await this.horariosService.invalidateHorariosCache();
@@ -782,23 +768,26 @@ export class HorariosController {
     if (usuario.rol === RolUsuario.DOCENTE) {
       const docenteId = (usuario as UsuarioAutenticado).docenteId;
       if (!docenteId || docenteId !== id) {
-        throw new BadRequestException("No tiene permisos para exportar el horario de otro docente");
+        throw new BadRequestException(
+          "No tiene permisos para exportar el horario de otro docente",
+        );
       }
     }
     try {
       const horariosArray = await this.horariosService.findHorariosByDocenteId(
         id,
-        periodo
+        periodo,
       );
-      
-      const horariosToExport = mostrarNoLectiva === 'true'
-        ? horariosArray
-        : horariosArray.filter(h => h.tipo_clase !== 'NO_LECTIVA');
+
+      const horariosToExport =
+        mostrarNoLectiva === "true"
+          ? horariosArray
+          : horariosArray.filter((h) => h.tipo_clase !== "NO_LECTIVA");
 
       const icsContent = await this.icalendarService.generarICalendarDocente(
         id,
         periodo,
-        horariosToExport
+        horariosToExport,
       );
 
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");
@@ -858,5 +847,3 @@ export class HorariosController {
     };
   }
 }
-
-

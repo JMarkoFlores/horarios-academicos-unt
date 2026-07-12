@@ -184,7 +184,11 @@ export class NotificacionesController {
     schema: {
       type: "object",
       properties: {
-        url: { type: "string", description: "URL del webhook (ej: https://tu-backend.com/notificaciones/telegram/webhook)" },
+        url: {
+          type: "string",
+          description:
+            "URL del webhook (ej: https://tu-backend.com/notificaciones/telegram/webhook)",
+        },
       },
       required: ["url"],
     },
@@ -236,7 +240,9 @@ export class NotificacionesController {
       }
       return { data: data.result, message: "Información del webhook obtenida" };
     } catch (error) {
-      throw new BadRequestException(`Error al obtener info del webhook: ${error}`);
+      throw new BadRequestException(
+        `Error al obtener info del webhook: ${error}`,
+      );
     }
   }
 }

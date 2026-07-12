@@ -175,7 +175,10 @@ export class CargaAdicionalService {
       return this.getHorasPorModalidadDefault(modalidad);
     }
 
-    return parametros.horas_max_semanal || this.getHorasPorModalidadDefault(modalidad);
+    return (
+      parametros.horas_max_semanal ||
+      this.getHorasPorModalidadDefault(modalidad)
+    );
   }
 
   private getHorasPorModalidadDefault(modalidad: string): number {

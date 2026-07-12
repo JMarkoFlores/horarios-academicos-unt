@@ -136,9 +136,10 @@ export class PerfilComponent implements OnInit, OnDestroy {
       { validators: passwordsCoinciden },
     );
 
-    this.perfilForm = this.fb.group({
+this.perfilForm = this.fb.group({
       nombre: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
+      email_alternativo: ['', [Validators.email]],
     });
   }
 
@@ -152,10 +153,11 @@ export class PerfilComponent implements OnInit, OnDestroy {
         this.cargarFirmaDigital();
       }
       
-      // Inicializar formulario de perfil con datos del usuario
+// Inicializar formulario de perfil con datos del usuario
       this.perfilForm.patchValue({
         nombre: this.usuario.nombre,
         email: this.usuario.email,
+        email_alternativo: this.usuario.email_alternativo || '',
       });
     }
 
@@ -273,7 +275,21 @@ export class PerfilComponent implements OnInit, OnDestroy {
   // --- CAMBIO DE CONTRASEÑA ---
 
   cambiarPassword(): void {
-    if (this.passwordForm.invalid) return;
+    if (this.passwordForm.invalid) {
+      this.passwordForm.markAllAsTouched();
+      if (this.passwordForm.get('password_actual')?.hasError('required')) {
+        this.notif.error('La contraseña actual es obligatoria');
+      } else if (this.passwordForm.get('password_nueva')?.hasError('required')) {
+        this.notif.error('La nueva contraseña es obligatoria');
+      } else if (this.passwordForm.get('password_nueva')?.hasError('minlength')) {
+        this.notif.error('La nueva contraseña debe tener al menos 8 caracteres');
+      } else if (this.passwordForm.get('confirmar_password')?.hasError('required')) {
+        this.notif.error('Confirme la nueva contraseña');
+      } else if (this.passwordForm.hasError('noCoinciden')) {
+        this.notif.error('Las contraseñas no coinciden');
+      }
+      return;
+    }
     this.loadingPassword = true;
     const wasForced = !!this.usuario?.debe_cambiar_password;
     this.authService.cambiarPassword(this.passwordForm.value).subscribe({
@@ -309,6 +325,7 @@ export class PerfilComponent implements OnInit, OnDestroy {
         this.perfilForm.patchValue({
           nombre: this.usuario.nombre,
           email: this.usuario.email,
+          email_alternativo: this.usuario.email_alternativo || '',
         });
       }
     }
@@ -343,12 +360,13 @@ export class PerfilComponent implements OnInit, OnDestroy {
     });
   }
 
-  cancelarEdicionPerfil(): void {
+cancelarEdicionPerfil(): void {
     this.editandoPerfil = false;
     if (this.usuario) {
       this.perfilForm.patchValue({
         nombre: this.usuario.nombre,
         email: this.usuario.email,
+        email_alternativo: this.usuario.email_alternativo || '',
       });
     }
   }

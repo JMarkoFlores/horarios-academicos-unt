@@ -260,7 +260,7 @@ export class DeclaracionCargaHorariaService {
     if (cargaNoLectiva && Array.isArray(cargaNoLectiva.actividades)) {
       const totalHoras = cargaNoLectiva.actividades.reduce(
         (sum: number, a: any) => sum + (Number(a.horas) || 0),
-        0
+        0,
       );
       cargaNoLectiva = {
         ...cargaNoLectiva,
@@ -1591,12 +1591,14 @@ export class DeclaracionCargaHorariaService {
       this.logger.debug(
         `Asignaciones para docente ${docenteId} en ${periodoCodigo}: ${asignaciones.length}`,
       );
-      
+
       // Log detallado de cada asignación para depuración
       for (const a of asignaciones) {
-        this.logger.debug(`Asignación: curso=${a.curso_plan?.curso?.codigo}, tipo=${a.tipo_clase}, horas=${a.horas_asignadas}, seccion=${a.seccion}, grupo=${a.grupo?.codigo}`);
+        this.logger.debug(
+          `Asignación: curso=${a.curso_plan?.curso?.codigo}, tipo=${a.tipo_clase}, horas=${a.horas_asignadas}, seccion=${a.seccion}, grupo=${a.grupo?.codigo}`,
+        );
       }
-      
+
       // Obtener horarios para contar grupos de laboratorio
       const horarios = await this.horarioRepo
         .createQueryBuilder("horario")
@@ -1605,9 +1607,9 @@ export class DeclaracionCargaHorariaService {
         .where("horario.docente_id = :docenteId", { docenteId })
         .andWhere("horario.periodo = :periodo", { periodo: periodoCodigo })
         .getMany();
-      
+
       this.logger.debug(`Horarios para contar grupos: ${horarios.length}`);
-      
+
       // Contar horarios de laboratorio por curso (cada horario = un grupo)
       const numGruposLabPorCurso = new Map<number, number>();
       for (const h of horarios) {
@@ -1620,18 +1622,20 @@ export class DeclaracionCargaHorariaService {
           );
         }
       }
-      
-      this.logger.debug(`Grupos de laboratorio por curso (desde horarios): ${JSON.stringify(Array.from(numGruposLabPorCurso.entries()))}`);
-      
+
+      this.logger.debug(
+        `Grupos de laboratorio por curso (desde horarios): ${JSON.stringify(Array.from(numGruposLabPorCurso.entries()))}`,
+      );
+
       const cursosMap = new Map<string, any>();
-      
+
       for (const a of asignaciones) {
         if (!a.curso_plan?.curso) continue;
         const curso = a.curso_plan.curso;
         const key = `${curso.id}`;
         // Usar nro_alumnos de la asignacion o fallback a cupo_maximo del grupo
         const alumnos = a.nro_alumnos || a.grupo?.cupo_maximo || 0;
-        
+
         if (!cursosMap.has(key)) {
           cursosMap.set(key, {
             id: curso.id,
@@ -1650,10 +1654,10 @@ export class DeclaracionCargaHorariaService {
             plan_hours: true,
           });
         }
-        
+
         const entry = cursosMap.get(key);
         if (a.seccion) entry.secciones.add(a.seccion);
-        
+
         // Sumar horas por tipo de clase
         const horasAsignadas = Number(a.horas_asignadas) || 0;
         if (a.tipo_clase === "TEORIA") {
@@ -1668,11 +1672,13 @@ export class DeclaracionCargaHorariaService {
           const horasConMultiplicacion = horasAsignadas * numGruposLab;
           entry.hrsLab += horasConMultiplicacion;
           entry.totalHrs += horasConMultiplicacion;
-          this.logger.debug(`Lab: ${curso.codigo}, horas: ${horasAsignadas}, grupos: ${numGruposLab}, total: ${horasConMultiplicacion}`);
+          this.logger.debug(
+            `Lab: ${curso.codigo}, horas: ${horasAsignadas}, grupos: ${numGruposLab}, total: ${horasConMultiplicacion}`,
+          );
         }
         entry.nroAlumnos = Math.max(entry.nroAlumnos, alumnos);
       }
-      
+
       // Convertir Set de secciones a string plano para el frontend
       const resultado = Array.from(cursosMap.values());
       for (const entry of resultado) {
@@ -1702,7 +1708,7 @@ export class DeclaracionCargaHorariaService {
     );
 
     const cursosMap = new Map<string, any>();
-    
+
     // Contar horarios de laboratorio por curso (cada horario = un grupo)
     const numHorariosLabPorCurso = new Map<number, number>();
     for (const h of horarios) {
@@ -1739,11 +1745,11 @@ export class DeclaracionCargaHorariaService {
           totalHrs: 0,
         });
       }
-      
+
       const entry = cursosMap.get(key);
       const seccion = h.grupo.codigo || h.grupo.nombre || "";
       if (seccion) entry.secciones.add(seccion);
-      
+
       if (h.tipo_clase === TipoClase.TEORIA) {
         entry.hrsTeo += horasBloque;
         entry.totalHrs += horasBloque;
@@ -1758,11 +1764,8 @@ export class DeclaracionCargaHorariaService {
         entry.hrsLab += horasBloque * numGruposLab;
         entry.totalHrs += horasBloque * numGruposLab;
       }
-      
-      entry.nroAlumnos = Math.max(
-        entry.nroAlumnos,
-        h.grupo.cupo_maximo || 40,
-      );
+
+      entry.nroAlumnos = Math.max(entry.nroAlumnos, h.grupo.cupo_maximo || 40);
     }
 
     const resultado = Array.from(cursosMap.values());
@@ -1799,7 +1802,14 @@ export class DeclaracionCargaHorariaService {
   }
 
   async guardarDeclaracion(
-    dto: { docente_id: number; periodo: string; estado?: string; carga_no_lectiva?: any; sede?: string; observaciones?: string },
+    dto: {
+      docente_id: number;
+      periodo: string;
+      estado?: string;
+      carga_no_lectiva?: any;
+      sede?: string;
+      observaciones?: string;
+    },
     usuario?: Usuario & { docenteId?: number | null },
   ): Promise<DeclaracionCargaHoraria> {
     const { docente_id, periodo, estado, carga_no_lectiva } = dto;
@@ -1879,9 +1889,9 @@ export class DeclaracionCargaHorariaService {
       where: { docente_id, periodo_id: periodoId },
       relations: ["curso_plan", "curso_plan.curso"],
     });
-    
+
     // Obtener horarios para contar grupos de laboratorio por curso
-    let numGruposLabPorCurso = new Map<number, number>();
+    const numGruposLabPorCurso = new Map<number, number>();
     const periodoObj = await this.periodoRepo.findOne({
       where: { id: periodoId },
     });
@@ -1892,7 +1902,7 @@ export class DeclaracionCargaHorariaService {
         .where("horario.docente_id = :docente_id", { docente_id })
         .andWhere("horario.periodo = :periodo", { periodo: periodoObj.codigo })
         .getMany();
-      
+
       for (const h of horarios) {
         if (!h.curso) continue;
         if (h.tipo_clase === TipoClase.LABORATORIO) {
@@ -1904,7 +1914,7 @@ export class DeclaracionCargaHorariaService {
         }
       }
     }
-    
+
     let totalLectivas = 0;
     for (const a of asignaciones) {
       const horasAsignadas = Number(a.horas_asignadas) || 0;
@@ -1915,8 +1925,10 @@ export class DeclaracionCargaHorariaService {
         totalLectivas += horasAsignadas;
       }
     }
-    
-    this.logger.debug(`Carga lectiva calculada con multiplicación de grupos: ${totalLectivas}h para docente ${docente_id}`);
+
+    this.logger.debug(
+      `Carga lectiva calculada con multiplicación de grupos: ${totalLectivas}h para docente ${docente_id}`,
+    );
 
     // Fallback: calcular desde HorarioAsignado si no hay asignaciones lectivas
     if (totalLectivas === 0) {
@@ -1982,17 +1994,17 @@ export class DeclaracionCargaHorariaService {
         );
       }
       for (const act of carga_no_lectiva.actividades) {
-        if (!act.id || typeof act.id !== 'number') {
+        if (!act.id || typeof act.id !== "number") {
           throw new BadRequestException(
             `Actividad inválida: falta el campo "id" numérico.`,
           );
         }
-        if (act.horas !== undefined && typeof act.horas !== 'number') {
+        if (act.horas !== undefined && typeof act.horas !== "number") {
           throw new BadRequestException(
             `Actividad ${act.id}: el campo "horas" debe ser un número.`,
           );
         }
-        if (act.detalle !== undefined && typeof act.detalle !== 'string') {
+        if (act.detalle !== undefined && typeof act.detalle !== "string") {
           throw new BadRequestException(
             `Actividad ${act.id}: el campo "detalle" debe ser una cadena de texto.`,
           );
@@ -2068,7 +2080,12 @@ export class DeclaracionCargaHorariaService {
     }
 
     declaracion.total_horas_general = totalLectivas + totalNoLectivas;
-    if (estado && Object.values(EstadoDeclaracionCarga).includes(estado as EstadoDeclaracionCarga)) {
+    if (
+      estado &&
+      Object.values(EstadoDeclaracionCarga).includes(
+        estado as EstadoDeclaracionCarga,
+      )
+    ) {
       declaracion.estado = estado as EstadoDeclaracionCarga;
     }
 

@@ -47,7 +47,7 @@ export class Docente {
   @Column({ unique: true, length: 15, name: "dni" })
   dni: string;
 
-  @Column({ unique: true, nullable: true })
+  @Column({ unique: true })
   ibm: number;
 
   @Column({ length: 150 })

@@ -74,7 +74,7 @@ export class BreadcrumbService {
       const base = this.resolve(e.urlAfterRedirects);
       if (base.length > 0 && this.tabSuffix) {
         const last = base[base.length - 1];
-        last.label = `${last.label} › ${this.tabSuffix}`;
+        last.label = `${String(last.label)} › ${String(this.tabSuffix)}`;
       }
       this.breadcrumbs.set(base);
     });
@@ -86,7 +86,7 @@ export class BreadcrumbService {
     if (current.length > 0) {
       const updated = [...current];
       const last = { ...updated[updated.length - 1] };
-      const baseLabel = last.label.split(' ›')[0];
+      const baseLabel = String(last.label).split(' ›')[0];
       last.label = suffix ? `${baseLabel} › ${suffix}` : baseLabel;
       updated[updated.length - 1] = last;
       this.breadcrumbs.set(updated);

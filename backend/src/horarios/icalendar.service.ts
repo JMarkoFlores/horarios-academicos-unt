@@ -98,21 +98,23 @@ export class ICalendarService {
 
     const uid = `${horario.id}@unt.edu.pe`;
 
-    const isNoLectiva = horario.tipo_clase === 'NO_LECTIVA';
-    let asigName = curso?.nombre ?? 'Carga No Lectiva';
+    const isNoLectiva = horario.tipo_clase === "NO_LECTIVA";
+    let asigName = curso?.nombre ?? "Carga No Lectiva";
     if (isNoLectiva) {
-      let nombre = (horario as any).actividad_nombre || 'Carga No Lectiva';
-      nombre = nombre.replace(/^\d+\.\s*/, '');
-      nombre = nombre.replace(/\s*\(.*\)\s*$/, '');
-      const colonIdx = nombre.indexOf(':');
+      let nombre = (horario as any).actividad_nombre || "Carga No Lectiva";
+      nombre = nombre.replace(/^\d+\.\s*/, "");
+      nombre = nombre.replace(/\s*\(.*\)\s*$/, "");
+      const colonIdx = nombre.indexOf(":");
       if (colonIdx > 0) {
         nombre = nombre.substring(0, colonIdx);
       }
       asigName = nombre.trim();
     }
 
-    const summary = isNoLectiva ? `${asigName} (${horario.tipo_clase})` : `${curso?.codigo} - ${asigName} (${horario.tipo_clase})`;
-    const description = isNoLectiva 
+    const summary = isNoLectiva
+      ? `${asigName} (${horario.tipo_clase})`
+      : `${curso?.codigo} - ${asigName} (${horario.tipo_clase})`;
+    const description = isNoLectiva
       ? `Docente: ${docente?.nombres} ${docente?.apellidos}\n` +
         `Actividad: ${asigName}\n` +
         `Tipo: ${horario.tipo_clase}`
@@ -121,8 +123,8 @@ export class ICalendarService {
         `Grupo: ${grupo?.nombre}\n` +
         `Ambiente: ${ambiente?.nombre}\n` +
         `Tipo: ${horario.tipo_clase}`;
-        
-    const location = isNoLectiva ? "" : (ambiente?.nombre || "Por asignar");
+
+    const location = isNoLectiva ? "" : ambiente?.nombre || "Por asignar";
 
     // Calcular primera fecha del evento (primera ocurrencia del día de la semana)
     const primeraFecha = this.calcularPrimeraFecha(horario.dia, fechaInicio);

@@ -24,21 +24,30 @@ import { RolUsuario } from "../../common/enums/rol-usuario.enum";
 @Controller("asignador")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AsignadorLectivoController {
-  constructor(
-    private readonly servicio: AsignadorLectivoService,
-  ) {}
+  constructor(private readonly servicio: AsignadorLectivoService) {}
 
   @Get("cursos-pendientes/:periodoId")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   async getCursosPendientes(
     @Param("periodoId", ParseIntPipe) periodoId: number,
     @Request() req: { user: any },
   ) {
-    return this.servicio.getCursosPendientes(periodoId, req.user.contextoAcademico);
+    return this.servicio.getCursosPendientes(
+      periodoId,
+      req.user.contextoAcademico,
+    );
   }
 
   @Get("docentes/:periodoId")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   async getDocentes(
     @Param("periodoId", ParseIntPipe) periodoId: number,
     @Request() req: { user: any },
@@ -47,29 +56,48 @@ export class AsignadorLectivoController {
   }
 
   @Get("horario-docente/:docenteId")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DOCENTE,
+  )
   async getHorarioDocente(
     @Param("docenteId", ParseIntPipe) docenteId: number,
     @Query("periodo") periodo: string,
     @Request() req: { user: any },
   ) {
-    if (req.user.rol === RolUsuario.DOCENTE && (req.user as any).docenteId !== docenteId) {
+    if (
+      req.user.rol === RolUsuario.DOCENTE &&
+      (req.user as any).docenteId !== docenteId
+    ) {
       throw new Error("No autorizado");
     }
     return this.servicio.getHorarioDocente(docenteId, periodo);
   }
 
   @Get("ambientes/:periodoCodigo")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   async getAmbientes(
     @Param("periodoCodigo") periodoCodigo: string,
     @Request() req: { user: any },
   ) {
-    return this.servicio.getAmbientes(periodoCodigo, req.user.contextoAcademico);
+    return this.servicio.getAmbientes(
+      periodoCodigo,
+      req.user.contextoAcademico,
+    );
   }
 
   @Get("ocupacion-ambiente/:ambienteId")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   async getOcupacionAmbiente(
     @Param("ambienteId", ParseIntPipe) ambienteId: number,
     @Query("periodo") periodo: string,
@@ -78,7 +106,11 @@ export class AsignadorLectivoController {
   }
 
   @Get("progreso/:periodoId")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   async getProgreso(
     @Param("periodoId", ParseIntPipe) periodoId: number,
     @Request() req: { user: any },
@@ -87,7 +119,11 @@ export class AsignadorLectivoController {
   }
 
   @Post("validar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.SECRETARIA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   async validar(
     @Body() dto: ValidarAsignacionDto,
     @Request() req: { user: any },

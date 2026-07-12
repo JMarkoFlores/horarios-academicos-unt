@@ -20,12 +20,16 @@
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none;  /* IE and Edge */
-  padding-bottom: 2px; /* Prevent scrollbar clipping */
-  
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  padding-bottom: 2px;
+  /* Prevent scrollbar clipping */
+
   &::-webkit-scrollbar {
-    display: none; /* Chrome, Safari and Opera */
+    display: none;
+    /* Chrome, Safari and Opera */
   }
 }
 
@@ -34,7 +38,8 @@
   align-items: center;
   gap: 2px;
   white-space: nowrap;
-  flex-shrink: 0; /* Prevent items from squishing on mobile */
+  flex-shrink: 0;
+  /* Prevent items from squishing on mobile */
 }
 
 .breadcrumb-link {
@@ -44,16 +49,16 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--color-text-muted);
-  padding: 0 8px !important;
+  padding: 0 var(--space-2) !important;
   height: 28px !important;
-  border-radius: 6px !important;
-  transition: all 0.2s ease;
+  border-radius: var(--radius-sm) !important;
+  transition: background var(--transition-fast), color var(--transition-fast);
   cursor: pointer;
   white-space: nowrap;
 
   &:hover {
-    background: var(--color-background) !important;
-    color: var(--color-primary-600);
+    background: var(--color-surface-2) !important;
+    color: var(--color-primary);
   }
 
   &.active {

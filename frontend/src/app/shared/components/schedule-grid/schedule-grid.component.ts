@@ -1,6 +1,6 @@
 import {
   Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges,
-  ChangeDetectionStrategy, ChangeDetectorRef, HostListener,
+  ChangeDetectionStrategy, ChangeDetectorRef, HostListener, ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
@@ -14,21 +14,21 @@ import { seSuperponen, normalizarHora } from '../../../modules/declaraciones/hor
 import { ScheduleBlock, BlockType, PaletteBlock, ConflictInfo } from './schedule-grid.models';
 
 const BLOCK_COLORS: Record<string, { bg: string; border: string; text: string; light: string }> = {
-  lectiva:      { bg: '#e8eaf6', border: '#5c6bc0', text: '#283593', light: '#c5cae9' },
+  lectiva: { bg: '#e8eaf6', border: '#5c6bc0', text: '#283593', light: '#c5cae9' },
   'no-lectiva': { bg: '#fef3c7', border: '#f59e0b', text: '#92400e', light: '#fde68a' },
-  ventana:      { bg: '#fce4ec', border: '#e91e63', text: '#880e4f', light: '#f8bbd0' },
-  almuerzo:     { bg: '#f5f5f5', border: '#bdbdbd', text: '#616161', light: '#e0e0e0' },
+  ventana: { bg: '#fce4ec', border: '#e91e63', text: '#880e4f', light: '#f8bbd0' },
+  almuerzo: { bg: '#f5f5f5', border: '#bdbdbd', text: '#616161', light: '#e0e0e0' },
 };
 
 const ACTIVITY_COLORS: Record<number, { bg: string; border: string; text: string; light: string }> = {
-  2:  { bg: '#fef3c7', border: '#f59e0b', text: '#92400e', light: '#fde68a' },
-  3:  { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', light: '#bfdbfe' },
-  4:  { bg: '#dcfce7', border: '#22c55e', text: '#166534', light: '#bbf7d0' },
-  5:  { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8', light: '#e9d5ff' },
-  6:  { bg: '#ffe4e6', border: '#f43f5e', text: '#9f1239', light: '#fecdd3' },
-  7:  { bg: '#e0f2fe', border: '#0ea5e9', text: '#0c4a6e', light: '#bae6fd' },
-  8:  { bg: '#fef9c3', border: '#eab308', text: '#854d0e', light: '#fef08a' },
-  9:  { bg: '#d1fae5', border: '#10b981', text: '#065f46', light: '#a7f3d0' },
+  2: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e', light: '#fde68a' },
+  3: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', light: '#bfdbfe' },
+  4: { bg: '#dcfce7', border: '#22c55e', text: '#166534', light: '#bbf7d0' },
+  5: { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8', light: '#e9d5ff' },
+  6: { bg: '#ffe4e6', border: '#f43f5e', text: '#9f1239', light: '#fecdd3' },
+  7: { bg: '#e0f2fe', border: '#0ea5e9', text: '#0c4a6e', light: '#bae6fd' },
+  8: { bg: '#fef9c3', border: '#eab308', text: '#854d0e', light: '#fef08a' },
+  9: { bg: '#d1fae5', border: '#10b981', text: '#065f46', light: '#a7f3d0' },
   10: { bg: '#ede9fe', border: '#8b5cf6', text: '#5b21b6', light: '#ddd6fe' },
 };
 
@@ -58,9 +58,26 @@ function getColorForBlock(block: ColorSource): { bg: string; border: string; tex
       <header class="sg-header">
         <div class="sg-header__left">
           <ng-content select="[headerLeft]"></ng-content>
+          <div class="sg-legend" aria-hidden="false">
+            <span class="legend-item"><span class="legend-dot" style="background: var(--color-slot-teoria)"></span> TEORIA</span>
+            <span class="legend-item"><span class="legend-dot" style="background: var(--color-slot-laboratorio)"></span> LAB</span>
+            <span class="legend-item"><span class="legend-dot" style="background: var(--color-slot-propia)"></span> PROPIA</span>
+            <span class="legend-item"><span class="legend-dot" style="background: var(--color-slot-seleccion)"></span> SELECCIÓN</span>
+          </div>
         </div>
         <div class="sg-header__right">
           <ng-content select="[headerRight]"></ng-content>
+          <div class="sg-header-controls">
+            <button mat-button class="kbd-mode-btn" (click)="toggleKeyboardMode()" [attr.aria-pressed]="keyboardMode" aria-label="Alternar modo teclado">
+              <mat-icon>{{ keyboardMode ? 'keyboard' : 'keyboard_double_arrow_down' }}</mat-icon>
+              <span class="kbd-mode-label">{{ keyboardMode ? 'Modo teclado' : 'Modo mouse' }}</span>
+            </button>
+            @if (keyboardPaletteIndex !== null) {
+              <div class="kbd-palette-info">
+                <span class="kbd-palette-label">Paleta: {{ paletteBlocks[keyboardPaletteIndex].label }} ({{ paletteBlocks[keyboardPaletteIndex].duracion }}h)</span>
+              </div>
+            }
+          </div>
         </div>
       </header>
 
@@ -108,7 +125,11 @@ function getColorForBlock(block: ColorSource): { bg: string; border: string; tex
 
       <!-- Grid -->
       <div class="sg-grid-wrap">
-        <div class="sg-grid" [style.--cols]="dias.length">
+        <div class="sg-grid" [style.--cols]="dias.length"
+             cdkDropList
+             [cdkDropListData]="{ type: 'grid' }"
+             [cdkDropListSortingDisabled]="true"
+             (cdkDropListDropped)="onGridDrop($event)">
           <div class="sg-cell sg-cell--corner">Hora</div>
           @for (d of diasLabels; track d) {
             <div class="sg-cell sg-cell--header">{{ d }}</div>
@@ -125,68 +146,69 @@ function getColorForBlock(block: ColorSource): { bg: string; border: string; tex
             </div>
           }
 
-          @for (h of horas; track h) {
+          @for (h of horas; track h; let i = $index) {
             <div class="sg-cell sg-cell--hour"
+                 [style.grid-column]="'1'"
+                 [style.grid-row]="i + 2"
                  [class.sg-cell--almuerzo]="h >= almuerzoInicio && h < almuerzoFin">
               <span class="sg-hour-text">{{ fmtHora(h) }}</span>
-              @if (h >= almuerzoInicio && h < almuerzoFin) {
-                <span class="sg-hour-tag">ALM</span>
-              }
             </div>
 
-            @for (d of dias; track d) {
-              <div class="sg-cell sg-cell--body"
-                   [class.sg-cell--almuerzo]="isAlmuerzo(d, h)"
-                   [class.sg-cell--occupied]="getCellState(d, h) !== 'vacia' && !isAlmuerzo(d, h)"
-                   [class.sg-cell--armed-hover]="armedBlock !== null && canPlace(d, h)"
-                   [class.sg-cell--no-place]="armedBlock !== null && !canPlace(d, h) && !isAlmuerzo(d, h)"
-                   [style.--cell-bg]="getCellBg(d, h)"
-                   [style.--cell-border]="getCellBorder(d, h)"
-                   [attr.data-dia]="d"
-                   [attr.data-hora]="h"
-                   (mousedown)="onCellMouseDown($event, d, h)"
-                   (mouseenter)="onCellMouseEnter(d, h)"
-                   (click)="onCellClick($event, d, h)"
-                   [matTooltip]="getCellTooltip(d, h)">
+            @for (d of dias; track d; let j = $index) {
+                   <div class="sg-cell sg-cell--body"
+                     [style.grid-column]="j + 2"
+                     [style.grid-row]="i + 2"
+                     [class.sg-cell--almuerzo]="isAlmuerzo(d, h)"
+                     [class.sg-cell--occupied]="getCellState(d, h) !== 'vacia' && !isAlmuerzo(d, h)"
+                     [class.sg-cell--conflict]="isCellConflict(d,h)"
+                     [class.sg-cell--armed-hover]="armedBlock !== null && canPlace(d, h)"
+                     [class.sg-cell--no-place]="armedBlock !== null && !canPlace(d, h) && !isAlmuerzo(d, h)"
+                     [style.--cell-bg]="getCellBg(d, h)"
+                     [style.--cell-border]="getCellBorder(d, h)"
+                     [attr.data-dia]="d"
+                     [attr.data-hora]="h"
+                     [attr.role]="'gridcell'"
+                     [attr.tabindex]="editable ? 0 : -1"
+                     (focus)="onCellFocus(d, h)"
+                     (keydown)="onCellKeydown($event, d, h)"
+                     (mousedown)="onCellMouseDown($event, d, h)"
+                     (mouseenter)="onCellMouseEnter(d, h)"
+                     (click)="onCellClick($event, d, h)"
+                     [attr.aria-label]="(isAlmuerzo(d, h) ? 'Almuerzo — No disponible' : getCellTooltip(d, h))"
+                     [attr.aria-selected]="selectedCells.has(d + '_' + h)"
+                     [matTooltip]="isAlmuerzo(d, h) ? 'Almuerzo — No disponible' : getCellTooltip(d, h)">
 
-                @if (isAlmuerzo(d, h)) {
-                  <div class="sg-cell__content sg-cell__content--alm">
-                    <mat-icon>restaurant</mat-icon>
-                    <span>ALMUERZO</span>
+                @for (blk of getCellBlocks(d, h); track blk.id) {
+                  <div class="sg-cell__block"
+                       [style.--blk-bg]="getBlockColor(blk).bg"
+                       [style.--blk-border]="getBlockColor(blk).border"
+                       [style.--blk-text]="getBlockColor(blk).text"
+                       [class.sg-cell__block--lectiva]="blk.tipo === 'lectiva'"
+                       [class.sg-cell__block--no-lectiva]="blk.tipo === 'no-lectiva'"
+                       [class.sg-cell__block--ventana]="blk.tipo === 'ventana'"
+                       [class.sg-cell__block--readonly]="blk.readOnly">
+                    <span class="sg-block__badge" [style.background]="getBlockColor(blk).border">
+                      {{ blk.badge || getShortType(blk) }}
+                    </span>
+                    <span class="sg-block__name">{{ blk.label }}</span>
+                    @if (blk.sublabel) {
+                      <span class="sg-block__sub">{{ blk.sublabel }}</span>
+                    }
+                    @if (!blk.readOnly && editable) {
+                      <button class="sg-block__remove" (click)="removeBlock(blk); $event.stopPropagation(); $event.preventDefault()"
+                              matTooltip="Eliminar">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    }
                   </div>
-                } @else {
-                  @for (blk of getCellBlocks(d, h); track blk.id) {
-                    <div class="sg-cell__block"
-                         [style.--blk-bg]="getBlockColor(blk).bg"
-                         [style.--blk-border]="getBlockColor(blk).border"
-                         [style.--blk-text]="getBlockColor(blk).text"
-                         [class.sg-cell__block--lectiva]="blk.tipo === 'lectiva'"
-                         [class.sg-cell__block--no-lectiva]="blk.tipo === 'no-lectiva'"
-                         [class.sg-cell__block--ventana]="blk.tipo === 'ventana'"
-                         [class.sg-cell__block--readonly]="blk.readOnly">
-                      <span class="sg-block__badge" [style.background]="getBlockColor(blk).border">
-                        {{ blk.badge || getShortType(blk) }}
-                      </span>
-                      <span class="sg-block__name">{{ blk.label }}</span>
-                      @if (blk.sublabel) {
-                        <span class="sg-block__sub">{{ blk.sublabel }}</span>
-                      }
-                      @if (!blk.readOnly && editable) {
-                        <button class="sg-block__remove" (click)="removeBlock(blk); $event.stopPropagation(); $event.preventDefault()"
-                                matTooltip="Eliminar">
-                          <mat-icon>close</mat-icon>
-                        </button>
-                      }
-                    </div>
-                  }
+                }
 
-                  @if (getCellBlocks(d, h).length === 0) {
-                    <div class="sg-cell__empty">
-                      @if (armedBlock !== null && canPlace(d, h)) {
-                        <mat-icon class="sg-cell__preview">add_circle</mat-icon>
-                      }
-                    </div>
-                  }
+                @if (getCellBlocks(d, h).length === 0 && !isAlmuerzo(d, h)) {
+                  <div class="sg-cell__empty">
+                    @if (armedBlock !== null && canPlace(d, h)) {
+                      <mat-icon class="sg-cell__preview">add_circle</mat-icon>
+                    }
+                  </div>
                 }
               </div>
             }
@@ -195,18 +217,32 @@ function getColorForBlock(block: ColorSource): { bg: string; border: string; tex
       </div>
 
       @if (conflicts.length > 0) {
-        <div class="sg-conflicts">
+        <div class="sg-conflicts" role="alert">
           <mat-icon>warning</mat-icon>
-          <span>{{ conflicts.length }} conflicto(s) detectado(s)</span>
+          <div class="sg-conflicts__info">
+            <span class="sg-conflicts__count">{{ conflicts.length }} conflicto(s) detectado(s)</span>
+            <ul class="sg-conflicts__list">
+              @for (c of conflicts; track c.mensaje) {
+                <li>
+                  <button mat-button class="conflict-item" (click)="focusCell(c.dia, horaToNumber(c.hora))">
+                    <mat-icon>error</mat-icon>
+                    <span class="conflict-text">{{ c.mensaje }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          </div>
         </div>
       }
 
       <div class="sg-summary">
         <ng-content select="[summary]"></ng-content>
       </div>
+      <div class="sr-only" aria-live="polite">{{ liveMessage }}</div>
     </div>
   `,
   styles: [`
+      .sr-only { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
     :host { display: block; width: 100%; }
 
     .sg { display: flex; flex-direction: column; gap: 16px; }
@@ -260,7 +296,7 @@ function getColorForBlock(block: ColorSource): { bg: string; border: string; tex
 
     .sg-almuerzo-band {
       display: flex; align-items: center; justify-content: center;
-      pointer-events: none; z-index: 3;
+      pointer-events: none; z-index: 3; overflow: hidden;
       background: repeating-linear-gradient(
         -45deg,
         rgba(255, 248, 225, 0.92),
@@ -299,14 +335,8 @@ function getColorForBlock(block: ColorSource): { bg: string; border: string; tex
       background: var(--color-surface-2); flex-direction: column; gap: 2px; padding: 4px;
     }
     .sg-cell--almuerzo {
-      background: repeating-linear-gradient(
-        -45deg,
-        #fff8e1,
-        #fff8e1 6px,
-        #ffecb3 6px,
-        #ffecb3 12px
-      ) !important;
-      cursor: not-allowed;
+      background: transparent !important;
+      cursor: not-allowed; pointer-events: none;
     }
     .sg-cell--body {
       padding: 2px; cursor: pointer; min-height: 44px;
@@ -387,6 +417,26 @@ function getColorForBlock(block: ColorSource): { bg: string; border: string; tex
 
     .sg-grid-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
     .sg-grid-wrap::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+
+    /* Focus visible for keyboard users */
+    .sg-cell:focus {
+      outline: 3px solid var(--color-primary);
+      outline-offset: -2px;
+      z-index: 5;
+    }
+    .sg-cell--conflict {
+      box-shadow: inset 0 0 0 2px rgba(220,38,38,0.12);
+      border: 2px solid var(--color-danger) !important;
+    }
+    .sg-cell--conflict .sg-cell__block { position: relative; }
+    .sg-cell--conflict::after {
+      content: '\\26A0';
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      color: var(--color-danger);
+      font-size: 14px;
+    }
   `],
 })
 export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
@@ -417,11 +467,17 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
   private grid = new Map<string, ScheduleBlock[]>();
   private destroy$ = new Subject<void>();
   private configSub?: Subscription;
+  liveMessage = '';
+  focusedCell: { dia: number; hora: number } | null = null;
+  keyboardMode = false;
+  keyboardPaletteIndex: number | null = null;
+  selectionAnchor: { dia: number; hora: number } | null = null;
 
   constructor(
     private cdr: ChangeDetectorRef,
     private configService: ScheduleConfigService,
-  ) {}
+    private host: ElementRef<HTMLElement>,
+  ) { }
 
   ngOnInit(): void {
     this.configService.cargar();
@@ -455,8 +511,13 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
       this.applyConfig(this.config);
     }
     if (changes['blocks']) {
+      this.blocks = Array.isArray(this.blocks) ? this.blocks.map(block => this.normalizeBlock(block)) : [];
       this.rebuildGrid();
     }
+  }
+
+  private isValidScheduleBlock(block: ScheduleBlock | null | undefined): block is ScheduleBlock {
+    return !!block && typeof block === 'object' && typeof block.dia === 'number' && typeof block.hora_inicio === 'string' && typeof block.hora_fin === 'string';
   }
 
   ngOnDestroy(): void {
@@ -488,11 +549,99 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
     for (let h = this.franjaInicio; h < this.franjaFin; h++) this.horas.push(h);
   }
 
+  private asText(value: unknown, fallback = ''): string {
+    const seen = new WeakSet<object>();
+
+    const normalize = (input: unknown): string => {
+      if (input == null) return fallback;
+      if (typeof input === 'string') return input;
+      if (typeof input === 'number' || typeof input === 'boolean' || typeof input === 'bigint') {
+        return String(input);
+      }
+      if (Array.isArray(input)) {
+        return input
+          .map(item => normalize(item))
+          .filter(Boolean)
+          .join(' ');
+      }
+      if (typeof input === 'object') {
+        if (input === null) return fallback;
+        if (seen.has(input)) return fallback;
+        seen.add(input);
+        const candidate = input as Record<string, unknown>;
+        for (const key of ['tooltip', 'label', 'sublabel', 'nombre', 'codigo', 'descripcion', 'value']) {
+          if (key in candidate) {
+            const nested = normalize(candidate[key]);
+            if (nested) {
+              seen.delete(input);
+              return nested;
+            }
+          }
+        }
+        try {
+          const json = JSON.stringify(candidate);
+          seen.delete(input);
+          return typeof json === 'string' ? json : fallback;
+        } catch {
+          seen.delete(input);
+          return fallback;
+        }
+      }
+      try {
+        return String(input);
+      } catch {
+        return fallback;
+      }
+    };
+
+    return normalize(value);
+  }
+
+  private asNumber(value: unknown, fallback = 0): number {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    if (value && typeof value === 'object') {
+      const candidate = value as Record<string, unknown>;
+      for (const key of ['value', 'id', 'numero']) {
+        if (key in candidate) {
+          return this.asNumber(candidate[key], fallback);
+        }
+      }
+    }
+    return fallback;
+  }
+
+  private normalizeBlock(block: ScheduleBlock): ScheduleBlock {
+    const label = this.asText(block?.label);
+    const sublabel = block?.sublabel != null ? this.asText(block.sublabel) : undefined;
+    const tooltip = block?.tooltip != null ? this.asText(block.tooltip) : undefined;
+    return {
+      ...block,
+      id: this.asText(block?.id),
+      tipo: (this.asText(block?.tipo, 'lectiva') as BlockType),
+      dia: this.asNumber(block?.dia, 1),
+      hora_inicio: this.asText(block?.hora_inicio, '08:00'),
+      hora_fin: this.asText(block?.hora_fin, '09:00'),
+      duracion: this.asNumber(block?.duracion, 1),
+      label,
+      sublabel,
+      badge: block?.badge != null ? this.asText(block.badge) : undefined,
+      colorKey: block?.colorKey != null ? this.asText(block.colorKey) : undefined,
+      tooltip: tooltip || (sublabel ? `${label} — ${sublabel}` : label),
+    };
+  }
+
   private rebuildGrid(): void {
     this.grid.clear();
-    for (const b of this.blocks) {
+    for (const rawBlock of this.blocks) {
+      const b = this.normalizeBlock(rawBlock);
+      if (!this.isValidScheduleBlock(b)) continue;
       const ini = parseInt(normalizarHora(b.hora_inicio).split(':')[0], 10);
       const fin = parseInt(normalizarHora(b.hora_fin).split(':')[0], 10);
+      if (!Number.isFinite(ini) || !Number.isFinite(fin) || fin <= ini) continue;
       for (let h = ini; h < fin; h++) {
         const key = this.cellKey(b.dia, h);
         if (!this.grid.has(key)) this.grid.set(key, []);
@@ -533,9 +682,24 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   getCellTooltip(dia: number, hora: number): string {
-    const blocks = this.getCellBlocks(dia, hora);
-    if (blocks.length === 0) return '';
-    return blocks.map(b => b.tooltip || b.label).join(' | ');
+    try {
+      const blocks = this.getCellBlocks(dia, hora);
+      if (blocks.length === 0) return '';
+      const tooltipParts: string[] = [];
+      for (const b of blocks) {
+        const tooltipText = this.asText(b.tooltip);
+        const labelText = this.asText(b.label);
+        const text = tooltipText || labelText || `Bloque ${this.asText(b.id, '')}`;
+        tooltipParts.push(text);
+      }
+      const result = tooltipParts.filter(Boolean).join(' | ');
+      return result;
+    } catch (e) {
+      console.error('Error in getCellTooltip:', e);
+      console.error('Dia:', dia, 'Hora:', hora);
+      console.error('Blocks:', this.getCellBlocks(dia, hora));
+      return '';
+    }
   }
 
   isAlmuerzo(dia: number, hora: number): boolean {
@@ -643,6 +807,30 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  onGridDrop(event: CdkDragDrop<any>): void {
+    const data = event.item.data;
+    if (!data || !data.tipoClase) return;
+    const el = event.event.target as HTMLElement;
+    const cell = el.closest('.sg-cell--body') as HTMLElement;
+    if (!cell) return;
+    const dia = parseInt(cell.getAttribute('data-dia') || '0', 10);
+    const hora = parseInt(cell.getAttribute('data-hora') || '0', 10);
+    if (!dia || !hora) return;
+    const duracion = data.tipoClase === 'LABORATORIO' ? 3 : 2;
+    const palette: PaletteBlock = {
+      id: `ext_${data.curso?.cursoPlanId || 'drop'}_${data.tipoClase}`,
+      duracion,
+      label: data.curso ? `${data.curso.codigo} — ${data.tipoClase}` : data.tipoClase,
+      tipo: 'lectiva',
+      colorKey: data.tipoClase === 'TEORIA' ? '2' : data.tipoClase === 'LABORATORIO' ? '3' : '4',
+    };
+    this.armedBlock = palette;
+    if (this.canPlace(dia, hora)) {
+      this.placeBlock(dia, hora);
+    }
+    this.disarm();
+  }
+
   onCellMouseDown(e: MouseEvent, dia: number, hora: number): void {
     if (e.button === 2) {
       e.preventDefault();
@@ -701,8 +889,247 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  onCellFocus(dia: number, hora: number): void {
+    this.focusedCell = { dia, hora };
+  }
+
+  public focusCell(dia: number, hora: number): void {
+    // Query for the cell and focus it
+    try {
+      const selector = `[data-dia="${dia}"][data-hora="${hora}"]`;
+      const el = this.host.nativeElement.querySelector(selector) as HTMLElement | null;
+      if (el) {
+        el.focus();
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  public horaToNumber(hora: string): number {
+    return parseInt(hora.split(':')[0], 10);
+  }
+
+  private announce(msg: string): void {
+    this.liveMessage = msg;
+    this.cdr.markForCheck();
+    setTimeout(() => { this.liveMessage = ''; this.cdr.markForCheck(); }, 1800);
+  }
+
+  toggleKeyboardMode(): void {
+    this.keyboardMode = !this.keyboardMode;
+    this.announce(this.keyboardMode ? 'Modo teclado activado' : 'Modo mouse activado');
+    this.cdr.markForCheck();
+  }
+
+  cyclePalette(next = true): void {
+    if (!this.paletteBlocks || this.paletteBlocks.length === 0) {
+      this.announce('No hay paletas disponibles');
+      return;
+    }
+    if (this.keyboardPaletteIndex === null) this.keyboardPaletteIndex = 0;
+    else this.keyboardPaletteIndex = (this.keyboardPaletteIndex + (next ? 1 : -1) + this.paletteBlocks.length) % this.paletteBlocks.length;
+    const p = this.paletteBlocks[this.keyboardPaletteIndex];
+    this.armedBlock = p;
+    this.announce(`Paleta seleccionada: ${p.label}, ${p.duracion} horas`);
+    this.cdr.markForCheck();
+  }
+
+  startSelectionAnchor(dia: number, hora: number): void {
+    this.selectionAnchor = { dia, hora };
+    this.selectedCells.clear();
+    this.selectedCells.add(this.cellKey(dia, hora));
+    this.cdr.markForCheck();
+  }
+
+  extendSelectionTo(dia: number, hora: number): void {
+    if (!this.selectionAnchor) return;
+    if (this.selectionAnchor.dia !== dia) {
+      // only support range within same day for now
+      this.startSelectionAnchor(dia, hora);
+      return;
+    }
+    const startH = Math.min(this.selectionAnchor.hora, hora);
+    const endH = Math.max(this.selectionAnchor.hora, hora);
+    this.selectedCells.clear();
+    for (let h = startH; h <= endH; h++) this.selectedCells.add(this.cellKey(dia, h));
+    this.cdr.markForCheck();
+  }
+
+  isCellConflict(dia: number, hora: number): boolean {
+    try {
+      const keys = (this as any)._conflictKeys as Set<string> | undefined;
+      if (!keys) return false;
+      return keys.has(`${dia}_${hora}`);
+    } catch {
+      return false;
+    }
+  }
+
+  onCellKeydown(e: KeyboardEvent, dia: number, hora: number): void {
+    const key = e.key;
+    if (this.keyboardMode) {
+      const k = key.toLowerCase();
+      // Cycle palettes: p = next, o = previous
+      if (k === 'p') { e.preventDefault(); this.cyclePalette(true); return; }
+      if (k === 'o') { e.preventDefault(); this.cyclePalette(false); return; }
+
+      // Arrow navigation with selection support
+      if (key.startsWith('Arrow')) {
+        e.preventDefault();
+        const isHorizontal = key === 'ArrowLeft' || key === 'ArrowRight';
+        const isVertical = key === 'ArrowUp' || key === 'ArrowDown';
+        if (e.shiftKey) {
+          // extend selection
+          if (isVertical) {
+            const idx = this.horas.indexOf(hora);
+            const newHora = key === 'ArrowDown' ? this.horas[Math.min(this.horas.length - 1, idx + 1)] : this.horas[Math.max(0, idx - 1)];
+            this.extendSelectionTo(dia, newHora);
+            this.focusCell(dia, newHora);
+            return;
+          }
+          if (isHorizontal) {
+            const idx = this.dias.indexOf(dia);
+            const newDia = key === 'ArrowRight' ? this.dias[Math.min(this.dias.length - 1, idx + 1)] : this.dias[Math.max(0, idx - 1)];
+            // switching day resets range to single cell on new day
+            this.startSelectionAnchor(newDia, hora);
+            this.focusCell(newDia, hora);
+            return;
+          }
+        } else {
+          // move focus and set anchor
+          if (isHorizontal) {
+            const idx = this.dias.indexOf(dia);
+            const newDia = key === 'ArrowRight' ? this.dias[Math.min(this.dias.length - 1, idx + 1)] : this.dias[Math.max(0, idx - 1)];
+            this.startSelectionAnchor(newDia, hora);
+            this.focusCell(newDia, hora);
+            return;
+          }
+          if (isVertical) {
+            const idx = this.horas.indexOf(hora);
+            const newHora = key === 'ArrowDown' ? this.horas[Math.min(this.horas.length - 1, idx + 1)] : this.horas[Math.max(0, idx - 1)];
+            this.startSelectionAnchor(dia, newHora);
+            this.focusCell(dia, newHora);
+            return;
+          }
+        }
+      }
+
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        // If selection exists and armedBlock selected, place at first selected cell
+        if (this.armedBlock && this.selectedCells.size > 0) {
+          // find min hour for the selection on the anchor day
+          const sel = Array.from(this.selectedCells).map(s => s.split('_').map(Number));
+          const anchorDay = this.selectionAnchor ? this.selectionAnchor.dia : dia;
+          const daySel = sel.filter(([d]) => d === anchorDay);
+          let startHour = hora;
+          if (daySel.length > 0) startHour = Math.min(...daySel.map(([d, h]) => h));
+          if (this.canPlace(anchorDay, startHour)) {
+            this.placeBlock(anchorDay, startHour);
+            this.announce('Bloque asignado');
+            this.selectedCells.clear();
+            this.selectionAnchor = null;
+          } else {
+            this.announce('No se puede colocar aquí');
+          }
+        } else {
+          // fallback to existing behaviour (remove/announce)
+          const blocks = this.getCellBlocks(dia, hora);
+          const removable = blocks.find(b => !b.readOnly && this.editable);
+          if (removable) {
+            this.removeBlock(removable);
+            this.announce('Bloque eliminado');
+          } else if (blocks.length > 0) {
+            this.announce('Bloque solo lectura, no se puede eliminar');
+          } else {
+            this.announce('Celda vacía');
+          }
+        }
+        return;
+      }
+
+      if (key === 'Delete' || key === 'Backspace') {
+        e.preventDefault();
+        const blocks = this.getCellBlocks(dia, hora);
+        const removable = blocks.find(b => !b.readOnly && this.editable);
+        if (removable) {
+          this.removeBlock(removable);
+          this.announce('Bloque eliminado');
+        } else if (blocks.length > 0) {
+          this.announce('Bloque solo lectura, no se puede eliminar');
+        }
+        return;
+      }
+
+      return;
+    }
+
+    // non-keyboard mode default behavior
+    const normalKey = key;
+    if (normalKey === 'ArrowRight') {
+      e.preventDefault();
+      const idx = this.dias.indexOf(dia);
+      if (idx >= 0 && idx < this.dias.length - 1) this.focusCell(this.dias[idx + 1], hora);
+      return;
+    }
+    if (normalKey === 'ArrowLeft') {
+      e.preventDefault();
+      const idx = this.dias.indexOf(dia);
+      if (idx > 0) this.focusCell(this.dias[idx - 1], hora);
+      return;
+    }
+    if (normalKey === 'ArrowDown') {
+      e.preventDefault();
+      const idx = this.horas.indexOf(hora);
+      if (idx >= 0 && idx < this.horas.length - 1) this.focusCell(dia, this.horas[idx + 1]);
+      return;
+    }
+    if (normalKey === 'ArrowUp') {
+      e.preventDefault();
+      const idx = this.horas.indexOf(hora);
+      if (idx > 0) this.focusCell(dia, this.horas[idx - 1]);
+      return;
+    }
+    if (normalKey === 'Enter' || normalKey === ' ') {
+      e.preventDefault();
+      if (this.armedBlock) {
+        if (this.canPlace(dia, hora)) {
+          this.placeBlock(dia, hora);
+          this.announce('Bloque asignado');
+        } else {
+          this.announce('No se puede colocar aquí');
+        }
+      } else {
+        const blocks = this.getCellBlocks(dia, hora);
+        const removable = blocks.find(b => !b.readOnly && this.editable);
+        if (removable) {
+          this.removeBlock(removable);
+          this.announce('Bloque eliminado');
+        } else if (blocks.length > 0) {
+          this.announce('Bloque solo lectura, no se puede eliminar');
+        } else {
+          this.announce('Celda vacía');
+        }
+      }
+      return;
+    }
+    if (normalKey === 'Delete' || normalKey === 'Backspace') {
+      e.preventDefault();
+      const blocks = this.getCellBlocks(dia, hora);
+      const removable = blocks.find(b => !b.readOnly && this.editable);
+      if (removable) {
+        this.removeBlock(removable);
+        this.announce('Bloque eliminado');
+      } else if (blocks.length > 0) {
+        this.announce('Bloque solo lectura, no se puede eliminar');
+      }
+    }
+  }
+
   private detectConflicts(): void {
     this.conflicts = [];
+    const conflictSet = new Set<string>();
     const byDay = new Map<number, ScheduleBlock[]>();
     for (const b of this.blocks) {
       if (!byDay.has(b.dia)) byDay.set(b.dia, []);
@@ -715,12 +1142,18 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
           const b = dayBlocks[j];
           if (seSuperponen(a.hora_inicio, a.hora_fin, b.hora_inicio, b.hora_fin)) {
             const msg = `Superposición: ${a.label} (${a.hora_inicio}-${a.hora_fin}) con ${b.label} (${b.hora_inicio}-${b.hora_fin})`;
-            this.conflicts.push({ dia: a.dia, hora: a.hora_inicio, mensaje: msg, tipo: 'superposicion' });
+            const conflict: ConflictInfo = { dia: a.dia, hora: a.hora_inicio, mensaje: msg, tipo: 'superposicion' };
+            this.conflicts.push(conflict);
+            conflictSet.add(`${a.dia}_${parseInt(a.hora_inicio.split(':')[0], 10)}`);
+            conflictSet.add(`${b.dia}_${parseInt(b.hora_inicio.split(':')[0], 10)}`);
           }
         }
       }
     }
+    // quick lookup for conflict highlighting
+    (this as any)._conflictKeys = conflictSet;
     this.conflictDetected.emit(this.conflicts);
+    if (this.conflicts.length > 0) this.announce(`${this.conflicts.length} conflicto(s) detectado(s)`);
   }
 
   fmtHora(h: number): string {

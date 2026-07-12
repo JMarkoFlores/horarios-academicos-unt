@@ -69,7 +69,9 @@ export class GuardarDeclaracionDto {
   @IsString()
   estado?: string;
 
-  @ApiPropertyOptional({ description: "Carga no lectiva (actividades con horarios)" })
+  @ApiPropertyOptional({
+    description: "Carga no lectiva (actividades con horarios)",
+  })
   @IsOptional()
   @IsObject()
   @ValidateNested()

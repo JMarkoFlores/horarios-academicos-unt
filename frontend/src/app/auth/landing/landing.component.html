@@ -10,6 +10,18 @@
     </div>
   </div>
 
+  <!-- Theme toggle button -->
+  <button
+    class="theme-toggle-btn"
+    (click)="themeService.toggle()"
+    [attr.aria-label]="themeService.getThemeTooltip()"
+    matTooltip="{{ themeService.getThemeTooltip() }}"
+    matTooltipPosition="left"
+    type="button"
+  >
+    <mat-icon>{{ themeService.getThemeIcon() }}</mat-icon>
+  </button>
+
   <div class="landing-content">
     <!-- Columna Izquierda: Hero -->
     <div class="hero-section">
@@ -26,7 +38,7 @@
       </h1>
 
       <p class="hero-description animate-slide-up" style="--delay: 0.2s">
-        Centraliza la disponibilidad docente, optimiza el uso de ambientes y resuelve conflictos 
+        Centraliza la disponibilidad docente, optimiza el uso de ambientes y resuelve conflictos
         de programación en una sola experiencia moderna y eficiente.
       </p>
 
@@ -81,7 +93,7 @@
           <div class="btn-shimmer"></div>
         </button>
       </mat-card>
-      
+
       <p class="footer-hint animate-fade-in" style="--delay: 0.6s">
         &copy; 2026 Universidad Nacional de Trujillo
       </p>

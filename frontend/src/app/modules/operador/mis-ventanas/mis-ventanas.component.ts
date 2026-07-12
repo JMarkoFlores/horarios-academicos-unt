@@ -1,5 +1,5 @@
 
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,7 +10,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterModule } from '@angular/router';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { ApiService } from '../../../core/services/api.service';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { ApiResponse } from '../../../core/interfaces/entities';
 
 interface VentanaAtencion {
@@ -42,18 +43,24 @@ interface VentanaAtencion {
   templateUrl: './mis-ventanas.component.html',
   styleUrls: ['./mis-ventanas.component.scss'],
 })
-export class MisVentanasComponent implements OnInit {
+export class MisVentanasComponent implements OnInit, OnDestroy {
   private periodoService = inject(PeriodoService);
   private apiService = inject(ApiService);
 
   ventanas: VentanaAtencion[] = [];
   displayedColumns: string[] = ['fecha', 'hora', 'proposito', 'estado', 'posicion', 'acciones'];
   isLoading = false;
+  private destroy$ = new Subject<void>();
 
   ngOnInit(): void {
-    this.periodoService.periodo$.pipe(takeUntilDestroyed()).subscribe(() => {
+    this.periodoService.periodo$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.loadVentanas();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadVentanas(): void {
@@ -61,7 +68,7 @@ export class MisVentanasComponent implements OnInit {
     this.isLoading = true;
     this.apiService.get<ApiResponse<VentanaAtencion[]>>('/ventanas/mis-ventanas', {
       periodo: this.periodoService.periodo,
-    }).pipe(takeUntilDestroyed()).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
         this.ventanas = res.data || [];
         this.isLoading = false;

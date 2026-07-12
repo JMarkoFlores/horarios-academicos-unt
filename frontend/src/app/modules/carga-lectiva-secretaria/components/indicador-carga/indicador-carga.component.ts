@@ -1,40 +1,39 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { DocenteAsignador } from '../../models/asignador.models';
+﻿import { Component, Input } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { MatIconModule } from "@angular/material/icon";
+import { MatTooltipModule } from "@angular/material/tooltip";
+import { DocenteAsignador } from "../../models/asignador.models";
+import { toSafeString } from "@app/shared/utils/sanitize";
 
 @Component({
-  selector: 'app-indicador-carga',
+  selector: "app-indicador-carga",
   standalone: true,
   imports: [CommonModule, MatIconModule, MatTooltipModule],
   template: `
-    <div class="indicador" [class.indicador--completo]="docente.horasLectivasAsignadas >= 16"
-         [class.indicador--excedido]="docente.horasLectivasAsignadas > docente.horasLectivasMax">
+    <div class="indicador" [class.indicador--completo]="horasLectivasAsignadasNum >= 16" [class.indicador--excedido]="horasLectivasAsignadasNum > horasLectivasMaxNum">
       <div class="indicador__header">
-        <div class="indicador__avatar">{{ docente.apellido?.charAt(0) }}{{ docente.nombre?.charAt(0) }}</div>
+        <div class="indicador__avatar">{{ apellidoInicial }}{{ nombreInicial }}</div>
         <div class="indicador__info">
-          <span class="indicador__nombre">{{ docente.apellido }}, {{ docente.nombre }}</span>
-          <span class="indicador__meta">{{ docente.categoria }} · {{ formatModalidad(docente.modalidad) }}</span>
+          <span class="indicador__nombre">{{ apellidoTexto }}, {{ nombreTexto }}</span>
+          <span class="indicador__meta">{{ categoriaTexto }} · {{ formatModalidad(modalidadTexto) }}</span>
         </div>
       </div>
       <div class="indicador__barra">
         <div class="indicador__track">
           <div class="indicador__fill" [style.width.%]="porcentaje"></div>
-          <div class="indicador__min-marker" [style.left.%]="minPct"
-               [matTooltip]="'Mínimo 16h'"></div>
+          <div class="indicador__min-marker" [style.left.%]="minPct" [matTooltip]="\'Mínimo 16h\'"></div>
         </div>
         <div class="indicador__nums">
-          <span>{{ docente.horasLectivasAsignadas }}h</span>
-          <span class="indicador__max">/ {{ docente.horasLectivasMax }}h</span>
+          <span>{{ horasLectivasAsignadasNum }}h</span>
+          <span class="indicador__max">/ {{ horasLectivasMaxNum }}h</span>
         </div>
       </div>
       <div class="indicador__detail">
-        <span [class.text-warn]="docente.horasRestantes < 0" [class.text-ok]="docente.horasRestantes >= 0">
-          {{ docente.horasRestantes >= 0 ? docente.horasRestantes + 'h disponibles' : Math.abs(docente.horasRestantes) + 'h excedidas' }}
+        <span [class.text-warn]="horasRestantesNum < 0" [class.text-ok]="horasRestantesNum >= 0">
+          {{ horasRestantesNum >= 0 ? horasRestantesNum + "h disponibles" : Math.abs(horasRestantesNum) + "h excedidas" }}
         </span>
-        <span *ngIf="docente.horasNoLectivas > 0" class="text-muted">
-          · {{ docente.horasNoLectivas }}h no lectivas
+        <span *ngIf="horasNoLectivasNum > 0" class="text-muted">
+          · {{ horasNoLectivasNum }}h no lectivas
         </span>
       </div>
     </div>
@@ -78,24 +77,74 @@ export class IndicadorCargaComponent {
   @Input() docente!: DocenteAsignador;
   readonly Math = Math;
 
+  ngOnInit() {
+    console.log("IndicadorCargaComponent docente:", this.docente);
+    console.log("Docente apellido:", this.docente?.apellido);
+    console.log("Docente nombre:", this.docente?.nombre);
+    console.log("Docente categoria:", this.docente?.categoria);
+    console.log("Docente modalidad:", this.docente?.modalidad);
+  }
+
   get porcentaje(): number {
-    if (!this.docente) return 0;
-    return Math.min(100, (this.docente.horasLectivasAsignadas / this.docente.horasLectivasMax) * 100);
+    if (!this.docente || this.horasLectivasMaxNum <= 0) return 0;
+    return Math.min(100, (this.horasLectivasAsignadasNum / this.horasLectivasMaxNum) * 100);
   }
 
   get minPct(): number {
-    if (!this.docente) return 0;
-    return (16 / this.docente.horasLectivasMax) * 100;
+    if (!this.docente || this.horasLectivasMaxNum <= 0) return 0;
+    return (16 / this.horasLectivasMaxNum) * 100;
+  }
+
+  get horasRestantesNum(): number {
+    return Number(this.docente?.horasRestantes) || 0;
+  }
+
+  get horasLectivasAsignadasNum(): number {
+    return Number(this.docente?.horasLectivasAsignadas) || 0;
+  }
+
+  get horasLectivasMaxNum(): number {
+    return Number(this.docente?.horasLectivasMax) || 0;
+  }
+
+  get horasNoLectivasNum(): number {
+    return Number(this.docente?.horasNoLectivas) || 0;
+  }
+
+  get apellidoTexto(): string {
+    return toSafeString(this.docente?.apellido);
+  }
+
+  get nombreTexto(): string {
+    return toSafeString(this.docente?.nombre);
+  }
+
+  get categoriaTexto(): string {
+    return toSafeString(this.docente?.categoria);
+  }
+
+  get modalidadTexto(): string {
+    return toSafeString(this.docente?.modalidad);
+  }
+
+  get apellidoInicial(): string {
+    const ape = this.apellidoTexto;
+    return ape.charAt(0) || "?";
+  }
+
+  get nombreInicial(): string {
+    const nom = this.nombreTexto;
+    return nom.charAt(0) || "?";
   }
 
   formatModalidad(mod: string): string {
     const map: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: 'DE',
-      TIEMPO_COMPLETO_40: 'TC-40',
-      TIEMPO_PARCIAL_20: 'TP-20',
-      TIEMPO_PARCIAL_12: 'TP-12',
-      TIEMPO_PARCIAL_10: 'TP-10',
-      TIEMPO_PARCIAL_8: 'TP-8',
+      DEDICACION_EXCLUSIVA: "DE",
+      TIEMPO_COMPLETO_40: "TC-40",
+      TIEMPO_PARCIAL_20: "TP-20",
+      TIEMPO_PARCIAL_12: "TP-12",
+      TIEMPO_PARCIAL_10: "TP-10",
+      TIEMPO_PARCIAL_8: "TP-8",
     };
     return map[mod] || mod;
   }

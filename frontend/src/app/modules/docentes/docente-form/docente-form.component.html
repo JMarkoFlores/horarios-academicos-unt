@@ -222,6 +222,50 @@
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Horas Asignadas</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="horas_asignadas"
+                min="0"
+                max="60"
+              />
+              <mat-icon matPrefix>access_time</mat-icon>
+              <mat-hint>Horas semanales de carga académica. 0 = sin carga</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Facultad</mat-label>
+              <mat-select formControlName="facultad_id" (selectionChange)="onFacultadChange($event.value)">
+                <mat-option *ngFor="let f of facultades" [value]="f.id">
+                  {{ f.nombre }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>domain</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Departamento</mat-label>
+              <mat-select formControlName="departamento_id">
+                <mat-option *ngFor="let d of departamentos" [value]="d.id">
+                  {{ d.nombre }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>business</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
+              <mat-label>Usuario (para acceso al sistema)</mat-label>
+              <mat-select formControlName="usuario_id">
+                <mat-option *ngFor="let u of usuarios" [value]="u.id">
+                  {{ u.nombre }} ({{ u.email }})
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>person_add</mat-icon>
+              <mat-hint>Opcional: Asociar a usuario existente con rol DOCENTE</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="premium-field">
               <mat-label>Condición</mat-label>
               <mat-select
                 formControlName="tipo_docente"

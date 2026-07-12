@@ -1,24 +1,23 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { AuthService } from './core/services/auth.service';
+import { ThemeService } from './core/services/theme.service';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit {
+  private themeService = inject(ThemeService);
+
   constructor(
-    private router: Router, 
+    private router: Router,
     private translate: TranslateService,
     private authService: AuthService,
   ) {}
 
   ngOnInit() {
-    // Asegurar que el sistema inicie en modo claro
-    document.body.classList.remove('dark-theme');
-    document.body.classList.add('light-theme');
-    
     // Initialize language
     this.translate.setDefaultLang('es');
     

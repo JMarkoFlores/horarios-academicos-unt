@@ -1,13 +1,67 @@
+/**
+ * Landing Component Styles
+ * High-quality dark/light theme matching recuperar-password design
+ */
+
+// ── LANDING PAGE ──
 .landing-page {
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: hidden; // Prevenir scroll interno
-  background-color: #020617;
+  overflow: hidden;
+  background-color: var(--color-bg);
   font-family: 'Inter', sans-serif;
   padding: 0 24px;
+  transition: background-color var(--transition-normal);
+}
+
+// Theme toggle button
+.theme-toggle-btn {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+
+  &:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-primary);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-lg);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 768px) {
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
 }
 
 // ── DECORATIVE BACKGROUND ──
@@ -17,16 +71,49 @@
   z-index: 0;
   pointer-events: none;
   
+  .stars {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image:
+      radial-gradient(1px 1px at 20px 30px, var(--color-primary), transparent),
+      radial-gradient(1px 1px at 40px 70px, var(--color-primary-400), transparent),
+      radial-gradient(1px 1px at 90px 40px, var(--color-primary), transparent),
+      radial-gradient(1px 1px at 130px 80px, var(--color-primary-400), transparent),
+      radial-gradient(1px 1px at 160px 30px, var(--color-primary), transparent);
+    background-size: 200px 100px;
+    animation: starTwinkle 4s infinite linear;
+    opacity: 0.15;
+
+    // Light mode: subtle stars
+    .light-theme & {
+      opacity: 0.05;
+      background-image:
+        radial-gradient(1px 1px at 20px 30px, var(--color-primary-600), transparent),
+        radial-gradient(1px 1px at 40px 70px, var(--color-primary-400), transparent),
+        radial-gradient(1px 1px at 90px 40px, var(--color-primary-600), transparent),
+        radial-gradient(1px 1px at 130px 80px, var(--color-primary-400), transparent),
+        radial-gradient(1px 1px at 160px 30px, var(--color-primary-600), transparent);
+    }
+  }
+  
   .moving-grid {
     position: absolute;
     width: 200%; height: 200%;
     top: -50%; left: -50%;
     background-image: 
-      linear-gradient(rgba(37, 99, 235, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(37, 99, 235, 0.03) 1px, transparent 1px);
+      linear-gradient(rgba(var(--color-primary-rgb), 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.05) 1px, transparent 1px);
     background-size: 60px 60px;
     transform: perspective(1000px) rotateX(60deg);
     animation: gridMove 30s linear infinite;
+
+    // Light mode: lighter grid
+    .light-theme & {
+      background-image: 
+        linear-gradient(rgba(var(--color-primary-rgb), 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.03) 1px, transparent 1px);
+    }
   }
 
   .floating-blobs {
@@ -38,9 +125,38 @@
       opacity: 0.2;
       animation: float 20s infinite alternate ease-in-out;
     }
-    .blob-1 { width: 600px; height: 600px; background: #2563eb; top: -200px; right: -100px; }
-    .blob-2 { width: 500px; height: 500px; background: #4f46e5; bottom: -100px; left: -100px; animation-delay: -5s; }
-    .blob-3 { width: 400px; height: 400px; background: #0ea5e9; top: 30%; left: 20%; animation-delay: -10s; }
+    .blob-1 { width: 600px; height: 600px; background: var(--color-primary); top: -200px; right: -100px; }
+    .blob-2 { width: 500px; height: 500px; background: var(--color-primary-700); bottom: -100px; left: -100px; animation-delay: -5s; }
+    .blob-3 { width: 400px; height: 400px; background: var(--color-info); top: 30%; left: 20%; animation-delay: -10s; }
+
+    // Light mode: extremely subtle, barely visible blobs
+    .light-theme & {
+      .blob {
+        opacity: 0.04;
+        filter: blur(140px);
+      }
+      .blob-1 {
+        background: #93c5fd;
+        width: 800px;
+        height: 800px;
+        top: -300px;
+        right: -200px;
+      }
+      .blob-2 {
+        background: #a5b4fc;
+        width: 700px;
+        height: 700px;
+        bottom: -200px;
+        left: -200px;
+      }
+      .blob-3 {
+        background: #bfdbfe;
+        width: 600px;
+        height: 600px;
+        top: 20%;
+        left: 10%;
+      }
+    }
   }
 }
 
@@ -74,9 +190,9 @@
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    background: rgba(16, 185, 129, 0.05);
-    border: 1px solid rgba(16, 185, 129, 0.15);
-    color: #10b981;
+    background: var(--color-success-bg-light);
+    border: 1px solid var(--color-success-bg);
+    color: var(--color-success-light);
     padding: 8px 16px;
     border-radius: 30px;
     font-size: 12px;
@@ -89,12 +205,12 @@
   .hero-title {
     font-size: 60px;
     font-weight: 900;
-    color: white;
+    color: var(--color-text);
     line-height: 1.1;
     letter-spacing: -0.04em;
     margin-bottom: 20px;
     span { 
-      background: linear-gradient(to right, #60a5fa, #2563eb);
+      background: linear-gradient(to right, var(--color-primary-400), var(--color-primary));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -104,7 +220,7 @@
 
   .hero-description {
     font-size: 17px;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     line-height: 1.6;
     max-width: 540px;
     margin-bottom: 40px;
@@ -122,8 +238,8 @@
 }
 
 .feature-card {
-  background: rgba(15, 23, 42, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
   padding: 16px 20px;
   display: flex;
@@ -132,9 +248,9 @@
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background: rgba(15, 23, 42, 0.5);
+    background: var(--color-surface-2);
     transform: translateX(8px);
-    border-color: rgba(37, 99, 235, 0.3);
+    border-color: var(--color-primary);
   }
 
   .feature-icon {
@@ -142,31 +258,33 @@
     border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     mat-icon { font-size: 20px; width: 20px; height: 20px; color: white; }
-    &.primary { background: #2563eb; }
-    &.accent { background: #10b981; }
+    &.primary { background: var(--color-primary); }
+    &.accent { background: var(--color-success); }
   }
 
   .feature-info {
     text-align: left;
-    h3 { color: white; font-size: 15px; font-weight: 700; margin: 0; }
-    p { color: #64748b; font-size: 13px; margin: 0; }
+    h3 { color: var(--color-text); font-size: 15px; font-weight: 700; margin: 0; }
+    p { color: var(--color-text-muted); font-size: 13px; margin: 0; }
   }
 }
 
 // ── STEPS SECTION ──
-.steps-card {
-  background: rgba(15, 23, 42, 0.6) !important;
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 28px !important;
-  padding: 32px !important;
-  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.6) !important;
+.steps-section {
+  .steps-card {
+    background: var(--color-surface) !important;
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid var(--color-border) !important;
+    border-radius: 28px !important;
+    padding: 32px !important;
+    box-shadow: var(--shadow-xl) !important;
 
-  .card-header {
-    margin-bottom: 28px;
-    h2 { color: white; font-size: 24px; font-weight: 800; margin-bottom: 8px; }
-    p { color: #94a3b8; font-size: 14px; margin: 0; }
+    .card-header {
+      margin-bottom: 28px;
+      h2 { color: var(--color-text); font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+      p { color: var(--color-text-muted); font-size: 14px; margin: 0; }
+    }
   }
 }
 
@@ -181,24 +299,24 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-2);
   padding: 14px 18px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border);
   transition: all 0.3s ease;
 
-  &:hover { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.1); }
+  &:hover { background: var(--color-surface-3); border-color: var(--color-primary); }
 
   .step-number {
     width: 28px; height: 28px;
-    background: #2563eb;
+    background: var(--color-primary);
     color: white;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; font-weight: 800;
   }
 
-  .step-text { color: #e2e8f0; font-size: 14px; font-weight: 500; text-align: left; }
+  .step-text { color: var(--color-text); font-size: 14px; font-weight: 500; text-align: left; }
 }
 
 .start-btn {
@@ -212,7 +330,7 @@
 }
 
 .footer-hint {
-  color: #475569;
+  color: var(--color-text-disabled);
   font-size: 12px;
   margin-top: 24px;
   font-weight: 500;
@@ -233,12 +351,12 @@
   &.primary { 
     background: var(--color-primary) !important; 
     color: white !important;
-    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.5) !important;
+    box-shadow: 0 10px 30px -10px rgba(var(--color-primary-rgb), 0.5) !important;
   }
 
   &:hover {
     transform: translateY(-4px) scale(1.03);
-    box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.6) !important;
+    box-shadow: 0 20px 40px -10px rgba(var(--color-primary-rgb), 0.6) !important;
     .btn-shimmer { left: 100%; }
   }
 
@@ -247,6 +365,12 @@
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     transition: left 0.8s ease;
   }
+}
+
+@keyframes starTwinkle {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
 }
 
 @keyframes gridMove {

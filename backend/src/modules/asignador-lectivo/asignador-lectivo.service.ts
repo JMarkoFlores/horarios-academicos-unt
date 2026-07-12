@@ -22,11 +22,20 @@ import { EstadoAsignacionLectiva } from "../../common/enums/estado-asignacion-le
 import { EstadoPeriodo } from "../../common/enums/estado-periodo.enum";
 import { EstadoCursoPlan } from "../../common/enums/estado-curso-plan.enum";
 import { CrearHorarioLectivoDto } from "./dto/crear-horario-lectivo.dto";
-import { ValidarAsignacionDto, ValidacionResultado } from "./dto/validar-asignacion.dto";
+import {
+  ValidarAsignacionDto,
+  ValidacionResultado,
+} from "./dto/validar-asignacion.dto";
 import { AuditoriaService } from "../auditoria/auditoria.service";
-import { EntidadAuditoriaCarga, AccionAuditoriaCarga } from "../../entities/auditoria-carga.entity";
+import {
+  EntidadAuditoriaCarga,
+  AccionAuditoriaCarga,
+} from "../../entities/auditoria-carga.entity";
 import { ContextoAcademicoService } from "../../common/services/contexto-academico.service";
-import { ContextoAcademico, UsuarioAutenticado } from "../../common/interfaces/contexto-academico.interface";
+import {
+  ContextoAcademico,
+  UsuarioAutenticado,
+} from "../../common/interfaces/contexto-academico.interface";
 
 @Injectable()
 export class AsignadorLectivoService {
@@ -56,8 +65,11 @@ export class AsignadorLectivoService {
   ) {}
 
   private async resolvePeriodo(periodoId: number): Promise<PeriodoAcademico> {
-    const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
-    if (!periodo) throw new NotFoundException(`Período #${periodoId} no encontrado`);
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+    if (!periodo)
+      throw new NotFoundException(`Período #${periodoId} no encontrado`);
     return periodo;
   }
 
@@ -70,11 +82,17 @@ export class AsignadorLectivoService {
     });
 
     const asignaciones = await this.asignacionRepo.find({
-      where: { periodo_id: periodoId, estado: Not(EstadoAsignacionLectiva.RECHAZADO) },
+      where: {
+        periodo_id: periodoId,
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+      },
       relations: ["curso_plan"],
     });
 
-    const horasAsignadasMap = new Map<number, { teoria: number; practica: number; laboratorio: number }>();
+    const horasAsignadasMap = new Map<
+      number,
+      { teoria: number; practica: number; laboratorio: number }
+    >();
     for (const a of asignaciones) {
       const key = a.curso_plan_id;
       if (!horasAsignadasMap.has(key)) {
@@ -83,9 +101,15 @@ export class AsignadorLectivoService {
       const entry = horasAsignadasMap.get(key)!;
       const horas = Number(a.horas_asignadas);
       switch (a.tipo_clase) {
-        case TipoClase.TEORIA: entry.teoria += horas; break;
-        case TipoClase.PRACTICA: entry.practica += horas; break;
-        case TipoClase.LABORATORIO: entry.laboratorio += horas; break;
+        case TipoClase.TEORIA:
+          entry.teoria += horas;
+          break;
+        case TipoClase.PRACTICA:
+          entry.practica += horas;
+          break;
+        case TipoClase.LABORATORIO:
+          entry.laboratorio += horas;
+          break;
       }
     }
 
@@ -100,11 +124,21 @@ export class AsignadorLectivoService {
         if (!contexto.departamentoIds.includes(curso.departamento_id)) continue;
       }
 
-      const asignado = horasAsignadasMap.get(cp.id) || { teoria: 0, practica: 0, laboratorio: 0 };
+      const asignado = horasAsignadasMap.get(cp.id) || {
+        teoria: 0,
+        practica: 0,
+        laboratorio: 0,
+      };
       const tiposRequeridos: string[] = [];
-      if (cp.horas_teoria > 0 && asignado.teoria < cp.horas_teoria) tiposRequeridos.push("TEORIA");
-      if (cp.horas_practica > 0 && asignado.practica < cp.horas_practica) tiposRequeridos.push("PRACTICA");
-      if (cp.horas_laboratorio > 0 && asignado.laboratorio < cp.horas_laboratorio) tiposRequeridos.push("LABORATORIO");
+      if (cp.horas_teoria > 0 && asignado.teoria < cp.horas_teoria)
+        tiposRequeridos.push("TEORIA");
+      if (cp.horas_practica > 0 && asignado.practica < cp.horas_practica)
+        tiposRequeridos.push("PRACTICA");
+      if (
+        cp.horas_laboratorio > 0 &&
+        asignado.laboratorio < cp.horas_laboratorio
+      )
+        tiposRequeridos.push("LABORATORIO");
 
       if (tiposRequeridos.length === 0) continue;
 
@@ -131,7 +165,7 @@ export class AsignadorLectivoService {
         horasAsignadasPractica: asignado.practica,
         horasAsignadasLaboratorio: asignado.laboratorio,
         tiposRequeridos,
-        grupos: grupos.map(g => ({
+        grupos: grupos.map((g) => ({
           id: g.id,
           codigo: g.codigo,
           nombre: g.nombre,
@@ -139,7 +173,7 @@ export class AsignadorLectivoService {
           cupoMaximo: g.cupo_maximo,
         })),
         totalAlumnos: grupos.reduce((sum, g) => sum + (g.cupo_maximo || 0), 0),
-        ambientesCompatibles: ambientes.map(a => a.id),
+        ambientesCompatibles: ambientes.map((a) => Number(a.id)),
         departamentoId: curso.departamento_id,
         tieneLaboratorio: curso.tiene_laboratorio,
       });
@@ -152,13 +186,16 @@ export class AsignadorLectivoService {
     const periodo = await this.resolvePeriodo(periodoId);
     const periodoCodigo = periodo.codigo;
 
-    const qb = this.docenteRepo.createQueryBuilder("d")
+    const qb = this.docenteRepo
+      .createQueryBuilder("d")
       .leftJoinAndSelect("d.departamento", "dep")
       .leftJoinAndSelect("d.facultad", "fac")
       .where("d.activo = :activo", { activo: true });
 
     if (contexto && !contexto.verTodo && contexto.departamentoIds.length > 0) {
-      qb.andWhere("d.departamento_id IN (:...deps)", { deps: contexto.departamentoIds });
+      qb.andWhere("d.departamento_id IN (:...deps)", {
+        deps: contexto.departamentoIds,
+      });
     }
 
     const docentes = await qb.getMany();
@@ -166,28 +203,46 @@ export class AsignadorLectivoService {
 
     for (const docente of docentes) {
       const asignaciones = await this.asignacionRepo.find({
-        where: { docente_id: docente.id, periodo_id: periodoId, estado: Not(EstadoAsignacionLectiva.RECHAZADO) },
+        where: {
+          docente_id: docente.id,
+          periodo_id: periodoId,
+          estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+        },
       });
-      const horasLectivas = asignaciones.reduce((sum, a) => sum + Number(a.horas_asignadas), 0);
+      const horasLectivas = asignaciones.reduce(
+        (sum, a) => sum + Number(a.horas_asignadas),
+        0,
+      );
 
       const noLectivos = await this.horarioRepo.find({
-        where: { docente_id: docente.id, periodo: periodoCodigo, tipo_clase: TipoClase.NO_LECTIVA },
+        where: {
+          docente_id: docente.id,
+          periodo: periodoCodigo,
+          tipo_clase: TipoClase.NO_LECTIVA,
+        },
       });
       const horasNoLectivas = noLectivos.reduce((sum, h) => {
         return sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin);
       }, 0);
 
       const params = await this.paramsRepo.findOne({
-        where: { periodo_academico: periodoCodigo, modalidad: docente.modalidad },
+        where: {
+          periodo_academico: periodoCodigo,
+          modalidad: docente.modalidad,
+        },
       });
       const maxHoras = params?.horas_max_semanal ?? 40;
 
       const horariosExistentes = await this.horarioRepo.find({
-        where: { docente_id: docente.id, periodo: periodoCodigo, tipo_clase: Not(TipoClase.NO_LECTIVA) },
+        where: {
+          docente_id: docente.id,
+          periodo: periodoCodigo,
+          tipo_clase: Not(TipoClase.NO_LECTIVA),
+        },
         relations: ["curso", "ambiente", "grupo"],
       });
 
-      const bloques = horariosExistentes.map(h => ({
+      const bloques = horariosExistentes.map((h) => ({
         id: `h_${h.id}`,
         dia: h.dia,
         horaInicio: h.hora_inicio,
@@ -219,11 +274,15 @@ export class AsignadorLectivoService {
         horasRestantes: maxHoras - horasLectivas - Math.round(horasNoLectivas),
         departamentoId: docente.departamento_id,
         departamentoNombre: docente.departamento?.nombre || "",
-        facultadId: (docente as any).facultad?.id || null,
-        facultadNombre: (docente as any).facultad?.nombre || "",
+        facultadId: (docente as any).facultad?.id
+          ? Number((docente as any).facultad.id)
+          : null,
+        facultadNombre: (docente as any).facultad?.nombre
+          ? String((docente as any).facultad.nombre)
+          : "",
         enSuspension: false,
         bloquesExistentes: bloques,
-        totalCursos: new Set(asignaciones.map(a => a.curso_plan_id)).size,
+        totalCursos: new Set(asignaciones.map((a) => a.curso_plan_id)).size,
       });
     }
 
@@ -237,7 +296,7 @@ export class AsignadorLectivoService {
       order: { dia: "ASC", hora_inicio: "ASC" },
     });
 
-    return horarios.map(h => ({
+    return horarios.map((h) => ({
       id: h.id,
       dia: h.dia,
       horaInicio: h.hora_inicio,
@@ -271,7 +330,7 @@ export class AsignadorLectivoService {
         order: { dia: "ASC", hora_inicio: "ASC" },
       });
 
-      const bloques = ocupacion.map(h => ({
+      const bloques = ocupacion.map((h) => ({
         id: `a_${h.id}`,
         dia: h.dia,
         horaInicio: h.hora_inicio,
@@ -282,12 +341,16 @@ export class AsignadorLectivoService {
         sublabel: h.docente ? `${h.docente.apellidos}` : "",
         badge: this.getBadge(h.tipo_clase),
         docenteId: h.docente_id,
-        docenteNombre: h.docente ? `${h.docente.apellidos} ${h.docente.nombres}` : "",
+        docenteNombre: h.docente
+          ? `${h.docente.apellidos} ${h.docente.nombres}`
+          : "",
         cursoNombre: h.curso?.nombre || "",
       }));
 
-      const horasOcupadas = bloques.reduce((sum, b) =>
-        sum + this.calcularDuracionHoras(b.horaInicio, b.horaFin), 0);
+      const horasOcupadas = bloques.reduce(
+        (sum, b) => sum + this.calcularDuracionHoras(b.horaInicio, b.horaFin),
+        0,
+      );
       const horasDisponibles = 15 * 6 - horasOcupadas;
 
       resultado.push({
@@ -296,8 +359,8 @@ export class AsignadorLectivoService {
         nombre: amb.nombre,
         tipo: amb.tipo,
         capacidad: amb.capacidad,
-        piso: amb.piso,
-        pabellon: amb.pabellon,
+        piso: amb.piso ? String(amb.piso) : null,
+        pabellon: amb.pabellon ? String(amb.pabellon) : null,
         estado: amb.estado,
         activo: amb.activo,
         bloquesOcupados: bloques,
@@ -312,8 +375,11 @@ export class AsignadorLectivoService {
   }
 
   async getOcupacionAmbiente(ambienteId: number, periodoCodigo: string) {
-    const ambiente = await this.ambienteRepo.findOne({ where: { id: ambienteId } });
-    if (!ambiente) throw new NotFoundException(`Ambiente #${ambienteId} no encontrado`);
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: ambienteId },
+    });
+    if (!ambiente)
+      throw new NotFoundException(`Ambiente #${ambienteId} no encontrado`);
 
     const ocupacion = await this.horarioRepo.find({
       where: { ambiente_id: ambienteId, periodo: periodoCodigo },
@@ -329,7 +395,7 @@ export class AsignadorLectivoService {
         tipo: ambiente.tipo,
         capacidad: ambiente.capacidad,
       },
-      bloques: ocupacion.map(h => ({
+      bloques: ocupacion.map((h) => ({
         id: h.id,
         dia: h.dia,
         horaInicio: h.hora_inicio,
@@ -338,57 +404,89 @@ export class AsignadorLectivoService {
         badge: this.getBadge(h.tipo_clase),
         cursoCodigo: h.curso?.codigo || "",
         cursoNombre: h.curso?.nombre || "",
-        docenteNombre: h.docente ? `${h.docente.apellidos} ${h.docente.nombres}` : "",
+        docenteNombre: h.docente
+          ? `${h.docente.apellidos} ${h.docente.nombres}`
+          : "",
         grupoCodigo: h.grupo?.codigo || "",
         duracion: this.calcularDuracionHoras(h.hora_inicio, h.hora_fin),
       })),
     };
   }
 
-  async validar(dto: ValidarAsignacionDto, contexto?: ContextoAcademico): Promise<ValidacionResultado> {
+  async validar(
+    dto: ValidarAsignacionDto,
+    contexto?: ContextoAcademico,
+  ): Promise<ValidacionResultado> {
     const errores: string[] = [];
     const advertencias: string[] = [];
 
-    const [docente, curso, ambiente] = await Promise.all([
+    const [docente, curso, ambiente, periodo] = await Promise.all([
       this.docenteRepo.findOne({ where: { id: dto.docente_id } }),
       this.cursoRepo.findOne({ where: { id: dto.curso_id } }),
       this.ambienteRepo.findOne({ where: { id: dto.ambiente_id } }),
+      this.periodoRepo.findOne({ where: { codigo: dto.periodo } }),
     ]);
 
-    if (!docente) { errores.push("Docente no encontrado"); return { valido: false, errores, advertencias }; }
-    if (!curso) { errores.push("Curso no encontrado"); return { valido: false, errores, advertencias }; }
-    if (!ambiente) { errores.push("Ambiente no encontrado"); return { valido: false, errores, advertencias }; }
+    if (!docente) {
+      errores.push("Docente no encontrado");
+      return { valido: false, errores, advertencias };
+    }
+    if (!curso) {
+      errores.push("Curso no encontrado");
+      return { valido: false, errores, advertencias };
+    }
+    if (!ambiente) {
+      errores.push("Ambiente no encontrado");
+      return { valido: false, errores, advertencias };
+    }
+
+    const periodoId = periodo?.id ?? 0;
 
     if (!docente.activo) errores.push("El docente no está activo");
-    if (ambiente.estado !== "ACTIVO") errores.push("El ambiente no está activo");
+    if (ambiente.estado !== "ACTIVO")
+      errores.push("El ambiente no está activo");
 
     const horasInicio = this.timeToMinutes(dto.hora_inicio);
     const horasFin = this.timeToMinutes(dto.hora_fin);
-    if (horasFin <= horasInicio) errores.push("La hora fin debe ser posterior a la hora inicio");
-    if (horasInicio < 420 || horasFin > 1320) errores.push("La franja horaria debe estar entre 07:00 y 22:00");
+    if (horasFin <= horasInicio)
+      errores.push("La hora fin debe ser posterior a la hora inicio");
+    if (horasInicio < 420 || horasFin > 1320)
+      errores.push("La franja horaria debe estar entre 07:00 y 22:00");
 
     const duracionHoras = (horasFin - horasInicio) / 60;
 
     if (!dto.horario_id) {
       const cruceDocente = await this.horarioRepo.findOne({
-        where: { docente_id: dto.docente_id, periodo: dto.periodo, dia: dto.dia },
+        where: {
+          docente_id: dto.docente_id,
+          periodo: dto.periodo,
+          dia: dto.dia,
+        },
       });
       if (cruceDocente) {
         const ci = this.timeToMinutes(cruceDocente.hora_inicio);
         const cf = this.timeToMinutes(cruceDocente.hora_fin);
         if (horasInicio < cf && horasFin > ci) {
-          errores.push(`Conflicto docente: ${cruceDocente.curso?.codigo} (${cruceDocente.hora_inicio}-${cruceDocente.hora_fin})`);
+          errores.push(
+            `Conflicto docente: ${cruceDocente.curso?.codigo} (${cruceDocente.hora_inicio}-${cruceDocente.hora_fin})`,
+          );
         }
       }
 
       const cruceAmbiente = await this.horarioRepo.findOne({
-        where: { ambiente_id: dto.ambiente_id, periodo: dto.periodo, dia: dto.dia },
+        where: {
+          ambiente_id: dto.ambiente_id,
+          periodo: dto.periodo,
+          dia: dto.dia,
+        },
       });
       if (cruceAmbiente) {
         const ci = this.timeToMinutes(cruceAmbiente.hora_inicio);
         const cf = this.timeToMinutes(cruceAmbiente.hora_fin);
         if (horasInicio < cf && horasFin > ci) {
-          errores.push(`Aula ocupada: ${cruceAmbiente.curso?.codigo} (${cruceAmbiente.hora_inicio}-${cruceAmbiente.hora_fin})`);
+          errores.push(
+            `Aula ocupada: ${cruceAmbiente.curso?.codigo} (${cruceAmbiente.hora_inicio}-${cruceAmbiente.hora_fin})`,
+          );
         }
       }
     }
@@ -399,9 +497,16 @@ export class AsignadorLectivoService {
     const maxHoras = params?.horas_max_semanal ?? 40;
 
     const asignacionesActuales = await this.asignacionRepo.find({
-      where: { docente_id: dto.docente_id, periodo_id: Number(dto.periodo), estado: Not(EstadoAsignacionLectiva.RECHAZADO) },
+      where: {
+        docente_id: dto.docente_id,
+        periodo_id: periodoId,
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+      },
     });
-    const horasLectivasActuales = asignacionesActuales.reduce((sum, a) => sum + Number(a.horas_asignadas), 0);
+    const horasLectivasActuales = asignacionesActuales.reduce(
+      (sum, a) => sum + Number(a.horas_asignadas),
+      0,
+    );
 
     if (!dto.horario_id) {
       const nuevaTotal = horasLectivasActuales + duracionHoras;
@@ -413,29 +518,41 @@ export class AsignadorLectivoService {
       }
     }
 
-    if (ambiente.capacidad && dto.nro_alumnos && dto.nro_alumnos > ambiente.capacidad) {
-      advertencias.push(`Alumnos (${dto.nro_alumnos}) excede capacidad (${ambiente.capacidad})`);
+    if (
+      ambiente.capacidad &&
+      dto.nro_alumnos &&
+      dto.nro_alumnos > ambiente.capacidad
+    ) {
+      advertencias.push(
+        `Alumnos (${dto.nro_alumnos}) excede capacidad (${ambiente.capacidad})`,
+      );
     }
 
     return { valido: errores.length === 0, errores, advertencias };
   }
 
   async asignar(dto: CrearHorarioLectivoDto, usuario: UsuarioAutenticado) {
-    const periodo = await this.periodoRepo.findOne({ where: { id: Number(dto.periodo) } });
+    const periodo = await this.periodoRepo.findOne({
+      where: { codigo: dto.periodo },
+    });
     const periodoCodigo = periodo?.codigo || dto.periodo;
+    const periodoId = periodo?.id ?? 0;
 
-    const validacion = await this.validar({
-      docente_id: dto.docente_id,
-      curso_id: dto.curso_id,
-      ambiente_id: dto.ambiente_id,
-      periodo: periodoCodigo,
-      dia: dto.dia,
-      hora_inicio: dto.hora_inicio,
-      hora_fin: dto.hora_fin,
-      tipo_clase: dto.tipo_clase,
-      grupo_id: dto.grupo_id,
-      nro_alumnos: dto.nro_alumnos,
-    }, usuario.contextoAcademico);
+    const validacion = await this.validar(
+      {
+        docente_id: dto.docente_id,
+        curso_id: dto.curso_id,
+        ambiente_id: dto.ambiente_id,
+        periodo: periodoCodigo,
+        dia: dto.dia,
+        hora_inicio: dto.hora_inicio,
+        hora_fin: dto.hora_fin,
+        tipo_clase: dto.tipo_clase,
+        grupo_id: dto.grupo_id,
+        nro_alumnos: dto.nro_alumnos,
+      },
+      usuario.contextoAcademico,
+    );
 
     if (!validacion.valido) {
       throw new BadRequestException({
@@ -466,7 +583,7 @@ export class AsignadorLectivoService {
         where: {
           docente_id: dto.docente_id,
           curso_plan_id: dto.curso_plan_id,
-          periodo_id: Number(dto.periodo),
+          periodo_id: periodoId,
           tipo_clase: dto.tipo_clase,
           seccion: dto.seccion,
           grupo_id: dto.grupo_id ?? IsNull(),
@@ -477,12 +594,15 @@ export class AsignadorLectivoService {
         const asig = this.asignacionRepo.create({
           docente_id: dto.docente_id,
           curso_plan_id: dto.curso_plan_id,
-          periodo_id: Number(dto.periodo),
+          periodo_id: periodoId,
           grupo_id: dto.grupo_id,
           tipo_clase: dto.tipo_clase,
           seccion: dto.seccion,
           nro_alumnos: dto.nro_alumnos || 0,
-          horas_asignadas: this.calcularDuracionHoras(dto.hora_inicio, dto.hora_fin),
+          horas_asignadas: this.calcularDuracionHoras(
+            dto.hora_inicio,
+            dto.hora_fin,
+          ),
           estado: EstadoAsignacionLectiva.PENDIENTE,
           asignado_por_id: usuario.id,
         });
@@ -513,25 +633,37 @@ export class AsignadorLectivoService {
     return { id: saved.id, mensaje: "Asignación creada exitosamente" };
   }
 
-  async mover(id: number, dto: CrearHorarioLectivoDto, usuario: UsuarioAutenticado) {
-    const existente = await this.horarioRepo.findOne({ where: { id }, relations: ["curso", "ambiente"] });
+  async mover(
+    id: number,
+    dto: CrearHorarioLectivoDto,
+    usuario: UsuarioAutenticado,
+  ) {
+    const existente = await this.horarioRepo.findOne({
+      where: { id },
+      relations: ["curso", "ambiente"],
+    });
     if (!existente) throw new NotFoundException(`Horario #${id} no encontrado`);
 
-    const periodo = await this.periodoRepo.findOne({ where: { id: Number(dto.periodo) } });
+    const periodo = await this.periodoRepo.findOne({
+      where: { codigo: dto.periodo },
+    });
     const periodoCodigo = periodo?.codigo || dto.periodo;
 
-    const validacion = await this.validar({
-      docente_id: dto.docente_id,
-      curso_id: dto.curso_id,
-      ambiente_id: dto.ambiente_id,
-      periodo: periodoCodigo,
-      dia: dto.dia,
-      hora_inicio: dto.hora_inicio,
-      hora_fin: dto.hora_fin,
-      tipo_clase: dto.tipo_clase,
-      grupo_id: dto.grupo_id,
-      horario_id: id,
-    }, usuario.contextoAcademico);
+    const validacion = await this.validar(
+      {
+        docente_id: dto.docente_id,
+        curso_id: dto.curso_id,
+        ambiente_id: dto.ambiente_id,
+        periodo: periodoCodigo,
+        dia: dto.dia,
+        hora_inicio: dto.hora_inicio,
+        hora_fin: dto.hora_fin,
+        tipo_clase: dto.tipo_clase,
+        grupo_id: dto.grupo_id,
+        horario_id: id,
+      },
+      usuario.contextoAcademico,
+    );
 
     if (!validacion.valido) {
       throw new BadRequestException({
@@ -620,24 +752,42 @@ export class AsignadorLectivoService {
     await this.resolvePeriodo(periodoId);
 
     const docentes = await this.getDocentes(periodoId, contexto);
-    const cursosPendientes = await this.getCursosPendientes(periodoId, contexto);
+    const cursosPendientes = await this.getCursosPendientes(
+      periodoId,
+      contexto,
+    );
 
     const totalDocentes = docentes.length;
-    const docentesCompletos = docentes.filter(d => d.horasLectivasAsignadas >= 16).length;
+    const docentesCompletos = docentes.filter(
+      (d) => d.horasLectivasAsignadas >= 16,
+    ).length;
     const docentesIncompletos = totalDocentes - docentesCompletos;
     const totalCursos = cursosPendientes.length;
     const totalHorasPendientes = cursosPendientes.reduce((sum, c) => {
-      return sum + (c.horasTeoria - c.horasAsignadasTeoria)
-        + (c.horasPractica - c.horasAsignadasPractica)
-        + (c.horasLaboratorio - c.horasAsignadasLaboratorio);
+      return (
+        sum +
+        (c.horasTeoria - c.horasAsignadasTeoria) +
+        (c.horasPractica - c.horasAsignadasPractica) +
+        (c.horasLaboratorio - c.horasAsignadasLaboratorio)
+      );
     }, 0);
 
-    const totalHorasRequeridas = docentes.reduce((sum, d) => sum + d.horasLectivasMax, 0);
-    const totalHorasAsignadas = docentes.reduce((sum, d) => sum + d.horasLectivasAsignadas, 0);
+    const totalHorasRequeridas = docentes.reduce(
+      (sum, d) => sum + d.horasLectivasMax,
+      0,
+    );
+    const totalHorasAsignadas = docentes.reduce(
+      (sum, d) => sum + d.horasLectivasAsignadas,
+      0,
+    );
 
-    const distribucionCiclos: Record<number, { total: number; asignados: number }> = {};
+    const distribucionCiclos: Record<
+      number,
+      { total: number; asignados: number }
+    > = {};
     for (const c of cursosPendientes) {
-      if (!distribucionCiclos[c.ciclo]) distribucionCiclos[c.ciclo] = { total: 0, asignados: 0 };
+      if (!distribucionCiclos[c.ciclo])
+        distribucionCiclos[c.ciclo] = { total: 0, asignados: 0 };
       distribucionCiclos[c.ciclo].total++;
     }
 
@@ -649,9 +799,10 @@ export class AsignadorLectivoService {
       totalHorasPendientes: Math.round(totalHorasPendientes),
       totalHorasRequeridas,
       totalHorasAsignadas,
-      porcentajeAvance: totalHorasRequeridas > 0
-        ? Math.round((totalHorasAsignadas / totalHorasRequeridas) * 100)
-        : 0,
+      porcentajeAvance:
+        totalHorasRequeridas > 0
+          ? Math.round((totalHorasAsignadas / totalHorasRequeridas) * 100)
+          : 0,
       distribucionCiclos,
     };
   }
@@ -669,11 +820,16 @@ export class AsignadorLectivoService {
 
   private getBadge(tipoClase: string): string {
     switch (tipoClase) {
-      case TipoClase.TEORIA: return "TEO";
-      case TipoClase.PRACTICA: return "PRA";
-      case TipoClase.LABORATORIO: return "LAB";
-      case TipoClase.NO_LECTIVA: return "NL";
-      default: return "??";
+      case TipoClase.TEORIA:
+        return "TEO";
+      case TipoClase.PRACTICA:
+        return "PRA";
+      case TipoClase.LABORATORIO:
+        return "LAB";
+      case TipoClase.NO_LECTIVA:
+        return "NL";
+      default:
+        return "??";
     }
   }
 }

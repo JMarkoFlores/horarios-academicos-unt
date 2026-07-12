@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -6,63 +6,85 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
+import { TranslateModule } from '@ngx-translate/core';
 import { AmbienteDisponible } from '../../models/asignador.models';
+import { toSafeString, toSafeNumber } from '@app/shared/utils/sanitize';
 
 @Component({
   selector: 'app-panel-ambientes',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, MatInputModule, MatFormFieldModule, MatTooltipModule, MatChipsModule],
+  imports: [CommonModule, FormsModule, MatIconModule, MatInputModule, MatFormFieldModule, MatTooltipModule, MatChipsModule, TranslateModule],
   template: `
     <div class="panel">
       <div class="panel__header">
         <div class="panel__header-left">
           <mat-icon>meeting_room</mat-icon>
-          <span class="panel__title">Ambientes</span>
+          <span class="panel__title">{{ 'panelAmbientes.title' | translate }}</span>
         </div>
-        <span class="panel__count">{{ ambientesFiltrados.length }}</span>
+        <span class="panel__count">{{ ambientesFiltrados().length }}</span>
       </div>
 
       <div class="panel__search">
         <mat-form-field appearance="outline" class="panel__search-field">
           <mat-icon matPrefix>search</mat-icon>
-          <input matInput placeholder="Buscar aula..." [(ngModel)]="busqueda">
+          <input matInput [placeholder]="'panelAmbientes.searchPlaceholder' | translate" [value]="busqueda()" (input)="onBusquedaChange($event)">
         </mat-form-field>
       </div>
 
       <div class="panel__filters">
-        <mat-chip-listbox [(ngModel)]="filtroTipo" (change)="onFiltroChange()">
-          <mat-chip-option value="all" selected>Todos</mat-chip-option>
-          <mat-chip-option value="AULA">Aulas</mat-chip-option>
-          <mat-chip-option value="LABORATORIO">Laboratorios</mat-chip-option>
-          <mat-chip-option value="SALA_DE_COMPUTO">Computo</mat-chip-option>
-        </mat-chip-listbox>
+        <div class="panel__filter-row">
+          <span class="panel__filter-label">{{ 'panelAmbientes.filter.tipo' | translate }}</span>
+          <mat-chip-listbox [value]="filtroTipo()" (change)="onFiltroTipoChange($event.value)">
+            <mat-chip-option value="all" selected>{{ 'panelAmbientes.filter.all' | translate }}</mat-chip-option>
+            <mat-chip-option value="AULA">{{ 'panelAmbientes.filter.aula' | translate }}</mat-chip-option>
+            <mat-chip-option value="LABORATORIO">{{ 'panelAmbientes.filter.laboratorio' | translate }}</mat-chip-option>
+            <mat-chip-option value="SALA_DE_COMPUTO">{{ 'panelAmbientes.filter.computo' | translate }}</mat-chip-option>
+          </mat-chip-listbox>
+        </div>
+        <div class="panel__filter-row">
+          <span class="panel__filter-label">{{ 'panelAmbientes.filter.capacidad' | translate }}</span>
+          <mat-chip-listbox [value]="filtroCapacidad()" (change)="onFiltroCapacidadChange($event.value)">
+            <mat-chip-option value="all" selected>{{ 'panelAmbientes.filter.all' | translate }}</mat-chip-option>
+            <mat-chip-option value="small">≤20</mat-chip-option>
+            <mat-chip-option value="medium">21-40</mat-chip-option>
+            <mat-chip-option value="large">41+</mat-chip-option>
+          </mat-chip-listbox>
+        </div>
+        <div class="panel__filter-row">
+          <span class="panel__filter-label">{{ 'panelAmbientes.filter.disponibilidad' | translate }}</span>
+          <mat-chip-listbox [value]="filtroDisponibilidad()" (change)="onFiltroDisponibilidadChange($event.value)">
+            <mat-chip-option value="all" selected>{{ 'panelAmbientes.filter.all' | translate }}</mat-chip-option>
+            <mat-chip-option value="libre">{{ 'panelAmbientes.filter.libre' | translate }}</mat-chip-option>
+            <mat-chip-option value="parcial">{{ 'panelAmbientes.filter.parcial' | translate }}</mat-chip-option>
+          </mat-chip-listbox>
+        </div>
       </div>
 
       <div class="panel__legend">
         <div class="legend-item">
           <span class="legend-dot legend-dot--libre"></span>
-          <span>Libre</span>
+          <span>{{ 'panelAmbientes.legend.libre' | translate }}</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot legend-dot--ocupada"></span>
-          <span>Ocupado</span>
+          <span>{{ 'panelAmbientes.legend.ocupada' | translate }}</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot legend-dot--llena"></span>
-          <span>Lleno</span>
+          <span>{{ 'panelAmbientes.legend.llena' | translate }}</span>
         </div>
       </div>
 
       <div class="panel__list">
-        @for (amb of ambientesFiltrados; track amb.id) {
-          <div class="amb-card" [class.amb-card--selected]="ambienteSeleccionadoId === amb.id"
+        @for (amb of ambientesFiltrados(); track amb.id) {
+          <div class="amb-card" [class.amb-card--selected]="ambienteSeleccionadoId() === amb.id"
                (click)="seleccionar.emit(amb)"
                [matTooltip]="getTooltip(amb)">
             <div class="amb-card__status" [class]="'amb-card__status--' + getStatusClass(amb)"></div>
             <div class="amb-card__info">
               <div class="amb-card__row1">
                 <span class="amb-card__codigo">{{ amb.codigo }}</span>
-                <span class="amb-card__cap" [matTooltip]="'Capacidad: ' + amb.capacidad">
+                <span class="amb-card__cap" [matTooltip]="'panelAmbientes.tooltip.capacidad' | translate:{ cap: amb.capacidad }">
                   <mat-icon>person</mat-icon> {{ amb.capacidad }}
                 </span>
               </div>
@@ -77,21 +99,21 @@ import { AmbienteDisponible } from '../../models/asignador.models';
                   <div class="amb-card__bar-fill" [style.width]="getOcupacion(amb) + '%'"
                        [class]="'amb-card__bar-fill--' + getStatusClass(amb)"></div>
                 </div>
-                <span class="amb-card__horas">{{ amb.totalBloquesOcupados }}/30 bloques</span>
+                <span class="amb-card__horas">{{ amb.totalBloquesOcupados }}/30 {{ 'panelAmbientes.bloques' | translate }}</span>
               </div>
             </div>
           </div>
         } @empty {
           <div class="panel__empty">
             <mat-icon>meeting_room</mat-icon>
-            <span>No hay ambientes</span>
+            <span>{{ 'panelAmbientes.empty' | translate }}</span>
           </div>
         }
       </div>
     </div>
   `,
   styles: [`
-    .panel { display: flex; flex-direction: column; height: 100%; }
+    .panel { display: flex; flex-direction: column; height: 100%; background: var(--color-surface, #fff); }
     .panel__header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 12px 16px;
@@ -110,8 +132,11 @@ import { AmbienteDisponible } from '../../models/asignador.models';
     .panel__search-field ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
 
     .panel__filters { padding: 0 12px 8px; }
-    .panel__filters ::ng-deep .mat-mdc-chip-listbox { min-height: 28px; }
-    .panel__filters ::ng-deep .mat-mdc-chip { font-size: 10px; min-height: 24px; }
+    .panel__filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .panel__filter-label { font-size: 10px; font-weight: 600; color: var(--color-text-muted, #94a3b8); min-width: 32px; }
+    .panel__filter-row mat-chip-listbox { flex: 1; }
+    .panel__filter-row ::ng-deep .mat-mdc-chip-listbox { min-height: 28px; }
+    .panel__filter-row ::ng-deep .mat-mdc-chip { font-size: 10px; min-height: 24px; }
 
     .panel__legend {
       display: flex; gap: 12px; padding: 4px 16px 8px;
@@ -162,28 +187,72 @@ import { AmbienteDisponible } from '../../models/asignador.models';
   `],
 })
 export class PanelAmbientesComponent {
-  @Input() ambientes: AmbienteDisponible[] = [];
-  @Input() ambienteSeleccionadoId: number | null = null;
+  ambientes = input.required<AmbienteDisponible[]>();
+  ambienteSeleccionadoId = input<number | null>(null);
+  filtroTipo = input<string>('all');
+  filtroCapacidad = input<string>('all');
+  filtroDisponibilidad = input<string>('all');
+  busqueda = input<string>('');
+
   @Output() seleccionar = new EventEmitter<AmbienteDisponible>();
+  @Output() filtroTipoChange = new EventEmitter<string>();
+  @Output() filtroCapacidadChange = new EventEmitter<string>();
+  @Output() filtroDisponibilidadChange = new EventEmitter<string>();
+  @Output() busquedaChange = new EventEmitter<string>();
 
-  busqueda = '';
-  filtroTipo = 'all';
+  private _ambientes = computed(() => this.ambientes());
+  private _filtroTipo = computed(() => this.filtroTipo());
+  private _filtroCapacidad = computed(() => this.filtroCapacidad());
+  private _filtroDisponibilidad = computed(() => this.filtroDisponibilidad());
+  private _busqueda = computed(() => this.busqueda());
 
-  get ambientesFiltrados(): AmbienteDisponible[] {
-    let result = this.ambientes;
-    if (this.filtroTipo !== 'all') {
-      result = result.filter(a => a.tipo?.toUpperCase().includes(this.filtroTipo));
+  readonly ambientesFiltrados = computed(() => {
+    let result = this._ambientes();
+    const tipo = this._filtroTipo();
+    const capacidad = this._filtroCapacidad();
+    const disponibilidad = this._filtroDisponibilidad();
+    const busq = this._busqueda().toLowerCase().trim();
+
+    if (tipo !== 'all') {
+      result = result.filter(a => toSafeString(a.tipo).toUpperCase().includes(tipo));
     }
-    if (this.busqueda.trim()) {
-      const term = this.busqueda.toLowerCase();
+    if (capacidad !== 'all') {
+      switch (capacidad) {
+        case 'small': result = result.filter(a => toSafeNumber(a.capacidad) <= 20); break;
+        case 'medium': result = result.filter(a => toSafeNumber(a.capacidad) > 20 && toSafeNumber(a.capacidad) <= 40); break;
+        case 'large': result = result.filter(a => toSafeNumber(a.capacidad) > 40); break;
+      }
+    }
+    if (disponibilidad !== 'all') {
+      switch (disponibilidad) {
+        case 'libre': result = result.filter(a => toSafeNumber(a.totalBloquesOcupados) === 0); break;
+        case 'parcial': result = result.filter(a => toSafeNumber(a.totalBloquesOcupados) > 0 && toSafeNumber(a.totalBloquesOcupados) < 25); break;
+      }
+    }
+    if (busq) {
       result = result.filter(a =>
-        a.codigo.toLowerCase().includes(term) || a.nombre.toLowerCase().includes(term)
+        toSafeString(a.codigo).toLowerCase().includes(busq) || toSafeString(a.nombre).toLowerCase().includes(busq)
       );
     }
     return result;
+  });
+
+  onFiltroTipoChange(value: string): void {
+    this.filtroTipoChange.emit(value);
   }
 
-  onFiltroChange(): void {}
+  onFiltroCapacidadChange(value: string): void {
+    this.filtroCapacidadChange.emit(value);
+  }
+
+  onFiltroDisponibilidadChange(value: string): void {
+    this.filtroDisponibilidadChange.emit(value);
+  }
+
+  onBusquedaChange(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.busquedaChange.emit(value);
+  }
 
   getStatusClass(amb: AmbienteDisponible): string {
     const pct = this.getOcupacion(amb);
@@ -193,10 +262,12 @@ export class PanelAmbientesComponent {
   }
 
   getOcupacion(amb: AmbienteDisponible): number {
-    return amb.capacidad > 0 ? Math.round((amb.totalBloquesOcupados / 30) * 100) : 0;
+    const cap = toSafeNumber(amb.capacidad);
+    const ocup = toSafeNumber(amb.totalBloquesOcupados);
+    return cap > 0 ? Math.round((ocup / 30) * 100) : 0;
   }
 
   getTooltip(amb: AmbienteDisponible): string {
-    return `${amb.nombre}\nCap: ${amb.capacidad} | ${amb.tipo}\nPiso ${amb.piso || '?'} ${amb.pabellon || ''}\nOcupación: ${amb.totalBloquesOcupados}/30 bloques`;
+    return `${toSafeString(amb.nombre)}\nCap: ${toSafeNumber(amb.capacidad)} | ${toSafeString(amb.tipo)}\nPiso ${amb.piso || '?'} ${toSafeString(amb.pabellon)}\nOcupación: ${toSafeNumber(amb.totalBloquesOcupados)}/30 bloques`;
   }
 }

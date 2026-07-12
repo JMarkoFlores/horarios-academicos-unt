@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnChanges, SimpleChanges, computed, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,7 +8,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
-import { MiniFormularioData, COLORES_TIPO_CLASE, AmbienteDisponible } from '../../models/asignador.models';
+import { TranslateModule } from '@ngx-translate/core';
+import { MiniFormularioData, COLORES_TIPO_CLASE, AmbienteDisponible, GrupoInfo } from '../../models/asignador.models';
+import { toSafeString, toSafeNumber } from '@app/shared/utils/sanitize';
 
 @Component({
   selector: 'app-mini-formulario',
@@ -17,24 +19,25 @@ import { MiniFormularioData, COLORES_TIPO_CLASE, AmbienteDisponible } from '../.
     CommonModule, FormsModule, ReactiveFormsModule,
     MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatTooltipModule, MatChipsModule,
+    TranslateModule,
   ],
   template: `
-    @if (visible && data) {
+    @if (visible() && data()) {
       <div class="mini-overlay" (click)="onCancel()">
         <div class="mini-form" (click)="$event.stopPropagation()">
           <div class="mini-form__header">
-            <div class="mini-form__header-left">
-              <span class="mini-form__tipo" [style.background]="getTipoColor(data.tipoClase).light"
-                    [style.color]="getTipoColor(data.tipoClase).text"
-                    [style.border-color]="getTipoColor(data.tipoClase).border">
-                {{ formatTipo(data.tipoClase) }}
-              </span>
+<div class="mini-form__header-left">
+            <span class="mini-form__tipo" [style.background]="getTipoColor(data()!.tipoClase).light"
+                  [style.color]="getTipoColor(data()!.tipoClase).text"
+                  [style.border-color]="getTipoColor(data()!.tipoClase).border">
+              {{ formatTipo(data()!.tipoClase) }}
+            </span>
               <div class="mini-form__curso-info">
-                <span class="mini-form__curso-codigo">{{ data.curso.codigo }}</span>
-                <span class="mini-form__curso-nombre">{{ data.curso.nombre }}</span>
+                <span class="mini-form__curso-codigo">{{ data()!.curso.codigo }}</span>
+                <span class="mini-form__curso-nombre">{{ data()!.curso.nombre }}</span>
               </div>
             </div>
-            <button mat-icon-button (click)="onCancel()" matTooltip="Cerrar (Esc)">
+            <button mat-icon-button (click)="onCancel()" matTooltip="{{ 'miniFormulario.close' | translate }} (Esc)">
               <mat-icon>close</mat-icon>
             </button>
           </div>
@@ -43,37 +46,37 @@ import { MiniFormularioData, COLORES_TIPO_CLASE, AmbienteDisponible } from '../.
             <div class="mini-form__resumen">
               <div class="mini-form__resumen-item">
                 <mat-icon>calendar_today</mat-icon>
-                <span>{{ getDiaLabel(data.dia) }}</span>
+                <span>{{ getDiaLabel(data()!.dia) }}</span>
               </div>
               <div class="mini-form__resumen-item">
                 <mat-icon>schedule</mat-icon>
-                <span>{{ data.horaInicio }} – {{ data.horaFin }}</span>
+                <span>{{ data()!.horaInicio }} – {{ data()!.horaFin }}</span>
               </div>
               <div class="mini-form__resumen-item">
                 <mat-icon>person</mat-icon>
-                <span>{{ data.docente.apellido }}, {{ data.docente.nombre }}</span>
+                <span>{{ data()!.docente.apellido }}, {{ data()!.docente.nombre }}</span>
               </div>
             </div>
 
             <form [formGroup]="form" class="mini-form__form">
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Grupo / Sección</mat-label>
+                <mat-label>{{ 'miniFormulario.grupo' | translate }}</mat-label>
                 <mat-select formControlName="grupo_id" (selectionChange)="onGrupoChange()">
-                  @for (g of data.grupos; track g.id) {
+                  @for (g of data()!.grupos; track g.id) {
                     <mat-option [value]="g.id">
-                      {{ g.codigo }} — {{ g.nombre }} ({{ g.tipo }})
+                      {{ safeGrupoNombre(g) }}
                     </mat-option>
                   }
                 </mat-select>
                 @if (form.get('grupo_id')?.hasError('required') && form.get('grupo_id')?.touched) {
-                  <mat-error>Selecciona un grupo</mat-error>
+                  <mat-error>{{ 'miniFormulario.error.requiredGrupo' | translate }}</mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Aula / Ambiente</mat-label>
+                <mat-label>{{ 'miniFormulario.ambiente' | translate }}</mat-label>
                 <mat-select formControlName="ambiente_id">
-                  @for (a of ambientesDisponibles; track a.id) {
+                  @for (a of ambientesDisponibles(); track a.id) {
                     <mat-option [value]="a.id" [matTooltip]="a.nombre + ' — Cap: ' + a.capacidad">
                       {{ a.codigo }} — {{ a.nombre }}
                       <span class="amb-cap">({{ a.capacidad }})</span>
@@ -81,44 +84,44 @@ import { MiniFormularioData, COLORES_TIPO_CLASE, AmbienteDisponible } from '../.
                   }
                 </mat-select>
                 @if (form.get('ambiente_id')?.hasError('required') && form.get('ambiente_id')?.touched) {
-                  <mat-error>Selecciona un aula</mat-error>
+                  <mat-error>{{ 'miniFormulario.error.requiredAmbiente' | translate }}</mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>N° Alumnos</mat-label>
+                <mat-label>{{ 'miniFormulario.nroAlumnos' | translate }}</mat-label>
                 <input matInput type="number" formControlName="nro_alumnos" min="1" max="60">
                 @if (form.get('nro_alumnos')?.hasError('min')) {
-                  <mat-error>Mínimo 1 alumno</mat-error>
+                  <mat-error>{{ 'miniFormulario.error.minAlumnos' | translate }}</mat-error>
                 }
                 @if (form.get('nro_alumnos')?.hasError('max')) {
-                  <mat-error>Máximo 60 alumnos</mat-error>
+                  <mat-error>{{ 'miniFormulario.error.maxAlumnos' | translate }}</mat-error>
                 }
               </mat-form-field>
             </form>
 
-            @if (selectedAmbiente) {
+            @if (selectedAmbiente()) {
               <div class="mini-form__ambiente-preview">
                 <div class="mini-form__ambiente-header">
                   <mat-icon>meeting_room</mat-icon>
-                  <span>{{ selectedAmbiente.codigo }} — {{ selectedAmbiente.nombre }}</span>
+                  <span>{{ selectedAmbiente()!.codigo }} — {{ selectedAmbiente()!.nombre }}</span>
                 </div>
                 <div class="mini-form__ambiente-details">
-                  <span>Cap: {{ selectedAmbiente.capacidad }}</span>
-                  <span>Tipo: {{ selectedAmbiente.tipo }}</span>
-                  <span>Ocupación: {{ selectedAmbiente.totalBloquesOcupados }}/30 bloques</span>
+                  <span>Cap: {{ selectedAmbiente()!.capacidad }}</span>
+                  <span>Tipo: {{ selectedAmbiente()!.tipo }}</span>
+                  <span>Ocupación: {{ selectedAmbiente()!.totalBloquesOcupados }}/30 bloques</span>
                 </div>
               </div>
             }
           </div>
 
           <div class="mini-form__footer">
-            <button mat-stroked-button (click)="onCancel()">Cancelar</button>
-            <button mat-flat-button color="primary" [disabled]="form.invalid || guardando" (click)="onConfirm()">
-              @if (guardando) {
+            <button mat-stroked-button (click)="onCancel()">{{ 'miniFormulario.cancel' | translate }}</button>
+            <button mat-flat-button color="primary" [disabled]="form.invalid || guardando()" (click)="onConfirm()">
+              @if (guardando()) {
                 <mat-icon class="spin">sync</mat-icon>
               }
-              Asignar
+              {{ 'miniFormulario.confirm' | translate }}
             </button>
           </div>
         </div>
@@ -194,14 +197,14 @@ import { MiniFormularioData, COLORES_TIPO_CLASE, AmbienteDisponible } from '../.
   `],
 })
 export class MiniFormularioComponent implements OnInit, OnChanges {
-  @Input() visible = false;
-  @Input() data: MiniFormularioData | null = null;
-  @Input() ambientes: AmbienteDisponible[] = [];
+  visible = input<boolean>(false);
+  data = input<MiniFormularioData | null>(null);
+  ambientes = input<AmbienteDisponible[]>([]);
   @Output() confirmar = new EventEmitter<any>();
   @Output() cancelar = new EventEmitter<void>();
 
   form!: FormGroup;
-  guardando = false;
+  guardando = signal(false);
 
   constructor(private fb: FormBuilder) {}
 
@@ -210,9 +213,10 @@ export class MiniFormularioComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['data'] && this.data && this.form) {
+    if (changes['data'] && this.data() && this.form) {
+      this.guardando.set(false);
       this.form.patchValue({
-        grupo_id: this.data.grupos?.length === 1 ? this.data.grupos[0].id : null,
+        grupo_id: this.data()!.grupos?.length === 1 ? this.data()!.grupos[0].id : null,
         ambiente_id: null,
         nro_alumnos: 30,
       });
@@ -221,20 +225,20 @@ export class MiniFormularioComponent implements OnInit, OnChanges {
 
   private initForm(): void {
     this.form = this.fb.group({
-      grupo_id: [null, Validators.required],
+      grupo_id: [null],
       ambiente_id: [null, Validators.required],
       nro_alumnos: [30, [Validators.required, Validators.min(1), Validators.max(60)]],
     });
   }
 
-  get ambientesDisponibles(): AmbienteDisponible[] {
-    return this.ambientes.filter(a => a.activo && a.estado === 'ACTIVO');
-  }
+  ambientesDisponibles = computed(() =>
+    this.ambientes().filter((a: AmbienteDisponible) => a.activo && a.estado === 'ACTIVO')
+  );
 
-  get selectedAmbiente(): AmbienteDisponible | null {
+  selectedAmbiente = computed(() => {
     const id = this.form?.get('ambiente_id')?.value;
-    return this.ambientes.find(a => a.id === id) || null;
-  }
+    return this.ambientes().find((a: AmbienteDisponible) => a.id === id) || null;
+  });
 
   getDiaLabel(dia: number): string {
     const dias = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -250,10 +254,14 @@ export class MiniFormularioComponent implements OnInit, OnChanges {
     return COLORES_TIPO_CLASE[tipo] || COLORES_TIPO_CLASE['TEORIA'];
   }
 
+  safeGrupoNombre(g: GrupoInfo): string {
+    return `${toSafeString(g.codigo)} — ${toSafeString(g.nombre)} (${toSafeString(g.tipo)})`;
+  }
+
   onGrupoChange(): void {
-    const grupo = this.data?.grupos.find(g => g.id === this.form.get('grupo_id')?.value);
+    const grupo = this.data()?.grupos.find((g: GrupoInfo) => g.id === this.form.get('grupo_id')?.value);
     if (grupo) {
-      this.form.patchValue({ nro_alumnos: grupo.cupoMaximo || 30 });
+      this.form.patchValue({ nro_alumnos: toSafeNumber(grupo.cupoMaximo) || 30 });
     }
   }
 
@@ -262,21 +270,21 @@ export class MiniFormularioComponent implements OnInit, OnChanges {
   }
 
   onConfirm(): void {
-    if (this.form.invalid || !this.data) return;
-    this.guardando = true;
+    if (this.form.invalid || !this.data()) return;
+    this.guardando.set(true);
     const vals = this.form.value;
     this.confirmar.emit({
-      docente_id: this.data.docente.id,
-      curso_id: this.data.curso.cursoId,
+      docente_id: this.data()!.docente.id,
+      curso_id: this.data()!.curso.cursoId,
       grupo_id: vals.grupo_id,
       ambiente_id: vals.ambiente_id,
-      periodo: '',
-      dia: this.data.dia,
-      hora_inicio: this.data.horaInicio,
-      hora_fin: this.data.horaFin,
-      tipo_clase: this.data.tipoClase,
-      curso_plan_id: this.data.curso.cursoPlanId,
-      seccion: this.data.curso.codigo,
+      periodo: this.data()!.periodo || '',
+      dia: this.data()!.dia,
+      hora_inicio: this.data()!.horaInicio,
+      hora_fin: this.data()!.horaFin,
+      tipo_clase: this.data()!.tipoClase,
+      curso_plan_id: this.data()!.curso.cursoPlanId,
+      seccion: this.data()!.curso.codigo,
       nro_alumnos: vals.nro_alumnos,
     });
   }

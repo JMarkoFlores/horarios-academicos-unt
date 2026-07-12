@@ -14,6 +14,7 @@ export interface CursoPendiente {
   tiposRequeridos: string[];
   grupos: GrupoInfo[];
   totalAlumnos: number;
+  departamentoId?: number;
 }
 
 export interface GrupoInfo {
@@ -36,7 +37,7 @@ export interface DocenteAsignador {
   horasLectivasMax: number;
   horasNoLectivas: number;
   horasRestantes: number;
-  departamentoId: number;
+  departamentoId: number | undefined;
   departamentoNombre: string;
   enSuspension: boolean;
   bloquesExistentes: BloqueHorario[];
@@ -109,6 +110,7 @@ export interface MiniFormularioData {
   tipoClase: string;
   grupos: GrupoInfo[];
   ambientes: AmbienteDisponible[];
+  periodo?: string;
 }
 
 export const COLORES_TIPO_CLASE: Record<string, { bg: string; border: string; text: string; light: string }> = {

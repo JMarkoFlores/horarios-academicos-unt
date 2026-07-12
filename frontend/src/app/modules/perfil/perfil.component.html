@@ -86,6 +86,13 @@
                     <input matInput formControlName="email" [readonly]="!editandoPerfil" />
                     <mat-error>Correo inválido</mat-error>
                   </mat-form-field>
+                  <mat-form-field appearance="outline" class="form-field">
+                    <mat-label>Correo alternativo (opcional)</mat-label>
+                    <mat-icon matPrefix>alternate_email</mat-icon>
+                    <input matInput formControlName="email_alternativo" autocomplete="email" placeholder="ejemplo@gmail.com" [readonly]="!editandoPerfil" />
+                    <mat-error>Correo alternativo inválido</mat-error>
+                    <mat-hint>Se usará para notificaciones y recuperación de contraseña</mat-hint>
+                  </mat-form-field>
                 </div>
               </form>
             </div>
@@ -139,6 +146,13 @@
                   <div class="detail-content">
                     <span class="detail-label">Idioma preferido</span>
                     <span class="detail-value">{{ (usuario.idiomaPreferido || 'es' | uppercase) }}</span>
+                  </div>
+                </div>
+                <div class="detail-item" *ngIf="usuario.email_alternativo">
+                  <div class="detail-icon-box"><mat-icon>alternate_email</mat-icon></div>
+                  <div class="detail-content">
+                    <span class="detail-label">Correo alternativo</span>
+                    <span class="detail-value">{{ usuario.email_alternativo }}</span>
                   </div>
                 </div>
               </div>

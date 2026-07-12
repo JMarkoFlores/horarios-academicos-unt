@@ -283,7 +283,10 @@ export class PlanEstudiosService {
       throw new NotFoundException(
         `Curso en plan #${cursoPlanId} no encontrado`,
       );
-    cp.estado = cp.estado === EstadoCursoPlan.ACTIVO ? EstadoCursoPlan.DESACTUALIZADO : EstadoCursoPlan.ACTIVO;
+    cp.estado =
+      cp.estado === EstadoCursoPlan.ACTIVO
+        ? EstadoCursoPlan.DESACTUALIZADO
+        : EstadoCursoPlan.ACTIVO;
     return this.cursoPlanRepo.save(cp);
   }
 

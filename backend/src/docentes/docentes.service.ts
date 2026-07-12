@@ -100,7 +100,6 @@ export class DocentesService {
 
   private readonly logger = new Logger(DocentesService.name);
 
-
   async findAll(query: QueryDocenteDto, contexto?: ContextoAcademico) {
     const {
       page = 1,
@@ -1053,7 +1052,7 @@ export class DocentesService {
       where: { id: cursoId },
       relations: ["ambientes"],
     });
-    let ambientes = curso?.ambientes ?? [];
+    const ambientes = curso?.ambientes ?? [];
     this.logger.debug(
       `[findAmbientesCompatibles] ambientes directos del curso: ${ambientes.length}`,
     );
@@ -1091,9 +1090,7 @@ export class DocentesService {
         ? [TipoAmbiente.LABORATORIO]
         : [TipoAmbiente.AULA, TipoAmbiente.TALLER];
 
-    const filtrados = ambientes.filter((a) =>
-      tiposPermitidos.includes(a.tipo),
-    );
+    const filtrados = ambientes.filter((a) => tiposPermitidos.includes(a.tipo));
 
     this.logger.debug(
       `[findAmbientesCompatibles] compatibles (${tipoClase}): ${filtrados.length}`,

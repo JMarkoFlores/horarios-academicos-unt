@@ -432,7 +432,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       case 'CONFIRMADO':
         if (celda.metadata?.ocupaciones) {
           return celda.metadata.ocupaciones.map((o: any) =>
-            `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''})`
+            `${o.docenteId ? 'Docente ' + String(o.docenteId) : ''}${o.cursoNombre ? ' — ' + String(o.cursoNombre) : ''}${o.tipoClase ? ' (' + String(o.tipoClase) : ''}${o.grupoId ? ', G' + String(o.grupoId) : ''})`
           ).join('\n');
         }
         const docente = celda.metadata?.docenteNombre || `Docente ${celda.metadata?.docenteId || ''}`;
@@ -449,7 +449,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       case 'CONFIRMADO_DOCENTE':
         if (celda.metadata?.ocupaciones) {
           return celda.metadata.ocupaciones.map((o: any) =>
-            `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''})`
+            `${o.docenteId ? 'Docente ' + String(o.docenteId) : ''}${o.cursoNombre ? ' — ' + String(o.cursoNombre) : ''}${o.tipoClase ? ' (' + String(o.tipoClase) : ''}${o.grupoId ? ', G' + String(o.grupoId) : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''})`
           ).join('\n');
         }
         const cursoDocente = celda.metadata?.cursoNombre || '';
@@ -465,13 +465,13 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       case 'CONFIRMADO_MULTIPLE':
         return celda.metadata?.ocupaciones?.length > 0
           ? `${celda.metadata.ocupaciones.length} ocupaciones:\n${celda.metadata.ocupaciones.map((o: any) =>
-              `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}`
-            ).join('\n')}`
+              `${o.docenteId ? 'Docente ' + String(o.docenteId) : ''}${o.cursoNombre ? ' — ' + String(o.cursoNombre) : ''}${o.tipoClase ? ' (' + String(o.tipoClase) : ''}${o.grupoId ? ', G' + String(o.grupoId) : ''}`
+            ).join ('\n')}`
           : 'Múltiples ocupaciones';
       case 'CONFIRMADO_DOCENTE_MULTIPLE':
         return celda.metadata?.ocupaciones?.length > 0
           ? `Tu horario + ${celda.metadata.ocupaciones.length - 1} más:\n${celda.metadata.ocupaciones.map((o: any) =>
-              `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''}`
+              `${o.docenteId ? 'Docente ' + String(o.docenteId) : ''}${o.cursoNombre ? ' — ' + String(o.cursoNombre) : ''}${o.tipoClase ? ' (' + String(o.tipoClase) : ''}${o.grupoId ? ', G' + String(o.grupoId) : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''}`
             ).join('\n')}`
           : 'Tu horario + más ocupaciones';
       case 'TEMPORAL_OTRO': return 'Reservado temporalmente por otro operador';
@@ -479,7 +479,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       case 'TEMPORAL_PROPIO_MULTIPLE':
         return celda.metadata?.ocupaciones?.length > 0
           ? `Tu selección + ${celda.metadata.ocupaciones.length - 1} más:\n${celda.metadata.ocupaciones.map((o: any) =>
-              `Docente ${o.docenteId}${o.cursoId ? ' — Curso ' + o.cursoId : ''}`
+              `Docente ${String(o.docenteId)}${o.cursoId ? ' — Curso ' + String(o.cursoId) : ''}`
             ).join('\n')}`
           : 'Tu selección + más bloques';
       default: return '';

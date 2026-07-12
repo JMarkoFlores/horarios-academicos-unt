@@ -128,7 +128,7 @@
         >
           @if (!sidebarCollapsed() || isMobile()) {
             <div class="group-header" (click)="toggleGroup(group)">
-              <span class="group-label">{{ group.label | translate }}</span>
+              <span class="group-label">{{ group.label ? (group.label | translate) : '' }}</span>
               <mat-icon class="group-chevron">{{
                 group.expanded ? "expand_less" : "expand_more"
               }}</mat-icon>
@@ -152,24 +152,24 @@
                   routerLinkActive="active-link"
                   [routerLinkActiveOptions]="{exact: false}"
                   #rla="routerLinkActive"
-                  [matTooltip]="sidebarCollapsed() ? (item.label | translate) : ''"
+                  [matTooltip]="sidebarCollapsed() ? (item.label ? (item.label | translate) : '') : ''"
                   matTooltipPosition="right"
                   class="nav-item"
                 >
                   <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
-                  <span matListItemTitle class="item-label">{{ item.label | translate }}</span>
+                  <span matListItemTitle class="item-label">{{ item.label ? (item.label | translate) : '' }}</span>
                 </a>
               }
               @if (item.action) {
                 <button
                   mat-list-item
                   (click)="item.action()"
-                  [matTooltip]="sidebarCollapsed() ? (item.label | translate) : ''"
+                  [matTooltip]="sidebarCollapsed() ? (item.label ? (item.label | translate) : '') : ''"
                   matTooltipPosition="right"
                   class="nav-item action-item"
                 >
                   <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
-                  <span matListItemTitle class="item-label">{{ item.label | translate }}</span>
+                  <span matListItemTitle class="item-label">{{ item.label ? (item.label | translate) : '' }}</span>
                 </button>
               }
             }
@@ -248,8 +248,10 @@
             class="topbar-btn"
             (click)="toggleDarkMode()"
             matTooltip="Cambiar Tema"
+            [attr.aria-pressed]="themeService.isDark()"
+            [attr.aria-label]="themeService.isDark() ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
           >
-            <mat-icon>{{ isDark() ? "light_mode" : "dark_mode" }}</mat-icon>
+            <mat-icon>{{ themeService.isDark() ? "light_mode" : "dark_mode" }}</mat-icon>
           </button>
 
           <!-- Selector de idioma (oculto en móviles) -->

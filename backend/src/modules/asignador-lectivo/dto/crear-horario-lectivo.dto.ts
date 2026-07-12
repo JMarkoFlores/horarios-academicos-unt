@@ -5,6 +5,7 @@ import {
   IsString,
   IsEnum,
   Min,
+  Max,
   MaxLength,
   ValidateNested,
 } from "class-validator";
@@ -21,8 +22,8 @@ export class CrearHorarioLectivoDto {
   curso_id: number;
 
   @IsInt()
-  @IsNotEmpty()
-  grupo_id: number;
+  @IsOptional()
+  grupo_id?: number;
 
   @IsInt()
   @IsNotEmpty()
@@ -35,7 +36,7 @@ export class CrearHorarioLectivoDto {
 
   @IsInt()
   @Min(1)
-  @Min(6)
+  @Max(6)
   dia: number;
 
   @IsString()

@@ -562,7 +562,8 @@ export class DashboardService {
             this.timeToMinutes(h.hora_inicio) < this.timeToMinutes(sig),
         );
         let totalHoras = 0,
-          labHoras = 0;
+          labHoras = 0,
+          practicaHoras = 0;
         for (const h of asig) {
           const hiMinutes = this.timeToMinutes(h.hora_inicio);
           const hfMinutes = this.timeToMinutes(h.hora_fin);
@@ -574,14 +575,20 @@ export class DashboardService {
           const contribucion = Math.max(0, overlap) / 60; // Convert minutes to hours
           totalHoras += contribucion;
           if (h.tipo_clase === TipoClase.LABORATORIO) labHoras += contribucion;
+          else if (h.tipo_clase === TipoClase.PRACTICA)
+            practicaHoras += contribucion;
         }
         const cursoInfo = asig.map((h) => h.curso?.nombre).filter(Boolean);
-        const teoriaHoras = totalHoras - labHoras;
+        const teoriaHoras = totalHoras - labHoras - practicaHoras;
         let tipo_clase = null;
         if (totalHoras > 0) {
-          if (labHoras > teoriaHoras) tipo_clase = "LABORATORIO";
-          else if (teoriaHoras > labHoras) tipo_clase = "TEORIA";
-          else tipo_clase = labHoras > 0 ? "MIXTO" : "TEORIA";
+          if (labHoras > teoriaHoras && labHoras > practicaHoras)
+            tipo_clase = "LABORATORIO";
+          else if (practicaHoras > teoriaHoras && practicaHoras > labHoras)
+            tipo_clase = "PRACTICA";
+          else if (teoriaHoras >= labHoras && teoriaHoras >= practicaHoras)
+            tipo_clase = "TEORIA";
+          else tipo_clase = "MIXTO";
         }
         mapaCalor.push({
           dia: diasNombre[dia],
@@ -619,6 +626,16 @@ export class DashboardService {
       totalConflictos > 0
         ? Math.round((conflictosResueltos / totalConflictos) * 100)
         : 100;
+
+    // ── Distribucion por modalidad (para doughnut) ──
+    const modalidades = [...new Set(docentes.map((d) => d.tipo_contrato))];
+    const distribucionModalidad = modalidades.map((modalidad) => ({
+      modalidad,
+      total: docentes.filter((d) => d.tipo_contrato === modalidad).length,
+      con_horario: docentes.filter(
+        (d) => d.tipo_contrato === modalidad && horasMap.has(d.id),
+      ).length,
+    }));
 
     // ── Histograma carga docente ──
     const rangos = [
@@ -682,6 +699,7 @@ export class DashboardService {
 
     const result = {
       total_docentes: totalDocentes,
+      total_horarios_asignados: horarios.length,
       docentes_con_horario: docentesConHorario,
       docentes_pendientes: totalDocentes - docentesConHorario,
       porcentaje_docentes_asignados:
@@ -706,6 +724,7 @@ export class DashboardService {
       total_cursos: totalCursos,
       cursos_asignados: cursosAsignados,
       cursos_sin_asignar: cursosSinAsignar,
+      distribucion_por_modalidad: distribucionModalidad,
       conflictos_activos: conflictosActivos,
       conflictos_resueltos: conflictosResueltos,
       tasa_resolucion_conflictos: tasaResolucion,

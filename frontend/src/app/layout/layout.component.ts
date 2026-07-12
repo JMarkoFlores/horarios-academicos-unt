@@ -27,6 +27,7 @@ import { ConfiguracionGeneralService } from '../core/services/configuracion-gene
 import { ApiService } from '../core/services/api.service';
 import { SocketService } from '../core/services/socket.service';
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
+import { ThemeService } from '../core/services/theme.service';
 
 import { fromEvent } from 'rxjs';
 
@@ -65,7 +66,6 @@ interface NavGroup {
 export class LayoutComponent implements OnInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   isMobile = signal(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-  isDark = signal(false);
   sidebarCollapsed = signal(false);
   selectedPeriodoCodigo = signal('');
 
@@ -75,6 +75,9 @@ export class LayoutComponent implements OnInit {
   private _visibleNavGroups: NavGroup[] = [];
   private _resizeTimer: any;
   private destroyRef = inject(DestroyRef);
+
+  // Theme service
+  protected themeService = inject(ThemeService);
 
   navGroups: NavGroup[] = [
     {
@@ -91,9 +94,9 @@ export class LayoutComponent implements OnInit {
         { icon: 'people', label: 'sidebar.teachers', route: '/app/docentes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
         { icon: 'menu_book', label: 'sidebar.courses', route: '/app/cursos', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
         { icon: 'meeting_room', label: 'sidebar.environments', route: '/app/ambientes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
-      { icon: 'auto_stories', label: 'sidebar.planEstudios', route: '/app/plan-estudios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
-      { icon: 'book_online', label: 'sidebar.ofertaAcademica', route: '/app/oferta-academica', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
-      { icon: 'assignment', label: 'sidebar.asignacionLectiva', route: '/app/asignacion-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
+        { icon: 'auto_stories', label: 'sidebar.planEstudios', route: '/app/plan-estudios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'book_online', label: 'sidebar.ofertaAcademica', route: '/app/oferta-academica', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'assignment', label: 'sidebar.asignacionLectiva', route: '/app/asignacion-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
         { icon: 'assignment_ind', label: 'sidebar.asignadorCarga', route: '/app/asignador-carga', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.SECRETARIA] },
         { icon: 'event_available', label: 'sidebar.availability', route: '/app/disponibilidad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE] },
         { icon: 'school', label: 'sidebar.teacherFaculty', route: '/app/docente-facultad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
@@ -204,9 +207,6 @@ export class LayoutComponent implements OnInit {
 
   ngOnInit(): void {
     this.configService.cargar();
-    this.isDark.set(false);
-    document.body.classList.remove('dark-theme');
-    document.body.classList.add('light-theme');
     this._computeVisibleNavGroups();
     this.periodoService.cargarPeriodos();
     this._loadNotificacionesCount();
@@ -215,9 +215,9 @@ export class LayoutComponent implements OnInit {
   private _loadNotificacionesCount(): void {
     // Only load admin alerts if user is not a docente
     if (this.authService.hasRole(ROLES.DOCENTE) && !this.authService.hasRole(
-      ROLES.ADMINISTRADOR_SISTEMA, 
-      ROLES.COORDINADOR_ACADEMICO, 
-      ROLES.DIRECTOR_ESCUELA, 
+      ROLES.ADMINISTRADOR_SISTEMA,
+      ROLES.COORDINADOR_ACADEMICO,
+      ROLES.DIRECTOR_ESCUELA,
       ROLES.DIRECTOR_DEPARTAMENTO,
       ROLES.DECANO,
       ROLES.SECRETARIA,
@@ -309,14 +309,7 @@ export class LayoutComponent implements OnInit {
   }
 
   toggleDarkMode(): void {
-    this.isDark.update(v => !v);
-    if (this.isDark()) {
-      document.body.classList.add('dark-theme');
-      document.body.classList.remove('light-theme');
-    } else {
-      document.body.classList.remove('dark-theme');
-      document.body.classList.add('light-theme');
-    }
+    this.themeService.cycleTheme();
   }
 
   openRegistrarUsuario(): void {

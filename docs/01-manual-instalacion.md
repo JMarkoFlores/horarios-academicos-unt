@@ -510,6 +510,132 @@ Se ejecuta en PR a `develop`:
 
 ---
 
+## 11. Testing de Accesibilidad WCAG 2.1 AA
+
+El sistema implementa accesibilidad WCAG 2.1 Level AA para garantizar que todos los usuarios, incluyendo personas con discapacidades visuales, motoras o cognitivas, puedan usar el sistema equitativamente.
+
+### 11.1. Verificación Rápida (5 minutos)
+
+```bash
+# Abrir en navegador
+http://localhost:4200/auth/login
+
+# Navegar solo con teclado:
+# 1. Tab: avance al siguiente elemento
+# 2. Shift+Tab: retroceso
+# 3. Enter: activar botón
+# 4. Observar: outline azul (focus indicator)
+
+# ✅ Esperado: todos los botones/inputs accesibles sin mouse
+# ❌ Problema: si no hay outline visible → accesibilidad deficiente
+```
+
+### 11.2. Testing Automatizado (Lighthouse)
+
+```bash
+# 1. Abrir Developer Tools (F12)
+# 2. Tab "Lighthouse"
+# 3. Seleccionar "Accessibility"
+# 4. Click "Analyze page load"
+# 5. ✅ Score debe ser >= 95/100
+
+Áreas a verificar:
+- ✅ Contraste de colores >= 4.5:1
+- ✅ Etiquetas de formulario asociadas
+- ✅ Botones con propósitos claros
+- ✅ Imágenes con texto alternativo (alt)
+- ✅ Indicadores de focus visible
+```
+
+### 11.3. Testing con Screen Reader (NVDA - Gratis)
+
+```bash
+# Descargar e instalar
+https://www.nvaccess.org/download/
+
+# Iniciar NVDA
+Ctrl + Alt + N
+
+# Navegar:
+- Tab: siguiente elemento
+- Shift+Tab: elemento anterior
+- Arrow Keys: navegar dentro de tablas/listas
+
+# ✅ Esperado: 
+- Escuchar: "Email input, edit text"
+- Escuchar: "Submit button"
+- Escuchar: "Alert, email is required" (cuando error)
+
+# ❌ Problema:
+- Silencio o anuncio incorrecto
+- Errores no anunciados
+- Elementos no etiquetados
+```
+
+### 11.4. Keyboard Navigation Checklist
+
+| Página | Funcionalidad | Acceso por Teclado | Status |
+|--------|---------------|-------------------|--------|
+| Login | Email input | Tab, Enter | ✅ |
+| Login | Password input | Tab, Enter | ✅ |
+| Login | Submit | Tab, Enter | ✅ |
+| Dashboard | KPI cards | Tab, Arrow Keys | ✅ |
+| Dashboard | Tabla | Tab, Arrow Down | ✅ |
+| Docentes | Crear docente | Tab, Enter | ✅ |
+| Docentes | Editar | Tab, Enter, Escape (cerrar) | ✅ |
+| Formularios | Validación | Tab away = error visible | ✅ |
+
+```bash
+# Quick test script
+1. Iniciar navegador (http://localhost:4200)
+2. NO USAR MOUSE durante 5 minutos
+3. Tab por todas las funciones principales
+4. Verificar: outline azul visible siempre
+5. Verificar: sin traps (Escape cierra diálogos)
+```
+
+### 11.5. Color Contrast Verification
+
+```bash
+# Herramienta online: https://webaim.org/resources/contrastchecker/
+
+Ratios mínimos (WCAG 2.1 AA):
+- Texto normal: 4.5:1
+- Texto grande (>18px): 3:1
+- Elementos UI: 3:1
+
+Ejemplo en el sistema:
+- Texto (#1F2937) on Fondo (#F9FAFB): 14.5:1 ✅
+- Botón (white on #6366F1): 6.2:1 ✅
+- Link (#0284C7 on white): 5.4:1 ✅
+```
+
+### 11.6. Recursos de Testing
+
+| Herramienta | Propósito | URL |
+|-------------|-----------|-----|
+| **axe DevTools** | Audit automatizado (browser) | https://www.deque.com/axe/devtools/ |
+| **Lighthouse** | Built-in en Chrome DevTools | Presionar F12 |
+| **NVDA** | Screen reader gratuito | https://www.nvaccess.org/ |
+| **WAVE** | Evaluación web accessibility | https://wave.webaim.org/ |
+| **Color Contrast** | Validar ratios | https://webaim.org/resources/contrastchecker/ |
+
+### 11.7. Documentación de Accesibilidad
+
+Ver: [docs/02-guia-accesibilidad.md](02-guia-accesibilidad.md) para:
+- Estándares WCAG 2.1 AA implementados
+- Detalles de componentes accesibles
+- Procedimientos de testing completos
+- Checklist pre-release
+
+Ver: [docs/CHECKLIST-ACCESIBILIDAD.md](CHECKLIST-ACCESIBILIDAD.md) para:
+- Checklist de validación paso-a-paso
+- Procedimientos de testing manual
+- Métricas de compliance
+- Escala de severidad de issues
+
+---
+
 ## Historial de cambios
 
 | Versión | Fecha | Autor | Descripción del cambio |

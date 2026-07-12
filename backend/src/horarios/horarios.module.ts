@@ -13,6 +13,9 @@ import { Preasignacion } from "../entities/preasignacion.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
+import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
+import { DiaActivo } from "../entities/dia-activo.entity";
 import { AsignacionService } from "./asignacion.service";
 import { HorariosService } from "./horarios.service";
 import { HorariosGateway } from "./horarios.gateway";
@@ -42,6 +45,9 @@ import { ValidacionesModule } from "../validaciones/validaciones.module";
       DocenteCurso,
       ParametrosCarga,
       DeclaracionCargaHoraria,
+      AsignacionLectiva,
+      CursoPlanEstudios,
+      DiaActivo,
     ]),
     DocentesModule,
     CommonModule,

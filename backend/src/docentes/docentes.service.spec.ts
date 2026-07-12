@@ -12,11 +12,17 @@ import { Ambiente } from "../entities/ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { Grupo } from "../entities/grupo.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
+import { Departamento } from "../entities/departamento.entity";
+import { Facultad } from "../entities/facultad.entity";
+import { Usuario } from "../entities/usuario.entity";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { ContextoAcademicoService } from "../common/services/contexto-academico.service";
 
 describe("DocentesService", () => {
   let service: DocentesService;
@@ -89,6 +95,42 @@ describe("DocentesService", () => {
     del: jest.fn(),
   };
 
+  const mockGrupoRepo = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+  };
+
+  const mockAsignacionLectivaRepo = {
+    createQueryBuilder: jest.fn(() => mockQueryBuilder),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockDepartamentoRepo = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    createQueryBuilder: jest.fn(() => mockQueryBuilder),
+  };
+
+  const mockFacultadRepo = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    createQueryBuilder: jest.fn(() => mockQueryBuilder),
+  };
+
+  const mockUsuarioRepo = {
+    findOne: jest.fn(),
+    find: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockContextoAcademicoService = {
+    aplicarFiltroDocente: jest.fn(),
+    assertAccesoDocente: jest.fn(),
+  };
+
   const mockDocente: Docente = {
     id: 1,
     codigo: "D001",
@@ -159,12 +201,36 @@ describe("DocentesService", () => {
           useValue: mockParametrosCargaRepo,
         },
         {
+          provide: getRepositoryToken(Grupo),
+          useValue: mockGrupoRepo,
+        },
+        {
+          provide: getRepositoryToken(AsignacionLectiva),
+          useValue: mockAsignacionLectivaRepo,
+        },
+        {
+          provide: getRepositoryToken(Departamento),
+          useValue: mockDepartamentoRepo,
+        },
+        {
+          provide: getRepositoryToken(Facultad),
+          useValue: mockFacultadRepo,
+        },
+        {
+          provide: getRepositoryToken(Usuario),
+          useValue: mockUsuarioRepo,
+        },
+        {
           provide: ConfigService,
           useValue: mockConfigService,
         },
         {
           provide: CACHE_MANAGER,
           useValue: mockCacheManager,
+        },
+        {
+          provide: ContextoAcademicoService,
+          useValue: mockContextoAcademicoService,
         },
       ],
     }).compile();
@@ -290,7 +356,22 @@ describe("DocentesService", () => {
   describe("findCursosHabilitados", () => {
     it("debe retornar cursos habilitados para un docente", async () => {
       mockQueryBuilder.getOne.mockResolvedValue(mockDocente);
-      mockQueryBuilder.getMany.mockResolvedValue([mockDocenteCurso]);
+      mockAsignacionLectivaRepo.createQueryBuilder.mockReturnValue({
+        ...mockQueryBuilder,
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      });
+      mockDocenteCursoRepo.createQueryBuilder.mockReturnValue({
+        ...mockQueryBuilder,
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([mockDocenteCurso]),
+      });
 
       const result = await service.findCursosHabilitados(1, TipoClase.TEORIA);
 
@@ -300,6 +381,7 @@ describe("DocentesService", () => {
           cursoId: 10,
           tipo_clase: TipoClase.TEORIA,
           curso: mockCurso,
+          grupos: 1,
         },
       ]);
     });
@@ -364,7 +446,13 @@ describe("DocentesService", () => {
         id: 1,
         codigo: "PERIODO-TEST",
       } as PeriodoAcademico);
-      mockDocenteRepo.find.mockResolvedValue([mockDocente]);
+      mockDocenteRepo.createQueryBuilder.mockReturnValue({
+        ...mockQueryBuilder,
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([mockDocente]),
+      });
       mockHorarioRepo.find.mockResolvedValue(
         horariosCarga.map((horario) => ({
           ...horario,
@@ -392,12 +480,18 @@ describe("DocentesService", () => {
       ]);
     });
 
-    it("Caso 3: no incluye docente equilibrado en la lista de desequilibrio", async () => {
+    it("Caso 3: incluye docente equilibrado con desequilibrio 0", async () => {
       mockPeriodoRepo.findOne.mockResolvedValue({
         id: 1,
         codigo: "PERIODO-TEST",
       } as PeriodoAcademico);
-      mockDocenteRepo.find.mockResolvedValue([mockDocente]);
+      mockDocenteRepo.createQueryBuilder.mockReturnValue({
+        ...mockQueryBuilder,
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([mockDocente]),
+      });
       mockHorarioRepo.find.mockResolvedValue([
         {
           docente_id: 1,
@@ -439,7 +533,9 @@ describe("DocentesService", () => {
 
       const result = await service.getCargaDesequilibrada("PERIODO-TEST");
 
-      expect(result).toEqual([]);
+      expect(result).toHaveLength(1);
+      expect(result[0].desequilibrio).toBe(0);
+      expect(result[0].docenteId).toBe(1);
     });
 
     it("Caso 4: retorna todos los días en 0 cuando el período no tiene horarios", async () => {

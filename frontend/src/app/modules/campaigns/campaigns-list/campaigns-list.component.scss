@@ -1,5 +1,11 @@
+@use '../../../shared/design-system/responsive-mixins' as resp;
+
 .campaigns-page {
-  padding: 24px;
+  padding: var(--space-6);
+
+  @include resp.mobile {
+    padding: var(--space-4);
+  }
 }
 
 .page-header-premium {
@@ -19,6 +25,7 @@
       margin: 0;
       letter-spacing: -0.03em;
     }
+
     .subtitle {
       margin: 4px 0 0;
       color: var(--color-text-muted);
@@ -41,7 +48,9 @@
       box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
       transition: all 0.2s ease !important;
 
-      mat-icon { margin-right: 8px; }
+      mat-icon {
+        margin-right: 8px;
+      }
 
       &:hover {
         transform: translateY(-2px);
@@ -233,6 +242,7 @@
     margin-bottom: 6px;
     color: var(--color-text);
   }
+
   p {
     color: var(--color-text-muted);
     font-size: 14px;
@@ -244,6 +254,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

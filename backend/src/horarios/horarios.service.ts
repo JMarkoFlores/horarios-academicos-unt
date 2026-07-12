@@ -203,17 +203,22 @@ export class HorariosService {
       .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
-    
+
     // Obtener carga no lectiva de la declaración si existe
     const declaracion = await this.declaracionRepo.findOne({
       where: { docente_id: docenteId },
-      relations: ['periodo_academico'],
+      relations: ["periodo_academico"],
     });
-    
+
     if (declaracion && declaracion.periodo_academico?.codigo === periodo) {
-      const estadosAprobados = ['VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO'];
+      const estadosAprobados = [
+        "VALIDADO_DPTO",
+        "APROBADO_FACULTAD",
+        "CERRADO",
+      ];
       if (estadosAprobados.includes(declaracion.estado)) {
-        const cargaNoLectiva = (declaracion.carga_no_lectiva as any)?.actividades || [];
+        const cargaNoLectiva =
+          (declaracion.carga_no_lectiva as any)?.actividades || [];
         for (const actividad of cargaNoLectiva) {
           if (actividad.horarios && Array.isArray(actividad.horarios)) {
             for (const h of actividad.horarios) {
@@ -229,14 +234,17 @@ export class HorariosService {
                 grupo: null,
                 docente: null,
                 periodo: periodo,
-                actividad_nombre: actividad.descripcion || actividad.nombre || `Actividad ${actividad.id}`,
+                actividad_nombre:
+                  actividad.descripcion ||
+                  actividad.nombre ||
+                  `Actividad ${actividad.id}`,
               });
             }
           }
         }
       }
     }
-    
+
     return horarios;
   }
 

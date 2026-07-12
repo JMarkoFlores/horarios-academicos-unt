@@ -2,6 +2,8 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { LoginComponent } from './auth/login/login.component';
 import { LandingComponent } from './auth/landing/landing.component';
+import { RecuperarPasswordComponent } from './auth/recuperar-password/recuperar-password.component';
+import { ResetPasswordComponent } from './auth/reset-password/reset-password.component';
 import { NotFoundComponent } from './shared/not-found/not-found.component';
 import { LayoutComponent } from './layout/layout.component';
 import { ROLES } from './core/constants/roles';
@@ -11,7 +13,14 @@ import { RolesGuard } from './core/guards/roles.guard';
 const routes: Routes = [
   { path: '', component: LandingComponent, pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
+  { path: 'auth/recuperar-password', component: RecuperarPasswordComponent },
+  { path: 'auth/reset-password', component: ResetPasswordComponent },
   { path: 'welcome', component: LandingComponent },
+  // Error pages
+  { path: 'error/404', component: NotFoundComponent, data: { errorCode: '404' } },
+  { path: 'error/403', component: NotFoundComponent, data: { errorCode: '403' } },
+  { path: 'error/401', component: NotFoundComponent, data: { errorCode: '401' } },
+  { path: 'error/500', component: NotFoundComponent, data: { errorCode: '500' } },
   {
     path: 'app',
     component: LayoutComponent,

@@ -1019,21 +1019,59 @@
 
           <mat-card-content>
             <div class="resultado-box" *ngIf="resultadoGeneracion">
-              <div class="res-item">
-                <span class="val">{{ resultadoGeneracion.asignaciones }}</span>
-
-                <span class="lab">Asignaciones</span>
+              <div class="res-grid">
+                <div class="res-item">
+                  <span class="val">{{ resultadoGeneracion.horariosGenerados }}</span>
+                  <span class="lab">Horarios generados</span>
+                </div>
+                <div class="res-item">
+                  <span class="val">{{ resultadoGeneracion.docentesAtendidos }}</span>
+                  <span class="lab">Docentes atendidos</span>
+                </div>
+                <div class="res-item">
+                  <span class="val">{{ resultadoGeneracion.totalDocentes }}</span>
+                  <span class="lab">Total docentes</span>
+                </div>
+                <div class="res-item warn">
+                  <span class="val">{{ resultadoGeneracion.conflictos?.length || 0 }}</span>
+                  <span class="lab">Conflictos/Errores</span>
+                </div>
+                <div class="res-item info">
+                  <span class="val">{{ resultadoGeneracion.horasSinAsignar || 0 }}h</span>
+                  <span class="lab">Horas sin asignar</span>
+                </div>
               </div>
 
-              <div class="res-divider"></div>
-
-              <div class="res-item">
-                <span class="val warn">{{
-                  resultadoGeneracion.conflictos
-                }}</span>
-
-                <span class="lab">Conflictos</span>
+              <div class="detalle-docentes" *ngIf="resultadoGeneracion.detallePorDocente?.length > 0">
+                <h4>Detalle por docente</h4>
+                <div class="detalle-table-wrapper">
+                  <table class="detalle-table">
+                    <thead>
+                      <tr>
+                        <th>Docente</th>
+                        <th>Horarios</th>
+                        <th>Horas</th>
+                        <th>Pendientes</th>
+                        <th>Errores</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let d of resultadoGeneracion.detallePorDocente">
+                        <td>{{ d.nombre }}</td>
+                        <td>{{ d.horariosGenerados }}</td>
+                        <td>{{ d.horasAsignadas }}h</td>
+                        <td class="warn">{{ d.horariosPendientes }} ({{ d.horasPendientes }}h)</td>
+                        <td class="error" [title]="d.errores.join('; ')">{{ d.errores.length > 0 ? d.errores.length : '—' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
+            </div>
+
+            <div class="empty-result" *ngIf="!resultadoGeneracion && !generando">
+              <mat-icon>auto_fix_high</mat-icon>
+              <p>Presiona "Ejecutar Motor" para generar horarios automáticamente</p>
             </div>
           </mat-card-content>
 
@@ -1045,12 +1083,20 @@
               [disabled]="generando"
             >
               <mat-spinner diameter="20" *ngIf="generando"></mat-spinner>
-
               <mat-icon *ngIf="!generando">bolt</mat-icon>
-
               <span>{{ generando ? "Procesando..." : "Ejecutar Motor" }}</span>
-
               <div class="btn-shimmer"></div>
+            </button>
+            <button
+              mat-flat-button
+              class="gestion-btn success"
+              (click)="publicarHorariosAutoGenerados()"
+              [disabled]="publicando || !resultadoGeneracion || resultadoGeneracion.horariosGenerados === 0"
+              matTooltip="Publicar horarios auto-generados (BORRADOR → PUBLICADO)"
+            >
+              <mat-spinner diameter="20" *ngIf="publicando"></mat-spinner>
+              <mat-icon *ngIf="!publicando">publish</mat-icon>
+              <span>{{ publicando ? "Publicando..." : "Publicar" }}</span>
             </button>
           </mat-card-actions>
         </mat-card>

@@ -81,253 +81,426 @@
       </a>
     </nav>
 
-    <!-- Bento Grid Layout - Reorganized for Better Hierarchy -->
-    <div class="bento-grid">
-      <!-- Row 1: Key Metrics (Full Width Row - 4 cards) -->
-      <div class="bento-card bento-card-metric">
-        <div class="metric-header">
-          <div class="metric-icon-wrap color-docentes">
-            <mat-icon>people</mat-icon>
-          </div>
-          <span>Docentes</span>
-        </div>
-        <div class="metric-body">
-          <span class="metric-number">{{ displayKPIs.total_docentes }}</span>
-          <span class="metric-sub">{{ displayKPIs.docentes_con_horario }} con horario</span>
-        </div>
-      </div>
+    <!-- Tab Bar -->
+    <div class="dashboard-tabs" role="tablist" aria-label="Vistas del dashboard">
+      <button class="tab-btn" [class.active]="activeTab() === 'horarios'" (click)="switchTab('horarios')" role="tab" [attr.aria-selected]="activeTab() === 'horarios'">
+        <mat-icon>dashboard</mat-icon>
+        <span>Vista General</span>
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'carga'" (click)="switchTab('carga')" role="tab" [attr.aria-selected]="activeTab() === 'carga'">
+        <mat-icon>assignment</mat-icon>
+        <span>Carga Académica</span>
+      </button>
+    </div>
 
-      <div class="bento-card bento-card-metric">
-        <div class="metric-header">
-          <div class="metric-icon-wrap color-ocupacion">
-            <mat-icon>meeting_room</mat-icon>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- TAB: VISTA GENERAL -->
+    <!-- ═══════════════════════════════════════════ -->
+    @if (activeTab() === 'horarios') {
+      <div class="bento-grid">
+        <!-- Row 1: Key Metrics (4 cards) -->
+        <div class="bento-card bento-card-metric">
+          <div class="metric-header">
+            <div class="metric-icon-wrap color-docentes">
+              <mat-icon>people</mat-icon>
+            </div>
+            <span>Docentes</span>
           </div>
-          <span>Ocupación</span>
-        </div>
-        <div class="metric-body">
-          <span class="metric-number">{{ displayKPIs.porcentaje_ocupacion_aulas }}%</span>
-          <span class="metric-sub">{{ displayKPIs.aulas_ocupadas }}/{{ displayKPIs.total_aulas }} aulas</span>
-        </div>
-      </div>
-
-      <div class="bento-card bento-card-metric">
-        <div class="metric-header">
-          <div class="metric-icon-wrap color-asignados">
-            <mat-icon>how_to_reg</mat-icon>
+          <div class="metric-body">
+            <span class="metric-number">{{ displayKPIs.total_docentes }}</span>
+            <span class="metric-sub">{{ displayKPIs.docentes_con_horario }} con horario</span>
           </div>
-          <span>Asignados</span>
         </div>
-        <div class="metric-body">
-          <span class="metric-number">{{ displayKPIs.porcentaje_docentes_asignados }}%</span>
-          <span class="metric-sub">Docentes asignados</span>
-        </div>
-      </div>
 
-      <div class="bento-card bento-card-metric">
-        <div class="metric-header">
-          <div class="metric-icon-wrap color-conflictos">
-            <mat-icon>error_outline</mat-icon>
+        <div class="bento-card bento-card-metric">
+          <div class="metric-header">
+            <div class="metric-icon-wrap color-cursos">
+              <mat-icon>menu_book</mat-icon>
+            </div>
+            <span>Cursos</span>
           </div>
-          <span>Conflictos</span>
+          <div class="metric-body">
+            <span class="metric-number">{{ displayKPIs.total_cursos }}</span>
+            <span class="metric-sub">cursos activos</span>
+          </div>
         </div>
-        <div class="metric-body">
-          <span class="metric-number" [class.metric-danger]="kpis.conflictos_activos > 0">{{ kpis.conflictos_activos }}</span>
-          <span class="metric-sub">Conflictos activos</span>
-        </div>
-      </div>
 
-      <!-- Row 2: Critical Issues (Full Width if present) -->
-      @if (kpis.conflictos_activos > 0 || kpis.docentes_sin_disponibilidad > 0 || kpis.cursos_sin_asignar > 0) {
-        <div class="bento-card bento-card-large bento-card-alert">
+        <div class="bento-card bento-card-metric">
+          <div class="metric-header">
+            <div class="metric-icon-wrap color-ambientes">
+              <mat-icon>meeting_room</mat-icon>
+            </div>
+            <span>Ambientes</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-number">{{ displayKPIs.total_aulas }}</span>
+            <span class="metric-sub">aulas disponibles</span>
+          </div>
+        </div>
+
+        <div class="bento-card bento-card-metric">
+          <div class="metric-header">
+            <div class="metric-icon-wrap color-asignados">
+              <mat-icon>schedule</mat-icon>
+            </div>
+            <span>Horarios</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-number">{{ displayKPIs.total_horarios_asignados }}</span>
+            <span class="metric-sub">horarios asignados</span>
+          </div>
+        </div>
+
+        <!-- Row 2: Alertas (Full Width) -->
+        @if (kpis.conflictos_activos > 0 || kpis.docentes_sin_disponibilidad > 0 || kpis.cursos_sin_asignar > 0) {
+          <div class="bento-card bento-card-large bento-card-alert">
+            <div class="card-header">
+              <h2>Alertas del Sistema</h2>
+              <mat-icon>warning</mat-icon>
+            </div>
+            <div class="card-content">
+              <div class="alert-item conflict-alert" *ngIf="kpis.conflictos_activos > 0">
+                <div class="alert-icon conflict">
+                  <mat-icon>error</mat-icon>
+                </div>
+                <div class="alert-info">
+                  <span class="alert-title">{{ kpis.conflictos_activos }} conflictos activos</span>
+                  <span class="alert-subtitle">Requieren atención inmediata</span>
+                </div>
+                <button mat-stroked-button size="small" routerLink="/app/horarios">Ver</button>
+              </div>
+              <div class="alert-item warning-alert" *ngIf="kpis.docentes_sin_disponibilidad > 0">
+                <div class="alert-icon warning">
+                  <mat-icon>event_busy</mat-icon>
+                </div>
+                <div class="alert-info">
+                  <span class="alert-title">{{ kpis.docentes_sin_disponibilidad }} sin disponibilidad</span>
+                  <span class="alert-subtitle">Docentes sin horarios definidos</span>
+                </div>
+                <button mat-stroked-button size="small" routerLink="/app/disponibilidad">Ver</button>
+              </div>
+              <div class="alert-item info-alert" *ngIf="kpis.cursos_sin_asignar > 0">
+                <div class="alert-icon info">
+                  <mat-icon>menu_book</mat-icon>
+                </div>
+                <div class="alert-info">
+                  <span class="alert-title">{{ kpis.cursos_sin_asignar }} cursos sin asignar</span>
+                  <span class="alert-subtitle">Cursos pendientes de asignación</span>
+                </div>
+                <button mat-stroked-button size="small" routerLink="/app/asignaciones">Ver</button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Row 3: Charts Row - Funnel + Dept Bar -->
+        @if (cargaEstados.length) {
+          <div class="bento-card bento-card-chart">
+            <div class="card-header">
+              <h2>Declaraciones por Estado</h2>
+              <span class="card-badge">Embudo</span>
+            </div>
+            <div class="card-content">
+              <canvas baseChart [data]="funnelChartData" [type]="'bar'" [options]="funnelChartOptions"></canvas>
+            </div>
+          </div>
+        }
+
+        @if (cargaDepartamentos.length) {
+          <div class="bento-card bento-card-chart">
+            <div class="card-header">
+              <h2>Carga por Departamento</h2>
+              <span class="card-badge">{{ periodoService.periodo }}</span>
+            </div>
+            <div class="card-content">
+              <canvas baseChart [data]="deptBarChartData" [type]="'bar'" [options]="deptBarChartOptions"></canvas>
+            </div>
+          </div>
+        }
+
+        <!-- Row 4: Avance + Doughnut Modalidad -->
+        @if (cargaAvance.length) {
+          <div class="bento-card bento-card-chart">
+            <div class="card-header">
+              <h2>Avance de Declaraciones</h2>
+              <span class="card-badge">{{ periodoService.periodo }}</span>
+            </div>
+            <div class="card-content">
+              <canvas baseChart [data]="avanceChartData" [type]="'line'" [options]="avanceChartOptions"></canvas>
+            </div>
+          </div>
+        }
+
+        @if (kpis.distribucion_por_modalidad && kpis.distribucion_por_modalidad.length) {
+          <div class="bento-card bento-card-chart">
+            <div class="card-header">
+              <h2>Docentes por Modalidad</h2>
+              <span class="card-badge">{{ periodoService.periodo }}</span>
+            </div>
+            <div class="card-content">
+              <canvas baseChart [data]="doughnutModalidadData" [type]="'doughnut'" [options]="doughnutOptions"></canvas>
+            </div>
+          </div>
+        }
+
+        <!-- Heatmap Card -->
+        @if (kpis.mapa_calor && kpis.mapa_calor.length) {
+          <div class="bento-card bento-card-heatmap">
+            <div class="card-header">
+              <h2>Mapa de Calor</h2>
+              <span class="card-badge">{{ periodoService.periodo }}</span>
+            </div>
+            <div class="card-content">
+              <div class="heatmap-grid">
+                <div class="heatmap-corner"></div>
+                <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="1" [style.gridRow]="1">Hora</div>
+                @for (dia of diasSemana(); track dia; let i = $index) {
+                  <div class="heatmap-cell-header heatmap-day-header" [style.gridColumn]="i + 2" [style.gridRow]="1">{{ dia }}</div>
+                }
+                <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="diasSemana().length + 2" [style.gridRow]="1">Hora</div>
+                @for (hora of horasRango(); track hora; let i = $index) {
+                  <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="1" [style.gridRow]="i + 2">{{ formatHoraRango(hora) }}</div>
+                  @for (dia of diasSemana(); track dia; let j = $index) {
+                    <div class="heatmap-cell clickable"
+                         [style.gridColumn]="j + 2"
+                         [style.gridRow]="i + 2"
+                         [style.background]="getHeatmapColor(dia, hora)"
+                         [matTooltip]="getHeatmapTooltip(dia, hora)"
+                         matTooltipPosition="above"
+                         (click)="onHeatmapCellClick(dia, hora)">
+                    </div>
+                  }
+                  <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="diasSemana().length + 2" [style.gridRow]="i + 2">{{ formatHoraRango(hora) }}</div>
+                }
+              </div>
+              <!-- Heatmap Legend -->
+              <div class="heatmap-legend">
+                <div class="legend-item" *ngFor="let item of heatmapLegendItems">
+                  <span class="legend-color" [style.background]="item.color"></span>
+                  <span class="legend-label">{{ item.label }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Activity and Rankings -->
+        <div class="bento-card bento-card-activity">
           <div class="card-header">
-            <h2>Problemas Críticos</h2>
-            <mat-icon>warning</mat-icon>
+            <h2>Actividad Reciente</h2>
+            <mat-icon>history</mat-icon>
           </div>
           <div class="card-content">
-            <div class="alert-item conflict-alert" *ngIf="kpis.conflictos_activos > 0">
-              <div class="alert-icon conflict">
-                <mat-icon>error</mat-icon>
+            @if (kpis.actividad_reciente && kpis.actividad_reciente.length) {
+              <div class="activity-list">
+                <div class="activity-item" *ngFor="let act of kpis.actividad_reciente.slice(0, 5)">
+                  <div class="activity-dot" [class.lab]="act.tipo === 'LABORATORIO'"></div>
+                  <div class="activity-details">
+                    <span class="activity-desc">{{ act.descripcion }}</span>
+                    <span class="activity-time">{{ act.timestamp | date: 'short' }}</span>
+                  </div>
+                </div>
               </div>
-              <div class="alert-info">
-                <span class="alert-title">{{ kpis.conflictos_activos }} conflictos activos</span>
-                <span class="alert-subtitle">Requieren atención inmediata</span>
+            } @else {
+              <div class="empty-activity">
+                <mat-icon>history</mat-icon>
+                <p>Sin actividad reciente</p>
               </div>
-              <button mat-stroked-button size="small" routerLink="/app/horarios">Ver</button>
-            </div>
-            <div class="alert-item warning-alert" *ngIf="kpis.docentes_sin_disponibilidad > 0">
-              <div class="alert-icon warning">
-                <mat-icon>event_busy</mat-icon>
-              </div>
-              <div class="alert-info">
-                <span class="alert-title">{{ kpis.docentes_sin_disponibilidad }} sin disponibilidad</span>
-                <span class="alert-subtitle">Docentes sin horarios definidos</span>
-              </div>
-              <button mat-stroked-button size="small" routerLink="/app/disponibilidad">Ver</button>
-            </div>
-            <div class="alert-item info-alert" *ngIf="kpis.cursos_sin_asignar > 0">
-              <div class="alert-icon info">
-                <mat-icon>menu_book</mat-icon>
-              </div>
-              <div class="alert-info">
-                <span class="alert-title">{{ kpis.cursos_sin_asignar }} cursos sin asignar</span>
-                <span class="alert-subtitle">Cursos pendientes de asignación</span>
-              </div>
-              <button mat-stroked-button size="small" routerLink="/app/asignaciones">Ver</button>
-            </div>
+            }
           </div>
         </div>
-      }
 
-      <!-- Row 3: Charts Side by Side -->
-      <div class="bento-card bento-card-chart">
-        <div class="card-header">
-          <h2>Distribución por Categoría</h2>
-          <span class="card-badge">{{ periodoService.periodo }}</span>
-        </div>
-        <div class="card-content">
-          <canvas baseChart [data]="barChartData" [type]="'bar'" [options]="barChartOptions"></canvas>
-        </div>
-      </div>
-
-      <div class="bento-card bento-card-chart">
-        <div class="card-header">
-          <h2>Ocupación de Espacios</h2>
-          <span class="card-badge">{{ periodoService.periodo }}</span>
-        </div>
-        <div class="card-content">
-          <canvas baseChart [data]="doughnutData" [type]="'doughnut'" [options]="doughnutOptions"></canvas>
-        </div>
-      </div>
-
-      <!-- Heatmap Card -->
-      @if (kpis.mapa_calor && kpis.mapa_calor.length) {
-        <div class="bento-card bento-card-heatmap">
+        <div class="bento-card bento-card-list">
           <div class="card-header">
-            <h2>Mapa de Calor</h2>
+            <h2>Mayor Carga Docente</h2>
+            <span class="card-badge">Top 5</span>
+          </div>
+          <div class="card-content">
+            @if (kpis.top_docentes_mayor_carga && kpis.top_docentes_mayor_carga.length) {
+              <div class="rank-list">
+                <div class="rank-item" *ngFor="let d of kpis.top_docentes_mayor_carga; let i = index">
+                  <span class="rank-number">{{ i + 1 }}</span>
+                  <div class="rank-info">
+                    <span class="rank-name">{{ d.nombre }}</span>
+                    <span class="rank-meta">{{ d.categoria }}</span>
+                  </div>
+                  <span class="rank-value">{{ d.horas.toFixed(1) }}h</span>
+                </div>
+              </div>
+            } @else {
+              <div class="empty-rank">
+                <mat-icon>people</mat-icon>
+                <p>Sin datos disponibles</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Environment Table -->
+        @if (kpis.ocupacion_por_ambiente && kpis.ocupacion_por_ambiente.length) {
+          <div class="bento-card bento-card-table">
+            <div class="card-header">
+              <h2>Ocupación por Ambiente</h2>
+              <span class="card-badge">Top 10</span>
+            </div>
+            <div class="card-content">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Tipo</th>
+                    <th>Capacidad</th>
+                    <th>Ocupación</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let a of kpis.ocupacion_por_ambiente.slice(0, 10)">
+                    <td>{{ a.codigo }}</td>
+                    <td><span class="table-badge" [class.aula]="a.tipo === 'AULA'" [class.lab]="a.tipo === 'LABORATORIO'">{{ a.tipo }}</span></td>
+                    <td>{{ a.capacidad }}</td>
+                    <td>
+                      <div class="mini-progress" [ngClass]="'ocupacion-' + getOcupacionLevel(a.porcentaje_ocupacion)">
+                        <div class="mini-progress-fill" [style.width.%]="a.porcentaje_ocupacion"></div>
+                        <span>{{ a.porcentaje_ocupacion }}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- TAB: CARGA ACADÉMICA -->
+    <!-- ═══════════════════════════════════════════ -->
+    @if (activeTab() === 'carga') {
+      <div class="bento-grid">
+        <!-- KPIs de Carga -->
+        <div class="bento-card bento-card-metric">
+          <div class="metric-header">
+            <div class="metric-icon-wrap color-docentes">
+              <mat-icon>people</mat-icon>
+            </div>
+            <span>Docentes Activos</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-number">{{ cargaResumen?.total_docentes || 0 }}</span>
+            <span class="metric-sub">en el periodo</span>
+          </div>
+        </div>
+
+        <div class="bento-card bento-card-metric">
+          <div class="metric-header">
+            <div class="metric-icon-wrap color-asignados">
+              <mat-icon>timer</mat-icon>
+            </div>
+            <span>Horas Asignadas</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-number">{{ cargaResumen?.carga_lectiva_promedio || 0 }}</span>
+            <span class="metric-sub">promedio por docente</span>
+          </div>
+        </div>
+
+        <div class="bento-card bento-card-metric">
+          <div class="metric-header">
+            <div class="metric-icon-wrap color-ocupacion">
+              <mat-icon>verified</mat-icon>
+            </div>
+            <span>Cumplimiento</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-number">{{ cargaResumen?.porcentaje_avance || 0 }}%</span>
+            <span class="metric-sub">declaraciones enviadas</span>
+          </div>
+        </div>
+
+        <div class="bento-card bento-card-metric">
+          <div class="metric-header">
+            <div class="metric-icon-wrap color-conflictos">
+              <mat-icon>pending_actions</mat-icon>
+            </div>
+            <span>Sin Declarar</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-number" [class.metric-danger]="(cargaResumen?.docentes_sin_declarar || 0) > 0">{{ cargaResumen?.docentes_sin_declarar || 0 }}</span>
+            <span class="metric-sub">docentes pendientes</span>
+          </div>
+        </div>
+
+        <!-- Gráfico de categorías -->
+        <div class="bento-card bento-card-chart">
+          <div class="card-header">
+            <h2>Distribución por Categoría</h2>
             <span class="card-badge">{{ periodoService.periodo }}</span>
           </div>
           <div class="card-content">
-            <div class="heatmap-grid">
-              <!-- Corner cell -->
-              <div class="heatmap-corner"></div>
-              <!-- Start time header -->
-              <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="1" [style.gridRow]="1">Hora</div>
-              <!-- Day headers -->
-              @for (dia of diasSemana(); track dia; let i = $index) {
-                <div class="heatmap-cell-header heatmap-day-header" [style.gridColumn]="i + 2" [style.gridRow]="1">{{ dia }}</div>
-              }
-              <!-- End time header -->
-              <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="diasSemana().length + 2" [style.gridRow]="1">Hora</div>
-              <!-- Hour rows with start time, cells, and end time -->
-              @for (hora of horasRango(); track hora; let i = $index) {
-                <!-- Start time column (shows full range) -->
-                <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="1" [style.gridRow]="i + 2">{{ formatHoraRango(hora) }}</div>
-                <!-- Day cells -->
-                @for (dia of diasSemana(); track dia; let j = $index) {
-                  <div class="heatmap-cell clickable"
-                       [style.gridColumn]="j + 2"
-                       [style.gridRow]="i + 2"
-                       [style.background]="getHeatmapColor(dia, hora)"
-                       [matTooltip]="getHeatmapTooltip(dia, hora)"
-                       matTooltipPosition="above"
-                       (click)="onHeatmapCellClick(dia, hora)">
-                  </div>
-                }
-                <!-- End time column (shows full range) -->
-                <div class="heatmap-cell-header heatmap-hour-header" [style.gridColumn]="diasSemana().length + 2" [style.gridRow]="i + 2">{{ formatHoraRango(hora) }}</div>
-              }
-            </div>
+            <canvas baseChart [data]="barChartData" [type]="'bar'" [options]="barChartOptions"></canvas>
           </div>
         </div>
-      }
 
-      <!-- Row 4: Activity and Lists -->
-      <div class="bento-card bento-card-activity">
-        <div class="card-header">
-          <h2>Actividad Reciente</h2>
-          <mat-icon>history</mat-icon>
-        </div>
-        <div class="card-content">
-          @if (kpis.actividad_reciente && kpis.actividad_reciente.length) {
-            <div class="activity-list">
-              <div class="activity-item" *ngFor="let act of kpis.actividad_reciente.slice(0, 5)">
-                <div class="activity-dot" [class.lab]="act.tipo === 'LABORATORIO'"></div>
-                <div class="activity-details">
-                  <span class="activity-desc">{{ act.descripcion }}</span>
-                  <span class="activity-time">{{ act.timestamp | date: 'short' }}</span>
-                </div>
-              </div>
-            </div>
-          } @else {
-            <div class="empty-activity">
-              <mat-icon>history</mat-icon>
-              <p>Sin actividad reciente</p>
-            </div>
-          }
-        </div>
-      </div>
-
-      <div class="bento-card bento-card-list">
-        <div class="card-header">
-          <h2>Mayor Carga Docente</h2>
-          <span class="card-badge">Top 5</span>
-        </div>
-        <div class="card-content">
-          @if (kpis.top_docentes_mayor_carga && kpis.top_docentes_mayor_carga.length) {
-            <div class="rank-list">
-              <div class="rank-item" *ngFor="let d of kpis.top_docentes_mayor_carga; let i = index">
-                <span class="rank-number">{{ i + 1 }}</span>
-                <div class="rank-info">
-                  <span class="rank-name">{{ d.nombre }}</span>
-                  <span class="rank-meta">{{ d.categoria }}</span>
-                </div>
-                <span class="rank-value">{{ d.horas.toFixed(1) }}h</span>
-              </div>
-            </div>
-          } @else {
-            <div class="empty-rank">
-              <mat-icon>people</mat-icon>
-              <p>Sin datos disponibles</p>
-            </div>
-          }
-        </div>
-      </div>
-
-      <!-- Row 5: Environment Table (Full Width) -->
-      @if (kpis.ocupacion_por_ambiente && kpis.ocupacion_por_ambiente.length) {
-        <div class="bento-card bento-card-table">
+        <!-- Top docentes -->
+        <div class="bento-card bento-card-list">
           <div class="card-header">
-            <h2>Ocupación por Ambiente</h2>
-            <span class="card-badge">Top 10</span>
+            <h2>Top Docentes por Carga</h2>
+            <span class="card-badge">Top {{ cargaTopDocentes.length }}</span>
           </div>
           <div class="card-content">
-            <table class="compact-table">
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Tipo</th>
-                  <th>Capacidad</th>
-                  <th>Ocupación</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let a of kpis.ocupacion_por_ambiente.slice(0, 10)">
-                  <td>{{ a.codigo }}</td>
-                  <td><span class="table-badge" [class.aula]="a.tipo === 'AULA'" [class.lab]="a.tipo === 'LABORATORIO'">{{ a.tipo }}</span></td>
-                  <td>{{ a.capacidad }}</td>
-                  <td>
-                    <div class="mini-progress" [ngClass]="'ocupacion-' + getOcupacionLevel(a.porcentaje_ocupacion)">
-                      <div class="mini-progress-fill" [style.width.%]="a.porcentaje_ocupacion"></div>
-                      <span>{{ a.porcentaje_ocupacion }}%</span>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            @if (cargaTopDocentes.length) {
+              <div class="rank-list">
+                <div class="rank-item" *ngFor="let d of cargaTopDocentes; let i = index">
+                  <span class="rank-number">{{ i + 1 }}</span>
+                  <div class="rank-info">
+                    <span class="rank-name">{{ d.nombre }}</span>
+                    <span class="rank-meta">{{ d.categoria }}</span>
+                  </div>
+                  <span class="rank-value">{{ d.total_horas.toFixed(1) }}h</span>
+                </div>
+              </div>
+            } @else {
+              <div class="empty-rank">
+                <mat-icon>people</mat-icon>
+                <p>Sin datos disponibles</p>
+              </div>
+            }
           </div>
         </div>
-      }
-    </div>
+
+        <!-- Docentes sin declarar -->
+        <div class="bento-card bento-card-table">
+          <div class="card-header">
+            <h2>Docentes sin Declarar</h2>
+            <span class="card-badge">{{ filteredSinDeclarar.length }} pendientes</span>
+          </div>
+          <div class="card-content">
+            @if (filteredSinDeclarar.length) {
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let d of filteredSinDeclarar">
+                    <td>{{ d.nombre }}</td>
+                    <td>{{ d.email }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            } @else {
+              <div class="empty-activity">
+                <mat-icon>check_circle</mat-icon>
+                <p>Todos los docentes han declarado</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
   }
 
   <!-- Docente Dashboard -->

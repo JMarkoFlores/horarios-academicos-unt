@@ -1,4 +1,10 @@
-import { IsInt, IsOptional, IsString, IsNotEmpty, MaxLength } from "class-validator";
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+} from "class-validator";
 
 export class ConsultarDisponibilidadDto {
   @IsInt()

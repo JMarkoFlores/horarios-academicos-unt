@@ -10,7 +10,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
-import { ApiResponse, Docente } from '../../../core/interfaces/entities';
+import { ApiResponse, Docente, Departamento, Facultad, Usuario } from '../../../core/interfaces/entities';
 
 export function emailInstitucionalValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
@@ -106,6 +106,10 @@ export class DocenteFormComponent implements OnInit {
     TIEMPO_PARCIAL_8: 8,
   };
 
+  facultades: Facultad[] = [];
+  departamentos: Departamento[] = [];
+  usuarios: Usuario[] = [];
+
   constructor(
     private fb: FormBuilder,
     private api: ApiService,
@@ -136,7 +140,14 @@ export class DocenteFormComponent implements OnInit {
       categoria: [{ value: '', disabled: true }, Validators.required],
       modalidad: [{ value: '', disabled: true }, Validators.required],
       fecha_ingreso: [null, [Validators.required, fechaNoFuturaValidator()]],
+      horas_asignadas: [0, [Validators.min(0)]],
+      facultad_id: [null],
+      departamento_id: [null],
+      usuario_id: [null],
     });
+
+    this.loadFacultades();
+    this.loadUsuarios();
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
@@ -144,6 +155,36 @@ export class DocenteFormComponent implements OnInit {
       this.docenteId = parseInt(id, 10);
       this.loadDocente();
     }
+  }
+
+  loadFacultades(): void {
+    this.api.get<ApiResponse<Facultad[]>>('/facultades').subscribe({
+      next: (res) => { this.facultades = res.data || []; },
+      error: () => {},
+    });
+  }
+
+  loadDepartamentos(facultadId: number): void {
+    this.api.get<ApiResponse<Departamento[]>>(`/departamentos`, { facultad_id: facultadId }).subscribe({
+      next: (res) => { this.departamentos = res.data || []; },
+      error: () => {},
+    });
+  }
+
+  onFacultadChange(facultadId: number): void {
+    this.form.get('departamento_id')!.reset(null);
+    if (facultadId) {
+      this.loadDepartamentos(facultadId);
+    } else {
+      this.departamentos = [];
+    }
+  }
+
+  loadUsuarios(): void {
+    this.api.get<ApiResponse<Usuario[]>>('/usuarios', { rol: 'DOCENTE', activo: 'true' }).subscribe({
+      next: (res) => { this.usuarios = res.data || []; },
+      error: () => {},
+    });
   }
 
   toggleAutoGenerarCodigo(): void {

@@ -2,18 +2,18 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ActividadNoLectiva } from '../../entities/actividad-no-lectiva.entity';
-import { HorarioNoLectivo } from '../../entities/horario-no-lectivo.entity';
-import { DeclaracionCargaHoraria } from '../../entities/declaracion-carga-horaria.entity';
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { ActividadNoLectiva } from "../../entities/actividad-no-lectiva.entity";
+import { HorarioNoLectivo } from "../../entities/horario-no-lectivo.entity";
+import { DeclaracionCargaHoraria } from "../../entities/declaracion-carga-horaria.entity";
 import {
   CreateActividadNoLectivaDto,
   UpdateActividadNoLectivaDto,
   CreateHorarioNoLectivoDto,
   UpdateHorarioNoLectivoDto,
-} from './dto/actividad-no-lectiva.dto';
+} from "./dto/actividad-no-lectiva.dto";
 
 @Injectable()
 export class CargaNoLectivaService {
@@ -28,21 +28,23 @@ export class CargaNoLectivaService {
 
   // ── Actividades No Lectivas ─────────────────────────────────────────────
 
-  async getActividadesByDeclaracion(declaracionId: number): Promise<ActividadNoLectiva[]> {
+  async getActividadesByDeclaracion(
+    declaracionId: number,
+  ): Promise<ActividadNoLectiva[]> {
     return this.actividadRepo.find({
       where: { declaracion_id: declaracionId },
-      relations: ['horarios'],
-      order: { orden: 'ASC', id: 'ASC' },
+      relations: ["horarios"],
+      order: { orden: "ASC", id: "ASC" },
     });
   }
 
   async getActividadById(id: number): Promise<ActividadNoLectiva> {
     const actividad = await this.actividadRepo.findOne({
       where: { id },
-      relations: ['horarios'],
+      relations: ["horarios"],
     });
     if (!actividad) {
-      throw new NotFoundException('Actividad no lectiva no encontrada');
+      throw new NotFoundException("Actividad no lectiva no encontrada");
     }
     return actividad;
   }
@@ -55,7 +57,7 @@ export class CargaNoLectivaService {
       where: { id: declaracionId },
     });
     if (!declaracion) {
-      throw new NotFoundException('Declaración no encontrada');
+      throw new NotFoundException("Declaración no encontrada");
     }
 
     const actividad = this.actividadRepo.create({
@@ -75,10 +77,16 @@ export class CargaNoLectivaService {
     const actividad = await this.getActividadById(id);
 
     // Si se cambian las horas totales, recalcular pendientes
-    if (dto.horas_totales !== undefined && dto.horas_totales !== actividad.horas_totales) {
+    if (
+      dto.horas_totales !== undefined &&
+      dto.horas_totales !== actividad.horas_totales
+    ) {
       const horasDistribuidas = this.calcularHorasDistribuidas(actividad);
-      const nuevasPendientes = Math.max(0, dto.horas_totales - horasDistribuidas);
-      
+      const nuevasPendientes = Math.max(
+        0,
+        dto.horas_totales - horasDistribuidas,
+      );
+
       Object.assign(actividad, dto, {
         horas_pendientes: nuevasPendientes,
       });
@@ -101,14 +109,14 @@ export class CargaNoLectivaService {
     dto: CreateHorarioNoLectivoDto,
   ): Promise<HorarioNoLectivo> {
     const actividad = await this.getActividadById(actividadId);
-    
+
     // Calcular duración en horas
     const duracion = this.calcularDuracionHoras(dto.hora_inicio, dto.hora_fin);
-    
+
     // Validar que no exceda las horas pendientes
     if (duracion > actividad.horas_pendientes) {
       throw new BadRequestException(
-        `No puede asignar ${duracion}h. Solo quedan ${actividad.horas_pendientes}h pendientes.`
+        `No puede asignar ${duracion}h. Solo quedan ${actividad.horas_pendientes}h pendientes.`,
       );
     }
 
@@ -132,24 +140,25 @@ export class CargaNoLectivaService {
   ): Promise<HorarioNoLectivo> {
     const horario = await this.horarioRepo.findOne({
       where: { id },
-      relations: ['actividad'],
+      relations: ["actividad"],
     });
     if (!horario) {
-      throw new NotFoundException('Horario no encontrado');
+      throw new NotFoundException("Horario no encontrado");
     }
 
     const actividad = horario.actividad;
     const duracionActual = horario.duracion_horas;
-    const nuevaDuracion = dto.hora_inicio && dto.hora_fin
-      ? this.calcularDuracionHoras(dto.hora_inicio, dto.hora_fin)
-      : duracionActual;
+    const nuevaDuracion =
+      dto.hora_inicio && dto.hora_fin
+        ? this.calcularDuracionHoras(dto.hora_inicio, dto.hora_fin)
+        : duracionActual;
 
     // Validar que la nueva duración no exceda las horas disponibles
     if (nuevaDuracion > duracionActual) {
       const delta = nuevaDuracion - duracionActual;
       if (delta > actividad.horas_pendientes) {
         throw new BadRequestException(
-          `No puede extender ${delta}h. Solo quedan ${actividad.horas_pendientes}h pendientes.`
+          `No puede extender ${delta}h. Solo quedan ${actividad.horas_pendientes}h pendientes.`,
         );
       }
     }
@@ -168,10 +177,10 @@ export class CargaNoLectivaService {
   async deleteHorario(id: number): Promise<void> {
     const horario = await this.horarioRepo.findOne({
       where: { id },
-      relations: ['actividad'],
+      relations: ["actividad"],
     });
     if (!horario) {
-      throw new NotFoundException('Horario no encontrado');
+      throw new NotFoundException("Horario no encontrado");
     }
 
     const actividadId = horario.actividad.id;
@@ -182,8 +191,8 @@ export class CargaNoLectivaService {
   // ── Utilidades ───────────────────────────────────────────────────────────
 
   private calcularDuracionHoras(horaInicio: string, horaFin: string): number {
-    const [h1, m1] = horaInicio.split(':').map(Number);
-    const [h2, m2] = horaFin.split(':').map(Number);
+    const [h1, m1] = horaInicio.split(":").map(Number);
+    const [h2, m2] = horaFin.split(":").map(Number);
     const inicioMin = h1 * 60 + m1;
     const finMin = h2 * 60 + m2;
     return Math.max(1, Math.round((finMin - inicioMin) / 60));
@@ -193,10 +202,12 @@ export class CargaNoLectivaService {
     return actividad.horarios.reduce((sum, h) => sum + h.duracion_horas, 0);
   }
 
-  private async actualizarContadoresActividad(actividadId: number): Promise<void> {
+  private async actualizarContadoresActividad(
+    actividadId: number,
+  ): Promise<void> {
     const actividad = await this.actividadRepo.findOne({
       where: { id: actividadId },
-      relations: ['horarios'],
+      relations: ["horarios"],
     });
     if (!actividad) return;
 
@@ -220,13 +231,15 @@ export class CargaNoLectivaService {
     const actividad = await this.getActividadById(actividadId);
     const distribuidas = this.calcularHorasDistribuidas(actividad);
     const pendientes = Math.max(0, actividad.horas_totales - distribuidas);
-    const porcentaje = actividad.horas_totales > 0
-      ? Math.round((distribuidas / actividad.horas_totales) * 100)
-      : 0;
+    const porcentaje =
+      actividad.horas_totales > 0
+        ? Math.round((distribuidas / actividad.horas_totales) * 100)
+        : 0;
 
     const distribucionPorDia: Record<number, number> = {};
-    actividad.horarios.forEach(h => {
-      distribucionPorDia[h.dia] = (distribucionPorDia[h.dia] || 0) + h.duracion_horas;
+    actividad.horarios.forEach((h) => {
+      distribucionPorDia[h.dia] =
+        (distribucionPorDia[h.dia] || 0) + h.duracion_horas;
     });
 
     return {
@@ -255,15 +268,25 @@ export class CargaNoLectivaService {
     }>;
   }> {
     const actividades = await this.getActividadesByDeclaracion(declaracionId);
-    
-    const totalHorasNoLectivas = actividades.reduce((sum, a) => sum + a.horas_totales, 0);
-    const totalHorasDistribuidas = actividades.reduce((sum, a) => sum + a.horas_distribuidas, 0);
-    const totalHorasPendientes = actividades.reduce((sum, a) => sum + a.horas_pendientes, 0);
 
-    const actividadesResumen = actividades.map(a => {
-      const porcentaje = a.horas_totales > 0
-        ? Math.round((a.horas_distribuidas / a.horas_totales) * 100)
-        : 0;
+    const totalHorasNoLectivas = actividades.reduce(
+      (sum, a) => sum + a.horas_totales,
+      0,
+    );
+    const totalHorasDistribuidas = actividades.reduce(
+      (sum, a) => sum + a.horas_distribuidas,
+      0,
+    );
+    const totalHorasPendientes = actividades.reduce(
+      (sum, a) => sum + a.horas_pendientes,
+      0,
+    );
+
+    const actividadesResumen = actividades.map((a) => {
+      const porcentaje =
+        a.horas_totales > 0
+          ? Math.round((a.horas_distribuidas / a.horas_totales) * 100)
+          : 0;
       return {
         id: a.id,
         tipo: a.tipo,

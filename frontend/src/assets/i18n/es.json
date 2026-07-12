@@ -216,7 +216,24 @@
     "loggingIn": "INGRESANDO...",
     "loginToSystem": "INGRESAR AL SISTEMA",
     "academicManagementSystem": "SISTEMA DE GESTIÓN ACADÉMICA &bull; EIS",
-    "unt": "Universidad Nacional de Trujillo"
+    "unt": "Universidad Nacional de Trujillo",
+    "forgotPassword": "¿Olvidó su contraseña?",
+    "recoverPassword": "Recuperar Contraseña",
+    "enterEmail": "Ingrese su correo institucional o alternativo",
+    "sendResetLink": "Enviar enlace de recuperación",
+    "resetLinkSent": "Si el correo existe, recibirás un enlace de recuperación",
+    "backToLogin": "Volver al inicio de sesión",
+    "resetPassword": "Restablecer Contraseña",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "passwordMinLength": "Mínimo 8 caracteres",
+    "passwordsMustMatch": "Las contraseñas deben coincidir",
+    "resetSuccess": "Contraseña restablecida exitosamente",
+    "invalidToken": "Token inválido o expirado",
+    "requestNewLink": "Solicitar nuevo enlace",
+    "alternateEmail": "Correo alternativo (opcional)",
+    "alternateEmailHint": "Se usará para notificaciones y recuperación de contraseña",
+    "alternateEmailInvalid": "Correo alternativo inválido"
   },
   "dashboard": {
     "compactMode": "Modo compacto",
@@ -296,6 +313,7 @@
     },
     "classTypes": {
       "teoria": "Teoría",
+      "practica": "Práctica",
       "laboratorio": "Laboratorio",
       "mixto": "Mixto"
     },
@@ -325,5 +343,18 @@
     "conflictoHorario": "Conflicto de horario",
     "cargaExcedida": "Carga excedida",
     "aulaOcupada": "Aula ocupada"
+  },
+  "error": {
+    "pageNotFound": "Página no encontrada",
+    "pageNotFoundMsg": "La página que buscas no existe o ha sido movida.",
+    "accessDenied": "Acceso denegado",
+    "accessDeniedMsg": "No tienes permisos para acceder a esta sección.",
+    "serverError": "Error del servidor",
+    "serverErrorMsg": "Ha ocurrido un error inesperado. Nuestro equipo ha sido notificado.",
+    "sessionExpired": "Sesión expirada",
+    "sessionExpiredMsg": "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+    "goHome": "Ir al inicio",
+    "goLogin": "Iniciar sesión",
+    "helpText": "Si crees que esto es un error, contacta al administrador del sistema."
   }
 }

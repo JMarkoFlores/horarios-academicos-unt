@@ -110,18 +110,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   displayKPIs: {
     total_docentes: number;
+    total_horarios_asignados: number;
+    total_cursos: number;
+    total_aulas: number;
     docentes_con_horario: number;
     porcentaje_docentes_asignados: number;
     aulas_ocupadas: number;
-    total_aulas: number;
     porcentaje_ocupacion_aulas: number;
     conflictos_activos: number;
   } = {
     total_docentes: 0,
+    total_horarios_asignados: 0,
+    total_cursos: 0,
+    total_aulas: 0,
     docentes_con_horario: 0,
     porcentaje_docentes_asignados: 0,
     aulas_ocupadas: 0,
-    total_aulas: 0,
     porcentaje_ocupacion_aulas: 0,
     conflictos_activos: 0,
   };
@@ -129,6 +133,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   barChartData: ChartData<'bar'> = { labels: [], datasets: [] };
 
   doughnutData: ChartData<'doughnut'> = { labels: [], datasets: [] };
+
+  doughnutModalidadData: ChartData<'doughnut'> = { labels: [], datasets: [] };
 
   private getLocaleCode(lang: string): string {
     const locales: Record<string, string> = {
@@ -263,9 +269,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.cargaAvance = [];
       this.diasActivosService.cargar().subscribe();
       this.loadAll();
-      if (this.activeTab() === 'carga') {
-        this.loadCargaKPIs();
-      }
     });
     this.dashSub = this.socketService.dashboardKpiUpdate$.subscribe(() => this.loadKPIs());
     this.langSub = this.translate.onLangChange.subscribe(() => {
@@ -321,6 +324,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } else {
       this.loadKPIs();
       this.loadConflictos();
+      this.loadCargaKPIs();
     }
   }
 
@@ -393,14 +397,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.applyColorConfiguration(res.data.colores_config);
           this.displayKPIs = {
             total_docentes: res.data.total_docentes,
+            total_horarios_asignados: res.data.total_horarios_asignados,
+            total_cursos: res.data.total_cursos,
+            total_aulas: res.data.total_aulas,
             docentes_con_horario: res.data.docentes_con_horario,
             porcentaje_docentes_asignados: res.data.porcentaje_docentes_asignados,
             aulas_ocupadas: res.data.aulas_ocupadas,
-            total_aulas: res.data.total_aulas,
             porcentaje_ocupacion_aulas: res.data.porcentaje_ocupacion_aulas,
             conflictos_activos: res.data.conflictos_activos,
           };
           this.buildCharts(res.data);
+          this.buildModalidadDoughnut(res.data.distribucion_por_modalidad);
           this.loading.set(false);
           this.firstLoadDone.set(true);
         },
@@ -480,11 +487,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  private buildModalidadDoughnut(modalidades: { modalidad: string; total: number; con_horario: number }[]): void {
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+    this.doughnutModalidadData = {
+      labels: modalidades.map((m) => m.modalidad),
+      datasets: [{
+        data: modalidades.map((m) => m.total),
+        backgroundColor: modalidades.map((_, i) => colors[i % colors.length] + 'CC'),
+        hoverBackgroundColor: modalidades.map((_, i) => colors[i % colors.length]),
+        borderWidth: 3, borderColor: '#ffffff', hoverOffset: 30, offset: 4,
+      }],
+    };
+  }
+
   switchTab(tab: 'horarios' | 'carga'): void {
     this.activeTab.set(tab);
-    if (tab === 'carga' && !this.cargaResumen) {
-      this.loadCargaKPIs();
-    }
   }
 
   loadCargaKPIs(): void {
@@ -618,16 +635,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private _buildHeatmapCache(): void {
     if (!this.kpis?.mapa_calor || this._heatmapCache.size > 0) return;
+    const isDark = document.body.classList.contains('dark-theme');
+    const t = (key: string, fallback: string) => this.translate.instant(key) || fallback;
     for (const cell of this.kpis.mapa_calor) {
       // cell.hora is now in format "HH:00-HH:00" from backend
       const key = `${cell.dia}|${cell.hora}`;
       const dayKey = `dashboard.days.${cell.dia.toLowerCase().replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u').replace('á', 'a')}`;
       const translatedDay = this.translate.instant(dayKey);
-      const isDark = document.body.classList.contains('dark-theme');
       if (cell.intensidad === 0) {
         this._heatmapCache.set(key, { 
           color: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', 
-          tooltip: this.translate.instant('dashboard.noClasses') 
+          tooltip: t('dashboard.noClasses', 'Sin clases') 
         });
         continue;
       }
@@ -637,18 +655,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const color = isDark
         ? cell.tipo_clase === 'LABORATORIO'
           ? `rgba(52, 231, 120, ${alpha})`
+          : cell.tipo_clase === 'PRACTICA'
+          ? `rgba(251, 146, 60, ${alpha})`
           : cell.tipo_clase === 'MIXTO'
           ? `rgba(196, 108, 255, ${alpha})`
           : `rgba(96, 165, 250, ${alpha})`
         : cell.tipo_clase === 'LABORATORIO'
-          ? `rgba(22, 163, 74, ${alpha})`
-          : cell.tipo_clase === 'MIXTO'
-          ? `rgba(147, 51, 234, ${alpha})`
-          : `rgba(37, 99, 235, ${alpha})`;
+        ? `rgba(22, 163, 74, ${alpha})`
+        : cell.tipo_clase === 'PRACTICA'
+        ? `rgba(217, 119, 6, ${alpha})`
+        : cell.tipo_clase === 'MIXTO'
+        ? `rgba(147, 51, 234, ${alpha})`
+        : `rgba(37, 99, 235, ${alpha})`;
       const cursosStr = cell.cursos?.length ? `\n${cell.cursos.join(', ')}` : '';
-      let tipoClase = this.translate.instant('dashboard.classTypes.teoria');
-      if (cell.tipo_clase === 'LABORATORIO') tipoClase = this.translate.instant('dashboard.classTypes.laboratorio');
-      if (cell.tipo_clase === 'MIXTO') tipoClase = this.translate.instant('dashboard.classTypes.mixto');
+      let tipoClase = t('dashboard.classTypes.teoria', 'Teoría');
+      if (cell.tipo_clase === 'LABORATORIO') tipoClase = t('dashboard.classTypes.laboratorio', 'Laboratorio');
+      else if (cell.tipo_clase === 'PRACTICA') tipoClase = t('dashboard.classTypes.practica', 'Práctica');
+      else if (cell.tipo_clase === 'MIXTO') tipoClase = t('dashboard.classTypes.mixto', 'Mixto');
       const tooltip = `${translatedDay} ${cell.hora} — ${tipoClase}${cursosStr}`;
       this._heatmapCache.set(key, { color, tooltip });
     }
@@ -656,6 +679,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   formatHoraRango(hora: string): string {
     return hora; // Already in format "HH:00-HH:00"
+  }
+
+  get heatmapLegendItems(): { color: string; label: string }[] {
+    const isDark = document.body.classList.contains('dark-theme');
+    const alpha = 0.7;
+    const t = (key: string, fallback: string) => this.translate.instant(key) || fallback;
+    return [
+      { 
+        color: isDark ? `rgba(96, 165, 250, ${alpha})` : `rgba(37, 99, 235, ${alpha})`, 
+        label: t('dashboard.classTypes.teoria', 'Teoría') 
+      },
+      { 
+        color: isDark ? `rgba(251, 146, 60, ${alpha})` : `rgba(217, 119, 6, ${alpha})`, 
+        label: t('dashboard.classTypes.practica', 'Práctica') 
+      },
+      { 
+        color: isDark ? `rgba(52, 231, 120, ${alpha})` : `rgba(22, 163, 74, ${alpha})`, 
+        label: t('dashboard.classTypes.laboratorio', 'Laboratorio') 
+      },
+      { 
+        color: isDark ? `rgba(196, 108, 255, ${alpha})` : `rgba(147, 51, 234, ${alpha})`, 
+        label: t('dashboard.classTypes.mixto', 'Mixto') 
+      },
+      { 
+        color: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', 
+        label: t('dashboard.noClasses', 'Sin clases') 
+      },
+    ];
   }
 
   onHeatmapCellClick(dia: string, hora: string): void {

@@ -13,6 +13,7 @@ import {
   Matches,
 } from "class-validator";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
+import { TipoContrato } from "../../common/enums/tipo-contrato.enum";
 import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
 
@@ -89,6 +90,16 @@ export class CreateDocenteDto {
   })
   @IsEnum(ModalidadDocente, { message: "Modalidad inválida" })
   modalidad: ModalidadDocente;
+
+  @ApiPropertyOptional({
+    enum: TipoContrato,
+    example: TipoContrato.NOMBRADO,
+    description:
+      "Se deriva automáticamente del tipo_docente (ORDINARIO=NOMBRADO, otros=CONTRATADO)",
+  })
+  @IsOptional()
+  @IsEnum(TipoContrato, { message: "Tipo de contrato inválido" })
+  tipo_contrato?: TipoContrato;
 
   @ApiProperty({ example: "2000-03-01" })
   @IsDateString({}, { message: "Fecha de ingreso inválida (YYYY-MM-DD)" })

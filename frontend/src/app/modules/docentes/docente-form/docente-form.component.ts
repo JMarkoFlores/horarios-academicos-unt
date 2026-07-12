@@ -273,6 +273,18 @@ export class DocenteFormComponent implements OnInit {
           this.form.get('categoria')!.enable();
           this.form.get('modalidad')!.enable();
 
+          // Load facultad first, then departamento
+          if (d.facultad_id) {
+            this.form.patchValue({ facultad_id: d.facultad_id });
+            this.loadDepartamentos(d.facultad_id);
+            // Patch departamento after loading (with slight delay to ensure departamentos are loaded)
+            setTimeout(() => {
+              if (d.departamento_id) {
+                this.form.patchValue({ departamento_id: d.departamento_id });
+              }
+            }, 100);
+          }
+
           this.form.patchValue({
             codigo: d.codigo,
             ibm: d.ibm,
@@ -285,6 +297,8 @@ export class DocenteFormComponent implements OnInit {
             categoria: d.categoria,
             modalidad: d.modalidad,
             fecha_ingreso: d.fecha_ingreso ? new Date(d.fecha_ingreso) : null,
+            horas_asignadas: d.horas_asignadas ?? 0,
+            usuario_id: d.usuario_id ?? null,
           });
           this.loading = false;
         },

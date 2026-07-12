@@ -1,0 +1,11 @@
+codigo,nombre,tipo,capacidad,estado,piso,pabellon,sede,equipamiento,edificio,coordX,coordY
+A-301,Aula 301,AULA,40,ACTIVO,3,Pabellon A,Campus Central,Proyector,,,
+A-302,Aula 302,AULA,40,ACTIVO,3,Pabellon A,Campus Central,Proyector,,,
+A-303,Aula 303,AULA,40,ACTIVO,3,Pabellon A,Campus Central,Proyector,,,
+LAB-1,Laboratorio 1,LABORATORIO,30,ACTIVO,1,Pabellon B,Campus Central,"30 PCs, Proyector, Aire acondicionado",,,
+LAB-2,Laboratorio 2,LABORATORIO,30,ACTIVO,1,Pabellon B,Campus Central,"30 PCs, Proyector, Aire acondicionado",,,
+LAB-3,Laboratorio 3,LABORATORIO,30,ACTIVO,1,Pabellon B,Campus Central,"30 PCs, Proyector, Aire acondicionado",,,
+TALL-1,Taller de Confecciones,TALLER,25,ACTIVO,2,Pabellon C,Campus Central,"Maquinas de coser, Mesas de trabajo",,,
+AUD-1,Auditorio Principal,AUDITORIO,200,ACTIVO,0,Pabellon D,Campus Central,"Sonido, Proyector, Iluminacion",,,
+SEM-1,Seminario 1,SEMINARIO,15,ACTIVO,2,Pabellon A,Campus Central,Proyector,,,
+LAB-FIS,Lab. Fisica,LABORATORIO,25,ACTIVO,2,Pabellon E,Campus Central,"Equipos de medicion, Osciloscopios",,,

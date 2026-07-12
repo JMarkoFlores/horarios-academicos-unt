@@ -44,19 +44,22 @@ export class ImportadorService {
     formData.append('file', file);
     formData.append('entityType', entityType);
 
-    return this.http.post<{ sessionId: string; preview: ImportPreview }>(`${this.apiUrl}/upload`, formData);
+    return this.http.post<{ sessionId: string; preview: ImportPreview }>(`${this.apiUrl}/upload`, formData, {
+      withCredentials: true,
+      reportProgress: true,
+    });
   }
 
   getPreview(sessionId: string): Observable<ImportPreview> {
-    return this.http.get<ImportPreview>(`${this.apiUrl}/preview/${sessionId}`);
+    return this.http.get<ImportPreview>(`${this.apiUrl}/preview/${sessionId}`, { withCredentials: true });
   }
 
   confirmImport(sessionId: string, periodoId?: number): Observable<ImportResult> {
     const body = { periodoId };
-    return this.http.post<ImportResult>(`${this.apiUrl}/confirm/${sessionId}`, body);
+    return this.http.post<ImportResult>(`${this.apiUrl}/confirm/${sessionId}`, body, { withCredentials: true });
   }
 
   getStatus(sessionId: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/status/${sessionId}`);
+    return this.http.get<any>(`${this.apiUrl}/status/${sessionId}`, { withCredentials: true });
   }
 }

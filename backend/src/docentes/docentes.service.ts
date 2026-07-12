@@ -465,13 +465,19 @@ export class DocentesService {
   }
 
   private async resolverVinculosInstitucionales(
-    facultadId?: number,
-    departamentoId?: number,
+    facultadId?: number | null,
+    departamentoId?: number | null,
     facultadActualId: number | null = null,
     departamentoActualId: number | null = null,
   ): Promise<{ facultad_id: number | null; departamento_id: number | null }> {
-    let facultad_id = facultadId ?? facultadActualId ?? null;
-    const departamento_id = departamentoId ?? departamentoActualId ?? null;
+    // Use explicit null check: if undefined, keep current; if null, clear
+    const facultadIdProvided = facultadId !== undefined;
+    const departamentoIdProvided = departamentoId !== undefined;
+
+    let facultad_id = facultadIdProvided ? facultadId : facultadActualId;
+    const departamento_id = departamentoIdProvided
+      ? departamentoId
+      : departamentoActualId;
 
     let facultad: Facultad | null = null;
     let departamento: Departamento | null = null;
@@ -490,6 +496,11 @@ export class DocentesService {
 
       if (!facultad_id) {
         facultad_id = departamento.escuela?.facultad?.id ?? null;
+      }
+    } else if (departamentoIdProvided && departamentoId === null) {
+      // Explicitly clearing departamento, also clear facultad unless explicitly provided
+      if (!facultadIdProvided) {
+        facultad_id = null;
       }
     }
 

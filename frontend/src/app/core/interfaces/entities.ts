@@ -83,6 +83,8 @@ export interface Docente {
   disponibilidades?: any[];
   facultad?: { id: number; nombre: string } | null;
   foto_url?: string | null;
+  horas_asignadas?: number;
+  usuario_id?: number | null;
 }
 
 export interface Escuela {

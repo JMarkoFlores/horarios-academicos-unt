@@ -36,6 +36,7 @@ export interface CursoPlanEstudios {
   prerequisitos?: number[];
   estado: string;
   curso?: Curso;
+  plan_estudios?: { id: number; nombre: string; codigo: string; activo: boolean };
 }
 
 export interface ContextoAcademico {
@@ -131,6 +132,7 @@ export interface Curso {
   departamento_id?: number;
   departamento?: Departamento;
   prerequisitos?: string | null;
+  planes_estudio?: CursoPlanEstudios[];
 }
 
 export interface Grupo {

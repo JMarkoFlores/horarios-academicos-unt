@@ -764,7 +764,7 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
   private createBlock(dia: number, hora: number, palette: PaletteBlock): ScheduleBlock {
     const fin = hora + palette.duracion;
     return {
-      id: `blk_${dia}_${hora}_${Date.now()}`,
+      id: `temp_${dia}_${hora}_${Date.now()}`,
       tipo: palette.tipo as BlockType,
       dia,
       hora_inicio: `${String(hora).padStart(2, '0')}:00`,
@@ -773,7 +773,7 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
       label: palette.label,
       badge: palette.tipo === 'ventana' ? 'VEN' : palette.tipo === 'lectiva' ? 'TEO' : undefined,
       colorKey: palette.colorKey,
-      readOnly: palette.tipo === 'lectiva',
+      readOnly: false,
     };
   }
 
@@ -781,6 +781,8 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.armedBlock || !this.canPlace(dia, hora)) return;
     const block = this.createBlock(dia, hora, this.armedBlock);
     const newBlocks = [...this.blocks, block];
+    this.blocks = newBlocks;
+    this.rebuildGrid();
     this.blocksChange.emit(newBlocks);
     this.blockAdded.emit(block);
   }
@@ -788,14 +790,20 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
   removeBlock(block: ScheduleBlock): void {
     if (block.readOnly) return;
     const newBlocks = this.blocks.filter(b => b.id !== block.id);
+    this.blocks = newBlocks;
+    this.rebuildGrid();
     this.blocksChange.emit(newBlocks);
     this.blockRemoved.emit(block);
   }
 
   onPaletteDrop(event: CdkDragDrop<PaletteBlock[]>): void {
     const palette = event.item.data as PaletteBlock;
-    const el = event.event.target as HTMLElement;
-    const cell = el.closest('.sg-cell--body') as HTMLElement;
+    let el = event.event.target as HTMLElement | null;
+    let cell = el?.closest('.sg-cell--body') as HTMLElement | null;
+    if (!cell && event.event instanceof MouseEvent) {
+      const elementAtPoint = document.elementFromPoint(event.event.clientX, event.event.clientY) as HTMLElement | null;
+      cell = elementAtPoint?.closest('.sg-cell--body') as HTMLElement | null;
+    }
     if (cell) {
       const dia = parseInt(cell.getAttribute('data-dia') || '0', 10);
       const hora = parseInt(cell.getAttribute('data-hora') || '0', 10);
@@ -809,20 +817,32 @@ export class ScheduleGridComponent implements OnInit, OnChanges, OnDestroy {
 
   onGridDrop(event: CdkDragDrop<any>): void {
     const data = event.item.data;
-    if (!data || !data.tipoClase) return;
-    const el = event.event.target as HTMLElement;
-    const cell = el.closest('.sg-cell--body') as HTMLElement;
+    if (!data) return;
+    let tipoClase = data.tipoClase || '';
+    if (!tipoClase && data.curso && Array.isArray(data.curso.tiposRequeridos) && data.curso.tiposRequeridos.length > 0) {
+      tipoClase = this.asText(data.curso.tiposRequeridos[0]);
+    }
+    if (!tipoClase) return;
+
+    let el = event.event.target as HTMLElement | null;
+    let cell = el?.closest('.sg-cell--body') as HTMLElement | null;
+    if (!cell && event.event instanceof MouseEvent) {
+      const elementAtPoint = document.elementFromPoint(event.event.clientX, event.event.clientY) as HTMLElement | null;
+      cell = elementAtPoint?.closest('.sg-cell--body') as HTMLElement | null;
+    }
     if (!cell) return;
+
     const dia = parseInt(cell.getAttribute('data-dia') || '0', 10);
     const hora = parseInt(cell.getAttribute('data-hora') || '0', 10);
     if (!dia || !hora) return;
-    const duracion = data.tipoClase === 'LABORATORIO' ? 3 : 2;
+
+    const duracion = tipoClase === 'LABORATORIO' ? 3 : 2;
     const palette: PaletteBlock = {
-      id: `ext_${data.curso?.cursoPlanId || 'drop'}_${data.tipoClase}`,
+      id: `ext_${data.curso?.cursoPlanId || 'drop'}_${tipoClase}`,
       duracion,
-      label: data.curso ? `${data.curso.codigo} — ${data.tipoClase}` : data.tipoClase,
+      label: data.curso ? `${data.curso.codigo} — ${tipoClase}` : tipoClase,
       tipo: 'lectiva',
-      colorKey: data.tipoClase === 'TEORIA' ? '2' : data.tipoClase === 'LABORATORIO' ? '3' : '4',
+      colorKey: tipoClase === 'TEORIA' ? '2' : tipoClase === 'LABORATORIO' ? '3' : '4',
     };
     this.armedBlock = palette;
     if (this.canPlace(dia, hora)) {

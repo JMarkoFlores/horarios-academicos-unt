@@ -52,6 +52,10 @@ import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
 import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
 import { UpdateAsignacionDto } from "./dto/update-asignacion.dto";
+import { CrearHorarioCargaLectivaDto } from "./dto/crear-horario-carga-lectiva.dto";
+import { UpdateHorarioCargaLectivaDto } from "./dto/update-horario-carga-lectiva.dto";
+import { ValidarAsignacionDto } from "./dto/validar-asignacion.dto";
+import { GuardarBatchCargaLectivaDto } from "./dto/guardar-batch-carga-lectiva.dto";
 import { HorariosService } from "./horarios.service";
 
 @ApiTags("horarios")
@@ -843,6 +847,274 @@ export class HorariosController {
     return {
       data,
       message: "Matriz de disponibilidad obtenida",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  // ─── ENDPOINTS PARA CARGA LECTIVA ───────────────────────────────────────
+
+  @Get("carga-lectiva/pendientes")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({
+    summary:
+      "Lista asignaciones lectiva CONFIRMADAS sin horario, agrupadas por docente",
+  })
+  @ApiQuery({ name: "periodo_id", required: true })
+  @ApiQuery({ name: "facultad_id", required: false })
+  @ApiQuery({ name: "depto_id", required: false })
+  @ApiQuery({ name: "escuela_id", required: false })
+  @ApiResponse({
+    status: 200,
+    description: "Asignaciones pendientes agrupadas por docente",
+  })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async getAsignacionesPendientes(
+    @Query("periodo_id") periodoId: string,
+    @Query("facultad_id") facultadId?: string,
+    @Query("depto_id") deptoId?: string,
+    @Query("escuela_id") escuelaId?: string,
+  ) {
+    const data = await this.horariosService.getAsignacionesPendientes(
+      Number(periodoId),
+      facultadId ? Number(facultadId) : undefined,
+      deptoId ? Number(deptoId) : undefined,
+      escuelaId ? Number(escuelaId) : undefined,
+    );
+    return {
+      data,
+      message: "Asignaciones pendientes obtenidas",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get("carga-lectiva/:asignacionId/horarios")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({
+    summary: "Lista horarios ya asignados a una asignación lectiva",
+  })
+  @ApiParam({
+    name: "asignacionId",
+    description: "ID de la asignación lectiva",
+  })
+  @ApiResponse({ status: 200, description: "Horarios de la asignación" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async getHorariosAsignacionLectiva(
+    @Param("asignacionId") asignacionId: string,
+  ) {
+    const data = await this.horariosService.findByAsignacionLectiva(
+      Number(asignacionId),
+    );
+    return {
+      data,
+      message: "Horarios de la asignación obtenidos",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("carga-lectiva/asignar")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Crea horario vinculado a asignación lectiva" })
+  @ApiResponse({ status: 201, description: "Horario creado" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async asignarHorarioCargaLectiva(
+    @Body() dto: CrearHorarioCargaLectivaDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const data = await this.horariosService.crearHorarioCargaLectiva(
+      dto,
+      usuario,
+    );
+    await this.horariosService.invalidateHorariosCache();
+    return {
+      data,
+      message: "Horario de carga lectiva asignado",
+      statusCode: HttpStatus.CREATED,
+    };
+  }
+
+  @Patch("carga-lectiva/:id")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Actualiza horario de carga lectiva" })
+  @ApiParam({ name: "id", description: "ID del horario" })
+  @ApiResponse({ status: 200, description: "Horario actualizado" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async actualizarHorarioCargaLectiva(
+    @Param("id") id: string,
+    @Body() dto: UpdateHorarioCargaLectivaDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const data = await this.horariosService.actualizarHorarioCargaLectiva(
+      Number(id),
+      dto,
+      usuario,
+    );
+    await this.horariosService.invalidateHorariosCache();
+    return {
+      data,
+      message: "Horario de carga lectiva actualizado",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Delete("carga-lectiva/:id")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Elimina horario de carga lectiva" })
+  @ApiParam({ name: "id", description: "ID del horario" })
+  @ApiResponse({ status: 200, description: "Horario eliminado" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async eliminarHorarioCargaLectiva(
+    @Param("id") id: string,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    await this.horariosService.eliminarHorarioCargaLectiva(Number(id), usuario);
+    await this.horariosService.invalidateHorariosCache();
+    return {
+      data: null,
+      message: "Horario de carga lectiva eliminado",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get("carga-lectiva/cruces-no-lectiva")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Valida cruces con carga no lectiva" })
+  @ApiQuery({ name: "docente_id", required: true })
+  @ApiQuery({ name: "periodo_id", required: true })
+  @ApiQuery({ name: "dia", required: true })
+  @ApiQuery({ name: "hora_inicio", required: true })
+  @ApiQuery({ name: "hora_fin", required: true })
+  @ApiResponse({ status: 200, description: "Resultado de validación" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async validarCrucesNoLectiva(
+    @Query("docente_id") docenteId: string,
+    @Query("periodo_id") periodoId: string,
+    @Query("dia") dia: string,
+    @Query("hora_inicio") horaInicio: string,
+    @Query("hora_fin") horaFin: string,
+  ) {
+    const data = await this.horariosService.validarCrucesNoLectiva(
+      Number(docenteId),
+      Number(periodoId),
+      Number(dia),
+      horaInicio,
+      horaFin,
+    );
+    return {
+      data,
+      message: "Validación de cruces completada",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("carga-lectiva/validar-asignacion")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Valida TODAS las reglas antes de guardar" })
+  @ApiResponse({ status: 200, description: "Resultado de validación completa" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async validarAsignacion(@Body() dto: ValidarAsignacionDto) {
+    const data = await this.horariosService.validarAsignacion(dto);
+    return {
+      data,
+      message: "Validación completada",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get("carga-lectiva/progreso")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Indicador de progreso por docente" })
+  @ApiQuery({ name: "periodo_id", required: true })
+  @ApiQuery({ name: "facultad_id", required: false })
+  @ApiQuery({ name: "depto_id", required: false })
+  @ApiResponse({ status: 200, description: "Progreso de carga lectiva" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async getProgresoCargaLectiva(
+    @Query("periodo_id") periodoId: string,
+    @Query("facultad_id") facultadId?: string,
+    @Query("depto_id") deptoId?: string,
+  ) {
+    const data = await this.horariosService.getProgresoCargaLectiva(
+      Number(periodoId),
+      facultadId ? Number(facultadId) : undefined,
+      deptoId ? Number(deptoId) : undefined,
+    );
+    return {
+      data,
+      message: "Progreso de carga lectiva obtenido",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("carga-lectiva/guardar-batch")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({
+    summary: "Guarda horarios de carga lectiva en batch (transaccional)",
+  })
+  @ApiResponse({ status: 200, description: "Horarios guardados correctamente" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async guardarBatchCargaLectiva(
+    @Body() dto: GuardarBatchCargaLectivaDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    await this.horariosService.guardarBatchCargaLectiva(dto, usuario);
+    await this.horariosService.invalidateHorariosCache();
+    return {
+      data: null,
+      message: "Horarios guardados correctamente",
       statusCode: HttpStatus.OK,
     };
   }

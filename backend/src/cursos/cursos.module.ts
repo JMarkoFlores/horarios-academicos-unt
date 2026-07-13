@@ -4,6 +4,8 @@ import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { PlanEstudios } from "../entities/plan-estudios.entity";
 import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
+import { CatedraCompartida } from "../entities/catedra-compartida.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { CursosService } from "./cursos.service";
 import { CursosController } from "./cursos.controller";
 
@@ -14,6 +16,8 @@ import { CursosController } from "./cursos.controller";
       Ambiente,
       PlanEstudios,
       CursoPlanEstudios,
+      CatedraCompartida,
+      AsignacionLectiva,
     ]),
   ],
   controllers: [CursosController],

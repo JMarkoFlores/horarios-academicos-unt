@@ -5,15 +5,18 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In, DataSource, DeepPartial } from "typeorm";
+import { Repository, In, DataSource, DeepPartial, Not } from "typeorm";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { PlanEstudios } from "../entities/plan-estudios.entity";
 import { CursoPlanEstudios } from "../entities/curso-plan-estudios.entity";
+import { CatedraCompartida } from "../entities/catedra-compartida.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { TipoCursoPlan } from "../common/enums/tipo-curso-plan.enum";
 import { EstadoCursoPlan } from "../common/enums/estado-curso-plan.enum";
+import { EstadoAsignacionLectiva } from "../common/enums/estado-asignacion-lectiva.enum";
 import { asignarAmbientesPorDefecto } from "../database/asignar-ambientes-por-defecto.helper";
 import { CreateCursoDto } from "./dto/create-curso.dto";
 import { UpdateCursoDto } from "./dto/update-curso.dto";
@@ -30,6 +33,10 @@ export class CursosService {
     private readonly planRepo: Repository<PlanEstudios>,
     @InjectRepository(CursoPlanEstudios)
     private readonly cursoPlanRepo: Repository<CursoPlanEstudios>,
+    @InjectRepository(CatedraCompartida)
+    private readonly catedraCompartidaRepo: Repository<CatedraCompartida>,
+    @InjectRepository(AsignacionLectiva)
+    private readonly asignacionLectivaRepo: Repository<AsignacionLectiva>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -505,5 +512,94 @@ export class CursosService {
       await this.invalidateCache();
       return resultado;
     });
+  }
+
+  async getCursosPendientesDepartamento(
+    departamentoId: number,
+    periodoId: number,
+  ) {
+    // Obtener cursos del departamento
+    const cursos = await this.cursoRepo.find({
+      where: {
+        departamento_id: departamentoId,
+        activo: true,
+      },
+      relations: ["departamento"],
+    });
+
+    // Obtener cursos plan activos para este departamento
+    const cursosPlan = await this.cursoPlanRepo.find({
+      where: {
+        estado: EstadoCursoPlan.ACTIVO,
+      },
+      relations: ["curso", "plan_estudios"],
+    });
+
+    const cursosPlanDepto = cursosPlan.filter(
+      (cp) => cp.curso.departamento_id === departamentoId,
+    );
+
+    // Obtener asignaciones existentes para el periodo
+    const asignaciones = await this.asignacionLectivaRepo.find({
+      where: {
+        periodo_id: periodoId,
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+      },
+    });
+
+    const cursosConAsignacion = new Set(
+      asignaciones.map((a) => a.curso_plan_id),
+    );
+
+    // Cursos pendientes = cursos plan sin asignación
+    const pendientes = cursosPlanDepto
+      .filter((cp) => !cursosConAsignacion.has(cp.id))
+      .map((cp) => ({
+        id: cp.id,
+        curso_id: cp.curso.id,
+        codigo: cp.curso.codigo,
+        nombre: cp.curso.nombre,
+        ciclo: cp.ciclo,
+        tipo_curso: cp.tipo_curso,
+        horas_teoria: cp.horas_teoria,
+        horas_practica: cp.horas_practica,
+        horas_laboratorio: cp.horas_laboratorio,
+        creditos: cp.creditos,
+        tiene_laboratorio: cp.curso.tiene_laboratorio,
+        departamento: cp.curso.departamento,
+      }));
+
+    return pendientes;
+  }
+
+  async getCatedraCompartida(cursoId: number) {
+    // Buscar curso plan por curso_id
+    const cursosPlan = await this.cursoPlanRepo.find({
+      where: { curso_id: cursoId },
+    });
+
+    const cursoPlanIds = cursosPlan.map((cp) => cp.id);
+
+    // Buscar excepciones de cátedra compartida
+    const excepciones = await this.catedraCompartidaRepo.find({
+      where: {
+        curso_plan_id: In(cursoPlanIds),
+        activa: true,
+      },
+    });
+
+    return {
+      tiene_excepcion: excepciones.length > 0,
+      excepciones: excepciones.map((ex) => ({
+        id: ex.id,
+        curso_plan_id: ex.curso_plan_id,
+        tipo_clase: ex.tipo_clase,
+        motivo_excepcion: ex.motivo_excepcion,
+        autorizado_por: ex.autorizado_por,
+        fecha_autorizacion: ex.fecha_autorizacion,
+        observaciones: ex.observaciones,
+        referencia_rcu: ex.referencia_rcu,
+      })),
+    };
   }
 }

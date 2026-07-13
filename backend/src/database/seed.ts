@@ -164,8 +164,15 @@ export async function main() {
     console.log("✅ Turnos por defecto creados.");
 
     // 2b. Seed ParametrosCarga for active period
-    const parametrosCargaRepo = queryRunner.manager.getRepository(ParametrosCarga);
-    const modalidades = ["TC", "TP", "TIEMPO_COMPLETO", "MEDIO_TIEMPO", "HORAS_CATEDRA"];
+    const parametrosCargaRepo =
+      queryRunner.manager.getRepository(ParametrosCarga);
+    const modalidades = [
+      "TC",
+      "TP",
+      "TIEMPO_COMPLETO",
+      "MEDIO_TIEMPO",
+      "HORAS_CATEDRA",
+    ];
     const categorias = ["PRINCIPAL", "ASOCIADO", "AUXILIAR", "INSTRUCTOR"];
     const tiposDocente = ["ORDINARIO", "CONTRATADO"];
     let paramsCount = 0;
@@ -188,9 +195,13 @@ export async function main() {
                 categoria,
                 tipo_docente: tipoDocente,
                 horas_min_semanal: 4,
-                horas_max_semanal: modalidad === "TC" || modalidad === "TIEMPO_COMPLETO" ? 40 : 24,
+                horas_max_semanal:
+                  modalidad === "TC" || modalidad === "TIEMPO_COMPLETO"
+                    ? 40
+                    : 24,
                 cursos_min_docente: 1,
-                cursos_max_docente: modalidad === "TC" || modalidad === "TIEMPO_COMPLETO" ? 8 : 5,
+                cursos_max_docente:
+                  modalidad === "TC" || modalidad === "TIEMPO_COMPLETO" ? 8 : 5,
               }),
             );
             paramsCount++;
@@ -292,7 +303,10 @@ export async function main() {
     const periodo = estructura.periodoActivo;
 
     const seenDC = new Set<string>();
-    const seenAL = new Map<string, { horas: number; grupoId: number | null; seccion: string }>();
+    const seenAL = new Map<
+      string,
+      { horas: number; grupoId: number | null; seccion: string }
+    >();
     let dcCount = 0,
       alCount = 0;
 
@@ -325,7 +339,7 @@ export async function main() {
       const grupoId = (h as any).grupo_id ?? null;
       const seccion = grupoId ? `G${grupoId}` : "U";
       const alKey = `${(h as any).docente_id}-${cursoPlan.id}-${tc}-${seccion}`;
-      
+
       if (!seenAL.has(alKey)) {
         seenAL.set(alKey, { horas, grupoId, seccion });
       } else {
@@ -333,11 +347,11 @@ export async function main() {
         seenAL.get(alKey)!.horas += horas;
       }
     }
-    
+
     // Now save all unique AsignacionLectiva entries
     for (const [alKey, data] of seenAL.entries()) {
-      const [docenteId, cursoPlanId, tc, seccion] = alKey.split('-');
-      
+      const [docenteId, cursoPlanId, tc, seccion] = alKey.split("-");
+
       // Vary nro_alumnos based on tipo_clase (lab typically smaller)
       let nroAlumnos = 25;
       if (tc === "LABORATORIO") {
@@ -347,7 +361,7 @@ export async function main() {
       } else {
         nroAlumnos = Math.floor(Math.random() * 30) + 25; // 25-54
       }
-      
+
       await asignacionLectivaRepo.save(
         asignacionLectivaRepo.create({
           docente_id: parseInt(docenteId),
@@ -380,6 +394,41 @@ export async function main() {
       turnoConfigRepo,
       estructura.periodoActivo,
     );
+
+    // 5b. Crear algunas asignaciones PENDIENTE sin horarios para demostración
+    const grupoRepo = queryRunner.manager.getRepository(Grupo);
+    const docentes = await docenteRepo.find({ take: 5 });
+    const cursosPlan = await cursoPlanRepo.find({ take: 10 });
+    const grupos = await grupoRepo.find({ take: 5 });
+
+    let pendientesCount = 0;
+    for (let i = 0; i < 10; i++) {
+      const docente = docentes[i % docentes.length];
+      const cursoPlan = cursosPlan[i % cursosPlan.length];
+      const grupo = grupos[i % grupos.length];
+
+      const tipos: TipoClase[] = [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO];
+      const tipo = tipos[i % tipos.length];
+      const seccion = `U${i + 1}`;
+      const nroAlumnos = tipo === TipoClase.LABORATORIO ? 25 : 40;
+
+      await asignacionLectivaRepo.save(
+        asignacionLectivaRepo.create({
+          docente_id: docente.id,
+          curso_plan_id: cursoPlan.id,
+          periodo_id: periodo.id,
+          grupo_id: grupo.id,
+          tipo_clase: tipo,
+          seccion: seccion,
+          nro_alumnos: nroAlumnos,
+          horas_asignadas: 4,
+          estado: EstadoAsignacionLectiva.PENDIENTE,
+          asignado_por_id: estructura.admin.id,
+        }),
+      );
+      pendientesCount++;
+    }
+    console.log(`✅ ${pendientesCount} AsignacionLectiva PENDIENTE sin horarios creadas`);
 
     // 6. Seed declaraciones demo
     const declaracionRepo = queryRunner.manager.getRepository(

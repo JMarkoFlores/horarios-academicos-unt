@@ -15,6 +15,13 @@ export interface ScheduleBlock {
   colorKey?: string;
   actividadId?: number;
   actividadNombre?: string;
+  curso_id?: number;
+  grupo_id?: number;
+  ambiente_id?: number;
+  curso_plan_id?: number;
+  tipo_clase?: string;
+  seccion?: string;
+  nro_alumnos?: number;
   readOnly?: boolean;
   tooltip?: string;
 }

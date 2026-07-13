@@ -24,6 +24,7 @@
     "seed:horarios-ciclo-V": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-V.ts",
     "seed:horarios-ciclo-VII": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-VII.ts",
     "seed:horarios-ciclo-IX": "ts-node -r tsconfig-paths/register src/database/seed-horarios-ciclo-IX.ts",
+    "seed:carga-lectiva-e2e": "ts-node -r tsconfig-paths/register src/database/seed-carga-lectiva-e2e.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

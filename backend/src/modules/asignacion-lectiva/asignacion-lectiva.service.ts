@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, Not, IsNull } from "typeorm";
+import { Repository, Not, IsNull, Between } from "typeorm";
 import { AsignacionLectiva } from "../../entities/asignacion-lectiva.entity";
 import { Docente } from "../../entities/docente.entity";
 import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
@@ -20,6 +20,7 @@ import { CreateAsignacionLectivaDto } from "./dto/create-asignacion-lectiva.dto"
 import { UpdateAsignacionLectivaDto } from "./dto/update-asignacion-lectiva.dto";
 import { QueryAsignacionLectivaDto } from "./dto/query-asignacion-lectiva.dto";
 import { ResumenCoberturaDto } from "./dto/resumen-cobertura.dto";
+import { ValidarAsignacionDto } from "./dto/validar-asignacion.dto";
 import { AuditoriaService } from "../auditoria/auditoria.service";
 import {
   EntidadAuditoriaCarga,
@@ -33,6 +34,10 @@ import {
 } from "../../common/interfaces/contexto-academico.interface";
 import { Curso } from "../../entities/curso.entity";
 import { OfertaAcademica } from "../../entities/oferta-academica.entity";
+import { SuspensionDocente } from "../../entities/suspension-docente.entity";
+import { CatedraCompartida } from "../../entities/catedra-compartida.entity";
+import { HorarioAsignado } from "../../entities/horario-asignado.entity";
+import { Ambiente } from "../../entities/ambiente.entity";
 
 @Injectable()
 export class AsignacionLectivaService {
@@ -53,6 +58,14 @@ export class AsignacionLectivaService {
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(OfertaAcademica)
     private readonly ofertaRepo: Repository<OfertaAcademica>,
+    @InjectRepository(SuspensionDocente)
+    private readonly suspensionRepo: Repository<SuspensionDocente>,
+    @InjectRepository(CatedraCompartida)
+    private readonly catedraCompartidaRepo: Repository<CatedraCompartida>,
+    @InjectRepository(HorarioAsignado)
+    private readonly horarioRepo: Repository<HorarioAsignado>,
+    @InjectRepository(Ambiente)
+    private readonly ambienteRepo: Repository<Ambiente>,
     private readonly auditoriaService: AuditoriaService,
     private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
@@ -499,6 +512,39 @@ export class AsignacionLectivaService {
     });
   }
 
+  async reabrir(id: number, usuario: UsuarioAutenticado) {
+    const asignacion = await this.findOne(id, usuario.contextoAcademico);
+    
+    if (asignacion.estado !== EstadoAsignacionLectiva.CONFIRMADO) {
+      throw new BadRequestException(
+        `Solo se puede reabrir una asignación en estado CONFIRMADO. Estado actual: ${asignacion.estado}`
+      );
+    }
+
+    const estadoAnterior = asignacion.estado;
+    asignacion.estado = EstadoAsignacionLectiva.PENDIENTE;
+    asignacion.confirmado_por_id = null;
+    asignacion.confirmado_en = null;
+    
+    const saved = await this.asignacionRepo.save(asignacion);
+
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.ASIGNACION_LECTIVA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.ACTUALIZAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: { estado: estadoAnterior },
+      datos_nuevos: { estado: saved.estado },
+      ip: "0.0.0.0",
+      motivo: "Reapertura de asignación lectiva",
+    });
+
+    return saved;
+  }
+
   async getResumen(
     periodoId?: number,
     planId?: number,
@@ -725,5 +771,241 @@ export class AsignacionLectivaService {
           `No se pueden asignar ${nuevasHoras}h adicionales.`,
       );
     }
+  }
+
+  async validarAsignacion(
+    dto: ValidarAsignacionDto,
+    usuario: UsuarioAutenticado,
+  ) {
+    const errores: string[] = [];
+    const advertencias: string[] = [];
+
+    // Validar suspensión del docente
+    const suspension = await this.suspensionRepo.findOne({
+      where: {
+        docente_id: dto.docente_id,
+        activa: true,
+        fecha_inicio: Between(new Date(), new Date()),
+      },
+    });
+    if (suspension) {
+      errores.push(`El docente tiene suspensión vigente: ${suspension.motivo}`);
+    }
+
+    // Validar disponibilidad del docente en la franja horaria
+    const horariosDocente = await this.horarioRepo.find({
+      where: {
+        docente_id: dto.docente_id,
+        periodo:
+          (await this.periodoRepo.findOne({ where: { id: dto.periodo_id } }))
+            ?.codigo || "",
+        dia: dto.dia,
+      },
+    });
+    for (const horario of horariosDocente) {
+      if (
+        this.haySuperposicion(
+          dto.hora_inicio,
+          dto.hora_fin,
+          horario.hora_inicio,
+          horario.hora_fin,
+        )
+      ) {
+        errores.push(
+          `El docente ya tiene horario asignado en esa franja: ${horario.hora_inicio}-${horario.hora_fin}`,
+        );
+      }
+    }
+
+    // Validar disponibilidad del ambiente en la franja horaria
+    const horariosAmbiente = await this.horarioRepo.find({
+      where: {
+        ambiente_id: dto.ambiente_id,
+        periodo:
+          (await this.periodoRepo.findOne({ where: { id: dto.periodo_id } }))
+            ?.codigo || "",
+        dia: dto.dia,
+      },
+    });
+    for (const horario of horariosAmbiente) {
+      if (
+        this.haySuperposicion(
+          dto.hora_inicio,
+          dto.hora_fin,
+          horario.hora_inicio,
+          horario.hora_fin,
+        )
+      ) {
+        errores.push(
+          `El ambiente ya está ocupado en esa franja: ${horario.hora_inicio}-${horario.hora_fin}`,
+        );
+      }
+    }
+
+    // Validar capacidad del ambiente
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: dto.ambiente_id },
+    });
+    if (!ambiente) {
+      errores.push("Ambiente no encontrado");
+    } else if (ambiente.capacidad < dto.nro_alumnos) {
+      errores.push(
+        `Capacidad del ambiente insuficiente: ${ambiente.capacidad} < ${dto.nro_alumnos}`,
+      );
+    } else if (dto.nro_alumnos < 8 || dto.nro_alumnos > 60) {
+      errores.push(`Aforo fuera de rango permitido (8-60): ${dto.nro_alumnos}`);
+    }
+
+    // Validar cupo del grupo
+    if (dto.grupo_id) {
+      const grupo = await this.grupoRepo.findOne({
+        where: { id: dto.grupo_id },
+      });
+      if (!grupo) {
+        errores.push("Grupo no encontrado");
+      } else if (dto.nro_alumnos > grupo.cupo_maximo) {
+        errores.push(
+          `Excede cupo máximo del grupo: ${dto.nro_alumnos} > ${grupo.cupo_maximo}`,
+        );
+      }
+    }
+
+    // Validar carga lectiva (RCU N157-2024UNT: mínimo 16h, máximo 22h)
+    const docente = await this.docenteRepo.findOne({
+      where: { id: dto.docente_id },
+    });
+    if (docente) {
+      const asignaciones = await this.asignacionRepo.find({
+        where: {
+          docente_id: dto.docente_id,
+          periodo_id: dto.periodo_id,
+          estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+        },
+      });
+      const horasActuales = asignaciones.reduce(
+        (sum, a) => sum + Number(a.horas_asignadas),
+        0,
+      );
+      const nuevasHoras = this.calcularHoras(dto.hora_inicio, dto.hora_fin);
+      const totalHoras = horasActuales + nuevasHoras;
+
+      if (totalHoras > docente.horas_lectivas_max) {
+        errores.push(
+          `Excede carga máxima lectiva (${docente.horas_lectivas_max}h): ${totalHoras}h`,
+        );
+      }
+      if (totalHoras < docente.horas_lectivas_min) {
+        advertencias.push(
+          `No alcanza carga mínima lectiva (${docente.horas_lectivas_min}h): ${totalHoras}h`,
+        );
+      }
+
+      // Validar carga total (lectiva + no lectiva ≤ 40h)
+      const horasTotales = totalHoras + docente.horas_no_lectivas;
+      if (horasTotales > docente.horas_max_totales) {
+        errores.push(
+          `Excede carga máxima total (${docente.horas_max_totales}h): ${horasTotales}h`,
+        );
+      }
+    }
+
+    // Validar cátedra compartida
+    const asignacionesMismoCurso = await this.asignacionRepo.find({
+      where: {
+        curso_plan_id: dto.curso_plan_id,
+        periodo_id: dto.periodo_id,
+        tipo_clase: dto.tipo_clase,
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+      },
+    });
+    if (asignacionesMismoCurso.length > 0) {
+      const excepcion = await this.catedraCompartidaRepo.findOne({
+        where: {
+          curso_plan_id: dto.curso_plan_id,
+          tipo_clase: dto.tipo_clase,
+          activa: true,
+        },
+      });
+      if (!excepcion) {
+        advertencias.push(
+          "Cátedra compartida detectada sin excepción registrada",
+        );
+      }
+    }
+
+    return {
+      valido: errores.length === 0,
+      errores,
+      advertencias,
+    };
+  }
+
+  async validarDirector(
+    id: number,
+    validado: boolean,
+    observaciones?: string,
+    usuario?: UsuarioAutenticado,
+  ) {
+    const asignacion = await this.asignacionRepo.findOne({
+      where: { id },
+      relations: ["docente", "curso_plan", "curso_plan.curso"],
+    });
+    if (!asignacion) {
+      throw new NotFoundException(`Asignación #${id} no encontrada`);
+    }
+
+    // Buscar horario asignado relacionado
+    const horario = await this.horarioRepo.findOne({
+      where: {
+        docente_id: asignacion.docente_id,
+        curso_id: asignacion.curso_plan.curso_id,
+        periodo:
+          (
+            await this.periodoRepo.findOne({
+              where: { id: asignacion.periodo_id },
+            })
+          )?.codigo || "",
+      },
+    });
+
+    if (horario) {
+      horario.validado_director = validado;
+      horario.validado_por = usuario?.email || "director";
+      horario.fecha_validacion = new Date();
+      horario.observaciones_validacion = observaciones || null;
+      await this.horarioRepo.save(horario);
+    }
+
+    return {
+      message: validado
+        ? "Asignación validada por director"
+        : "Validación de director removida",
+      validado,
+    };
+  }
+
+  private haySuperposicion(
+    inicio1: string,
+    fin1: string,
+    inicio2: string,
+    fin2: string,
+  ): boolean {
+    const [h1, m1] = inicio1.split(":").map(Number);
+    const [h2, m2] = fin1.split(":").map(Number);
+    const [h3, m3] = inicio2.split(":").map(Number);
+    const [h4, m4] = fin2.split(":").map(Number);
+
+    const start1 = h1 * 60 + m1;
+    const end1 = h2 * 60 + m2;
+    const start2 = h3 * 60 + m3;
+    const end2 = h4 * 60 + m4;
+
+    return start1 < end2 && end1 > start2;
+  }
+
+  private calcularHoras(inicio: string, fin: string): number {
+    const [h1, m1] = inicio.split(":").map(Number);
+    const [h2, m2] = fin.split(":").map(Number);
+    return Math.abs(h2 - h1) + (m2 - m1) / 60;
   }
 }

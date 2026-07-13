@@ -97,7 +97,6 @@ export class LayoutComponent implements OnInit {
         { icon: 'auto_stories', label: 'sidebar.planEstudios', route: '/app/plan-estudios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
         { icon: 'book_online', label: 'sidebar.ofertaAcademica', route: '/app/oferta-academica', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
         { icon: 'assignment', label: 'sidebar.asignacionLectiva', route: '/app/asignacion-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
-        { icon: 'assignment_ind', label: 'sidebar.asignadorCargaHoraria', route: '/app/asignador-carga', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
         { icon: 'event_available', label: 'sidebar.availability', route: '/app/disponibilidad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE] },
         { icon: 'school', label: 'sidebar.teacherFaculty', route: '/app/docente-facultad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       ],
@@ -107,6 +106,7 @@ export class LayoutComponent implements OnInit {
       expanded: true,
       items: [
         { icon: 'schedule', label: 'sidebar.schedules', route: '/app/horarios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'event_note', label: 'sidebar.cargaLectiva', route: '/app/horarios/carga-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
         { icon: 'calendar_view_week', label: 'sidebar.mySchedules', route: '/app/mis-horarios', roles: [ROLES.DOCENTE] },
       ],
     },
@@ -165,7 +165,7 @@ export class LayoutComponent implements OnInit {
   }
 
   private _rutasSinPeriodo = new Set([
-    'docentes', 'cursos', 'ambientes', 'plan-estudios', 'asignacion-lectiva', 'asignador-carga',
+    'docentes', 'cursos', 'ambientes', 'plan-estudios', 'asignacion-lectiva',
     'configuracion', 'periodos', 'campaigns',
     'usuarios', 'notificaciones', 'analisis-carga',
     'declaraciones', 'documentaciones', 'docente-facultad',

@@ -109,15 +109,6 @@ const routes: Routes = [
         data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
       },
       {
-        path: 'asignador-carga',
-        loadChildren: () =>
-          import('./modules/carga-lectiva-secretaria/carga-lectiva-secretaria.module').then(
-            (m) => m.CargaLectivaSecretariaModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
-      },
-      {
             path: 'periodos',
             loadChildren: () =>
               import('./modules/periodos/periodos.module').then(
@@ -172,6 +163,7 @@ const routes: Routes = [
             ROLES.ADMINISTRADOR_SISTEMA,
             ROLES.COORDINADOR_ACADEMICO,
             ROLES.DIRECTOR_ESCUELA,
+            ROLES.SECRETARIA,
           ],
         },
       },

@@ -10,6 +10,10 @@ import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { Curso } from "../../entities/curso.entity";
 import { OfertaAcademica } from "../../entities/oferta-academica.entity";
+import { SuspensionDocente } from "../../entities/suspension-docente.entity";
+import { CatedraCompartida } from "../../entities/catedra-compartida.entity";
+import { HorarioAsignado } from "../../entities/horario-asignado.entity";
+import { Ambiente } from "../../entities/ambiente.entity";
 import { AuditoriaModule } from "../auditoria/auditoria.module";
 
 @Module({
@@ -23,6 +27,10 @@ import { AuditoriaModule } from "../auditoria/auditoria.module";
       Grupo,
       Curso,
       OfertaAcademica,
+      SuspensionDocente,
+      CatedraCompartida,
+      HorarioAsignado,
+      Ambiente,
     ]),
     AuditoriaModule,
   ],

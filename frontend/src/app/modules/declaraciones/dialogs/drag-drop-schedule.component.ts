@@ -23,6 +23,10 @@ export interface HorarioEntry {
   dia: string;
   hora_inicio: string;
   hora_fin: string;
+  // Metadata opcional para preservar identidad
+  id?: string;              // ID estable (UUID) generado en frontend
+  horarioId?: number;       // ID del horario en BD
+  ambiente_id?: number;     // ID del ambiente seleccionado
 }
 
 export interface ActividadHorarios {
@@ -825,7 +829,14 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
       const h = hora + offset;
       const ini = `${String(h).padStart(2, '0')}:00`;
       const fin = `${String(h + 1).padStart(2, '0')}:00`;
-      this.bloquesSeleccionados.set(`${diaCod}_${h}`, { dia: diaCod, hora_inicio: ini, hora_fin: fin });
+      this.bloquesSeleccionados.set(`${diaCod}_${h}`, { 
+        dia: diaCod, 
+        hora_inicio: ini, 
+        hora_fin: fin,
+        id: this.generarUuid(),  // ID estable para nuevo bloque
+        horarioId: undefined,    // Sin ID en BD aún
+        ambiente_id: undefined,  // Se asignará después
+      });
     }
 
     this.buildAssignedBlocks();
@@ -842,6 +853,7 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
 
   onReorderBloques(event: CdkDragDrop<any[]>): void {
     moveItemInArray(this.bloquesAsignados, event.previousIndex, event.currentIndex);
+    // moveItemInArray preserva todos los campos del objeto, incluyendo metadata
   }
 
   onDragEnter(diaNum: number, hora: number): void {
@@ -899,6 +911,10 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
     return `${String(h).padStart(2, '0')}:00`;
   }
 
+  private generarUuid(): string {
+    return 'bloque-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  }
+
   private syncFromData(): void {
     this.bloquesSeleccionados.clear();
     if (this.data.horarios?.length) {
@@ -913,6 +929,10 @@ export class DragDropScheduleComponent implements OnChanges, OnDestroy {
               dia: h.dia,
               hora_inicio: `${String(hora).padStart(2, '0')}:00`,
               hora_fin: `${String(hora + 1).padStart(2, '0')}:00`,
+              // Preservar metadata si existe
+              id: h.id,
+              horarioId: h.horarioId,
+              ambiente_id: h.ambiente_id,
             });
           }
         }

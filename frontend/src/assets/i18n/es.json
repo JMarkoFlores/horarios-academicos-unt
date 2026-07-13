@@ -53,6 +53,7 @@
     "asignacionLectiva": "Asignación Lectiva",
     "asignadorCarga": "Asignación de Carga",
     "asignadorCargaHoraria": "Asignación de Carga Horaria (Secretaría)",
+    "cargaLectiva": "Carga Lectiva",
     "disponibilidad": "Disponibilidad",
     "availability": "Disponibilidad",
     "reportes": "Reportes",
@@ -334,6 +335,21 @@
     "avance": "Avance de Asignación",
     "guardar": "Guardar",
     "actualizar": "Actualizar",
+    "save": "Guardar",
+    "refresh": "Actualizar",
+    "undo": "Deshacer",
+    "view": {
+      "docente": "Docente",
+      "ambiente": "Ambiente",
+      "ciclo": "Ciclo"
+    },
+    "selectDocente": "Seleccionar Docente",
+    "selectDocentePlaceholder": "Seleccione un docente",
+    "selectAmbiente": "Seleccionar Ambiente",
+    "selectAmbientePlaceholder": "Seleccione un ambiente",
+    "selectCiclo": "Seleccionar Ciclo",
+    "selectCicloPlaceholder": "Seleccione un ciclo",
+    "ciclo": "Ciclo",
     "asignar": "Asignar",
     "cancelar": "Cancelar",
     "eliminar": "Eliminar",
@@ -345,6 +361,55 @@
     "conflictoHorario": "Conflicto de horario",
     "cargaExcedida": "Carga excedida",
     "aulaOcupada": "Aula ocupada"
+  },
+  "bancoCursos": {
+    "title": "Banco de Cursos",
+    "searchPlaceholder": "Buscar curso...",
+    "filter": {
+      "ciclo": "Ciclo",
+      "all": "Todos",
+      "tipo": "Tipo",
+      "obligatorioGeneral": "Obligatorio General",
+      "obligatorioProfesional": "Obligatorio Profesional",
+      "electivo": "Electivo"
+    },
+    "stats": {
+      "horasPendientes": "Horas pendientes",
+      "cursos": "Cursos"
+    },
+    "ciclo": "Ciclo",
+    "tooltip": {
+      "alumnos": "Cantidad de alumnos: {{count}}"
+    },
+    "empty": {
+      "allAssigned": "Todos los cursos están asignados",
+      "noMatch": "No se encontraron cursos con ese filtro"
+    }
+  },
+  "panelAmbientes": {
+    "title": "Panel de Ambientes",
+    "searchPlaceholder": "Buscar ambiente...",
+    "filter": {
+      "tipo": "Tipo",
+      "all": "Todos",
+      "aula": "Aula",
+      "laboratorio": "Laboratorio",
+      "computo": "Computo",
+      "capacidad": "Capacidad",
+      "disponibilidad": "Disponibilidad",
+      "libre": "Libre",
+      "parcial": "Parcial"
+    },
+    "legend": {
+      "libre": "Libre",
+      "ocupada": "Ocupada",
+      "llena": "Llena"
+    },
+    "tooltip": {
+      "capacidad": "Capacidad: {{cap}}"
+    },
+    "bloques": "bloques",
+    "empty": "No se encontraron ambientes"
   },
   "error": {
     "pageNotFound": "Página no encontrada",

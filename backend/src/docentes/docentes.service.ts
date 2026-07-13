@@ -9,7 +9,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Not } from "typeorm";
 import { Cache } from "cache-manager";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { v2 as cloudinary } from "cloudinary";
@@ -26,6 +26,7 @@ import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { EstadoAsignacionLectiva } from "../common/enums/estado-asignacion-lectiva.enum";
+import { SuspensionDocente } from "../entities/suspension-docente.entity";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
@@ -94,6 +95,8 @@ export class DocentesService {
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(AsignacionLectiva)
     private readonly asignacionLectivaRepo: Repository<AsignacionLectiva>,
+    @InjectRepository(SuspensionDocente)
+    private readonly suspensionRepo: Repository<SuspensionDocente>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
@@ -1293,5 +1296,105 @@ export class DocentesService {
     const rawValue = this.configService.get<string>("UMBRAL_DESEQUILIBRIO");
     const parsedValue = Number(rawValue ?? 4);
     return Number.isFinite(parsedValue) ? parsedValue : 4;
+  }
+
+  async getDocentesDepartamentoCompleto(
+    departamentoId: number,
+    periodoId: number,
+    contexto?: ContextoAcademico,
+  ) {
+    const docentes = await this.docenteRepo.find({
+      where: {
+        departamento_id: departamentoId,
+        activo: true,
+      },
+      relations: ["departamento", "facultad"],
+    });
+
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+
+    const result = await Promise.all(
+      docentes.map(async (docente) => {
+        // Calcular horas lectivas actuales
+        const asignaciones = await this.asignacionLectivaRepo.find({
+          where: {
+            docente_id: docente.id,
+            periodo_id: periodoId,
+            estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+          },
+        });
+        const horasLectivas = asignaciones.reduce(
+          (sum, a) => sum + Number(a.horas_asignadas),
+          0,
+        );
+
+        // Verificar suspensión vigente
+        const suspension = await this.suspensionRepo.findOne({
+          where: {
+            docente_id: docente.id,
+            activa: true,
+          },
+        });
+
+        // Calcular horas restantes
+        const horasRestantes = docente.horas_lectivas_max - horasLectivas;
+
+        return {
+          id: docente.id,
+          codigo: docente.codigo,
+          dni: docente.dni,
+          nombres: docente.nombres,
+          apellidos: docente.apellidos,
+          email: docente.email,
+          categoria: docente.categoria,
+          tipo_contrato: docente.tipo_contrato,
+          tipo_docente: docente.tipo_docente,
+          modalidad: docente.modalidad,
+          departamento: docente.departamento,
+          facultad: docente.facultad,
+          horas_lectivas_actuales: horasLectivas,
+          horas_no_lectivas: docente.horas_no_lectivas,
+          horas_lectivas_max: docente.horas_lectivas_max,
+          horas_lectivas_min: docente.horas_lectivas_min,
+          horas_max_totales: docente.horas_max_totales,
+          horas_restantes: Math.max(0, horasRestantes),
+          suspension_vigente: docente.suspension_vigente || !!suspension,
+          suspension: suspension
+            ? {
+                motivo: suspension.motivo,
+                fecha_inicio: suspension.fecha_inicio,
+                fecha_fin: suspension.fecha_fin,
+              }
+            : null,
+          foto_url: docente.foto_url,
+        };
+      }),
+    );
+
+    return result;
+  }
+
+  async getSuspensionVigente(docenteId: number) {
+    const suspension = await this.suspensionRepo.findOne({
+      where: {
+        docente_id: docenteId,
+        activa: true,
+      },
+    });
+
+    return {
+      tiene_suspension: !!suspension,
+      suspension: suspension
+        ? {
+            id: suspension.id,
+            motivo: suspension.motivo,
+            fecha_inicio: suspension.fecha_inicio,
+            fecha_fin: suspension.fecha_fin,
+            observaciones: suspension.observaciones,
+          }
+        : null,
+    };
   }
 }

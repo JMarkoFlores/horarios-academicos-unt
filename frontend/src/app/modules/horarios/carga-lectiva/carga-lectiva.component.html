@@ -1,0 +1,465 @@
+<!-- ============================================================ -->
+<!--  LOADING OVERLAY                                             -->
+<!-- ============================================================ -->
+<div class="loading-overlay" *ngIf="loading">
+  <div class="loading-content">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Cargando calendario de carga lectiva...</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!--  MAIN LAYOUT                                                 -->
+<!-- ============================================================ -->
+<div class="carga-lectiva-page" [class.is-loading]="loading">
+
+  <!-- ======================== HEADER ======================== -->
+  <header class="page-header">
+    <div class="header-left">
+      <div class="header-title-group">
+        <h1 class="page-title">
+          <mat-icon>calendar_month</mat-icon>
+          Asignación de Carga Lectiva
+        </h1>
+        <span class="periodo-badge" *ngIf="periodoService.periodoActivo as periodo">
+          {{ periodo.codigo }}
+        </span>
+      </div>
+      <p class="page-subtitle" *ngIf="alcanceLabel">Alcance: {{ alcanceLabel }}</p>
+    </div>
+
+    <div class="header-kpis">
+      <div class="kpi-pill kpi-pending">
+        <mat-icon>schedule</mat-icon>
+        <div class="kpi-text">
+          <span class="kpi-value">{{ totalPendientes }}</span>
+          <span class="kpi-label">Pendientes</span>
+        </div>
+      </div>
+      <div class="kpi-pill kpi-scheduled">
+        <mat-icon>check_circle</mat-icon>
+        <div class="kpi-text">
+          <span class="kpi-value">{{ totalProgramadas }}</span>
+          <span class="kpi-label">Programadas</span>
+        </div>
+      </div>
+      <div class="kpi-pill kpi-conflicts" [class.has-conflicts]="totalConflictos > 0">
+        <mat-icon>warning</mat-icon>
+        <div class="kpi-text">
+          <span class="kpi-value">{{ totalConflictos }}</span>
+          <span class="kpi-label">Conflictos</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button mat-stroked-button class="btn-action-save" [disabled]="saving">
+        <mat-icon>save</mat-icon>
+        Guardar
+      </button>
+      <button mat-flat-button color="primary" class="btn-action-publish" [disabled]="saving || totalConflictos > 0">
+        <mat-icon>publish</mat-icon>
+        Publicar
+      </button>
+    </div>
+  </header>
+
+  <!-- ======================== BODY (3 COLS) ======================== -->
+  <div class="page-body">
+
+    <!-- ==================== LEFT SIDEBAR ==================== -->
+    <aside class="sidebar-left">
+      <!-- Filtros -->
+      <div class="filters-section">
+        <div class="section-header">
+          <mat-icon>filter_alt</mat-icon>
+          <span>Filtros</span>
+          <button mat-button class="btn-clear" (click)="limpiarFiltros()">Limpiar</button>
+        </div>
+
+        <div class="filter-field">
+          <label>Ciclo</label>
+          <mat-select [(ngModel)]="filtroCiclo" placeholder="Todos" panelClass="filter-select">
+            <mat-option [value]="null">Todos</mat-option>
+            <mat-option *ngFor="let c of ciclos" [value]="c">
+              Ciclo {{ cicloLabel(c) }}
+            </mat-option>
+          </mat-select>
+        </div>
+
+        <div class="filter-field">
+          <label>Tipo de Curso</label>
+          <mat-select [(ngModel)]="filtroTipo" placeholder="Todos" panelClass="filter-select">
+            <mat-option [value]="null">Todos</mat-option>
+            <mat-option value="TEORIA">Teoría</mat-option>
+            <mat-option value="PRACTICA">Práctica</mat-option>
+            <mat-option value="LABORATORIO">Laboratorio</mat-option>
+          </mat-select>
+        </div>
+
+        <div class="filter-field">
+          <label>Docente</label>
+          <input matInput
+                 [formControl]="filtroDocenteCtrl"
+                 [matAutocomplete]="autoDocente"
+                 placeholder="Buscar docente..."
+                 class="filter-input">
+          <mat-autocomplete #autoDocente="matAutocomplete"
+                            (optionSelected)="onDocenteSelected($event.option.value)"
+                            [displayWith]="displayFn">
+            <mat-option *ngFor="let d of docentesFiltradosAutoComplete" [value]="d.nombreCompleto">
+              <span class="docente-option-nombre">{{ d.nombreCompleto }}</span>
+              <span class="docente-option-codigo">({{ d.codigo }})</span>
+            </mat-option>
+          </mat-autocomplete>
+        </div>
+
+        <div class="filter-toggle">
+          <mat-slide-toggle [(ngModel)]="mostrarSoloSinHorario" color="primary">
+            Solo sin horario
+          </mat-slide-toggle>
+        </div>
+      </div>
+
+      <!-- Unscheduled Courses -->
+      <div class="unscheduled-section">
+        <div class="section-header">
+          <mat-icon>school</mat-icon>
+          <span>Cursos Sin Horario</span>
+          <span class="count-badge">{{ totalAsignacionesFiltradas }}</span>
+        </div>
+        <p class="section-hint">Seleccione un curso para ver detalles o asignar horario</p>
+
+        <div class="courses-list" *ngIf="!loading; else coursesLoading">
+          <ng-container *ngFor="let entry of docentesFiltrados; trackBy: trackByDocente">
+            <div class="course-card"
+                 *ngFor="let asignacion of entry[1].asignaciones; trackBy: trackByAsignacion"
+                 [class.selected]="asignacionSeleccionada?.id === asignacion.id"
+                 [class.has-horario]="tieneHorario(asignacion)"
+                 (click)="seleccionarAsignacion(asignacion)">
+
+              <div class="card-color-bar"
+                   [style.background]="getTipoColor(asignacion.tipo_clase).border">
+              </div>
+
+              <div class="card-body">
+                <div class="card-top">
+                  <span class="curso-codigo">{{ asignacion.curso_plan.curso.codigo }}</span>
+                  <span class="tipo-badge"
+                        [style.background]="getTipoColor(asignacion.tipo_clase).bg"
+                        [style.color]="getTipoColor(asignacion.tipo_clase).text"
+                        [style.border-color]="getTipoColor(asignacion.tipo_clase).border">
+                    {{ getBadgeTipoClase(asignacion.tipo_clase) }}
+                  </span>
+                </div>
+
+                <div class="curso-nombre">{{ asignacion.curso_plan.curso.nombre }}</div>
+
+                <div class="card-meta">
+                  <span class="meta-item">
+                    <mat-icon>person</mat-icon>
+                    {{ asignacion.docente.apellidos }}, {{ asignacion.docente.nombres }}
+                  </span>
+                </div>
+
+                <div class="card-footer">
+                  <span class="footer-item">Sec. {{ asignacion.seccion }}</span>
+                  <span class="footer-item">{{ asignacion.horas_asignadas }}h</span>
+                  <span class="footer-item">{{ asignacion.nro_alumnos || 0 }} alumnos</span>
+                  <span class="horario-status"
+                        [class.sin-horario]="!tieneHorario(asignacion)"
+                        [class.con-horario]="tieneHorario(asignacion)">
+                    <mat-icon>{{ tieneHorario(asignacion) ? 'check_circle' : 'schedule' }}</mat-icon>
+                    {{ tieneHorario(asignacion) ? 'Programado' : 'Pendiente' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="card-drag-handle">
+                <mat-icon>drag_indicator</mat-icon>
+              </div>
+            </div>
+          </ng-container>
+
+          <div class="empty-courses" *ngIf="totalAsignacionesFiltradas === 0">
+            <mat-icon>inbox</mat-icon>
+            <p>No hay cursos que coincidan con los filtros</p>
+          </div>
+        </div>
+
+        <ng-template #coursesLoading>
+          <div class="courses-loading">
+            <mat-spinner diameter="32"></mat-spinner>
+          </div>
+        </ng-template>
+
+        <!-- Drop zone hint -->
+        <div class="drop-zone-hint">
+          <mat-icon>open_with</mat-icon>
+          <span>Arrastre un curso al calendario para programarlo</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== CENTER: CALENDAR ==================== -->
+    <main class="calendar-main">
+      <div class="calendar-container">
+        <!-- Calendar header (day names) -->
+        <div class="calendar-header">
+          <div class="hora-col-header">Hora</div>
+          <div class="dia-col-header" *ngFor="let dia of diasSemana">
+            <span class="dia-nombre">{{ dia.nombre }}</span>
+          </div>
+        </div>
+
+        <!-- Calendar grid -->
+        <div class="calendar-grid">
+          <ng-container *ngFor="let hora of horasCalendario">
+            <!-- Almuerzo row -->
+            <div class="almuerzo-row" *ngIf="esAlmuerzo(hora) && hora === almuerzoInicio">
+              <div class="hora-cell">
+                <span class="hora-texto">{{ fmtHora(hora) }}</span>
+                <span class="alm-tag">ALM</span>
+              </div>
+              <div class="almuerzo-span">
+                <mat-icon>restaurant</mat-icon>
+                <span>ALMUERZO</span>
+              </div>
+            </div>
+
+            <!-- Normal row -->
+            <div class="calendar-row" *ngIf="!esAlmuerzo(hora)"
+                 [class.fila-par]="hora % 2 === 0">
+              <div class="hora-cell">
+                <span class="hora-texto">{{ fmtHora(hora) }}</span>
+              </div>
+
+              <div class="dia-cell"
+                   *ngFor="let dia of diasSemana"
+                   [class.celda-con-bloque]="getBloquesCelda(dia.dia_semana, hora).length > 0">
+                <ng-container *ngFor="let bloque of getBloquesCelda(dia.dia_semana, hora)">
+                  <div class="bloque-horario"
+                       *ngIf="esPrimeraHoraBloque(bloque, hora)"
+                       [class.selected]="bloqueSeleccionado?.id === bloque.id"
+                       [style.background]="getTipoColor(bloque.tipoClase).bg"
+                       [style.border-left-color]="getTipoColor(bloque.tipoClase).border"
+                       [style.grid-row-end]="getRowSpan(bloque)"
+                       (click)="seleccionarBloque(bloque); $event.stopPropagation()">
+                    <div class="bloque-header">
+                      <span class="bloque-hora">{{ bloque.hora_inicio }} – {{ bloque.hora_fin }}</span>
+                    </div>
+                    <div class="bloque-codigo">{{ bloque.cursoCodigo }}</div>
+                    <div class="bloque-nombre">{{ bloque.cursoNombre }}</div>
+                    <div class="bloque-meta">
+                      <span class="bloque-docente">{{ bloque.docenteNombre }}</span>
+                    </div>
+                    <div class="bloque-footer">
+                      <span class="bloque-ambiente">
+                        <mat-icon>location_on</mat-icon>
+                        {{ bloque.ambienteCodigo }}
+                      </span>
+                      <span class="bloque-alumnos">
+                        <mat-icon>group</mat-icon>
+                        {{ bloque.nroAlumnos }}
+                      </span>
+                    </div>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+
+        <!-- Legend -->
+        <div class="calendar-legend">
+          <span class="legend-title">Leyenda:</span>
+          <span class="legend-item" *ngFor="let tipo of ['TEORIA', 'PRACTICA', 'LABORATORIO']">
+            <span class="legend-dot" [style.background]="getTipoColor(tipo).border"></span>
+            {{ getTipoColor(tipo).label }}
+          </span>
+        </div>
+      </div>
+    </main>
+
+    <!-- ==================== RIGHT SIDEBAR ==================== -->
+    <aside class="sidebar-right">
+
+      <!-- Detalle de Asignación seleccionada -->
+      <div class="detail-panel" *ngIf="asignacionSeleccionada as asignacion">
+        <div class="panel-header">
+          <mat-icon>info</mat-icon>
+          <span>Detalle de Asignación</span>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-card-header"
+               [style.border-left-color]="getTipoColor(asignacion.tipo_clase).border">
+            <span class="detail-codigo">{{ asignacion.curso_plan.curso.codigo }}</span>
+            <span class="detail-tipo-badge"
+                  [style.background]="getTipoColor(asignacion.tipo_clase).bg"
+                  [style.color]="getTipoColor(asignacion.tipo_clase).text">
+              {{ asignacion.tipo_clase }}
+            </span>
+          </div>
+
+          <h3 class="detail-nombre">{{ asignacion.curso_plan.curso.nombre }}</h3>
+
+          <div class="detail-info-grid">
+            <div class="info-item">
+              <span class="info-label">Docente</span>
+              <span class="info-value">{{ asignacion.docente.apellidos }}, {{ asignacion.docente.nombres }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Código</span>
+              <span class="info-value">{{ asignacion.docente.codigo }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Ciclo</span>
+              <span class="info-value">{{ cicloLabel(asignacion.curso_plan.curso.ciclo) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Horas</span>
+              <span class="info-value">{{ asignacion.horas_asignadas }}h</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Alumnos</span>
+              <span class="info-value">{{ asignacion.nro_alumnos || 0 }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Estado</span>
+              <span class="info-value estado-chip"
+                    [class.pendiente]="asignacion.estado === 'PENDIENTE'"
+                    [class.confirmado]="asignacion.estado === 'CONFIRMADO'">
+                {{ asignacion.estado }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Horarios de esta asignación -->
+          <div class="horarios-asignacion">
+            <h4>Horarios Programados</h4>
+            <div *ngIf="loadingHorarios" class="horarios-loading">
+              <mat-spinner diameter="24"></mat-spinner>
+            </div>
+            <div *ngIf="!loadingHorarios && horariosAsignados.length === 0" class="no-horarios">
+              <mat-icon>event_busy</mat-icon>
+              <span>Sin horarios asignados</span>
+            </div>
+            <div *ngIf="!loadingHorarios && horariosAsignados.length > 0" class="horarios-list">
+              <div class="horario-item" *ngFor="let h of horariosAsignados">
+                <span class="horario-dia">{{ getDiaNombre(h.dia) }}</span>
+                <span class="horario-hora">{{ h.hora_inicio }} - {{ h.hora_fin }}</span>
+                <span class="horario-ambiente">{{ h.ambiente.codigo }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <button mat-flat-button color="primary"
+                    [disabled]="loadingHorarios || asignacion.estado !== 'PENDIENTE'"
+                    (click)="abrirDialogoAsignar()">
+              <mat-icon>add</mat-icon>
+              Asignar Horario
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detalle de Bloque seleccionado en calendario -->
+      <ng-container *ngIf="!asignacionSeleccionada">
+        <div class="detail-panel" *ngIf="bloqueSeleccionado as bloque">
+          <div class="panel-header">
+            <mat-icon>event</mat-icon>
+            <span>Detalle del Bloque</span>
+          </div>
+
+          <div class="detail-card">
+            <div class="detail-card-header"
+                 [style.border-left-color]="getTipoColor(bloque.tipoClase).border">
+              <span class="detail-codigo">{{ bloque.cursoCodigo }}</span>
+              <span class="detail-tipo-badge"
+                    [style.background]="getTipoColor(bloque.tipoClase).bg"
+                    [style.color]="getTipoColor(bloque.tipoClase).text">
+                {{ getBadgeTipoClase(bloque.tipoClase) }}
+              </span>
+            </div>
+
+            <h3 class="detail-nombre">{{ bloque.cursoNombre }}</h3>
+
+            <div class="detail-info-grid">
+              <div class="info-item">
+                <span class="info-label">Día</span>
+                <span class="info-value">{{ getDiaNombre(bloque.dia) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Horario</span>
+                <span class="info-value">{{ bloque.hora_inicio }} - {{ bloque.hora_fin }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Docente</span>
+                <span class="info-value">{{ bloque.docenteNombre }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Ambiente</span>
+                <span class="info-value">{{ bloque.ambienteCodigo }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Alumnos</span>
+                <span class="info-value">{{ bloque.nroAlumnos }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ambientes disponibles para este slot -->
+          <div class="available-rooms">
+            <div class="rooms-header">
+              <mat-icon>meeting_room</mat-icon>
+              <span>Ambientes Disponibles</span>
+              <span class="count-badge">{{ getAmbientesDisponibles(bloque).length }}</span>
+            </div>
+            <div class="rooms-list">
+              <div class="room-item" *ngFor="let amb of getAmbientesDisponibles(bloque)">
+                <div class="room-info">
+                  <span class="room-codigo">{{ amb.codigo }}</span>
+                  <span class="room-nombre">{{ amb.nombre }}</span>
+                  <span class="room-cap">{{ amb.capacidad }} alumnos</span>
+                </div>
+                <span class="room-available">Disponible</span>
+              </div>
+              <div class="no-rooms" *ngIf="getAmbientesDisponibles(bloque).length === 0">
+                No hay ambientes disponibles
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Conflictos -->
+      <div class="conflicts-panel" *ngIf="totalConflictos > 0">
+        <div class="panel-header conflicts-header">
+          <mat-icon>warning</mat-icon>
+          <span>Conflictos ({{ totalConflictos }})</span>
+        </div>
+        <div class="conflicts-list">
+          <div class="conflict-item" *ngFor="let c of detectarConflictos()">
+            <div class="conflict-icon">
+              <mat-icon>error</mat-icon>
+            </div>
+            <div class="conflict-info">
+              <span class="conflict-docente">{{ c.docenteNombre }}</span>
+              <span class="conflict-mensaje">{{ c.mensaje }}</span>
+              <span class="conflict-horario">{{ c.horario }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-detail" *ngIf="!asignacionSeleccionada && !bloqueSeleccionado && totalConflictos === 0">
+        <mat-icon>touch_app</mat-icon>
+        <h3>Seleccione un elemento</h3>
+        <p>Haga clic en un curso de la izquierda o en un bloque del calendario para ver los detalles aquí.</p>
+      </div>
+    </aside>
+  </div>
+</div>

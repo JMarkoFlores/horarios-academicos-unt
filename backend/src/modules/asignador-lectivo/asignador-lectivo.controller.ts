@@ -12,6 +12,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../../auth/guards/roles.guard";
@@ -71,7 +72,7 @@ export class AsignadorLectivoController {
       req.user.rol === RolUsuario.DOCENTE &&
       (req.user as any).docenteId !== docenteId
     ) {
-      throw new Error("No autorizado");
+      throw new UnauthorizedException("No autorizado");
     }
     return this.servicio.getHorarioDocente(docenteId, periodoId);
   }
@@ -86,10 +87,7 @@ export class AsignadorLectivoController {
     @Param("periodoId", ParseIntPipe) periodoId: number,
     @Request() req: { user: any },
   ) {
-    return this.servicio.getAmbientes(
-      periodoId,
-      req.user.contextoAcademico,
-    );
+    return this.servicio.getAmbientes(periodoId, req.user.contextoAcademico);
   }
 
   @Get("ocupacion-ambiente/:ambienteId")

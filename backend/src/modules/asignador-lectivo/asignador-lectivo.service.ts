@@ -290,7 +290,9 @@ export class AsignadorLectivoService {
   }
 
   async getHorarioDocente(docenteId: number, periodoId: number) {
-    const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
     const periodoCodigo = periodo?.codigo || "";
     const horarios = await this.horarioRepo.find({
       where: { docente_id: docenteId, periodo: periodoCodigo },
@@ -319,7 +321,9 @@ export class AsignadorLectivoService {
   }
 
   async getAmbientes(periodoId: number, contexto?: ContextoAcademico) {
-    const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
     const periodoCodigo = periodo?.codigo || "";
     const ambientes = await this.ambienteRepo.find({
       where: { activo: true },
@@ -379,7 +383,9 @@ export class AsignadorLectivoService {
   }
 
   async getOcupacionAmbiente(ambienteId: number, periodoId: number) {
-    const periodo = await this.periodoRepo.findOne({ where: { id: periodoId } });
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
     const periodoCodigo = periodo?.codigo || "";
     const ambiente = await this.ambienteRepo.findOne({
       where: { id: ambienteId },
@@ -445,8 +451,12 @@ export class AsignadorLectivoService {
       errores.push("Ambiente no encontrado");
       return { valido: false, errores, advertencias };
     }
+    if (!periodo) {
+      errores.push(`Período ${dto.periodo} no encontrado`);
+      return { valido: false, errores, advertencias };
+    }
 
-    const periodoId = periodo?.id ?? 0;
+    const periodoId = periodo.id;
 
     if (!docente.activo) errores.push("El docente no está activo");
     if (ambiente.estado !== "ACTIVO")
@@ -461,44 +471,49 @@ export class AsignadorLectivoService {
 
     const duracionHoras = (horasFin - horasInicio) / 60;
 
-    if (!dto.horario_id) {
-      const cruceDocente = await this.horarioRepo.findOne({
-        where: {
-          docente_id: dto.docente_id,
-          periodo: dto.periodo,
-          dia: dto.dia,
-        },
-      });
-      if (cruceDocente) {
-        const ci = this.timeToMinutes(cruceDocente.hora_inicio);
-        const cf = this.timeToMinutes(cruceDocente.hora_fin);
-        if (horasInicio < cf && horasFin > ci) {
-          errores.push(
-            `Conflicto docente: ${cruceDocente.curso?.codigo} (${cruceDocente.hora_inicio}-${cruceDocente.hora_fin})`,
-          );
-        }
+    const horariosDocente = await this.horarioRepo.find({
+      where: {
+        docente_id: dto.docente_id,
+        periodo: dto.periodo,
+        dia: dto.dia,
+      },
+    });
+    for (const cruceDocente of horariosDocente) {
+      if (dto.horario_id && cruceDocente.id === dto.horario_id) continue;
+      const ci = this.timeToMinutes(cruceDocente.hora_inicio);
+      const cf = this.timeToMinutes(cruceDocente.hora_fin);
+      if (horasInicio < cf && horasFin > ci) {
+        errores.push(
+          `Conflicto docente: ${cruceDocente.curso?.codigo} (${cruceDocente.hora_inicio}-${cruceDocente.hora_fin})`,
+        );
+        break;
       }
+    }
 
-      const cruceAmbiente = await this.horarioRepo.findOne({
-        where: {
-          ambiente_id: dto.ambiente_id,
-          periodo: dto.periodo,
-          dia: dto.dia,
-        },
-      });
-      if (cruceAmbiente) {
-        const ci = this.timeToMinutes(cruceAmbiente.hora_inicio);
-        const cf = this.timeToMinutes(cruceAmbiente.hora_fin);
-        if (horasInicio < cf && horasFin > ci) {
-          errores.push(
-            `Aula ocupada: ${cruceAmbiente.curso?.codigo} (${cruceAmbiente.hora_inicio}-${cruceAmbiente.hora_fin})`,
-          );
-        }
+    const horariosAmbiente = await this.horarioRepo.find({
+      where: {
+        ambiente_id: dto.ambiente_id,
+        periodo: dto.periodo,
+        dia: dto.dia,
+      },
+    });
+    for (const cruceAmbiente of horariosAmbiente) {
+      if (dto.horario_id && cruceAmbiente.id === dto.horario_id) continue;
+      const ci = this.timeToMinutes(cruceAmbiente.hora_inicio);
+      const cf = this.timeToMinutes(cruceAmbiente.hora_fin);
+      if (horasInicio < cf && horasFin > ci) {
+        errores.push(
+          `Aula ocupada: ${cruceAmbiente.curso?.codigo} (${cruceAmbiente.hora_inicio}-${cruceAmbiente.hora_fin})`,
+        );
+        break;
       }
     }
 
     const params = await this.paramsRepo.findOne({
-      where: { periodo_academico: dto.periodo, modalidad: docente.modalidad },
+      where: {
+        periodo_academico: periodo.codigo,
+        modalidad: docente.modalidad,
+      },
     });
     const maxHoras = params?.horas_max_semanal ?? 40;
 
@@ -531,7 +546,10 @@ export class AsignadorLectivoService {
         relations: ["curso"],
       });
       if (cursoPlan && cursoPlan.estado === EstadoCursoPlan.ACTIVO) {
-        const horasPlan = this.getHorasPorTipo(cursoPlan, dto.tipo_clase as TipoClase);
+        const horasPlan = this.getHorasPorTipo(
+          cursoPlan,
+          dto.tipo_clase as TipoClase,
+        );
         if (horasPlan > 0) {
           const existentes = await this.asignacionRepo.find({
             where: {
@@ -870,7 +888,10 @@ export class AsignadorLectivoService {
     }
   }
 
-  private getHorasPorTipo(cursoPlan: CursoPlanEstudios, tipoClase: TipoClase): number {
+  private getHorasPorTipo(
+    cursoPlan: CursoPlanEstudios,
+    tipoClase: TipoClase,
+  ): number {
     switch (tipoClase) {
       case TipoClase.TEORIA:
         return cursoPlan.horas_teoria;

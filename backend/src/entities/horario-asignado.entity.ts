@@ -15,12 +15,14 @@ import { Docente } from "./docente.entity";
 import { Curso } from "./curso.entity";
 import { Grupo } from "./grupo.entity";
 import { Ambiente } from "./ambiente.entity";
+import { AsignacionLectiva } from "./asignacion-lectiva.entity";
 
 @Entity("horario_asignado")
 @Index("idx_horario_periodo", ["periodo"])
 @Index("idx_horario_docente_id", ["docente_id"])
 @Index("idx_horario_ambiente_id", ["ambiente_id"])
 @Index("idx_horario_dia", ["dia"])
+@Index("idx_horario_asignacion_lectiva", ["asignacion_lectiva_id"])
 export class HorarioAsignado {
   @PrimaryGeneratedColumn()
   id: number;
@@ -36,6 +38,9 @@ export class HorarioAsignado {
 
   @Column()
   ambiente_id: number;
+
+  @Column({ name: "asignacion_lectiva_id", nullable: true })
+  asignacion_lectiva_id: number | null;
 
   @Column({ length: 20 })
   periodo: string;
@@ -87,6 +92,18 @@ export class HorarioAsignado {
   @Column({ nullable: true, type: "jsonb" })
   historial_cambios?: any;
 
+  @Column({ default: false, name: "validado_director" })
+  validado_director: boolean;
+
+  @Column({ nullable: true, length: 150, name: "validado_por" })
+  validado_por: string | null;
+
+  @Column({ nullable: true, type: "timestamptz", name: "fecha_validacion" })
+  fecha_validacion: Date | null;
+
+  @Column({ nullable: true, type: "text", name: "observaciones_validacion" })
+  observaciones_validacion: string | null;
+
   @CreateDateColumn({ name: "creado_en", type: "timestamptz" })
   creado_en: Date;
 
@@ -108,6 +125,10 @@ export class HorarioAsignado {
   @ManyToOne(() => Ambiente, { nullable: false })
   @JoinColumn({ name: "ambiente_id" })
   ambiente: Ambiente;
+
+  @ManyToOne(() => AsignacionLectiva, { nullable: true })
+  @JoinColumn({ name: "asignacion_lectiva_id" })
+  asignacion_lectiva: AsignacionLectiva | null;
 
   get periodo_academico(): string {
     return this.periodo;

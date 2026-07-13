@@ -332,6 +332,21 @@
     "avance": "Assignment Progress",
     "guardar": "Save",
     "actualizar": "Refresh",
+    "save": "Save",
+    "refresh": "Refresh",
+    "undo": "Undo",
+    "view": {
+      "docente": "Teacher",
+      "ambiente": "Classroom",
+      "ciclo": "Cycle"
+    },
+    "selectDocente": "Select Teacher",
+    "selectDocentePlaceholder": "Select a teacher",
+    "selectAmbiente": "Select a classroom",
+    "selectAmbientePlaceholder": "Select a classroom",
+    "selectCiclo": "Select Cycle",
+    "selectCicloPlaceholder": "Select a cycle",
+    "ciclo": "Cycle",
     "asignar": "Assign",
     "cancelar": "Cancel",
     "eliminar": "Delete",
@@ -343,6 +358,55 @@
     "conflictoHorario": "Schedule conflict",
     "cargaExcedida": "Load exceeded",
     "aulaOcupada": "Classroom occupied"
+  },
+  "bancoCursos": {
+    "title": "Course Bank",
+    "searchPlaceholder": "Search course...",
+    "filter": {
+      "ciclo": "Cycle",
+      "all": "All",
+      "tipo": "Type",
+      "obligatorioGeneral": "General Required",
+      "obligatorioProfesional": "Professional Required",
+      "electivo": "Elective"
+    },
+    "stats": {
+      "horasPendientes": "Pending hours",
+      "cursos": "Courses"
+    },
+    "ciclo": "Cycle",
+    "tooltip": {
+      "alumnos": "Students: {{count}}"
+    },
+    "empty": {
+      "allAssigned": "All courses are assigned",
+      "noMatch": "No courses match this filter"
+    }
+  },
+  "panelAmbientes": {
+    "title": "Environment Panel",
+    "searchPlaceholder": "Search classroom...",
+    "filter": {
+      "tipo": "Type",
+      "all": "All",
+      "aula": "Classroom",
+      "laboratorio": "Laboratory",
+      "computo": "Computer Lab",
+      "capacidad": "Capacity",
+      "disponibilidad": "Availability",
+      "libre": "Free",
+      "parcial": "Partial"
+    },
+    "legend": {
+      "libre": "Free",
+      "ocupada": "Occupied",
+      "llena": "Full"
+    },
+    "tooltip": {
+      "capacidad": "Capacity: {{cap}}"
+    },
+    "bloques": "blocks",
+    "empty": "No classrooms found"
   },
   "error": {
     "pageNotFound": "Page not found",

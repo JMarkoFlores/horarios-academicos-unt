@@ -206,7 +206,7 @@
     "registerUser": "Registrar Usuário",
     "changeTheme": "Alterar Tema"
   },
-"login": {
+  "login": {
     "email": "E-mail",
     "password": "Senha",
     "emailRequired": "O e-mail é obrigatório",
@@ -331,6 +331,21 @@
     "avance": "Progresso da Atribuição",
     "guardar": "Salvar",
     "actualizar": "Atualizar",
+    "save": "Salvar",
+    "refresh": "Atualizar",
+    "undo": "Desfazer",
+    "view": {
+      "docente": "Docente",
+      "ambiente": "Ambiente",
+      "ciclo": "Ciclo"
+    },
+    "selectDocente": "Selecionar Docente",
+    "selectDocentePlaceholder": "Selecione um docente",
+    "selectAmbiente": "Selecionar Ambiente",
+    "selectAmbientePlaceholder": "Selecione um ambiente",
+    "selectCiclo": "Selecionar Ciclo",
+    "selectCicloPlaceholder": "Selecione um ciclo",
+    "ciclo": "Ciclo",
     "asignar": "Atribuir",
     "cancelar": "Cancelar",
     "eliminar": "Excluir",
@@ -342,6 +357,55 @@
     "conflictoHorario": "Conflito de horário",
     "cargaExcedida": "Carga excedida",
     "aulaOcupada": "Sala ocupada"
+  },
+  "bancoCursos": {
+    "title": "Banco de Cursos",
+    "searchPlaceholder": "Buscar curso...",
+    "filter": {
+      "ciclo": "Ciclo",
+      "all": "Todos",
+      "tipo": "Tipo",
+      "obligatorioGeneral": "Obrigatório Geral",
+      "obligatorioProfesional": "Obrigatório Profissional",
+      "electivo": "Eletivo"
+    },
+    "stats": {
+      "horasPendientes": "Horas pendentes",
+      "cursos": "Cursos"
+    },
+    "ciclo": "Ciclo",
+    "tooltip": {
+      "alumnos": "Alunos: {{count}}"
+    },
+    "empty": {
+      "allAssigned": "Todos os cursos estão atribuídos",
+      "noMatch": "Nenhum curso corresponde a este filtro"
+    }
+  },
+  "panelAmbientes": {
+    "title": "Painel de Ambientes",
+    "searchPlaceholder": "Buscar sala...",
+    "filter": {
+      "tipo": "Tipo",
+      "all": "Todos",
+      "aula": "Sala",
+      "laboratorio": "Laboratório",
+      "computo": "Computador",
+      "capacidad": "Capacidade",
+      "disponibilidad": "Disponibilidade",
+      "libre": "Livre",
+      "parcial": "Parcial"
+    },
+    "legend": {
+      "libre": "Livre",
+      "ocupada": "Ocupada",
+      "llena": "Cheia"
+    },
+    "tooltip": {
+      "capacidad": "Capacidade: {{cap}}"
+    },
+    "bloques": "blocos",
+    "empty": "Nenhuma sala encontrada"
   },
   "error": {
     "pageNotFound": "Página não encontrada",

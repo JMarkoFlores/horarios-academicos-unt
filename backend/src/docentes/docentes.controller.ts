@@ -461,4 +461,51 @@ export class DocentesController {
     const result = await this.docentesService.updateFoto(id, fotoUrl);
     return { data: result, message: "Foto subida correctamente" };
   }
+
+  @Get("departamento/:id/completo")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({
+    summary: "Obtener docentes de un departamento con carga completa",
+    description:
+      "Incluye horas lectivas actuales, horas no lectivas, suspensión vigente",
+  })
+  @ApiParam({ name: "id", type: Number, description: "ID del departamento" })
+  @ApiQuery({ name: "periodo_id", required: true, type: Number })
+  async getDocentesDepartamentoCompleto(
+    @Param("id", ParseIntPipe) departamentoId: number,
+    @Query("periodo_id", ParseIntPipe) periodoId: number,
+    @CurrentUser() usuario?: UsuarioAutenticado,
+  ) {
+    const result = await this.docentesService.getDocentesDepartamentoCompleto(
+      departamentoId,
+      periodoId,
+      usuario?.contextoAcademico,
+    );
+    return {
+      data: result,
+      message: "Docentes del departamento con carga completa obtenidos",
+    };
+  }
+
+  @Get(":id/suspension")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({ summary: "Verificar si un docente tiene suspensión vigente" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  async getSuspension(@Param("id", ParseIntPipe) id: number) {
+    const result = await this.docentesService.getSuspensionVigente(id);
+    return {
+      data: result,
+      message: "Suspensión del docente verificada",
+    };
+  }
 }

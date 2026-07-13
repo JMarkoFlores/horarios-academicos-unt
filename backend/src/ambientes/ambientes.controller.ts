@@ -61,6 +61,11 @@ export class AmbientesController {
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.DOCENTE,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
   )
   @ApiOperation({ summary: "Listar ambientes paginado con filtros" })
   @ApiQuery({
@@ -241,5 +246,51 @@ export class AmbientesController {
   ) {
     await this.ambientesService.remove(id, periodo);
     return { data: null, message: "Ambiente desactivado correctamente" };
+  }
+
+  @Get("grilla-disponibilidad")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({
+    summary: "Grilla semanal de disponibilidad de ambientes",
+    description: "Estado de todos los ambientes por día y franja horaria",
+  })
+  @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
+  @ApiQuery({
+    name: "dia",
+    required: false,
+    type: Number,
+    description: "Filtrar por día (1-6)",
+  })
+  @ApiQuery({
+    name: "hora_inicio",
+    required: false,
+    description: "Hora inicio (HH:MM)",
+  })
+  @ApiQuery({
+    name: "hora_fin",
+    required: false,
+    description: "Hora fin (HH:MM)",
+  })
+  async getGrillaDisponibilidad(
+    @Query("periodo") periodo: string,
+    @Query("dia") dia?: number,
+    @Query("hora_inicio") horaInicio?: string,
+    @Query("hora_fin") horaFin?: string,
+  ) {
+    const result = await this.ambientesService.getGrillaDisponibilidad(
+      periodo ?? "",
+      dia,
+      horaInicio,
+      horaFin,
+    );
+    return {
+      data: result,
+      message: "Grilla de disponibilidad obtenida correctamente",
+    };
   }
 }

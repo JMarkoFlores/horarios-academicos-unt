@@ -1,3 +1,6 @@
+# Todo dentro de docker:
+1- docker compose exec backend node dist/src/database/seed.js
+
 # Guia de Ejecucion - Sistema de Horarios UNT
 
 > **Estado:** Docker Compose ya esta corriendo (`docker compose up -d` ejecutado previamente).
@@ -44,29 +47,19 @@ npm install
 
 ---
 
-## 4. Ejecutar Migraciones de Base de Datos
+## 4. Sincronizar Esquema de la Base de Datos (Reemplaza a migration:run)
 
-> **IMPORTANTE:** Esto crea todas las tablas en PostgreSQL. Ejecuta solo la primera vez o cuando haya nuevas migraciones.
+> **IMPORTANTE:** En desarrollo se utiliza sincronización automática. Dado que algunas migraciones históricas no coinciden exactamente con el estado final de las entidades, **no ejecutes `npm run migration:run` en bases de datos vacías**, ya que fallará debido a la falta de tablas intermedias. En su lugar, inicializa el esquema directamente sincronizándolo desde las entidades de TypeScript.
 
-Desde la carpeta `backend`:
+Desde la carpeta `backend`, ejecuta:
 
 ```cmd
-npm run migration:run
+npm run typeorm schema:sync -- -d data-source.ts
 ```
 
-Si todo sale bien, veras mensajes indicando que las 39 migraciones se aplicaron correctamente.
+Esto creará todas las tablas en PostgreSQL según el estado actual de tus entidades.
 
 ---
-
-## 5. Sincronizar Esquema de Base de Datos (IMPORTANTE)
-
-> **NOTA:** Las migraciones crean la estructura base, pero algunas tablas/columnas adicionales definidas en las entidades necesitan sincronizarse. Este comando completa lo que falta sin borrar datos.
-
-Desde la carpeta `backend`:
-
-```cmd
-npx ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js schema:sync -d data-source.ts
-```
 
 ---
 
@@ -159,8 +152,7 @@ El frontend estara disponible en: **http://localhost:4200**
 ```cmd
 cd C:\Users\jeanm\Downloads\App-Examen\backend
 npm install
-npm run migration:run
-npx ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js schema:sync -d data-source.ts
+npm run typeorm schema:sync -- -d data-source.ts
 npm run seed
 npm run start:dev
 ```
@@ -180,18 +172,14 @@ ng serve
 - Verifica que Docker este corriendo: `docker compose ps`
 - Revisa que el archivo `backend/.env` tenga `DATABASE_HOST=localhost` y `DATABASE_PORT=5433`
 
-### Error: `relation does not exist`
-- No ejecutaste las migraciones. Corre: `npm run migration:run`
-- O tambien ejecuta: `schema:sync` (paso 5)
+### Error: `relation does not exist` o `column X does not exist`
+- No ejecutaste la sincronización del esquema. Corre: `npm run typeorm schema:sync -- -d data-source.ts`
 
 ### Error: `port already in use`
 - El puerto 3000 o 4200 esta ocupado. Cierra otras aplicaciones o cambia el puerto.
 
 ### Las tablas estan vacias
 - No ejecutaste el seed. Corre: `npm run seed`
-
-### Error en seed: `column X does not exist`
-- Ejecuta el `schema:sync` del paso 5 para completar las columnas faltantes.
 
 ---
 

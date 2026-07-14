@@ -51,7 +51,7 @@ RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nestjs -u 1001
 
 # Create uploads directory with correct ownership
-RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app/uploads
+RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app
 
 # Copy package files
 COPY package*.json ./

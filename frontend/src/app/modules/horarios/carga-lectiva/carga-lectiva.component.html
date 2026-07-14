@@ -90,26 +90,6 @@
         </div>
 
         <div class="filter-field">
-          <label>Ciclo</label>
-          <mat-select [(ngModel)]="filtroCiclo" placeholder="Todos" panelClass="filter-select">
-            <mat-option [value]="null">Todos</mat-option>
-            <mat-option *ngFor="let c of ciclos" [value]="c">
-              Ciclo {{ cicloLabel(c) }}
-            </mat-option>
-          </mat-select>
-        </div>
-
-        <div class="filter-field">
-          <label>Tipo de Curso</label>
-          <mat-select [(ngModel)]="filtroTipo" placeholder="Todos" panelClass="filter-select">
-            <mat-option [value]="null">Todos</mat-option>
-            <mat-option value="TEORIA">Teoría</mat-option>
-            <mat-option value="PRACTICA">Práctica</mat-option>
-            <mat-option value="LABORATORIO">Laboratorio</mat-option>
-          </mat-select>
-        </div>
-
-        <div class="filter-field">
           <label>Docente</label>
           <input matInput
                  [formControl]="filtroDocenteCtrl"
@@ -119,99 +99,216 @@
           <mat-autocomplete #autoDocente="matAutocomplete"
                             (optionSelected)="onDocenteSelected($event.option.value)"
                             [displayWith]="displayFn">
-            <mat-option *ngFor="let d of docentesFiltradosAutoComplete" [value]="d.nombreCompleto">
+            <mat-option *ngFor="let d of docentesFiltradosAutoComplete" [value]="d">
               <span class="docente-option-nombre">{{ d.nombreCompleto }}</span>
               <span class="docente-option-codigo">({{ d.codigo }})</span>
             </mat-option>
           </mat-autocomplete>
         </div>
 
-        <div class="filter-toggle">
-          <mat-slide-toggle [(ngModel)]="mostrarSoloSinHorario" color="primary">
-            Solo sin horario
-          </mat-slide-toggle>
+        <div class="filter-field">
+          <label>Ciclo</label>
+          <mat-select [(ngModel)]="filtroCiclo" (selectionChange)="onFiltroCicloChange()" placeholder="Todos" panelClass="filter-select">
+            <mat-option [value]="null">Todos</mat-option>
+            <mat-option *ngFor="let c of ciclos" [value]="c">
+              Ciclo {{ cicloLabel(c) }}
+            </mat-option>
+          </mat-select>
+          <button *ngIf="filtroCiclo && !modoCicloActivo" 
+                  mat-stroked-button 
+                  class="btn-modo-ciclo"
+                  (click)="activarModoCiclo(filtroCiclo)">
+            <mat-icon>playlist_add_check</mat-icon>
+            Modo Asignación
+          </button>
+        </div>
+
+        <div class="filter-field">
+          <label>Tipo de Curso</label>
+          <mat-select [(ngModel)]="filtroTipo" (selectionChange)="onFiltroTipoChange()" placeholder="Todos" panelClass="filter-select">
+            <mat-option [value]="null">Todos</mat-option>
+            <mat-option value="TEORIA">Teoría</mat-option>
+            <mat-option value="PRACTICA">Práctica</mat-option>
+            <mat-option value="LABORATORIO">Laboratorio</mat-option>
+          </mat-select>
+        </div>
+
+        <div class="filter-field">
+          <label>Ambiente</label>
+          <mat-select [(ngModel)]="filtroAmbienteId" (selectionChange)="onFiltroAmbienteChange()" placeholder="Todos" panelClass="filter-select">
+            <mat-option [value]="null">Todos</mat-option>
+            <mat-option *ngFor="let amb of ambientesDisponibles" [value]="amb.codigo">
+              {{ amb.codigo }} — {{ amb.nombre }}
+            </mat-option>
+          </mat-select>
+        </div>
+
+        <div class="filter-field">
+          <label>Estado de programación</label>
+          <div class="quick-filters">
+            <button
+              mat-stroked-button
+              type="button"
+              class="quick-filter-btn"
+              *ngFor="let filtro of filtrosProgramacion"
+              [class.active]="filtroProgramacion === filtro"
+              (click)="onFiltroProgramacionChange(filtro)">
+              <span>{{ getEtiquetaFiltroProgramacion(filtro) }}</span>
+              <span class="quick-filter-count">{{ getConteoFiltroProgramacion(filtro) }}</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Unscheduled Courses -->
-      <div class="unscheduled-section">
-        <div class="section-header">
-          <mat-icon>school</mat-icon>
-          <span>Asignaciones</span>
-          <span class="count-badge">{{ totalAsignacionesFiltradas }}</span>
-        </div>
-        <p class="section-hint">Seleccione una asignación para ver detalles o programar horario</p>
+        <!-- Unscheduled Courses -->
+        <div class="unscheduled-section">
+          <!-- Modo Ciclo Banner -->
+          <div class="modo-ciclo-banner" *ngIf="modoCicloActivo">
+            <div class="modo-ciclo-header">
+              <div class="modo-ciclo-title">
+                <mat-icon>playlist_add_check</mat-icon>
+                <span>Modo Asignación - Ciclo {{ cicloActual }}</span>
+              </div>
+              <button mat-button class="btn-exit-ciclo" (click)="desactivarModoCiclo()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+            <div class="modo-ciclo-progress">
+              <div class="progress-bar-ciclo">
+                <div class="progress-fill-ciclo" [style.width.%]="progresoCiclo"></div>
+              </div>
+              <span class="progress-text">{{ progresoCiclo }}% completado</span>
+            </div>
+            <div class="modo-ciclo-nav" *ngIf="asignacionesCiclo.length > 0">
+              <button mat-stroked-button 
+                      class="btn-nav-ciclo"
+                      [disabled]="indiceCicloActual === 0"
+                      (click)="anteriorAsignacionCiclo()">
+                <mat-icon>chevron_left</mat-icon>
+              </button>
+              <span class="nav-indicator">
+                {{ indiceCicloActual + 1 }} / {{ asignacionesCiclo.length }}
+              </span>
+              <button mat-stroked-button 
+                      class="btn-nav-ciclo"
+                      [disabled]="indiceCicloActual === asignacionesCiclo.length - 1"
+                      (click)="siguienteAsignacionCiclo()">
+                <mat-icon>chevron_right</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <div class="section-header" *ngIf="!modoCicloActivo">
+            <mat-icon>school</mat-icon>
+            <span>Asignaciones</span>
+            <span class="count-badge">{{ totalAsignacionesFiltradas }}</span>
+          </div>
+          <p class="section-hint" *ngIf="!modoCicloActivo">La lista prioriza primero las asignaciones sin horario, luego las parciales, después las completas y al final las bloqueadas.</p>
 
         <div class="courses-list" *ngIf="!loading; else coursesLoading">
-          <ng-container *ngFor="let entry of docentesFiltrados; trackBy: trackByDocente">
-            <div class="course-card"
-                 *ngFor="let asignacion of entry[1].asignaciones; trackBy: trackByAsignacion"
-                 [class.selected]="asignacionSeleccionada?.id === asignacion.id"
-                 [class.has-horario]="tieneHorario(asignacion)"
-                 [class.is-pendiente]="asignacion.estado === 'PENDIENTE'"
-                 [class.is-rechazado]="asignacion.estado === 'RECHAZADO'"
-                 [class.is-bloqueado]="!puedeProgramar(asignacion)"
-                 (click)="seleccionarAsignacion(asignacion)">
-
-              <div class="card-color-bar"
-                   [style.background]="getTipoColor(asignacion.tipo_clase).border">
+          <!-- Lista en modo ciclo -->
+          <ng-container *ngIf="modoCicloActivo">
+            <div class="ciclo-list">
+              <div class="ciclo-item"
+                   *ngFor="let asignacion of asignacionesCiclo; trackBy: trackByAsignacion; let i = index"
+                   [class.active]="i === indiceCicloActual"
+                   [class.completed]="estaCompletamenteProgramada(asignacion)"
+                   [class.partial]="estaParcialmenteProgramada(asignacion)"
+                   (click)="irAAsignacionCiclo(i)">
+                <div class="ciclo-item-number">{{ i + 1 }}</div>
+                <div class="ciclo-item-content">
+                  <span class="ciclo-curso">{{ asignacion.curso_plan.curso.codigo }}</span>
+                  <span class="ciclo-docente">{{ asignacion.docente.apellidos }}, {{ asignacion.docente.nombres }}</span>
+                  <span class="ciclo-resumen">{{ getResumenProgramacion(asignacion) }}</span>
+                </div>
+                <mat-icon class="ciclo-status" *ngIf="estaCompletamenteProgramada(asignacion)">check_circle</mat-icon>
+                <mat-icon class="ciclo-status partial" *ngIf="estaParcialmenteProgramada(asignacion)">edit_calendar</mat-icon>
               </div>
+            </div>
+            <div class="ciclo-empty" *ngIf="asignacionesCiclo.length === 0">
+              <mat-icon>task_alt</mat-icon>
+              <p>No hay asignaciones confirmadas para el ciclo {{ cicloActual }}</p>
+            </div>
+          </ng-container>
 
-              <div class="card-body">
-                <div class="card-top">
-                  <span class="curso-codigo">{{ asignacion.curso_plan.curso.codigo }}</span>
-                  <span class="tipo-badge"
-                        [style.background]="getTipoColor(asignacion.tipo_clase).bg"
-                        [style.color]="getTipoColor(asignacion.tipo_clase).text"
-                        [style.border-color]="getTipoColor(asignacion.tipo_clase).border">
-                    {{ getBadgeTipoClase(asignacion.tipo_clase) }}
-                  </span>
+          <!-- Lista normal -->
+          <ng-container *ngIf="!modoCicloActivo">
+            <ng-container *ngFor="let entry of docentesFiltrados; trackBy: trackByDocente">
+              <div class="course-card"
+                   *ngFor="let asignacion of entry[1].asignaciones; trackBy: trackByAsignacion"
+                   [class.selected]="asignacionSeleccionada?.id === asignacion.id"
+                   [class.has-horario]="tieneHorario(asignacion)"
+                   [class.is-complete]="estaCompletamenteProgramada(asignacion)"
+                   [class.is-partial]="estaParcialmenteProgramada(asignacion)"
+                   [class.is-pendiente]="asignacion.estado === 'PENDIENTE'"
+                   [class.is-rechazado]="asignacion.estado === 'RECHAZADO'"
+                   [class.is-bloqueado]="!puedeProgramar(asignacion)"
+                   (click)="seleccionarAsignacion(asignacion)">
+
+                <div class="card-color-bar"
+                     [style.background]="getTipoColor(asignacion.tipo_clase).border">
                 </div>
 
-                <div class="curso-nombre">{{ asignacion.curso_plan.curso.nombre }}</div>
+                <div class="card-body">
+                  <div class="card-top">
+                    <span class="curso-codigo">{{ asignacion.curso_plan.curso.codigo }}</span>
+                    <span class="tipo-badge"
+                          [style.background]="getTipoColor(asignacion.tipo_clase).bg"
+                          [style.color]="getTipoColor(asignacion.tipo_clase).text"
+                          [style.border-color]="getTipoColor(asignacion.tipo_clase).border">
+                      {{ getBadgeTipoClase(asignacion.tipo_clase) }}
+                    </span>
+                  </div>
 
-                <div class="card-meta">
-                  <span class="meta-item">
-                    <mat-icon>person</mat-icon>
-                    {{ asignacion.docente.apellidos }}, {{ asignacion.docente.nombres }}
-                  </span>
-                </div>
+                  <div class="curso-nombre">{{ asignacion.curso_plan.curso.nombre }}</div>
 
-                <div class="card-estado-progress">
-                  <span class="estado-chip-small"
-                        [class]="getEstadoChip(asignacion.estado).cssClass">
-                    <mat-icon>{{ getEstadoChip(asignacion.estado).icon }}</mat-icon>
-                    {{ getEstadoChip(asignacion.estado).label }}
-                  </span>
-                  <span class="horas-progreso" *ngIf="asignacion.estado === 'CONFIRMADO'">
-                    {{ getProgresoLabel(asignacion) }}
-                  </span>
-                </div>
+                  <div class="card-meta">
+                    <span class="meta-item">
+                      <mat-icon>person</mat-icon>
+                      {{ asignacion.docente.apellidos }}, {{ asignacion.docente.nombres }}
+                    </span>
+                  </div>
 
-                <div class="progreso-bar-container" *ngIf="asignacion.estado === 'CONFIRMADO'">
-                  <div class="progreso-bar"
-                       [style.width.%]="getProgresoBarWidth(asignacion)"
-                       [class.completo]="getProgresoBarWidth(asignacion) >= 100">
+                  <div class="card-estado-progress">
+                    <span class="estado-chip-small"
+                          [class]="getEstadoChip(asignacion.estado).cssClass">
+                      <mat-icon>{{ getEstadoChip(asignacion.estado).icon }}</mat-icon>
+                      {{ getEstadoChip(asignacion.estado).label }}
+                    </span>
+                    <span class="horas-progreso" *ngIf="asignacion.estado === 'CONFIRMADO'">
+                      {{ getProgresoLabel(asignacion) }}
+                    </span>
+                  </div>
+
+                  <div class="progreso-bar-container" *ngIf="asignacion.estado === 'CONFIRMADO'">
+                    <div class="progreso-bar"
+                         [style.width.%]="getProgresoBarWidth(asignacion)"
+                         [class.completo]="getProgresoBarWidth(asignacion) >= 100">
+                    </div>
+                  </div>
+
+                  <div class="programacion-resumen" *ngIf="puedeProgramar(asignacion)">
+                    <mat-icon>event_note</mat-icon>
+                    <span>{{ getResumenProgramacion(asignacion) }}</span>
+                  </div>
+
+                  <div class="card-footer">
+                    <span class="footer-item">Sec. {{ asignacion.seccion }}</span>
+                    <span class="footer-item">{{ asignacion.horas_asignadas }}h</span>
+                    <span class="footer-item">{{ asignacion.nro_alumnos || 0 }} alumnos</span>
+                    <span class="horario-status"
+                          [ngClass]="getEstadoHorarioClase(asignacion)">
+                      <mat-icon>{{ getEstadoHorarioIcon(asignacion) }}</mat-icon>
+                      {{ getEstadoHorarioLabel(asignacion) }}
+                    </span>
                   </div>
                 </div>
 
-                <div class="card-footer">
-                  <span class="footer-item">Sec. {{ asignacion.seccion }}</span>
-                  <span class="footer-item">{{ asignacion.horas_asignadas }}h</span>
-                  <span class="footer-item">{{ asignacion.nro_alumnos || 0 }} alumnos</span>
-                  <span class="horario-status"
-                        [class.sin-horario]="!tieneHorario(asignacion)"
-                        [class.con-horario]="tieneHorario(asignacion)">
-                    <mat-icon>{{ tieneHorario(asignacion) ? 'check_circle' : 'schedule' }}</mat-icon>
-                    {{ tieneHorario(asignacion) ? 'Programado' : 'Pendiente' }}
-                  </span>
+                <div class="card-drag-handle">
+                  <mat-icon>drag_indicator</mat-icon>
                 </div>
               </div>
-
-              <div class="card-drag-handle">
-                <mat-icon>drag_indicator</mat-icon>
-              </div>
-            </div>
+            </ng-container>
           </ng-container>
 
           <div class="empty-courses" *ngIf="totalAsignacionesFiltradas === 0">
@@ -274,7 +371,10 @@
                    [class.celda-ocupada-por-otro]="editingSchedule && getBloquesCelda(dia.dia_semana, hora).length > 0 && !esBloqueDeAsignacion(getBloquesCelda(dia.dia_semana, hora)[0])"
                    [class.celda-ocupada-por-esta]="editingSchedule && getBloquesCelda(dia.dia_semana, hora).length > 0 && esBloqueDeAsignacion(getBloquesCelda(dia.dia_semana, hora)[0])"
                    [class.celda-drag-start]="dragStart?.dia === dia.dia_semana && dragStart?.hora === hora"
-                   [class.celda-drag-hover]="isDragging && dragStart?.dia === dia.dia_semana && dragEnd?.dia === dia.dia_semana && isHoraInRange(hora, dragStart?.hora, dragEnd?.hora)"
+                   [class.celda-drag-hover]="isDragging && !draggingBlock && dragStart?.dia === dia.dia_semana && dragEnd?.dia === dia.dia_semana && isHoraInRange(hora, dragStart?.hora, dragEnd?.hora)"
+                   [class.celda-drag-destino]="draggingBlock && dragTargetDia === dia.dia_semana && dragTargetHora === hora"
+                   [class.celda-conflicto]="tieneConflictoEnCelda(dia.dia_semana, hora)"
+                   [class.celda-sin-disponibilidad]="editingSchedule && !tieneDisponibilidadEnSlot(dia.dia_semana, hora)"
                    (mousedown)="onCalendarCellMouseDown(dia.dia_semana, hora, $event)"
                    (mouseenter)="onCalendarCellMouseEnter(dia.dia_semana, hora)"
                    (click)="onCalendarCellClick(dia.dia_semana, hora)"
@@ -291,14 +391,16 @@
                      [class.selected]="bloqueSeleccionado?.id === bloque.id"
                      [class.bloque-mio]="esBloqueDeAsignacion(bloque)"
                      [class.bloque-ajeno]="!esBloqueDeAsignacion(bloque)"
+                     [class.bloque-destacado]="asignacionSeleccionada && esBloqueDeAsignacion(bloque)"
                      [class.bloque-dragging]="draggingBlock?.id === bloque.id"
+                     [class.bloque-con-colision]="contarBloquesEnCelda(bloque.dia, bloque.hora_inicio, bloque.hora_fin) > 1"
                      [style.background]="getTipoColor(bloque.tipoClase).bg"
                      [style.border-left-color]="getTipoColor(bloque.tipoClase).border"
-                     [style.left]="getBloqueLeft(dia.dia_semana)"
-                     [style.width]="getBloqueWidth()"
+                     [style.left]="getBloqueLeftConColision(bloque)"
+                     [style.width]="getBloqueWidthConColision(bloque)"
                      [style.top]="getBloqueTop(bloque)"
                      [style.height]="getBloqueHeight(bloque)"
-                     [style.z-index]="draggingBlock?.id === bloque.id ? 100 : ''"
+                     [style.z-index]="draggingBlock?.id === bloque.id ? 100 : (asignacionSeleccionada && esBloqueDeAsignacion(bloque) ? 50 : '')"
                      [style.opacity]="draggingBlock?.id === bloque.id ? '0.4' : ''"
                      [style.cursor]="editingSchedule && esBloqueDeAsignacion(bloque) ? 'grab' : 'pointer'"
                      (mousedown)="onBlockMouseDown(bloque, $event)"
@@ -421,6 +523,63 @@
             </div>
           </div>
 
+          <!-- Sugerencias de Horario -->
+          <div class="sugerencias-horario" *ngIf="asignacionSeleccionada && ambienteSeleccionadoId">
+            <div class="sugerencias-header">
+              <h4>Sugerencias de Horario</h4>
+              <button mat-stroked-button 
+                      class="btn-generar-sugerencias"
+                      [disabled]="generandoSugerencias"
+                      (click)="generarSugerenciasHorarios()">
+                <mat-icon *ngIf="!generandoSugerencias">auto_awesome</mat-icon>
+                <mat-spinner *ngIf="generandoSugerencias" diameter="16"></mat-spinner>
+                {{ generandoSugerencias ? 'Generando...' : 'Generar' }}
+              </button>
+            </div>
+            
+            <div *ngIf="sugerenciasHorarios.length > 0" class="sugerencias-list">
+              <button mat-stroked-button 
+                      class="btn-aplicar-todas"
+                      color="primary"
+                      (click)="aplicarTodasSugerencias()">
+                <mat-icon>playlist_add_check</mat-icon>
+                Aplicar Todas
+              </button>
+              <div class="sugerencia-item"
+                   *ngFor="let sugerencia of sugerenciasHorarios"
+                   (click)="aplicarSugerencia(sugerencia)">
+                <span class="sugerencia-dia">{{ getDiaNombre(sugerencia.dia) }}</span>
+                <span class="sugerencia-hora">{{ sugerencia.hora_inicio }} - {{ sugerencia.hora_fin }}</span>
+                <mat-icon class="sugerencia-icon">add_circle</mat-icon>
+              </div>
+            </div>
+            <div *ngIf="!generandoSugerencias && sugerenciasHorarios.length === 0" class="no-sugerencias">
+              <mat-icon>lightbulb_outline</mat-icon>
+              <span>Haga clic en "Generar" para obtener sugerencias</span>
+            </div>
+          </div>
+
+          <!-- Disponibilidad del Docente -->
+          <div class="disponibilidad-docente" *ngIf="disponibilidadDocente.length > 0 || loadingDisponibilidad">
+            <h4>Disponibilidad del Docente</h4>
+            <div *ngIf="loadingDisponibilidad" class="disponibilidad-loading">
+              <mat-spinner diameter="20"></mat-spinner>
+            </div>
+            <div *ngIf="!loadingDisponibilidad && disponibilidadDocente.length > 0" class="disponibilidad-grid">
+              <div class="disp-slot"
+                   *ngFor="let disp of disponibilidadDocente"
+                   [class.disp-disponible]="disp.disponible">
+                <span class="disp-dia">{{ getDiaNombre(disp.dia) }}</span>
+                <span class="disp-horas">{{ disp.hora_inicio }} - {{ disp.hora_fin }}</span>
+                <mat-icon class="disp-icon">check_circle</mat-icon>
+              </div>
+            </div>
+            <div *ngIf="!loadingDisponibilidad && disponibilidadDocente.length === 0" class="no-disponibilidad">
+              <mat-icon>event_busy</mat-icon>
+              <span>Sin disponibilidad registrada</span>
+            </div>
+          </div>
+
           <!-- Horarios de esta asignación -->
           <div class="horarios-asignacion">
             <h4>Horarios Programados</h4>
@@ -438,6 +597,10 @@
                 <span class="horario-ambiente">{{ h.ambiente.codigo }}</span>
               </div>
             </div>
+            <div class="horarios-summary" *ngIf="!loadingHorarios && puedeProgramar(asignacion)">
+              <mat-icon>insights</mat-icon>
+              <span>{{ getResumenProgramacion(asignacion) }}</span>
+            </div>
           </div>
 
           <!-- Actions: Edit inline or Save/Cancel -->
@@ -446,7 +609,7 @@
                     [disabled]="loadingHorarios || !puedeProgramar(asignacion)"
                     (click)="iniciarEdicion()">
               <mat-icon>edit_calendar</mat-icon>
-              {{ puedeProgramar(asignacion) ? 'Asignar Horario' : 'Bloqueado (' + asignacion.estado + ')' }}
+              {{ getAccionHorarioLabel(asignacion) }}
             </button>
           </div>
 
@@ -483,7 +646,7 @@
             </div>
             <div class="draft-hint">
               <mat-icon>info</mat-icon>
-              Haga clic en las celdas del calendario para agregar horas. Clic derecho para eliminar.
+              Haga clic en las celdas del calendario para agregar horas. Use clic derecho para quitar bloques y luego guarde para aplicar la nueva programación.
             </div>
           </div>
 
@@ -493,7 +656,7 @@
             <mat-select [(ngModel)]="ambienteSeleccionadoId"
                         (selectionChange)="onAmbienteChange($event.value)"
                         placeholder="Seleccionar ambiente">
-              <mat-option *ngFor="let amb of ambientesDisponibles" [value]="amb.id">
+              <mat-option *ngFor="let amb of ambientesFiltradosPorCurso" [value]="amb.id">
                 {{ amb.codigo }} — {{ amb.nombre }} (cap: {{ amb.capacidad }})
               </mat-option>
             </mat-select>

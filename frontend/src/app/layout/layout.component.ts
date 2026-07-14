@@ -105,7 +105,7 @@ export class LayoutComponent implements OnInit {
       label: 'nav.groups.operations',
       expanded: true,
       items: [
-        { icon: 'schedule', label: 'sidebar.schedules', route: '/app/horarios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'schedule', label: 'sidebar.schedules', route: '/app/horarios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA, ROLES.SECRETARIA] },
         { icon: 'event_note', label: 'sidebar.cargaLectiva', route: '/app/horarios/carga-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
         { icon: 'calendar_view_week', label: 'sidebar.mySchedules', route: '/app/mis-horarios', roles: [ROLES.DOCENTE] },
       ],

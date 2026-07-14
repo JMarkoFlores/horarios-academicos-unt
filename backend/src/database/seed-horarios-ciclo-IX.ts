@@ -252,7 +252,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     // 3. Ricardo Mendoza Rivera - Analítica de Negocios (T:1, P:2, L:2, G:1)
     {
       docente: "Ricardo Mendoza Rivera",
-      curso: "Analítica de Negocios",
+      curso: "ANALÍTICA DE NEGOCIOS",
       dia: "Viernes",
       horas: "10:00-11:00",
       tipo: "Teoría",
@@ -261,7 +261,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Ricardo Mendoza Rivera",
-      curso: "Analítica de Negocios",
+      curso: "ANALÍTICA DE NEGOCIOS",
       dia: "Viernes",
       horas: "11:00-13:00",
       tipo: "Práctica",
@@ -270,7 +270,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Ricardo Mendoza Rivera",
-      curso: "Analítica de Negocios",
+      curso: "ANALÍTICA DE NEGOCIOS",
       dia: "Viernes",
       horas: "14:00-16:00",
       tipo: "Laboratorio",
@@ -281,7 +281,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     // 4. Alberto Mendoza de los Santos - Auditoría Informática (T:1, P:2, L:2, G:2)
     {
       docente: "Alberto Mendoza de los Santos",
-      curso: "Auditoría Informática",
+      curso: "AUDITORÍA INFORMÁTICA",
       dia: "Lunes",
       horas: "10:00-11:00",
       tipo: "Teoría",
@@ -290,7 +290,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Alberto Mendoza de los Santos",
-      curso: "Auditoría Informática",
+      curso: "AUDITORÍA INFORMÁTICA",
       dia: "Lunes",
       horas: "11:00-13:00",
       tipo: "Práctica",
@@ -299,7 +299,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Alberto Mendoza de los Santos",
-      curso: "Auditoría Informática",
+      curso: "AUDITORÍA INFORMÁTICA",
       dia: "Martes",
       horas: "10:00-12:00",
       tipo: "Laboratorio",
@@ -308,7 +308,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Alberto Mendoza de los Santos",
-      curso: "Auditoría Informática",
+      curso: "AUDITORÍA INFORMÁTICA",
       dia: "Martes",
       horas: "12:00-14:00",
       tipo: "Laboratorio",
@@ -319,7 +319,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     // 5. José Gómez Ávila - Gestión de Proyectos de TI (T:1, P:2, L:2, G:3)
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Lunes",
       horas: "14:00-15:00",
       tipo: "Teoría",
@@ -328,7 +328,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Lunes",
       horas: "15:00-17:00",
       tipo: "Práctica",
@@ -337,7 +337,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Martes",
       horas: "10:00-12:00",
       tipo: "Laboratorio",
@@ -346,7 +346,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Martes",
       horas: "13:00-15:00",
       tipo: "Laboratorio",
@@ -355,7 +355,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Martes",
       horas: "19:00-21:00",
       tipo: "Laboratorio",
@@ -395,7 +395,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     // 7. Marcelino Torres Villanueva - Ingeniería Web (T:1, P:1, L:3, G:3)
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Lunes",
       horas: "18:00-19:00",
       tipo: "Teoría",
@@ -404,7 +404,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Lunes",
       horas: "19:00-20:00",
       tipo: "Práctica",
@@ -413,7 +413,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Martes",
       horas: "14:00-17:00",
       tipo: "Laboratorio",
@@ -422,7 +422,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Martes",
       horas: "17:00-20:00",
       tipo: "Laboratorio",
@@ -431,7 +431,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Miércoles",
       horas: "10:00-13:00",
       tipo: "Laboratorio",
@@ -442,34 +442,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     // 8. José Gómez Ávila - Computación en la Nube (T:1, P:1, L:3, G:3)
     {
       docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
-      dia: "Lunes",
-      horas: "07:00-10:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab 3",
-      grupo: 1,
-    },
-    {
-      docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
-      dia: "Miércoles",
-      horas: "07:00-10:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab 3",
-      grupo: 2,
-    },
-    {
-      docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
-      dia: "Miércoles",
-      horas: "17:00-20:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab 4",
-      grupo: 3,
-    },
-    {
-      docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
+      curso: "COMPUTACIÓN EN LA NUBE",
       dia: "Jueves",
       horas: "18:00-19:00",
       tipo: "Teoría",
@@ -478,18 +451,45 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
+      curso: "COMPUTACIÓN EN LA NUBE",
       dia: "Jueves",
       horas: "19:00-20:00",
       tipo: "Práctica",
       ambiente: "posgrado A-303",
       grupo: 1,
     },
+    {
+      docente: "José Gómez Ávila",
+      curso: "COMPUTACIÓN EN LA NUBE",
+      dia: "Lunes",
+      horas: "07:00-10:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab 3",
+      grupo: 1,
+    },
+    {
+      docente: "José Gómez Ávila",
+      curso: "COMPUTACIÓN EN LA NUBE",
+      dia: "Miércoles",
+      horas: "07:00-10:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab 3",
+      grupo: 2,
+    },
+    {
+      docente: "José Gómez Ávila",
+      curso: "COMPUTACIÓN EN LA NUBE",
+      dia: "Miércoles",
+      horas: "17:00-20:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab 4",
+      grupo: 3,
+    },
 
     // 9. Camilo Suarez Rebaza - Hackeo Ético (e) (T:2, P:0, L:2, G:2)
     {
       docente: "Camilo Suarez Rebaza",
-      curso: "Hackeo Ético (e)",
+      curso: "HACKEO ÉTICO",
       dia: "Martes",
       horas: "08:00-10:00",
       tipo: "Teoría",
@@ -498,7 +498,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Camilo Suarez Rebaza",
-      curso: "Hackeo Ético (e)",
+      curso: "HACKEO ÉTICO",
       dia: "Martes",
       horas: "15:00-17:00",
       tipo: "Laboratorio",
@@ -507,7 +507,7 @@ export async function seedHorariosCicloIX(manager?: EntityManager) {
     },
     {
       docente: "Camilo Suarez Rebaza",
-      curso: "Hackeo Ético (e)",
+      curso: "HACKEO ÉTICO",
       dia: "Martes",
       horas: "17:00-19:00",
       tipo: "Laboratorio",

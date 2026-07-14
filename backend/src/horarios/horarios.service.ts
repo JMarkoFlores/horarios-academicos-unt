@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
@@ -44,6 +45,8 @@ import {
 
 @Injectable()
 export class HorariosService {
+  private readonly logger = new Logger(HorariosService.name);
+
   constructor(
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @InjectRepository(HorarioAsignado)
@@ -1243,6 +1246,12 @@ export class HorariosService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    const operacionesAudit: Array<{
+      id: number;
+      accion: string;
+      datos: Record<string, unknown>;
+    }> = [];
+
     try {
       const asignacion = await queryRunner.manager.findOne(AsignacionLectiva, {
         where: { id: dto.asignacion_lectiva_id },
@@ -1326,11 +1335,6 @@ export class HorariosService {
 
       // Procesar operaciones
       const existentesMap = new Map(horariosExistentes.map((h) => [h.id, h]));
-      const operacionesAudit: Array<{
-        id: number;
-        accion: string;
-        datos: Record<string, unknown>;
-      }> = [];
 
       for (const bloque of dto.bloques) {
         if (bloque.operacion === "DELETE") {
@@ -1414,8 +1418,17 @@ export class HorariosService {
       }
 
       await queryRunner.commitTransaction();
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
 
-      // Registrar auditoría después del commit (fuera de la transacción)
+    // Registrar auditoría después del commit (fuera de la transacción)
+    try {
       for (const op of operacionesAudit) {
         const accionEnum =
           op.accion === "CREAR"
@@ -1446,12 +1459,12 @@ export class HorariosService {
           ip: "0.0.0.0", // IP placeholder - en producción se obtiene del request
         });
       }
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
+    } catch (auditError) {
+      this.logger.warn(
+        `Error registrando auditoría (datos ya guardados): ${auditError.message}`,
+      );
     }
+
   }
 
   private validarIntegridadPayload(bloques: BloqueHorarioDto[]): void {
@@ -1715,7 +1728,9 @@ export class HorariosService {
     if (!ambiente) {
       throw new NotFoundException('Ambiente no encontrado');
     }
-    if (ambiente.capacidad && asignacion.nro_alumnos && asignacion.nro_alumnos > ambiente.capacidad) {
+    // No validar capacidad para laboratorios (código empieza con LAB o tipo es LABORATORIO)
+    const esLaboratorio = ambiente.codigo?.toUpperCase().startsWith('LAB') || ambiente.tipo?.toUpperCase().includes('LABORATORIO');
+    if (!esLaboratorio && ambiente.capacidad && asignacion.nro_alumnos && asignacion.nro_alumnos > ambiente.capacidad) {
       throw new ConflictException(
         `El ambiente ${ambiente.codigo} tiene capacidad de ${ambiente.capacidad} alumnos, pero la asignación tiene ${asignacion.nro_alumnos} alumnos.`
       );

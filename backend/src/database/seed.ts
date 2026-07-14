@@ -348,7 +348,8 @@ export async function main() {
       }
     }
 
-    // Now save all unique AsignacionLectiva entries
+    // Now save all unique AsignacionLectiva entries and map them back to horarios
+    const asignacionLectivaMap = new Map<string, number>();
     for (const [alKey, data] of seenAL.entries()) {
       const [docenteId, cursoPlanId, tc, seccion] = alKey.split("-");
 
@@ -362,7 +363,7 @@ export async function main() {
         nroAlumnos = Math.floor(Math.random() * 30) + 25; // 25-54
       }
 
-      await asignacionLectivaRepo.save(
+      const asignacion = await asignacionLectivaRepo.save(
         asignacionLectivaRepo.create({
           docente_id: parseInt(docenteId),
           curso_plan_id: parseInt(cursoPlanId),
@@ -376,11 +377,35 @@ export async function main() {
           asignado_por_id: estructura.admin.id,
         }),
       );
+      asignacionLectivaMap.set(alKey, asignacion.id);
       alCount++;
     }
     console.log(
       `✅ ${dcCount} DocenteCurso y ${alCount} AsignacionLectiva derivados de horarios`,
     );
+
+    // Update horarios with asignacion_lectiva_id
+    console.log("🔗 Actualizando horarios con asignacion_lectiva_id...");
+    let horariosActualizados = 0;
+    for (const h of allHorarios) {
+      const grupoId = (h as any).grupo_id ?? null;
+      const seccion = grupoId ? `G${grupoId}` : "U";
+      const cursoPlan = await cursoPlanRepo.findOne({
+        where: { curso_id: (h as any).curso_id, plan_estudios_id: plan2018.id },
+      });
+      if (!cursoPlan) continue;
+      
+      const tc = (h as any).tipo_clase;
+      const alKey = `${(h as any).docente_id}-${cursoPlan.id}-${tc}-${seccion}`;
+      const asignacionLectivaId = asignacionLectivaMap.get(alKey);
+      
+      if (asignacionLectivaId) {
+        (h as any).asignacion_lectiva_id = asignacionLectivaId;
+        await horarioRepo.save(h);
+        horariosActualizados++;
+      }
+    }
+    console.log(`✅ ${horariosActualizados} horarios actualizados con asignacion_lectiva_id`);
 
     // 5. Seed disponibilidad docente (now aware of assigned horarios!)
     const disponibilidadRepo = queryRunner.manager.getRepository(

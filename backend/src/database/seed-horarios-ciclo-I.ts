@@ -207,7 +207,7 @@ export async function seedHorariosCicloI(manager?: EntityManager) {
       g: 2,
     },
 
-    // 2. Alberto Mendoza de los Santos - Intro Ing Sist
+    // 2. Alberto Mendoza de los Santos - Intro Ing Sist (T:1, P:2, L:0)
     {
       doc: "Alberto Mendoza de los Santos",
       curso: "INTRODUCCIÓN A LA INGENIERÍA DE SISTEMAS",
@@ -251,7 +251,7 @@ export async function seedHorariosCicloI(manager?: EntityManager) {
       g: 2,
     },
 
-    // 4. Bertha Urtecho Zavaleta - Desarrollo Personal
+    // 4. Bertha Urtecho Zavaleta - Desarrollo Personal (T:2, P:2, L:0)
     {
       doc: "Bertha Urtecho Zavaleta",
       curso: "DESARROLLO PERSONAL",
@@ -273,7 +273,7 @@ export async function seedHorariosCicloI(manager?: EntityManager) {
       g: 1,
     },
 
-    // 5. Jose Luis Ponte Bejarano - Desarrollo del Pens. Lógico Matemát.
+    // 5. Jose Luis Ponte Bejarano - Desarrollo del Pens. Lógico Matemát. (T:1, P:4, L:0)
     {
       doc: "Jose Luis Ponte Bejarano",
       curso: "DESARROLLO DEL PENSAMIENTO LÓGICO MATEMÁTICO",
@@ -305,7 +305,7 @@ export async function seedHorariosCicloI(manager?: EntityManager) {
       g: 1,
     },
 
-    // 6. Jorge Luis Rios Gonzales - Lectura Crítica
+    // 6. Jorge Luis Rios Gonzales - Lectura Crítica (T:2, P:2, L:0)
     {
       doc: "Jorge Luis Rios Gonzales",
       curso: "LECTURA CRÍTICA Y REDACCIÓN DE TEXTOS ACADÉMICOS",
@@ -327,7 +327,7 @@ export async function seedHorariosCicloI(manager?: EntityManager) {
       g: 1,
     },
 
-    // 7. Segundo Guibar Obeso - Intro Análisis Mat
+    // 7. Segundo Guibar Obeso - Introduccion al Analisis Matemático (T:2, P:4, L:0)
     {
       doc: "Segundo Guibar Obeso",
       curso: "INTRODUCCIÓN AL ANÁLISIS MATEMÁTICO",
@@ -359,7 +359,7 @@ export async function seedHorariosCicloI(manager?: EntityManager) {
       g: 1,
     },
 
-    // 8. Miguel Ipanaque Zapata - Estadística Gral
+    // 8. Miguel Ipanaque Zapata - Estadistica General
     {
       doc: "Miguel Ipanaque Zapata",
       curso: "ESTADÍSTICA GENERAL",
@@ -371,7 +371,7 @@ export async function seedHorariosCicloI(manager?: EntityManager) {
       g: 1,
     },
 
-    // 9. Martha Cardoso - Estadística Gral
+    // 9. Martha Cardoso - Estadistica General
     {
       doc: "Martha Cardoso",
       curso: "ESTADÍSTICA GENERAL",

@@ -340,18 +340,18 @@
                 </div>
               </ng-container>
             </ng-container>
-          </div>
 
-          <!-- Drag preview ghost -->
-          <div class="drag-preview-ghost"
-               *ngIf="draggingBlock"
-               [style.left]="getBloqueLeft(dragBlockDia)"
-               [style.width]="getBloqueWidth()"
-               [style.top]="getDragPreviewTop() + 'px'"
-               [style.height]="getBloqueHeight(draggingBlock)"
-               [style.background]="getTipoColor(draggingBlock.tipoClase).bg"
-               [style.border-left-color]="getTipoColor(draggingBlock.tipoClase).border">
-            <span class="drag-preview-hora">{{ fmtHora(dragBlockPreviewHour) }} – {{ fmtHora(dragBlockPreviewHour + getBloqueDuracion(draggingBlock)) }}</span>
+            <!-- Drag preview ghost (inside overlay for correct positioning) -->
+            <div class="drag-preview-ghost"
+                 *ngIf="draggingBlock"
+                 [style.left]="getBloqueLeft(dragBlockDia)"
+                 [style.width]="getBloqueWidth()"
+                 [style.top]="getDragPreviewTop() + 'px'"
+                 [style.height]="getBloqueHeight(draggingBlock)"
+                 [style.background]="getTipoColor(draggingBlock.tipoClase).bg"
+                 [style.border-left-color]="getTipoColor(draggingBlock.tipoClase).border">
+              <span class="drag-preview-hora">{{ fmtHora(dragBlockPreviewHour) }} – {{ fmtHora(dragBlockPreviewHour + getBloqueDuracion(draggingBlock)) }}</span>
+            </div>
           </div>
 
         </div>

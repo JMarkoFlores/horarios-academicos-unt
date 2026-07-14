@@ -823,6 +823,17 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
     hour = Math.max(this.horaInicio, Math.min(hour, this.horaFin - duracion));
 
     this.dragBlockPreviewHour = hour;
+
+    // Calculate which day column based on X position
+    const overlayLeft = 64; // width of hora-cell
+    const offsetX = event.clientX - gridRect.left - overlayLeft;
+    const totalWidth = gridRect.width - overlayLeft;
+    const numDias = this.diasSemana.length;
+    const dayWidth = totalWidth / numDias;
+    let dayIndex = Math.floor(offsetX / dayWidth);
+    dayIndex = Math.max(0, Math.min(dayIndex, numDias - 1));
+    this.dragBlockDia = this.diasSemana[dayIndex].dia_semana;
+
     this.cdr.markForCheck();
   }
 

@@ -77,6 +77,7 @@ export class HorariosService {
       .leftJoinAndSelect("horario.curso", "curso")
       .leftJoinAndSelect("horario.ambiente", "ambiente")
       .leftJoinAndSelect("horario.grupo", "grupo")
+      .leftJoinAndSelect("horario.asignacion_lectiva", "asignacion_lectiva")
       .where("horario.periodo = :periodo", { periodo })
       .orderBy("horario.dia", "ASC")
       .addOrderBy("horario.hora_inicio", "ASC")
@@ -665,7 +666,11 @@ export class HorariosService {
       .leftJoinAndSelect("al.grupo", "grupo")
       .where("al.periodo_id = :periodoId", { periodoId })
       .andWhere("al.estado IN (:...estados)", {
-        estados: [EstadoAsignacionLectiva.PENDIENTE, EstadoAsignacionLectiva.CONFIRMADO],
+        estados: [
+          EstadoAsignacionLectiva.PENDIENTE,
+          EstadoAsignacionLectiva.CONFIRMADO,
+          EstadoAsignacionLectiva.RECHAZADO,
+        ],
       });
 
     // Filtros de contexto académico
@@ -681,20 +686,34 @@ export class HorariosService {
 
     const asignaciones = await query.getMany();
 
-    // Filtrar solo asignaciones sin horarios asignados
-    const asignacionesSinHorario: any[] = [];
+    // Contar horarios por asignación (para que el frontend sepa cuáles ya tienen programación)
+    const asignacionesConInfo: any[] = [];
     for (const asignacion of asignaciones) {
       const horariosCount = await this.horarioRepo.count({
         where: { asignacion_lectiva_id: asignacion.id },
       });
-      if (horariosCount === 0) {
-        asignacionesSinHorario.push(asignacion);
-      }
+      asignacionesConInfo.push({
+        id: asignacion.id,
+        docente_id: asignacion.docente_id,
+        curso_plan_id: asignacion.curso_plan_id,
+        periodo_id: asignacion.periodo_id,
+        grupo_id: asignacion.grupo_id,
+        tipo_clase: asignacion.tipo_clase,
+        seccion: asignacion.seccion,
+        horas_asignadas: asignacion.horas_asignadas,
+        nro_alumnos: asignacion.nro_alumnos,
+        estado: asignacion.estado,
+        observaciones: asignacion.observaciones,
+        docente: asignacion.docente,
+        curso_plan: asignacion.curso_plan,
+        grupo: asignacion.grupo,
+        horariosCount,
+      });
     }
 
     // Agrupar por docente
     const agrupadas: Record<number, any> = {};
-    for (const asignacion of asignacionesSinHorario) {
+    for (const asignacion of asignacionesConInfo) {
       const docenteId = asignacion.docente_id;
       if (!agrupadas[docenteId]) {
         agrupadas[docenteId] = {
@@ -1161,7 +1180,11 @@ export class HorariosService {
       .leftJoinAndSelect("cp.curso", "curso")
       .where("al.periodo_id = :periodoId", { periodoId })
       .andWhere("al.estado IN (:...estados)", {
-        estados: [EstadoAsignacionLectiva.PENDIENTE, EstadoAsignacionLectiva.CONFIRMADO],
+        estados: [
+          EstadoAsignacionLectiva.PENDIENTE,
+          EstadoAsignacionLectiva.CONFIRMADO,
+          EstadoAsignacionLectiva.RECHAZADO,
+        ],
       });
 
     if (facultadId) {
@@ -1242,10 +1265,10 @@ export class HorariosService {
         );
       }
 
-      // Validar estado de asignación: solo se puede editar si está en PENDIENTE
-      if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
+      // Validar estado de asignación: solo se puede programar si está CONFIRMADO
+      if (asignacion.estado !== EstadoAsignacionLectiva.CONFIRMADO) {
         throw new BadRequestException(
-          `No se puede editar horarios de una asignación en estado "${asignacion.estado}". Solo se permite editar asignaciones en estado PENDIENTE.`,
+          `No se puede programar horarios de una asignación en estado "${asignacion.estado}". Solo se permite programar asignaciones CONFIRMADAS.`,
         );
       }
 

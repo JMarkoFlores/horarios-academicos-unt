@@ -112,6 +112,23 @@
   letter-spacing: 0.02em;
 }
 
+.periodo-select {
+  min-width: 180px;
+  font-size: 13px;
+  font-weight: 700;
+  ::ng-deep {
+    .mat-mdc-select-value { font-weight: 700; color: var(--color-primary); }
+    .mdc-text-field--outlined { border-radius: 20px; }
+  }
+}
+
+.periodo-activo-tag {
+  font-size: 10px;
+  color: #059669;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
 .page-subtitle {
   margin: 0;
   font-size: 13px;
@@ -186,6 +203,19 @@
       background: #fef2f2;
       mat-icon { color: #dc2626; }
       .kpi-value { color: #dc2626; }
+    }
+  }
+
+  &.kpi-blocked {
+    border-color: rgba(156, 163, 175, 0.3);
+    mat-icon { color: var(--color-text-muted); }
+    .kpi-value { color: var(--color-text-muted); }
+
+    &.has-blocked {
+      border-color: rgba(156, 163, 175, 0.5);
+      background: #f9fafb;
+      mat-icon { color: #6b7280; }
+      .kpi-value { color: #6b7280; }
     }
   }
 }
@@ -444,6 +474,20 @@
       opacity: 1;
     }
   }
+
+  &.is-bloqueado {
+    opacity: 0.55;
+    border-style: dashed;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  &.is-rechazado {
+    border-color: #fca5a5;
+    background: #fef2f2;
+  }
 }
 
 .card-color-bar {
@@ -512,6 +556,72 @@
       width: 12px;
       height: 12px;
     }
+  }
+}
+
+/* ---- Card Estado/Progress ---- */
+.card-estado-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.estado-chip-small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+
+  mat-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+  }
+
+  &.estado-confirmado {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+  }
+
+  &.estado-pendiente {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+  }
+
+  &.estado-rechazado {
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+  }
+}
+
+.horas-progreso {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.progreso-bar-container {
+  width: 100%;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.progreso-bar {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+
+  &.completo {
+    background: #10b981;
   }
 }
 
@@ -683,6 +793,9 @@
 
 /* ---- Calendar Grid ---- */
 .calendar-grid {
+  position: relative;
+  user-select: none;
+
   .calendar-row {
     display: grid;
     grid-template-columns: 64px repeat(var(--dias-count, 5), 1fr);
@@ -735,6 +848,25 @@
 
   &.celda-con-bloque {
     padding: 0;
+  }
+}
+
+/* ---- Blocks Overlay ---- */
+.blocks-overlay {
+  position: absolute;
+  top: 0;
+  left: 64px; /* width of hora-cell */
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  user-select: none;
+
+  .bloque-horario {
+    pointer-events: all;
+    position: absolute;
+    border-radius: 6px;
+    overflow: visible;
+    z-index: 10;
   }
 }
 
@@ -1111,6 +1243,40 @@
   }
 }
 
+/* ---- Detail Estado Banner ---- */
+.detail-estado-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  margin: 0 16px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  &.pendiente {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    color: #92400e;
+    mat-icon { color: #f59e0b; }
+  }
+
+  &.rechazado {
+    background: #fef2f2;
+    border-left: 3px solid #dc2626;
+    color: #991b1b;
+    mat-icon { color: #dc2626; }
+  }
+}
+
 /* ---- Available Rooms ---- */
 .available-rooms {
   padding: 16px;
@@ -1326,4 +1492,262 @@
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Inline Schedule Editor (Calendar-based)                            */
+/* ------------------------------------------------------------------ */
+.celda-editable {
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(59, 130, 246, 0.08);
+    outline: 2px dashed rgba(59, 130, 246, 0.3);
+    outline-offset: -2px;
+  }
+}
+
+.celda-ocupada-por-otro {
+  cursor: not-allowed;
+  opacity: 0.5;
+
+  &:hover {
+    background: rgba(220, 38, 38, 0.08);
+    outline: 2px dashed rgba(220, 38, 38, 0.3);
+  }
+}
+
+.celda-ocupada-por-esta {
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(34, 197, 94, 0.08);
+  }
+}
+
+.bloque-mio {
+  border: 2px solid rgba(59, 130, 246, 0.4) !important;
+}
+
+.bloque-ajeno {
+  opacity: 0.6;
+}
+
+/* ---- Block Controls (+/-/x) ---- */
+.bloque-controls {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  gap: 1px;
+  z-index: 20;
+
+  .ctrl-btn {
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
+    border-radius: 50% !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    transition: all 0.15s ease !important;
+
+    mat-icon {
+      font-size: 10px !important;
+      width: 10px !important;
+      height: 10px !important;
+      line-height: 10px !important;
+    }
+  }
+
+  .ctrl-extend {
+    background: #22c55e;
+    color: white;
+    &:hover { background: #16a34a; }
+  }
+
+  .ctrl-shrink {
+    background: #f59e0b;
+    color: white;
+    &:hover { background: #d97706; }
+  }
+
+  .ctrl-delete {
+    background: #ef4444;
+    color: white;
+    &:hover { background: #dc2626; }
+  }
+}
+
+/* ---- Drag Selection ---- */
+.celda-drag-start {
+  background: rgba(59, 130, 246, 0.15) !important;
+}
+
+.celda-drag-hover {
+  background: rgba(59, 130, 246, 0.1) !important;
+  outline: 2px dashed rgba(59, 130, 246, 0.4);
+  outline-offset: -2px;
+}
+
+.draft-progress-bar {
+  height: 6px;
+  background: var(--color-bg-secondary, #e2e8f0);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+
+  .progress-fill {
+    height: 100%;
+    background: #3b82f6;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+
+    &.completo {
+      background: #22c55e;
+    }
+
+    &.excedido {
+      background: #dc2626;
+    }
+  }
+}
+
+.draft-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+
+  .draft-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  .draft-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary, #1e293b);
+    font-family: 'JetBrains Mono', monospace;
+
+    &.over-limit {
+      color: #dc2626;
+    }
+  }
+}
+
+.draft-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #1e40af;
+  line-height: 1.3;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
+
+.draft-errors {
+  margin-top: 8px;
+
+  .error-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    margin-top: 4px;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: #dc2626;
+    }
+
+    span {
+      font-size: 12px;
+      color: #991b1b;
+      line-height: 1.3;
+    }
+  }
+}
+
+.editor-ambiente-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  mat-select {
+    font-size: 13px;
+  }
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+
+  button {
+    flex: 1;
+
+    mat-icon {
+      margin-right: 4px;
+    }
+  }
+
+  .btn-spinner {
+    display: inline-block;
+  }
+}
+
+/* ---- Drag-to-move ---- */
+.bloque-dragging {
+  cursor: grabbing !important;
+  transition: none !important;
+}
+
+.drag-preview-ghost {
+  position: absolute;
+  border-radius: 6px;
+  border-left: 4px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  pointer-events: none;
+  z-index: 90;
+  opacity: 0.85;
+  transition: top 0.08s ease-out;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }

@@ -35,17 +35,18 @@ import { EstadoCursoPlan } from "../common/enums/estado-curso-plan.enum";
 
 const E2E_PREFIX = "E2E_";
 
-async function findOrCreate<T>(
+async function findOrCreate<T extends { id?: number }>(
   repo: any,
+  _entity: new () => T,
   where: Record<string, any>,
-  data: Partial<T>,
+  data: Record<string, any>,
 ): Promise<T> {
   const existing = await repo.findOne({ where });
   if (existing) {
     Object.assign(existing, data);
     return repo.save(existing);
   }
-  return repo.save(repo.create({ ...data, ...where }));
+  return repo.save(repo.create({ ...where, ...data }));
 }
 
 export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void> {
@@ -69,6 +70,34 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   const departamentoRepo = dataSource.getRepository(Departamento);
 
   const passwordHash = await bcrypt.hash("Admin123!", 10);
+
+  // ═══════════════════════════════════════════════════════════════
+  // CLEANUP: Eliminar datos E2E previos (orden por FK)
+  // ═══════════════════════════════════════════════════════════════
+  console.log("🧹 Limpiando datos E2E previos...");
+  const cleanupQueries = [
+    `DELETE FROM horario_asignado WHERE asignacion_lectiva_id IN (SELECT id FROM asignacion_lectiva WHERE curso_plan_id IN (SELECT id FROM curso_plan_estudios WHERE curso_id IN (SELECT id FROM curso WHERE codigo LIKE '${E2E_PREFIX}%')))`,
+    `DELETE FROM declaracion_observacion WHERE declaracion_id IN (SELECT id FROM declaracion_carga_horaria WHERE docente_id IN (SELECT id FROM docente WHERE dni LIKE '${E2E_PREFIX}%'))`,
+    `DELETE FROM declaracion_carga_horaria WHERE docente_id IN (SELECT id FROM docente WHERE dni LIKE '${E2E_PREFIX}%')`,
+    `DELETE FROM asignacion_lectiva WHERE curso_plan_id IN (SELECT id FROM curso_plan_estudios WHERE curso_id IN (SELECT id FROM curso WHERE codigo LIKE '${E2E_PREFIX}%'))`,
+    `DELETE FROM oferta_academica WHERE curso_plan_id IN (SELECT id FROM curso_plan_estudios WHERE curso_id IN (SELECT id FROM curso WHERE codigo LIKE '${E2E_PREFIX}%'))`,
+    `DELETE FROM grupo WHERE curso_id IN (SELECT id FROM curso WHERE codigo LIKE '${E2E_PREFIX}%')`,
+    `DELETE FROM curso_plan_estudios WHERE curso_id IN (SELECT id FROM curso WHERE codigo LIKE '${E2E_PREFIX}%')`,
+    `DELETE FROM parametros_carga WHERE periodo_academico LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM docente WHERE dni LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM usuario WHERE email LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM curso WHERE codigo LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM plan_estudios WHERE codigo LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM ambiente WHERE codigo LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM escuela WHERE codigo LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM facultad WHERE codigo LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM departamento WHERE codigo LIKE '${E2E_PREFIX}%'`,
+    `DELETE FROM periodo_academico WHERE codigo LIKE '${E2E_PREFIX}%'`,
+  ];
+  for (const q of cleanupQueries) {
+    await dataSource.query(q).catch(() => {});
+  }
+  console.log("   Limpieza completada");
 
   // ═══════════════════════════════════════════════════════════════
   // 1. ESTRUCTURA ACADÉMICA BASE
@@ -175,7 +204,7 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
 
   const docentesData = [
     {
-      codigo: `${E2E_PREFIX}DOC-D1-LIBRE`,
+      codigo: `${E2E_PREFIX}D1-LIBRE`,
       dni: `${E2E_PREFIX}11111111`,
       ibm: 9001,
       nombres: "Docente",
@@ -190,7 +219,7 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
       horas_max_totales: 40,
     },
     {
-      codigo: `${E2E_PREFIX}DOC-D2-NOLECTIVA`,
+      codigo: `${E2E_PREFIX}D2-NOLECT`,
       dni: `${E2E_PREFIX}22222222`,
       ibm: 9002,
       nombres: "Docente",
@@ -205,7 +234,7 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
       horas_max_totales: 40,
     },
     {
-      codigo: `${E2E_PREFIX}DOC-D3-PARCIAL`,
+      codigo: `${E2E_PREFIX}D3-PARCIAL`,
       dni: `${E2E_PREFIX}33333333`,
       ibm: 9003,
       nombres: "Docente",
@@ -220,7 +249,7 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
       horas_max_totales: 40,
     },
     {
-      codigo: `${E2E_PREFIX}DOC-D4-RESTRICCION`,
+      codigo: `${E2E_PREFIX}D4-RESTRIC`,
       dni: `${E2E_PREFIX}44444444`,
       ibm: 9004,
       nombres: "Docente",
@@ -250,7 +279,7 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
       }));
     }
 
-    const saved = await findOrCreate(docenteRepo, Docente, { codigo: d.codigo }, {
+    const saved = await findOrCreate(docenteRepo, Docente, { dni: d.dni }, {
       ...d,
       usuario_id: usuario.id,
       departamento_id: departamento.id,
@@ -352,13 +381,13 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   console.log("📖 Creando cursos catálogo E2E...");
 
   const cursosCatalogoData = [
-    { codigo: `${E2E_PREFIX}C1-SIMPLE`, nombre: "Curso Simple Teoría E2E", creditos: 3, ht: 3, hp: 0, hl: 0, ciclo: 1, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}C1-MIXTO`, nombre: "Curso Mixto Teoría+Práctica E2E", creditos: 4, ht: 2, hp: 2, hl: 0, ciclo: 1, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}C1-CONLAB`, nombre: "Curso con Laboratorio E2E", creditos: 3, ht: 1, hp: 0, hl: 2, ciclo: 1, tiene_lab: true },
-    { codigo: `${E2E_PREFIX}C2-CONFLICTO-DOC`, nombre: "Curso Conflicto Docente E2E", creditos: 3, ht: 2, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}C2-CONFLICTO-AMB`, nombre: "Curso Conflicto Ambiente E2E", creditos: 3, ht: 2, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}C2-DOS-GRUPOS`, nombre: "Curso Dos Grupos E2E", creditos: 4, ht: 3, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}C3-AFORO`, nombre: "Curso Aforo Insuficiente E2E", creditos: 3, ht: 3, hp: 0, hl: 0, ciclo: 3, tiene_lab: false },
+    { codigo: `${E2E_PREFIX}CS`, nombre: "Curso Simple Teoría E2E", creditos: 3, ht: 3, hp: 0, hl: 0, ciclo: 1, tiene_lab: false },
+    { codigo: `${E2E_PREFIX}CM`, nombre: "Curso Mixto Teoría+Práctica E2E", creditos: 4, ht: 2, hp: 2, hl: 0, ciclo: 1, tiene_lab: false },
+    { codigo: `${E2E_PREFIX}CL`, nombre: "Curso con Laboratorio E2E", creditos: 3, ht: 1, hp: 0, hl: 2, ciclo: 1, tiene_lab: true },
+    { codigo: `${E2E_PREFIX}CD`, nombre: "Curso Conflicto Docente E2E", creditos: 3, ht: 2, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
+    { codigo: `${E2E_PREFIX}CA`, nombre: "Curso Conflicto Ambiente E2E", creditos: 3, ht: 2, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
+    { codigo: `${E2E_PREFIX}C2G`, nombre: "Curso Dos Grupos E2E", creditos: 4, ht: 3, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
+    { codigo: `${E2E_PREFIX}C3A`, nombre: "Curso Aforo Insuficiente E2E", creditos: 3, ht: 3, hp: 0, hl: 0, ciclo: 3, tiene_lab: false },
   ];
 
   const dbCursos: Record<string, Curso> = {};
@@ -386,13 +415,13 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   console.log("🔗 Creando CursoPlanEstudios E2E...");
 
   const cursosPlanData = [
-    { curso: `${E2E_PREFIX}C1-SIMPLE`, ciclo: 1, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 3, hp: 0, hl: 0, cred: 3 },
-    { curso: `${E2E_PREFIX}C1-MIXTO`, ciclo: 1, tipo: TipoCursoPlan.OBLIGATORIO_PROFESIONAL, ht: 2, hp: 2, hl: 0, cred: 4 },
-    { curso: `${E2E_PREFIX}C1-CONLAB`, ciclo: 1, tipo: TipoCursoPlan.ESPECIALIDAD, ht: 1, hp: 0, hl: 2, cred: 3 },
-    { curso: `${E2E_PREFIX}C2-CONFLICTO-DOC`, ciclo: 2, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 2, hp: 0, hl: 0, cred: 3 },
-    { curso: `${E2E_PREFIX}C2-CONFLICTO-AMB`, ciclo: 2, tipo: TipoCursoPlan.OBLIGATORIO_PROFESIONAL, ht: 2, hp: 0, hl: 0, cred: 3 },
-    { curso: `${E2E_PREFIX}C2-DOS-GRUPOS`, ciclo: 2, tipo: TipoCursoPlan.ESPECIALIDAD, ht: 3, hp: 0, hl: 0, cred: 4 },
-    { curso: `${E2E_PREFIX}C3-AFORO`, ciclo: 3, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 3, hp: 0, hl: 0, cred: 3 },
+    { curso: `${E2E_PREFIX}CS`, ciclo: 1, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 3, hp: 0, hl: 0, cred: 3 },
+    { curso: `${E2E_PREFIX}CM`, ciclo: 1, tipo: TipoCursoPlan.OBLIGATORIO_PROFESIONAL, ht: 2, hp: 2, hl: 0, cred: 4 },
+    { curso: `${E2E_PREFIX}CL`, ciclo: 1, tipo: TipoCursoPlan.ESPECIALIDAD, ht: 1, hp: 0, hl: 2, cred: 3 },
+    { curso: `${E2E_PREFIX}CD`, ciclo: 2, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 2, hp: 0, hl: 0, cred: 3 },
+    { curso: `${E2E_PREFIX}CA`, ciclo: 2, tipo: TipoCursoPlan.OBLIGATORIO_PROFESIONAL, ht: 2, hp: 0, hl: 0, cred: 3 },
+    { curso: `${E2E_PREFIX}C2G`, ciclo: 2, tipo: TipoCursoPlan.ESPECIALIDAD, ht: 3, hp: 0, hl: 0, cred: 4 },
+    { curso: `${E2E_PREFIX}C3A`, ciclo: 3, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 3, hp: 0, hl: 0, cred: 3 },
   ];
 
   const dbCursosPlan: Record<string, CursoPlanEstudios> = {};
@@ -473,20 +502,18 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
       const cupo = oferta.tipo_clase === TipoClase.LABORATORIO ? 30 : 40;
 
       const grupo = await findOrCreate(grupoRepo, Grupo, {
-        codigo: codigoGrupo,
-        periodo_academico_id: periodo.id,
         curso_id: curso.id,
+        periodo_academico_id: periodo.id,
         tipo: oferta.tipo_clase,
-      }, {
         nombre: nombreGrupo,
+      }, {
+        codigo: codigoGrupo,
         ciclo: cp.ciclo,
         cupo_maximo: cupo,
-        periodo_academico_id: periodo.id,
-        curso_id: curso.id,
-        tipo: oferta.tipo_clase,
       });
 
-      dbGrupos[`${cp.curso_id}-${oferta.tipo_clase}`] = grupo;
+      const cursoKey = Object.keys(dbCursos).find(k => dbCursos[k].id === curso.id) || '';
+      dbGrupos[`${cursoKey}-${oferta.tipo_clase}`] = grupo;
       grupoCounter++;
     }
   }
@@ -498,10 +525,10 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
 
   console.log("📝 Creando Asignaciones Lectivas E2E (escenarios)...");
 
-  const docente1 = dbDocentes[`${E2E_PREFIX}DOC-D1-LIBRE`];
-  const docente2 = dbDocentes[`${E2E_PREFIX}DOC-D2-NOLECTIVA`];
-  const docente3 = dbDocentes[`${E2E_PREFIX}DOC-D3-PARCIAL`];
-  const docente4 = dbDocentes[`${E2E_PREFIX}DOC-D4-RESTRICCION`];
+  const docente1 = dbDocentes[`${E2E_PREFIX}D1-LIBRE`];
+  const docente2 = dbDocentes[`${E2E_PREFIX}D2-NOLECT`];
+  const docente3 = dbDocentes[`${E2E_PREFIX}D3-PARCIAL`];
+  const docente4 = dbDocentes[`${E2E_PREFIX}D4-RESTRIC`];
   const admin = dbUsuarios[RolUsuario.ADMINISTRADOR_SISTEMA];
 
   const getGrupo = (cursoKey: string, tipo: TipoClase) => dbGrupos[`${cursoKey}-${tipo}`];
@@ -510,8 +537,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-01-HAPPY",
       docente: docente1,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C1-SIMPLE`],
-      grupo: getGrupo(`${E2E_PREFIX}C1-SIMPLE`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CS`],
+      grupo: getGrupo(`${E2E_PREFIX}CS`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G1",
       horas_asignadas: 3,
@@ -522,8 +549,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-02-HAPPY-PRA",
       docente: docente1,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C1-MIXTO`],
-      grupo: getGrupo(`${E2E_PREFIX}C1-MIXTO`, TipoClase.PRACTICA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CM`],
+      grupo: getGrupo(`${E2E_PREFIX}CM`, TipoClase.PRACTICA),
       tipo_clase: TipoClase.PRACTICA,
       seccion: "G1",
       horas_asignadas: 2,
@@ -534,8 +561,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-03-PENDIENTE",
       docente: docente1,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C1-MIXTO`],
-      grupo: getGrupo(`${E2E_PREFIX}C1-MIXTO`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CM`],
+      grupo: getGrupo(`${E2E_PREFIX}CM`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G1",
       horas_asignadas: 2,
@@ -546,8 +573,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-04-NOLECTIVA",
       docente: docente2,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C1-CONLAB`],
-      grupo: getGrupo(`${E2E_PREFIX}C1-CONLAB`, TipoClase.LABORATORIO),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CL`],
+      grupo: getGrupo(`${E2E_PREFIX}CL`, TipoClase.LABORATORIO),
       tipo_clase: TipoClase.LABORATORIO,
       seccion: "G1",
       horas_asignadas: 2,
@@ -558,8 +585,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-05-PARCIAL",
       docente: docente3,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C2-CONFLICTO-DOC`],
-      grupo: getGrupo(`${E2E_PREFIX}C2-CONFLICTO-DOC`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CD`],
+      grupo: getGrupo(`${E2E_PREFIX}CD`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G1",
       horas_asignadas: 3,
@@ -570,8 +597,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-06-DOS-GRUPOS",
       docente: docente3,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C2-DOS-GRUPOS`],
-      grupo: getGrupo(`${E2E_PREFIX}C2-DOS-GRUPOS`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C2G`],
+      grupo: getGrupo(`${E2E_PREFIX}C2G`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G2",
       horas_asignadas: 3,
@@ -582,8 +609,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-07-AFORO",
       docente: docente4,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C3-AFORO`],
-      grupo: getGrupo(`${E2E_PREFIX}C3-AFORO`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C3A`],
+      grupo: getGrupo(`${E2E_PREFIX}C3A`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G1",
       horas_asignadas: 3,
@@ -594,8 +621,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-08-CONFLICTO-DOC",
       docente: docente1,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C2-CONFLICTO-DOC`],
-      grupo: getGrupo(`${E2E_PREFIX}C2-CONFLICTO-DOC`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CD`],
+      grupo: getGrupo(`${E2E_PREFIX}CD`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G1",
       horas_asignadas: 2,
@@ -606,8 +633,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-09-CONFLICTO-AMB",
       docente: docente1,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C2-CONFLICTO-AMB`],
-      grupo: getGrupo(`${E2E_PREFIX}C2-CONFLICTO-AMB`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CA`],
+      grupo: getGrupo(`${E2E_PREFIX}CA`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G1",
       horas_asignadas: 2,
@@ -618,8 +645,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-10-RECHAZADO",
       docente: docente1,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C1-SIMPLE`],
-      grupo: getGrupo(`${E2E_PREFIX}C1-SIMPLE`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CS`],
+      grupo: getGrupo(`${E2E_PREFIX}CS`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G2",
       horas_asignadas: 3,
@@ -631,8 +658,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     {
       key: "AL-11-REABIERTO",
       docente: docente1,
-      cursoPlan: dbCursosPlan[`${E2E_PREFIX}C1-SIMPLE`],
-      grupo: getGrupo(`${E2E_PREFIX}C1-SIMPLE`, TipoClase.TEORIA),
+      cursoPlan: dbCursosPlan[`${E2E_PREFIX}CS`],
+      grupo: getGrupo(`${E2E_PREFIX}CS`, TipoClase.TEORIA),
       tipo_clase: TipoClase.TEORIA,
       seccion: "G3",
       horas_asignadas: 3,
@@ -739,7 +766,7 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
 
   const al05 = dbAsignaciones["AL-05-PARCIAL"];
   const aulaGrande = dbAmbientes[`${E2E_PREFIX}AULA-GRANDE`];
-  const grupo05 = getGrupo(`${E2E_PREFIX}C2-CONFLICTO-DOC`, TipoClase.TEORIA);
+  const grupo05 = getGrupo(`${E2E_PREFIX}CD`, TipoClase.TEORIA);
 
   const horarioExistente = await findOrCreate(horarioRepo, HorarioAsignado, {
     asignacion_lectiva_id: al05.id,
@@ -747,7 +774,7 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     hora_inicio: "07:00:00",
   }, {
     docente_id: docente3.id,
-    curso_id: dbCursos[`${E2E_PREFIX}C2-CONFLICTO-DOC`].id,
+    curso_id: dbCursos[`${E2E_PREFIX}CD`].id,
     ambiente_id: aulaGrande.id,
     grupo_id: grupo05.id,
     periodo: periodo.codigo,

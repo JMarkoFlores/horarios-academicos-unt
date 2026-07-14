@@ -21,9 +21,14 @@
           <mat-icon>calendar_month</mat-icon>
           Asignación de Carga Lectiva
         </h1>
-        <span class="periodo-badge" *ngIf="periodoService.periodoActivo as periodo">
-          {{ periodo.codigo }}
-        </span>
+        <mat-select [(ngModel)]="periodoSeleccionadoId"
+                    (selectionChange)="cambiarPeriodo($event.value)"
+                    class="periodo-select"
+                    placeholder="Período">
+          <mat-option *ngFor="let p of periodosDisponibles" [value]="p.id">
+            {{ p.codigo }} <span class="periodo-activo-tag" *ngIf="p.activo">activo</span>
+          </mat-option>
+        </mat-select>
       </div>
       <p class="page-subtitle" *ngIf="alcanceLabel">Alcance: {{ alcanceLabel }}</p>
     </div>
@@ -48,6 +53,13 @@
         <div class="kpi-text">
           <span class="kpi-value">{{ totalConflictos }}</span>
           <span class="kpi-label">Conflictos</span>
+        </div>
+      </div>
+      <div class="kpi-pill kpi-blocked" [class.has-blocked]="totalBloqueadas > 0">
+        <mat-icon>block</mat-icon>
+        <div class="kpi-text">
+          <span class="kpi-value">{{ totalBloqueadas }}</span>
+          <span class="kpi-label">Bloqueadas</span>
         </div>
       </div>
     </div>
@@ -125,10 +137,10 @@
       <div class="unscheduled-section">
         <div class="section-header">
           <mat-icon>school</mat-icon>
-          <span>Cursos Sin Horario</span>
+          <span>Asignaciones</span>
           <span class="count-badge">{{ totalAsignacionesFiltradas }}</span>
         </div>
-        <p class="section-hint">Seleccione un curso para ver detalles o asignar horario</p>
+        <p class="section-hint">Seleccione una asignación para ver detalles o programar horario</p>
 
         <div class="courses-list" *ngIf="!loading; else coursesLoading">
           <ng-container *ngFor="let entry of docentesFiltrados; trackBy: trackByDocente">
@@ -136,6 +148,9 @@
                  *ngFor="let asignacion of entry[1].asignaciones; trackBy: trackByAsignacion"
                  [class.selected]="asignacionSeleccionada?.id === asignacion.id"
                  [class.has-horario]="tieneHorario(asignacion)"
+                 [class.is-pendiente]="asignacion.estado === 'PENDIENTE'"
+                 [class.is-rechazado]="asignacion.estado === 'RECHAZADO'"
+                 [class.is-bloqueado]="!puedeProgramar(asignacion)"
                  (click)="seleccionarAsignacion(asignacion)">
 
               <div class="card-color-bar"
@@ -160,6 +175,24 @@
                     <mat-icon>person</mat-icon>
                     {{ asignacion.docente.apellidos }}, {{ asignacion.docente.nombres }}
                   </span>
+                </div>
+
+                <div class="card-estado-progress">
+                  <span class="estado-chip-small"
+                        [class]="getEstadoChip(asignacion.estado).cssClass">
+                    <mat-icon>{{ getEstadoChip(asignacion.estado).icon }}</mat-icon>
+                    {{ getEstadoChip(asignacion.estado).label }}
+                  </span>
+                  <span class="horas-progreso" *ngIf="asignacion.estado === 'CONFIRMADO'">
+                    {{ getProgresoLabel(asignacion) }}
+                  </span>
+                </div>
+
+                <div class="progreso-bar-container" *ngIf="asignacion.estado === 'CONFIRMADO'">
+                  <div class="progreso-bar"
+                       [style.width.%]="getProgresoBarWidth(asignacion)"
+                       [class.completo]="getProgresoBarWidth(asignacion) >= 100">
+                  </div>
                 </div>
 
                 <div class="card-footer">
@@ -236,38 +269,91 @@
 
               <div class="dia-cell"
                    *ngFor="let dia of diasSemana"
-                   [class.celda-con-bloque]="getBloquesCelda(dia.dia_semana, hora).length > 0">
-                <ng-container *ngFor="let bloque of getBloquesCelda(dia.dia_semana, hora)">
-                  <div class="bloque-horario"
-                       *ngIf="esPrimeraHoraBloque(bloque, hora)"
-                       [class.selected]="bloqueSeleccionado?.id === bloque.id"
-                       [style.background]="getTipoColor(bloque.tipoClase).bg"
-                       [style.border-left-color]="getTipoColor(bloque.tipoClase).border"
-                       [style.grid-row-end]="getRowSpan(bloque)"
-                       (click)="seleccionarBloque(bloque); $event.stopPropagation()">
-                    <div class="bloque-header">
-                      <span class="bloque-hora">{{ bloque.hora_inicio }} – {{ bloque.hora_fin }}</span>
-                    </div>
-                    <div class="bloque-codigo">{{ bloque.cursoCodigo }}</div>
-                    <div class="bloque-nombre">{{ bloque.cursoNombre }}</div>
-                    <div class="bloque-meta">
-                      <span class="bloque-docente">{{ bloque.docenteNombre }}</span>
-                    </div>
-                    <div class="bloque-footer">
-                      <span class="bloque-ambiente">
-                        <mat-icon>location_on</mat-icon>
-                        {{ bloque.ambienteCodigo }}
-                      </span>
-                      <span class="bloque-alumnos">
-                        <mat-icon>group</mat-icon>
-                        {{ bloque.nroAlumnos }}
-                      </span>
-                    </div>
-                  </div>
-                </ng-container>
+                   [class.celda-con-bloque]="getBloquesCelda(dia.dia_semana, hora).length > 0"
+                   [class.celda-editable]="editingSchedule"
+                   [class.celda-ocupada-por-otro]="editingSchedule && getBloquesCelda(dia.dia_semana, hora).length > 0 && !esBloqueDeAsignacion(getBloquesCelda(dia.dia_semana, hora)[0])"
+                   [class.celda-ocupada-por-esta]="editingSchedule && getBloquesCelda(dia.dia_semana, hora).length > 0 && esBloqueDeAsignacion(getBloquesCelda(dia.dia_semana, hora)[0])"
+                   [class.celda-drag-start]="dragStart?.dia === dia.dia_semana && dragStart?.hora === hora"
+                   [class.celda-drag-hover]="isDragging && dragStart?.dia === dia.dia_semana && dragEnd?.dia === dia.dia_semana && isHoraInRange(hora, dragStart?.hora, dragEnd?.hora)"
+                   (mousedown)="onCalendarCellMouseDown(dia.dia_semana, hora, $event)"
+                   (mouseenter)="onCalendarCellMouseEnter(dia.dia_semana, hora)"
+                   (click)="onCalendarCellClick(dia.dia_semana, hora)"
+                   (contextmenu)="onCalendarCellRightClick(dia.dia_semana, hora, $event)">
               </div>
             </div>
           </ng-container>
+
+          <!-- Blocks overlay -->
+          <div class="blocks-overlay">
+            <ng-container *ngFor="let dia of diasSemana">
+              <ng-container *ngFor="let bloque of getBloquesUnicosDia(dia.dia_semana); trackBy: trackByBloque">
+                <div class="bloque-horario"
+                     [class.selected]="bloqueSeleccionado?.id === bloque.id"
+                     [class.bloque-mio]="esBloqueDeAsignacion(bloque)"
+                     [class.bloque-ajeno]="!esBloqueDeAsignacion(bloque)"
+                     [class.bloque-dragging]="draggingBlock?.id === bloque.id"
+                     [style.background]="getTipoColor(bloque.tipoClase).bg"
+                     [style.border-left-color]="getTipoColor(bloque.tipoClase).border"
+                     [style.left]="getBloqueLeft(dia.dia_semana)"
+                     [style.width]="getBloqueWidth()"
+                     [style.top]="getBloqueTop(bloque)"
+                     [style.height]="getBloqueHeight(bloque)"
+                     [style.z-index]="draggingBlock?.id === bloque.id ? 100 : ''"
+                     [style.opacity]="draggingBlock?.id === bloque.id ? '0.4' : ''"
+                     [style.cursor]="editingSchedule && esBloqueDeAsignacion(bloque) ? 'grab' : 'pointer'"
+                     (mousedown)="onBlockMouseDown(bloque, $event)"
+                     (click)="onBlockClick(bloque, $event)">
+                  <div class="bloque-header">
+                    <span class="bloque-hora">{{ bloque.hora_inicio }} – {{ bloque.hora_fin }}</span>
+                    <span class="bloque-badge" *ngIf="getBadgeTipoClase(bloque.tipoClase)">
+                      {{ getBadgeTipoClase(bloque.tipoClase) }}
+                    </span>
+                  </div>
+                  <div class="bloque-codigo">{{ bloque.cursoCodigo }}</div>
+                  <div class="bloque-nombre">{{ bloque.cursoNombre }}</div>
+                  <div class="bloque-meta">
+                    <span class="bloque-docente">{{ bloque.docenteNombre }}</span>
+                  </div>
+                  <div class="bloque-footer">
+                    <span class="bloque-ambiente">
+                      <mat-icon>location_on</mat-icon>
+                      {{ bloque.ambienteCodigo }}
+                    </span>
+                    <span class="bloque-alumnos">
+                      <mat-icon>group</mat-icon>
+                      {{ bloque.nroAlumnos }}
+                    </span>
+                  </div>
+
+                  <!-- Block controls (only for my blocks in edit mode) -->
+                  <div class="bloque-controls" *ngIf="editingSchedule && esBloqueDeAsignacion(bloque)" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                    <button class="ctrl-btn ctrl-extend" (click)="extenderBloque(bloque, 1, $event)" matTooltip="+1 hora">
+                      <mat-icon>add</mat-icon>
+                    </button>
+                    <button class="ctrl-btn ctrl-shrink" (click)="extenderBloque(bloque, -1, $event)" matTooltip="-1 hora">
+                      <mat-icon>remove</mat-icon>
+                    </button>
+                    <button class="ctrl-btn ctrl-delete" (click)="eliminarBloque(bloque, $event)" matTooltip="Eliminar">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </ng-container>
+            </ng-container>
+          </div>
+
+          <!-- Drag preview ghost -->
+          <div class="drag-preview-ghost"
+               *ngIf="draggingBlock"
+               [style.left]="getBloqueLeft(dragBlockDia)"
+               [style.width]="getBloqueWidth()"
+               [style.top]="getDragPreviewTop() + 'px'"
+               [style.height]="getBloqueHeight(draggingBlock)"
+               [style.background]="getTipoColor(draggingBlock.tipoClase).bg"
+               [style.border-left-color]="getTipoColor(draggingBlock.tipoClase).border">
+            <span class="drag-preview-hora">{{ fmtHora(dragBlockPreviewHour) }} – {{ fmtHora(dragBlockPreviewHour + getBloqueDuracion(draggingBlock)) }}</span>
+          </div>
+
         </div>
 
         <!-- Legend -->
@@ -354,13 +440,83 @@
             </div>
           </div>
 
-          <div class="detail-actions">
+          <!-- Actions: Edit inline or Save/Cancel -->
+          <div class="detail-actions" *ngIf="!editingSchedule">
             <button mat-flat-button color="primary"
-                    [disabled]="loadingHorarios || asignacion.estado !== 'PENDIENTE'"
-                    (click)="abrirDialogoAsignar()">
-              <mat-icon>add</mat-icon>
-              Asignar Horario
+                    [disabled]="loadingHorarios || !puedeProgramar(asignacion)"
+                    (click)="iniciarEdicion()">
+              <mat-icon>edit_calendar</mat-icon>
+              {{ puedeProgramar(asignacion) ? 'Asignar Horario' : 'Bloqueado (' + asignacion.estado + ')' }}
             </button>
+          </div>
+
+          <div class="detail-actions" *ngIf="editingSchedule">
+            <button mat-flat-button color="primary"
+                    [disabled]="savingSchedule || erroresValidacion.length > 0 || draftHorasTotal === 0"
+                    (click)="guardarSchedule()">
+              <mat-icon *ngIf="!savingSchedule">save</mat-icon>
+              <mat-spinner *ngIf="savingSchedule" diameter="18" class="btn-spinner"></mat-spinner>
+              {{ savingSchedule ? 'Guardando...' : 'Guardar Horarios' }}
+            </button>
+            <button mat-stroked-button
+                    [disabled]="savingSchedule"
+                    (click)="cerrarEdicion()">
+              <mat-icon>close</mat-icon>
+              Cancelar
+            </button>
+          </div>
+
+          <!-- Draft summary with progress bar -->
+          <div class="draft-summary" *ngIf="editingSchedule">
+            <div class="draft-progress-bar">
+              <div class="progress-fill"
+                   [style.width.%]="getProgresoDraftWidth()"
+                   [class.completo]="getProgresoDraftWidth() >= 100"
+                   [class.excedido]="draftHorasTotal > asignacion.horas_asignadas">
+              </div>
+            </div>
+            <div class="draft-info-row">
+              <span class="draft-label">Programadas:</span>
+              <span class="draft-value" [class.over-limit]="draftHorasTotal > asignacion.horas_asignadas">
+                {{ draftHorasTotal }}h / {{ asignacion.horas_asignadas }}h
+              </span>
+            </div>
+            <div class="draft-hint">
+              <mat-icon>info</mat-icon>
+              Haga clic en las celdas del calendario para agregar horas. Clic derecho para eliminar.
+            </div>
+          </div>
+
+          <!-- Ambiente selector (when editing) -->
+          <div class="editor-ambiente-selector" *ngIf="editingSchedule">
+            <label>Ambiente</label>
+            <mat-select [(ngModel)]="ambienteSeleccionadoId"
+                        (selectionChange)="onAmbienteChange($event.value)"
+                        placeholder="Seleccionar ambiente">
+              <mat-option *ngFor="let amb of ambientesDisponibles" [value]="amb.id">
+                {{ amb.codigo }} — {{ amb.nombre }} (cap: {{ amb.capacidad }})
+              </mat-option>
+            </mat-select>
+          </div>
+
+          <div class="draft-errors" *ngIf="editingSchedule && erroresValidacion.length > 0">
+            <div class="error-item" *ngFor="let err of erroresValidacion">
+              <mat-icon>error</mat-icon>
+              <span>{{ err }}</span>
+            </div>
+          </div>
+
+          <div class="detail-estado-banner"
+               *ngIf="!puedeProgramar(asignacion)"
+               [class.pendiente]="asignacion.estado === 'PENDIENTE'"
+               [class.rechazado]="asignacion.estado === 'RECHAZADO'">
+            <mat-icon>{{ asignacion.estado === 'PENDIENTE' ? 'schedule' : 'cancel' }}</mat-icon>
+            <span *ngIf="asignacion.estado === 'PENDIENTE'">
+              Esta asignación está en estado <strong>PENDIENTE</strong>. Debe ser confirmada antes de programar horarios.
+            </span>
+            <span *ngIf="asignacion.estado === 'RECHAZADO'">
+              Esta asignación fue <strong>RECHAZADA</strong>. No es posible programar horarios.
+            </span>
           </div>
         </div>
       </div>

@@ -86,18 +86,31 @@ const AppDataSource = new DataSource({
   database: process.env.DATABASE_NAME ?? "horarios_unt",
   username: process.env.DATABASE_USER ?? "unt_user",
   password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
+  ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
   entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
   synchronize: false,
   logging: false,
 });
 
-export async function main() {
+export async function main(dataSource?: DataSource) {
   console.log("🚀 Iniciando SEED UNIFICADO del Sistema de Horarios...");
 
-  await AppDataSource.initialize();
-  console.log("✅ Conexión establecida.");
+  let ownDataSource = false;
+  let ds: DataSource;
 
-  const queryRunner = AppDataSource.createQueryRunner();
+  if (dataSource && dataSource.isInitialized) {
+    ds = dataSource;
+    console.log("✅ Usando DataSource de la app (con SSL si aplica).");
+  } else {
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+    }
+    ds = AppDataSource;
+    ownDataSource = true;
+    console.log("✅ Conexión propia establecida.");
+  }
+
+  const queryRunner = ds.createQueryRunner();
   await queryRunner.connect();
 
   try {
@@ -386,14 +399,18 @@ export async function main() {
 
     // Update horarios with asignacion_lectiva_id
     console.log("🔗 Actualizando horarios con asignacion_lectiva_id...");
+    console.log(`   Total horarios encontrados: ${allHorarios.length}`);
+    console.log(`   Total AsignacionLectiva creadas: ${asignacionLectivaMap.size}`);
     let horariosActualizados = 0;
+    let horariosSkippedNoCursoPlan = 0;
+    let horariosSkippedNoMatch = 0;
     for (const h of allHorarios) {
       const grupoId = (h as any).grupo_id ?? null;
       const seccion = grupoId ? `G${grupoId}` : "U";
       const cursoPlan = await cursoPlanRepo.findOne({
         where: { curso_id: (h as any).curso_id, plan_estudios_id: plan2018.id },
       });
-      if (!cursoPlan) continue;
+      if (!cursoPlan) { horariosSkippedNoCursoPlan++; continue; }
       
       const tc = (h as any).tipo_clase;
       const alKey = `${(h as any).docente_id}-${cursoPlan.id}-${tc}-${seccion}`;
@@ -403,9 +420,17 @@ export async function main() {
         (h as any).asignacion_lectiva_id = asignacionLectivaId;
         await horarioRepo.save(h);
         horariosActualizados++;
+      } else {
+        horariosSkippedNoMatch++;
       }
     }
     console.log(`✅ ${horariosActualizados} horarios actualizados con asignacion_lectiva_id`);
+    if (horariosSkippedNoCursoPlan > 0) {
+      console.log(`⚠️  ${horariosSkippedNoCursoPlan} horarios saltados (sin cursoPlan)`);
+    }
+    if (horariosSkippedNoMatch > 0) {
+      console.log(`⚠️  ${horariosSkippedNoMatch} horarios saltados (sin match en asignacionLectivaMap)`);
+    }
 
     // 5. Seed disponibilidad docente (now aware of assigned horarios!)
     const disponibilidadRepo = queryRunner.manager.getRepository(
@@ -580,11 +605,13 @@ export async function main() {
     console.log("✅ SEED completado exitosamente!");
   } catch (error: any) {
     console.error("❌ Error durante el SEED:", error);
-    await queryRunner.rollbackTransaction();
+    try { await queryRunner.rollbackTransaction(); } catch (_) {}
     throw error;
   } finally {
     await queryRunner.release();
-    await AppDataSource.destroy();
+    if (ownDataSource) {
+      await ds.destroy();
+    }
   }
 }
 

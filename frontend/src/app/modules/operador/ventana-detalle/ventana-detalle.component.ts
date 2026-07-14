@@ -34,6 +34,7 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
   cursosDocente: any[] = [];
   ambientesDocente: Ambiente[] = [];
   horariosDocente: any[] = [];
+  diagnosticoAmbientes: any = null;
 
   cursoSeleccionado: any = null;
   tipoClase = 'TEORIA';
@@ -314,11 +315,28 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
 
   cargarAmbientesCompatibles(cursoId: number, tipoClase: string): void {
     if (!this.docenteActual) return;
+    this.diagnosticoAmbientes = null;
+    console.log(`[cargarAmbientesCompatibles] cursoId=${cursoId}, tipoClase=${tipoClase}`);
     this.api.get<ApiResponse<Ambiente[]>>(`/docentes/${this.docenteActual.id}/ambientes-compatibles`, {
       cursoId,
       tipoClase
     }).subscribe(r => {
-      this.ambientesDocente = r.data || [];
+      const ambientes = r.data || [];
+      console.log(`[cargarAmbientesCompatibles] respuesta: ${ambientes.length} ambientes`, ambientes.map(a => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })));
+      this.ambientesDocente = ambientes;
+      if (ambientes.length === 0) {
+        this.diagnosticarAmbientes(cursoId, tipoClase);
+      }
+    });
+  }
+
+  diagnosticarAmbientes(cursoId: number, tipoClase: string): void {
+    console.log(`[diagnosticarAmbientes] cursoId=${cursoId}, tipoClase=${tipoClase}`);
+    this.api.get<ApiResponse<any>>(`/cursos/${cursoId}/ambientes-diagnostico`, {
+      tipo_clase: tipoClase
+    }).subscribe(r => {
+      this.diagnosticoAmbientes = r.data || null;
+      console.log('[diagnosticarAmbientes]', this.diagnosticoAmbientes);
     });
   }
 
@@ -382,6 +400,10 @@ export class VentanaDetalleComponent implements OnInit, OnDestroy {
 
   seleccionarAmbienteRapido(ambiente: Ambiente): void {
     this.ambienteSeleccionado = ambiente;
+  }
+
+  irACursos(): void {
+    window.open('/app/cursos', '_blank');
   }
 
   confirmarHorario(): void {

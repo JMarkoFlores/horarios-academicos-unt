@@ -11,7 +11,10 @@ import { RolesGuard } from "../../auth/guards/roles.guard";
 import { Roles } from "../../auth/decorators/roles.decorator";
 import { RolUsuario } from "../../common/enums/rol-usuario.enum";
 import { AuditoriaService } from "./auditoria.service";
-import { EntidadAuditoriaCarga, AccionAuditoriaCarga } from "../../entities/auditoria-carga.entity";
+import {
+  EntidadAuditoriaCarga,
+  AccionAuditoriaCarga,
+} from "../../entities/auditoria-carga.entity";
 
 @ApiTags("auditoria")
 @ApiBearerAuth("JWT")
@@ -21,7 +24,12 @@ export class AuditoriaController {
   constructor(private readonly auditoriaService: AuditoriaService) {}
 
   @Get()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
   @ApiOperation({ summary: "Obtener historial de auditoría" })
   @ApiQuery({ name: "periodo", required: false, type: String })
   @ApiQuery({ name: "usuario_id", required: false, type: Number })
@@ -60,8 +68,15 @@ export class AuditoriaController {
   }
 
   @Get("carga")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Obtener historial de auditoría de carga académica" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
+  @ApiOperation({
+    summary: "Obtener historial de auditoría de carga académica",
+  })
   @ApiQuery({ name: "periodo", required: false, type: String })
   @ApiQuery({ name: "usuario_id", required: false, type: Number })
   @ApiQuery({ name: "entidad", required: false, enum: EntidadAuditoriaCarga })
@@ -70,7 +85,10 @@ export class AuditoriaController {
   @ApiQuery({ name: "hasta", required: false, type: String })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Historial de carga académica obtenido exitosamente" })
+  @ApiResponse({
+    status: 200,
+    description: "Historial de carga académica obtenido exitosamente",
+  })
   async getHistorialCarga(
     @Query("periodo") periodo?: string,
     @Query("usuario_id") usuarioId?: string,

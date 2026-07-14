@@ -1,3 +1,9 @@
+/**
+ * Login Component Styles
+ * High-quality dark/light theme matching recuperar-password design
+ */
+
+// ── LOGIN PAGE ──
 .login-page {
   --color-login-bg: #020617;
   min-height: 100vh;
@@ -6,8 +12,56 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background-color: var(--color-login-bg);
+  background-color: var(--color-bg);
   font-family: "Inter", sans-serif;
+  transition: background-color var(--transition-normal);
+}
+
+// Theme toggle button
+.theme-toggle-btn {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+
+  &:hover {
+    background: var(--color-surface-2);
+    border-color: var(--color-primary);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-lg);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 768px) {
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
 }
 
 // ── DECORATIVE BACKGROUND ──
@@ -19,6 +73,32 @@
   height: 100%;
   z-index: 0;
 
+  .stars {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image:
+      radial-gradient(1px 1px at 20px 30px, var(--color-primary), transparent),
+      radial-gradient(1px 1px at 40px 70px, var(--color-primary-400), transparent),
+      radial-gradient(1px 1px at 90px 40px, var(--color-primary), transparent),
+      radial-gradient(1px 1px at 130px 80px, var(--color-primary-400), transparent),
+      radial-gradient(1px 1px at 160px 30px, var(--color-primary), transparent);
+    background-size: 200px 100px;
+    animation: starTwinkle 4s infinite linear;
+    opacity: 0.15;
+
+    // Light mode: hide stars or make them very subtle
+    .light-theme & {
+      opacity: 0.05;
+      background-image:
+        radial-gradient(1px 1px at 20px 30px, var(--color-primary-600), transparent),
+        radial-gradient(1px 1px at 40px 70px, var(--color-primary-400), transparent),
+        radial-gradient(1px 1px at 90px 40px, var(--color-primary-600), transparent),
+        radial-gradient(1px 1px at 130px 80px, var(--color-primary-400), transparent),
+        radial-gradient(1px 1px at 160px 30px, var(--color-primary-600), transparent);
+    }
+  }
+
   .moving-grid {
     position: absolute;
     width: 200%;
@@ -26,11 +106,18 @@
     top: -50%;
     left: -50%;
     background-image:
-      linear-gradient(rgba(37, 99, 235, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(37, 99, 235, 0.05) 1px, transparent 1px);
+      linear-gradient(rgba(var(--color-primary-rgb), 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.05) 1px, transparent 1px);
     background-size: 50px 50px;
     transform: perspective(500px) rotateX(45deg);
     animation: gridMove 20s linear infinite;
+
+    // Light mode: lighter grid
+    .light-theme & {
+      background-image:
+        linear-gradient(rgba(var(--color-primary-rgb), 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.03) 1px, transparent 1px);
+    }
   }
 
   .floating-blobs {
@@ -45,7 +132,7 @@
     .blob-1 {
       width: 400px;
       height: 400px;
-      background: #1e40af;
+      background: var(--color-primary);
       top: -100px;
       right: -100px;
       animation-delay: 0s;
@@ -53,7 +140,7 @@
     .blob-2 {
       width: 350px;
       height: 350px;
-      background: #312e81;
+      background: var(--color-primary-700);
       bottom: -50px;
       left: -50px;
       animation-delay: -5s;
@@ -61,10 +148,39 @@
     .blob-3 {
       width: 300px;
       height: 300px;
-      background: #1e3a8a;
+      background: var(--color-primary-800);
       top: 40%;
       left: 30%;
       animation-delay: -10s;
+    }
+
+    // Light mode: extremely subtle, barely visible blobs
+    .light-theme & {
+      .blob {
+        opacity: 0.04;
+        filter: blur(120px);
+      }
+      .blob-1 {
+        background: #93c5fd;
+        width: 600px;
+        height: 600px;
+        top: -200px;
+        right: -200px;
+      }
+      .blob-2 {
+        background: #a5b4fc;
+        width: 500px;
+        height: 500px;
+        bottom: -150px;
+        left: -150px;
+      }
+      .blob-3 {
+        background: #bfdbfe;
+        width: 450px;
+        height: 450px;
+        top: 25%;
+        left: 15%;
+      }
     }
   }
 }
@@ -73,12 +189,12 @@
 .glass-card {
   width: 100%;
   max-width: 440px;
-  background: rgba(15, 23, 42, 0.7) !important;
+  background: var(--color-surface) !important;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 24px !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: var(--shadow-xl) !important;
   padding: 40px !important;
   z-index: 10;
 }
@@ -102,7 +218,7 @@
       font-size: 64px;
       width: 64px;
       height: 64px;
-      color: white;
+      color: var(--color-primary);
       z-index: 2;
     }
     .logo-img {
@@ -132,7 +248,7 @@
     .logo-title {
       font-size: 32px;
       font-weight: 800;
-      color: white;
+      color: var(--color-text);
       letter-spacing: -0.02em;
       margin: 0;
     }
@@ -180,13 +296,13 @@
 
   .mat-mdc-text-field-wrapper {
     width: 100% !important;
-    background: rgba(255, 255, 255, 0.03) !important;
+    background: var(--color-surface-2) !important;
     border-radius: 12px !important;
     transition: all 0.3s ease !important;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.06) !important;
+      background: var(--color-surface-3) !important;
     }
   }
 
@@ -195,20 +311,20 @@
   }
 
   &.mat-focused .mat-mdc-text-field-wrapper {
-    background: rgba(255, 255, 255, 0.05) !important;
+    background: var(--color-surface) !important;
     border-color: var(--color-primary) !important;
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 4px var(--color-primary-light);
   }
 
   mat-label {
-    color: rgba(255, 255, 255, 0.5) !important;
+    color: var(--color-text-muted) !important;
   }
   input {
-    color: white !important;
+    color: var(--color-text) !important;
     font-weight: 500;
   }
   mat-icon {
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--color-text-muted) !important;
   }
 
   &.mat-focused {
@@ -222,9 +338,40 @@
 }
 
 .toggle-password {
-  color: rgba(255, 255, 255, 0.3) !important;
+  color: var(--color-text-muted) !important;
   &:hover {
-    color: white !important;
+    color: var(--color-text) !important;
+  }
+}
+
+// ── FORGOT PASSWORD LINK ──
+.forgot-password-wrapper {
+  text-align: right;
+  margin-top: -8px;
+  margin-bottom: 4px;
+}
+
+.forgot-password-link {
+  background: none;
+  border: none;
+  color: var(--color-primary) !important;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s ease, opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.8;
+    color: var(--color-primary-hover) !important;
+  }
+
+  &:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 }
 
@@ -257,7 +404,7 @@
 
   &:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4) !important;
+    box-shadow: 0 10px 25px -5px rgba(var(--color-primary-rgb), 0.4) !important;
 
     .btn-shimmer {
       left: 100%;
@@ -292,18 +439,18 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-bg-light);
   padding: 12px 16px;
   border-radius: 12px;
-  color: #f87171;
+  color: var(--color-danger-light);
   font-size: 13px;
   font-weight: 500;
 
   .error-icon-box {
     width: 24px;
     height: 24px;
-    background: rgba(239, 68, 68, 0.2);
+    background: var(--color-danger-bg-light);
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -321,7 +468,7 @@
   text-align: center;
   p {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--color-text-disabled);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin: 0;
@@ -329,6 +476,12 @@
 }
 
 // ── ANIMATIONS ──
+@keyframes starTwinkle {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
 @keyframes gridMove {
   0% {
     transform: perspective(500px) rotateX(45deg) translateY(0);

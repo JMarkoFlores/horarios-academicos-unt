@@ -1,4 +1,15 @@
 <div class="login-page">
+  <!-- Theme Toggle -->
+  <button
+    class="theme-toggle-btn"
+    (click)="themeService.cycleTheme()"
+    [attr.aria-label]="themeService.isDark() ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
+    [attr.aria-pressed]="themeService.isDark()"
+    matTooltip="{{ themeService.isDark() ? 'Tema claro' : 'Tema oscuro' }}"
+  >
+    <mat-icon>{{ themeService.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+  </button>
+
   <!-- Fondo decorativo animado -->
   <div class="background-decor">
     <div class="stars"></div>
@@ -58,7 +69,7 @@
           </mat-form-field>
         </div>
 
-        <div class="form-field-wrapper animate-slide-up" style="--delay: 0.2s">
+<div class="form-field-wrapper animate-slide-up" style="--delay: 0.2s">
           <mat-form-field appearance="fill" class="full-width premium-field">
             <mat-label>{{ 'login.password' | translate }}</mat-label>
             <input
@@ -77,13 +88,23 @@
               class="toggle-password"
             >
               <mat-icon>{{
-                hidePassword ? "visibility_off" : "visibility"
+                hidePassword ? 'visibility_off' : 'visibility'
               }}</mat-icon>
             </button>
             <mat-error *ngIf="form.get('password')?.hasError('required')"
               >{{ 'login.passwordRequired' | translate }}</mat-error
             >
           </mat-form-field>
+        </div>
+
+<div class="forgot-password-wrapper animate-slide-up" style="--delay: 0.25s">
+          <button
+            type="button"
+            class="forgot-password-link"
+            (click)="irARecuperarPassword()"
+          >
+            {{ 'login.forgotPassword' | translate }}
+          </button>
         </div>
 
         <div class="error-msg animate-fade-in" *ngIf="error">

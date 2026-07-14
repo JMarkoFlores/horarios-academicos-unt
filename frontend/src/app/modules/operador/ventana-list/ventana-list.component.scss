@@ -16,27 +16,27 @@ $danger: #ef4444;
   gap: 20px;
 }
 
-.page-header {
-  margin-bottom: 0;
+.page-header-premium {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
+  margin-bottom: 4px;
 
-  h1 {
-    margin: 0;
-    font-size: 28px;
-    font-weight: 700;
-    color: $primary;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    mat-icon {
-      font-size: 32px;
-      width: 32px;
-      height: 32px;
+  .title-section {
+    .gradient-text {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+    .subtitle {
+      color: var(--color-text-muted);
+      margin: 4px 0 0;
+      font-size: 14px;
     }
   }
 }

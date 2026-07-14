@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpStatus,
   Logger,
@@ -10,6 +11,8 @@ import {
   Post,
   Query,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -24,15 +27,18 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { Usuario } from "../entities/usuario.entity";
+import { UsuarioAutenticado } from "../common/interfaces/contexto-academico.interface";
 import { DeclaracionCargaHorariaService } from "./declaracion-carga-horaria.service";
 import { CreateDeclaracionCargaHorariaDto } from "./dto/create-declaracion-carga-horaria.dto";
 import { UpdateDeclaracionCargaHorariaDto } from "./dto/update-declaracion-carga-horaria.dto";
 import { AccionDeclaracionCargaHorariaDto } from "./dto/accion-declaracion-carga-horaria.dto";
+import { GuardarDeclaracionDto } from "./dto/guardar-declaracion.dto";
 import { CargaLectivaDeclaracionDto } from "./dto/carga-lectiva.dto";
-import { ObservarDeclaracionDto } from "./dto/observar-declaracion.dto";
-import { SubsanarDeclaracionDto } from "./dto/subsanar-declaracion.dto";
 
 import { DeclaracionJurada } from "../entities/declaracion-jurada.entity";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import { extname } from "path";
 
 @ApiTags("declaraciones")
 @Controller("declaraciones")
@@ -59,7 +65,7 @@ export class DeclaracionCargaHorariaController {
     status: 200,
     description: "Declaración obtenida correctamente",
   })
-  async obtenerMia(@CurrentUser() usuario: Usuario): Promise<any> {
+  async obtenerMia(@CurrentUser() usuario: UsuarioAutenticado): Promise<any> {
     const data = await this.declaracionService.obtenerMia(usuario);
     return { data, message: "Declaración obtenida correctamente" };
   }
@@ -108,7 +114,16 @@ export class DeclaracionCargaHorariaController {
   async obtenerCursosDocente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo?: string,
+    @CurrentUser() usuario?: UsuarioAutenticado,
   ): Promise<any> {
+    if (usuario?.rol === RolUsuario.DOCENTE) {
+      const docenteId = usuario.docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new ForbiddenException(
+          "No tiene permisos para ver datos de otro docente",
+        );
+      }
+    }
     this.logger.log(
       `Solicitando cursos para docente ID: ${id}, Periodo: ${periodo}`,
     );
@@ -135,7 +150,16 @@ export class DeclaracionCargaHorariaController {
   async obtenerDeclaracionDocente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo?: string,
+    @CurrentUser() usuario?: UsuarioAutenticado,
   ): Promise<any> {
+    if (usuario?.rol === RolUsuario.DOCENTE) {
+      const docenteId = usuario.docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new ForbiddenException(
+          "No tiene permisos para ver la declaración de otro docente",
+        );
+      }
+    }
     const data =
       await this.declaracionService.obtenerDeclaracionPorDocentePeriodo(
         id,
@@ -152,11 +176,13 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({ summary: "Guardar declaración de carga horaria" })
   async guardarDeclaracion(
-    @Body() dto: any,
-    @CurrentUser() usuario: Usuario,
+    @Body() dto: GuardarDeclaracionDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
     const data = await this.declaracionService.guardarDeclaracion(dto, usuario);
     return { data, message: "Declaración guardada correctamente" };
@@ -169,7 +195,16 @@ export class DeclaracionCargaHorariaController {
   async enviarDeclaracionDocente(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: { periodo?: string },
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
+    if (usuario.rol === RolUsuario.DOCENTE) {
+      const docenteId = usuario.docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new ForbiddenException(
+          "No tiene permisos para enviar la declaración de otro docente",
+        );
+      }
+    }
     const periodo = body?.periodo;
     const data = await this.declaracionService.enviarDeclaracionDocente(
       id,
@@ -185,12 +220,14 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
     RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({
     summary: "Obtener documentaciones enviadas por docentes para revisión",
   })
   async obtenerDocumentaciones(
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
     @Query("periodo") periodo?: string,
   ): Promise<any> {
     const data = await this.declaracionService.obtenerDocumentaciones(
@@ -208,13 +245,15 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.DOCENTE,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({ summary: "Obtener una declaración por ID" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Declaración encontrada" })
   async obtenerPorId(
     @Param("id", ParseIntPipe) id: number,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
     const data = await this.declaracionService.obtenerPorId(id, usuario);
     return { data, message: "Declaración obtenida correctamente" };
@@ -228,6 +267,8 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DECANO,
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
   @ApiOperation({
     summary: "Obtener la carga lectiva institucional de una declaración",
@@ -248,13 +289,22 @@ export class DeclaracionCargaHorariaController {
   })
   async obtenerCargaLectiva(
     @Param("id", ParseIntPipe) id: number,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<CargaLectivaDeclaracionDto> {
     return this.declaracionService.obtenerCargaLectivaDeclaracion(id, usuario);
   }
 
   @Post(":id/generar-carga-lectiva")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @ApiOperation({
     summary:
       "Regenerar y guardar el snapshot de carga lectiva en una declaración",
@@ -279,7 +329,7 @@ export class DeclaracionCargaHorariaController {
   })
   async generarCargaLectiva(
     @Param("id", ParseIntPipe) id: number,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<CargaLectivaDeclaracionDto> {
     return this.declaracionService.actualizarCargaLectivaDeclaracion(
       id,
@@ -288,12 +338,21 @@ export class DeclaracionCargaHorariaController {
   }
 
   @Post()
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @ApiOperation({ summary: "Crear una declaración de carga horaria" })
   @ApiResponse({ status: 201, description: "Declaración creada correctamente" })
   async crear(
     @Body() dto: CreateDeclaracionCargaHorariaDto,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
     const data = await this.declaracionService.crear(dto, usuario);
     return {
@@ -304,14 +363,23 @@ export class DeclaracionCargaHorariaController {
   }
 
   @Patch(":id")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
   @ApiOperation({ summary: "Actualizar una declaración en borrador" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Declaración actualizada" })
   async actualizar(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateDeclaracionCargaHorariaDto,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
     const data = await this.declaracionService.actualizar(id, dto, usuario);
     return { data, message: "Declaración actualizada correctamente" };
@@ -324,58 +392,197 @@ export class DeclaracionCargaHorariaController {
   async enviar(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: AccionDeclaracionCargaHorariaDto,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
     const data = await this.declaracionService.enviar(id, usuario, dto);
     return { data, message: "Declaración enviada correctamente" };
   }
 
-  @Patch(":id/observar")
+  @Post(":id/cerrar")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
   )
-  @ApiOperation({ summary: "Observar una declaración" })
+  @ApiOperation({ summary: "Cerrar una declaración aprobada por facultad" })
   @ApiParam({ name: "id", type: Number })
-  async observar(
+  async cerrar(
     @Param("id", ParseIntPipe) id: number,
-    @Body() dto: AccionDeclaracionCargaHorariaDto,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
-    const data = await this.declaracionService.observar(id, usuario, dto);
-    return { data, message: "Declaración observada correctamente" };
+    const data = await this.declaracionService.cerrar(id, usuario);
+    return { data, message: "Declaración cerrada correctamente" };
   }
 
-  @Patch(":id/validar")
+  @Post(":id/validar-departamento")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @ApiOperation({
+    summary: "Validar declaración en departamento (ENVIADO → VALIDADO_DPTO)",
+  })
+  @ApiParam({ name: "id", type: Number })
+  async validarDepartamento(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<any> {
+    const data = await this.declaracionService.validarDepartamento(id, usuario);
+    return { data, message: "Declaración validada por departamento" };
+  }
+
+  @Post(":id/observar-departamento")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @ApiOperation({
+    summary: "Observar declaración en departamento (ENVIADO → OBSERVADO_DPTO)",
+  })
+  @ApiParam({ name: "id", type: Number })
+  async observarDepartamento(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { motivo: string },
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<any> {
+    const data = await this.declaracionService.observarDepartamento(
+      id,
+      usuario,
+      body.motivo,
+    );
+    return { data, message: "Declaración observada por departamento" };
+  }
+
+  @Post(":id/validar-facultad")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
+  @ApiOperation({
+    summary:
+      "Aprobar declaración en facultad (VALIDADO_DPTO → APROBADO_FACULTAD)",
+  })
+  @ApiParam({ name: "id", type: Number })
+  async validarFacultad(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<any> {
+    const data = await this.declaracionService.validarFacultad(id, usuario);
+    return { data, message: "Declaración aprobada por facultad" };
+  }
+
+  @Post(":id/observar-facultad")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
+  @ApiOperation({
+    summary:
+      "Observar declaración en facultad (VALIDADO_DPTO → OBSERVADO_FACULTAD)",
+  })
+  @ApiParam({ name: "id", type: Number })
+  async observarFacultad(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { motivo: string },
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<any> {
+    const data = await this.declaracionService.observarFacultad(
+      id,
+      usuario,
+      body.motivo,
+    );
+    return { data, message: "Declaración observada por facultad" };
+  }
+
+  @Post(":id/reabrir")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
-    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
   )
-  @ApiOperation({ summary: "Validar una declaración a nivel departamental" })
+  @ApiOperation({ summary: "Reabrir declaración observada → REABIERTO" })
   @ApiParam({ name: "id", type: Number })
-  async validar(
+  async reabrir(
     @Param("id", ParseIntPipe) id: number,
-    @Body() dto: AccionDeclaracionCargaHorariaDto,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
-    const data = await this.declaracionService.validar(id, usuario, dto);
-    return { data, message: "Declaración validada correctamente" };
+    const data = await this.declaracionService.reabrir(id, usuario);
+    return { data, message: "Declaración reabierta" };
   }
 
-  @Patch(":id/aprobar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
-  @ApiOperation({ summary: "Aprobar una declaración a nivel de facultad" })
+  @Patch(":id/cerrar")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+  )
+  @ApiOperation({ summary: "Cerrar una declaración (PATCH alias)" })
   @ApiParam({ name: "id", type: Number })
-  async aprobar(
+  async cerrarPatch(
     @Param("id", ParseIntPipe) id: number,
-    @Body() dto: AccionDeclaracionCargaHorariaDto,
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<any> {
-    const data = await this.declaracionService.aprobar(id, usuario, dto);
-    return { data, message: "Declaración aprobada correctamente" };
+    const data = await this.declaracionService.cerrar(id, usuario);
+    return { data, message: "Declaración cerrada correctamente" };
+  }
+
+  @Patch(":id/validar-departamento")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_DEPARTAMENTO)
+  @ApiOperation({
+    summary: "Validar declaración en departamento (PATCH alias)",
+  })
+  @ApiParam({ name: "id", type: Number })
+  async validarDepartamentoPatch(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<any> {
+    const data = await this.declaracionService.validarDepartamento(id, usuario);
+    return { data, message: "Declaración validada por departamento" };
+  }
+
+  @Patch(":id/aprobar-facultad")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
+  @ApiOperation({ summary: "Aprobar declaración en facultad (PATCH alias)" })
+  @ApiParam({ name: "id", type: Number })
+  async aprobarFacultadPatch(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<any> {
+    const data = await this.declaracionService.validarFacultad(id, usuario);
+    return { data, message: "Declaración aprobada por facultad" };
+  }
+
+  @Patch(":id/observar-facultad")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
+  @ApiOperation({ summary: "Observar declaración en facultad (PATCH alias)" })
+  @ApiParam({ name: "id", type: Number })
+  async observarFacultadPatch(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { motivo: string },
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<any> {
+    const data = await this.declaracionService.observarFacultad(
+      id,
+      usuario,
+      body.motivo,
+    );
+    return { data, message: "Declaración observada por facultad" };
+  }
+
+  @Post(":id/observaciones")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  @ApiOperation({ summary: "Agregar comentario a una declaración" })
+  @ApiParam({ name: "id", type: Number })
+  async agregarObservacion(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { observacion: string },
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<any> {
+    await this.declaracionService.agregarObservacion(
+      id,
+      body.observacion,
+      usuario,
+    );
+    return { data: null, message: "Comentario guardado correctamente" };
   }
 
   @Get(":id/observaciones")
@@ -385,27 +592,19 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_ESCUELA,
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.OPERADOR_HORARIOS,
   )
-  @ApiOperation({ summary: "Obtener historial de observaciones de una declaración" })
+  @ApiOperation({
+    summary: "Obtener historial de observaciones de una declaración",
+  })
   @ApiParam({ name: "id", type: Number })
   async obtenerObservaciones(
     @Param("id", ParseIntPipe) id: number,
   ): Promise<any> {
     const data = await this.declaracionService.obtenerObservaciones(id);
     return { data, message: "Observaciones obtenidas correctamente" };
-  }
-
-  @Patch(":id/subsanar")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DOCENTE)
-  @ApiOperation({ summary: "Docente subsana observaciones y reenvía" })
-  @ApiParam({ name: "id", type: Number })
-  async subsanar(
-    @Param("id", ParseIntPipe) id: number,
-    @Body() dto: SubsanarDeclaracionDto,
-    @CurrentUser() usuario: Usuario,
-  ): Promise<any> {
-    const data = await this.declaracionService.subsanar(id, usuario, dto);
-    return { data, message: "Declaración subsanada correctamente" };
   }
 
   @Get("docentes/:id/declaracion-jurada")
@@ -416,6 +615,7 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DECANO,
     RolUsuario.COORDINADOR_ACADEMICO,
     RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
     RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Obtener declaración jurada de un docente" })
@@ -423,7 +623,16 @@ export class DeclaracionCargaHorariaController {
   async obtenerDeclaracionJurada(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo?: string,
+    @CurrentUser() usuario?: UsuarioAutenticado,
   ): Promise<{ data: DeclaracionJurada | null; message: string }> {
+    if (usuario?.rol === RolUsuario.DOCENTE) {
+      const docenteId = usuario.docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new ForbiddenException(
+          "No tiene permisos para ver la declaración jurada de otro docente",
+        );
+      }
+    }
     const data = await this.declaracionService.obtenerDeclaracionJurada(
       id,
       periodo,
@@ -439,6 +648,7 @@ export class DeclaracionCargaHorariaController {
     RolUsuario.DIRECTOR_DEPARTAMENTO,
     RolUsuario.DECANO,
     RolUsuario.OPERADOR_HORARIOS,
+    RolUsuario.SECRETARIA,
     RolUsuario.DOCENTE,
   )
   @ApiOperation({ summary: "Generar declaración jurada de un docente" })
@@ -446,8 +656,16 @@ export class DeclaracionCargaHorariaController {
   async generarDeclaracionJurada(
     @Param("id", ParseIntPipe) id: number,
     @Body() body: { periodo?: string },
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<{ data: DeclaracionJurada; message: string }> {
+    if (usuario.rol === RolUsuario.DOCENTE) {
+      const docenteId = usuario.docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new ForbiddenException(
+          "No tiene permisos para generar la declaración jurada de otro docente",
+        );
+      }
+    }
     const data = await this.declaracionService.generarDeclaracionJurada(
       id,
       body?.periodo,
@@ -458,23 +676,30 @@ export class DeclaracionCargaHorariaController {
 
   @Get("pendientes/departamento")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DIRECTOR_DEPARTAMENTO)
-  @ApiOperation({ summary: "Obtener declaraciones pendientes del departamento (Director)" })
+  @ApiOperation({
+    summary: "Obtener declaraciones pendientes del departamento (Director)",
+  })
   async pendientesDepartamento(
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
     @Query("periodo") periodo?: string,
   ): Promise<any> {
     const data = await this.declaracionService.pendientesDepartamento(
       usuario,
       periodo,
     );
-    return { data, message: "Pendientes del departamento obtenidos correctamente" };
+    return {
+      data,
+      message: "Pendientes del departamento obtenidos correctamente",
+    };
   }
 
   @Get("pendientes/facultad")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.DECANO)
-  @ApiOperation({ summary: "Obtener declaraciones pendientes de facultad (Decano)" })
+  @ApiOperation({
+    summary: "Obtener declaraciones pendientes de facultad (Decano)",
+  })
   async pendientesFacultad(
-    @CurrentUser() usuario: Usuario,
+    @CurrentUser() usuario: UsuarioAutenticado,
     @Query("periodo") periodo?: string,
   ): Promise<any> {
     const data = await this.declaracionService.pendientesFacultad(
@@ -482,5 +707,76 @@ export class DeclaracionCargaHorariaController {
       periodo,
     );
     return { data, message: "Pendientes de facultad obtenidos correctamente" };
+  }
+
+  @Get("firma/mi-firma")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+  )
+  @ApiOperation({ summary: "Obener mi firma" })
+  async obtenerMiFirma(
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<{ data: { firma_url: string | null } }> {
+    const firma_url = await this.declaracionService.obtenerFirmaDocente(
+      usuario.id,
+    );
+    return { data: { firma_url } };
+  }
+
+  @Get("firma/:usuarioId")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA)
+  @ApiOperation({ summary: "Obtener la firma de un usuario (admin)" })
+  @ApiParam({ name: "usuarioId", type: Number })
+  async obtenerFirma(
+    @Param("usuarioId", ParseIntPipe) usuarioId: number,
+  ): Promise<{ data: { firma_url: string | null } }> {
+    const firma_url =
+      await this.declaracionService.obtenerFirmaDocente(usuarioId);
+    return { data: { firma_url } };
+  }
+
+  @Post("firma")
+  @Roles(
+    RolUsuario.DOCENTE,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+  )
+  @UseInterceptors(
+    FileInterceptor("firma", {
+      storage: diskStorage({
+        destination: "./uploads/firmas",
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + "-" + Math.round(Math.random() * 1e9);
+          cb(null, `firma-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/image\/(jpeg|png|jpg|gif|webp)/)) {
+          cb(new Error("Solo se permiten archivos de imagen"), false);
+        } else {
+          cb(null, true);
+        }
+      },
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({ summary: "Subir firma propia (cada usuario sube la suya)" })
+  async subirFirma(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<{ data: { firma_url: string }; message: string }> {
+    if (!file) {
+      throw new ForbiddenException("Debe proporcionar un archivo de imagen");
+    }
+    const firmaUrl = `/uploads/firmas/${file.filename}`;
+    await this.declaracionService.actualizarFirmaDocente(usuario.id, firmaUrl);
+    return {
+      data: { firma_url: firmaUrl },
+      message: "Firma subida correctamente",
+    };
   }
 }

@@ -8,6 +8,7 @@ import { DataSource, In, Repository } from "typeorm";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
+import { OrigenHorario } from "../common/enums/origen-horario.enum";
 import { Ambiente } from "../entities/ambiente.entity";
 import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { Curso } from "../entities/curso.entity";
@@ -637,10 +638,17 @@ export class AsignacionService {
     return `${h.toString().padStart(2, "0")}:00:00`;
   }
 
-  async limpiarHorario(periodo: string): Promise<{ eliminados: number }> {
-    const result = await this.horarioRepo.delete({
-      periodo,
-    });
+  async limpiarHorario(
+    periodo: string,
+    origen?: OrigenHorario,
+  ): Promise<{ eliminados: number }> {
+    const where: any = { periodo };
+    if (origen) {
+      where.origen = origen;
+    } else {
+      where.origen = OrigenHorario.GENERACION_AUTOMATICA;
+    }
+    const result = await this.horarioRepo.delete(where);
     return { eliminados: result.affected ?? 0 };
   }
 

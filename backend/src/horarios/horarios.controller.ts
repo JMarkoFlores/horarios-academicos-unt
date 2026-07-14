@@ -27,7 +27,7 @@ import {
   ApiParam,
 } from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, DataSource } from "typeorm";
 import { Request } from "express";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -38,19 +38,24 @@ import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { EstadoAmbiente } from "../common/enums/estado-ambiente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
+import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { Usuario } from "../entities/usuario.entity";
+import { UsuarioAutenticado } from "../common/interfaces/contexto-academico.interface";
 import { AsignacionService } from "./asignacion.service";
 import { GeneracionAutomaticaService } from "./generacion-automatica.service";
 import { ICalendarService } from "./icalendar.service";
 import { GenerarHorarioDto } from "./dto/generar-horario.dto";
-import { GenerarAutomaticoDto } from "./dto/generar-automatico.dto";
 import { ReasignarHorarioDto } from "./dto/reasignar-horario.dto";
 import { ResolverConflictoDto } from "./dto/resolver-conflicto.dto";
 import { CrearAsignacionDto } from "./dto/crear-asignacion.dto";
 import { UpdateAsignacionDto } from "./dto/update-asignacion.dto";
+import { CrearHorarioCargaLectivaDto } from "./dto/crear-horario-carga-lectiva.dto";
+import { UpdateHorarioCargaLectivaDto } from "./dto/update-horario-carga-lectiva.dto";
+import { ValidarAsignacionDto } from "./dto/validar-asignacion.dto";
+import { GuardarBatchCargaLectivaDto } from "./dto/guardar-batch-carga-lectiva.dto";
 import { HorariosService } from "./horarios.service";
 
 @ApiTags("horarios")
@@ -70,6 +75,7 @@ export class HorariosController {
     private readonly auditoriaRepo: Repository<AuditoriaHorario>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
+    private readonly dataSource: DataSource,
   ) {}
 
   @Post("asignar")
@@ -93,11 +99,25 @@ export class HorariosController {
 
   @Post("generar")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Generar horario para un período" })
+  @ApiOperation({ summary: "Generar horario automático para un período" })
   @ApiResponse({ status: 201, description: "Horario generado correctamente" })
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   async generarHorario(@Body() dto: GenerarHorarioDto) {
-    const resultado = await this.asignacionService.generarHorario(dto.periodo);
+    const periodo = await this.periodoRepo.findOne({
+      where: { codigo: dto.periodo },
+    });
+    if (!periodo) {
+      throw new NotFoundException(
+        `Periodo académico ${dto.periodo} no encontrado`,
+      );
+    }
+    if (periodo.modo_asignacion === ModoAsignacion.VENTANAS) {
+      throw new BadRequestException(
+        "El período está en modo VENTANAS. No se permite la generación automática de horarios.",
+      );
+    }
+
+    const resultado = await this.generacionService.generarHorarios(dto.periodo);
     await this.horariosService.invalidateHorariosCache();
     return {
       data: resultado,
@@ -109,7 +129,7 @@ export class HorariosController {
   @Delete("limpiar")
   @ApiBearerAuth("JWT")
   @ApiOperation({
-    summary: "Limpiar horario en BORRADOR/CONFLICTO por período",
+    summary: "Limpiar horario en BORRADOR/CONFLICTO por perÃ­odo",
   })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({ status: 200, description: "Horario limpiado correctamente" })
@@ -126,11 +146,20 @@ export class HorariosController {
   }
 
   @Get("periodo/:periodo")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar horario por período" })
+  @ApiOperation({ summary: "Listar horario por perÃ­odo" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Horarios del período" })
+  @ApiResponse({ status: 200, description: "Horarios del perÃ­odo" })
   async getPorPeriodo(
     @Param("periodo") periodo: string,
     @Query("page") page?: string,
@@ -143,14 +172,23 @@ export class HorariosController {
     );
     return {
       data,
-      message: "Horario del período obtenido",
+      message: "Horario del perÃ­odo obtenido",
       statusCode: HttpStatus.OK,
     };
   }
 
   @Get("docente/:id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar horario de un docente por período" })
+  @ApiOperation({ summary: "Listar horario de un docente por perÃ­odo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
@@ -158,9 +196,18 @@ export class HorariosController {
   async getPorDocente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
+    @CurrentUser() usuario: Usuario,
     @Query("page") page?: string,
     @Query("limit") limit?: string,
   ) {
+    if (usuario.rol === RolUsuario.DOCENTE) {
+      const docenteId = (usuario as UsuarioAutenticado).docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new BadRequestException(
+          "No tiene permisos para ver el horario de otro docente",
+        );
+      }
+    }
     const data = await this.horariosService.findByDocente(
       id,
       periodo,
@@ -175,8 +222,16 @@ export class HorariosController {
   }
 
   @Get("ocupacion-heatmap")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar heatmap de ocupación por período" })
+  @ApiOperation({ summary: "Listar heatmap de ocupaciÃ³n por perÃ­odo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiResponse({ status: 200, description: "Heatmap obtenido" })
   async getOcupacionHeatmap(@Query("periodo") periodo: string) {
@@ -185,12 +240,20 @@ export class HorariosController {
   }
 
   @Get("ambiente/:id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar ocupación de un ambiente por período" })
+  @ApiOperation({ summary: "Listar ocupaciÃ³n de un ambiente por perÃ­odo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Ocupación del ambiente" })
+  @ApiResponse({ status: 200, description: "OcupaciÃ³n del ambiente" })
   async getPorAmbiente(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
@@ -211,12 +274,20 @@ export class HorariosController {
   }
 
   @Get("dia/:dia")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar asignaciones por día y período" })
+  @ApiOperation({ summary: "Listar asignaciones por dÃ­a y perÃ­odo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Asignaciones del día" })
+  @ApiResponse({ status: 200, description: "Asignaciones del dÃ­a" })
   async getPorDia(
     @Param("dia", ParseIntPipe) dia: number,
     @Query("periodo") periodo: string,
@@ -231,7 +302,7 @@ export class HorariosController {
     );
     return {
       data,
-      message: "Horario del día obtenido",
+      message: "Horario del dÃ­a obtenido",
       statusCode: HttpStatus.OK,
     };
   }
@@ -246,15 +317,18 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
     @Query("periodo") periodo: string,
   ) {
-    if (
-      typeof (usuario as Usuario & { docenteId?: number | null }).docenteId ===
-      "number"
-    ) {
-      const data = await this.horariosService.findHorariosByDocenteId(
-        (usuario as Usuario & { docenteId: number }).docenteId,
+    if (typeof (usuario as UsuarioAutenticado).docenteId === "number") {
+      const docenteId = (usuario as Usuario & { docenteId: number }).docenteId;
+      const horarios = await this.horariosService.findHorariosByDocenteId(
+        docenteId,
         periodo,
       );
-      return { data, message: "Horario obtenido", statusCode: HttpStatus.OK };
+      const docente = await this.horariosService.getDocenteById(docenteId);
+      return {
+        data: { horarios, docente },
+        message: "Horario obtenido",
+        statusCode: HttpStatus.OK,
+      };
     }
 
     if (!usuario.email) throw new BadRequestException("Usuario sin correo");
@@ -279,6 +353,7 @@ export class HorariosController {
     @CurrentUser() usuario: Usuario,
     @Query("periodo") periodo: string,
     @Res() res: any,
+    @Query("mostrarNoLectiva") mostrarNoLectiva?: string,
   ) {
     try {
       if (!usuario.email) throw new BadRequestException("Usuario sin correo");
@@ -295,15 +370,21 @@ export class HorariosController {
         );
       }
 
-      // Obtener el docenteId del primer horario
-      const docenteId = horarios[0].docente?.id;
+      // Obtener el docenteId del docente encontrado
+      const docenteId = horarios.docente?.id;
       if (!docenteId) {
         throw new NotFoundException("No se pudo identificar el docente");
       }
 
+      const horariosToExport =
+        mostrarNoLectiva === "true"
+          ? horarios.horarios
+          : horarios.horarios.filter((h) => h.tipo_clase !== "NO_LECTIVA");
+
       const icsContent = await this.icalendarService.generarICalendarDocente(
         docenteId,
         periodo,
+        horariosToExport,
       );
 
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");
@@ -374,10 +455,10 @@ export class HorariosController {
 
   @Patch(":id/actualizar")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Actualizar una asignación de horario existente" })
+  @ApiOperation({ summary: "Actualizar una asignaciÃ³n de horario existente" })
   @ApiResponse({
     status: 200,
-    description: "Asignación actualizada correctamente",
+    description: "AsignaciÃ³n actualizada correctamente",
   })
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
@@ -397,17 +478,17 @@ export class HorariosController {
     await this.horariosService.invalidateHorariosCache();
     return {
       data,
-      message: "Asignación actualizada",
+      message: "AsignaciÃ³n actualizada",
       statusCode: HttpStatus.OK,
     };
   }
 
   @Delete(":id")
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Eliminar una asignación de horario existente" })
+  @ApiOperation({ summary: "Eliminar una asignaciÃ³n de horario existente" })
   @ApiResponse({
     status: 200,
-    description: "Asignación eliminada correctamente",
+    description: "AsignaciÃ³n eliminada correctamente",
   })
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,
@@ -446,21 +527,34 @@ export class HorariosController {
         `[deleteAsignacion] Datos anteriores: ${JSON.stringify(datosAnteriores)}`,
       );
 
-      // Save audit record before deletion to avoid foreign key constraint violation
-      await this.auditoriaRepo.save(
-        this.auditoriaRepo.create({
-          horario_id: id,
-          usuario_id: usuario?.id ?? 1,
-          accion: "eliminar_asignacion",
-          datos_anteriores: datosAnteriores,
-          datos_nuevos: null,
-          ip: request.ip ?? "desconocida",
-          motivo: "Eliminación desde modo edición",
-        }),
-      );
-      this.logger.log(`[deleteAsignacion] Auditoría guardada exitosamente`);
+      // Wrap audit + delete in transaction
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        await queryRunner.manager.save(
+          queryRunner.manager.create(AuditoriaHorario, {
+            horario_id: id,
+            usuario_id: usuario?.id ?? 1,
+            accion: "eliminar_asignacion",
+            datos_anteriores: datosAnteriores,
+            datos_nuevos: null,
+            ip: request.ip ?? "desconocida",
+            motivo: "Eliminaci\u00F3n desde modo edici\u00F3n",
+          }),
+        );
+        this.logger.log(
+          `[deleteAsignacion] Auditor\u00EDa guardada exitosamente`,
+        );
 
-      await this.horarioRepo.delete(id);
+        await queryRunner.manager.delete(HorarioAsignado, { id });
+        await queryRunner.commitTransaction();
+      } catch (txError) {
+        await queryRunner.rollbackTransaction();
+        throw txError;
+      } finally {
+        await queryRunner.release();
+      }
       this.logger.log(
         `[deleteAsignacion] Horario ${id} eliminado de la base de datos`,
       );
@@ -469,7 +563,7 @@ export class HorariosController {
 
       return {
         data: null,
-        message: "Asignación eliminada",
+        message: "AsignaciÃ³n eliminada",
         statusCode: HttpStatus.OK,
       };
     } catch (error) {
@@ -482,11 +576,19 @@ export class HorariosController {
   }
 
   @Get("conflictos/:periodo")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+  )
   @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Listar conflictos del período" })
+  @ApiOperation({ summary: "Listar conflictos del perÃ­odo" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  @ApiResponse({ status: 200, description: "Conflictos del período" })
+  @ApiResponse({ status: 200, description: "Conflictos del perÃ­odo" })
   async getConflictos(
     @Param("periodo") periodo: string,
     @Query("page") page?: string,
@@ -554,27 +656,12 @@ export class HorariosController {
     };
   }
 
-  @Post("generar-automatico")
-  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiBearerAuth("JWT")
-  @ApiOperation({ summary: "Generar horarios automáticamente para un período" })
-  @ApiResponse({ status: 201, description: "Horarios generados correctamente" })
-  async generarAutomatico(@Body() dto: GenerarAutomaticoDto) {
-    const resultado = await this.generacionService.generarHorarios(dto.periodo);
-    await this.horariosService.invalidateHorariosCache();
-    return {
-      data: resultado,
-      message: "Generación automática completada",
-      statusCode: HttpStatus.CREATED,
-    };
-  }
-
   @Post("publicar-auto-generados")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiBearerAuth("JWT")
   @ApiOperation({ summary: "Publicar horarios auto-generados de un período" })
   @ApiResponse({ status: 200, description: "Horarios publicados" })
-  async publicarAutoGenerados(@Body() dto: GenerarAutomaticoDto) {
+  async publicarAutoGenerados(@Body() dto: GenerarHorarioDto) {
     const resultado =
       await this.generacionService.publicarHorariosAutoGenerados(dto.periodo);
     await this.horariosService.invalidateHorariosCache();
@@ -589,7 +676,7 @@ export class HorariosController {
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiBearerAuth("JWT")
   @ApiOperation({
-    summary: "Depurar horarios de un período (verificar consistencia)",
+    summary: "Depurar horarios de un perÃ­odo (verificar consistencia)",
   })
   @ApiParam({ name: "periodo", type: String })
   async debugHorarios(@Param("periodo") periodo: string) {
@@ -624,7 +711,7 @@ export class HorariosController {
           curso: h.curso?.nombre,
           tipo: h.tipo_clase,
           periodoIdBuscado: periodoId,
-          error: "No tiene habilitación docente-curso",
+          error: "No tiene habilitaciÃ³n docente-curso",
         });
       } else {
         consistentes.push({
@@ -636,7 +723,7 @@ export class HorariosController {
       }
     }
 
-    // También verificar cuántas habilitaciones existen para este periodo
+    // TambiÃ©n verificar cuÃ¡ntas habilitaciones existen para este periodo
     const totalHabilitaciones = await this.horarioRepo
       .createQueryBuilder("h")
       .select("COUNT(*)")
@@ -653,11 +740,20 @@ export class HorariosController {
         totalHabilitaciones: totalHabilitaciones?.count || 0,
         inconsistentesList: inconsistentes,
       },
-      message: "Depuración completada",
+      message: "DepuraciÃ³n completada",
     };
   }
 
   @Get("docente/:id/ics")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+  )
   @ApiBearerAuth("JWT")
   @ApiOperation({
     summary: "Exportar horario de docente a formato iCalendar (.ics)",
@@ -668,13 +764,34 @@ export class HorariosController {
   async exportarICalendar(
     @Param("id", ParseIntPipe) id: number,
     @Query("periodo") periodo: string,
+    @CurrentUser() usuario: Usuario,
     @Res() res: any,
     @Headers() headers: any,
+    @Query("mostrarNoLectiva") mostrarNoLectiva?: string,
   ) {
+    if (usuario.rol === RolUsuario.DOCENTE) {
+      const docenteId = (usuario as UsuarioAutenticado).docenteId;
+      if (!docenteId || docenteId !== id) {
+        throw new BadRequestException(
+          "No tiene permisos para exportar el horario de otro docente",
+        );
+      }
+    }
     try {
+      const horariosArray = await this.horariosService.findHorariosByDocenteId(
+        id,
+        periodo,
+      );
+
+      const horariosToExport =
+        mostrarNoLectiva === "true"
+          ? horariosArray
+          : horariosArray.filter((h) => h.tipo_clase !== "NO_LECTIVA");
+
       const icsContent = await this.icalendarService.generarICalendarDocente(
         id,
         periodo,
+        horariosToExport,
       );
 
       res.setHeader("Content-Type", "text/calendar; charset=utf-8");
@@ -699,7 +816,7 @@ export class HorariosController {
   @Get("matriz-disponibilidad")
   @ApiBearerAuth("JWT")
   @ApiOperation({
-    summary: "Obtener matriz de disponibilidad para selección de horarios",
+    summary: "Obtener matriz de disponibilidad para selecciÃ³n de horarios",
   })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({
@@ -712,6 +829,9 @@ export class HorariosController {
     RolUsuario.DOCENTE,
     RolUsuario.SECRETARIA,
     RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
   )
   async getMatrizDisponibilidad(
     @Query("periodo") periodo: string,
@@ -727,6 +847,274 @@ export class HorariosController {
     return {
       data,
       message: "Matriz de disponibilidad obtenida",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  // ─── ENDPOINTS PARA CARGA LECTIVA ───────────────────────────────────────
+
+  @Get("carga-lectiva/pendientes")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({
+    summary:
+      "Lista asignaciones lectiva CONFIRMADAS sin horario, agrupadas por docente",
+  })
+  @ApiQuery({ name: "periodo_id", required: true })
+  @ApiQuery({ name: "facultad_id", required: false })
+  @ApiQuery({ name: "depto_id", required: false })
+  @ApiQuery({ name: "escuela_id", required: false })
+  @ApiResponse({
+    status: 200,
+    description: "Asignaciones pendientes agrupadas por docente",
+  })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async getAsignacionesPendientes(
+    @Query("periodo_id") periodoId: string,
+    @Query("facultad_id") facultadId?: string,
+    @Query("depto_id") deptoId?: string,
+    @Query("escuela_id") escuelaId?: string,
+  ) {
+    const data = await this.horariosService.getAsignacionesPendientes(
+      Number(periodoId),
+      facultadId ? Number(facultadId) : undefined,
+      deptoId ? Number(deptoId) : undefined,
+      escuelaId ? Number(escuelaId) : undefined,
+    );
+    return {
+      data,
+      message: "Asignaciones pendientes obtenidas",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get("carga-lectiva/:asignacionId/horarios")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({
+    summary: "Lista horarios ya asignados a una asignación lectiva",
+  })
+  @ApiParam({
+    name: "asignacionId",
+    description: "ID de la asignación lectiva",
+  })
+  @ApiResponse({ status: 200, description: "Horarios de la asignación" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async getHorariosAsignacionLectiva(
+    @Param("asignacionId") asignacionId: string,
+  ) {
+    const data = await this.horariosService.findByAsignacionLectiva(
+      Number(asignacionId),
+    );
+    return {
+      data,
+      message: "Horarios de la asignación obtenidos",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("carga-lectiva/asignar")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Crea horario vinculado a asignación lectiva" })
+  @ApiResponse({ status: 201, description: "Horario creado" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async asignarHorarioCargaLectiva(
+    @Body() dto: CrearHorarioCargaLectivaDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const data = await this.horariosService.crearHorarioCargaLectiva(
+      dto,
+      usuario,
+    );
+    await this.horariosService.invalidateHorariosCache();
+    return {
+      data,
+      message: "Horario de carga lectiva asignado",
+      statusCode: HttpStatus.CREATED,
+    };
+  }
+
+  @Patch("carga-lectiva/:id")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Actualiza horario de carga lectiva" })
+  @ApiParam({ name: "id", description: "ID del horario" })
+  @ApiResponse({ status: 200, description: "Horario actualizado" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async actualizarHorarioCargaLectiva(
+    @Param("id") id: string,
+    @Body() dto: UpdateHorarioCargaLectivaDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    const data = await this.horariosService.actualizarHorarioCargaLectiva(
+      Number(id),
+      dto,
+      usuario,
+    );
+    await this.horariosService.invalidateHorariosCache();
+    return {
+      data,
+      message: "Horario de carga lectiva actualizado",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Delete("carga-lectiva/:id")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Elimina horario de carga lectiva" })
+  @ApiParam({ name: "id", description: "ID del horario" })
+  @ApiResponse({ status: 200, description: "Horario eliminado" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async eliminarHorarioCargaLectiva(
+    @Param("id") id: string,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    await this.horariosService.eliminarHorarioCargaLectiva(Number(id), usuario);
+    await this.horariosService.invalidateHorariosCache();
+    return {
+      data: null,
+      message: "Horario de carga lectiva eliminado",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get("carga-lectiva/cruces-no-lectiva")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Valida cruces con carga no lectiva" })
+  @ApiQuery({ name: "docente_id", required: true })
+  @ApiQuery({ name: "periodo_id", required: true })
+  @ApiQuery({ name: "dia", required: true })
+  @ApiQuery({ name: "hora_inicio", required: true })
+  @ApiQuery({ name: "hora_fin", required: true })
+  @ApiResponse({ status: 200, description: "Resultado de validación" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async validarCrucesNoLectiva(
+    @Query("docente_id") docenteId: string,
+    @Query("periodo_id") periodoId: string,
+    @Query("dia") dia: string,
+    @Query("hora_inicio") horaInicio: string,
+    @Query("hora_fin") horaFin: string,
+  ) {
+    const data = await this.horariosService.validarCrucesNoLectiva(
+      Number(docenteId),
+      Number(periodoId),
+      Number(dia),
+      horaInicio,
+      horaFin,
+    );
+    return {
+      data,
+      message: "Validación de cruces completada",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("carga-lectiva/validar-asignacion")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Valida TODAS las reglas antes de guardar" })
+  @ApiResponse({ status: 200, description: "Resultado de validación completa" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async validarAsignacion(@Body() dto: ValidarAsignacionDto) {
+    const data = await this.horariosService.validarAsignacion(dto);
+    return {
+      data,
+      message: "Validación completada",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Get("carga-lectiva/progreso")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({ summary: "Indicador de progreso por docente" })
+  @ApiQuery({ name: "periodo_id", required: true })
+  @ApiQuery({ name: "facultad_id", required: false })
+  @ApiQuery({ name: "depto_id", required: false })
+  @ApiResponse({ status: 200, description: "Progreso de carga lectiva" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async getProgresoCargaLectiva(
+    @Query("periodo_id") periodoId: string,
+    @Query("facultad_id") facultadId?: string,
+    @Query("depto_id") deptoId?: string,
+  ) {
+    const data = await this.horariosService.getProgresoCargaLectiva(
+      Number(periodoId),
+      facultadId ? Number(facultadId) : undefined,
+      deptoId ? Number(deptoId) : undefined,
+    );
+    return {
+      data,
+      message: "Progreso de carga lectiva obtenido",
+      statusCode: HttpStatus.OK,
+    };
+  }
+
+  @Post("carga-lectiva/guardar-batch")
+  @ApiBearerAuth("JWT")
+  @ApiOperation({
+    summary: "Guarda horarios de carga lectiva en batch (transaccional)",
+  })
+  @ApiResponse({ status: 200, description: "Horarios guardados correctamente" })
+  @Roles(
+    RolUsuario.SECRETARIA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.OPERADOR_HORARIOS,
+  )
+  async guardarBatchCargaLectiva(
+    @Body() dto: GuardarBatchCargaLectivaDto,
+    @CurrentUser() usuario: Usuario,
+  ) {
+    await this.horariosService.guardarBatchCargaLectiva(dto, usuario);
+    await this.horariosService.invalidateHorariosCache();
+    return {
+      data: null,
+      message: "Horarios guardados correctamente",
       statusCode: HttpStatus.OK,
     };
   }

@@ -44,7 +44,7 @@ async function main() {
     `SELECT COUNT(*)::int AS n FROM docente WHERE activo = true`,
   );
   const docentesConDni = await AppDataSource.query(
-    `SELECT COUNT(*)::int AS n FROM docente WHERE ibm IS NOT NULL AND ibm >= 10000000`,
+    `SELECT COUNT(*)::int AS n FROM docente WHERE dni IS NOT NULL AND LENGTH(dni::text) = 8`,
   );
   checks.push({
     ok: docentes[0].n >= 28,
@@ -52,7 +52,7 @@ async function main() {
   });
   checks.push({
     ok: docentesConDni[0].n >= 28,
-    message: `Docentes con DNI (ibm 8 dígitos): ${docentesConDni[0].n} (mín. 28)`,
+    message: `Docentes con DNI (8 dígitos): ${docentesConDni[0].n} (mín. 28)`,
   });
 
   const cursosPlan = await AppDataSource.query(
@@ -75,9 +75,7 @@ async function main() {
 
   const estadosRequeridos = [
     EstadoDeclaracionCarga.BORRADOR,
-    EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-    EstadoDeclaracionCarga.OBSERVADO_DPTO,
-    EstadoDeclaracionCarga.SUBSANADO,
+    EstadoDeclaracionCarga.ENVIADO,
     EstadoDeclaracionCarga.VALIDADO_DPTO,
     EstadoDeclaracionCarga.APROBADO_FACULTAD,
     EstadoDeclaracionCarga.CERRADO,
@@ -87,8 +85,8 @@ async function main() {
     `SELECT COUNT(DISTINCT estado)::int AS n FROM declaracion_carga_horaria`,
   );
   checks.push({
-    ok: estadosDistintos[0].n >= 5,
-    message: `Estados distintos en declaraciones: ${estadosDistintos[0].n} (mín. 5)`,
+    ok: estadosDistintos[0].n >= 2,
+    message: `Estados distintos en declaraciones: ${estadosDistintos[0].n} (mín. 2)`,
   });
 
   for (const estado of estadosRequeridos) {
@@ -99,15 +97,13 @@ async function main() {
     const minimo =
       estado === EstadoDeclaracionCarga.BORRADOR
         ? 5
-        : estado === EstadoDeclaracionCarga.ENVIADO_DOCENTE
+        : estado === EstadoDeclaracionCarga.ENVIADO
           ? 5
-          : estado === EstadoDeclaracionCarga.OBSERVADO_DPTO
-            ? 3
-            : estado === EstadoDeclaracionCarga.SUBSANADO
-              ? 2
-              : estado === EstadoDeclaracionCarga.VALIDADO_DPTO
-                ? 3
-                : 2;
+          : estado === EstadoDeclaracionCarga.VALIDADO_DPTO
+            ? 5
+            : estado === EstadoDeclaracionCarga.APROBADO_FACULTAD
+              ? 5
+              : 3;
     checks.push({
       ok: row[0].n >= minimo,
       message: `Declaraciones ${estado}: ${row[0].n} (mín. ${minimo})`,
@@ -179,7 +175,9 @@ async function main() {
   await AppDataSource.destroy();
 
   if (fallos > 0) {
-    console.log(`\n❌ Verificación fallida: ${fallos} chequeo(s) no cumplido(s).`);
+    console.log(
+      `\n❌ Verificación fallida: ${fallos} chequeo(s) no cumplido(s).`,
+    );
     process.exit(1);
   }
 

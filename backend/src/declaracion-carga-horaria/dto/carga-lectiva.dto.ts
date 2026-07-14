@@ -13,7 +13,7 @@ export class CargaLectivaRegistroDto {
   @ApiProperty({ example: "Introducción a la Ingeniería de Sistemas" })
   nombreCurso: string;
 
-  @ApiProperty({ example: "OBLIGATORIO" })
+  @ApiProperty({ example: "OBLIGATORIO_GENERAL" })
   tipoCurso: string;
 
   @ApiProperty({ example: "Ingeniería de Sistemas" })

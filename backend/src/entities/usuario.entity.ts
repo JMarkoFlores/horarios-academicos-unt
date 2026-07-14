@@ -36,13 +36,27 @@ export class Usuario {
   @Column({ default: true })
   activo: boolean;
 
+  @Column({ type: "boolean", default: false, name: "debe_cambiar_password" })
+  debe_cambiar_password: boolean;
+
   @Column({ type: "varchar", length: 5, default: "es" })
   idioma: string;
+
+  @Column({ length: 500, nullable: true, name: "firma_url" })
+  firma_url: string | null;
+
+  @Column({ length: 150, nullable: true, name: "email_alternativo" })
+  email_alternativo: string | null;
 
   @Column({ type: "varchar", length: 255, nullable: true, default: null })
   reset_token: string | null;
 
-  @Column({ type: "timestamp", nullable: true, default: null })
+  @Column({
+    type: "timestamp",
+    nullable: true,
+    default: null,
+    name: "reset_token_expira",
+  })
   reset_token_expira: Date | null;
 
   @Column({ nullable: true, name: "departamento_id" })

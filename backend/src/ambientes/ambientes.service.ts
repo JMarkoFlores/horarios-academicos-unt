@@ -363,8 +363,8 @@ export class AmbientesService {
     return {
       data: horarios.map((h) => ({
         id: h.id,
-        dia_semana: h.dia_semana,
-        dia_nombre: DIAS_NOMBRE[h.dia_semana] ?? `Día ${h.dia_semana}`,
+        dia_semana: h.dia,
+        dia_nombre: DIAS_NOMBRE[h.dia] ?? `Día ${h.dia}`,
         hora_inicio: h.hora_inicio,
         hora_fin: h.hora_fin,
         tipo_clase: h.tipo_clase,
@@ -445,5 +445,96 @@ export class AmbientesService {
   private aMinutos(hora: string): number {
     const [horas, minutos] = hora.split(":").map(Number);
     return (horas || 0) * 60 + (minutos || 0);
+  }
+
+  async getGrillaDisponibilidad(
+    periodo: string,
+    dia?: number,
+    horaInicio?: string,
+    horaFin?: string,
+  ) {
+    const ambientes = await this.ambienteRepo.find({
+      where: { activo: true },
+    });
+
+    const horarios = await this.horarioRepo.find({
+      where: {
+        periodo,
+        ...(dia !== undefined && { dia }),
+      },
+      relations: ["ambiente", "docente", "curso"],
+    });
+
+    const grilla = ambientes.map((ambiente) => {
+      const horariosAmbiente = horarios.filter(
+        (h) => h.ambiente_id === ambiente.id,
+      );
+
+      const estadoPorDia: Record<number, string> = {};
+      for (let d = 1; d <= 6; d++) {
+        const horariosDia = horariosAmbiente.filter((h) => h.dia === d);
+        if (horariosDia.length === 0) {
+          estadoPorDia[d] = "LIBRE";
+        } else {
+          // Verificar si hay conflicto (superposición)
+          const tieneConflicto = this.verificarConflictoHorario(horariosDia);
+          estadoPorDia[d] = tieneConflicto ? "CONFLICTO" : "OCUPADO";
+        }
+      }
+
+      return {
+        id: ambiente.id,
+        codigo: ambiente.codigo,
+        nombre: ambiente.nombre,
+        tipo: ambiente.tipo,
+        capacidad: ambiente.capacidad,
+        pabellon: ambiente.pabellon,
+        sede: ambiente.sede,
+        estado_por_dia: estadoPorDia,
+        horarios: horariosAmbiente.map((h) => ({
+          dia: h.dia,
+          hora_inicio: h.hora_inicio,
+          hora_fin: h.hora_fin,
+          docente: h.docente
+            ? `${h.docente.apellidos}, ${h.docente.nombres}`
+            : null,
+          curso: h.curso ? h.curso.nombre : null,
+        })),
+      };
+    });
+
+    // Filtrar por franja horaria si se especifica
+    if (horaInicio && horaFin) {
+      const inicioMin = this.aMinutos(horaInicio);
+      const finMin = this.aMinutos(horaFin);
+
+      return grilla.filter((ambiente) => {
+        return ambiente.horarios.some((h) => {
+          const hInicio = this.aMinutos(h.hora_inicio);
+          const hFin = this.aMinutos(h.hora_fin);
+          return !(hFin <= inicioMin || hInicio >= finMin);
+        });
+      });
+    }
+
+    return grilla;
+  }
+
+  private verificarConflictoHorario(horarios: HorarioAsignado[]): boolean {
+    for (let i = 0; i < horarios.length; i++) {
+      for (let j = i + 1; j < horarios.length; j++) {
+        const h1 = horarios[i];
+        const h2 = horarios[j];
+        const inicio1 = this.aMinutos(h1.hora_inicio);
+        const fin1 = this.aMinutos(h1.hora_fin);
+        const inicio2 = this.aMinutos(h2.hora_inicio);
+        const fin2 = this.aMinutos(h2.hora_fin);
+
+        if (inicio1 < fin2 && fin1 > inicio2) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

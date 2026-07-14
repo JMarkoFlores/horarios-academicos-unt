@@ -5,10 +5,12 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In } from "typeorm";
+import { Repository, In, DeepPartial } from "typeorm";
 import { PlanEstudios } from "../../entities/plan-estudios.entity";
 import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { Curso } from "../../entities/curso.entity";
+import { EstadoCursoPlan } from "../../common/enums/estado-curso-plan.enum";
+import { TipoCursoPlan } from "../../common/enums/tipo-curso-plan.enum";
 import { CreatePlanEstudiosDto } from "./dto/create-plan-estudios.dto";
 import { UpdatePlanEstudiosDto } from "./dto/update-plan-estudios.dto";
 import { CreateCursoPlanDto } from "./dto/create-curso-plan.dto";
@@ -37,8 +39,7 @@ export class PlanEstudiosService {
       qb.andWhere("plan.escuela_id = :escuela", { escuela: query.escuela });
     }
     if (query.activo !== undefined) {
-      const val = query.activo === "true";
-      qb.andWhere("plan.activo = :activo", { activo: val });
+      qb.andWhere("plan.activo = :activo", { activo: query.activo });
     }
     if (query.search) {
       qb.andWhere(
@@ -219,7 +220,8 @@ export class PlanEstudiosService {
     const cp = this.cursoPlanRepo.create({
       ...dto,
       plan_estudios_id: planId,
-    });
+      prerequisitos: dto.prerequisitos?.map(Number) ?? [],
+    } as DeepPartial<CursoPlanEstudios>);
     return this.cursoPlanRepo.save(cp);
   }
 
@@ -270,7 +272,7 @@ export class PlanEstudiosService {
       throw new NotFoundException(
         `Curso en plan #${cursoPlanId} no encontrado`,
       );
-    cp.estado = "ELIMINADO";
+    cp.estado = EstadoCursoPlan.ELIMINADO;
     return this.cursoPlanRepo.save(cp);
   }
 
@@ -282,7 +284,10 @@ export class PlanEstudiosService {
       throw new NotFoundException(
         `Curso en plan #${cursoPlanId} no encontrado`,
       );
-    cp.estado = cp.estado === "ACTIVO" ? "DESACTUALIZADO" : "ACTIVO";
+    cp.estado =
+      cp.estado === EstadoCursoPlan.ACTIVO
+        ? EstadoCursoPlan.DESACTUALIZADO
+        : EstadoCursoPlan.ACTIVO;
     return this.cursoPlanRepo.save(cp);
   }
 

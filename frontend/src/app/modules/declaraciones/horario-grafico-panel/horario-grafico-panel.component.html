@@ -1,0 +1,247 @@
+<div class="panel-overlay">
+  <!-- Header -->
+  <div class="panel-header">
+    <h3 class="panel-title">
+      <mat-icon>calendar_view_week</mat-icon>
+      Horario Semanal
+    </h3>
+    <div class="header-actions">
+      <button
+        mat-stroked-button
+        color="warn"
+        (click)="limpiarHorariosNoLectivos()"
+        [disabled]="!puedeEditar"
+        class="btn-limpiar"
+      >
+        <mat-icon>clear_all</mat-icon>
+        Limpiar No Lectivas
+      </button>
+      <button mat-icon-button (click)="onCerrar()" class="btn-cerrar">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="panel-body">
+    <!-- Paleta de actividades -->
+    <aside class="paleta" *ngIf="puedeEditar">
+      <div class="paleta-header">
+        <mat-icon>drag_indicator</mat-icon>
+        <span>Arrastre una actividad</span>
+      </div>
+      <div class="paleta-items">
+        <div
+          *ngFor="let act of actividadesPaleta"
+          class="paleta-item"
+          [class.paleta-completa]="getHorasPendientes(act.id) === 0"
+          [class.dragging]="paletaDragActiva?.id === act.id"
+          [style.border-left-color]="getColorPorRubro(act.id)"
+          (mousedown)="onPaletaMouseDown($event, act)"
+        >
+          <span class="item-nro">{{ act.id }}</span>
+          <div class="item-content">
+            <span class="item-text" [matTooltip]="act.descripcion">
+              {{ getDescripcionCorta(act) }}
+            </span>
+            <div class="item-progress">
+              <span class="item-hrs">
+                {{ getHorasAsignadas(act.id) }} / {{ act.horas }}h
+              </span>
+              <span class="item-pending" *ngIf="getHorasPendientes(act.id) > 0">
+                ({{ getHorasPendientes(act.id) }}h restantes)
+              </span>
+            </div>
+            <div class="item-percentage-bar">
+              <div
+                class="item-percentage-fill"
+                [style.width.%]="getPorcentajeCompletado(act.id)"
+                [style.background-color]="getPorcentajeCompletado(act.id) === 100 ? '#4caf50' : getColorPorRubro(act.id)"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="actividadesPaleta.length === 0" class="paleta-vacio">
+          <mat-icon>info</mat-icon>
+          <span>Primero declare las horas arriba en la tabla para poder arrastrar actividades aquí.</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Área de gradilla -->
+    <div class="gradilla-area">
+      <!-- Leyenda -->
+      <div class="leyenda">
+        <span class="leyenda-item">
+          <span class="dot" style="background: #c5cae9"></span> Lectivo
+        </span>
+        <span class="leyenda-item">
+          <span class="dot" style="background: #e91e63"></span> Preparación
+        </span>
+        <span class="leyenda-item">
+          <span class="dot" style="background: #2196f3"></span> Investigación
+        </span>
+        <span class="leyenda-item">
+          <span class="dot" style="background: #ff9800"></span> Gestión
+        </span>
+        <span class="leyenda-item leyenda-almuerzo">
+          <span class="dot dot-almuerzo"></span> Almuerzo ({{ fmtHora(almuerzoInicio) }}–{{ fmtHora(almuerzoFin) }})
+        </span>
+      </div>
+
+      <div class="gradilla-wrapper">
+        <div class="gradilla" #gradillaRef
+             [style.--dias-count]="dias.length"
+             [style.--horas-count]="horasRange.length">
+          <!-- Esquina -->
+          <div class="cell header corner">Hora</div>
+
+          <!-- Días header -->
+          <div
+            *ngFor="let dia of dias; let col = index"
+            class="cell header dia-header"
+            [style.grid-column]="col + 2"
+          >
+            {{ etiquetaDia(dia) }}
+          </div>
+
+          <!-- Filas de horas + celdas drop -->
+          <ng-container *ngFor="let hora of horasRange; let row = index">
+            <div class="cell header hora-label" [style.grid-row]="row + 2">
+              {{ hora }}:00
+            </div>
+
+            <div
+              *ngFor="let dia of dias; let col = index"
+              class="cell drop-cell"
+              [class.drag-over]="isDragOver(dia, hora)"
+              [class.drag-range]="isInDragRange(dia, hora)"
+              [class.hora-almuerzo]="esAlmuerzo(hora)"
+              [attr.data-dia]="dia"
+              [attr.data-hora]="hora"
+              [id]="getDropListId(dia, hora)"
+              [style.grid-row]="row + 2"
+              [style.grid-column]="col + 2"
+            >
+              <div class="cell-almuerzo-label" *ngIf="esAlmuerzo(hora) && col === 0 && almuerzoDuracion <= 1">
+                <mat-icon>restaurant</mat-icon>
+                <span>ALM</span>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Franja de almuerzo unificada -->
+          <div
+            *ngIf="almuerzoDuracion > 0"
+            class="franja-almuerzo-band"
+            [style.grid-row]="almuerzoGridRow"
+            style="grid-column: 2 / -1"
+          >
+            <div class="franja-almuerzo-inner">
+              <mat-icon>restaurant</mat-icon>
+              <span>ALMUERZO · {{ fmtHora(almuerzoInicio) }}–{{ fmtHora(almuerzoFin) }}</span>
+            </div>
+          </div>
+
+          <!-- Bloques -->
+          <ng-container *ngFor="let bloque of bloques; trackBy: trackByBloqueId">
+            <div
+              *ngIf="esDiaValido(bloque.dia)"
+              class="bloque"
+              [class.bloque-lectivo]="bloque.tipo === 'lectivo'"
+              [class.bloque-no-lectivo]="bloque.tipo === 'no-lectivo'"
+              [class.bloque-dragging]="bloqueDragActivo?.id === bloque.id"
+              [style.grid-column]="getCol(bloque.dia) + 2"
+              [style.grid-row]="
+                (getRow(bloque.horaInicio) + 2) + ' / span ' + bloque.duracion
+              "
+              [style.background-color]="bloque.color"
+              [style.border-color]="bloque.color"
+              (mousedown)="onBloqueMouseDown($event, bloque)"
+            >
+              <div class="bloque-content">
+                <span class="bloque-title">{{ bloque.titulo }}</span>
+                <span class="bloque-time">
+                  {{ bloque.horaInicio }}:00-{{ bloque.horaInicio +
+                  bloque.duracion }}:00
+                </span>
+              </div>
+
+              <!-- Controles del bloque -->
+              <div
+                *ngIf="bloque.tipo === 'no-lectivo' && puedeEditar"
+                class="bloque-actions"
+                (mousedown)="$event.stopPropagation()"
+              >
+                <button
+                  class="btn-action"
+                  (click)="extenderBloque(bloque, 1, $event)"
+                  title="Aumentar 1h"
+                >
+                  +
+                </button>
+                <button
+                  class="btn-action"
+                  (click)="extenderBloque(bloque, -1, $event)"
+                  title="Reducir 1h"
+                >
+                  −
+                </button>
+                <button
+                  class="btn-action btn-remove"
+                  (click)="eliminarBloque(bloque, $event)"
+                  title="Eliminar"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="panel-footer">
+    <div class="footer-stats">
+      <span class="stat">
+        No Lectivas:
+        <strong>{{ totalNoLectivas }}h</strong>
+      </span>
+      <span class="stat">
+        Distribuidas:
+        <strong>{{ getTotalHorasDistribuidas() }}h</strong>
+      </span>
+      <span class="stat">
+        Pendientes:
+        <strong [class.warning]="getTotalHorasPendientes() > 0">
+          {{ getTotalHorasPendientes() }}h
+        </strong>
+      </span>
+      <span class="stat">
+        Lectivas:
+        <strong>{{ totalHorasLectivas }}h</strong>
+      </span>
+      <span class="stat">
+        Total:
+        <strong [class.excede]="excedeLimite">
+          {{ totalGeneral }}h / {{ horasModalidad }}h
+        </strong>
+      </span>
+      <span *ngIf="excedeLimite" class="alert-badge">
+        <mat-icon>warning</mat-icon>
+        Excede límite
+      </span>
+      <span *ngIf="preparacionExcede" class="alert-badge prep">
+        <mat-icon>warning</mat-icon>
+        Prep. &gt; 50%
+      </span>
+      <span *ngIf="getTotalHorasPendientes() === 0 && actividadesPaleta.length > 0" class="alert-badge complete">
+        <mat-icon>check_circle</mat-icon>
+        Distribución completa
+      </span>
+    </div>
+  </div>
+</div>

@@ -3,8 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../../core/services/api.service';
-import { ApiResponse } from '../../../../core/interfaces/entities';
-import { PlanEstudios } from '../../plan-estudios-list/plan-estudios-list.component';
+import { ApiResponse, PlanEstudios } from '../../../../core/interfaces/entities';
 
 @Component({
   selector: 'app-plan-form-dialog',
@@ -47,7 +46,9 @@ import { PlanEstudios } from '../../plan-estudios-list/plan-estudios-list.compon
           <mat-form-field appearance="outline" class="premium-field">
             <mat-label>Escuela</mat-label>
             <mat-select formControlName="escuela_id" [disabled]="!!data.plan">
-              <mat-option *ngFor="let esc of escuelas" [value]="esc.id">{{ esc.nombre }}</mat-option>
+              @for (esc of escuelas; track esc.id) {
+                <mat-option [value]="esc.id">{{ esc.nombre }}</mat-option>
+              }
             </mat-select>
             <mat-error *ngIf="form.get('escuela_id')?.hasError('required')">Requerido</mat-error>
           </mat-form-field>

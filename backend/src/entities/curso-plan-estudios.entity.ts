@@ -5,12 +5,16 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Unique,
   Index,
 } from "typeorm";
 import { Curso } from "./curso.entity";
 import { PlanEstudios } from "./plan-estudios.entity";
+import { AsignacionLectiva } from "./asignacion-lectiva.entity";
+import { TipoCursoPlan } from "../common/enums/tipo-curso-plan.enum";
+import { EstadoCursoPlan } from "../common/enums/estado-curso-plan.enum";
 
 @Entity("curso_plan_estudios")
 @Unique("uq_curso_plan", ["curso_id", "plan_estudios_id"])
@@ -36,8 +40,12 @@ export class CursoPlanEstudios {
   @Column({ type: "smallint" })
   ciclo: number;
 
-  @Column({ length: 50, default: "OBLIGATORIO" })
-  tipo_curso: string;
+  @Column({
+    type: "enum",
+    enum: TipoCursoPlan,
+    default: TipoCursoPlan.OBLIGATORIO_GENERAL,
+  })
+  tipo_curso: TipoCursoPlan;
 
   @Column({ type: "smallint", default: 0 })
   horas_teoria: number;
@@ -51,11 +59,18 @@ export class CursoPlanEstudios {
   @Column({ type: "decimal", precision: 3, scale: 1 })
   creditos: number;
 
+  @OneToMany(() => AsignacionLectiva, (asignacion) => asignacion.curso_plan)
+  asignaciones: AsignacionLectiva[];
+
   @Column({ type: "jsonb", nullable: true })
   prerequisitos: number[];
 
-  @Column({ length: 20, default: "ACTIVO" })
-  estado: string;
+  @Column({
+    type: "enum",
+    enum: EstadoCursoPlan,
+    default: EstadoCursoPlan.ACTIVO,
+  })
+  estado: EstadoCursoPlan;
 
   @CreateDateColumn()
   created_at: Date;

@@ -10,6 +10,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { ScheduleConfigService } from '../../../core/services/schedule-config.service';
 import {
   DIAS_SEMANA,
   DIA_CODIGO_A_ETIQUETA,
@@ -35,6 +36,9 @@ export interface GestionarHorarioData {
   horasManual: boolean;
   allHorarios: { actividadId: number; actividadNombre?: string; horarios: HorarioEntry[] }[];
   horariosLectivos: HorarioLectivoRef[];
+  maxHoras?: number;
+  totalHorasLectivas?: number;
+  horasActualizadas?: boolean;
 }
 
 export const DIAS = [...DIAS_SEMANA];
@@ -83,12 +87,22 @@ function noSuperposicionValidator(control: AbstractControl): { [key: string]: bo
     <mat-dialog-content>
       <div class="horario-header">
         <span class="horario-horas-label">
-          Total: <strong>{{ calcularTotal() }}h</strong>
+          Total: <strong [class.excede-max]="excedeMaxHoras()">{{ calcularTotal() }}h</strong>
+          <span *ngIf="data.maxHoras != null" class="max-badge" [class.excede-max]="excedeMaxHoras()">
+            / {{ data.maxHoras }}h máx.
+          </span>
           <span *ngIf="calcularTotal() !== data.horas" class="manual-badge">(manual: {{ data.horas }}h)</span>
         </span>
         <mat-slide-toggle [(ngModel)]="data.horasManual" (ngModelChange)="onToggleManual()" color="accent">
           Editar horas manualmente
         </mat-slide-toggle>
+      </div>
+      <div *ngIf="excedeMaxHoras()" class="limit-error">
+        <mat-icon>error</mat-icon>
+        <span>Las horas programadas ({{ calcularTotal() }}h) exceden el máximo permitido ({{ data.maxHoras }}h).
+          <ng-container *ngIf="data.actividadId === 2"> Preparación no puede superar el 50% de las horas lectivas ({{ data.totalHorasLectivas }}h).</ng-container>
+          Elimine o reduzca bloques horarios.
+        </span>
       </div>
 
       <div *ngIf="data.horariosLectivos.length > 0" class="lectiva-panel">
@@ -113,8 +127,12 @@ function noSuperposicionValidator(control: AbstractControl): { [key: string]: bo
       <div *ngIf="data.horasManual" class="manual-input-row">
         <mat-form-field appearance="outline" dense>
           <mat-label>Horas totales</mat-label>
-          <input matInput type="number" [(ngModel)]="data.horas" min="0" max="80" />
+          <input matInput type="number" [(ngModel)]="data.horas" min="0" [max]="data.maxHoras ?? 80"
+            (ngModelChange)="validarHorasManual()" />
         </mat-form-field>
+        <span *ngIf="data.maxHoras != null && data.horas > data.maxHoras" class="manual-excede">
+          Excede el máximo de {{ data.maxHoras }}h
+        </span>
       </div>
 
       <form [formGroup]="form">
@@ -215,7 +233,7 @@ function noSuperposicionValidator(control: AbstractControl): { [key: string]: bo
         color="primary"
         type="button"
         (click)="guardar()"
-        [disabled]="form.invalid || tieneDuplicados() || conflictosOtrasActividades.length > 0 || conflictosLectiva.length > 0"
+        [disabled]="form.invalid || tieneDuplicados() || conflictosOtrasActividades.length > 0 || conflictosLectiva.length > 0 || excedeMaxHoras() || excedeHorasManual()"
       >
         Guardar
       </button>
@@ -297,6 +315,23 @@ function noSuperposicionValidator(control: AbstractControl): { [key: string]: bo
     .conflict-warning ul { margin: 4px 0 0 16px; padding: 0; }
     .conflict-warning li { margin-bottom: 2px; }
     .conflict-note { margin: 4px 0; font-size: 11px; opacity: 0.9; }
+    .max-badge { font-size: 13px; color: #666; margin-left: 4px; }
+    .max-badge.excede-max { color: #c62828; font-weight: 600; }
+    .excede-max { color: #c62828 !important; }
+    .limit-error {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: #ffebee;
+      border: 1px solid #ffcdd2;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      color: #c62828;
+      font-size: 12px;
+    }
+    .limit-error mat-icon { font-size: 18px; width: 18px; height: 18px; margin-top: 1px; }
+    .manual-excede { color: #c62828; font-size: 12px; font-weight: 600; margin-left: 8px; }
     `,
   ],
 })
@@ -324,6 +359,7 @@ export class GestionarHorarioDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: GestionarHorarioData,
     private snackBar: MatSnackBar,
     private fb: FormBuilder,
+    private scheduleConfigService: ScheduleConfigService,
   ) { }
 
   ngOnInit(): void {
@@ -393,7 +429,7 @@ export class GestionarHorarioDialogComponent implements OnInit {
 
   onHorarioChange(): void {
     this.validarConflictos();
-    if (!this.data.horasManual) {
+    if (!this.data.horasManual && (!this.data.horas || this.data.horas === 0)) {
       this.data.horas = this.calcularTotal();
     }
   }
@@ -427,6 +463,22 @@ export class GestionarHorarioDialogComponent implements OnInit {
 
   hayHoraInvalida(): boolean {
     return this.horariosFormArray.controls.some((grupo) => grupo.hasError('horaInvalida'));
+  }
+
+  excedeMaxHoras(): boolean {
+    if (this.data.maxHoras == null) return false;
+    return this.calcularTotal() > this.data.maxHoras;
+  }
+
+  excedeHorasManual(): boolean {
+    if (!this.data.horasManual || this.data.maxHoras == null) return false;
+    return this.data.horas > this.data.maxHoras;
+  }
+
+  validarHorasManual(): void {
+    if (this.data.horasManual && this.data.maxHoras != null && this.data.horas > this.data.maxHoras) {
+      this.data.horas = this.data.maxHoras;
+    }
   }
 
   private diaNormalizada(dia?: string): string {
@@ -475,15 +527,27 @@ export class GestionarHorarioDialogComponent implements OnInit {
       }
     }
 
-    for (const lec of this.data.horariosLectivos) {
-      const lecDia = this.diaNormalizada(lec.dia);
-      if (currentDia !== lecDia) continue;
-      if (seSuperponen(currentInicio, currentFin, normalizarHora(lec.hora_inicio), normalizarHora(lec.hora_fin))) {
-        const curso = lec.codigoCurso ? `${lec.codigoCurso} — ${lec.nombreCurso}` : lec.nombreCurso;
-        alertas.push({
-          tipo: 'lectiva',
-          mensaje: `Carga lectiva ocupada: ${DIA_CODIGO_A_ETIQUETA[lecDia] || lecDia} ${normalizarHora(lec.hora_inicio)}-${normalizarHora(lec.hora_fin)} (${curso})`,
-        });
+    const config = this.scheduleConfigService.config;
+    const almuerzoInicio = config.almuerzo.inicio;
+    const almuerzoFin = config.almuerzo.fin;
+
+    // Verificar si el horario actual está en franja de almuerzo
+    const currentInicioNum = parseInt(currentInicio.split(':')[0], 10);
+    const currentFinNum = parseInt(currentFin.split(':')[0], 10);
+    const enFranjaAlmuerzo = currentInicioNum < almuerzoFin && currentFinNum > almuerzoInicio;
+
+    // Si no está en franja de almuerzo, validar conflicto con lectivos
+    if (!enFranjaAlmuerzo) {
+      for (const lec of this.data.horariosLectivos) {
+        const lecDia = this.diaNormalizada(lec.dia);
+        if (currentDia !== lecDia) continue;
+        if (seSuperponen(currentInicio, currentFin, normalizarHora(lec.hora_inicio), normalizarHora(lec.hora_fin))) {
+          const curso = lec.codigoCurso ? `${lec.codigoCurso} — ${lec.nombreCurso}` : lec.nombreCurso;
+          alertas.push({
+            tipo: 'lectiva',
+            mensaje: `Carga lectiva ocupada: ${DIA_CODIGO_A_ETIQUETA[lecDia] || lecDia} ${normalizarHora(lec.hora_inicio)}-${normalizarHora(lec.hora_fin)} (${curso})`,
+          });
+        }
       }
     }
 
@@ -495,6 +559,10 @@ export class GestionarHorarioDialogComponent implements OnInit {
     this.conflictosLectiva = [];
     const horariosActuales = this.horariosFormArray.value as HorarioEntry[];
     const filaConflictoLectiva = new Array(horariosActuales.length).fill(false);
+
+    const config = this.scheduleConfigService.config;
+    const almuerzoInicio = config.almuerzo.inicio;
+    const almuerzoFin = config.almuerzo.fin;
 
     for (const otro of this.data.allHorarios) {
       if (otro.actividadId === this.data.actividadId) continue;
@@ -517,15 +585,24 @@ export class GestionarHorarioDialogComponent implements OnInit {
       const h1Dia = this.diaNormalizada(h1.dia);
       const h1Inicio = normalizarHora(h1.hora_inicio);
       const h1Fin = normalizarHora(h1.hora_fin);
-      for (const lec of this.data.horariosLectivos) {
-        const lecDia = this.diaNormalizada(lec.dia);
-        if (h1Dia !== lecDia) continue;
-        if (seSuperponen(h1Inicio, h1Fin, normalizarHora(lec.hora_inicio), normalizarHora(lec.hora_fin))) {
-          filaConflictoLectiva[index] = true;
-          const curso = lec.codigoCurso ? `${lec.codigoCurso} (${lec.nombreCurso})` : lec.nombreCurso;
-          this.conflictosLectiva.push(
-            `${formatearBloqueHorario({ dia: h1Dia, hora_inicio: h1Inicio, hora_fin: h1Fin })} coincide con lectiva ${normalizarHora(lec.hora_inicio)}-${normalizarHora(lec.hora_fin)} — ${curso}`,
-          );
+
+      // Verificar si el horario está en la franja de almuerzo
+      const h1InicioNum = parseInt(h1Inicio.split(':')[0], 10);
+      const h1FinNum = parseInt(h1Fin.split(':')[0], 10);
+      const enFranjaAlmuerzo = h1InicioNum < almuerzoFin && h1FinNum > almuerzoInicio;
+
+      // Si no está en la franja de almuerzo, validar conflicto con lectivos
+      if (!enFranjaAlmuerzo) {
+        for (const lec of this.data.horariosLectivos) {
+          const lecDia = this.diaNormalizada(lec.dia);
+          if (h1Dia !== lecDia) continue;
+          if (seSuperponen(h1Inicio, h1Fin, normalizarHora(lec.hora_inicio), normalizarHora(lec.hora_fin))) {
+            filaConflictoLectiva[index] = true;
+            const curso = lec.codigoCurso ? `${lec.codigoCurso} (${lec.nombreCurso})` : lec.nombreCurso;
+            this.conflictosLectiva.push(
+              `${formatearBloqueHorario({ dia: h1Dia, hora_inicio: h1Inicio, hora_fin: h1Fin })} coincide con lectiva ${normalizarHora(lec.hora_inicio)}-${normalizarHora(lec.hora_fin)} — ${curso}`,
+            );
+          }
         }
       }
     });
@@ -565,9 +642,69 @@ export class GestionarHorarioDialogComponent implements OnInit {
       hora_inicio: normalizarHora(h.hora_inicio),
       hora_fin: normalizarHora(h.hora_fin),
     }));
-    if (!this.data.horasManual) {
-      this.data.horas = this.calcularTotal();
+    
+    const horasCalculadas = this.calcularTotal();
+    
+    // Validación: si horas es 0 pero hay horarios asignados, bloquear guardado
+    if (this.data.horas === 0 && this.data.horarios.length > 0) {
+      this.snackBar.open(
+        `No puede guardar con horas en 0 si tiene horarios asignados. Los horarios suman ${horasCalculadas.toFixed(2)}h. Actualice las horas o elimine los horarios.`,
+        'ENTENDIDO',
+        {
+          duration: 6000,
+          panelClass: ['snackbar-error'],
+        },
+      );
+      return;
     }
+    
+    // Validar que las horas coincidan con los horarios si no está en modo manual
+    if (!this.data.horasManual && this.data.horas > 0) {
+      if (Math.abs(this.data.horas - horasCalculadas) > 0.01) {
+        const snackBarRef = this.snackBar.open(
+          `Las horas ingresadas (${this.data.horas}h) no coinciden con los horarios asignados (${horasCalculadas.toFixed(2)}h). ¿Desea actualizar las horas automáticamente?`,
+          'ACTUALIZAR',
+          {
+            duration: 6000,
+            panelClass: ['snackbar-warning'],
+          },
+        );
+        
+        let dialogoCerrado = false;
+        
+        snackBarRef.onAction().subscribe(() => {
+          if (!dialogoCerrado) {
+            dialogoCerrado = true;
+            this.data.horas = horasCalculadas;
+            this.data.horasActualizadas = true;
+            this.dialogRef.close(this.data);
+          }
+        });
+        
+        snackBarRef.afterDismissed().subscribe(() => {
+          if (!dialogoCerrado) {
+            dialogoCerrado = true;
+            this.dialogRef.close(this.data);
+          }
+        });
+        return;
+      }
+    } else if (!this.data.horasManual && (!this.data.horas || this.data.horas === 0)) {
+      this.data.horas = horasCalculadas;
+    }
+    
+    // Advertencia si hay horas pero no horarios
+    if (this.data.horas > 0 && (!this.data.horarios || this.data.horarios.length === 0)) {
+      this.snackBar.open(
+        `Advertencia: Tiene ${this.data.horas}h asignadas pero no hay horarios registrados. Se recomienda asignar horarios.`,
+        'ENTENDIDO',
+        {
+          duration: 5000,
+          panelClass: ['snackbar-warning'],
+        },
+      );
+    }
+    
     this.dialogRef.close(this.data);
   }
 

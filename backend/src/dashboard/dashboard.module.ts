@@ -10,6 +10,10 @@ import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { AuditoriaHorario } from "../entities/auditoria-horario.entity";
 import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { Departamento } from "../entities/departamento.entity";
+import { DiaActivo } from "../entities/dia-activo.entity";
+import { TurnoHorario } from "../entities/turno-horario.entity";
+import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
+import { ConfiguracionGeneral } from "../entities/configuracion-general.entity";
 import { DashboardService } from "./dashboard.service";
 import { DashboardController } from "./dashboard.controller";
 import { DashboardGateway } from "./dashboard.gateway";
@@ -27,6 +31,10 @@ import { DashboardGateway } from "./dashboard.gateway";
       AuditoriaHorario,
       DeclaracionCargaHoraria,
       Departamento,
+      DiaActivo,
+      TurnoHorario,
+      RestriccionInstitucional,
+      ConfiguracionGeneral,
     ]),
   ],
   controllers: [DashboardController],

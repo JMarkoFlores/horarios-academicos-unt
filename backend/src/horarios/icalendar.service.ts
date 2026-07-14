@@ -16,11 +16,9 @@ export class ICalendarService {
   async generarICalendarDocente(
     docenteId: number,
     periodo: string,
+    horariosParam: HorarioAsignado[],
   ): Promise<string> {
-    const horarios = await this.horarioRepo.find({
-      where: { docente_id: docenteId, periodo },
-      relations: ["docente", "curso", "ambiente", "grupo"],
-    });
+    const horarios = horariosParam;
 
     if (horarios.length === 0) {
       throw new NotFoundException(
@@ -99,14 +97,34 @@ export class ICalendarService {
     const grupo = horario.grupo;
 
     const uid = `${horario.id}@unt.edu.pe`;
-    const summary = `${curso.codigo} - ${curso.nombre} (${horario.tipo_clase})`;
-    const description =
-      `Docente: ${docente?.nombres} ${docente?.apellidos}\n` +
-      `Curso: ${curso.nombre}\n` +
-      `Grupo: ${grupo?.nombre}\n` +
-      `Ambiente: ${ambiente?.nombre}\n` +
-      `Tipo: ${horario.tipo_clase}`;
-    const location = ambiente?.nombre || "Por asignar";
+
+    const isNoLectiva = horario.tipo_clase === "NO_LECTIVA";
+    let asigName = curso?.nombre ?? "Carga No Lectiva";
+    if (isNoLectiva) {
+      let nombre = (horario as any).actividad_nombre || "Carga No Lectiva";
+      nombre = nombre.replace(/^\d+\.\s*/, "");
+      nombre = nombre.replace(/\s*\(.*\)\s*$/, "");
+      const colonIdx = nombre.indexOf(":");
+      if (colonIdx > 0) {
+        nombre = nombre.substring(0, colonIdx);
+      }
+      asigName = nombre.trim();
+    }
+
+    const summary = isNoLectiva
+      ? `${asigName} (${horario.tipo_clase})`
+      : `${curso?.codigo} - ${asigName} (${horario.tipo_clase})`;
+    const description = isNoLectiva
+      ? `Docente: ${docente?.nombres} ${docente?.apellidos}\n` +
+        `Actividad: ${asigName}\n` +
+        `Tipo: ${horario.tipo_clase}`
+      : `Docente: ${docente?.nombres} ${docente?.apellidos}\n` +
+        `Curso: ${asigName}\n` +
+        `Grupo: ${grupo?.nombre}\n` +
+        `Ambiente: ${ambiente?.nombre}\n` +
+        `Tipo: ${horario.tipo_clase}`;
+
+    const location = isNoLectiva ? "" : ambiente?.nombre || "Por asignar";
 
     // Calcular primera fecha del evento (primera ocurrencia del día de la semana)
     const primeraFecha = this.calcularPrimeraFecha(horario.dia, fechaInicio);

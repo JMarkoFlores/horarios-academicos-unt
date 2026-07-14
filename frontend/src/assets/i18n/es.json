@@ -41,6 +41,7 @@
     "horarios": "Horarios",
     "schedules": "Horarios",
     "mySchedules": "Mis Horarios",
+    "myWindows": "Mis Ventanas",
     "docentes": "Docentes",
     "teachers": "Docentes",
     "cursos": "Cursos",
@@ -48,7 +49,11 @@
     "ambientes": "Ambientes",
     "environments": "Ambientes",
     "planEstudios": "Plan de Estudios",
+    "ofertaAcademica": "Oferta Académica",
     "asignacionLectiva": "Asignación Lectiva",
+    "asignadorCarga": "Asignación de Carga",
+    "asignadorCargaHoraria": "Asignación de Carga Horaria (Secretaría)",
+    "cargaLectiva": "Carga Lectiva",
     "disponibilidad": "Disponibilidad",
     "availability": "Disponibilidad",
     "reportes": "Reportes",
@@ -71,13 +76,17 @@
     "periods": "Períodos",
     "loadParams": "Parámetros de Carga",
     "campaigns": "Campañas",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "audit": "Auditoría",
+    "asignadorCarga": "Asignación de Carga"
   },
   "nav": {
     "groups": {
       "main": "Principal",
       "academic": "Gestión Académica",
       "operations": "Operaciones",
+      "declarations": "Declaraciones",
+      "windows": "Ventanas y Atención",
       "reports": "Reportes y Análisis",
       "system": "Sistema"
     }
@@ -97,6 +106,7 @@
     "docentes_editar": "Editar",
     "cursos": "Cursos",
     "cursos_nuevo": "Nuevo",
+    "cursos_detalle": "Detalle",
     "cursos_editar": "Editar",
     "ambientes": "Ambientes",
     "ambientes_mapa": "Mapa",
@@ -130,7 +140,9 @@
     "facultades": "Facultades",
     "planEstudios": "Plan de Estudios",
     "planEstudios_detalle": "Detalle",
-    "asignacionLectiva": "Asignación Lectiva"
+    "asignacionLectiva": "Asignación Lectiva",
+    "asignadorCarga": "Asignación de Carga",
+    "perfil": "Mi Perfil"
   },
   "planEstudios": {
     "title": "Plan de Estudios",
@@ -207,7 +219,24 @@
     "loggingIn": "INGRESANDO...",
     "loginToSystem": "INGRESAR AL SISTEMA",
     "academicManagementSystem": "SISTEMA DE GESTIÓN ACADÉMICA &bull; EIS",
-    "unt": "Universidad Nacional de Trujillo"
+    "unt": "Universidad Nacional de Trujillo",
+    "forgotPassword": "¿Olvidó su contraseña?",
+    "recoverPassword": "Recuperar Contraseña",
+    "enterEmail": "Ingrese su correo institucional o alternativo",
+    "sendResetLink": "Enviar enlace de recuperación",
+    "resetLinkSent": "Si el correo existe, recibirás un enlace de recuperación",
+    "backToLogin": "Volver al inicio de sesión",
+    "resetPassword": "Restablecer Contraseña",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "passwordMinLength": "Mínimo 8 caracteres",
+    "passwordsMustMatch": "Las contraseñas deben coincidir",
+    "resetSuccess": "Contraseña restablecida exitosamente",
+    "invalidToken": "Token inválido o expirado",
+    "requestNewLink": "Solicitar nuevo enlace",
+    "alternateEmail": "Correo alternativo (opcional)",
+    "alternateEmailHint": "Se usará para notificaciones y recuperación de contraseña",
+    "alternateEmailInvalid": "Correo alternativo inválido"
   },
   "dashboard": {
     "compactMode": "Modo compacto",
@@ -287,6 +316,7 @@
     },
     "classTypes": {
       "teoria": "Teoría",
+      "practica": "Práctica",
       "laboratorio": "Laboratorio",
       "mixto": "Mixto"
     },
@@ -295,5 +325,103 @@
     "labsOcupadas": "Labs Ocupados",
     "labsLibres": "Labs Libres",
     "description": "Descripción"
+  },
+  "asignador": {
+    "title": "Asignación de Carga Lectiva",
+    "subtitle": "Asigne cursos a docentes mediante arrastrar y soltar",
+    "cursosPendientes": "Cursos Pendientes",
+    "seleccionarDocente": "Seleccionar Docente",
+    "ambientes": "Ambientes",
+    "avance": "Avance de Asignación",
+    "guardar": "Guardar",
+    "actualizar": "Actualizar",
+    "save": "Guardar",
+    "refresh": "Actualizar",
+    "undo": "Deshacer",
+    "view": {
+      "docente": "Docente",
+      "ambiente": "Ambiente",
+      "ciclo": "Ciclo"
+    },
+    "selectDocente": "Seleccionar Docente",
+    "selectDocentePlaceholder": "Seleccione un docente",
+    "selectAmbiente": "Seleccionar Ambiente",
+    "selectAmbientePlaceholder": "Seleccione un ambiente",
+    "selectCiclo": "Seleccionar Ciclo",
+    "selectCicloPlaceholder": "Seleccione un ciclo",
+    "ciclo": "Ciclo",
+    "asignar": "Asignar",
+    "cancelar": "Cancelar",
+    "eliminar": "Eliminar",
+    "completos": "Completos",
+    "incompletos": "Incompletos",
+    "pendientes": "Pendientes",
+    "porAsignar": "Por asignar",
+    "todosAsignados": "Todos los cursos están asignados",
+    "conflictoHorario": "Conflicto de horario",
+    "cargaExcedida": "Carga excedida",
+    "aulaOcupada": "Aula ocupada"
+  },
+  "bancoCursos": {
+    "title": "Banco de Cursos",
+    "searchPlaceholder": "Buscar curso...",
+    "filter": {
+      "ciclo": "Ciclo",
+      "all": "Todos",
+      "tipo": "Tipo",
+      "obligatorioGeneral": "Obligatorio General",
+      "obligatorioProfesional": "Obligatorio Profesional",
+      "electivo": "Electivo"
+    },
+    "stats": {
+      "horasPendientes": "Horas pendientes",
+      "cursos": "Cursos"
+    },
+    "ciclo": "Ciclo",
+    "tooltip": {
+      "alumnos": "Cantidad de alumnos: {{count}}"
+    },
+    "empty": {
+      "allAssigned": "Todos los cursos están asignados",
+      "noMatch": "No se encontraron cursos con ese filtro"
+    }
+  },
+  "panelAmbientes": {
+    "title": "Panel de Ambientes",
+    "searchPlaceholder": "Buscar ambiente...",
+    "filter": {
+      "tipo": "Tipo",
+      "all": "Todos",
+      "aula": "Aula",
+      "laboratorio": "Laboratorio",
+      "computo": "Computo",
+      "capacidad": "Capacidad",
+      "disponibilidad": "Disponibilidad",
+      "libre": "Libre",
+      "parcial": "Parcial"
+    },
+    "legend": {
+      "libre": "Libre",
+      "ocupada": "Ocupada",
+      "llena": "Llena"
+    },
+    "tooltip": {
+      "capacidad": "Capacidad: {{cap}}"
+    },
+    "bloques": "bloques",
+    "empty": "No se encontraron ambientes"
+  },
+  "error": {
+    "pageNotFound": "Página no encontrada",
+    "pageNotFoundMsg": "La página que buscas no existe o ha sido movida.",
+    "accessDenied": "Acceso denegado",
+    "accessDeniedMsg": "No tienes permisos para acceder a esta sección.",
+    "serverError": "Error del servidor",
+    "serverErrorMsg": "Ha ocurrido un error inesperado. Nuestro equipo ha sido notificado.",
+    "sessionExpired": "Sesión expirada",
+    "sessionExpiredMsg": "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+    "goHome": "Ir al inicio",
+    "goLogin": "Iniciar sesión",
+    "helpText": "Si crees que esto es un error, contacta al administrador del sistema."
   }
 }

@@ -1,7 +1,13 @@
+@use '../../../shared/design-system/responsive-mixins' as resp;
+
 .ambientes-page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
+
+  @include resp.mobile {
+    gap: var(--space-3);
+  }
 }
 
 // ── HEADER PREMIUM ────────────────────────────────────────────────────────
@@ -15,17 +21,16 @@
     .gradient-text {
       font-size: 28px;
       font-weight: 800;
-      background: linear-gradient(
-        135deg,
-        var(--color-primary),
-        var(--color-accent)
-      );
+      background: linear-gradient(135deg,
+          var(--color-primary),
+          var(--color-accent));
       background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin: 0;
       letter-spacing: -0.03em;
     }
+
     .subtitle {
       color: var(--color-text-muted);
       margin: 4px 0 0 0;
@@ -69,7 +74,7 @@
 
 // ── SEARCH BAR ────────────────────────────────────────────────────────────
 .search-card-premium {
-  padding: 12px 20px !important;
+  padding: 20px !important;
   border-radius: var(--radius-lg) !important;
   border: 1px solid var(--color-border) !important;
   background: var(--color-surface) !important;
@@ -97,7 +102,7 @@
 
 // ── FILTERS PREMIUM ───────────────────────────────────────────────────────
 .filter-card-premium {
-  padding: 12px 20px !important;
+  padding: 20px !important;
   border-radius: var(--radius-lg) !important;
   border: 1px solid var(--color-border) !important;
   background: var(--color-surface) !important;
@@ -195,11 +200,18 @@
         font-size: 11px;
         letter-spacing: 0.05em;
         border-bottom: 1px solid var(--color-border);
+        padding: var(--space-3) var(--space-4) !important;
+
+        &:focus-visible {
+          outline: 2px solid var(--color-accent);
+          outline-offset: -2px;
+        }
       }
     }
 
     .premium-row {
-      height: 72px;
+      height: auto;
+      min-height: 72px;
       transition: all var(--transition-fast);
       cursor: pointer;
       animation: fadeInUp 400ms ease-out forwards;
@@ -219,8 +231,14 @@
         }
       }
 
+      &:focus-within {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -1px;
+      }
+
       .mat-mdc-cell {
         border-bottom: 1px solid var(--color-border);
+        padding: var(--space-2) var(--space-4) !important;
       }
     }
   }
@@ -249,6 +267,7 @@
     color: var(--color-text);
     font-size: 15px;
   }
+
   .env-location {
     font-size: 11px;
     color: var(--color-text-muted);
@@ -362,8 +381,10 @@
   &.estado-activo {
     color: #10b981;
     background: rgba(16, 185, 129, 0.1);
+
     .dot {
       background: #10b981;
+
       &::after {
         background: #10b981;
       }
@@ -373,8 +394,10 @@
   &.estado-mantenimiento {
     color: #f59e0b;
     background: rgba(245, 158, 11, 0.1);
+
     .dot {
       background: #f59e0b;
+
       &::after {
         display: none;
       }
@@ -384,8 +407,10 @@
   &.estado-reservado {
     color: #8b5cf6;
     background: rgba(139, 92, 246, 0.1);
+
     .dot {
       background: #8b5cf6;
+
       &::after {
         display: none;
       }
@@ -395,8 +420,10 @@
   &.estado-inactivo {
     color: #ef4444;
     background: rgba(239, 68, 68, 0.1);
+
     .dot {
       background: #ef4444;
+
       &::after {
         display: none;
       }
@@ -409,6 +436,7 @@
     transform: scale(1);
     opacity: 0.8;
   }
+
   100% {
     transform: scale(2.5);
     opacity: 0;
@@ -429,6 +457,7 @@
 
       &.edit {
         color: var(--color-primary);
+
         &:hover {
           background: var(--color-primary-light);
         }
@@ -436,6 +465,7 @@
 
       &.info {
         color: #a855f7;
+
         &:hover {
           background: rgba(168, 85, 247, 0.1);
         }
@@ -443,6 +473,7 @@
 
       &.activate {
         color: #10b981;
+
         &:hover {
           background: rgba(16, 185, 129, 0.1);
         }
@@ -450,6 +481,7 @@
 
       &.delete {
         color: #ef4444;
+
         &:hover {
           background: rgba(239, 68, 68, 0.1);
         }
@@ -502,6 +534,7 @@
     margin-bottom: 4px;
     color: var(--color-text);
   }
+
   p {
     color: var(--color-text-muted);
     font-size: 13px;

@@ -3,4 +3,5 @@ export enum OrigenHorario {
   VENTANA_ATENCION = "ventana_atencion",
   AJUSTE_MANUAL = "ajuste_manual",
   SUBSANACION = "subsanacion",
+  ASIGNACION_LECTIVA = "asignacion_lectiva",
 }

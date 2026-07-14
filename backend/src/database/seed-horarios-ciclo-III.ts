@@ -1,24 +1,69 @@
-import { DataSource } from "typeorm";
+import "reflect-metadata";
+import { DataSource, EntityManager } from "typeorm";
+import { config } from "dotenv";
+import { join } from "path";
 
+config({ path: join(__dirname, "..", "..", ".env") });
+
+import { Usuario } from "../entities/usuario.entity";
 import { Docente } from "../entities/docente.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { Grupo } from "../entities/grupo.entity";
+import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
+import { VentanaAtencion } from "../entities/ventana-atencion.entity";
+import { CampañaVentanas } from "../entities/campaña-ventanas.entity";
+import { ColaDocentes } from "../entities/cola-docentes.entity";
+import { NotificacionDocente } from "../entities/notificacion-docente.entity";
+import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.entity";
+import { Preasignacion } from "../entities/preasignacion.entity";
+import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
+import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
+import { TurnoHorario } from "../entities/turno-horario.entity";
+import { DocenteCurso } from "../entities/docente-curso.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { Facultad } from "../entities/facultad.entity";
+import { Escuela } from "../entities/escuela.entity";
+import { Departamento } from "../entities/departamento.entity";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 
-export async function seedHorariosCicloIII(dataSource: DataSource) {
+const AppDataSource = new DataSource({
+  type: "postgres",
+  host: process.env.DATABASE_HOST ?? "localhost",
+  port: parseInt(process.env.DATABASE_PORT ?? "5432", 10),
+  database: process.env.DATABASE_NAME ?? "horarios_unt",
+  username: process.env.DATABASE_USER ?? "unt_user",
+  password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
+  entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
+  synchronize: false,
+  logging: false,
+});
+
+export async function seedHorariosCicloIII(manager?: EntityManager) {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO III...");
 
-  const docenteRepo = dataSource.getRepository(Docente);
-  const cursoRepo = dataSource.getRepository(Curso);
-  const ambienteRepo = dataSource.getRepository(Ambiente);
-  const grupoRepo = dataSource.getRepository(Grupo);
-  const horarioRepo = dataSource.getRepository(HorarioAsignado);
-  const periodoRepo = dataSource.getRepository(PeriodoAcademico);
+  if (!manager) {
+    await AppDataSource.initialize();
+    console.log("✅ Conexión a la base de datos establecida");
+  }
+
+  const docenteRepo = (manager ?? AppDataSource.manager).getRepository(Docente);
+  const cursoRepo = (manager ?? AppDataSource.manager).getRepository(Curso);
+  const ambienteRepo = (manager ?? AppDataSource.manager).getRepository(
+    Ambiente,
+  );
+  const grupoRepo = (manager ?? AppDataSource.manager).getRepository(Grupo);
+  const horarioRepo = (manager ?? AppDataSource.manager).getRepository(
+    HorarioAsignado,
+  );
+  const periodoRepo = (manager ?? AppDataSource.manager).getRepository(
+    PeriodoAcademico,
+  );
 
   // ── 1. OBTENER DATOS EXISTENTES ───────────────────────────────────────────
   console.log("📋 Obteniendo datos existentes de la base de datos...");
@@ -147,25 +192,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     // 1. Zoraida Vidal Melgarejo - POO II (T:2, P:0, L:4, G:3)
     {
       docente: "Zoraida Vidal Melgarejo",
-      curso: "Programación Orientada a Objetos II",
-      dia: "Lunes",
-      horas: "09:00-13:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab. 2",
-      grupo: 1,
-    },
-    {
-      docente: "Zoraida Vidal Melgarejo",
-      curso: "Programación Orientada a Objetos II",
-      dia: "Martes",
-      horas: "09:00-13:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab. 2",
-      grupo: 2,
-    },
-    {
-      docente: "Zoraida Vidal Melgarejo",
-      curso: "Programación Orientada a Objetos II",
+      curso: "PROGRAMACION ORIENTADA A OBJETOS II",
       dia: "Martes",
       horas: "14:00-16:00",
       tipo: "Teoría",
@@ -174,7 +201,25 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Zoraida Vidal Melgarejo",
-      curso: "Programación Orientada a Objetos II",
+      curso: "PROGRAMACION ORIENTADA A OBJETOS II",
+      dia: "Lunes",
+      horas: "09:00-13:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 2",
+      grupo: 1,
+    },
+    {
+      docente: "Zoraida Vidal Melgarejo",
+      curso: "PROGRAMACION ORIENTADA A OBJETOS II",
+      dia: "Martes",
+      horas: "09:00-13:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 2",
+      grupo: 2,
+    },
+    {
+      docente: "Zoraida Vidal Melgarejo",
+      curso: "PROGRAMACION ORIENTADA A OBJETOS II",
       dia: "Viernes",
       horas: "09:00-13:00",
       tipo: "Laboratorio",
@@ -185,7 +230,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     // 2. Everson David Agreda Gamboa - Sistémica (T:2, P:1, L:2, G:3)
     {
       docente: "Everson David Agreda Gamboa",
-      curso: "Sistémica",
+      curso: "SISTEMICA",
       dia: "Miércoles",
       horas: "09:00-11:00",
       tipo: "Teoría",
@@ -194,7 +239,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Everson David Agreda Gamboa",
-      curso: "Sistémica",
+      curso: "SISTEMICA",
       dia: "Miércoles",
       horas: "11:00-12:00",
       tipo: "Práctica",
@@ -203,7 +248,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Everson David Agreda Gamboa",
-      curso: "Sistémica",
+      curso: "SISTEMICA",
       dia: "Miércoles",
       horas: "14:00-16:00",
       tipo: "Laboratorio",
@@ -212,7 +257,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Everson David Agreda Gamboa",
-      curso: "Sistémica",
+      curso: "SISTEMICA",
       dia: "Miércoles",
       horas: "16:00-18:00",
       tipo: "Laboratorio",
@@ -221,7 +266,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Everson David Agreda Gamboa",
-      curso: "Sistémica",
+      curso: "SISTEMICA",
       dia: "Jueves",
       horas: "16:00-18:00",
       tipo: "Laboratorio",
@@ -229,10 +274,10 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
       grupo: 3,
     },
 
-    // 3. Juan Carlos obando Roldán - Ing. Gráfica (T:1, P:1, L:3, G:2)
+    // 3. Juan Carlos obando Roldán - Ing. Gráfica (T:1, P:1, L:2, G:3)
     {
       docente: "Juan Carlos obando Roldán",
-      curso: "Ingeniería Gráfica (e )",
+      curso: "INGENIERIA GRAFICA",
       dia: "Miércoles",
       horas: "07:00-08:00",
       tipo: "Teoría",
@@ -241,7 +286,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Juan Carlos obando Roldán",
-      curso: "Ingeniería Gráfica (e )",
+      curso: "INGENIERIA GRAFICA",
       dia: "Miércoles",
       horas: "08:00-09:00",
       tipo: "Práctica",
@@ -250,16 +295,16 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Juan Carlos obando Roldán",
-      curso: "Ingeniería Gráfica (e )",
+      curso: "INGENIERIA GRAFICA",
       dia: "Jueves",
-      horas: "07:00-10:00",
+      horas: "08:00-10:00",
       tipo: "Laboratorio",
       ambiente: "Lab. 1",
       grupo: 1,
     },
     {
       docente: "Juan Carlos obando Roldán",
-      curso: "Ingeniería Gráfica (e )",
+      curso: "INGENIERIA GRAFICA",
       dia: "Jueves",
       horas: "10:00-13:00",
       tipo: "Laboratorio",
@@ -270,28 +315,28 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     // 4. Marcos Ferrer Reyna - Matemática Aplicada (T:1, P:2, L:2, G:1)
     {
       docente: "Marcos Ferrer Reyna",
-      curso: "Matemática Aplicada",
+      curso: "MATEMATICA APLICADA",
       dia: "Jueves",
-      horas: "14:00-16:00",
-      tipo: "Laboratorio",
+      horas: "14:00-15:00",
+      tipo: "Teoría",
       ambiente: "Taller Confecciones - Ing. Industrial",
       grupo: 1,
     },
     {
       docente: "Marcos Ferrer Reyna",
-      curso: "Matemática Aplicada",
-      dia: "Miércoles",
-      horas: "18:00-19:00",
-      tipo: "Teoría",
-      ambiente: "posgrado A-303",
+      curso: "MATEMATICA APLICADA",
+      dia: "Jueves",
+      horas: "15:00-17:00",
+      tipo: "Práctica",
+      ambiente: "Taller Confecciones - Ing. Industrial",
       grupo: 1,
     },
     {
       docente: "Marcos Ferrer Reyna",
-      curso: "Matemática Aplicada",
+      curso: "MATEMATICA APLICADA",
       dia: "Miércoles",
-      horas: "19:00-21:00",
-      tipo: "Práctica",
+      horas: "18:00-21:00",
+      tipo: "Laboratorio",
       ambiente: "posgrado A-303",
       grupo: 1,
     },
@@ -299,92 +344,65 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     // 5. Teresita Rojas Garcia - Estadística Aplicada (T:1, P:2, L:2, G:3)
     {
       docente: "Teresita Rojas Garcia",
-      curso: "Estadística Aplicada",
+      curso: "ESTADISTICA APLICADA",
       dia: "Martes",
-      horas: "16:00-18:00",
-      tipo: "Laboratorio",
+      horas: "16:00-17:00",
+      tipo: "Teoría",
       ambiente: "posgrado A-303",
       grupo: 1,
     },
     {
       docente: "Teresita Rojas Garcia",
-      curso: "Estadística Aplicada",
-      dia: "Jueves",
-      horas: "18:00-19:00",
-      tipo: "Teoría",
-      ambiente: "Taller Confecciones - Ing. Industrial",
-      grupo: 1,
-    },
-    {
-      docente: "Teresita Rojas Garcia",
-      curso: "Estadística Aplicada",
-      dia: "Jueves",
-      horas: "19:00-21:00",
+      curso: "ESTADISTICA APLICADA",
+      dia: "Martes",
+      horas: "17:00-19:00",
       tipo: "Práctica",
+      ambiente: "posgrado A-303",
+      grupo: 1,
+    },
+    {
+      docente: "Teresita Rojas Garcia",
+      curso: "ESTADISTICA APLICADA",
+      dia: "Jueves",
+      horas: "18:00-21:00",
+      tipo: "Laboratorio",
       ambiente: "Taller Confecciones - Ing. Industrial",
       grupo: 1,
     },
     {
       docente: "Teresita Rojas Garcia",
-      curso: "Estadística Aplicada",
+      curso: "ESTADISTICA APLICADA",
       dia: "Viernes",
       horas: "07:00-09:00",
       tipo: "Laboratorio",
       ambiente: "Taller Confecciones (Ing. Industrial)",
-      grupo: 2,
-    },
-    {
-      docente: "Teresita Rojas Garcia",
-      curso: "Estadística Aplicada",
-      dia: "Viernes",
-      horas: "16:00-18:00",
-      tipo: "Laboratorio",
-      ambiente: "posgrado A-303",
-      grupo: 3,
+      grupo: 1,
     },
 
-    // 6. Juan Carrascal Cabanillas - Administración General (T:2, P:2, L:0, G:1)
+    // 6. Juan Carrascal Cabanillas - Administración General (T:2, P:2, L:0)
     {
       docente: "Juan Carrascal Cabanillas",
-      curso: "Administración General",
+      curso: "ADMINISTRACION GENERAL",
       dia: "Lunes",
-      horas: "07:00-08:00",
+      horas: "07:00-09:00",
       tipo: "Teoría",
       ambiente: "Taller Confecciones - Ing. Indust.",
       grupo: 1,
     },
     {
       docente: "Juan Carrascal Cabanillas",
-      curso: "Administración General",
-      dia: "Lunes",
-      horas: "08:00-09:00",
-      tipo: "Práctica",
-      ambiente: "Taller Confecciones - Ing. Indust.",
-      grupo: 1,
-    },
-    {
-      docente: "Juan Carrascal Cabanillas",
-      curso: "Administración General",
+      curso: "ADMINISTRACION GENERAL",
       dia: "Martes",
-      horas: "07:00-08:00",
-      tipo: "Teoría",
-      ambiente: "I I - 2 (Pabellon Ing. Industrial)",
-      grupo: 1,
-    },
-    {
-      docente: "Juan Carrascal Cabanillas",
-      curso: "Administración General",
-      dia: "Martes",
-      horas: "08:00-09:00",
+      horas: "07:00-09:00",
       tipo: "Práctica",
       ambiente: "I I - 2 (Pabellon Ing. Industrial)",
       grupo: 1,
     },
 
-    // 7. Vilma Mendez Gil - Física Electrónica (T:1, P:2, L:2, G:4)
+    // 7. Vilma Mendez Gil - Física Electrónica (T:1, P:2, L:2, G:1)
     {
       docente: "Vilma Mendez Gil",
-      curso: "Física Electrónica",
+      curso: "FISICA ELECTRONICA",
       dia: "Lunes",
       horas: "15:00-16:00",
       tipo: "Teoría",
@@ -393,7 +411,7 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Vilma Mendez Gil",
-      curso: "Física Electrónica",
+      curso: "FISICA ELECTRONICA",
       dia: "Lunes",
       horas: "16:00-18:00",
       tipo: "Práctica",
@@ -402,74 +420,29 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
     },
     {
       docente: "Vilma Mendez Gil",
-      curso: "Física Electrónica",
+      curso: "FISICA ELECTRONICA",
       dia: "Miércoles",
       horas: "14:00-16:00",
       tipo: "Laboratorio",
       ambiente: "Lab. Fisica",
       grupo: 1,
     },
-    {
-      docente: "Vilma Mendez Gil",
-      curso: "Física Electrónica",
-      dia: "Miércoles",
-      horas: "16:00-18:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab. Fisica",
-      grupo: 2,
-    },
-    {
-      docente: "Vilma Mendez Gil",
-      curso: "Física Electrónica",
-      dia: "Jueves",
-      horas: "07:00-09:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab. Fisica",
-      grupo: 3,
-    },
-    {
-      docente: "Vilma Mendez Gil",
-      curso: "Física Electrónica",
-      dia: "Jueves",
-      horas: "09:00-11:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab. Fisica",
-      grupo: 4,
-    },
 
-    // 8. Sheyla Laura Escobedo Rodriguez - Psicología Organizacional (T:2, P:2, L:0, G:1)
+    // 8. Sheyla Laura Escobedo Rodriguez - Psicologia Organizacional (T:2, P:2, L:0)
     {
       docente: "Sheyla Laura Escobedo Rodriguez",
-      curso: "Psicologia Organizacional (e )",
+      curso: "SICOLOGIA ORGANIZACIONAL",
       dia: "Martes",
-      horas: "18:00-19:00",
+      horas: "18:00-20:00",
       tipo: "Teoría",
       ambiente: "posgrado A-311",
       grupo: 1,
     },
     {
       docente: "Sheyla Laura Escobedo Rodriguez",
-      curso: "Psicologia Organizacional (e )",
-      dia: "Martes",
-      horas: "19:00-20:00",
-      tipo: "Práctica",
-      ambiente: "posgrado A-311",
-      grupo: 1,
-    },
-    {
-      docente: "Sheyla Laura Escobedo Rodriguez",
-      curso: "Psicologia Organizacional (e )",
+      curso: "SICOLOGIA ORGANIZACIONAL",
       dia: "Viernes",
-      horas: "18:00-19:00",
-      tipo: "Teoría",
-      ambiente: "posgrado A-311",
-      grupo: 1,
-    },
-    {
-      docente: "Sheyla Laura Escobedo Rodriguez",
-      curso: "Psicologia Organizacional (e )",
-      dia: "Viernes",
-      horas: "19:00-20:00",
+      horas: "18:00-20:00",
       tipo: "Práctica",
       ambiente: "posgrado A-311",
       grupo: 1,
@@ -544,4 +517,18 @@ export async function seedHorariosCicloIII(dataSource: DataSource) {
   console.log(
     `\n✅ Seed completado! ${creados} horarios creados, ${saltados} saltados.\n`,
   );
+  console.log(
+    "💡 Recuerda: Para ejecutar este seed, usa: npx ts-node src/database/seed-horarios-ciclo-III.ts",
+  );
+
+  if (!manager) {
+    await AppDataSource.destroy();
+  }
+}
+
+if (require.main === module) {
+  seedHorariosCicloIII().catch((error) => {
+    console.error("❌ Error en el seed:", error);
+    process.exit(1);
+  });
 }

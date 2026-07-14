@@ -1,6 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
 import { EstadoPeriodo } from "../common/enums/estado-periodo.enum";
 import { ModoAsignacion } from "../common/enums/modo-asignacion.enum";
+import { DeclaracionJurada } from "./declaracion-jurada.entity";
+import { DeclaracionClad } from "./declaracion-clad.entity";
 
 @Entity("periodo_academico")
 export class PeriodoAcademico {
@@ -35,4 +37,13 @@ export class PeriodoAcademico {
     default: ModoAsignacion.VENTANAS,
   })
   modo_asignacion: ModoAsignacion;
+
+  @OneToMany("AsignacionLectiva", "periodo")
+  asignaciones_lectivas: import("./asignacion-lectiva.entity").AsignacionLectiva[];
+
+  @OneToMany(() => DeclaracionJurada, (jurada) => jurada.periodo)
+  declaraciones_juradas: DeclaracionJurada[];
+
+  @OneToMany(() => DeclaracionClad, (dc) => dc.periodo_academico)
+  declaraciones_clad: DeclaracionClad[];
 }

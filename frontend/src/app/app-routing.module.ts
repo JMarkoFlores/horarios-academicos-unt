@@ -2,21 +2,32 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { LoginComponent } from './auth/login/login.component';
 import { LandingComponent } from './auth/landing/landing.component';
+import { RecuperarPasswordComponent } from './auth/recuperar-password/recuperar-password.component';
+import { ResetPasswordComponent } from './auth/reset-password/reset-password.component';
 import { NotFoundComponent } from './shared/not-found/not-found.component';
 import { LayoutComponent } from './layout/layout.component';
+import { ROLES } from './core/constants/roles';
 import { AuthGuard } from './core/guards/auth.guard';
 import { RolesGuard } from './core/guards/roles.guard';
 
 const routes: Routes = [
   { path: '', component: LandingComponent, pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
+  { path: 'auth/recuperar-password', component: RecuperarPasswordComponent },
+  { path: 'auth/reset-password', component: ResetPasswordComponent },
   { path: 'welcome', component: LandingComponent },
+  // Error pages
+  { path: 'error/404', component: NotFoundComponent, data: { errorCode: '404' } },
+  { path: 'error/403', component: NotFoundComponent, data: { errorCode: '403' } },
+  { path: 'error/401', component: NotFoundComponent, data: { errorCode: '401' } },
+  { path: 'error/500', component: NotFoundComponent, data: { errorCode: '500' } },
   {
     path: 'app',
     component: LayoutComponent,
     canActivate: [AuthGuard],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+
       {
         path: 'dashboard',
         loadChildren: () =>
@@ -24,6 +35,7 @@ const routes: Routes = [
             (m) => m.DashboardModule,
           ),
       },
+
       // Admin only
       {
         path: 'usuarios',
@@ -32,7 +44,7 @@ const routes: Routes = [
             (m) => m.UsuariosModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA] },
       },
       {
         path: 'configuracion',
@@ -41,7 +53,7 @@ const routes: Routes = [
             (m) => m.ConfiguracionModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA] },
       },
       // Coordinador + Admin
       {
@@ -51,14 +63,14 @@ const routes: Routes = [
             (m) => m.DocentesModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       },
       {
         path: 'cursos',
         loadChildren: () =>
           import('./modules/cursos/cursos.module').then((m) => m.CursosModule),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       },
       {
         path: 'ambientes',
@@ -67,7 +79,7 @@ const routes: Routes = [
             (m) => m.AmbientesModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       },
       {
         path: 'plan-estudios',
@@ -76,7 +88,16 @@ const routes: Routes = [
             (m) => m.PlanEstudiosModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+      },
+      {
+        path: 'oferta-academica',
+        loadChildren: () =>
+          import('./modules/oferta-academica/oferta-academica.module').then(
+            (m) => m.OfertaAcademicaModule,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
       },
       {
         path: 'asignacion-lectiva',
@@ -85,7 +106,7 @@ const routes: Routes = [
             (m) => m.AsignacionLectivaModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico', 'secretaria'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
       },
       {
             path: 'periodos',
@@ -94,7 +115,7 @@ const routes: Routes = [
                 (m) => m.PeriodosModule,
               ),
             canActivate: [RolesGuard],
-            data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+            data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
           },
       {
         path: 'parametros-carga',
@@ -103,7 +124,7 @@ const routes: Routes = [
             (m) => m.ParametrosCargaModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA] },
       },
       {
         path: 'campaigns',
@@ -112,11 +133,11 @@ const routes: Routes = [
                 (m) => m.CampaignsModule,
               ),
             canActivate: [RolesGuard],
-            data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+            data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
           },
       // Secretaria
       {
-        path: 'secretaria',
+        path: ROLES.SECRETARIA,
         loadChildren: () =>
           import('./modules/operador/operador.module').then(
             (m) => m.OperadorModule,
@@ -124,9 +145,9 @@ const routes: Routes = [
         canActivate: [RolesGuard],
         data: {
           roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'secretaria',
+            ROLES.ADMINISTRADOR_SISTEMA,
+            ROLES.COORDINADOR_ACADEMICO,
+            ROLES.SECRETARIA,
           ],
         },
       },
@@ -139,29 +160,12 @@ const routes: Routes = [
         canActivate: [RolesGuard],
         data: {
           roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
+            ROLES.ADMINISTRADOR_SISTEMA,
+            ROLES.COORDINADOR_ACADEMICO,
+            ROLES.DIRECTOR_ESCUELA,
+            ROLES.SECRETARIA,
           ],
         },
-      },
-      {
-        path: 'notificaciones',
-        loadChildren: () =>
-          import('./modules/notificaciones/notificaciones.module').then(
-            (m) => m.NotificacionesModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: ['docente', 'administradorsistema'] },
-      },
-      {
-        path: 'curso-ambientes',
-        loadChildren: () =>
-          import('./modules/curso-ambientes-config/curso-ambientes-config.module').then(
-            (m) => m.CursoAmbientesConfigModule,
-          ),
-        canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
       },
       {
         path: 'disponibilidad',
@@ -170,7 +174,7 @@ const routes: Routes = [
             (m) => m.DisponibilidadModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico', 'docente'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE] },
       },
       {
         path: 'declaraciones',
@@ -181,15 +185,29 @@ const routes: Routes = [
         canActivate: [RolesGuard],
         data: {
           roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'operadorhorarios',
-            'docente',
-            'decano',
-            'directordepartamento',
-            'directorescuela',
+            ROLES.ADMINISTRADOR_SISTEMA,
+            ROLES.COORDINADOR_ACADEMICO,
+            ROLES.OPERADOR_HORARIOS,
+            ROLES.DOCENTE,
+            ROLES.DECANO,
+            ROLES.DIRECTOR_DEPARTAMENTO,
+            ROLES.DIRECTOR_ESCUELA,
           ],
         },
+      },
+      {
+        path: 'clad',
+        loadChildren: () =>
+          import('./modules/clad/clad.module').then(
+            (m) => m.CladModule,
+          ),
+      },
+      {
+        path: 'perfil',
+        loadComponent: () =>
+          import('./modules/perfil/perfil.component').then(
+            (m) => m.PerfilComponent,
+          ),
       },
       {
         path: 'docente-facultad',
@@ -198,7 +216,7 @@ const routes: Routes = [
             (m) => m.DocenteFacultadModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['administradorsistema', 'coordinadoracademico'] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       },
       {
         path: 'documentaciones',
@@ -207,7 +225,7 @@ const routes: Routes = [
             (m) => m.DocumentacionesModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['directorescuela', 'directordepartamento'] },
+        data: { roles: [ROLES.DIRECTOR_ESCUELA, ROLES.DIRECTOR_DEPARTAMENTO] },
       },
       {
         path: 'facultades',
@@ -218,9 +236,9 @@ const routes: Routes = [
         canActivate: [RolesGuard],
         data: {
           roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
+            ROLES.ADMINISTRADOR_SISTEMA,
+            ROLES.COORDINADOR_ACADEMICO,
+            ROLES.DIRECTOR_ESCUELA,
           ],
         },
       },
@@ -234,9 +252,25 @@ const routes: Routes = [
         canActivate: [RolesGuard],
         data: {
           roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
+            ROLES.ADMINISTRADOR_SISTEMA,
+            ROLES.COORDINADOR_ACADEMICO,
+            ROLES.DIRECTOR_ESCUELA,
+          ],
+        },
+      },
+      {
+        path: 'auditoria',
+        loadChildren: () =>
+          import('./modules/auditoria/auditoria.module').then(
+            (m) => m.AuditoriaModule,
+          ),
+        canActivate: [RolesGuard],
+        data: {
+          roles: [
+            ROLES.ADMINISTRADOR_SISTEMA,
+            ROLES.COORDINADOR_ACADEMICO,
+            ROLES.DIRECTOR_DEPARTAMENTO,
+            ROLES.DIRECTOR_ESCUELA,
           ],
         },
       },
@@ -249,9 +283,9 @@ const routes: Routes = [
         canActivate: [RolesGuard],
         data: {
           roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
+            ROLES.ADMINISTRADOR_SISTEMA,
+            ROLES.COORDINADOR_ACADEMICO,
+            ROLES.DIRECTOR_ESCUELA,
           ],
         },
       },
@@ -264,9 +298,9 @@ const routes: Routes = [
         canActivate: [RolesGuard],
         data: {
           roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
+            ROLES.ADMINISTRADOR_SISTEMA,
+            ROLES.COORDINADOR_ACADEMICO,
+            ROLES.DIRECTOR_ESCUELA,
           ],
         },
       },
@@ -278,7 +312,16 @@ const routes: Routes = [
             (m) => m.DocenteHorarioModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['docente', 'administradorsistema'] },
+        data: { roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA] },
+      },
+      {
+        path: 'mis-ventanas',
+        loadComponent: () =>
+          import('./modules/operador/mis-ventanas/mis-ventanas.component').then(
+            (m) => m.MisVentanasComponent,
+          ),
+        canActivate: [RolesGuard],
+        data: { roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA] },
       },
       {
         path: 'notificaciones',
@@ -287,7 +330,7 @@ const routes: Routes = [
             (m) => m.NotificacionesModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: ['docente', 'administradorsistema'] },
+        data: { roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA] },
       },
       { path: '**', component: NotFoundComponent },
     ],

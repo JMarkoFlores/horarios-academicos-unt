@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
@@ -54,6 +54,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
 
   // Tab 4 — Gestión
   generando = false;
+  publicando = false;
   limpiando = false;
   resultadoGeneracion: any = null;
   debugResult: any = null;
@@ -118,6 +119,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
   celdasOriginales: HorarioAsignado[] = [];
   celdasParaAgregar: HorarioAsignado[] = [];
   celdasParaEliminar: HorarioAsignado[] = [];
+  guardandoCambios = false;
 
   constructor(
     private api: ApiService,
@@ -152,6 +154,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
       next: (r: any) => {
         this.todosDocentes = r?.data?.items ?? r?.data ?? [];
       },
+      error: () => { this.notif.error('Error al cargar docentes'); },
     });
 
     this.api
@@ -160,6 +163,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         next: (r: any) => {
           this.todosAmbientes = r?.data?.items ?? r?.data ?? [];
         },
+        error: () => { this.notif.error('Error al cargar ambientes'); },
       });
 
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
@@ -290,20 +294,82 @@ export class HorariosComponent implements OnInit, OnDestroy {
   }
 
   guardarCambios(): void {
-    // Lógica para enviar al backend:
-    // - this.asignacionEnEdicion (para el ID y los datos principales)
-    // - this.celdasParaAgregar (nuevas celdas a crear)
-    // - this.celdasParaEliminar (celdas a eliminar)
-    console.log('Guardando cambios:', {
-      asignacion: this.asignacionEnEdicion,
-      agregar: this.celdasParaAgregar,
-      eliminar: this.celdasParaEliminar,
-    });
+    if (!this.asignacionEnEdicion?.asignacionId && this.celdasParaAgregar.length === 0) {
+      this.notif.info('No hay cambios para guardar');
+      return;
+    }
 
-    // Aquí iría la llamada a la API
+    this.guardandoCambios = true;
 
-    // Al finalizar, salir del modo edición
-    this.cancelarEdicion();
+    if (this.asignacionEnEdicion?.asignacionId) {
+      const payload: any = {};
+
+      if (this.celdasParaAgregar.length > 0) {
+        payload.celdasParaAgregar = this.celdasParaAgregar.map(c => ({
+          dia_semana: c.dia_semana ?? c.dia,
+          hora_inicio: c.hora_inicio,
+          hora_fin: c.hora_fin,
+        }));
+      }
+
+      if (this.celdasParaEliminar.length > 0) {
+        payload.celdasParaEliminar = this.celdasParaEliminar.map(c => c.id);
+      }
+
+      this.api
+        .patch<ApiResponse<any>>(
+          `/horarios/${this.asignacionEnEdicion.asignacionId}/actualizar`,
+          payload,
+        )
+        .subscribe({
+          next: () => {
+            this.guardandoCambios = false;
+            this.notif.success('Cambios guardados correctamente');
+            this.cancelarEdicion();
+            if (this.docenteSeleccionado) {
+              this.selectDocente(this.docenteSeleccionado);
+            }
+          },
+          error: (err) => {
+            this.guardandoCambios = false;
+            this.notif.error(err?.error?.message ?? 'Error al guardar cambios');
+          },
+        });
+    } else if (this.celdasParaAgregar.length > 0) {
+      const observables = this.celdasParaAgregar.map(celda =>
+        this.api.post<ApiResponse<any>>('/horarios/asignar', {
+          docente_id: celda.docente?.id ?? this.docenteSeleccionado?.id,
+          curso_id: celda.curso?.id,
+          ambiente_id: celda.ambiente?.id,
+          dia_semana: celda.dia_semana ?? celda.dia,
+          hora_inicio: celda.hora_inicio,
+          hora_fin: celda.hora_fin,
+          tipo_clase: celda.tipo_clase ?? 'TEORIA',
+          periodo_academico: this.periodoService.periodo,
+        })
+      );
+
+      if (observables.length === 0) {
+        this.guardandoCambios = false;
+        this.cancelarEdicion();
+        return;
+      }
+
+      forkJoin(observables).subscribe({
+        next: () => {
+          this.guardandoCambios = false;
+          this.notif.success('Asignaciones creadas correctamente');
+          this.cancelarEdicion();
+          if (this.docenteSeleccionado) {
+            this.selectDocente(this.docenteSeleccionado);
+          }
+        },
+        error: (err) => {
+          this.guardandoCambios = false;
+          this.notif.error(err?.error?.message ?? 'Error al guardar asignaciones');
+        },
+      });
+    }
   }
 
   cancelarEdicion(): void {
@@ -737,6 +803,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingDocente = false;
+          this.notif.error('Error al cargar horario del docente');
         },
       });
   }
@@ -757,6 +824,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingAmbiente = false;
+          this.notif.error('Error al cargar horario del ambiente');
         },
       });
   }
@@ -780,6 +848,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingCiclo = false;
+          this.notif.error('Error al cargar horarios del ciclo');
         },
       });
   }
@@ -798,7 +867,10 @@ export class HorariosComponent implements OnInit, OnDestroy {
           this.aplicarFiltrosDia();
           this.loadingDia = false;
         },
-        error: () => (this.loadingDia = false),
+        error: () => {
+          this.loadingDia = false;
+          this.notif.error('Error al cargar horarios del día');
+        },
       });
   }
 
@@ -933,6 +1005,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.loadingConflictos = false;
+          this.notif.error('Error al cargar conflictos');
         },
       });
   }
@@ -965,18 +1038,42 @@ export class HorariosComponent implements OnInit, OnDestroy {
       return;
 
     this.generando = true;
+    this.resultadoGeneracion = null;
     this.api
       .post<any>('/horarios/generar', { periodo: this.periodoService.periodo })
       .subscribe({
         next: (r) => {
           this.generando = false;
           this.resultadoGeneracion = r.data;
-          this.notif.success('Horario generado exitosamente');
+          this.notif.success(`Horario generado: ${r.data.horariosGenerados} asignaciones para ${r.data.docentesAtendidos} docentes`);
           this.loadConflictos();
         },
-        error: () => {
+        error: (err) => {
           this.generando = false;
-          this.notif.error('Error al generar horario');
+          this.notif.error(err?.error?.message ?? 'Error al generar horario');
+        },
+      });
+  }
+
+  publicarHorariosAutoGenerados(): void {
+    if (!confirm('¿Publicar los horarios auto-generados (estado BORRADOR → PUBLICADO)?'))
+      return;
+
+    this.publicando = true;
+    this.api
+      .post<any>('/horarios/publicar-auto-generados', { periodo: this.periodoService.periodo })
+      .subscribe({
+        next: (r) => {
+          this.publicando = false;
+          this.notif.success(`${r.data.publicados} horarios publicados`);
+          if (this.resultadoGeneracion) {
+            this.resultadoGeneracion.horariosGenerados = 0; // Se actualizará al recargar
+          }
+          this.loadConflictos();
+        },
+        error: (err) => {
+          this.publicando = false;
+          this.notif.error(err?.error?.message ?? 'Error al publicar horarios');
         },
       });
   }

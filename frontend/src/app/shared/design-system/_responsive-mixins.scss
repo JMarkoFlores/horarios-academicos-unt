@@ -1,0 +1,331 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// RESPONSIVE MIXINS · _responsive-mixins.scss
+// Media query mixins and responsive utilities using design system breakpoints.
+// Import with: @use 'src/app/shared/design-system/responsive-mixins' as resp;
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'variables' as ds;
+
+// ── BREAKPOINT MEDIA QUERIES ─────────────────────────────────────────────
+@mixin mobile {
+    @media (max-width: calc(#{ds.$bp-sm} - 1px)) {
+        @content;
+    }
+}
+
+@mixin tablet {
+    @media (min-width: #{ds.$bp-sm}) and (max-width: calc(#{ds.$bp-md} - 1px)) {
+        @content;
+    }
+}
+
+@mixin tablet-landscape {
+    @media (min-width: #{ds.$bp-md}) and (max-width: calc(#{ds.$bp-lg} - 1px)) {
+        @content;
+    }
+}
+
+@mixin desktop {
+    @media (min-width: #{ds.$bp-lg}) {
+        @content;
+    }
+}
+
+@mixin large-desktop {
+    @media (min-width: #{ds.$bp-xl}) {
+        @content;
+    }
+}
+
+@mixin very-large-desktop {
+    @media (min-width: #{ds.$bp-2xl}) {
+        @content;
+    }
+}
+
+// ── MOBILE-FIRST BREAKPOINTS ─────────────────────────────────────────────
+@mixin from-sm {
+    @media (min-width: #{ds.$bp-sm}) {
+        @content;
+    }
+}
+
+@mixin from-md {
+    @media (min-width: #{ds.$bp-md}) {
+        @content;
+    }
+}
+
+@mixin from-lg {
+    @media (min-width: #{ds.$bp-lg}) {
+        @content;
+    }
+}
+
+@mixin from-xl {
+    @media (min-width: #{ds.$bp-xl}) {
+        @content;
+    }
+}
+
+@mixin from-2xl {
+    @media (min-width: #{ds.$bp-2xl}) {
+        @content;
+    }
+}
+
+// ── TOUCH DEVICES ──────────────────────────────────────────────────────────
+@mixin touch-device {
+    @media (hover: none) and (pointer: coarse) {
+        @content;
+    }
+}
+
+@mixin mouse-device {
+    @media (hover: hover) and (pointer: fine) {
+        @content;
+    }
+}
+
+// ── SCREEN ORIENTATION ─────────────────────────────────────────────────────
+@mixin landscape {
+    @media (orientation: landscape) {
+        @content;
+    }
+}
+
+@mixin portrait {
+    @media (orientation: portrait) {
+        @content;
+    }
+}
+
+// ── HIGH DPI / RETINA ──────────────────────────────────────────────────────
+@mixin high-dpi {
+
+    @media (-webkit-min-device-pixel-ratio: 2),
+    (min-resolution: 192dpi) {
+        @content;
+    }
+}
+
+// ── ACCESSIBILITY: PREFERS REDUCED MOTION ────────────────────────────────
+@mixin reduced-motion {
+    @media (prefers-reduced-motion: reduce) {
+        @content;
+    }
+}
+
+@mixin allow-motion {
+
+    @media (prefers-color-scheme: light),
+    (prefers-color-scheme: dark) {
+        @content;
+    }
+}
+
+// ── DARK MODE QUERY ────────────────────────────────────────────────────────
+@mixin prefer-dark-mode {
+    @media (prefers-color-scheme: dark) {
+        @content;
+    }
+}
+
+@mixin prefer-light-mode {
+    @media (prefers-color-scheme: light) {
+        @content;
+    }
+}
+
+// ── RESPONSIVE GRID TEMPLATES ────────────────────────────────────────────
+@mixin responsive-grid-2-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+
+    @include mobile {
+        grid-template-columns: 1fr;
+    }
+}
+
+@mixin responsive-grid-3-col {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-5);
+
+    @include tablet-landscape {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    @include mobile {
+        grid-template-columns: 1fr;
+    }
+}
+
+@mixin responsive-grid-4-col {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-5);
+
+    @include tablet-landscape {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    @include mobile {
+        grid-template-columns: 1fr;
+    }
+}
+
+// ── RESPONSIVE PADDING ──────────────────────────────────────────────────
+@mixin responsive-padding($desktop: var(--space-8), $tablet: var(--space-6), $mobile: var(--space-4)) {
+    padding: $desktop;
+
+    @include from-md {
+        padding: $tablet;
+    }
+
+    @include mobile {
+        padding: $mobile;
+    }
+}
+
+// ── RESPONSIVE FONT SIZE ──────────────────────────────────────────────────
+@mixin responsive-font-size($desktop: 1.25rem, $tablet: 1.125rem, $mobile: 1rem) {
+    font-size: $desktop;
+    line-height: 1.5;
+
+    @include from-md {
+        font-size: $tablet;
+    }
+
+    @include mobile {
+        font-size: $mobile;
+    }
+}
+
+// ── CONTAINER QUERIES (for future use) ────────────────────────────────────
+@mixin container-xs {
+    @supports (container-type: inline-size) {
+        container-type: inline-size;
+    }
+}
+
+@mixin container-sm {
+    @supports (container-type: inline-size) {
+        @container (max-width: 480px) {
+            @content;
+        }
+    }
+}
+
+// ── ASPECT RATIO ────────────────────────────────────────────────────────
+@mixin aspect-ratio($w, $h) {
+    position: relative;
+
+    &::before {
+        content: '';
+        display: block;
+        padding-bottom: calc($h / $w * 100%);
+    }
+
+    >* {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+}
+
+// ── TOUCH TARGET (minimum 44px for accessibility) ────────────────────────
+@mixin touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+// ── RESPONSIVE TYPOGRAPHY PATTERN ──────────────────────────────────────
+@mixin responsive-heading-1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+
+    @include from-md {
+        font-size: 1.875rem;
+    }
+
+    @include mobile {
+        font-size: 1.5rem;
+    }
+}
+
+@mixin responsive-heading-2 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+
+    @include from-md {
+        font-size: 1.5rem;
+    }
+
+    @include mobile {
+        font-size: 1.25rem;
+    }
+}
+
+// ── FLEXBOX UTILITIES ──────────────────────────────────────────────────────
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+@mixin flex-column {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+// ── TRUNCATION ────────────────────────────────────────────────────────────
+@mixin text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@mixin text-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+@mixin text-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+// ── SCROLLBAR HIDE ────────────────────────────────────────────────────────
+@mixin hide-scrollbar {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+
+    &::-webkit-scrollbar {
+        display: none;
+        /* Chrome, Safari and Opera */
+    }
+}

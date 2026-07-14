@@ -13,15 +13,29 @@ import {
   Matches,
 } from "class-validator";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
+import { TipoContrato } from "../../common/enums/tipo-contrato.enum";
 import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
 
 export class CreateDocenteDto {
-  @ApiProperty({ example: "DOC001" })
+  @ApiProperty({
+    example: "DOC001",
+    description: "Código único del docente. Se autogenera si se envía vacío",
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: "El código no puede estar vacío" })
   @MaxLength(20)
-  codigo: string;
+  codigo?: string;
+
+  @ApiProperty({
+    example: "12345678",
+    description: "DNI del docente (8 dígitos)",
+  })
+  @IsString()
+  @IsNotEmpty({ message: "El DNI es obligatorio" })
+  @Matches(/^\d{8}$/, { message: "El DNI debe tener exactamente 8 dígitos" })
+  @MaxLength(15)
+  dni: string;
 
   @ApiProperty({
     example: 4247,
@@ -45,8 +59,11 @@ export class CreateDocenteDto {
   @MaxLength(150)
   apellidos: string;
 
-  @ApiProperty({ example: "jperez@unitru.edu.pe" })
+  @ApiProperty({ example: "jperez@unt.edu.pe" })
   @IsEmail({}, { message: "Email inválido" })
+  @Matches(/@unt\.edu\.pe$/, {
+    message: "El email debe ser del dominio @unt.edu.pe",
+  })
   @IsNotEmpty({ message: "El email no puede estar vacío" })
   @MaxLength(150)
   email: string;
@@ -54,7 +71,9 @@ export class CreateDocenteDto {
   @ApiPropertyOptional({ example: "944123456" })
   @IsOptional()
   @IsString()
-  @Matches(/^\+?[\d\s\-]{7,20}$/, { message: "Formato de teléfono inválido" })
+  @Matches(/^\d{9}$/, {
+    message: "El teléfono debe tener exactamente 9 dígitos",
+  })
   telefono?: string;
 
   @ApiProperty({ enum: TipoDocente, example: TipoDocente.ORDINARIO })
@@ -71,6 +90,16 @@ export class CreateDocenteDto {
   })
   @IsEnum(ModalidadDocente, { message: "Modalidad inválida" })
   modalidad: ModalidadDocente;
+
+  @ApiPropertyOptional({
+    enum: TipoContrato,
+    example: TipoContrato.NOMBRADO,
+    description:
+      "Se deriva automáticamente del tipo_docente (ORDINARIO=NOMBRADO, otros=CONTRATADO)",
+  })
+  @IsOptional()
+  @IsEnum(TipoContrato, { message: "Tipo de contrato inválido" })
+  tipo_contrato?: TipoContrato;
 
   @ApiProperty({ example: "2000-03-01" })
   @IsDateString({}, { message: "Fecha de ingreso inválida (YYYY-MM-DD)" })

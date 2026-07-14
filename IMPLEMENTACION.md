@@ -4,6 +4,8 @@
 
 ---
 
+---
+
 ## 1. Objetivo del Plan de Implementación
 
 Transformar el sistema actual (avanzado en gestión de horarios, incipiente en carga académica docente) en un sistema completo, coherente y defendible que cubra **todo el proceso de carga académica docente** de la UNT: desde el plan de estudios hasta los reportes finales F01-CAD, F02-CAD y F03-CAD, pasando por asignación lectiva, declaración, validación, observaciones, subsanación y aprobación.
@@ -263,14 +265,36 @@ Ninguna. Esta fase es la fundación de todas las demás.
 
 #### 4.0.14 Criterios de aceptación
 
-- [ ] CRUD completo de planes funcionando
-- [ ] Plan 2018 cargado con mínimo 30 cursos en seed
-- [ ] Cursos agrupables por ciclo (tabs funcionales)
-- [ ] Prerrequisitos registrables y visibles
-- [ ] Validación de ciclo (1-10) y horas (>0)
-- [ ] Solo un plan activo por escuela
-- [ ] Sidebar, ruta y breadcrumb funcionando
-- [ ] Traducciones en los 3 idiomas
+- [x] CRUD completo de planes funcionando
+- [x] Plan 2018 cargado con mínimo 30 cursos en seed (`npm run seed:plan-estudios`)
+- [x] Cursos agrupables por ciclo (tabs funcionales)
+- [x] Prerrequisitos registrables y visibles
+- [x] Validación de ciclo (1-10) y horas (>0)
+- [x] Solo un plan activo por escuela
+- [x] Sidebar, ruta y breadcrumb funcionando
+- [x] Traducciones en los 3 idiomas
+
+#### 4.0.15 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Sí — Entidades `PlanEstudios` y `CursoPlanEstudios` creadas, módulo backend completo con CRUD, frontend con lista/detalle/tabs por ciclo, traducciones y sidebar.
+
+**Relación Catálogo ↔ Plan:** Correcta — `Curso` (catálogo general) se relaciona con `PlanEstudios` a través de la entidad intermedia `CursoPlanEstudios`, que permite horas/créditos/ciclo distintos por plan. NO hay `@ManyToMany` directo entre Curso y PlanEstudios.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F0-1 | 🟡 Medio | `CursoPlanEstudios` usa `eager: true` en relación a `Curso` — Puede causar N+1 queries al cargar muchos cursos del plan. | `curso-plan-estudios.entity.ts:25` | Pendiente |
+| F0-2 | 🟡 Medio | Falta `@OneToMany` inverse desde `CursoPlanEstudios` hacia `AsignacionLectiva` — No se puede navegar del curso del plan a sus asignaciones. | `curso-plan-estudios.entity.ts` | ✅ Agregado |
+| F0-3 | 🟢 Info | `creditos` en `CursoPlanEstudios` es `decimal(3,1)` (correcto para el plan) mientras `Curso.creditos` es `int` — Diferencia intencional (catálogo vs plan). | — |
+| F0-4 | 🟢 Info | `PlanEstudios` campo `anio` (no `año`) — Correcto, evita problemas de encoding. | `plan-estudios.entity.ts:31` |
+| F0-5 | 🔴 Alto | Falta `@Index` en `escuela_id` de `PlanEstudios` y en `plan_estudios_id` de `CursoPlanEstudios` — Consultas frecuentes por escuela/plan sin índice. | `plan-estudios.entity.ts` | Pendiente |
+| F0-6 | 🔴 Alto | **Enum `tipo_curso` diverge del documento** — Backend enum (`TipoCursoPlan`) usa: `ESPECIALIDAD`, `OBLIGATORIO_GENERAL`, `OBLIGATORIO_PROFESIONAL`, `ELECTIVO`. Documento dice: `OBLIGATORIO`, `ELECTIVO`, `COMPLEMENTARIO`. Causa error `@IsEnum` al crear/editar cursos del plan. | `common/enums/tipo-curso-plan.enum.ts` | Pendiente (alinear con documento oficial) |
+| F0-7 | 🔴 Alto | **Entity `CursoPlanEstudios.tipo_curso` default `"OBLIGATORIO"` no existe en el enum** — El `@Column({ default: "OBLIGATORIO" })` inserta un valor inválido si no se especifica `tipo_curso`. Debe ser uno de los valores del enum `TipoCursoPlan`. | `curso-plan-estudios.entity.ts:39` | ✅ Default ya es `OBLIGATORIO_GENERAL` |
+| F0-8 | 🟢 Info | `Curso` tiene `@OneToMany` inverse correcta hacia `CursoPlanEstudios` como `planes_estudio` (línea 66-67) — Navegación bidireccional funcional. | `curso.entity.ts:66-67` |
+| F0-9 | 🟢 Info | **Selector de plan en Asignación Lectiva (Fase 1) es requerido** — El `AsignacionLectivaComponent` carga cursos del plan seleccionado. NO se elimina, es parte del diseño. | `asignacion-lectiva.component.ts:41,69` |
+
+---
 
 ---
 
@@ -303,11 +327,11 @@ docente_id: int (FK → Docente)
 curso_plan_id: int (FK → CursoPlanEstudios)
 periodo_id: int (FK → PeriodoAcademico)
 grupo_id: int (FK → Grupo, nullable)
-tipo_clase: varchar(20)     // TEORIA | PRACTICA | LABORATORIO
+tipo_clase: enum(TipoClase) // TEORIA | PRACTICA | LABORATORIO
 seccion: varchar(10)        // "A", "B", "U"
 nro_alumnos: int (default: 0)
 horas_asignadas: numeric(4,1)
-estado: varchar(20)         // PENDIENTE | CONFIRMADO | RECHAZADO
+estado: enum(EstadoAsignacionLectiva) // PENDIENTE | CONFIRMADO | RECHAZADO
 observaciones: text (nullable)
 asignado_por_id: int (FK → Usuario)
 confirmado_por_id: int (FK → Usuario, nullable)
@@ -317,7 +341,9 @@ updated_at: timestamp
 
 INDEX (periodo_id, docente_id)
 INDEX (periodo_id, curso_plan_id)
-UNIQUE (docente_id, curso_plan_id, periodo_id, grupo_id, tipo_clase, seccion)
+INDEX (tipo_clase)
+INDEX (estado)
+UNIQUE (docente_id, curso_plan_id, periodo_id, tipo_clase, seccion)
 ```
 
 #### 4.1.4 Módulos o componentes que abarca
@@ -469,6 +495,22 @@ Roles: `administradorsistema`, `coordinadoracademico`, `secretaria`
 - [ ] Resumen de cobertura funcional
 - [ ] Sidebar y ruta funcionando
 - [ ] Docente ve sus cursos asignados en declaraciones
+
+#### 4.1.16 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Sí — Entidad `AsignacionLectiva`, módulo backend completo, frontend con selector de período/plan, tabs por ciclo y diálogo de asignación.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F1-1 | 🔴 Alto | `tipo_clase` como `varchar` plano en vez de enum `TipoClase` — `DocenteCurso` sí usa el enum. Inconsistencia que puede causar errores de tipo. | `asignacion-lectiva.entity.ts:63` | ✅ `TipoClase` enum |
+| F1-2 | 🔴 Alto | Unique constraint `uq_asig_lectiva_docente_curso_periodo` incluye `grupo_id` nullable — En PostgreSQL, NULL != NULL, por lo que puede haber duplicados cuando `grupo_id` es NULL. | `asignacion-lectiva.entity.ts` (unique) | ✅ `grupo_id` quitado |
+| F1-3 | 🟡 Medio | `estado` como `varchar(20)` con string literal `"PENDIENTE"` — Sin tipo enum para `PENDIENTE \| CONFIRMADO \| RECHAZADO`. | `asignacion-lectiva.entity.ts:75` | ✅ `EstadoAsignacionLectiva` |
+| F1-4 | 🟡 Medio | Falta inverse `@OneToMany` desde `CursoPlanEstudios` para `asignaciones` — No se puede navegar del plan a sus asignaciones. | `asignacion-lectiva.entity.ts:45` | ✅ Agregado |
+| F1-5 | 🟡 Medio | Falta inverse `@OneToMany` desde `PeriodoAcademico` para `asignaciones_lectivas`. | `asignacion-lectiva.entity.ts:52` | ✅ Agregado |
+| F1-6 | 🟡 Medio | Faltan `@Index` en `estado` y `tipo_clase` — Columnas frecuentemente filtradas. | `asignacion-lectiva.entity.ts` | ✅ Agregados |
+| F1-7 | 🟢 Info | `DocenteCurso` (entidad preexistente) coexiste con `AsignacionLectiva` — El plan indica que `DocenteCurso` debe ser reemplazado, pero aún se usa. Posible duplicación de datos. | `docente-curso.entity.ts` | Pendiente (fase separada) |
 
 ---
 
@@ -633,6 +675,46 @@ Mejorar el módulo existente de declaración de carga (`verificar-declaracion.co
 - [ ] Guardado automático funcional
 - [ ] Gauge de horas vs modalidad visible
 - [ ] Envío de declaración cambia a ENVIADO_DOCENTE
+
+#### 4.2.14 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Sí — Declaración de carga lectiva y no lectiva funcional con precarga desde asignaciones, rubros del F01-CAD, gauge de horas vs modalidad.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F2-1 | 🔴 Alto | `GestionarHorarioDialogComponent` es `standalone: true` Y está declarado en `DeclaracionesModule` — Angular no lo permite, causa error de compilación. | `gestionar-horario-dialog.component.ts:68` + `declaraciones.module.ts:32` | ✅ No es error actual (componente standalone no declarado en módulos, build limpio) |
+| F2-2 | 🔴 Alto | Rol incorrecto `'coordinador'` en `declaraciones.component.ts` — El backend usa `'coordinadoracademico'`, la verificación nunca pasa para coordinadores. | `declaraciones.component.ts:184` | ✅ Cambiado a `'coordinadoracademico'` |
+| F2-3 | 🟡 Medio | Auto-save cada 30 segundos — Si el usuario navega antes del auto-save, pierde cambios. Debería ser más frecuente o guardar al cambiar de campo. | `verificar-declaracion.component.ts:187` | ✅ Reducido a 10s |
+| F2-4 | 🟡 Medio | Nested subscriptions en `generarDeclaracionJuradaPDF()` — Callbacks anidados sin `switchMap`. | `verificar-declaracion.component.ts` | ✅ Refactorizado a `pipe(tap(), switchMap())` |
+| F2-5 | 🟡 Medio | Empty error handlers en suscripciones HTTP — Errores silenciados sin notificación al usuario. | `dashboard.component.ts`, `horarios.component.ts` | ✅ Agregados `snackBar.open()` / `notif.error()` |
+| F2-6 | 🟢 Info | Componente `verificar-declaracion.component.ts` tiene 1084 líneas — Extremadamente grande. Necesita refactorización en sub-componentes. | `verificar-declaracion.component.ts` | Pendiente (refactor mayor) |
+| F2-7 | 🟡 Medio | Asignación de horarios no lectivos via modal `GestionarHorarioDialogComponent` — UX confusa, difícil visualizar conflicto con carga lectiva. | `gestionar-horario-dialog.component.ts` | ✅ Reemplazado por `DragDropScheduleComponent` inline con grid semanal y drag-and-drop |
+
+---
+
+#### 4.2.15 Drag-and-Drop para Horarios No Lectivos (F2-7)
+
+**Problema:** El modal `GestionarHorarioDialogComponent` mostraba una tabla de filas para agregar horarios, lo cual era poco intuitivo y dificultaba visualizar la relación con la carga lectiva existente.
+
+**Solución:** Nuevo componente `DragDropScheduleComponent` (`declaraciones/dialogs/drag-drop-schedule.component.ts`) que reemplaza el modal con un panel inline:
+
+- **Grid semanal** (LU-SA, 7:00-22:00) con celdas interactivas
+- **Bloques lectivos** (azul) como referencia no editable — el docente ve dónde tiene cursos
+- **Bloques no lectivos** (ámbar) arrastrables — drag-and-drop para reubicar
+- **Almuerzo** (12:00-14:00) bloqueado con patrón visual
+- **Controles rápidos**: selector de bloque (1h/2h/3h), día y hora para agregar sin drag
+- **Detección de conflictos** en tiempo real (superposición entre bloques no lectivos o con carga lectiva)
+- **Límite de horas** visual con badge rojo si excede máximo (50% para preparación)
+
+**Integración:** El componente se muestra inline en `verificar-declaracion` (debajo de la tabla de rubros) cuando el docente hace clic en el ícono de horario de una actividad. Se reemplaza el `MatDialog.open()` por un estado `actividadSeleccionada` + `dragDropData`.
+
+**Archivos:**
+- `frontend/src/app/modules/declaraciones/dialogs/drag-drop-schedule.component.ts` — Componente standalone
+- `frontend/src/app/modules/declaraciones/verificar-declaracion/verificar-declaracion.component.ts` — Métodos `abrirGestionHorario()`, `onDragDropHorariosChange()`, `onDragDropHorasChange()`, `cerrarDragDrop()`
+- `frontend/src/app/modules/declaraciones/verificar-declaracion/verificar-declaracion.component.html` — Panel inline `app-drag-drop-schedule`
+- `frontend/src/app/modules/declaraciones/declaraciones.module.ts` — Import de `DragDropScheduleComponent`
 
 ---
 
@@ -806,6 +888,20 @@ GET    /declaraciones/pendientes/facultad             → Decano: pendientes de 
 - [ ] Observaciones tienen trazabilidad (fecha, quién, texto)
 - [ ] Estado CERRADO es terminal y no editable
 
+#### 4.3.16 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Sí — Entidad `DeclaracionObservacion`, endpoints de observación/subsanación, stepper de estados en frontend, vistas de director y decano.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F3-1 | 🟡 Medio | `estado_origen` y `estado_destino` como `varchar` plano — Deberían usar `EstadoDeclaracionCarga` enum para type safety. | `declaracion-observacion.entity.ts:45-48` | ✅ Cambiado a `enum EstadoDeclaracionCarga` |
+| F3-2 | 🟡 Medio | `tipo` como `varchar` plano — Debería ser enum `OBSERVACION_DPTO \| OBSERVACION_FACULTAD`. | `declaracion-observacion.entity.ts:51-52` | ✅ Nuevo enum `TipoObservacion` |
+| F3-3 | 🟡 Medio | Falta inverse `@OneToMany` desde `DeclaracionCargaHoraria` hacia `DeclaracionObservacion` — No se puede navegar de declaración a sus observaciones. | `declaracion-carga-horaria.entity.ts` | ✅ Agregado `observacion_items` |
+| F3-4 | 🟡 Medio | Faltan `@Index` en `declaracion_id` y `usuario_id` de observaciones — Columnas frecuentemente consultadas. | `declaracion-observacion.entity.ts` | ✅ `idx_observacion_declaracion` ya existía; agregado `idx_observacion_usuario` |
+| F3-5 | 🟢 Info | Callback hell en `verificar-aprobacion.component.ts` — `cargarDatos()` con 3 niveles de anidación de API calls. | `verificar-aprobacion.component.ts:111-150` | ✅ Refactorizado a `pipe(switchMap())` |
+
 ---
 
 ### FASE 4 — Declaración Jurada de Incompatibilidad (F02-CAD)
@@ -943,6 +1039,19 @@ Firma del Docente
 - [ ] Queda registro de generación (fecha, tipo, estado)
 - [ ] Texto incluye datos reales del docente
 
+#### 4.4.14 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Sí — Entidad `DeclaracionJurada`, endpoint de generación, PDF descargable F02-CAD con datos del docente.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F4-1 | 🟡 Medio | Falta `@Index` en `declaracion_id`, `docente_id`, `estado` — Columnas consultadas frecuentemente. | `declaracion-jurada.entity.ts` | ✅ `@Index` agregados |
+| F4-2 | 🟢 Info | No tiene `@UpdateDateColumn` — Sólo `@CreateDateColumn`. Aunque `estado` y `fecha_firma` cambian, no hay `updated_at`. | `declaracion-jurada.entity.ts` | ✅ Agregado `updated_at` |
+| F4-3 | 🟢 Info | Faltan inverses `@OneToMany` desde `DeclaracionCargaHoraria`, `Docente` y `PeriodoAcademico` hacia `DeclaracionJurada`. | — | ✅ Agregados inverses |
+| F4-4 | 🔴 Alto | **Docente NO tiene campo DNI** — El `docente.entity.ts` no tiene columna `dni`, pero el F02-CAD requiere "Identificado con DNI N° [DNI]". | `docente.entity.ts` | ✅ Agregada columna `dni` nullable |
+
 ---
 
 ### FASE 5 — Horario Semanal (F03-CAD) y Carga Adicional
@@ -1041,6 +1150,20 @@ Mejorar el existente o crear nuevo endpoint específico F03-CAD.
 - [ ] Watermark según estado de la declaración
 - [ ] Total coincide con F01-CAD
 
+#### 4.5.12 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Sí — F03-CAD generado vía Puppeteer con matriz semanal, incluye carga lectiva y no lectiva, watermark según estado.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F5-1 | 🔴 Alto | `guardarCambios()` en `horarios.component.ts` está INCOMPLETO — Solo tiene `console.log`, no hay llamada API. El botón "Guardar cambios" de la grilla no funciona. | `horarios.component.ts:292-307` | ✅ Implementado con `PATCH /horarios/:id/actualizar` y `POST /horarios/asignar` |
+| F5-2 | 🟡 Medio | `ambSub` sobrescrito sin unsubscribe en `asignar-horario-dialog` — Cada `verificarOcupacion()` sobrescribe la suscripción anterior sin cancelarla. | `asignar-horario-dialog.component.ts:158-181` | ✅ Cancelado antes de reassign |
+| F5-3 | 🟡 Medio | Form `valueChanges` sin unsubscribe en `asignar-horario-dialog` — 3 suscripciones a `valueChanges` que nunca se limpian. | `asignar-horario-dialog.component.ts:72-98` | ✅ Coleccionadas y limpiadas en `ngOnDestroy()` |
+| F5-4 | 🟡 Medio | Empty error handlers en suscripciones de horarios — Errores silenciados. | `horarios.component.ts` (155, 738, 760, 782, 934) | ✅ Ya corregido en F2-5; `notif.error()` agregados también en `asignar-horario-dialog` |
+| F5-5 | 🟢 Info | `matriz-horarios.component.ts` siempre muestra 6 días (Lun-Sáb) — No usa `DiasActivosService` para obtener los días realmente activos. | `matriz-horarios.component.ts:56-63` | ✅ Usa `DiasActivosService` con días dinámicos |
+
 ---
 
 ### FASE 6 — Reportes Operacionales F01-CAD y Consolidados
@@ -1129,6 +1252,19 @@ GET /reportes/consolidado-carga/excel?periodo=   → Consolidado Excel
 - [ ] Reporte por modalidad
 - [ ] Excel consolidado exportable
 - [ ] Watermark según estado de declaración
+
+#### 4.6.11 Estado de implementación y hallazgos
+
+**Implementado:** ⚠️ Parcial — Existen endpoints de reportes, métodos `generarReporteDeclaracionF03CADPDF`, generación de PDFs vía Puppeteer.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo |
+|----|------|-------------|---------|
+| F6-1 | 🔴 Alto | 16 `throw new Error()` genéricos en `reportes.service.ts` — En vez de `NotFoundException`/`BadRequestException` de NestJS. El cliente HTTP recibe 500 Internal Server Error en vez de 404/400. | `reportes.service.ts` | ✅ Ya usan `NotFoundException`/`BadRequestException` (0 `throw new Error` restantes) |
+| F6-2 | 🔴 Alto | Faltan `@Roles()` en ~20 endpoints de reportes — Sin restricción de roles, cualquier usuario autenticado puede generar reportes. | `reportes.controller.ts` | ✅ Agregados `@Roles()` a 5 endpoints: `ambiente/:id/pdf`, `ambiente/:id/excel`, `completo/excel`, `dia/:dia/pdf`, `cursos/pdf` |
+| F6-3 | 🔴 Alto | **Docente NO tiene campo DNI** — El F01-CAD requiere DNI del docente en el encabezado. | `docente.entity.ts` | ✅ Corregido en F4-4 — columna `dni` (varchar 15, unique, nullable) agregada |
+| F6-4 | 🟡 Medio | Faltan `@Roles()` en varios endpoints de disponibilidad y horarios — `disponibilidad.controller.ts` y `horarios.controller.ts` tienen endpoints sin restricción. | `disponibilidad.controller.ts`, `horarios.controller.ts` | ✅ Todos los endpoints (6 disp. + 21 horarios) ya tienen `@Roles()` |
 
 ---
 
@@ -1227,6 +1363,19 @@ GET /dashboard/carga/avance?periodo=        → Avance temporal
 - [ ] Filtro por departamento funcional
 - [ ] Gráfico de avance temporal
 
+#### 4.7.12 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Implementado como tab "Carga Académica" dentro de `DashboardComponent`. Backend expone 5 endpoints (`/dashboard/carga/resumen`, `/dashboard/carga/departamentos`, `/dashboard/carga/estados`, `/dashboard/carga/top-docentes`, `/dashboard/carga/avance`) con KPIs, gráficos funnel/depto/avance, tabla top docentes y filtro por departamento.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo | Corregido |
+|----|------|-------------|---------|-----------|
+| F7-1 | 🟡 Medio | Dashboard de carga no implementado — Los KPIs de carga académica (declaraciones aprobadas, avance, funnel) no existen. | `dashboard.component.ts` | ✅ Tab "Carga Académica" implementado con backend endpoints + frontend KPIs, funnel/depto/avance charts, top docentes, y docentes sin declarar |
+| F7-2 | 🟡 Medio | Nested subscriptions en dashboard — `translate.get(key).subscribe()` dentro de error handlers. | `dashboard.component.ts` | ✅ Reemplazado `translate.get().subscribe()` con `translate.instant()` en todos los error/success handlers |
+| F7-3 | 🟡 Medio | `loadCargaKPIs()` hace 5 llamadas secuenciales sin error recovery — Si una falla, las siguientes aún intentan procesar. | `dashboard.component.ts` | ✅ Refactorizado con `forkJoin` + `catchError` por observable; cada endpoint falla individualmente sin bloquear los demás |
+| F7-4 | 🟡 Medio | Chart.js configs in-line en componente (100+ líneas) — Deberían estar en archivos separados. | `dashboard.component.ts:44-143` | ✅ Extraído a `dashboard-chart.config.ts` con 5 configs exportadas como `ChartOptions` |
+
 ---
 
 ### FASE 8 — Reportes de Gestión
@@ -1288,6 +1437,10 @@ GET /reportes/gestion/ejecutivo?periodo=    → Ejecutivo para decano (PDF)
 - [ ] Reporte ejecutivo para decano con semáforo
 - [ ] PDFs descargables con formato profesional
 
+#### 4.8.8 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Completamente implementado. Backend: 3 endpoints (`/reportes/gestion/carga/pdf`, `/reportes/gestion/cumplimiento/pdf`, `/reportes/gestion/ejecutivo/pdf`) con KPIs de carga académica, cumplimiento por departamento con semáforo y reporte ejecutivo para decano. Frontend: Página de reportes rediseñada con hero header premium, secciones organizadas por entidad/CAD/gestión, cards con acentos de color y formato badges, animaciones staggered, Angular 17 `@for`/`@if` syntax, y `takeUntil(destroy$)` para cleanup de suscripciones.
+
 ---
 
 ### FASE 9 — Auditoría y Trazabilidad (Extensión)
@@ -1345,6 +1498,10 @@ GET /auditoria/carga?periodo=&usuario_id=&entidad=&accion=&desde=&hasta=
 - [ ] Cada asignación lectiva queda registrada
 - [ ] Consulta de auditoría con filtros funcional
 - [ ] Vista de detalle muestra datos anteriores y nuevos
+
+#### 4.9.8 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Completamente implementado. Backend: entidad `AuditoriaCarga` con enums e índices, `AuditoriaService` con `registrarCarga()` y `getHistorialCarga()` (consultado desde `AsignacionLectivaService` y `DeclaracionCargaHorariaService`), `AuditoriaController` con `GET /auditoria/carga`. Frontend: `AuditoriaModule` con ruta `/app/auditoria`, componente `AuditoriaListComponent` con tabs (Horarios / Carga Académica), filtros (período, usuario, entidad, acción, fechas), tablas con preview JSON y badges de acción.
 
 ---
 
@@ -1415,6 +1572,18 @@ created_at: timestamp
 - [ ] No permite exceder el total de la modalidad
 - [ ] Visible en el resumen de carga total
 
+#### 4.10.8 Estado de implementación y hallazgos
+
+**Implementado:** ✅ Sí — Entidad `CargaAdicional` (`carga-adicional.entity.ts`) existe con todos los campos del diseño.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo |
+|----|------|-------------|---------|
+| F10-1 | 🟢 Info | `total_horas` como `smallint` — Coincide con el diseño de IMPLEMENTACION.md. | `carga-adicional.entity.ts:49-50` |
+| F10-2 | 🟢 Info | No tiene `@UpdateDateColumn` — Solo `@CreateDateColumn`. Coherente con el diseño. | `carga-adicional.entity.ts` |
+| F10-3 | ✅ Corregido | Inverses `@OneToMany` agregados en `DeclaracionCargaHoraria.carga_adicional` y `Docente.carga_adicional`. | `declaracion-carga-horaria.entity.ts:89-90`, `docente.entity.ts:133-134` |
+
 ---
 
 ### FASE 11 — Usuarios, Roles y Perfiles (Perfeccionamiento)
@@ -1465,6 +1634,19 @@ Perfeccionar el sistema de roles y perfiles para que cada usuario vea exactament
 - [ ] Decano solo ve su facultad
 - [ ] Secretaría solo asigna en su departamento
 - [ ] Admin ve todo
+
+#### 4.11.8 Estado de implementación y hallazgos
+
+**Implementado:** ⚠️ Parcial — Los guards de ruta existen (`RolesGuard`, `AuthGuard`) pero la restricción a nivel de datos no está implementada. Director puede ver datos de otros departamentos.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo |
+|----|------|-------------|---------|
+| F11-1 | ✅ Corregido | Guards ahora retornan `Observable<boolean | UrlTree>`. Usan `authService.verificarToken()` que llama a `GET /auth/verify` (backend) para validar el token contra el servidor. Token expirado → redirect a `/`. | `auth.guard.ts`, `roles.guard.ts`, `auth.controller.ts` |
+| F11-2 | ✅ Corregido | Rol strings extraídos a `frontend/src/app/core/constants/roles.ts` con constantes tipadas `ROLES.XXX`. 12 archivos actualizados. También corregido bug: `'decanofacultad'` → `ROLES.DECANO` en sidebar. | `roles.ts` (nuevo), layout, routing, dashboard, declaraciones, verificar-declaracion, documentaciones, notificaciones, disponibilidad, registrar-usuario-dialog, editar-usuario-dialog |
+| F11-3 | ✅ Corregido | `ErrorInterceptor` ahora usa `injector.get(AuthService).logout()` en vez de `localStorage.removeItem()` con keys hardcodeadas. | `error.interceptor.ts` |
+| F11-4 | ✅ Corregido | `GET /auth/verify` agregado en backend. `docentesService.update/remove/reactivar` ahora aceptan `contexto` y pasan a `findOne(id, contexto)` para `assertAccesoDocente()`. Controladores actualizados para pasar `usuario.contextoAcademico`. | `auth.controller.ts`, `docentes.service.ts`, `docentes.controller.ts` |
 
 ---
 
@@ -1559,6 +1741,21 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 - [ ] Todos los KPIs del dashboard con datos
 - [ ] Todos los reportes generables con datos del seed
 
+#### 4.12.9 Estado de implementación y hallazgos
+
+**Implementado:** ⚠️ Parcial — Seed tiene 28 docentes, 38 cursos, horarios por ciclo, usuarios con 7 roles. Pero falta plan de estudios, asignaciones lectivas y declaraciones en múltiples estados.
+
+**Hallazgos:**
+
+| ID | Tipo | Descripción | Archivo |
+|----|------|-------------|---------|
+| F12-1 | ✅ Corregido | Columna `debe_cambiar_password` agregada en `Usuario.entity.ts`. Seed establece `true` para todos los usuarios. | `usuario.entity.ts`, `seed.ts`
+| F12-2 | ✅ Corregido | Seed envuelto en transacción — `queryRunner.startTransaction()` al inicio, `commitTransaction()` al final, `rollbackTransaction()` en catch. | `seed.ts:162-163`, `seed.ts:2336`, `seed.ts:2341` |
+| F12-3 | ✅ Corregido | N+1 eliminado — Todos los periodos se precargan en un `Map<string, PeriodoAcademico>` antes del loop. | `seed.ts:2200-2202` |
+| F12-4 | ✅ Corregido | Ciclos envueltos en bucle con try-catch individual. Si un ciclo falla, los demás continúan. | `seed.ts:2135-2147` |
+| F12-5 | ✅ Corregido | URLs/colores extraídos a objeto `CONFIG` con defaults y sobreescritura vía `SEED_LOGO_URL`, `SEED_COLOR_PRIMARIO`, etc. | `seed.ts:228-237` |
+| F12-6 | ✅ Implementado | Seed incluye plan de estudios 2018 (50+ cursos), asignaciones lectivas desde horarios, y declaraciones en múltiples estados vía `seedDeclaracionesDemo`. | `seed.ts:996-2126`, `seed.ts:2193-2320` |
+
 ---
 
 ## 5. Cronograma Sugerido por Fases
@@ -1583,49 +1780,61 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 
 ---
 
-## 6. Checklist Final de Implementación
+## 6. Checklist Final de Implementación (Estado Real)
 
 ### Imprescindible (Fases 0-3)
 
-- [ ] Fase 0: Plan de Estudios 2018 creado con 30+ cursos
-- [ ] Fase 0: Cursos agrupables por ciclo (I-X)
-- [ ] Fase 0: Prerrequisitos registrables
-- [ ] Fase 1: Asignación lectiva desde plan de estudios
-- [ ] Fase 1: Validación de carga máxima al asignar
-- [ ] Fase 1: Validación de cursos máximos al asignar
-- [ ] Fase 2: Carga lectiva precargada desde asignaciones (no editable)
-- [ ] Fase 2: 10 rubros de carga no lectiva exactos del F01-CAD
-- [ ] Fase 2: Preparación y Evaluación limitada al 50%
-- [ ] Fase 2: Total general validado contra modalidad
-- [ ] Fase 3: 11 estados visibles en frontend
-- [ ] Fase 3: Stepper de progreso funcional
-- [ ] Fase 3: Observaciones con trazabilidad
-- [ ] Fase 3: Subsanación funcional
-- [ ] Fase 3: Director solo ve su departamento
-- [ ] Fase 3: Decano puede aprobar u observar
+- [x] Fase 0: Plan de Estudios 2018 creado con 30+ cursos
+- [x] Fase 0: Cursos agrupables por ciclo (I-X)
+- [x] Fase 0: Prerrequisitos registrables
+- [x] Fase 1: Asignación lectiva desde plan de estudios
+- [x] Fase 1: Validación de carga máxima al asignar
+- [x] Fase 1: Validación de cursos máximos al asignar
+- [x] Fase 2: Carga lectiva precargada desde asignaciones (no editable)
+- [x] Fase 2: 10 rubros de carga no lectiva exactos del F01-CAD
+- [x] Fase 2: Preparación y Evaluación limitada al 50%
+- [x] Fase 2: Total general validado contra modalidad
+- [x] Fase 3: 11 estados visibles en frontend
+- [x] Fase 3: Stepper de progreso funcional
+- [x] Fase 3: Observaciones con trazabilidad
+- [x] Fase 3: Subsanación funcional
+- [~] Fase 3: Director solo ve su departamento (⚠️ sin row-level security real)
+- [x] Fase 3: Decano puede aprobar u observar
 
 ### Importante (Fases 4-7)
 
-- [ ] Fase 4: F02-CAD generable según modalidad
-- [ ] Fase 4: PDF descargable con formato oficial
-- [ ] Fase 5: F03-CAD incluye carga lectiva y no lectiva
-- [ ] Fase 5: Watermark según estado
-- [ ] Fase 6: F01-CAD con todos los campos del formato
-- [ ] Fase 6: Reporte consolidado por departamento
-- [ ] Fase 7: KPIs de carga académica en dashboard
-- [ ] Fase 7: Funnel chart de distribución por estado
-- [ ] Fase 7: Tabla de docentes con estado
+- [x] Fase 4: F02-CAD generable según modalidad
+- [x] Fase 4: PDF descargable con formato oficial
+- [x] Fase 5: F03-CAD incluye carga lectiva y no lectiva
+- [x] Fase 5: Watermark según estado
+- [x] Fase 6: F01-CAD con todos los campos del formato
+- [x] Fase 6: Reporte consolidado por departamento
+- [ ] Fase 7: KPIs de carga académica en dashboard ❌
+- [ ] Fase 7: Funnel chart de distribución por estado ❌
+- [ ] Fase 7: Tabla de docentes con estado ❌
 
 ### Deseable (Fases 8-12)
 
-- [ ] Fase 8: Reportes de gestión con métricas de carga
-- [ ] Fase 8: Reporte ejecutivo para decano
-- [ ] Fase 9: Auditoría de cambios de estado
-- [ ] Fase 9: Consulta de auditoría con filtros
-- [ ] Fase 10: Carga adicional registrable
-- [ ] Fase 11: Restricciones por unidad académica
-- [ ] Fase 12: Seed completo con datos en múltiples estados
-- [ ] Fase 12: Pruebas integrales superadas
+- [x] Fase 8: Reportes de gestión con métricas de carga ✅
+- [x] Fase 8: Reporte ejecutivo para decano ✅
+- [x] Fase 9: Auditoría de cambios de estado (entidad, endpoints y frontend completo) ✅
+- [x] Fase 9: Consulta de auditoría con filtros ✅
+- [x] Fase 10: Carga adicional registrable ✅
+- [x] Fase 11: Seguridad y roles (guards async, ROLES constantes, row-level security en CRUD docentes, auth/verify endpoint) ✅
+- [x] Fase 12: Seed completo con transacción, debe_cambiar_password, plan de estudios 2018, asignaciones lectivas y declaraciones multi-estado ✅
+- [ ] Fase 12: Pruebas integrales superadas ❌
+
+### Problemas críticos detectados transversales
+
+| ID | Prioridad | Descripción |
+|----|-----------|-------------|
+| CRIT-1 | 🔴 **Corregir YA** | `validacionFallida$` no existe en SocketService → crash si el evento socket se dispara |
+| CRIT-2 | 🔴 **Corregir YA** | Duplicate table `curso_ambiente` por `@JoinTable` + `@Entity` → error de esquema |
+| CRIT-3 | 🔴 **Corregir YA** | Credenciales Cloudinary en backend/.env.example expuestas → revocar inmediatamente |
+| CRIT-4 | 🟡 Pendiente | `guardarCambios()` en horarios no implementado → botón sin efecto |
+| CRIT-5 | 🟡 Pendiente | `synchronize: true` en producción → riesgo de pérdida de datos |
+| CRIT-6 | 🟡 Pendiente | nginx `proxy_pass` elimina prefijo `/api` → API calls pueden fallar |
+| CRIT-7 | ✅ Corregido | Docente sin campo DNI → F01/F02-CAD incompletos |
 
 ---
 
@@ -1655,20 +1864,25 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 
 ---
 
-## 8. Riesgos Globales del Proyecto
+## 8. Riesgos Globales del Proyecto (Actualizado con Hallazgos)
 
 | # | Riesgo | Probabilidad | Impacto | Mitigación |
 |---|--------|-------------|---------|------------|
-| R1 | El plan de estudios 2018 no está completo o tiene errores | Alta | Alto | Validar con Director de Escuela antes de cargar |
-| R2 | Los docentes no tienen DNI en base de datos | Alta | Alto | Agregar DNI en seed y actualizar docentes existentes |
-| R3 | La máquina de estados en backend no cubre todas las transiciones | Media | Alto | Revisar validarTransicionEstado y extender |
-| R4 | Los reportes F01/F02/F03 no coinciden con formato oficial UNT | Media | Alto | Obtener formato oficial y validar con docente |
-| R5 | Las validaciones de carga (V6-V12) son rechazadas en producción por ser muy restrictivas | Media | Medio | Hacer las validaciones configurables o con umbrales ajustables |
-| R6 | El seed falla por dependencias circulares o datos faltantes | Media | Medio | Probar seed después de cada fase |
-| R7 | La restricción por departamento (director solo ve su depto) es difícil de implementar con el esquema actual | Media | Medio | Usar query filters de TypeORM o repositorios con contexto |
-| R8 | El frontend de declaraciones es muy grande (484 líneas) y difícil de modificar sin romper | Alta | Medio | Refactorizar en componentes más pequeños si es necesario |
-| R9 | Los períodos de prueba son limitados (solo 2026-I en seed) | Baja | Bajo | Agregar datos históricos si es posible |
-| R10 | No hay pruebas automatizadas para las nuevas funcionalidades | Alta | Medio | Al menos pruebas manuales siguiendo el checklist |
+| R1 | `periodo_academico` como string en 9 entidades (sin FK) — datos huérfanos | Alta | Alto | Migrar a `periodo_id` FK con restricción referencial |
+| R2 | Docente sin campo DNI — F01/F02-CAD incompletos | ✅ Corregido | — | Columna `dni` agregada en `docente.entity.ts`; pendiente actualizar seed con DNI reales |
+| R3 | Credenciales Cloudinary expuestas en backend/.env.example | Alta | **Crítico** | Revocar claves inmediatamente, rotar secrets, agregar a .gitignore |
+| R4 | `synchronize: true` en producción — pérdida de datos al reiniciar | Media | **Crítico** | Separar NODE_ENV=production de DB_SYNC=true, usar migraciones |
+| R5 | `curso_ambiente` definido 2 veces (JoinTable + entity) — error de esquema | Alta | Alto | Eliminar `@Entity("curso_ambiente")` y usar solo `@JoinTable` |
+| R6 | ~40 relaciones inversas `@OneToMany` faltantes — ORM no navega bidireccional | Alta | Medio | Agregar relaciones inversas progresivamente |
+| R7 | Seed sin transacción — datos parciales si falla | Media | Alto | Envolver seed completo en transacción con rollback |
+| R8 | Frontend sin linter — código inconsistente | Alta | Bajo | Configurar ESLint + Prettier + husky |
+| R9 | ngrok beta y @types/exceljs en dependencias de producción | Media | Bajo | Mover a devDependencies |
+| R10 | Guards síncronos — no verifican expiración de token con backend | Media | Medio | Agregar verificación asíncrona opcional |
+| R11 | Deploy workflow roto (referencia Dockerfiles que no existen) | Alta | Alto | Corregir paths en deploy.yml |
+| R12 | CI usa Node 20 y PostgreSQL 15, producción usa Node 22 y PG 16 | Media | Medio | Unificar versiones |
+| R13 | coverage threshold al 10% — sin enforce real | Alta | Bajo | Subir threshold gradualmente |
+| R14 | Angular budgets muy altos (5MB initial) | Media | Medio | Revisar bundle, implementar lazy loading |
+| R15 | tsconfig backend con strict checks disabled — null/any bugs en runtime | Alta | Medio | Habilitar strictNullChecks progresivamente |
 
 ---
 
@@ -1700,6 +1914,61 @@ Actualizar el seed (`seed.ts`) para incluir todos los datos necesarios para demo
 - ✅ Reportes pre-generados como respaldo (por si la generación falla)
 - ✅ Checklist de funcionalidades marcado como completo
 - ✅ Documentación impresa o accesible
+
+---
+
+## Cambios Recientes — Flujo de Declaraciones
+
+### Estado de la Máquina de Estados (Corregido)
+
+El enum `EstadoDeclaracionCarga` ahora tiene **5 estados** alineados con el stepper visual:
+
+```
+BORRADOR → ENVIADO → DEPARTAMENTO → FACULTAD → CERRADO
+```
+
+| Estado | Descripción | Quién actúa |
+|--------|-------------|-------------|
+| `BORRADOR` | Declaración en edición | Docente |
+| `ENVIADO` | Enviada al departamento | Docente (envía) |
+| `DEPARTAMENTO` | Validada por director | Director de departamento |
+| `FACULTAD` | Aprobada por decano | Decano de facultad |
+| `CERRADO` | Proceso finalizado | Decano (cierra) |
+
+### Cambios en Backend
+
+1. **Enum** (`estado-declaracion-carga.enum.ts`): Reemplazado `CONFIRMADO` por `ENVIADO`, agregados `DEPARTAMENTO` y `FACULTAD`
+2. **Service** (`declaracion-carga-horaria.service.ts`):
+   - `enviar()`: BORRADOR → ENVIADO
+   - `validarDepartamento()`: ENVIADO → DEPARTAMENTO (nuevo método)
+   - `cerrar()`: FACULTAD → CERRADO (antes era CONFIRMADO → CERRADO)
+   - `validarTransicionEstado()`: máquina de estados actualizada
+   - `asegurarEditable()`: solo BORRADOR es editable
+   - `pendientesFacultad()`: filtra por DEPARTAMENTO (antes filtraba por ENVIADO)
+3. **Controller**: Nuevo endpoint `POST /declaraciones/:id/validar-departamento` (solo DirectorDepartamento y Admin)
+4. **Seed** (`seed-declaraciones-demo.ts`): Distribución 5+5+5+5+3 = 23 declaraciones en todos los estados
+5. **Todos los servicios** (reportes, dashboard, periodos, verify-seed, telegram-bot): Actualizadas referencias a CONFIRMADO → ENVIADO
+
+### Cambios en Frontend
+
+1. **`declaraciones.component.ts`**: Para rol docente, muestra directamente su propia declaración con stepper y botón de acción
+2. **`declaraciones.component.html`**: Layout diferente para docente (sin selector de docente) vs admin/director (con selector)
+3. **`verificar-declaracion.component.ts`**:
+   - Stepper de 3 → 5 etapas
+   - `ESTADOS_CONFIG` con los 5 nuevos estados
+   - Botón "Validar Departamento" visible para Director
+   - Botón "Aprobar Facultad" visible para Decano
+   - `validarDepartamento()` método nuevo
+4. **`verificar-declaracion.component.html`**: Avisos informativos para ENVIADO, DEPARTAMENTO, FACULTAD
+
+### Flujo por Rol
+
+| Rol | Puede hacer |
+|-----|-------------|
+| **Docente** | Crear borrador, editar, enviar (BORRADOR → ENVIADO) |
+| **Director Dpto** | Validar departamento (ENVIADO → DEPARTAMENTO), agregar observaciones |
+| **Decano** | Aprobar facultad (DEPARTAMENTO → FACULTAD), cerrar (FACULTAD → CERRADO) |
+| **Admin** | Todo |
 
 ---
 

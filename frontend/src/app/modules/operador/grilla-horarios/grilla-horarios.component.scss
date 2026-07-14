@@ -1,14 +1,14 @@
 // Paleta de colores base
-$primary: #6366f1;       // Indigo
-$success: #10b981;       // Emerald
-$warning: #f59e0b;       // Amber
-$danger: #ef4444;        // Rose/Red
-$accent: #8b5cf6;        // Violet
+$primary: #6366f1;
+$success: #10b981;
+$warning: #f59e0b;
+$danger: #ef4444;
+$accent: #8b5cf6;
 
-// Semánticos por tipo de clase (Tailwind matching)
-$color-teoria: #10b981;       // Emerald/Green
-$color-practica: #f59e0b;     // Amber/Orange
-$color-laboratorio: #4f46e5;  // Indigo/Blue
+// Semánticos por tipo de clase
+$color-teoria: #10b981;
+$color-practica: #f59e0b;
+$color-laboratorio: #4f46e5;
 
 .grilla-container {
   display: flex;
@@ -57,6 +57,95 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   mat-progress-bar {
     border-radius: 4px;
     height: 4px;
+  }
+}
+
+/* ─── DRAG CHIP ──────────────────────────────────────────────────── */
+.drag-hint-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .drag-or {
+    font-size: 12px;
+    color: var(--color-text-muted, #94a3b8);
+    font-style: italic;
+  }
+}
+
+.drag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  .drag-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    opacity: 0.7;
+  }
+
+  .drag-label {
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .drag-arrow {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+    animation: bounce-right 1.4s ease-in-out infinite;
+  }
+
+  .drag-instruction {
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.75;
+  }
+
+  &.chip-teoria {
+    background: linear-gradient(135deg, rgba($color-teoria, 0.15), rgba($color-teoria, 0.08));
+    border-color: rgba($color-teoria, 0.4);
+    color: darken($color-teoria, 20%);
+    .drag-icon, .drag-arrow { color: $color-teoria; }
+  }
+
+  &.chip-practica {
+    background: linear-gradient(135deg, rgba($color-practica, 0.15), rgba($color-practica, 0.08));
+    border-color: rgba($color-practica, 0.4);
+    color: darken($color-practica, 20%);
+    .drag-icon, .drag-arrow { color: $color-practica; }
+  }
+
+  &.chip-laboratorio {
+    background: linear-gradient(135deg, rgba($color-laboratorio, 0.15), rgba($color-laboratorio, 0.08));
+    border-color: rgba($color-laboratorio, 0.4);
+    color: darken($color-laboratorio, 20%);
+    .drag-icon, .drag-arrow { color: $color-laboratorio; }
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  &:active,
+  &.dragging {
+    cursor: grabbing;
+    transform: scale(0.96);
+    opacity: 0.85;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
 }
 
@@ -125,49 +214,17 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   flex-shrink: 0;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 
-  &.libre {
-    background: transparent;
-    border: 2px dashed $success;
-  }
-
+  &.libre { background: transparent; border: 2px dashed $success; }
   &.bloqueado {
-    background: repeating-linear-gradient(
-      45deg,
-      #e2e8f0,
-      #e2e8f0 3px,
-      #f1f5f9 3px,
-      #f1f5f9 6px
-    );
+    background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 3px, #f1f5f9 3px, #f1f5f9 6px);
     border: 1px solid #cbd5e1;
   }
-
-  &.temporal-otro {
-    background: $warning;
-  }
-
-  // Clases
-  &.clase-teoria {
-    background: $color-teoria;
-  }
-
-  &.clase-practica {
-    background: $color-practica;
-  }
-
-  &.clase-laboratorio {
-    background: $color-laboratorio;
-  }
-
-  // Indicadores
-  &.bloque-propio-swatch {
-    background: $primary;
-    border: 2px solid darken($primary, 15%);
-  }
-
-  &.bloque-ajeno-swatch {
-    background: rgba($primary, 0.2);
-    border: 1.5px solid rgba($primary, 0.5);
-  }
+  &.temporal-otro { background: $warning; }
+  &.clase-teoria { background: $color-teoria; }
+  &.clase-practica { background: $color-practica; }
+  &.clase-laboratorio { background: $color-laboratorio; }
+  &.bloque-propio-swatch { background: $primary; border: 2px solid darken($primary, 15%); }
+  &.bloque-ajeno-swatch { background: rgba($primary, 0.2); border: 1.5px solid rgba($primary, 0.5); }
 }
 
 /* ─── TABLA / GRILLA ─────────────────────────────────────────────── */
@@ -179,15 +236,8 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
   border: 1px solid var(--color-border, #e2e8f0);
 
-  &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--color-surface-2, #f8fafc);
-  }
-
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-track { background: var(--color-surface-2, #f8fafc); }
   &::-webkit-scrollbar-thumb {
     background: rgba($primary, 0.2);
     border-radius: 4px;
@@ -202,11 +252,7 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   font-size: 13px;
   background: var(--color-surface, #ffffff);
 
-  th, td {
-    border: 1px solid var(--color-border, #e2e8f0);
-    text-align: center;
-    padding: 0;
-  }
+  th, td { border: 1px solid var(--color-border, #e2e8f0); text-align: center; padding: 0; }
 
   th {
     background: linear-gradient(135deg, $primary, darken($primary, 8%));
@@ -222,9 +268,7 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
     z-index: 20;
   }
 
-  .dia-header {
-    min-width: 120px;
-  }
+  .dia-header { min-width: 120px; }
 
   .hora-header, .hora-cell {
     background: var(--color-surface-2, #f8fafc);
@@ -241,9 +285,7 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
     z-index: 10;
   }
 
-  .hora-header {
-    z-index: 30;
-  }
+  .hora-header { z-index: 30; }
 
   .row-alt .hora-cell {
     background: color-mix(in srgb, var(--color-surface-2, #f8fafc), var(--color-border, #e2e8f0) 10%);
@@ -255,40 +297,25 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   height: 56px;
   min-width: 120px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   user-select: none;
 
-  &:hover:not(.celda-bloqueada) {
-    background: rgba($primary, 0.04);
-  }
+  &:hover:not(.celda-bloqueada) { background: rgba($primary, 0.04); }
 }
 
-// ── Celda Libre ──
 .celda-libre {
   background: var(--color-surface, #ffffff);
-
-  &:hover {
-    background: rgba($success, 0.06) !important;
-    box-shadow: inset 0 0 0 2px rgba($success, 0.2);
-  }
+  &:hover { background: rgba($success, 0.06) !important; box-shadow: inset 0 0 0 2px rgba($success, 0.2); }
 }
 
-// ── Celda Bloqueada ──
 .celda-bloqueada {
-  background: repeating-linear-gradient(
-    45deg,
-    #f8fafc,
-    #f8fafc 4px,
-    #f1f5f9 4px,
-    #f1f5f9 8px
-  );
+  background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 4px, #f1f5f9 4px, #f1f5f9 8px);
   cursor: not-allowed;
   opacity: 0.7;
   border-color: #e2e8f0 !important;
 }
 
-// ── Celdas Ocupadas (Contenedor general neutro y elegante) ──
 .celda-confirmada,
 .celda-confirmada-docente,
 .celda-confirmada-multiple,
@@ -300,7 +327,67 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   border-color: #cbd5e1 !important;
 }
 
-/* ─── BLOQUES INTERNOS CON COLORES SEMÁNTICOS ──────────────────────── */
+/* ─── ESTADOS DRAG & DROP ────────────────────────────────────────── */
+
+// Celda que puede recibir el drop
+.celda-droppable {
+  background: rgba($success, 0.04) !important;
+  border: 2px dashed rgba($success, 0.35) !important;
+  cursor: copy;
+}
+
+// Celda con el bloque encima (hover durante drag)
+.celda-drag-over {
+  background: rgba($success, 0.14) !important;
+  border: 2px solid $success !important;
+  box-shadow: 0 0 0 3px rgba($success, 0.25), inset 0 0 12px rgba($success, 0.1) !important;
+  cursor: copy;
+  transform: scale(1.02);
+  z-index: 5;
+}
+
+// Celda que NO puede recibir el drop
+.celda-no-droppable {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+}
+
+// Indicador "+" dentro celda libre (modo drag)
+.drop-target-indicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: rgba($success, 0.45);
+    animation: pulse-drop 1.2s ease-in-out infinite;
+  }
+}
+
+.drop-target-active {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+
+  mat-icon {
+    font-size: 26px;
+    width: 26px;
+    height: 26px;
+    color: $success;
+    animation: pop-in 0.15s ease forwards;
+  }
+}
+
+/* ─── BLOQUES INTERNOS ───────────────────────────────────────────── */
 .bloques-container {
   display: flex;
   width: 100%;
@@ -321,83 +408,34 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   height: 100%;
   position: relative;
 
-  .bloque-indicador {
-    font-size: 11px;
-    font-weight: 800;
-    color: inherit;
-  }
+  .bloque-indicador { font-size: 11px; font-weight: 800; color: inherit; }
 
-  // 1. Bloques Ajenos (Semi-transparentes, borde fino)
-  &.bloque-teoria {
-    background: rgba($color-teoria, 0.12);
-    border: 1px solid rgba($color-teoria, 0.4);
-    color: darken($color-teoria, 15%);
-  }
+  &.bloque-teoria { background: rgba($color-teoria, 0.12); border: 1px solid rgba($color-teoria, 0.4); color: darken($color-teoria, 15%); }
+  &.bloque-practica { background: rgba($color-practica, 0.12); border: 1px solid rgba($color-practica, 0.4); color: darken($color-practica, 15%); }
+  &.bloque-laboratorio { background: rgba($color-laboratorio, 0.12); border: 1px solid rgba($color-laboratorio, 0.4); color: darken($color-laboratorio, 15%); }
 
-  &.bloque-practica {
-    background: rgba($color-practica, 0.12);
-    border: 1px solid rgba($color-practica, 0.4);
-    color: darken($color-practica, 15%);
-  }
-
-  &.bloque-laboratorio {
-    background: rgba($color-laboratorio, 0.12);
-    border: 1px solid rgba($color-laboratorio, 0.4);
-    color: darken($color-laboratorio, 15%);
-  }
-
-  // 2. Bloques Propios (Fondo sólido, borde grueso, sombra)
   &.bloque-propio {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     color: white !important;
 
-    &.bloque-teoria {
-      background: linear-gradient(135deg, $color-teoria, darken($color-teoria, 5%));
-      border: 2px solid darken($color-teoria, 12%);
-    }
+    &.bloque-teoria { background: linear-gradient(135deg, $color-teoria, darken($color-teoria, 5%)); border: 2px solid darken($color-teoria, 12%); }
+    &.bloque-practica { background: linear-gradient(135deg, $color-practica, darken($color-practica, 5%)); border: 2px solid darken($color-practica, 12%); }
+    &.bloque-laboratorio { background: linear-gradient(135deg, $color-laboratorio, darken($color-laboratorio, 5%)); border: 2px solid darken($color-laboratorio, 12%); }
 
-    &.bloque-practica {
-      background: linear-gradient(135deg, $color-practica, darken($color-practica, 5%));
-      border: 2px solid darken($color-practica, 12%);
-    }
-
-    &.bloque-laboratorio {
-      background: linear-gradient(135deg, $color-laboratorio, darken($color-laboratorio, 5%));
-      border: 2px solid darken($color-laboratorio, 12%);
-    }
-
-    &:hover {
-      transform: scale(1.04);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-    }
+    &:hover { transform: scale(1.04); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
   }
 
-  &:hover:not(.bloque-propio) {
-    background: rgba($primary, 0.08);
-  }
+  &:hover:not(.bloque-propio) { background: rgba($primary, 0.08); }
 }
 
-/* ─── ESTADOS DE MODO EDICIÓN ───────────────────────────────────────── */
+/* ─── ESTADOS DE MODO EDICIÓN ────────────────────────────────────── */
 .celda-original-eliminada {
   background: rgba($danger, 0.15) !important;
   border-color: $danger !important;
   position: relative;
 
-  &::after {
-    content: '×';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    font-weight: 800;
-    color: $danger;
-    opacity: 0.6;
-  }
-
-  &:hover {
-    background: rgba($danger, 0.25) !important;
-  }
+  &::after { content: '×'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: 800; color: $danger; opacity: 0.6; }
+  &:hover { background: rgba($danger, 0.25) !important; }
 }
 
 .celda-nueva {
@@ -405,21 +443,8 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   border-color: $success !important;
   position: relative;
 
-  &::before {
-    content: '+';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    font-weight: 800;
-    color: $success;
-    opacity: 0.6;
-  }
-
-  &:hover {
-    background: rgba($success, 0.25) !important;
-  }
+  &::before { content: '+'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; font-weight: 800; color: $success; opacity: 0.6; }
+  &:hover { background: rgba($success, 0.25) !important; }
 }
 
 .celda-editada {
@@ -427,21 +452,8 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
   border-color: $warning !important;
   position: relative;
 
-  &::before {
-    content: '✎';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 20px;
-    font-weight: 800;
-    color: $warning;
-    opacity: 0.6;
-  }
-
-  &:hover {
-    background: rgba($warning, 0.25) !important;
-  }
+  &::before { content: '✎'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; font-weight: 800; color: $warning; opacity: 0.6; }
+  &:hover { background: rgba($warning, 0.25) !important; }
 }
 
 /* ─── FOOTER TIPS ────────────────────────────────────────────────── */
@@ -457,60 +469,44 @@ $color-laboratorio: #4f46e5;  // Indigo/Blue
     font-size: 12px;
     color: var(--color-text-muted, #64748b);
 
-    mat-icon {
-      color: $primary;
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-    }
-
-    strong {
-      color: $primary;
-      font-weight: 700;
-    }
+    mat-icon { color: $primary; font-size: 16px; width: 16px; height: 16px; }
+    strong { color: $primary; font-weight: 700; }
   }
 }
 
 /* ─── ANIMACIONES ────────────────────────────────────────────────── */
 @keyframes pulse-slow {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.8;
-  }
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+
+@keyframes bounce-right {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@keyframes pulse-drop {
+  0%, 100% { transform: scale(1); opacity: 0.45; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* ─── RESPONSIVE ─────────────────────────────────────────────────── */
 @media (max-width: 992px) {
-  .leyenda-container {
-    flex-direction: column;
-    gap: 14px;
-  }
+  .leyenda-container { flex-direction: column; gap: 14px; }
 }
 
 @media (max-width: 768px) {
-  .grilla-container {
-    padding: 16px;
-  }
-
-  .tabla-wrapper {
-    max-height: 420px;
-  }
-
+  .grilla-container { padding: 16px; }
+  .tabla-wrapper { max-height: 420px; }
   .grilla-tabla {
     font-size: 12px;
-
-    .grilla-celda {
-      min-width: 100px;
-      height: 48px;
-    }
-
-    .hora-header, .hora-cell {
-      width: 80px;
-      min-width: 80px;
-    }
+    .grilla-celda { min-width: 100px; height: 48px; }
+    .hora-header, .hora-cell { width: 80px; min-width: 80px; }
   }
+  .drag-chip .drag-instruction { display: none; }
 }

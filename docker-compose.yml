@@ -39,7 +39,7 @@ services:
     image: redis:7-alpine
     container_name: ${REDIS_CONTAINER_NAME}
     ports:
-      - "${REDIS_PORT}:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -55,6 +55,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ${BACKEND_CONTAINER_NAME}
+    volumes:
+      - uploads_data:/app/uploads
     environment:
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
@@ -121,13 +123,12 @@ services:
       retries: 5
       start_period: 10s
 
-  # Servidor SMTP para desarrollo - captura emails localmente
   mailhog:
     image: mailhog/mailhog:latest
     container_name: horarios_mailhog
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI
+      - "1025:1025"
+      - "8025:8025"
     networks:
       - horarios_network
 
@@ -139,3 +140,4 @@ volumes:
   postgres_data:
   redis_data:
   pgadmin_data:
+  uploads_data:

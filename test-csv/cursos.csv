@@ -1,0 +1,11 @@
+codigo,nombre,creditos,horas_teoria,horas_practica,horas_laboratorio,ciclo,tiene_laboratorio,prerequisitos
+CS101,Programación I,4,4,0,2,1,true,
+CS102,Programación II,4,4,0,2,1,true,CS101
+CS201,Estructura de Datos,4,4,0,2,3,true,CS102
+CS301,Base de Datos,4,4,0,2,5,true,CS201
+CS401,Ingeniería de Software,4,4,0,2,7,true,CS301
+MAT101,Cálculo I,4,4,2,0,1,false,
+MAT102,Cálculo II,4,4,2,0,1,false,MAT101
+FIS101,Física I,4,4,0,2,1,true,
+FIS102,Física II,4,4,0,2,1,true,FIS101
+QUI101,Química General,4,4,0,2,1,true,

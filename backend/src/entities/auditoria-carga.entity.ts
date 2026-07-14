@@ -12,6 +12,7 @@ import { Usuario } from "./usuario.entity";
 export enum EntidadAuditoriaCarga {
   ASIGNACION_LECTIVA = "ASIGNACION_LECTIVA",
   DECLARACION_CARGA = "DECLARACION_CARGA",
+  HORARIO_ASIGNADO = "HORARIO_ASIGNADO",
 }
 
 export enum AccionAuditoriaCarga {
@@ -25,6 +26,8 @@ export enum AccionAuditoriaCarga {
   APROBAR = "APROBAR",
   SUBSANAR = "SUBSANAR",
   ENVIAR = "ENVIAR",
+  CERRAR = "CERRAR",
+  REABRIR = "REABRIR",
 }
 
 @Entity("auditoria_carga")

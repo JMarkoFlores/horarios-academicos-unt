@@ -41,6 +41,7 @@
     "horarios": "Schedules",
     "schedules": "Schedules",
     "mySchedules": "My Schedules",
+    "myWindows": "My Windows",
     "docentes": "Teachers",
     "teachers": "Teachers",
     "cursos": "Courses",
@@ -48,7 +49,10 @@
     "ambientes": "Environments",
     "environments": "Environments",
     "planEstudios": "Study Plan",
+    "ofertaAcademica": "Academic Offer",
     "asignacionLectiva": "Teaching Assignment",
+    "asignadorCarga": "Load Assignment",
+    "asignadorCargaHoraria": "Teaching Load Assignment (Secretary)",
     "disponibilidad": "Availability",
     "availability": "Availability",
     "reportes": "Reports",
@@ -71,13 +75,16 @@
     "periods": "Periods",
     "loadParams": "Load Parameters",
     "campaigns": "Campaigns",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "audit": "Audit Log"
   },
   "nav": {
     "groups": {
       "main": "Main",
       "academic": "Academic Management",
       "operations": "Operations",
+      "declarations": "Declarations",
+      "windows": "Windows & Service",
       "reports": "Reports and Analysis",
       "system": "System"
     }
@@ -130,7 +137,9 @@
     "facultades": "Faculties",
     "planEstudios": "Study Plan",
     "planEstudios_detalle": "Detail",
-    "asignacionLectiva": "Teaching Assignment"
+    "asignacionLectiva": "Teaching Assignment",
+    "asignadorCarga": "Load Assignment",
+    "perfil": "My Profile"
   },
   "planEstudios": {
     "title": "Study Plan",
@@ -207,7 +216,24 @@
     "loggingIn": "LOGGING IN...",
     "loginToSystem": "LOGIN TO SYSTEM",
     "academicManagementSystem": "ACADEMIC MANAGEMENT SYSTEM &bull; EIS",
-    "unt": "National University of Trujillo"
+    "unt": "National University of Trujillo",
+    "forgotPassword": "Forgot your password?",
+    "recoverPassword": "Recover Password",
+    "enterEmail": "Enter your institutional or alternate email",
+    "sendResetLink": "Send recovery link",
+    "resetLinkSent": "If the email exists, you will receive a recovery link",
+    "backToLogin": "Back to login",
+    "resetPassword": "Reset Password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "passwordMinLength": "Minimum 8 characters",
+    "passwordsMustMatch": "Passwords must match",
+    "resetSuccess": "Password reset successfully",
+    "invalidToken": "Invalid or expired token",
+    "requestNewLink": "Request new link",
+    "alternateEmail": "Alternate email (optional)",
+    "alternateEmailHint": "Used for notifications and password recovery",
+    "alternateEmailInvalid": "Invalid alternate email"
   },
   "dashboard": {
     "compactMode": "Compact mode",
@@ -287,6 +313,7 @@
     },
     "classTypes": {
       "teoria": "Theory",
+      "practica": "Practice",
       "laboratorio": "Laboratory",
       "mixto": "Mixed"
     },
@@ -295,5 +322,103 @@
     "labsOcupadas": "Occupied Labs",
     "labsLibres": "Free Labs",
     "description": "Description"
+  },
+  "asignador": {
+    "title": "Teaching Load Assignment",
+    "subtitle": "Assign courses to teachers via drag and drop",
+    "cursosPendientes": "Pending Courses",
+    "seleccionarDocente": "Select Teacher",
+    "ambientes": "Classrooms",
+    "avance": "Assignment Progress",
+    "guardar": "Save",
+    "actualizar": "Refresh",
+    "save": "Save",
+    "refresh": "Refresh",
+    "undo": "Undo",
+    "view": {
+      "docente": "Teacher",
+      "ambiente": "Classroom",
+      "ciclo": "Cycle"
+    },
+    "selectDocente": "Select Teacher",
+    "selectDocentePlaceholder": "Select a teacher",
+    "selectAmbiente": "Select a classroom",
+    "selectAmbientePlaceholder": "Select a classroom",
+    "selectCiclo": "Select Cycle",
+    "selectCicloPlaceholder": "Select a cycle",
+    "ciclo": "Cycle",
+    "asignar": "Assign",
+    "cancelar": "Cancel",
+    "eliminar": "Delete",
+    "completos": "Complete",
+    "incompletos": "Incomplete",
+    "pendientes": "Pending",
+    "porAsignar": "To assign",
+    "todosAsignados": "All courses are assigned",
+    "conflictoHorario": "Schedule conflict",
+    "cargaExcedida": "Load exceeded",
+    "aulaOcupada": "Classroom occupied"
+  },
+  "bancoCursos": {
+    "title": "Course Bank",
+    "searchPlaceholder": "Search course...",
+    "filter": {
+      "ciclo": "Cycle",
+      "all": "All",
+      "tipo": "Type",
+      "obligatorioGeneral": "General Required",
+      "obligatorioProfesional": "Professional Required",
+      "electivo": "Elective"
+    },
+    "stats": {
+      "horasPendientes": "Pending hours",
+      "cursos": "Courses"
+    },
+    "ciclo": "Cycle",
+    "tooltip": {
+      "alumnos": "Students: {{count}}"
+    },
+    "empty": {
+      "allAssigned": "All courses are assigned",
+      "noMatch": "No courses match this filter"
+    }
+  },
+  "panelAmbientes": {
+    "title": "Environment Panel",
+    "searchPlaceholder": "Search classroom...",
+    "filter": {
+      "tipo": "Type",
+      "all": "All",
+      "aula": "Classroom",
+      "laboratorio": "Laboratory",
+      "computo": "Computer Lab",
+      "capacidad": "Capacity",
+      "disponibilidad": "Availability",
+      "libre": "Free",
+      "parcial": "Partial"
+    },
+    "legend": {
+      "libre": "Free",
+      "ocupada": "Occupied",
+      "llena": "Full"
+    },
+    "tooltip": {
+      "capacidad": "Capacity: {{cap}}"
+    },
+    "bloques": "blocks",
+    "empty": "No classrooms found"
+  },
+  "error": {
+    "pageNotFound": "Page not found",
+    "pageNotFoundMsg": "The page you are looking for doesn't exist or has been moved.",
+    "accessDenied": "Access denied",
+    "accessDeniedMsg": "You don't have permission to access this section.",
+    "serverError": "Server error",
+    "serverErrorMsg": "An unexpected error occurred. Our team has been notified.",
+    "sessionExpired": "Session expired",
+    "sessionExpiredMsg": "Your session has expired. Please log in again.",
+    "goHome": "Go home",
+    "goLogin": "Log in",
+    "helpText": "If you believe this is an error, contact the system administrator."
   }
 }

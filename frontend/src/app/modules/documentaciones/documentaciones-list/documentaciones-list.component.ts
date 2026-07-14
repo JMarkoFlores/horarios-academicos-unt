@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
+import { ROLES } from '../../../core/constants/roles';
 import { AuthService } from '../../../core/services/auth.service';
 import {
   ApiResponse,
@@ -48,11 +49,11 @@ export class DocumentacionesListComponent implements OnInit {
   }
 
   get esDirector(): boolean {
-    return this.authService.hasRole('directorescuela') || this.authService.hasRole('directordepartamento');
+    return this.authService.hasRole(ROLES.DIRECTOR_ESCUELA) || this.authService.hasRole(ROLES.DIRECTOR_DEPARTAMENTO);
   }
 
   get esDecano(): boolean {
-    return this.authService.hasRole('decano');
+    return this.authService.hasRole(ROLES.DECANO);
   }
 
   get pendientesDepartamento(): number {

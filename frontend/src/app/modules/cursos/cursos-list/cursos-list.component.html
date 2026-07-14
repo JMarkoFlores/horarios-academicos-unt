@@ -12,6 +12,11 @@
       </p>
     </div>
     <div class="header-actions">
+      <button mat-stroked-button class="btn-export" (click)="asignarAmbientesPorDefecto()" [disabled]="asignandoAmbientes">
+        <mat-spinner diameter="14" *ngIf="asignandoAmbientes"></mat-spinner>
+        <mat-icon *ngIf="!asignandoAmbientes">meeting_room</mat-icon>
+        <span>{{ asignandoAmbientes ? 'Asignando…' : 'Ambientes por defecto' }}</span>
+      </button>
       <button mat-stroked-button class="btn-export" (click)="exportarPDF()" [disabled]="exportando">
         <mat-spinner diameter="14" *ngIf="exportando"></mat-spinner>
         <mat-icon *ngIf="!exportando">picture_as_pdf</mat-icon>
@@ -295,10 +300,14 @@
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let c" class="actions-cell">
             <div class="btn-group">
-              <button mat-icon-button class="btn-action groups" (click)="abrirGestionarGrupos(c)"
+              <a mat-icon-button class="btn-action view" [routerLink]="['/app/cursos', c.id]"
+                matTooltip="Ver detalle">
+                <mat-icon>visibility</mat-icon>
+              </a>
+              <a mat-icon-button class="btn-action groups" [routerLink]="['/app/cursos', c.id]" [queryParams]="{tab: 'grupos'}"
                 matTooltip="Gestionar grupos/secciones">
                 <mat-icon>groups</mat-icon>
-              </button>
+              </a>
               <a mat-icon-button class="btn-action edit" [routerLink]="['/app/cursos', c.id, 'editar']"
                 matTooltip="Editar curso">
                 <mat-icon>edit</mat-icon>

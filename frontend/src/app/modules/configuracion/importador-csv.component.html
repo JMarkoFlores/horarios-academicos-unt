@@ -1,71 +1,140 @@
-<div class="importador-container">
+<div class="importador-container" [style.--primary-color]="primaryColor" [style.--accent-color]="accentColor">
   <!-- STEP 1: UPLOAD -->
   <ng-container *ngIf="step === 'upload'">
     <div class="upload-section">
-      <h3>Cargar Datos Maestros</h3>
+      <div class="section-header">
+        <h2>Cargar Datos Maestros</h2>
+        <p class="subtitle">Selecciona el tipo de datos y sube un archivo CSV</p>
+      </div>
 
-      <form [formGroup]="uploadForm" class="upload-form">
-        <mat-form-field appearance="outline">
-          <mat-label>Tipo de Datos</mat-label>
-          <mat-select formControlName="entityType">
-            <mat-option *ngFor="let type of entityTypes" [value]="type.value">
-              {{ type.label }}
-            </mat-option>
-          </mat-select>
-        </mat-form-field>
-      </form>
+      <!-- Entity Type Cards -->
+      <div class="entity-types-grid">
+        <mat-card *ngFor="let template of templates" 
+                  class="entity-type-card"
+                  [class.selected]="uploadForm.get('entityType')?.value === template.entityType"
+                  (click)="onEntityTypeChange(template.entityType)">
+          <mat-card-content>
+            <div class="card-icon" [style.background-color]="primaryColor">
+              <mat-icon>{{ template.icon }}</mat-icon>
+            </div>
+            <h3>{{ template.label }}</h3>
+            <p class="card-desc">{{ template.description }}</p>
+            <div class="card-order" *ngIf="template.order">Paso {{ template.order }}</div>
+            <div class="dependencies" *ngIf="template.dependencies && template.dependencies.length > 0">
+              <mat-icon class="dep-icon">arrow_upward</mat-icon>
+              <span>Requiere: {{ template.dependencies.join(', ') }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
 
-      <div
-        class="drag-drop-area"
-        (dragover)="onDragOver($event)"
-        (drop)="onDropFile($event)"
-      >
-        <div class="drag-drop-content">
-          <mat-icon class="upload-icon">cloud_upload</mat-icon>
-          <p class="drag-text">Arrastra un archivo CSV aquí</p>
-          <p class="or-text">o</p>
-          <button
-            mat-raised-button
-            color="primary"
-            (click)="fileInput.click()"
-            type="button"
-          >
-            Seleccionar Archivo
+        <mat-card class="entity-type-card add-template" *ngIf="!currentTemplate">
+          <mat-card-content class="center-content">
+            <mat-icon class="large-icon">cloud_upload</mat-icon>
+            <h3>Selecciona un tipo</h3>
+            <p>Elige el tipo de datos a importar</p>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <!-- Template Info & Download -->
+      <div class="template-info" *ngIf="currentTemplate">
+        <div class="template-header">
+          <h4>Formato CSV para {{ currentTemplate.label }}</h4>
+          <button mat-stroked-button (click)="downloadTemplate()" [disabled]="!currentTemplate">
+            <mat-icon>download</mat-icon>
+            Descargar Plantilla
           </button>
-          <input
-            #fileInput
-            type="file"
-            accept=".csv"
-            style="display: none"
-            (change)="onFileSelected($event)"
-          />
+        </div>
+        
+        <div class="columns-table-container">
+          <table class="columns-table">
+            <thead>
+              <tr>
+                <th>Campo</th>
+                <th>Obligatorio</th>
+                <th>Tipo</th>
+                <th>Valores permitidos / Descripción</th>
+                <th>Ejemplo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let col of currentTemplate.columns">
+                <td>{{ col.name }}</td>
+                <td>
+                  <mat-chip *ngIf="col.required" color="warn" class="required-chip">Obligatorio</mat-chip>
+                  <mat-chip *ngIf="!col.required" color="primary" class="optional-chip">Opcional</mat-chip>
+                </td>
+                <td>{{ col.type || 'string' }}</td>
+                <td>
+                  <span *ngIf="col.enumValues">
+                    <span class="enum-badge" *ngFor="let val of col.enumValues">{{ val }}</span>
+                  </span>
+                  <span *ngIf="!col.enumValues">{{ col.description }}</span>
+                </td>
+                <td><code>{{ col.example }}</code></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div *ngIf="selectedFile" class="selected-file">
-        <mat-icon>check_circle</mat-icon>
-        <span>{{ selectedFile.name }}</span>
-        <span class="file-size">({{ (selectedFile.size / 1024).toFixed(2) }} KB)</span>
-      </div>
+      <!-- Upload Form -->
+      <form [formGroup]="uploadForm" class="upload-form-section">
+        <div
+          class="drag-drop-area"
+          (dragover)="onDragOver($event)"
+          (drop)="onDropFile($event)"
+          [class.has-file]="selectedFile">
+          <div class="drag-drop-content">
+            <mat-icon class="upload-icon">cloud_upload</mat-icon>
+            <p class="drag-text">Arrastra un archivo CSV aquí</p>
+            <p class="or-text">o</p>
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="fileInput.click()"
+              type="button">
+              Seleccionar Archivo
+            </button>
+            <input
+              #fileInput
+              type="file"
+              accept=".csv"
+              style="display: none"
+              (change)="onFileSelected($event)">
+          </div>
+        </div>
 
-      <button
-        mat-raised-button
-        color="accent"
-        (click)="uploadCSV()"
-        [disabled]="!selectedFile || loadingPreview"
-        class="upload-button"
-      >
-        <mat-icon *ngIf="!loadingPreview">upload</mat-icon>
-        <mat-spinner *ngIf="loadingPreview" diameter="20"></mat-spinner>
-        {{ loadingPreview ? 'Procesando...' : 'Procesar CSV' }}
-      </button>
+        <div *ngIf="selectedFile" class="selected-file">
+          <mat-icon>check_circle</mat-icon>
+          <span>{{ selectedFile.name }}</span>
+          <span class="file-size">({{ (selectedFile.size / 1024).toFixed(2) }} KB)</span>
+          <button mat-icon-button (click)="selectedFile = null" aria-label="Eliminar">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="uploadCSV()"
+          [disabled]="!selectedFile || loadingPreview"
+          class="upload-button">
+          <mat-icon *ngIf="!loadingPreview">upload</mat-icon>
+          <mat-spinner *ngIf="loadingPreview" diameter="20"></mat-spinner>
+          {{ loadingPreview ? 'Procesando...' : 'Procesar CSV' }}
+        </button>
+      </form>
     </div>
   </ng-container>
 
   <!-- STEP 2: PREVIEW -->
   <ng-container *ngIf="step === 'preview' && preview">
     <div class="preview-section">
-      <h3>Vista Previa de Importación</h3>
+      <div class="section-header">
+        <h2>Vista Previa de Importación</h2>
+        <span class="entity-badge">{{ currentTemplate?.label }}</span>
+      </div>
 
       <div class="stats-grid">
         <div class="stat-card total">
@@ -87,48 +156,49 @@
       </div>
 
       <!-- Registros Válidos -->
-      <div class="valid-records" *ngIf="preview.valid.length > 0">
+      <div class="records-section" *ngIf="preview.valid.length > 0">
         <h4>Registros Válidos (Primeros {{ getValidRowsForDisplay().length }})</h4>
-        <table mat-table [dataSource]="getValidRowsForDisplay()" class="records-table">
-          <ng-container matColumnDef="preview">
-            <th mat-header-cell>Datos</th>
-            <td mat-cell *matCellDef="let element">
-              <code>{{ element | json }}</code>
-            </td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="['preview']"></tr>
-          <tr mat-row *matRowDef="let row; columns: ['preview']"></tr>
-        </table>
+        <div class="table-container">
+          <table mat-table [dataSource]="getValidRowsForDisplay()" class="records-table">
+            <ng-container matColumnDef="preview">
+              <th mat-header-cell>Datos</th>
+              <td mat-cell *matCellDef="let element">
+                <div class="record-json" [innerHTML]="formatRecord(element)"></div>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['preview']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['preview']"></tr>
+          </table>
+        </div>
       </div>
 
       <!-- Registros con Errores -->
-      <div class="invalid-records" *ngIf="preview.invalid.length > 0">
+      <div class="records-section" *ngIf="preview.invalid.length > 0">
         <h4>Registros con Errores (Primeros {{ getInvalidRowsForDisplay().length }})</h4>
-        <table mat-table [dataSource]="getInvalidRowsForDisplay()" class="records-table error-table">
-          <ng-container matColumnDef="row">
-            <th mat-header-cell>Fila</th>
-            <td mat-cell *matCellDef="let element">{{ element.errors?.[0]?.row }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="field">
-            <th mat-header-cell>Campo</th>
-            <td mat-cell *matCellDef="let element">{{ element.errors?.[0]?.field }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="error">
-            <th mat-header-cell>Error</th>
-            <td mat-cell *matCellDef="let element" class="error-message">
-              {{ element.errors?.[0]?.error }}
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="['row', 'field', 'error']"></tr>
-          <tr mat-row *matRowDef="let row; columns: ['row', 'field', 'error']"></tr>
-        </table>
+        <div class="table-container">
+          <table mat-table [dataSource]="getInvalidRowsForDisplay()" class="records-table error-table">
+            <ng-container matColumnDef="row">
+              <th mat-header-cell>Fila</th>
+              <td mat-cell *matCellDef="let element">{{ element.errors?.[0]?.row }}</td>
+            </ng-container>
+            <ng-container matColumnDef="field">
+              <th mat-header-cell>Campo</th>
+              <td mat-cell *matCellDef="let element">{{ element.errors?.[0]?.field }}</td>
+            </ng-container>
+            <ng-container matColumnDef="error">
+              <th mat-header-cell>Error</th>
+              <td mat-cell *matCellDef="let element" class="error-message">
+                {{ element.errors?.[0]?.error }}
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="['row', 'field', 'error']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['row', 'field', 'error']"></tr>
+          </table>
+        </div>
       </div>
 
       <!-- Duplicados -->
-      <div class="duplicates-records" *ngIf="preview.duplicates && preview.duplicates.length > 0">
+      <div class="records-section" *ngIf="preview.duplicates && preview.duplicates.length > 0">
         <h4>Registros Duplicados</h4>
         <mat-list>
           <mat-list-item *ngFor="let dup of preview.duplicates">
@@ -142,20 +212,18 @@
       <!-- Botones de Acción -->
       <div class="preview-actions">
         <button
-          mat-raised-button
+          mat-stroked-button
           (click)="cancelAndReset()"
-          class="cancel-button"
-        >
+          class="cancel-button">
           Cancelar
         </button>
         <button
           mat-raised-button
-          color="accent"
+          color="primary"
           (click)="confirmImport()"
           [disabled]="preview.valid.length === 0 || loadingConfirm"
-          class="confirm-button"
-        >
-          <mat-icon *ngIf="!loadingConfirm">download</mat-icon>
+          class="confirm-button">
+          <mat-icon *ngIf="!loadingConfirm">save</mat-icon>
           <mat-spinner *ngIf="loadingConfirm" diameter="20"></mat-spinner>
           {{ loadingConfirm ? 'Importando...' : 'Confirmar Importación' }}
         </button>
@@ -173,8 +241,13 @@
 
   <!-- STEP 4: RESULT -->
   <ng-container *ngIf="step === 'result' && result">
-    <div class="result-section" [ngClass]="{ success: result.failed === 0 }">
-      <h3>Resultado de Importación</h3>
+    <div class="result-section" [class.success]="result.failed === 0">
+      <div class="result-header">
+        <mat-icon class="result-icon" [style.color]="result.failed === 0 ? '#10b981' : '#ef4444'">
+          {{ result.failed === 0 ? 'check_circle' : 'error' }}
+        </mat-icon>
+        <h2>Resultado de Importación</h2>
+      </div>
 
       <div class="result-stats">
         <div class="stat-result success">
@@ -191,20 +264,19 @@
 
       <div class="result-actions">
         <button
-          mat-raised-button
-          color="accent"
+          mat-stroked-button
+          color="primary"
           *ngIf="result.errors && result.errors.length > 0"
           (click)="downloadErrorReport()"
-          class="download-button"
-        >
+          class="download-button">
           <mat-icon>download</mat-icon>
           Descargar Reporte de Errores
         </button>
         <button
           mat-raised-button
+          color="primary"
           (click)="cancelAndReset()"
-          class="finish-button"
-        >
+          class="finish-button">
           Finalizar
         </button>
       </div>

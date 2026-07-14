@@ -1,23 +1,23 @@
+@use '../../../shared/design-system/form-mixins' as forms;
+@use '../../../shared/design-system/responsive-mixins' as resp;
+
 .page-header {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
+
   h1 {
-    font-size: 24px;
+    font-size: var(--font-size-2xl);
     font-weight: 700;
     margin: 0;
   }
 }
 
 .loading-center {
-  display: flex;
-  justify-content: center;
-  padding: 40px;
+  @include forms.form-loading-center;
 }
 
 .form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
-  padding: 16px;
+  @include resp.responsive-grid-2-col;
+  padding: var(--space-4);
 
   .toggle-row {
     display: flex;

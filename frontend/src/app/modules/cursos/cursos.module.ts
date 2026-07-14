@@ -3,12 +3,14 @@ import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { CursosListComponent } from './cursos-list/cursos-list.component';
 import { CursoFormComponent } from './curso-form/curso-form.component';
+import { CursoDetailComponent } from './curso-detail/curso-detail.component';
 import { AsignarAmbientesDialogComponent } from './dialogs/asignar-ambientes-dialog/asignar-ambientes-dialog.component';
 import { GestionarGruposDialogComponent } from './dialogs/gestionar-grupos-dialog/gestionar-grupos-dialog.component';
 
 const routes: Routes = [
   { path: '', component: CursosListComponent },
   { path: 'nuevo', component: CursoFormComponent },
+  { path: ':id', component: CursoDetailComponent },
   { path: ':id/editar', component: CursoFormComponent },
 ];
 
@@ -16,6 +18,7 @@ const routes: Routes = [
   declarations: [
     CursosListComponent,
     CursoFormComponent,
+    CursoDetailComponent,
     AsignarAmbientesDialogComponent,
     GestionarGruposDialogComponent,
   ],

@@ -1,7 +1,13 @@
+@use '../../../shared/design-system/responsive-mixins' as resp;
+
 .cursos-page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
+
+  @include resp.mobile {
+    gap: var(--space-3);
+  }
 }
 
 // ── HEADER PREMIUM ────────────────────────────────────────────────────────
@@ -15,21 +21,51 @@
     .gradient-text {
       font-size: 28px;
       font-weight: 800;
-      background: linear-gradient(
-        135deg,
-        var(--color-primary),
-        var(--color-accent)
-      ); // Azul a Esmeralda
+      background: linear-gradient(135deg,
+          var(--color-primary),
+          var(--color-accent)); // Azul a Esmeralda
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
       margin: 0;
       letter-spacing: -0.03em;
     }
+
     .subtitle {
       color: var(--color-text-muted);
       margin: 4px 0 0 0;
       font-size: 14px;
+    }
+  }
+
+  .plan-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: var(--color-text-muted);
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: var(--color-primary);
+    }
+
+    strong {
+      color: var(--color-text);
+      font-weight: 700;
+    }
+
+    .resolucion {
+      margin-left: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--color-primary-light);
+      color: var(--color-primary);
+      font-size: 11px;
+      font-weight: 600;
     }
   }
 
@@ -57,7 +93,7 @@
 
 // ── FILTERS PREMIUM ───────────────────────────────────────────────────────
 .filter-card-premium {
-  padding: 16px 20px !important;
+  padding: var(--space-5) !important;
   border-radius: var(--radius-lg) !important;
   border: 1px solid var(--color-border) !important;
   background: var(--color-surface) !important;
@@ -65,14 +101,23 @@
 
   .filter-grid {
     display: flex;
-    gap: 20px;
+    gap: var(--space-5);
     align-items: center;
     flex-wrap: wrap;
+
+    @include resp.mobile {
+      gap: var(--space-3);
+      flex-direction: column;
+    }
 
     .search-wrapper {
       flex: 1;
       min-width: 300px;
       position: relative;
+
+      @include resp.mobile {
+        min-width: 100%;
+      }
 
       .search-icon {
         position: absolute;
@@ -90,7 +135,7 @@
         padding: 0 16px 0 44px;
         background: var(--color-background);
         border: 1px solid var(--color-border);
-        border-radius: 10px;
+        border-radius: 12px;
         font-family: inherit;
         font-size: 14px;
         color: var(--color-text);
@@ -157,11 +202,18 @@
         font-size: 11px;
         letter-spacing: 0.05em;
         border-bottom: 1px solid var(--color-border);
+        padding: var(--space-3) var(--space-4) !important;
+
+        &:focus-visible {
+          outline: 2px solid var(--color-accent);
+          outline-offset: -2px;
+        }
       }
     }
 
     .premium-row {
-      height: 64px;
+      height: auto;
+      min-height: 64px;
       transition: all var(--transition-fast);
       cursor: pointer;
       animation: fadeInUp 400ms ease-out forwards;
@@ -181,9 +233,18 @@
         }
       }
 
-      .mat-mdc-cell {
-        border-bottom: 1px solid var(--color-border);
+      &:focus-within {
+        outline: 2px solid var(--color-accent);
+        outline-offset: -1px;
       }
+
+      .mat-mdc-cell {
+        padding: var(--space-2) var(--space-3) !important;
+      }
+    }
+
+    .mat-mdc-cell {
+      border-bottom: 1px solid var(--color-border);
     }
   }
 }
@@ -223,6 +284,7 @@
     color: var(--color-text);
     font-size: 14px;
   }
+
   .course-cycle {
     font-size: 11px;
     color: var(--color-text-muted);
@@ -288,8 +350,17 @@
       height: 36px;
       line-height: 36px;
 
+      &.view {
+        color: #7c3aed;
+
+        &:hover {
+          background: rgba(124, 58, 237, 0.1);
+        }
+      }
+
       &.edit {
         color: var(--color-primary);
+
         &:hover {
           background: var(--color-primary-light);
         }
@@ -297,6 +368,7 @@
 
       &.delete {
         color: #ef4444;
+
         &:hover {
           background: rgba(239, 68, 68, 0.1);
         }
@@ -349,6 +421,7 @@
     margin-bottom: 4px;
     color: var(--color-text);
   }
+
   p {
     color: var(--color-text-muted);
     font-size: 13px;
@@ -418,8 +491,15 @@
   align-items: center;
   gap: 6px;
 
-  mat-icon { font-size: 17px; width: 17px; height: 17px; }
-  &:hover { background: var(--color-background) !important; }
+  mat-icon {
+    font-size: 17px;
+    width: 17px;
+    height: 17px;
+  }
+
+  &:hover {
+    background: var(--color-background) !important;
+  }
 }
 
 // ── RESULTS BAR ────────────────────────────────────────────────────────────
@@ -438,8 +518,15 @@
     font-size: 13px;
     color: var(--color-text-muted);
 
-    mat-icon { font-size: 16px; width: 16px; height: 16px; }
-    strong { color: var(--color-text); }
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+
+    strong {
+      color: var(--color-text);
+    }
   }
 
   .badge-inactivos {
@@ -481,7 +568,10 @@
   letter-spacing: 0.03em;
 }
 
-.inactivo-title { opacity: 0.45; text-decoration: line-through; }
+.inactivo-title {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
 
 .inactivo-badge {
   background: var(--color-danger-bg);
@@ -505,7 +595,11 @@
   font-weight: 600;
   cursor: default;
 
-  mat-icon { font-size: 14px; width: 14px; height: 14px; }
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
 
   &.comp-ok {
     background: var(--color-success-bg);
@@ -534,12 +628,18 @@
 // ── REACTIVAR BUTTON ───────────────────────────────────────────────────────
 .btn-action.reactivar {
   color: var(--color-success);
-  &:hover { background: var(--color-success-bg); }
+
+  &:hover {
+    background: var(--color-success-bg);
+  }
 }
 
 .btn-action.delete {
   color: var(--color-danger);
-  &:hover { background: var(--color-danger-bg); }
+
+  &:hover {
+    background: var(--color-danger-bg);
+  }
 }
 
 // ── PREREQUISITOS ───────────────────────────────────────────────────────────
@@ -563,7 +663,10 @@
 
 .btn-action.groups {
   color: var(--color-accent);
-  &:hover { background: var(--color-accent-light); }
+
+  &:hover {
+    background: var(--color-accent-light);
+  }
 }
 
 // ── FILTER INDICATOR BAR ──
@@ -576,16 +679,19 @@
   background: var(--color-primary-light);
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
+
   .filter-chips {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+
     .filter-label {
       font-size: 12px;
       font-weight: 600;
       color: var(--color-primary);
     }
+
     .filter-chip {
       display: flex;
       align-items: center;
@@ -597,41 +703,66 @@
       font-size: 12px;
       font-weight: 500;
       color: var(--color-text);
+
       mat-icon {
         font-size: 14px;
         width: 14px;
         height: 14px;
         cursor: pointer;
         color: var(--color-text-muted);
-        &:hover { color: #ef4444; }
+
+        &:hover {
+          color: #ef4444;
+        }
       }
     }
   }
+
   .clear-filters-btn {
     font-size: 12px;
     font-weight: 600;
-    mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
   }
 }
 
 // ── SKELETON LOADER ──
-.skeleton-card { overflow: hidden; }
+.skeleton-card {
+  overflow: hidden;
+}
+
 .skeleton-list {
   display: flex;
   flex-direction: column;
 }
+
 .skeleton-row {
   display: flex;
   gap: 16px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--color-border);
   align-items: center;
+
   .skeleton-cell {
     flex: 1;
-    &.code { flex: 0 0 80px; }
-    &.name { flex: 1.5; }
-    &.actions { flex: 0 0 100px; }
+
+    &.code {
+      flex: 0 0 80px;
+    }
+
+    &.name {
+      flex: 1.5;
+    }
+
+    &.actions {
+      flex: 0 0 100px;
+    }
   }
+
   .skeleton-line {
     height: 12px;
     margin-bottom: 6px;
@@ -639,15 +770,39 @@
     background: linear-gradient(90deg, var(--color-border) 25%, var(--color-surface-2) 50%, var(--color-border) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
-    &:last-child { margin-bottom: 0; }
-    &.w-20 { width: 20%; }
-    &.w-30 { width: 30%; }
-    &.w-40 { width: 40%; }
-    &.w-50 { width: 50%; }
-    &.w-60 { width: 60%; }
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &.w-20 {
+      width: 20%;
+    }
+
+    &.w-30 {
+      width: 30%;
+    }
+
+    &.w-40 {
+      width: 40%;
+    }
+
+    &.w-50 {
+      width: 50%;
+    }
+
+    &.w-60 {
+      width: 60%;
+    }
   }
 }
+
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }

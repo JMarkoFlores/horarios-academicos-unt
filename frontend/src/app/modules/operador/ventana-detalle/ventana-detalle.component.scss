@@ -443,3 +443,91 @@ $bg-laboratorio: #eef2ff;
   70% { box-shadow: 0 0 0 10px rgba($primary, 0); }
   100% { box-shadow: 0 0 0 0 rgba($primary, 0); }
 }
+
+.advertencia-ambientes {
+  background: linear-gradient(135deg, rgba($warning, 0.12), rgba($warning, 0.04));
+  border: 2px solid $warning;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+
+  .icono-advertencia {
+    color: $warning;
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 12px;
+  }
+
+  .titulo-advertencia {
+    color: var(--color-text, #1e293b);
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+
+  .mensaje-advertencia {
+    color: var(--color-text-muted, #64748b);
+    font-size: 13px;
+    margin: 0 0 16px;
+    line-height: 1.5;
+  }
+
+  button {
+    border-radius: 10px;
+  }
+
+  .diagnostico-ambientes {
+    margin-top: 16px;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 10px;
+    padding: 12px;
+
+    .divider-diagnostico {
+      margin-bottom: 12px;
+      border-top-color: rgba($warning, 0.3);
+    }
+
+    .diagnostico-titulo {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--color-text, #1e293b);
+      font-size: 13px;
+      font-weight: 700;
+      margin: 0 0 8px;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    .diagnostico-linea {
+      color: var(--color-text-muted, #64748b);
+      font-size: 12px;
+      margin: 0 0 6px;
+      line-height: 1.4;
+    }
+
+    .diagnostico-subtitulo {
+      color: var(--color-text, #1e293b);
+      font-size: 12px;
+      font-weight: 600;
+      margin: 8px 0 4px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: var(--color-text-muted, #64748b);
+
+      li {
+        margin-bottom: 2px;
+      }
+    }
+  }
+}

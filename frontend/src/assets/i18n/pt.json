@@ -41,6 +41,7 @@
     "horarios": "Horários",
     "schedules": "Horários",
     "mySchedules": "Meus Horários",
+    "myWindows": "Minhas Janelas",
     "docentes": "Docentes",
     "teachers": "Docentes",
     "cursos": "Cursos",
@@ -48,7 +49,9 @@
     "ambientes": "Ambientes",
     "environments": "Ambientes",
     "planEstudios": "Plano de Estudos",
+    "ofertaAcademica": "Oferta Acadêmica",
     "asignacionLectiva": "Atribuição Letiva",
+    "asignadorCarga": "Atribuição de Carga",
     "disponibilidad": "Disponibilidade",
     "availability": "Disponibilidade",
     "reportes": "Relatórios",
@@ -71,13 +74,16 @@
     "periods": "Períodos",
     "loadParams": "Parâmetros de Carga",
     "campaigns": "Campanhas",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "audit": "Auditoria"
   },
   "nav": {
     "groups": {
       "main": "Principal",
       "academic": "Gestão Acadêmica",
       "operations": "Operações",
+      "declarations": "Declarações",
+      "windows": "Janelas e Atendimento",
       "reports": "Relatórios e Análises",
       "system": "Sistema"
     }
@@ -130,7 +136,9 @@
     "facultades": "Faculdades",
     "planEstudios": "Plano de Estudos",
     "planEstudios_detalle": "Detalhe",
-    "asignacionLectiva": "Atribuição Letiva"
+    "asignacionLectiva": "Atribuição Letiva",
+    "asignadorCarga": "Atribuição de Carga",
+    "perfil": "Meu Perfil"
   },
   "planEstudios": {
     "title": "Plano de Estudos",
@@ -207,7 +215,24 @@
     "loggingIn": "ENTRANDO...",
     "loginToSystem": "ENTRAR NO SISTEMA",
     "academicManagementSystem": "SISTEMA DE GESTÃO ACADÊMICA &bull; EIS",
-    "unt": "Universidade Nacional de Trujillo"
+    "unt": "Universidade Nacional de Trujillo",
+    "forgotPassword": "Esqueceu a senha?",
+    "recoverPassword": "Recuperar Senha",
+    "enterEmail": "Digite seu e-mail institucional ou alternativo",
+    "sendResetLink": "Enviar link de recuperação",
+    "resetLinkSent": "Se o e-mail existir, você receberá um link de recuperação",
+    "backToLogin": "Voltar ao login",
+    "resetPassword": "Redefinir Senha",
+    "newPassword": "Nova senha",
+    "confirmPassword": "Confirmar senha",
+    "passwordMinLength": "Mínimo 8 caracteres",
+    "passwordsMustMatch": "As senhas devem coincidir",
+    "resetSuccess": "Senha redefinida com sucesso",
+    "invalidToken": "Token inválido ou expirado",
+    "requestNewLink": "Solicitar novo link",
+    "alternateEmail": "E-mail alternativo (opcional)",
+    "alternateEmailHint": "Usado para notificações e recuperação de senha",
+    "alternateEmailInvalid": "E-mail alternativo inválido"
   },
   "dashboard": {
     "compactMode": "Modo compacto",
@@ -287,6 +312,7 @@
     },
     "classTypes": {
       "teoria": "Teoria",
+      "practica": "Prática",
       "laboratorio": "Laboratório",
       "mixto": "Misto"
     },
@@ -295,5 +321,103 @@
     "labsOcupadas": "Labs Ocupados",
     "labsLibres": "Labs Libres",
     "description": "Descrição"
+  },
+  "asignador": {
+    "title": "Atribuição de Carga Letiva",
+    "subtitle": "Atribua cursos a docentes arrastar e soltar",
+    "cursosPendientes": "Cursos Pendentes",
+    "seleccionarDocente": "Selecionar Docente",
+    "ambientes": "Salas",
+    "avance": "Progresso da Atribuição",
+    "guardar": "Salvar",
+    "actualizar": "Atualizar",
+    "save": "Salvar",
+    "refresh": "Atualizar",
+    "undo": "Desfazer",
+    "view": {
+      "docente": "Docente",
+      "ambiente": "Ambiente",
+      "ciclo": "Ciclo"
+    },
+    "selectDocente": "Selecionar Docente",
+    "selectDocentePlaceholder": "Selecione um docente",
+    "selectAmbiente": "Selecionar Ambiente",
+    "selectAmbientePlaceholder": "Selecione um ambiente",
+    "selectCiclo": "Selecionar Ciclo",
+    "selectCicloPlaceholder": "Selecione um ciclo",
+    "ciclo": "Ciclo",
+    "asignar": "Atribuir",
+    "cancelar": "Cancelar",
+    "eliminar": "Excluir",
+    "completos": "Completos",
+    "incompletos": "Incompletos",
+    "pendientes": "Pendentes",
+    "porAsignar": "Para atribuir",
+    "todosAsignados": "Todos os cursos estão atribuídos",
+    "conflictoHorario": "Conflito de horário",
+    "cargaExcedida": "Carga excedida",
+    "aulaOcupada": "Sala ocupada"
+  },
+  "bancoCursos": {
+    "title": "Banco de Cursos",
+    "searchPlaceholder": "Buscar curso...",
+    "filter": {
+      "ciclo": "Ciclo",
+      "all": "Todos",
+      "tipo": "Tipo",
+      "obligatorioGeneral": "Obrigatório Geral",
+      "obligatorioProfesional": "Obrigatório Profissional",
+      "electivo": "Eletivo"
+    },
+    "stats": {
+      "horasPendientes": "Horas pendentes",
+      "cursos": "Cursos"
+    },
+    "ciclo": "Ciclo",
+    "tooltip": {
+      "alumnos": "Alunos: {{count}}"
+    },
+    "empty": {
+      "allAssigned": "Todos os cursos estão atribuídos",
+      "noMatch": "Nenhum curso corresponde a este filtro"
+    }
+  },
+  "panelAmbientes": {
+    "title": "Painel de Ambientes",
+    "searchPlaceholder": "Buscar sala...",
+    "filter": {
+      "tipo": "Tipo",
+      "all": "Todos",
+      "aula": "Sala",
+      "laboratorio": "Laboratório",
+      "computo": "Computador",
+      "capacidad": "Capacidade",
+      "disponibilidad": "Disponibilidade",
+      "libre": "Livre",
+      "parcial": "Parcial"
+    },
+    "legend": {
+      "libre": "Livre",
+      "ocupada": "Ocupada",
+      "llena": "Cheia"
+    },
+    "tooltip": {
+      "capacidad": "Capacidade: {{cap}}"
+    },
+    "bloques": "blocos",
+    "empty": "Nenhuma sala encontrada"
+  },
+  "error": {
+    "pageNotFound": "Página não encontrada",
+    "pageNotFoundMsg": "A página que você procura não existe ou foi movida.",
+    "accessDenied": "Acesso negado",
+    "accessDeniedMsg": "Você não tem permissão para acessar esta seção.",
+    "serverError": "Erro do servidor",
+    "serverErrorMsg": "Ocorreu um erro inesperado. Nossa equipe foi notificada.",
+    "sessionExpired": "Sessão expirada",
+    "sessionExpiredMsg": "Sua sessão expirou. Por favor, faça login novamente.",
+    "goHome": "Ir ao início",
+    "goLogin": "Entrar",
+    "helpText": "Se você acha que isso é um erro, contate o administrador do sistema."
   }
 }

@@ -10,7 +10,7 @@
           @if (crumb.icon && $first) {
             <mat-icon class="breadcrumb-icon">{{ crumb.icon }}</mat-icon>
           }
-          <span class="crumb-text">{{ crumb.translationKey ? (crumb.translationKey | translate) : crumb.label }}</span>
+          <span class="crumb-text">{{ crumb.translationKey ? (crumb.translationKey | translate) : (crumb.label || '') }}</span>
         </a>
         @if (!last) {
           <mat-icon class="breadcrumb-separator">chevron_right</mat-icon>

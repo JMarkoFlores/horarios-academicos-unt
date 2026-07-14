@@ -4,12 +4,12 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { PageEvent } from '@angular/material/paginator';
 import { Sort } from '@angular/material/sort';
+import { ActivatedRoute, Router } from '@angular/router';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import * as XLSX from 'xlsx-js-style';
 import { ApiService } from '../../../core/services/api.service';
 import { Curso, Ambiente, ApiResponse } from '../../../core/interfaces/entities';
 import { AsignarAmbientesDialogComponent } from '../dialogs/asignar-ambientes-dialog/asignar-ambientes-dialog.component';
-import { GestionarGruposDialogComponent } from '../dialogs/gestionar-grupos-dialog/gestionar-grupos-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/confirm-dialog.component';
 
 @Component({
@@ -33,9 +33,10 @@ export class CursosListComponent implements OnInit {
   currentPage = 0;
   loading     = false;
   exportando  = false;
+  asignandoAmbientes = false;
 
   searchControl      = new FormControl('');
-  cicloFilter        = '';
+  cicloFilter: number | '' = '';
   labFilter          = '';       // '', 'true', 'false'
   activoFilter       = 'true';  // 'true' | 'false' | ''
   ciclos = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -47,15 +48,41 @@ export class CursosListComponent implements OnInit {
     private api: ApiService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
+    private route: ActivatedRoute,
+    private router: Router,
   ) {}
 
   ngOnInit(): void {
+    this.restoreFilters();
     this.loadAllCursos();
     this.loadCursos();
     this.loadActivePlan();
     this.searchControl.valueChanges
       .pipe(debounceTime(400), distinctUntilChanged())
       .subscribe(() => { this.currentPage = 0; this.loadCursos(); });
+  }
+
+  private restoreFilters(): void {
+    const q = this.route.snapshot.queryParamMap;
+    if (q.get('ciclo')) this.cicloFilter = Number(q.get('ciclo'));
+    if (q.has('lab')) this.labFilter = q.get('lab')!;
+    if (q.get('activo')) this.activoFilter = q.get('activo')!;
+    if (q.get('q')) this.searchControl.setValue(q.get('q')!);
+    if (q.get('page')) this.currentPage = Number(q.get('page')) - 1;
+    if (q.get('sortBy')) this.sortBy = q.get('sortBy')!;
+    if (q.get('sortDir')) this.sortDir = q.get('sortDir') as 'ASC' | 'DESC';
+  }
+
+  private syncFilters(): void {
+    const q: Record<string, string> = {};
+    if (this.cicloFilter) q['ciclo'] = String(this.cicloFilter);
+    if (this.labFilter !== '') q['lab'] = this.labFilter;
+    if (this.activoFilter !== 'true') q['activo'] = this.activoFilter;
+    if (this.searchControl.value) q['q'] = this.searchControl.value;
+    if (this.currentPage > 0) q['page'] = String(this.currentPage + 1);
+    if (this.sortBy !== 'tipo_curso') q['sortBy'] = this.sortBy;
+    if (this.sortDir !== 'ASC') q['sortDir'] = this.sortDir;
+    this.router.navigate([], { queryParams: Object.keys(q).length ? q : undefined, replaceUrl: true });
   }
 
   loadActivePlan(): void {
@@ -91,6 +118,8 @@ export class CursosListComponent implements OnInit {
     if (this.cicloFilter)          params['ciclo']             = this.cicloFilter;
     if (this.labFilter !== '')     params['tiene_laboratorio'] = this.labFilter;
     if (this.activoFilter !== '')  params['activo']            = this.activoFilter;
+
+    this.syncFilters();
 
     this.api.get<ApiResponse<{ items: Curso[]; total: number }>>('/cursos', params).subscribe({
       next: (res) => {
@@ -214,12 +243,6 @@ export class CursosListComponent implements OnInit {
     }).afterClosed().subscribe((r: boolean) => { if (r) this.loadCursos(); });
   }
 
-  abrirGestionarGrupos(curso: Curso): void {
-    this.dialog.open(GestionarGruposDialogComponent, {
-      width: '780px', maxWidth: '95vw', data: { curso },
-    }).afterClosed().subscribe((r: boolean) => { if (r) this.loadCursos(); });
-  }
-
   eliminar(curso: Curso): void {
     this.dialog.open(ConfirmDialogComponent, {
       width: '420px',
@@ -254,6 +277,38 @@ export class CursosListComponent implements OnInit {
       this.api.patch<ApiResponse<any>>(`/cursos/${curso.id}/reactivar`, {}).subscribe({
         next: () => { this.snackBar.open('Curso reactivado', 'OK', { duration: 2500 }); this.loadCursos(); },
         error: (err) => { this.snackBar.open(err?.error?.message ?? 'Error al reactivar', 'Cerrar', { duration: 4000 }); },
+      });
+    });
+  }
+
+  asignarAmbientesPorDefecto(): void {
+    this.dialog.open(ConfirmDialogComponent, {
+      width: '460px',
+      data: {
+        title: 'Asignar ambientes por defecto',
+        message: 'Se asignarán automáticamente ambientes a todos los cursos activos según sus horas de teoría, práctica y laboratorio.',
+        detail: 'No sobrescribirá ambientes ya asignados manualmente.',
+        confirmText: 'Asignar',
+        confirmColor: 'primary',
+      },
+    }).afterClosed().subscribe((ok: boolean) => {
+      if (!ok) return;
+      this.asignandoAmbientes = true;
+      this.api.post<ApiResponse<any>>('/cursos/asignar-ambientes-por-defecto', {}).subscribe({
+        next: (res) => {
+          this.asignandoAmbientes = false;
+          const data = res.data ?? {};
+          this.snackBar.open(
+            `Ambientes asignados: ${data.relacionesCreadas ?? 0} relaciones en ${data.cursosProcesados ?? 0} cursos`,
+            'OK',
+            { duration: 4000 },
+          );
+          this.loadCursos();
+        },
+        error: (err) => {
+          this.asignandoAmbientes = false;
+          this.snackBar.open(err?.error?.message ?? 'Error al asignar ambientes', 'Cerrar', { duration: 4000 });
+        },
       });
     });
   }
@@ -330,7 +385,7 @@ export class CursosListComponent implements OnInit {
     this.exportando = true;
     const params: Record<string, string> = {};
     if (this.searchControl.value) params['search'] = this.searchControl.value;
-    if (this.cicloFilter) params['ciclo'] = this.cicloFilter;
+    if (this.cicloFilter) params['ciclo'] = String(this.cicloFilter);
     if (this.labFilter !== '') params['lab'] = this.labFilter;
     if (this.activoFilter !== '') params['activo'] = this.activoFilter;
 

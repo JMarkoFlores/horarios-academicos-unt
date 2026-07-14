@@ -1,45 +1,32 @@
 .documentaciones-page {
-  padding: 32px;
-  max-width: 1400px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
 }
 
-.page-header {
+.page-header-premium {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 4px;
 
-  .header-icon {
-    width: 70px;
-    height: 70px;
-    background: linear-gradient(135deg, #1a237e, #3949ab);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 6px 20px rgba(26, 35, 126, 0.3);
-    flex-shrink: 0;
-
-    mat-icon {
-      font-size: 36px;
-      width: 36px;
-      height: 36px;
-      color: white;
+  .title-section {
+    .gradient-text {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+      letter-spacing: -0.03em;
     }
-  }
-
-  h1 {
-    margin: 0 0 6px;
-    font-size: 28px;
-    font-weight: 700;
-    color: #1a237e;
-  }
-
-  p {
-    margin: 0;
-    color: #666;
-    font-size: 16px;
+    .subtitle {
+      color: var(--color-text-muted);
+      margin: 4px 0 0;
+      font-size: 14px;
+    }
   }
 }
 

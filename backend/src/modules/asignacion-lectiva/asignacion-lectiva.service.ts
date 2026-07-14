@@ -6,22 +6,38 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, Not, IsNull } from "typeorm";
+import { Repository, Not, IsNull, Between } from "typeorm";
 import { AsignacionLectiva } from "../../entities/asignacion-lectiva.entity";
 import { Docente } from "../../entities/docente.entity";
 import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Grupo } from "../../entities/grupo.entity";
+import { EstadoAsignacionLectiva } from "../../common/enums/estado-asignacion-lectiva.enum";
+import { EstadoPeriodo } from "../../common/enums/estado-periodo.enum";
+import { TipoClase } from "../../common/enums/tipo-clase.enum";
 import { CreateAsignacionLectivaDto } from "./dto/create-asignacion-lectiva.dto";
 import { UpdateAsignacionLectivaDto } from "./dto/update-asignacion-lectiva.dto";
 import { QueryAsignacionLectivaDto } from "./dto/query-asignacion-lectiva.dto";
 import { ResumenCoberturaDto } from "./dto/resumen-cobertura.dto";
+import { ValidarAsignacionDto } from "./dto/validar-asignacion.dto";
 import { AuditoriaService } from "../auditoria/auditoria.service";
-import { EntidadAuditoriaCarga, AccionAuditoriaCarga } from "../../entities/auditoria-carga.entity";
+import {
+  EntidadAuditoriaCarga,
+  AccionAuditoriaCarga,
+} from "../../entities/auditoria-carga.entity";
+import { EstadoCursoPlan } from "../../common/enums/estado-curso-plan.enum";
 import { ContextoAcademicoService } from "../../common/services/contexto-academico.service";
-import { ContextoAcademico, UsuarioAutenticado } from "../../common/interfaces/contexto-academico.interface";
+import {
+  ContextoAcademico,
+  UsuarioAutenticado,
+} from "../../common/interfaces/contexto-academico.interface";
 import { Curso } from "../../entities/curso.entity";
+import { OfertaAcademica } from "../../entities/oferta-academica.entity";
+import { SuspensionDocente } from "../../entities/suspension-docente.entity";
+import { CatedraCompartida } from "../../entities/catedra-compartida.entity";
+import { HorarioAsignado } from "../../entities/horario-asignado.entity";
+import { Ambiente } from "../../entities/ambiente.entity";
 
 @Injectable()
 export class AsignacionLectivaService {
@@ -40,6 +56,16 @@ export class AsignacionLectivaService {
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(Curso)
     private readonly cursoRepo: Repository<Curso>,
+    @InjectRepository(OfertaAcademica)
+    private readonly ofertaRepo: Repository<OfertaAcademica>,
+    @InjectRepository(SuspensionDocente)
+    private readonly suspensionRepo: Repository<SuspensionDocente>,
+    @InjectRepository(CatedraCompartida)
+    private readonly catedraCompartidaRepo: Repository<CatedraCompartida>,
+    @InjectRepository(HorarioAsignado)
+    private readonly horarioRepo: Repository<HorarioAsignado>,
+    @InjectRepository(Ambiente)
+    private readonly ambienteRepo: Repository<Ambiente>,
     private readonly auditoriaService: AuditoriaService,
     private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
@@ -58,7 +84,11 @@ export class AsignacionLectivaService {
       .leftJoinAndSelect("a.asignado_por", "asignado_por");
 
     if (contexto && !contexto.verTodo) {
-      this.contextoAcademicoService.aplicarFiltroDocente(qb, contexto, "docente");
+      this.contextoAcademicoService.aplicarFiltroDocente(
+        qb,
+        contexto,
+        "docente",
+      );
     }
 
     if (query.periodo_id) {
@@ -119,7 +149,9 @@ export class AsignacionLectivaService {
     periodoId?: number,
     contexto?: ContextoAcademico,
   ) {
-    const docente = await this.docenteRepo.findOne({ where: { id: docenteId } });
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
+    });
     if (!docente) {
       throw new NotFoundException(`Docente #${docenteId} no encontrado`);
     }
@@ -136,10 +168,7 @@ export class AsignacionLectivaService {
     });
   }
 
-  async create(
-    dto: CreateAsignacionLectivaDto,
-    usuario: UsuarioAutenticado,
-  ) {
+  async create(dto: CreateAsignacionLectivaDto, usuario: UsuarioAutenticado) {
     const contexto = usuario.contextoAcademico;
     if (contexto) {
       this.contextoAcademicoService.assertAlcanceAsignado(contexto);
@@ -155,9 +184,24 @@ export class AsignacionLectivaService {
         `Curso en plan #${dto.curso_plan_id} no encontrado`,
       );
     }
-    if (cursoPlan.estado !== "ACTIVO") {
+    if (cursoPlan.estado !== EstadoCursoPlan.ACTIVO) {
       throw new BadRequestException(
         "El curso no está activo en el plan de estudios",
+      );
+    }
+
+    // A1-V9: El curso debe estar ofertado en el período (OfertaAcademica)
+    const oferta = await this.ofertaRepo.findOne({
+      where: {
+        periodo_id: dto.periodo_id,
+        curso_plan_id: dto.curso_plan_id,
+        tipo_clase: dto.tipo_clase,
+        activo: true,
+      },
+    });
+    if (!oferta) {
+      throw new BadRequestException(
+        `El curso "${cursoPlan.curso?.nombre}" no está ofertado para el tipo ${dto.tipo_clase} en el período actual. Genere la oferta académica primero.`,
       );
     }
 
@@ -168,10 +212,14 @@ export class AsignacionLectivaService {
     if (!periodo) {
       throw new NotFoundException(`Período #${dto.periodo_id} no encontrado`);
     }
-    const estadosPermitidos = ["planificacion", "asignacionhorarios"];
+    const estadosPermitidos = [
+      EstadoPeriodo.PLANIFICACION,
+      EstadoPeriodo.ASIGNACION_HORARIOS,
+      EstadoPeriodo.EN_CURSO,
+    ];
     if (!estadosPermitidos.includes(periodo.estado)) {
       throw new BadRequestException(
-        `El período está en estado "${periodo.estado}". Solo se puede asignar en PLANIFICACION o ASIGNACION_HORARIOS`,
+        `El período está en estado "${periodo.estado}". Solo se puede asignar en PLANIFICACION, ASIGNACION_HORARIOS o EN_CURSO`,
       );
     }
 
@@ -198,15 +246,20 @@ export class AsignacionLectivaService {
     }
 
     // Validar unicidad
+    const whereCondition: any = {
+      docente_id: dto.docente_id,
+      curso_plan_id: dto.curso_plan_id,
+      periodo_id: dto.periodo_id,
+      tipo_clase: dto.tipo_clase,
+      seccion: dto.seccion,
+    };
+    if (dto.grupo_id === undefined || dto.grupo_id === null) {
+      whereCondition.grupo_id = IsNull();
+    } else {
+      whereCondition.grupo_id = dto.grupo_id;
+    }
     const existing = await this.asignacionRepo.findOne({
-      where: {
-        docente_id: dto.docente_id,
-        curso_plan_id: dto.curso_plan_id,
-        periodo_id: dto.periodo_id,
-        tipo_clase: dto.tipo_clase,
-        seccion: dto.seccion,
-        grupo_id: dto.grupo_id ?? IsNull(),
-      },
+      where: whereCondition,
     });
     if (existing) {
       throw new ConflictException(
@@ -232,6 +285,15 @@ export class AsignacionLectivaService {
 
     // A1-V3: Validar cursos máximos
     await this.validarCursosMaximos(dto.docente_id, dto.periodo_id, docente);
+
+    // A1-V8: Validar que las horas del curso no estén ya cubiertas
+    await this.validarCoberturaCurso(
+      dto.curso_plan_id,
+      dto.periodo_id,
+      dto.tipo_clase,
+      dto.horas_asignadas,
+      horasPlan,
+    );
 
     const asignacion = this.asignacionRepo.create({
       ...dto,
@@ -269,7 +331,7 @@ export class AsignacionLectivaService {
   ) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
 
-    if (asignacion.estado !== "PENDIENTE") {
+    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
       throw new BadRequestException(
         `No se puede modificar una asignación en estado "${asignacion.estado}"`,
       );
@@ -342,13 +404,13 @@ export class AsignacionLectivaService {
 
   async confirmar(id: number, usuario: UsuarioAutenticado) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
-    if (asignacion.estado !== "PENDIENTE") {
+    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
       throw new BadRequestException(
         `No se puede confirmar una asignación en estado "${asignacion.estado}"`,
       );
     }
     const estadoAnterior = asignacion.estado;
-    asignacion.estado = "CONFIRMADO";
+    asignacion.estado = EstadoAsignacionLectiva.CONFIRMADO;
     asignacion.confirmado_por_id = usuario.id;
     asignacion.confirmado_en = new Date();
     const saved = await this.asignacionRepo.save(asignacion);
@@ -378,7 +440,7 @@ export class AsignacionLectivaService {
     observaciones: string,
   ) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
-    if (asignacion.estado !== "PENDIENTE") {
+    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
       throw new BadRequestException(
         `No se puede rechazar una asignación en estado "${asignacion.estado}"`,
       );
@@ -389,7 +451,7 @@ export class AsignacionLectivaService {
       );
     }
     const estadoAnterior = asignacion.estado;
-    asignacion.estado = "RECHAZADO";
+    asignacion.estado = EstadoAsignacionLectiva.RECHAZADO;
     asignacion.confirmado_por_id = usuario.id;
     asignacion.confirmado_en = new Date();
     asignacion.observaciones = observaciones;
@@ -417,7 +479,7 @@ export class AsignacionLectivaService {
 
   async remove(id: number, usuario: UsuarioAutenticado) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
-    if (asignacion.estado !== "PENDIENTE") {
+    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
       throw new BadRequestException(
         `No se puede eliminar una asignación en estado "${asignacion.estado}"`,
       );
@@ -450,6 +512,39 @@ export class AsignacionLectivaService {
     });
   }
 
+  async reabrir(id: number, usuario: UsuarioAutenticado) {
+    const asignacion = await this.findOne(id, usuario.contextoAcademico);
+    
+    if (asignacion.estado !== EstadoAsignacionLectiva.CONFIRMADO) {
+      throw new BadRequestException(
+        `Solo se puede reabrir una asignación en estado CONFIRMADO. Estado actual: ${asignacion.estado}`
+      );
+    }
+
+    const estadoAnterior = asignacion.estado;
+    asignacion.estado = EstadoAsignacionLectiva.PENDIENTE;
+    asignacion.confirmado_por_id = null;
+    asignacion.confirmado_en = null;
+    
+    const saved = await this.asignacionRepo.save(asignacion);
+
+    // Audit logging
+    await this.auditoriaService.registrarCarga({
+      entidad: EntidadAuditoriaCarga.ASIGNACION_LECTIVA,
+      entidad_id: saved.id,
+      usuario_id: usuario.id,
+      accion: AccionAuditoriaCarga.ACTUALIZAR,
+      estado_anterior: estadoAnterior,
+      estado_nuevo: saved.estado,
+      datos_anteriores: { estado: estadoAnterior },
+      datos_nuevos: { estado: saved.estado },
+      ip: "0.0.0.0",
+      motivo: "Reapertura de asignación lectiva",
+    });
+
+    return saved;
+  }
+
   async getResumen(
     periodoId?: number,
     planId?: number,
@@ -460,7 +555,11 @@ export class AsignacionLectivaService {
       .leftJoin("a.docente", "docente");
 
     if (contexto && !contexto.verTodo) {
-      this.contextoAcademicoService.aplicarFiltroDocente(qb, contexto, "docente");
+      this.contextoAcademicoService.aplicarFiltroDocente(
+        qb,
+        contexto,
+        "docente",
+      );
     }
 
     if (periodoId) {
@@ -477,10 +576,10 @@ export class AsignacionLectivaService {
 
     const total = asignaciones.length;
     const asignados = asignaciones.filter(
-      (a) => a.estado === "CONFIRMADO",
+      (a) => a.estado === EstadoAsignacionLectiva.CONFIRMADO,
     ).length;
     const pendientes = asignaciones.filter(
-      (a) => a.estado === "PENDIENTE",
+      (a) => a.estado === EstadoAsignacionLectiva.PENDIENTE,
     ).length;
     const totalHoras = asignaciones.reduce(
       (sum, a) => sum + Number(a.horas_asignadas),
@@ -495,6 +594,19 @@ export class AsignacionLectivaService {
     result.sin_docente = 0;
     result.total_horas_asignadas = totalHoras;
     result.total_docentes = docentesUnicos;
+
+    if (planId && periodoId) {
+      const cursosPlan = await this.cursoPlanRepo.find({
+        where: { plan_estudios_id: planId, estado: "ACTIVO" as any },
+      });
+      const cursosConAsignacion = new Set(
+        asignaciones.map((a) => a.curso_plan_id),
+      );
+      result.sin_docente = cursosPlan.filter(
+        (cp) => !cursosConAsignacion.has(cp.id),
+      ).length;
+    }
+
     return result;
   }
 
@@ -520,15 +632,17 @@ export class AsignacionLectivaService {
 
   private getHorasPorTipo(
     cursoPlan: CursoPlanEstudios,
-    tipoClase: string,
+    tipoClase: TipoClase,
   ): number {
     switch (tipoClase) {
-      case "TEORIA":
+      case TipoClase.TEORIA:
         return cursoPlan.horas_teoria;
-      case "PRACTICA":
+      case TipoClase.PRACTICA:
         return cursoPlan.horas_practica;
-      case "LABORATORIO":
+      case TipoClase.LABORATORIO:
         return cursoPlan.horas_laboratorio;
+      case TipoClase.NO_LECTIVA:
+        return 0;
       default:
         return 0;
     }
@@ -544,7 +658,7 @@ export class AsignacionLectivaService {
       where: {
         docente_id: docenteId,
         periodo_id: periodoId,
-        estado: Not("RECHAZADO"),
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
       },
     });
 
@@ -554,10 +668,23 @@ export class AsignacionLectivaService {
     );
     const totalHoras = horasActuales + nuevasHoras;
 
+    if (!docente.modalidad) {
+      throw new BadRequestException(
+        "El docente no tiene modalidad asignada. No se puede validar la carga máxima.",
+      );
+    }
+
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+    if (!periodo) {
+      throw new NotFoundException(`Período #${periodoId} no encontrado`);
+    }
+
     // Buscar ParametrosCarga para la modalidad del docente
     const params = await this.paramsRepo.findOne({
       where: {
-        periodo_academico: String(periodoId),
+        periodo_academico: periodo.codigo,
         modalidad: docente.modalidad,
       },
     });
@@ -579,7 +706,7 @@ export class AsignacionLectivaService {
       where: {
         docente_id: docenteId,
         periodo_id: periodoId,
-        estado: Not("RECHAZADO"),
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
       },
     });
 
@@ -588,9 +715,22 @@ export class AsignacionLectivaService {
     ).size;
     const nuevosCursos = cursosDistintos + 1;
 
+    if (!docente.modalidad) {
+      throw new BadRequestException(
+        "El docente no tiene modalidad asignada. No se puede validar el máximo de cursos.",
+      );
+    }
+
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+    if (!periodo) {
+      throw new NotFoundException(`Período #${periodoId} no encontrado`);
+    }
+
     const params = await this.paramsRepo.findOne({
       where: {
-        periodo_academico: String(periodoId),
+        periodo_academico: periodo.codigo,
         modalidad: docente.modalidad,
       },
     });
@@ -601,5 +741,271 @@ export class AsignacionLectivaService {
         `El número de cursos (${nuevosCursos}) excede el máximo permitido (${maxCursos}) para la modalidad ${docente.modalidad}`,
       );
     }
+  }
+
+  private async validarCoberturaCurso(
+    cursoPlanId: number,
+    periodoId: number,
+    tipoClase: TipoClase,
+    nuevasHoras: number,
+    horasPlan: number,
+  ) {
+    const existentes = await this.asignacionRepo.find({
+      where: {
+        curso_plan_id: cursoPlanId,
+        periodo_id: periodoId,
+        tipo_clase: tipoClase,
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+      },
+    });
+
+    const horasCubiertas = existentes.reduce(
+      (sum, a) => sum + Number(a.horas_asignadas),
+      0,
+    );
+    const total = horasCubiertas + nuevasHoras;
+
+    if (total > horasPlan) {
+      throw new BadRequestException(
+        `Las horas de ${tipoClase} ya están cubiertas (${horasCubiertas}h de ${horasPlan}h). ` +
+          `No se pueden asignar ${nuevasHoras}h adicionales.`,
+      );
+    }
+  }
+
+  async validarAsignacion(
+    dto: ValidarAsignacionDto,
+    usuario: UsuarioAutenticado,
+  ) {
+    const errores: string[] = [];
+    const advertencias: string[] = [];
+
+    // Validar suspensión del docente
+    const suspension = await this.suspensionRepo.findOne({
+      where: {
+        docente_id: dto.docente_id,
+        activa: true,
+        fecha_inicio: Between(new Date(), new Date()),
+      },
+    });
+    if (suspension) {
+      errores.push(`El docente tiene suspensión vigente: ${suspension.motivo}`);
+    }
+
+    // Validar disponibilidad del docente en la franja horaria
+    const horariosDocente = await this.horarioRepo.find({
+      where: {
+        docente_id: dto.docente_id,
+        periodo:
+          (await this.periodoRepo.findOne({ where: { id: dto.periodo_id } }))
+            ?.codigo || "",
+        dia: dto.dia,
+      },
+    });
+    for (const horario of horariosDocente) {
+      if (
+        this.haySuperposicion(
+          dto.hora_inicio,
+          dto.hora_fin,
+          horario.hora_inicio,
+          horario.hora_fin,
+        )
+      ) {
+        errores.push(
+          `El docente ya tiene horario asignado en esa franja: ${horario.hora_inicio}-${horario.hora_fin}`,
+        );
+      }
+    }
+
+    // Validar disponibilidad del ambiente en la franja horaria
+    const horariosAmbiente = await this.horarioRepo.find({
+      where: {
+        ambiente_id: dto.ambiente_id,
+        periodo:
+          (await this.periodoRepo.findOne({ where: { id: dto.periodo_id } }))
+            ?.codigo || "",
+        dia: dto.dia,
+      },
+    });
+    for (const horario of horariosAmbiente) {
+      if (
+        this.haySuperposicion(
+          dto.hora_inicio,
+          dto.hora_fin,
+          horario.hora_inicio,
+          horario.hora_fin,
+        )
+      ) {
+        errores.push(
+          `El ambiente ya está ocupado en esa franja: ${horario.hora_inicio}-${horario.hora_fin}`,
+        );
+      }
+    }
+
+    // Validar capacidad del ambiente
+    const ambiente = await this.ambienteRepo.findOne({
+      where: { id: dto.ambiente_id },
+    });
+    if (!ambiente) {
+      errores.push("Ambiente no encontrado");
+    } else if (ambiente.capacidad < dto.nro_alumnos) {
+      errores.push(
+        `Capacidad del ambiente insuficiente: ${ambiente.capacidad} < ${dto.nro_alumnos}`,
+      );
+    } else if (dto.nro_alumnos < 8 || dto.nro_alumnos > 60) {
+      errores.push(`Aforo fuera de rango permitido (8-60): ${dto.nro_alumnos}`);
+    }
+
+    // Validar cupo del grupo
+    if (dto.grupo_id) {
+      const grupo = await this.grupoRepo.findOne({
+        where: { id: dto.grupo_id },
+      });
+      if (!grupo) {
+        errores.push("Grupo no encontrado");
+      } else if (dto.nro_alumnos > grupo.cupo_maximo) {
+        errores.push(
+          `Excede cupo máximo del grupo: ${dto.nro_alumnos} > ${grupo.cupo_maximo}`,
+        );
+      }
+    }
+
+    // Validar carga lectiva (RCU N157-2024UNT: mínimo 16h, máximo 22h)
+    const docente = await this.docenteRepo.findOne({
+      where: { id: dto.docente_id },
+    });
+    if (docente) {
+      const asignaciones = await this.asignacionRepo.find({
+        where: {
+          docente_id: dto.docente_id,
+          periodo_id: dto.periodo_id,
+          estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+        },
+      });
+      const horasActuales = asignaciones.reduce(
+        (sum, a) => sum + Number(a.horas_asignadas),
+        0,
+      );
+      const nuevasHoras = this.calcularHoras(dto.hora_inicio, dto.hora_fin);
+      const totalHoras = horasActuales + nuevasHoras;
+
+      if (totalHoras > docente.horas_lectivas_max) {
+        errores.push(
+          `Excede carga máxima lectiva (${docente.horas_lectivas_max}h): ${totalHoras}h`,
+        );
+      }
+      if (totalHoras < docente.horas_lectivas_min) {
+        advertencias.push(
+          `No alcanza carga mínima lectiva (${docente.horas_lectivas_min}h): ${totalHoras}h`,
+        );
+      }
+
+      // Validar carga total (lectiva + no lectiva ≤ 40h)
+      const horasTotales = totalHoras + docente.horas_no_lectivas;
+      if (horasTotales > docente.horas_max_totales) {
+        errores.push(
+          `Excede carga máxima total (${docente.horas_max_totales}h): ${horasTotales}h`,
+        );
+      }
+    }
+
+    // Validar cátedra compartida
+    const asignacionesMismoCurso = await this.asignacionRepo.find({
+      where: {
+        curso_plan_id: dto.curso_plan_id,
+        periodo_id: dto.periodo_id,
+        tipo_clase: dto.tipo_clase,
+        estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+      },
+    });
+    if (asignacionesMismoCurso.length > 0) {
+      const excepcion = await this.catedraCompartidaRepo.findOne({
+        where: {
+          curso_plan_id: dto.curso_plan_id,
+          tipo_clase: dto.tipo_clase,
+          activa: true,
+        },
+      });
+      if (!excepcion) {
+        advertencias.push(
+          "Cátedra compartida detectada sin excepción registrada",
+        );
+      }
+    }
+
+    return {
+      valido: errores.length === 0,
+      errores,
+      advertencias,
+    };
+  }
+
+  async validarDirector(
+    id: number,
+    validado: boolean,
+    observaciones?: string,
+    usuario?: UsuarioAutenticado,
+  ) {
+    const asignacion = await this.asignacionRepo.findOne({
+      where: { id },
+      relations: ["docente", "curso_plan", "curso_plan.curso"],
+    });
+    if (!asignacion) {
+      throw new NotFoundException(`Asignación #${id} no encontrada`);
+    }
+
+    // Buscar horario asignado relacionado
+    const horario = await this.horarioRepo.findOne({
+      where: {
+        docente_id: asignacion.docente_id,
+        curso_id: asignacion.curso_plan.curso_id,
+        periodo:
+          (
+            await this.periodoRepo.findOne({
+              where: { id: asignacion.periodo_id },
+            })
+          )?.codigo || "",
+      },
+    });
+
+    if (horario) {
+      horario.validado_director = validado;
+      horario.validado_por = usuario?.email || "director";
+      horario.fecha_validacion = new Date();
+      horario.observaciones_validacion = observaciones || null;
+      await this.horarioRepo.save(horario);
+    }
+
+    return {
+      message: validado
+        ? "Asignación validada por director"
+        : "Validación de director removida",
+      validado,
+    };
+  }
+
+  private haySuperposicion(
+    inicio1: string,
+    fin1: string,
+    inicio2: string,
+    fin2: string,
+  ): boolean {
+    const [h1, m1] = inicio1.split(":").map(Number);
+    const [h2, m2] = fin1.split(":").map(Number);
+    const [h3, m3] = inicio2.split(":").map(Number);
+    const [h4, m4] = fin2.split(":").map(Number);
+
+    const start1 = h1 * 60 + m1;
+    const end1 = h2 * 60 + m2;
+    const start2 = h3 * 60 + m3;
+    const end2 = h4 * 60 + m4;
+
+    return start1 < end2 && end1 > start2;
+  }
+
+  private calcularHoras(inicio: string, fin: string): number {
+    const [h1, m1] = inicio.split(":").map(Number);
+    const [h2, m2] = fin.split(":").map(Number);
+    return Math.abs(h2 - h1) + (m2 - m1) / 60;
   }
 }

@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
+import { Location } from '@angular/common';
 import { FormBuilder, FormGroup, ValidatorFn, AbstractControl, ValidationErrors, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
-import { ApiResponse, Curso, Ambiente } from '../../../core/interfaces/entities';
+import { ApiResponse, Curso, Ambiente, Departamento } from '../../../core/interfaces/entities';
 
 function horasLabRequeridaValidator(): ValidatorFn {
   return (group: AbstractControl): ValidationErrors | null => {
@@ -28,8 +29,17 @@ export class CursoFormComponent implements OnInit {
   loading  = false;
   saving   = false;
   aulas: Ambiente[]       = [];
+  talleres: Ambiente[]    = [];
   laboratorios: Ambiente[] = [];
+  departamentos: Departamento[] = [];
   ciclos = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+  readonly tiposCurso = [
+    { value: 'ESPECIALIDAD', label: 'Especialidad' },
+    { value: 'OBLIGATORIO_GENERAL', label: 'Obligatorio General' },
+    { value: 'OBLIGATORIO_PROFESIONAL', label: 'Obligatorio Profesional' },
+    { value: 'ELECTIVO', label: 'Electivo' },
+  ];
 
   constructor(
     private fb: FormBuilder,
@@ -37,6 +47,7 @@ export class CursoFormComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute,
     private snackBar: MatSnackBar,
+    private location: Location,
   ) {}
 
   ngOnInit(): void {
@@ -49,6 +60,8 @@ export class CursoFormComponent implements OnInit {
       horas_practica:           [0,  [Validators.min(0)]],
       horas_laboratorio:        [{ value: 0, disabled: true }],
       tiene_laboratorio:        [false],
+      tipo_curso:               ['OBLIGATORIO_GENERAL', Validators.required],
+      departamento_id:          [null],
       ambientes_teoria_ids:     [[]],
       ambientes_laboratorio_ids:[[]],
       prerequisitos:            [''],
@@ -70,6 +83,7 @@ export class CursoFormComponent implements OnInit {
     });
 
     this.loadAmbientes();
+    this.loadDepartamentos();
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
@@ -84,7 +98,16 @@ export class CursoFormComponent implements OnInit {
       next: (res) => {
         const all = res.data.items ?? (res.data as unknown as Ambiente[]);
         this.aulas       = all.filter((a) => a.tipo === 'AULA');
+        this.talleres    = all.filter((a) => a.tipo === 'TALLER');
         this.laboratorios = all.filter((a) => a.tipo === 'LABORATORIO');
+      },
+    });
+  }
+
+  loadDepartamentos(): void {
+    this.api.get<ApiResponse<{ items: Departamento[] }>>('/departamentos', { limit: 100, activo: 'true' }).subscribe({
+      next: (res) => {
+        this.departamentos = res.data.items ?? (res.data as unknown as Departamento[]);
       },
     });
   }
@@ -100,8 +123,11 @@ export class CursoFormComponent implements OnInit {
         }
         this.form.patchValue({
           ...c,
-          ambientes_teoria_ids:      (c.ambientes_teoria      ?? (c.ambientes ?? []).filter(a => a.tipo === 'AULA')).map((a) => a.id),
-          ambientes_laboratorio_ids: (c.ambientes_laboratorio ?? (c.ambientes ?? []).filter(a => a.tipo === 'LABORATORIO')).map((a) => a.id),
+          ambientes_teoria_ids:      (c.ambientes ?? []).filter(a => a.tipo === 'AULA' || a.tipo === 'TALLER').map((a) => a.id),
+          ambientes_laboratorio_ids: (c.ambientes ?? []).filter(a => a.tipo === 'LABORATORIO').map((a) => a.id),
+          // tipo_curso comes from planes_estudio[0] if available
+          tipo_curso: c.planes_estudio?.[0]?.tipo_curso || 'OBLIGATORIO_GENERAL',
+          departamento_id: c.departamento_id || null,
         });
         this.loading = false;
       },
@@ -148,11 +174,11 @@ export class CursoFormComponent implements OnInit {
         Promise.all(assigns)
           .then(() => {
             this.snackBar.open(this.isEdit ? 'Curso actualizado' : 'Curso creado exitosamente', 'OK', { duration: 2500 });
-            this.router.navigate(['/app/cursos']);
+            this.location.back();
           })
           .catch(() => {
             this.snackBar.open('Curso guardado (error al asignar ambientes)', 'OK', { duration: 3000 });
-            this.router.navigate(['/app/cursos']);
+            this.location.back();
           });
       },
       error: (err) => {
@@ -167,5 +193,5 @@ export class CursoFormComponent implements OnInit {
     });
   }
 
-  cancelar(): void { this.router.navigate(['/app/cursos']); }
+  cancelar(): void { this.location.back(); }
 }

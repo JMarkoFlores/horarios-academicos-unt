@@ -5,6 +5,7 @@
     [opened]="!isMobile()"
     class="sidenav"
     [class.collapsed]="sidebarCollapsed() && !isMobile()"
+    [style.width]="sidebarCollapsed() && !isMobile() ? '78px' : '260px'"
   >
     <div class="logo-area">
       <div class="logo-icon-wrapper">
@@ -22,7 +23,10 @@
             (configService.config$ | async)?.nombre_institucional ||
               "Horarios UNT"
           }}</span>
-          <span class="logo-sub">Ingeniería de Sistemas</span>
+          <span class="logo-sub">{{
+            (configService.config$ | async)?.nombre_facultad ||
+              "Ingeniería de Sistemas"
+          }}</span>
         </div>
       }
       @if (!isMobile()) {
@@ -36,6 +40,7 @@
               : ('layout.collapseMenu' | translate)
           "
           matTooltipPosition="right"
+          [attr.aria-label]="sidebarCollapsed() ? 'Expandir menú' : 'Colapsar menú'"
         >
           <mat-icon class="collapse-icon">{{
             sidebarCollapsed() ? "arrow_forward_ios" : "arrow_back_ios"
@@ -44,80 +49,8 @@
       }
     </div>
 
-    @if (sidebarCollapsed() && !isMobile()) {
-      <button
-        class="collapse-btn-floating"
-        (click)="toggleSidebarCollapsed()"
-        [matTooltip]="'layout.expandMenu' | translate"
-        matTooltipPosition="right"
-      >
-        <mat-icon class="collapse-icon">arrow_forward_ios</mat-icon>
-      </button>
-    }
-
-    <div class="nav-scroll">
-      @for (group of visibleNavGroups; track group.label) {
-        <div
-          class="nav-group"
-          [class.group-collapsed]="!group.expanded && !sidebarCollapsed()"
-        >
-          @if (!sidebarCollapsed() || isMobile()) {
-            <div class="group-header" (click)="toggleGroup(group)">
-              <span class="group-label">{{ group.label | translate }}</span>
-              <mat-icon class="group-chevron">{{
-                group.expanded ? "expand_less" : "expand_more"
-              }}</mat-icon>
-            </div>
-          }
-          @if (sidebarCollapsed() && !isMobile()) {
-            <div class="group-divider-collapsed"></div>
-          }
-
-          <div
-            class="group-items"
-            [@groupExpand]="
-              sidebarCollapsed() || group.expanded ? 'expanded' : 'collapsed'
-            "
-          >
-            @for (item of group.items; track item.label) {
-              @if (item.route) {
-                <a
-                  mat-list-item
-                  [routerLink]="item.route"
-                  routerLinkActive="active-link"
-                  #rla="routerLinkActive"
-                  [matTooltip]="sidebarCollapsed() ? (item.label | translate) : ''"
-                  matTooltipPosition="right"
-                  class="nav-item"
-                >
-                  <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
-                  <span matListItemTitle class="item-label">{{ item.label | translate }}</span>
-                  @if (rla.isActive) {
-                    <div class="active-indicator"></div>
-                  }
-                </a>
-              }
-              @if (item.action) {
-                <button
-                  mat-list-item
-                  (click)="item.action()"
-                  [matTooltip]="sidebarCollapsed() ? (item.label | translate) : ''"
-                  matTooltipPosition="right"
-                  class="nav-item action-item"
-                >
-                  <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
-                  <span matListItemTitle class="item-label">{{ item.label | translate }}</span>
-                </button>
-              }
-            }
-          </div>
-        </div>
-      }
-    </div>
-
-    <app-chatbot></app-chatbot>
-
-    <div class="sidenav-footer">
+    <!-- Contenedor de perfil de usuario movido al inicio para mejor accesibilidad -->
+    <div class="sidenav-footer sidenav-user-section">
       <button
         type="button"
         class="user-row-btn"
@@ -145,14 +78,14 @@
               usuario?.nombre || ('layout.administrator' | translate)
             }}</span>
             <span class="user-role">{{
-              usuario?.rol || ('layout.systemAdministrator' | translate)
+              formatRol(usuario?.rol) || ('layout.systemAdministrator' | translate)
             }}</span>
           </div>
           <mat-icon class="user-chevron">unfold_more</mat-icon>
         }
       </button>
 
-      <mat-menu #userMenu="matMenu" yPosition="above" class="user-dropdown">
+      <mat-menu #userMenu="matMenu" yPosition="below" class="user-dropdown">
         <div class="dropdown-header">
           <span class="dropdown-user-name">{{ usuario?.nombre }}</span>
           <span class="dropdown-user-email">{{
@@ -174,6 +107,76 @@
         </button>
       </mat-menu>
     </div>
+
+    @if (sidebarCollapsed() && !isMobile()) {
+      <button
+        class="collapse-btn-floating"
+        (click)="toggleSidebarCollapsed()"
+        [matTooltip]="'layout.expandMenu' | translate"
+        matTooltipPosition="right"
+        aria-label="Expandir menú"
+      >
+        <mat-icon class="collapse-icon">arrow_forward_ios</mat-icon>
+      </button>
+    }
+
+    <div class="nav-scroll">
+      @for (group of visibleNavGroups; track group.label) {
+        <div
+          class="nav-group"
+          [class.group-collapsed]="!group.expanded && !sidebarCollapsed()"
+        >
+          @if (!sidebarCollapsed() || isMobile()) {
+            <div class="group-header" (click)="toggleGroup(group)">
+              <span class="group-label">{{ group.label ? (group.label | translate) : '' }}</span>
+              <mat-icon class="group-chevron">{{
+                group.expanded ? "expand_less" : "expand_more"
+              }}</mat-icon>
+            </div>
+          }
+          @if (sidebarCollapsed() && !isMobile()) {
+            <div class="group-divider-collapsed"></div>
+          }
+
+          <div
+            class="group-items"
+            [@groupExpand]="
+              sidebarCollapsed() || group.expanded ? 'expanded' : 'collapsed'
+            "
+          >
+            @for (item of group.items; track item.label) {
+              @if (item.route) {
+                <a
+                  mat-list-item
+                  [routerLink]="item.route"
+                  routerLinkActive="active-link"
+                  [routerLinkActiveOptions]="{exact: false}"
+                  #rla="routerLinkActive"
+                  [matTooltip]="sidebarCollapsed() ? (item.label ? (item.label | translate) : '') : ''"
+                  matTooltipPosition="right"
+                  class="nav-item"
+                >
+                  <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
+                  <span matListItemTitle class="item-label">{{ item.label ? (item.label | translate) : '' }}</span>
+                </a>
+              }
+              @if (item.action) {
+                <button
+                  mat-list-item
+                  (click)="item.action()"
+                  [matTooltip]="sidebarCollapsed() ? (item.label ? (item.label | translate) : '') : ''"
+                  matTooltipPosition="right"
+                  class="nav-item action-item"
+                >
+                  <mat-icon matListItemIcon class="nav-icon">{{ item.icon }}</mat-icon>
+                  <span matListItemTitle class="item-label">{{ item.label ? (item.label | translate) : '' }}</span>
+                </button>
+              }
+            }
+          </div>
+        </div>
+      }
+    </div>
   </mat-sidenav>
 
   <mat-sidenav-content [class.collapsed]="sidebarCollapsed() && !isMobile()">
@@ -193,6 +196,16 @@
 
         <!-- Acciones del topbar con priorización -->
         <div class="topbar-actions">
+          <!-- Botón de Asistente IA -->
+          <button
+            mat-icon-button
+            class="topbar-btn ai-assistant-btn"
+            (click)="showChatbot()"
+            matTooltip="Asistente IA"
+          >
+            <mat-icon>smart_toy</mat-icon>
+          </button>
+
           <!-- Botón de WebSocket -->
           <button
             mat-icon-button
@@ -205,19 +218,29 @@
           </button>
 
           <!-- Botón de alertas del sistema -->
-          <button
-            mat-icon-button
-            class="topbar-btn"
-            [matMenuTriggerFor]="alertsMenu"
-            matTooltip="Alertas del sistema"
-          >
-            <mat-icon>notifications</mat-icon>
-            @if (notificacionesCount() > 0) {
-              <span class="notif-badge">
-                {{ notificacionesCount() > 9 ? '9+' : notificacionesCount() }}
-              </span>
-            }
-          </button>
+          @if (!authService.hasRole(ROLES.DOCENTE) || authService.hasRole(
+            ROLES.ADMINISTRADOR_SISTEMA, 
+            ROLES.COORDINADOR_ACADEMICO, 
+            ROLES.DIRECTOR_ESCUELA, 
+            ROLES.DIRECTOR_DEPARTAMENTO,
+            ROLES.DECANO,
+            ROLES.SECRETARIA,
+            ROLES.OPERADOR_HORARIOS
+          )) {
+            <button
+              mat-icon-button
+              class="topbar-btn"
+              [matMenuTriggerFor]="alertsMenu"
+              matTooltip="Alertas del sistema"
+            >
+              <mat-icon>notifications</mat-icon>
+              @if (notificacionesCount() > 0) {
+                <span class="notif-badge">
+                  {{ notificacionesCount() > 9 ? '9+' : notificacionesCount() }}
+                </span>
+              }
+            </button>
+          }
 
           <!-- Botón de tema -->
           <button
@@ -225,8 +248,10 @@
             class="topbar-btn"
             (click)="toggleDarkMode()"
             matTooltip="Cambiar Tema"
+            [attr.aria-pressed]="themeService.isDark()"
+            [attr.aria-label]="themeService.isDark() ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
           >
-            <mat-icon>{{ isDark() ? "light_mode" : "dark_mode" }}</mat-icon>
+            <mat-icon>{{ themeService.isDark() ? "light_mode" : "dark_mode" }}</mat-icon>
           </button>
 
           <!-- Selector de idioma (oculto en móviles) -->
@@ -268,7 +293,7 @@
           <span class="dropdown-title">Seleccionar Semestre</span>
         </div>
         <mat-divider></mat-divider>
-        @for (p of (periodoService.periodos$ | async); track p.codigo) {
+        @for (p of (periodoService.periodos$ | async) || []; track p.codigo) {
           <button mat-menu-item (click)="periodoService.cambiarPeriodo(p.codigo)" [class.active-item]="p.codigo === selectedPeriodoCodigo()">
             <mat-icon [class.active-icon]="p.codigo === selectedPeriodoCodigo()">
               {{ p.codigo === selectedPeriodoCodigo() ? 'radio_button_checked' : 'radio_button_unchecked' }}
@@ -330,5 +355,6 @@
     <div class="content-area animate-fadein">
       <router-outlet></router-outlet>
     </div>
+    <app-chatbot></app-chatbot>
   </mat-sidenav-content>
 </mat-sidenav-container>

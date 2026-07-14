@@ -4,6 +4,8 @@ import * as admin from "firebase-admin";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Docente } from "../entities/docente.entity";
+import * as fs from "fs";
+import * as path from "path";
 
 @Injectable()
 export class FirebasePushService {
@@ -22,7 +24,8 @@ export class FirebasePushService {
 
     if (serviceAccountPath) {
       try {
-        const serviceAccount = require(serviceAccountPath);
+        const fullPath = path.resolve(serviceAccountPath);
+        const serviceAccount = JSON.parse(fs.readFileSync(fullPath, "utf8"));
         this.app = admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
         });

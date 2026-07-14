@@ -8,13 +8,14 @@ import { Facultad } from "../entities/facultad.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Usuario } from "../entities/usuario.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
+import { TipoObservacion } from "../common/enums/tipo-observacion.enum";
 
 /** DNIs de 8 dígitos (formato peruano) para los 28 docentes del seed */
 export const DNIS_DOCENTES = [
-  17893456, 42567891, 72345612, 19876543, 45671234, 56782345, 67893456, 78904567,
-  89015678, 90126789, 12345678, 23456789, 34567890, 45678901, 56789012, 67890123,
-  78901234, 89012345, 90123456, 10234567, 21345678, 32456789, 43567890, 54678901,
-  65789012, 76890123, 42471234, 87901234,
+  17893456, 42567891, 72345612, 19876543, 45671234, 56782345, 67893456,
+  78904567, 89015678, 90126789, 12345678, 23456789, 34567890, 45678901,
+  56789012, 67890123, 78901234, 89012345, 90123456, 10234567, 21345678,
+  32456789, 43567890, 54678901, 65789012, 76890123, 42471234, 87901234,
 ];
 
 interface SeedDeclaracionesParams {
@@ -30,28 +31,14 @@ interface SeedDeclaracionesParams {
 }
 
 const ESTADOS_DEMO: Array<{ estado: EstadoDeclaracionCarga; count: number }> = [
-  { estado: EstadoDeclaracionCarga.BORRADOR, count: 5 },
-  { estado: EstadoDeclaracionCarga.ENVIADO_DOCENTE, count: 5 },
-  { estado: EstadoDeclaracionCarga.OBSERVADO_DPTO, count: 3 },
-  { estado: EstadoDeclaracionCarga.SUBSANADO, count: 2 },
-  { estado: EstadoDeclaracionCarga.VALIDADO_DPTO, count: 3 },
-  { estado: EstadoDeclaracionCarga.APROBADO_FACULTAD, count: 2 },
-  { estado: EstadoDeclaracionCarga.CERRADO, count: 2 },
+  { estado: EstadoDeclaracionCarga.BORRADOR, count: 23 },
 ];
 
-function buildCargaNoLectiva(horasLectivas: number, horasNoLectivas: number) {
-  const prep = Math.min(6, Math.round(horasNoLectivas * 0.4));
-  const inv = Math.min(4, Math.round(horasNoLectivas * 0.3));
-  const gest = Math.max(0, horasNoLectivas - prep - inv);
+function buildCargaNoLectiva() {
   return {
-    actividades: [
-      { id: 1, descripcion: "Docencia universitaria", horas: horasLectivas },
-      { id: 2, descripcion: "Preparación de clases y evaluación", horas: prep },
-      { id: 3, descripcion: "Investigación aplicada", horas: inv },
-      { id: 6, descripcion: "Gestión académica", horas: gest },
-    ],
-    total_horas_lectivas: horasLectivas,
-    total_horas_no_lectivas: horasNoLectivas,
+    actividades: [],
+    total_horas_lectivas: 0,
+    total_horas_no_lectivas: 0,
   };
 }
 
@@ -63,13 +50,12 @@ function fechasPorEstado(estado: EstadoDeclaracionCarga, base: Date) {
   decanoF.setDate(decanoF.getDate() + 7);
 
   switch (estado) {
-    case EstadoDeclaracionCarga.ENVIADO_DOCENTE:
-    case EstadoDeclaracionCarga.OBSERVADO_DPTO:
-    case EstadoDeclaracionCarga.SUBSANADO:
-      return { fecha_firma_docente: docente, fecha_firma_director: null, fecha_firma_decano: null };
-    case EstadoDeclaracionCarga.VALIDADO_DPTO:
-      return { fecha_firma_docente: docente, fecha_firma_director: director, fecha_firma_decano: null };
-    case EstadoDeclaracionCarga.APROBADO_FACULTAD:
+    case EstadoDeclaracionCarga.ENVIADO:
+      return {
+        fecha_firma_docente: docente,
+        fecha_firma_director: director,
+        fecha_firma_decano: null,
+      };
     case EstadoDeclaracionCarga.CERRADO:
       return {
         fecha_firma_docente: docente,
@@ -77,7 +63,11 @@ function fechasPorEstado(estado: EstadoDeclaracionCarga, base: Date) {
         fecha_firma_decano: decanoF,
       };
     default:
-      return { fecha_firma_docente: null, fecha_firma_director: null, fecha_firma_decano: null };
+      return {
+        fecha_firma_docente: null,
+        fecha_firma_director: null,
+        fecha_firma_decano: null,
+      };
   }
 }
 
@@ -117,16 +107,37 @@ export async function seedDeclaracionesDemo(
   const declaraciones: DeclaracionCargaHoraria[] = [];
   const baseFecha = new Date("2026-03-15T10:00:00");
 
+  const horarioRepo = declaracionRepo.manager.getRepository("HorarioAsignado");
+  const horariosDB = await horarioRepo.find({
+    where: { periodo: periodoActivo.codigo },
+  });
+
+  const horasPorDocente = new Map<number, number>();
+  for (const h of horariosDB) {
+    const [hIni] = (h as any).hora_inicio.split(":");
+    const [hFin] = (h as any).hora_fin.split(":");
+    const horas = parseInt(hFin, 10) - parseInt(hIni, 10);
+    const actual = horasPorDocente.get((h as any).docente_id) || 0;
+    horasPorDocente.set((h as any).docente_id, actual + horas);
+  }
+
   for (let i = 0; i < ordenados.length; i++) {
     const doc = ordenados[i];
-    const estado =
-      estadoPorIndice[i] ?? EstadoDeclaracionCarga.NO_INICIADO;
-    const horasLectivas = 12 + (i % 8);
-    const horasNoLectivas = 4 + (i % 6);
-    const fechas = fechasPorEstado(estado, new Date(baseFecha.getTime() + i * 86400000));
-    const tieneCarga =
-      estado !== EstadoDeclaracionCarga.BORRADOR &&
-      estado !== EstadoDeclaracionCarga.NO_INICIADO;
+    const estado = estadoPorIndice[i] ?? EstadoDeclaracionCarga.BORRADOR;
+
+    let totalHoras = 40;
+    if (doc.modalidad === "TIEMPO_PARCIAL_20") totalHoras = 20;
+    else if (doc.modalidad === "TIEMPO_PARCIAL_12") totalHoras = 12;
+    else if (doc.modalidad === "TIEMPO_PARCIAL_10") totalHoras = 10;
+    else if (doc.modalidad === "TIEMPO_PARCIAL_8") totalHoras = 8;
+
+    const horasLectivas = horasPorDocente.get(doc.id) || 0;
+    let horasNoLectivas = totalHoras - horasLectivas;
+    if (horasNoLectivas < 0) horasNoLectivas = 0;
+    const fechas = fechasPorEstado(
+      estado,
+      new Date(baseFecha.getTime() + i * 86400000),
+    );
 
     const declaracion = await declaracionRepo.save(
       declaracionRepo.create({
@@ -136,20 +147,11 @@ export async function seedDeclaracionesDemo(
         facultad_id: facultad.id,
         estado,
         sede: "Trujillo - Ciudad Universitaria",
-        observaciones:
-          estado === EstadoDeclaracionCarga.OBSERVADO_DPTO
-            ? "Revisar horas del rubro de investigación"
-            : null,
-        carga_no_lectiva: tieneCarga
-          ? buildCargaNoLectiva(horasLectivas, horasNoLectivas)
-          : {
-              actividades: [],
-              total_horas_lectivas: 0,
-              total_horas_no_lectivas: 0,
-            },
-        total_horas_lectivas: tieneCarga ? horasLectivas : 0,
-        total_horas_no_lectivas: tieneCarga ? horasNoLectivas : 0,
-        total_horas_general: tieneCarga ? horasLectivas + horasNoLectivas : 0,
+        observaciones: null,
+        carga_no_lectiva: buildCargaNoLectiva(),
+        total_horas_lectivas: horasLectivas,
+        total_horas_no_lectivas: 0,
+        total_horas_general: horasLectivas,
         ...fechas,
       }),
     );
@@ -157,11 +159,9 @@ export async function seedDeclaracionesDemo(
   }
 
   let observacionesCreadas = 0;
-  const obsDeclaraciones = declaraciones.filter(
-    (d) =>
-      d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
-      d.estado === EstadoDeclaracionCarga.SUBSANADO,
-  );
+  const obsDeclaraciones = declaraciones
+    .filter((d) => d.estado === EstadoDeclaracionCarga.BORRADOR)
+    .slice(0, 4);
 
   const textosObs = [
     "Las horas de preparación exceden el 50% permitido. Ajustar rubro 2.",
@@ -172,7 +172,6 @@ export async function seedDeclaracionesDemo(
 
   for (let i = 0; i < obsDeclaraciones.length; i++) {
     const decl = obsDeclaraciones[i];
-    const esSubsanado = decl.estado === EstadoDeclaracionCarga.SUBSANADO;
     const fecha = new Date("2026-03-20T09:00:00");
     fecha.setDate(fecha.getDate() + i * 2);
 
@@ -181,37 +180,19 @@ export async function seedDeclaracionesDemo(
         declaracion_id: decl.id,
         usuario_id: directorDpto.id,
         observacion: textosObs[i % textosObs.length],
-        estado_origen: EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        estado_destino: EstadoDeclaracionCarga.OBSERVADO_DPTO,
-        tipo: "DEPARTAMENTO",
-        subsanada: esSubsanado,
-        subsanada_en: esSubsanado ? new Date("2026-03-25T11:00:00") : null,
+        estado_origen: EstadoDeclaracionCarga.BORRADOR,
+        estado_destino: EstadoDeclaracionCarga.BORRADOR,
+        tipo: TipoObservacion.OBSERVACION_DPTO,
+        subsanada: false,
         created_at: fecha,
       }),
     );
     observacionesCreadas++;
-
-    if (i === 0) {
-      await observacionRepo.save(
-        observacionRepo.create({
-          declaracion_id: decl.id,
-          usuario_id: decano.id,
-          observacion:
-            "Observación histórica de seguimiento académico (solo referencia).",
-          estado_origen: EstadoDeclaracionCarga.OBSERVADO_DPTO,
-          estado_destino: EstadoDeclaracionCarga.OBSERVADO_DPTO,
-          tipo: "SEGUIMIENTO",
-          subsanada: false,
-          created_at: new Date("2026-03-18T14:30:00"),
-        }),
-      );
-      observacionesCreadas++;
-    }
   }
 
   const candidatosJurada = declaraciones.filter((d) =>
     [
-      EstadoDeclaracionCarga.ENVIADO_DOCENTE,
+      EstadoDeclaracionCarga.ENVIADO,
       EstadoDeclaracionCarga.VALIDADO_DPTO,
       EstadoDeclaracionCarga.APROBADO_FACULTAD,
       EstadoDeclaracionCarga.CERRADO,
@@ -240,7 +221,10 @@ export async function seedDeclaracionesDemo(
           periodo: periodoActivo.codigo,
           fechaGeneracion: new Date().toISOString(),
         },
-        estado: decl.estado === EstadoDeclaracionCarga.CERRADO ? "FIRMADA" : "PENDIENTE",
+        estado:
+          decl.estado === EstadoDeclaracionCarga.CERRADO
+            ? "FIRMADA"
+            : "PENDIENTE",
         fecha_firma:
           decl.estado === EstadoDeclaracionCarga.CERRADO
             ? new Date("2026-04-01T12:00:00")

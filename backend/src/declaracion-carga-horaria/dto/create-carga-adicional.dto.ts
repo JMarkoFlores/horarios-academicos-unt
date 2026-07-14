@@ -1,5 +1,13 @@
-import { IsString, IsDate, IsInt, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsDate,
+  IsInt,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  Min,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 export class HorarioSemanalDto {
   @IsString()

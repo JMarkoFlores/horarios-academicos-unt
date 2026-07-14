@@ -152,7 +152,9 @@ export class PeriodosService {
     const periodo = await this.findOne(id);
 
     if (!periodo.activo) {
-      throw new BadRequestException("El periodo ya se encuentra inactivo o finalizado");
+      throw new BadRequestException(
+        "El periodo ya se encuentra inactivo o finalizado",
+      );
     }
 
     // 1. Marcar el periodo como inactivo y actualizar su estado a FINALIZADO
@@ -160,27 +162,16 @@ export class PeriodosService {
     periodo.estado = EstadoPeriodo.FINALIZADO;
     await this.periodoRepo.save(periodo);
 
-    // 2. Cerrar las declaraciones aprobadas
+    // 2. Cerrar las declaraciones confirmadas
     await this.declaracionRepo.update(
-      { periodo_academico_id: id, estado: EstadoDeclaracionCarga.APROBADO_FACULTAD },
-      { estado: EstadoDeclaracionCarga.CERRADO }
+      { periodo_academico_id: id, estado: EstadoDeclaracionCarga.ENVIADO },
+      { estado: EstadoDeclaracionCarga.CERRADO },
     );
 
-    // 3. Anular las declaraciones incompletas
-    await this.declaracionRepo.createQueryBuilder()
-      .update()
-      .set({ estado: EstadoDeclaracionCarga.ANULADO })
-      .where("periodo_academico_id = :id", { id })
-      .andWhere("estado NOT IN (:...estados)", { 
-        estados: [
-          EstadoDeclaracionCarga.APROBADO_FACULTAD,
-          EstadoDeclaracionCarga.CERRADO,
-          EstadoDeclaracionCarga.ANULADO
-        ] 
-      })
-      .execute();
-
-    return { success: true, message: "Periodo finalizado, declaraciones cerradas/anuladas." };
+    return {
+      success: true,
+      message: "Periodo finalizado, declaraciones cerradas.",
+    };
   }
 
   async remove(id: number) {
@@ -197,8 +188,11 @@ export class PeriodosService {
       );
     }
 
-    // Si ya hay horarios generados para este período, eliminarlos antes de regenerar
-    await this.horarioRepo.delete({ periodo: periodo.codigo });
+    // Si ya hay horarios generados automáticamente para este período, eliminarlos antes de regenerar
+    await this.horarioRepo.delete({
+      periodo: periodo.codigo,
+      origen: OrigenHorario.GENERACION_AUTOMATICA,
+    });
 
     // Obtener cursos activos del período
     const cursos = await this.cursoRepo.find({ where: { activo: true } });
@@ -316,6 +310,54 @@ export class PeriodosService {
 
   async actualizarModoAsignacion(id: number, modo: ModoAsignacion) {
     const periodo = await this.findOne(id);
+
+    if (periodo.modo_asignacion === modo) {
+      return periodo;
+    }
+
+    // Guard: switching FROM VENTANAS — check for active ventana sessions
+    if (periodo.modo_asignacion === ModoAsignacion.VENTANAS) {
+      const ventanaActiva = await this.ventanaRepo.findOne({
+        where: {
+          periodo: periodo.codigo,
+          estado: EstadoVentanaAtencion.EN_CURSO,
+        },
+      });
+      if (ventanaActiva) {
+        throw new ConflictException(
+          "No se puede cambiar el modo mientras hay una ventana de atención en curso. Finalícela primero.",
+        );
+      }
+    }
+
+    // Guard: switching TO VENTANAS — check for auto-generated schedules that would conflict
+    if (modo === ModoAsignacion.VENTANAS) {
+      const autoGenerados = await this.horarioRepo.count({
+        where: {
+          periodo: periodo.codigo,
+          origen: OrigenHorario.GENERACION_AUTOMATICA,
+        },
+      });
+      if (autoGenerados > 0) {
+        throw new ConflictException(
+          `No se puede cambiar a modo VENTANAS: existen ${autoGenerados} horarios generados automáticamente. Elimínelos primero.`,
+        );
+      }
+    }
+
+    // Guard: any confirmed horarios block the mode change
+    const horariosConfirmados = await this.horarioRepo.count({
+      where: {
+        periodo: periodo.codigo,
+        estado: EstadoHorario.PUBLICADO,
+      },
+    });
+    if (horariosConfirmados > 0) {
+      throw new ConflictException(
+        `No se puede cambiar el modo de asignación: existen ${horariosConfirmados} horarios publicados. Revierta su estado primero.`,
+      );
+    }
+
     periodo.modo_asignacion = modo;
     return await this.periodoRepo.save(periodo);
   }

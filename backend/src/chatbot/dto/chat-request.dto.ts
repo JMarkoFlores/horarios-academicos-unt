@@ -11,4 +11,12 @@ export class ChatRequestDto {
   @IsOptional()
   @IsArray()
   history?: { role: "user" | "model"; parts: { text: string }[] }[];
+
+  @ApiProperty({
+    description: "Rol del usuario para personalizar respuestas",
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  userRole?: string;
 }

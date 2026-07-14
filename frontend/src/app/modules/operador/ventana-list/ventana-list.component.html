@@ -1,10 +1,8 @@
 <div class="operador-container">
-  <header class="page-header">
-    <div class="header-info">
-      <h1>
-        <mat-icon>dashboard</mat-icon> Ventanas de Atención
-      </h1>
-      <p>Gestión y creación de ventanas de atención en tiempo real</p>
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Ventanas de Atención</h1>
+      <p class="subtitle">Gestión y creación de ventanas de atención en tiempo real</p>
     </div>
     <div class="header-actions">
       <button mat-raised-button color="primary" (click)="mostrarFormulario = !mostrarFormulario">
@@ -12,7 +10,7 @@
         {{ mostrarFormulario ? 'Cancelar' : 'Nueva Ventana' }}
       </button>
     </div>
-  </header>
+  </div>
 
   <div class="setup-container">
     <!-- Formulario colapsable -->

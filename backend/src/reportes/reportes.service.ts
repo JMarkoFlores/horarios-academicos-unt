@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Not } from "typeorm";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
@@ -16,11 +21,13 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { ConfiguracionService } from "../configuracion/configuracion.service";
 import * as https from "https";
+import * as http from "http";
 
 import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Departamento } from "../entities/departamento.entity";
 import { EstadoDeclaracionCarga } from "../common/enums/estado-declaracion-carga.enum";
+import { DeclaracionClad } from "../entities/declaracion-clad.entity";
 
 @Injectable()
 export class ReportesService {
@@ -49,6 +56,8 @@ export class ReportesService {
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     @InjectRepository(Departamento)
     private readonly departamentoRepo: Repository<Departamento>,
+    @InjectRepository(DeclaracionClad)
+    private readonly cladRepo: Repository<DeclaracionClad>,
     private readonly configuracionService: ConfiguracionService,
   ) {}
 
@@ -58,9 +67,37 @@ export class ReportesService {
   }
 
   private async getBase64Image(url: string): Promise<string | null> {
+    if (!url) return null;
+    const isRelative = url.startsWith("/");
+    const fullUrl = isRelative
+      ? `http://localhost:${process.env.PORT ?? 3000}${url}`
+      : url;
+    const client = fullUrl.startsWith("https") ? https : http;
     return new Promise((resolve) => {
-      https
-        .get(url, (res) => {
+      client
+        .get(fullUrl, (res) => {
+          if (
+            res.statusCode &&
+            res.statusCode >= 300 &&
+            res.statusCode < 400 &&
+            res.headers.location
+          ) {
+            const redirect = res.headers.location;
+            const rClient = redirect.startsWith("https") ? https : http;
+            rClient
+              .get(redirect, (res2) => {
+                const data: any[] = [];
+                res2.on("data", (chunk: any) => data.push(chunk));
+                res2.on("end", () => {
+                  const buffer = Buffer.concat(data);
+                  resolve(
+                    `data:${res2.headers["content-type"]};base64,${buffer.toString("base64")}`,
+                  );
+                });
+              })
+              .on("error", () => resolve(null));
+            return;
+          }
           const data: any[] = [];
           res.on("data", (chunk) => data.push(chunk));
           res.on("end", () => {
@@ -71,7 +108,9 @@ export class ReportesService {
           });
         })
         .on("error", (err) => {
-          this.logger.error(`Error al cargar imagen del logo: ${err.message}`);
+          this.logger.error(
+            `Error al cargar imagen: ${fullUrl} — ${err.message}`,
+          );
           resolve(null);
         });
     });
@@ -132,7 +171,7 @@ export class ReportesService {
       where: { id: docenteId },
       relations: ["departamento"],
     });
-    if (!docente) throw new Error("Docente no encontrado");
+    if (!docente) throw new NotFoundException("Docente no encontrado");
 
     const horarios = await this.horarioRepo
       .createQueryBuilder("horario")
@@ -344,7 +383,39 @@ export class ReportesService {
       "Viernes",
       "Sábado",
     ];
-    const horas = Array.from({ length: 15 }, (_, i) => i + 7);
+
+    // Get Franja Horaria and Duración de Bloque from configuration
+    let horaInicio = 7;
+    let horaFin = 22;
+    let duracionBloque = 1; // hours
+    try {
+      const restricciones =
+        await this.configuracionService.getRestriccionesMap(periodo);
+      const franjaHoraria = restricciones["FRANJA_HORARIA"] as any;
+      if (franjaHoraria?.hora_inicio && franjaHoraria?.hora_fin) {
+        horaInicio = parseInt(franjaHoraria.hora_inicio.split(":")[0], 10);
+        horaFin = parseInt(franjaHoraria.hora_fin.split(":")[0], 10);
+      }
+      const duracionBloqueConfig = restricciones["DURACION_BLOQUE"] as any;
+      if (duracionBloqueConfig?.duracion_minutos) {
+        duracionBloque = duracionBloqueConfig.duracion_minutos / 60;
+      } else if (
+        duracionBloqueConfig?.valor ||
+        duracionBloqueConfig?.duracion
+      ) {
+        duracionBloque =
+          duracionBloqueConfig.valor || duracionBloqueConfig.duracion;
+      }
+    } catch (e) {
+      this.logger.warn(
+        `Error getting configuration for period ${periodo}: ${e.message}`,
+      );
+    }
+
+    const horas = Array.from(
+      { length: horaFin - horaInicio },
+      (_, i) => i + horaInicio,
+    );
     const cellHeight = 10;
     const horaColWidth = 15;
     const gridWidth = PAGE_W - 24;
@@ -526,9 +597,29 @@ export class ReportesService {
           ) {
             const blockY = gridY + 10 + startRowIdx * cellHeight;
             const blockH = (endRowIdx - startRowIdx) * cellHeight;
-            const laneWidth = cellWidth / f.numCarriles;
-            const blockX =
-              12 + horaColWidth + diaIdx * cellWidth + f.carrilIdx * laneWidth;
+
+            // Check if block can expand across all lanes (no conflicts)
+            let puedeExpandirse = true;
+            carriles.forEach((otros, idx) => {
+              if (idx !== f.carrilIdx) {
+                otros.forEach((o) => {
+                  const oIni = this.horaToDecimal(o.hora_inicio);
+                  const oFin = this.horaToDecimal(o.hora_fin);
+                  if (f.horaInicio < oFin && oIni < f.horaFin)
+                    puedeExpandirse = false;
+                });
+              }
+            });
+
+            const laneWidth = puedeExpandirse
+              ? cellWidth
+              : cellWidth / f.numCarriles;
+            const blockX = puedeExpandirse
+              ? 12 + horaColWidth + diaIdx * cellWidth
+              : 12 +
+                horaColWidth +
+                diaIdx * cellWidth +
+                f.carrilIdx * laneWidth;
             const blockW = laneWidth;
 
             const color = this.getColorForProfesorCurso(
@@ -581,16 +672,28 @@ export class ReportesService {
       where: { id: docenteId },
       relations: ["departamento", "facultad"],
     });
-    if (!docente) throw new Error("Docente no encontrado");
+    if (!docente) throw new NotFoundException("Docente no encontrado");
 
     const periodoObj = await this.periodoRepo.findOne({
       where: [{ codigo: periodo }, { nombre: periodo }],
     });
-    if (!periodoObj) throw new Error("Periodo no encontrado");
+    if (!periodoObj) throw new NotFoundException("Periodo no encontrado");
+
+    const firmaBase64 = docente.firma_url
+      ? await this.getBase64Image(docente.firma_url)
+      : null;
 
     const declaracion = await this.declaracionRepo.findOne({
       where: { docente_id: docenteId, periodo_academico_id: periodoObj.id },
     });
+
+    const firmaDirectorBase64 = declaracion?.firma_director_url
+      ? await this.getBase64Image(declaracion.firma_director_url)
+      : null;
+
+    const firmaDecanoBase64 = declaracion?.firma_decano_url
+      ? await this.getBase64Image(declaracion.firma_decano_url)
+      : null;
 
     const horarios = await this.horarioRepo
       .createQueryBuilder("horario")
@@ -603,10 +706,10 @@ export class ReportesService {
       .addOrderBy("horario.hora_inicio", "ASC")
       .getMany();
 
-    const estadoDeclaracion = declaracion?.estado || "NO_INICIADO";
-    const estadosAprobados = ["VALIDADO_DPTO", "APROBADO_FACULTAD", "CERRADO"];
-    const esOficial = estadosAprobados.includes(estadoDeclaracion);
-    const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
+    const estadoDeclaracion = declaracion?.estado || "BORRADOR";
+    const estadosOficiales = ["APROBADO_FACULTAD", "CERRADO"];
+    const esOficial = estadosOficiales.includes(estadoDeclaracion);
+    const watermarkText = esOficial ? "DOCUMENTO\nOFICIAL" : "BORRADOR";
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
 
     const modalidadLabel: Record<string, string> = {
@@ -630,7 +733,7 @@ export class ReportesService {
       : "";
 
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
-    const ibm = docente.ibm || 0;
+    const dni = docente.dni || "";
     const categoriaLabel =
       docente.categoria === "PRINCIPAL"
         ? "Principal"
@@ -639,47 +742,101 @@ export class ReportesService {
           : docente.categoria === "AUXILIAR"
             ? "Auxiliar"
             : docente.categoria || "";
-    const modalidadDisplay = modalidadLabel[docente.modalidad] || docente.modalidad || "TC";
+    const modalidadDisplay =
+      modalidadLabel[docente.modalidad] || docente.modalidad || "TC";
 
     // --- HORARIO LECTIVO: agrupar por curso, separar T y P/L ---
     const diasNom = ["LU", "MA", "MI", "JU", "VI", "SA", "DO"];
 
-    // Map: cursoId → { teo: horarios[], pra: horarios[], lab: horarios[] }
-    const cursoHorariosMap = new Map<number, { curso: any; grupo: any; ambiente: any; teo: any[]; pra: any[]; lab: any[] }>();
+    // Map: cursoId â†’ { teo: horarios[], pra: horarios[], lab: horarios[] }
+    const cursoHorariosMap = new Map<
+      number,
+      {
+        curso: any;
+        grupo: any;
+        ambiente: any;
+        teo: any[];
+        pra: any[];
+        lab: any[];
+      }
+    >();
     horarios.forEach((h) => {
       if (!h.curso) return;
       if (!cursoHorariosMap.has(h.curso.id)) {
-        cursoHorariosMap.set(h.curso.id, { curso: h.curso, grupo: h.grupo, ambiente: h.ambiente, teo: [], pra: [], lab: [] });
+        cursoHorariosMap.set(h.curso.id, {
+          curso: h.curso,
+          grupo: h.grupo,
+          ambiente: h.ambiente,
+          teo: [],
+          pra: [],
+          lab: [],
+        });
       }
       const entry = cursoHorariosMap.get(h.curso.id)!;
       const diaStr = diasNom[(h.dia || h.dia_semana || 1) - 1];
-      const rango = `${h.hora_inicio.substring(0,5)}-${h.hora_fin.substring(0,5)}`;
+      const rango = `${h.hora_inicio.substring(0, 5)}-${h.hora_fin.substring(0, 5)}`;
       const slot = `${diaStr}(${rango})`;
-      if (h.tipo_clase === TipoClase.TEORIA) entry.teo.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
-      else if (h.tipo_clase === TipoClase.PRACTICA) entry.pra.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
-      else entry.lab.push({ slot, dur: this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio), ambiente: h.ambiente, grupo: h.grupo });
+      if (h.tipo_clase === TipoClase.TEORIA)
+        entry.teo.push({
+          slot,
+          dur:
+            this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio),
+          ambiente: h.ambiente,
+          grupo: h.grupo,
+        });
+      else if (h.tipo_clase === TipoClase.PRACTICA)
+        entry.pra.push({
+          slot,
+          dur:
+            this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio),
+          ambiente: h.ambiente,
+          grupo: h.grupo,
+        });
+      else
+        entry.lab.push({
+          slot,
+          dur:
+            this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio),
+          ambiente: h.ambiente,
+          grupo: h.grupo,
+        });
     });
 
     let trsCHL = "";
     let totalCargaLectiva = 0;
 
     cursoHorariosMap.forEach((entry) => {
-      const teoSlots = entry.teo.map(x => x.slot).join(", ");
-      const praSlots = [...entry.pra, ...entry.lab].map(x => x.slot).join(", ");
+      const teoSlots = entry.teo.map((x) => x.slot).join(", ");
+      const praSlots = [...entry.pra, ...entry.lab]
+        .map((x) => x.slot)
+        .join(", ");
       const horarioCell = [
         teoSlots ? `<b>T:</b> ${teoSlots}` : "",
         praSlots ? `<b>P:</b> ${praSlots}` : "",
-      ].filter(Boolean).join("<br>");
+      ]
+        .filter(Boolean)
+        .join("<br>");
 
       const totalTeo = entry.teo.reduce((s, x) => s + x.dur, 0);
-      const totalPra = [...entry.pra, ...entry.lab].reduce((s, x) => s + x.dur, 0);
+      const totalPra = [...entry.pra, ...entry.lab].reduce(
+        (s, x) => s + x.dur,
+        0,
+      );
       const total = totalTeo + totalPra;
       totalCargaLectiva += total;
 
-      const ambiente = entry.teo[0]?.ambiente || entry.pra[0]?.ambiente || entry.lab[0]?.ambiente || null;
+      const ambiente =
+        entry.teo[0]?.ambiente ||
+        entry.pra[0]?.ambiente ||
+        entry.lab[0]?.ambiente ||
+        null;
       const lugarCod = ambiente?.codigo?.substring(0, 3) || "F11";
       const aulaNombre = ambiente?.nombre || ambiente?.codigo || "—";
-      const grupoCod = entry.grupo?.codigo || entry.teo[0]?.grupo?.codigo || entry.pra[0]?.grupo?.codigo || "";
+      const grupoCod =
+        entry.grupo?.codigo ||
+        entry.teo[0]?.grupo?.codigo ||
+        entry.pra[0]?.grupo?.codigo ||
+        "";
       const ciclo = entry.curso.ciclo ? `${entry.curso.ciclo}0-C` : "";
       const cursoLabel = `${entry.curso.nombre}<br><small>${ciclo} ${grupoCod}</small>`;
 
@@ -699,7 +856,8 @@ export class ReportesService {
       <tr><td style="font-size:8px;padding:4px;"><b>T:</b><br><b>P:</b></td><td></td><td></td><td></td><td></td></tr>`;
 
     if (!cursoHorariosMap.size) {
-      trsCHL = '<tr><td colspan="5" class="text-center" style="color:#999; padding:8px;">Sin carga lectiva asignada</td></tr>';
+      trsCHL =
+        '<tr><td colspan="5" class="text-center" style="color:#999; padding:8px;">Sin carga lectiva asignada</td></tr>';
     }
 
     // --- HORARIO NO LECTIVO ---
@@ -721,7 +879,10 @@ export class ReportesService {
     const ordenNoLectiva = [2, 3, 4, 9, 8, 5, 1, 10, 6, 7];
 
     const actividadesMap = new Map<number, any>();
-    if (declaracion?.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
+    if (
+      declaracion?.carga_no_lectiva &&
+      Array.isArray((declaracion.carga_no_lectiva as any).actividades)
+    ) {
       (declaracion.carga_no_lectiva as any).actividades.forEach((a: any) => {
         actividadesMap.set(a.id, a);
       });
@@ -735,7 +896,10 @@ export class ReportesService {
       let horarioStr = "";
       if (a && Array.isArray(a.horarios) && a.horarios.length > 0) {
         horarioStr = a.horarios
-          .map((ha: any) => `${ha.dia || ""}(${(ha.hora_inicio || "").substring(0,5)}-${(ha.hora_fin || "").substring(0,5)})`)
+          .map(
+            (ha: any) =>
+              `${ha.dia || ""}(${(ha.hora_inicio || "").substring(0, 5)}-${(ha.hora_fin || "").substring(0, 5)})`,
+          )
           .join(", ");
       } else if (a?.horario) {
         horarioStr = a.horario;
@@ -753,10 +917,14 @@ export class ReportesService {
 
     const totalAcademica = totalCargaLectiva + totalCargaNoLectiva;
 
-    const categoriaDisplay = docente.categoria === "PRINCIPAL" ? "PRINCIPAL"
-      : docente.categoria === "ASOCIADO" ? "ASOCIADO"
-      : docente.categoria === "AUXILIAR" ? "AUXILIAR"
-      : docente.categoria || "";
+    const categoriaDisplay =
+      docente.categoria === "PRINCIPAL"
+        ? "PRINCIPAL"
+        : docente.categoria === "ASOCIADO"
+          ? "ASOCIADO"
+          : docente.categoria === "AUXILIAR"
+            ? "AUXILIAR"
+            : docente.categoria || "";
 
     const modalidadShort: Record<string, string> = {
       DEDICACION_EXCLUSIVA: "DE",
@@ -773,34 +941,35 @@ export class ReportesService {
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 0; padding: 0; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 9px; color: #334155; margin: 0; padding: 0; line-height: 1.3; }
           .watermark { position: fixed; top: 40%; left: 0; width: 100%; text-align: center;
             font-size: 80px; font-weight: bold; color: rgba(0,0,0,${watermarkOpacity});
             transform: rotate(-30deg); pointer-events: none; z-index: 1000; letter-spacing: 10px; }
-          .container { padding: 20px 24px; }
-          .main-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+          .container { padding: 15px 25px; }
+          .main-title { font-size: 15px; font-weight: bold; text-align: center; margin-bottom: 18px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
 
-          table { width: 100%; border-collapse: collapse; margin-bottom: 0; border-radius: 4px; overflow: hidden; }
-          table, th, td { border: 1px solid #cbd5e1; }
-          th, td { padding: 6px 8px; vertical-align: middle; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #94a3b8; }
+          th, td { border: 1px solid #94a3b8; padding: 5px 6px; vertical-align: middle; }
 
           .bg-blue { background-color: #f1f5f9; color: #0f172a; font-weight: bold; }
+          th.bg-blue, td.bg-blue { font-size: 9.5px; text-transform: uppercase; }
           .text-center { text-align: center; }
           .text-left { text-align: left; }
           .fw-bold { font-weight: bold; }
 
-          .cat-box { border: 2px solid #000; padding: 4px 10px; text-align: center; font-weight: bold; font-size: 10px; display: inline-block; }
+          .cat-box { border: 1.5px solid #475569; border-radius: 4px; padding: 4px 8px; text-align: center; font-weight: bold; font-size: 9.5px; display: inline-block; background-color: #f8fafc; }
 
-          .footer-note { font-size: 7px; color: #333; margin-top: 10px; }
+          .footer-note { font-size: 8px; color: #64748b; margin-top: 10px; border-top: 1px dashed #cbd5e1; padding-top: 5px; }
 
-          .firma-section { margin-top: 30px; display: flex; justify-content: space-around; width: 100%; }
+          .firma-section { margin-top: 40px; display: flex; justify-content: space-around; width: 100%; }
           .firma-box { width: 28%; text-align: center; }
-          .firma-rect { border: 2px solid #000; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; font-size: 13px; font-weight: bold; font-family: 'Times New Roman', Times, serif; flex-direction: column; }
-          .firma-label { font-size: 8px; font-weight: bold; }
+          .firma-rect { border: 1.5px dashed #94a3b8; border-radius: 6px; height: 70px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; color: #94a3b8; flex-direction: column; background-color: #f8fafc; }
+          .firma-label { font-size: 8.5px; font-weight: bold; color: #334155; text-transform: uppercase; }
 
           @media print {
             .watermark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .bg-blue { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #b3cbe6 !important; }
+            .bg-blue, .cat-box, .firma-rect { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
         </style>
       </head>
@@ -815,10 +984,10 @@ export class ReportesService {
               <td colspan="3" style="font-size:9px; border-right:none;">Facultad / Filial: <b>${docente.facultad?.nombre || "—"}</b></td>
               <td colspan="2" style="font-size:9px; border-left:none;">Dpto. Académico: <b>${docente.departamento?.nombre || "—"}</b></td>
             </tr>
-            <!-- Fila 2: DNI | IBM | Docente | Categoría — total 5 cols -->
+            <!-- Fila 2: DNI | Docente | Categoría — total 5 cols -->
             <tr>
               <td style="width:8%; font-size:8px; font-weight:bold; text-align:center;">DNI</td>
-              <td style="width:14%; text-align:center; font-weight:bold;">${ibm}</td>
+              <td style="width:14%; text-align:center; font-weight:bold;">${dni}</td>
               <td style="width:46%;">Docente: <b>${nombreCompleto}</b></td>
               <td colspan="2" style="width:22%; text-align:center; vertical-align:middle;">
                 <div class="cat-box">${categoriaDisplay}<br>${modalidadShort[docente.modalidad] || ""}</div>
@@ -866,15 +1035,27 @@ export class ReportesService {
 
           <div class="firma-section">
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma</span><span>Digital</span></div>
+              ${
+                firmaBase64
+                  ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                  : `<div class="firma-rect"><span>Firma</span><span>Digital</span></div>`
+              }
               <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              ${
+                firmaDirectorBase64
+                  ? `<img src="${firmaDirectorBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma director" />`
+                  : `<div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>`
+              }
               <div class="firma-label">FIRMA Y SELLO DEL DIRECTOR DE DPTO.ACADEMICO</div>
             </div>
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              ${
+                firmaDecanoBase64
+                  ? `<img src="${firmaDecanoBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma decano" />`
+                  : `<div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>`
+              }
               <div class="firma-label">V°B° DECANO</div>
             </div>
           </div>
@@ -884,9 +1065,17 @@ export class ReportesService {
     `;
 
     const puppeteer = await import("puppeteer");
+    this.logger.log(
+      `Iniciando Puppeteer para generar PDF F03-CAD para docente ${docenteId}`,
+    );
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+      ],
     });
     try {
       const page = await browser.newPage();
@@ -898,12 +1087,20 @@ export class ReportesService {
         printBackground: true,
         margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" },
       });
+      this.logger.log(
+        `PDF F03-CAD generado exitosamente para docente ${docenteId}`,
+      );
       return Buffer.from(buffer);
+    } catch (error) {
+      this.logger.error(
+        `Error generando PDF F03-CAD para docente ${docenteId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
     } finally {
       await browser.close();
     }
   }
-
 
   async generarReporteDeclaracionF02CADPDF(
     docenteId: number,
@@ -913,17 +1110,21 @@ export class ReportesService {
       where: { id: docenteId },
       relations: ["departamento", "facultad"],
     });
-    if (!docente) throw new Error("Docente no encontrado");
+    if (!docente) throw new NotFoundException("Docente no encontrado");
 
     const periodoObj = await this.periodoRepo.findOne({
       where: [{ codigo: periodo }, { nombre: periodo }],
     });
-    if (!periodoObj) throw new Error("Periodo no encontrado");
+    if (!periodoObj) throw new NotFoundException("Periodo no encontrado");
+
+    const firmaBase64 = docente.firma_url
+      ? await this.getBase64Image(docente.firma_url)
+      : null;
 
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
     const departamento = docente.departamento?.nombre || "No asignado";
     const facultad = docente.facultad?.nombre || "No asignada";
-    const ibm = docente.ibm || 0;
+    const dni = docente.dni || "";
 
     const fechaActual = new Date().toLocaleDateString("es-PE", {
       day: "numeric",
@@ -931,45 +1132,81 @@ export class ReportesService {
       year: "numeric",
     });
 
+    // Obtener estado de la declaración para determinar la marca de agua
+    const declaracion = await this.declaracionRepo.findOne({
+      where: { docente_id: docenteId, periodo_academico_id: periodoObj.id },
+    });
+
+    const estadoDeclaracion = declaracion?.estado || "BORRADOR";
+    const estadosOficiales = ["APROBADO_FACULTAD", "CERRADO"];
+    const esOficial = estadosOficiales.includes(estadoDeclaracion);
+    const watermarkText = esOficial ? "DOCUMENTO\nOFICIAL" : "BORRADOR";
+    const watermarkOpacity = esOficial ? "0.08" : "0.12";
+
+    const firmaDirectorBase64 = declaracion?.firma_director_url
+      ? await this.getBase64Image(declaracion.firma_director_url)
+      : null;
+
+    const firmaDecanoBase64 = declaracion?.firma_decano_url
+      ? await this.getBase64Image(declaracion.firma_decano_url)
+      : null;
+
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11.5px; color: #1e293b; margin: 0; padding: 25px 45px; line-height: 1.6; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 11px; color: #334155; margin: 0; padding: 30px 45px; line-height: 1.7; text-align: justify; position: relative; }
+          
+          .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 100px;
+            font-weight: bold;
+            color: rgba(0, 0, 0, ${watermarkOpacity});
+            z-index: 0;
+            white-space: pre;
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: 10px;
+          }
+          
+          .container { position: relative; z-index: 1; }
 
-          .title { text-align: center; font-weight: 800; font-size: 14px; margin-bottom: 22px; color: #0f172a; }
+          .title { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 25px; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
 
-          .intro { text-align: justify; margin-bottom: 10px; }
+          .intro { margin-bottom: 12px; }
 
           .bold { font-weight: bold; color: #0f172a; }
           .italic { font-style: italic; }
           .underline { text-decoration: underline; }
 
-          .declaration-main { text-align: justify; margin-bottom: 10px; }
+          .declaration-main { margin-bottom: 12px; }
 
-          .clause { text-align: justify; margin-bottom: 8px; }
+          .clause { margin-bottom: 10px; padding-left: 15px; }
 
-          .sanction { text-align: justify; margin-top: 14px; margin-bottom: 20px; color: #475569; }
+          .sanction { margin-top: 18px; margin-bottom: 25px; color: #475569; font-size: 10.5px; text-align: justify; }
 
-          .fecha-firma { display: flex; align-items: flex-end; gap: 20px; margin-top: 40px; margin-bottom: 30px; }
-          .fecha-text { font-size: 11.5px; white-space: nowrap; }
-          .firma-box { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 10px 24px; text-align: center; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; font-weight: bold; min-width: 120px; min-height: 55px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #64748b; }
-
-          .firma-bottom { margin-top: 10px; }
-          .firma-line { border-top: 1px solid #000; width: 280px; margin: 0 auto 4px auto; }
-          .firma-label { text-align: center; font-size: 10px; }
+          .fecha-text { font-size: 11px; font-weight: bold; color: #0f172a; }
+          .firma-box { border: 1.5px dashed #94a3b8; border-bottom: none; border-radius: 6px 6px 0 0; padding: 10px 24px; text-align: center; font-size: 12px; font-weight: bold; width: 140px; height: 50px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #94a3b8; background-color: #f8fafc; margin: 0 auto; }
+          .firma-line { border-top: 1px solid #475569; width: 280px; margin: 0 auto 6px auto; }
+          .firma-label { font-size: 10.5px; font-weight: bold; color: #334155; text-align: center; }
         </style>
       </head>
       <body>
-        <div class="title">
-          DECLARACION JURADA DE NO ESTAR INCURSO EN CAUSALES<br>
-          DE INCOMPATIBILIDAD O IMPEDIMENTO LABORAL (F02-CAD)
-        </div>
+        <div class="watermark">${watermarkText}</div>
+        <div class="container">
+          <div class="title">
+            DECLARACION JURADA DE NO ESTAR INCURSO EN CAUSALES<br>
+            DE INCOMPATIBILIDAD O IMPEDIMENTO LABORAL (F02-CAD)
+          </div>
 
         <p class="intro">
-          Yo, <b>${nombreCompleto}</b>, identificado(a) con DNI N° <b>${ibm}</b>, adscrito al Departamento Académico de
+          Yo, <b>${nombreCompleto}</b>, identificado(a) con DNI N° <b>${dni}</b>, adscrito al Departamento Académico de
           <b>${departamento}</b> de la Facultad de <b>${facultad}</b>; en el marco de la Ley Universitaria 30220,
           D.S. N° 418-2017-EF, Estatuto Reformado 2021 y el reglamento de asignación de la Carga Académica de los
           Docentes de la UNT, <b>DECLARO BAJO JURAMENTO Y EN HONOR A LA VERDAD</b>, que:
@@ -1024,27 +1261,35 @@ export class ReportesService {
           LIQUIDE COMO PAGOS INDEBIDOS POR EL LAPSO DE TIEMPO LABORADO ILEGALMENTE</u></i></b>.
         </p>
 
-        <div class="fecha-firma">
-          <div class="fecha-text">Trujillo, ${fechaActual}</div>
-          <div class="firma-box">
-            <span>Firma</span>
-            <span>Digital</span>
-          </div>
+        <div style="text-align: right; margin-top: 40px; margin-bottom: 50px;">
+          <span class="fecha-text">Trujillo, ${fechaActual}</span>
         </div>
-
-        <div class="firma-bottom">
+        <div style="text-align: center;">
+          ${
+            firmaBase64
+              ? `<img src="${firmaBase64}" style="max-width:160px; max-height:70px; display:block; margin:0 auto;" alt="Firma docente" />`
+              : `<div class="firma-box"><span>Firma</span><span>Digital</span></div>`
+          }
           <div class="firma-line"></div>
           <div class="firma-label">${nombreCompleto}</div>
-          <div class="firma-label" style="margin-top:4px;">DNI N° ${ibm}</div>
+          <div class="firma-label" style="margin-top:4px;">DNI N° ${dni}</div>
         </div>
       </body>
       </html>
     `;
 
     const puppeteer = await import("puppeteer");
+    this.logger.log(
+      `Iniciando Puppeteer para generar PDF F02-CAD para docente ${docenteId}`,
+    );
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+      ],
     });
     try {
       const page = await browser.newPage();
@@ -1055,12 +1300,20 @@ export class ReportesService {
         printBackground: true,
         margin: { top: "15mm", bottom: "15mm", left: "15mm", right: "15mm" },
       });
+      this.logger.log(
+        `PDF F02-CAD generado exitosamente para docente ${docenteId}`,
+      );
       return Buffer.from(buffer);
+    } catch (error) {
+      this.logger.error(
+        `Error generando PDF F02-CAD para docente ${docenteId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
     } finally {
       await browser.close();
     }
   }
-
 
   async generarReporteF01CADPDF(
     docenteId: number,
@@ -1070,12 +1323,12 @@ export class ReportesService {
       where: { id: docenteId },
       relations: ["departamento", "facultad"],
     });
-    if (!docente) throw new Error("Docente no encontrado");
+    if (!docente) throw new NotFoundException("Docente no encontrado");
 
     const periodoObj = await this.periodoRepo.findOne({
       where: [{ codigo: periodo }, { nombre: periodo }],
     });
-    if (!periodoObj) throw new Error("Periodo no encontrado");
+    if (!periodoObj) throw new NotFoundException("Periodo no encontrado");
 
     const declaracion = await this.declaracionRepo.findOne({
       where: { docente_id: docenteId, periodo_academico_id: periodoObj.id },
@@ -1093,14 +1346,27 @@ export class ReportesService {
       .getMany();
 
     const config = await this.configuracionService.getConfiguracionGeneral();
-    const logoUrl = config?.logo_url ||
+    const logoUrl =
+      config?.logo_url ||
       "https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png";
     const logoBase64 = await this.getBase64Image(logoUrl);
 
-    const estadoDeclaracion = declaracion?.estado || "NO_INICIADO";
-    const estadosAprobados = ["VALIDADO_DPTO", "APROBADO_FACULTAD", "CERRADO"];
-    const esOficial = estadosAprobados.includes(estadoDeclaracion);
-    const watermarkText = esOficial ? "DOCUMENTO OFICIAL" : "BORRADOR";
+    const firmaBase64 = docente.firma_url
+      ? await this.getBase64Image(docente.firma_url)
+      : null;
+
+    const firmaDirectorBase64 = declaracion?.firma_director_url
+      ? await this.getBase64Image(declaracion.firma_director_url)
+      : null;
+
+    const firmaDecanoBase64 = declaracion?.firma_decano_url
+      ? await this.getBase64Image(declaracion.firma_decano_url)
+      : null;
+
+    const estadoDeclaracion = declaracion?.estado || "BORRADOR";
+    const estadosOficiales = ["APROBADO_FACULTAD", "CERRADO"];
+    const esOficial = estadosOficiales.includes(estadoDeclaracion);
+    const watermarkText = esOficial ? "DOCUMENTO\nOFICIAL" : "BORRADOR";
     const watermarkOpacity = esOficial ? "0.08" : "0.12";
 
     const partesPeriodo = periodo.split("-");
@@ -1108,28 +1374,51 @@ export class ReportesService {
     const semestre = partesPeriodo[1] || "I";
 
     const nombreCompleto = `${docente.apellidos.toUpperCase()}, ${docente.nombres.toUpperCase()}`;
-    const ibm = docente.ibm || 0;
-    const categoriaLabel: Record<string, string> = { PRINCIPAL: "Principal", ASOCIADO: "Asociado", AUXILIAR: "Auxiliar", SIN_CATEGORIA: "Sin categoría" };
-    const contratoLabel: Record<string, string> = { NOMBRADO: "Nombrado", CONTRATADO: "Contratado" };
+    const dni = docente.dni || "";
+    const categoriaLabel: Record<string, string> = {
+      PRINCIPAL: "Principal",
+      ASOCIADO: "Asociado",
+      AUXILIAR: "Auxiliar",
+      SIN_CATEGORIA: "Sin categoría",
+    };
+    const contratoLabel: Record<string, string> = {
+      NOMBRADO: "Nombrado",
+      CONTRATADO: "Contratado",
+    };
     const modalidadLabel: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
-      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H", TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
-      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H", TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
+      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva",
+      TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
+      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H",
+      TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
+      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H",
+      TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
     };
 
-    const dateIni = periodoObj.fecha_inicio ? new Date(periodoObj.fecha_inicio).toLocaleDateString("es-PE") : "";
-    const dateFin = periodoObj.fecha_fin ? new Date(periodoObj.fecha_fin).toLocaleDateString("es-PE") : "";
-    const fechaGen = new Date().toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" });
+    const dateIni = periodoObj.fecha_inicio
+      ? new Date(periodoObj.fecha_inicio).toLocaleDateString("es-PE")
+      : "";
+    const dateFin = periodoObj.fecha_fin
+      ? new Date(periodoObj.fecha_fin).toLocaleDateString("es-PE")
+      : "";
+    const fechaGen = new Date().toLocaleDateString("es-PE", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
     // Build carga lectiva rows from horarios
     let trsLectiva = "";
-    let totalHorasTeo = 0, totalHorasPra = 0, totalHorasLab = 0, totalGeneral = 0;
+    let totalHorasTeo = 0,
+      totalHorasPra = 0,
+      totalHorasLab = 0,
+      totalGeneral = 0;
     const cursoMap = new Map<string, any>();
 
     horarios.forEach((h) => {
       if (!h.curso) return;
       const key = `${h.curso.id}`;
-      const dur = this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
+      const dur =
+        this.horaToDecimal(h.hora_fin) - this.horaToDecimal(h.hora_inicio);
       const isTeo = h.tipo_clase === TipoClase.TEORIA;
       const isPra = h.tipo_clase === TipoClase.PRACTICA;
       const isLab = h.tipo_clase === TipoClase.LABORATORIO;
@@ -1177,7 +1466,8 @@ export class ReportesService {
     });
 
     if (trsLectiva === "") {
-      trsLectiva = '<tr><td colspan="11" class="text-center no-data">Sin carga lectiva asignada</td></tr>';
+      trsLectiva =
+        '<tr><td colspan="11" class="text-center no-data">Sin carga lectiva asignada</td></tr>';
     }
 
     // Build carga no lectiva
@@ -1186,23 +1476,67 @@ export class ReportesService {
     let totalNoLectiva = 0;
 
     const labelsComp = [
-      { id: 2, num: "1", text: "1. PREPARACION Y EVALUACION", defaultDetail: "ACTIVIDADES DE PLANIFICACION, IMPLEMENTACION Y EVALUACION DE LAS ACTIVIDADES LECTIVAS." },
-      { id: 3, num: "2", text: "2. TUTORIA Y CONSEJERIA", defaultDetail: "PARA ALUMNOS DE LAS ASIGNATURAS CURRICULARES ASIGNADAS EN EL PRESENTE SEMESTRE." },
+      {
+        id: 2,
+        num: "1",
+        text: "1. PREPARACION Y EVALUACION",
+        defaultDetail:
+          "ACTIVIDADES DE PLANIFICACION, IMPLEMENTACION Y EVALUACION DE LAS ACTIVIDADES LECTIVAS.",
+      },
+      {
+        id: 3,
+        num: "2",
+        text: "2. TUTORIA Y CONSEJERIA",
+        defaultDetail:
+          "PARA ALUMNOS DE LAS ASIGNATURAS CURRICULARES ASIGNADAS EN EL PRESENTE SEMESTRE.",
+      },
       { id: 4, num: "3", text: "3. INVESTIGACION:", defaultDetail: "" },
-      { id: 9, num: "4", text: "4. RESPONSABILIDAD SOCIAL UNIVERSITARIA", defaultDetail: "" },
-      { id: 8, num: "5", text: "5. ASESORIA DE TESIS Y EXAMENES PROFESIONALES", defaultDetail: "" },
-      { id: 5, num: "6", text: "6. FORMACION ACADEMICA Y CAPACITACION", defaultDetail: "" },
-      { id: 1, num: "7", text: "7. AUTOEVALUACION Y/O ACREDITACION DE LA ESCUELA PROFESIONAL", defaultDetail: "" }
+      {
+        id: 5,
+        num: "4",
+        text: "4. FORMACION ACADEMICA Y CAPACITACION",
+        defaultDetail: "",
+      },
+      {
+        id: 8,
+        num: "5",
+        text: "5. ASESORIA DE TESIS Y EXAMENES PROFESIONALES",
+        defaultDetail: "",
+      },
+      {
+        id: 9,
+        num: "6",
+        text: "6. RESPONSABILIDAD SOCIAL UNIVERSITARIA",
+        defaultDetail: "",
+      },
     ];
 
     const labelsAdmin = [
-      { id: 10, num: "8", text: "8. COMITES O COMISIONES ESPECIALES", defaultDetail: "" },
-      { id: 6, num: "9", text: "9. ACTIVIDADES DE GOBIERNO O DE AUTORIDAD", defaultDetail: "" },
-      { id: 7, num: "10", text: "10. ACTIVIDADES DE GESTION INSTITUCIONAL", defaultDetail: "" }
+      {
+        id: 6,
+        num: "7",
+        text: "7. ACTIVIDADES DE GOBIERNO O DE AUTORIDAD",
+        defaultDetail: "",
+      },
+      {
+        id: 7,
+        num: "8",
+        text: "8. ACTIVIDADES DE GESTION INSTITUCIONAL",
+        defaultDetail: "",
+      },
+      {
+        id: 10,
+        num: "9",
+        text: "9. COMITES O COMISIONES ESPECIALES",
+        defaultDetail: "",
+      },
     ];
 
     const actividadesRegistradas = new Map<number, any>();
-    if (declaracion?.carga_no_lectiva && Array.isArray((declaracion.carga_no_lectiva as any).actividades)) {
+    if (
+      declaracion?.carga_no_lectiva &&
+      Array.isArray((declaracion.carga_no_lectiva as any).actividades)
+    ) {
       const actividades = (declaracion.carga_no_lectiva as any).actividades;
       actividades.forEach((a: any) => {
         actividadesRegistradas.set(a.id, a);
@@ -1237,13 +1571,29 @@ export class ReportesService {
       <head>
         <meta charset="UTF-8">
         <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 0; padding: 0; }
-          .container { width: 100%; margin: 0 auto; padding: 20px 24px; }
-          .main-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 20px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Helvetica', Arial, sans-serif; font-size: 7.5px; color: #334155; margin: 0; padding: 0; line-height: 1.1; position: relative; }
+          .container { width: 100%; margin: 0 auto; padding: 10px 10px; position: relative; z-index: 1; }
           
-          table { width: 100%; border-collapse: collapse; margin-bottom: 0; border-radius: 4px; overflow: hidden; }
-          table, th, td { border: 1px solid #cbd5e1; }
-          th, td { padding: 6px 8px; vertical-align: middle; }
+          .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 100px;
+            font-weight: bold;
+            color: rgba(0, 0, 0, ${watermarkOpacity});
+            z-index: 0;
+            white-space: pre;
+            pointer-events: none;
+            user-select: none;
+            letter-spacing: 10px;
+          }
+          
+          .main-title { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 12px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #94a3b8; table-layout: fixed; word-wrap: break-word; word-break: break-all; overflow-wrap: break-word; }
+          th, td { border: 1px solid #94a3b8; padding: 2px 2px; vertical-align: middle; overflow: hidden; }
           
           .bg-blue { background-color: #f1f5f9; color: #0f172a; font-weight: bold; }
           .bg-gray { background-color: #f8fafc; font-weight: bold; }
@@ -1253,21 +1603,40 @@ export class ReportesService {
           .text-right { text-align: right; }
           .fw-bold { font-weight: bold; }
           
-          .info-label { font-size: 8px; color: #64748b; }
-          .header-row th { background-color: #ffffff; font-size: 8px; font-weight: normal; text-align: center; color: #475569; }
+          .info-label { font-size: 8.5px; color: #475569; }
+          .header-row th { background-color: #f8fafc; font-size: 8px; font-weight: bold; text-align: center; color: #334155; text-transform: uppercase; }
           
-          .firma-section { margin-top: 40px; width: 100%; text-align: center; display: flex; justify-content: space-around; }
+          .firma-section { margin-top: 40px; display: flex; justify-content: space-around; width: 100%; }
           .firma-box { width: 28%; text-align: center; }
-          .firma-rect { border: 2px solid #000; height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; font-size: 14px; font-weight: bold; font-family: 'Times New Roman', Times, serif; flex-direction: column;}
-          .firma-label { font-size: 9px; font-weight: bold; }
+          .firma-rect { border: 1.5px dashed #94a3b8; border-radius: 6px; height: 70px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; font-size: 12px; font-weight: bold; color: #94a3b8; flex-direction: column; background-color: #f8fafc; }
+          .firma-label { font-size: 8.5px; font-weight: bold; color: #334155; text-transform: uppercase; }
           
+          @media print {
+            .bg-blue, .bg-gray, .firma-rect, .header-row th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            tr { page-break-inside: avoid; }
+            .firma-section { page-break-inside: avoid; }
+          }
         </style>
       </head>
       <body>
+        <div class="watermark">${watermarkText}</div>
         <div class="container">
           <div class="main-title">DECLARACION DE LA CARGA ACADEMICA DOCENTE (F01-CAD)</div>
           
           <table>
+            <colgroup>
+              <col style="width: 8%;">
+              <col style="width: 25%;">
+              <col style="width: 10%;">
+              <col style="width: 15%;">
+              <col style="width: 5%;">
+              <col style="width: 5%;">
+              <col style="width: 6%;">
+              <col style="width: 6%;">
+              <col style="width: 6%;">
+              <col style="width: 6%;">
+              <col style="width: 8%;">
+            </colgroup>
             <tr>
               <td colspan="5" class="info-label" style="border-right: none;">FACULTAD / FILIAL: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.facultad?.nombre || ""}</b></td>
               <td colspan="6" class="info-label" style="border-left: none;">DPTO. ACADÉMICO: &nbsp;&nbsp;&nbsp;&nbsp; <b>${docente.departamento?.nombre || ""}</b></td>
@@ -1280,15 +1649,20 @@ export class ReportesService {
               <th colspan="2" class="info-label text-center">MODALIDAD</th>
             </tr>
             <tr>
-              <td class="text-center">${ibm}</td>
+              <td class="text-center">${dni}</td>
               <td colspan="4" class="text-center fw-bold">${nombreCompleto}</td>
               <td colspan="2" class="text-center">${contratoLabel[docente.tipo_contrato] || docente.tipo_contrato}</td>
               <td colspan="2" class="text-center">${categoriaLabel[docente.categoria] || docente.categoria}</td>
               <td colspan="2" class="text-center">${modalidadLabel[docente.modalidad] || docente.modalidad}</td>
             </tr>
             <tr>
-              <td colspan="11" class="text-center info-label" style="padding: 6px;">
-                AÑO ACADÉMICO: <b>${anio}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SEMESTRE: <b>${semestre}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Inicio: <b>${dateIni}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Fecha de Término: <b>${dateFin}</b>
+              <td colspan="11" class="info-label" style="padding: 6px;">
+                <div style="display: flex; justify-content: space-between; width: 100%;">
+                  <span>AÑO ACADÉMICO: <b>${anio}</b></span>
+                  <span>SEMESTRE: <b>${semestre}</b></span>
+                  <span>Fecha de Inicio: <b>${dateIni}</b></span>
+                  <span>Fecha de Término: <b>${dateFin}</b></span>
+                </div>
               </td>
             </tr>
             
@@ -1306,11 +1680,11 @@ export class ReportesService {
               <th rowspan="2">Total<br>Horas</th>
             </tr>
             <tr class="header-row">
-              <th width="8%">CÓDIGO</th>
-              <th width="30%">DENOMINACIÓN</th>
-              <th width="5%">Teoría</th>
-              <th width="5%">Práctica</th>
-              <th width="5%">Lab.</th>
+              <th>CÓDIGO</th>
+              <th>DENOMINACIÓN</th>
+              <th>Teoría</th>
+              <th>Práctica</th>
+              <th>Lab.</th>
             </tr>
             
             ${trsLectiva}
@@ -1337,15 +1711,27 @@ export class ReportesService {
 
           <div class="firma-section">
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma</span><span>Digital</span></div>
+              ${
+                firmaBase64
+                  ? `<img src="${firmaBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                  : `<div class="firma-rect"><span>Firma</span><span>Digital</span></div>`
+              }
               <div class="firma-label">FIRMA DEL DOCENTE</div>
             </div>
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              ${
+                firmaDirectorBase64
+                  ? `<img src="${firmaDirectorBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma director" />`
+                  : `<div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>`
+              }
               <div class="firma-label">FIRMA Y SELLO DEL DIRECTOR DE DPTO.ACADEMICO</div>
             </div>
             <div class="firma-box">
-              <div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>
+              ${
+                firmaDecanoBase64
+                  ? `<img src="${firmaDecanoBase64}" style="max-height:70px; max-width:100%; display:block; margin:0 auto;" alt="Firma decano" />`
+                  : `<div class="firma-rect"><span>Firma y</span><span>Sello Digital</span></div>`
+              }
               <div class="firma-label">V°B° DECANO</div>
             </div>
           </div>
@@ -1355,19 +1741,37 @@ export class ReportesService {
     `;
 
     const puppeteer = await import("puppeteer");
+    this.logger.log(
+      `Iniciando Puppeteer para generar PDF F01-CAD para docente ${docenteId}`,
+    );
     const browser = await puppeteer.default.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+      ],
     });
     try {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "load" });
       const buffer = await page.pdf({
         format: "A4",
+        landscape: false,
         printBackground: true,
-        margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" },
+        margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
       });
+      this.logger.log(
+        `PDF F01-CAD generado exitosamente para docente ${docenteId}`,
+      );
       return Buffer.from(buffer);
+    } catch (error) {
+      this.logger.error(
+        `Error generando PDF F01-CAD para docente ${docenteId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
     } finally {
       await browser.close();
     }
@@ -1380,7 +1784,7 @@ export class ReportesService {
     const periodoObj = await this.periodoRepo.findOne({
       where: [{ codigo: periodo }, { nombre: periodo }],
     });
-    if (!periodoObj) throw new Error("Periodo no encontrado");
+    if (!periodoObj) throw new NotFoundException("Periodo no encontrado");
 
     const whereDecl: any = { periodo_academico_id: periodoObj.id };
     const whereDocente: any = { activo: true };
@@ -1397,12 +1801,17 @@ export class ReportesService {
     const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
 
     const modalidadLabel: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "DE", TIEMPO_COMPLETO_40: "TC40",
-      TIEMPO_PARCIAL_20: "TP20", TIEMPO_PARCIAL_12: "TP12",
-      TIEMPO_PARCIAL_10: "TP10", TIEMPO_PARCIAL_8: "TP8",
+      DEDICACION_EXCLUSIVA: "DE",
+      TIEMPO_COMPLETO_40: "TC40",
+      TIEMPO_PARCIAL_20: "TP20",
+      TIEMPO_PARCIAL_12: "TP12",
+      TIEMPO_PARCIAL_10: "TP10",
+      TIEMPO_PARCIAL_8: "TP8",
     };
 
-    let totalLectivas = 0, totalNoLectivas = 0, totalGeneral = 0;
+    let totalLectivas = 0,
+      totalNoLectivas = 0,
+      totalGeneral = 0;
     let trsBody = "";
     let deptActual = "";
 
@@ -1466,23 +1875,29 @@ export class ReportesService {
 
     const puppeteer = await import("puppeteer");
     const browser = await puppeteer.default.launch({
-      headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
     });
     try {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "load" });
-      const buffer = await page.pdf({ format: "A4", landscape: true, printBackground: true, margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" } });
+      const buffer = await page.pdf({
+        format: "A4",
+        landscape: true,
+        printBackground: true,
+        margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
+      });
       return Buffer.from(buffer);
-    } finally { await browser.close(); }
+    } finally {
+      await browser.close();
+    }
   }
 
-  async generarReporteCargaPorModalidadPDF(
-    periodo: string,
-  ): Promise<Buffer> {
+  async generarReporteCargaPorModalidadPDF(periodo: string): Promise<Buffer> {
     const periodoObj = await this.periodoRepo.findOne({
       where: [{ codigo: periodo }, { nombre: periodo }],
     });
-    if (!periodoObj) throw new Error("Periodo no encontrado");
+    if (!periodoObj) throw new NotFoundException("Periodo no encontrado");
 
     const docentes = await this.docenteRepo.find({ where: { activo: true } });
     const declaraciones = await this.declaracionRepo.find({
@@ -1491,15 +1906,27 @@ export class ReportesService {
     const declMap = new Map(declaraciones.map((d) => [d.docente_id, d]));
 
     const modalidadLabels: Record<string, string> = {
-      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva", TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
-      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H", TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
-      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H", TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
+      DEDICACION_EXCLUSIVA: "Dedicación Exclusiva",
+      TIEMPO_COMPLETO_40: "Tiempo Completo 40 H",
+      TIEMPO_PARCIAL_20: "Tiempo Parcial 20 H",
+      TIEMPO_PARCIAL_12: "Tiempo Parcial 12 H",
+      TIEMPO_PARCIAL_10: "Tiempo Parcial 10 H",
+      TIEMPO_PARCIAL_8: "Tiempo Parcial 8 H",
     };
 
-    const modalidadData = new Map<string, { count: number; sumLect: number; sumNoLect: number; sumTotal: number }>();
+    const modalidadData = new Map<
+      string,
+      { count: number; sumLect: number; sumNoLect: number; sumTotal: number }
+    >();
     docentes.forEach((d) => {
       const mod = d.modalidad || "SIN_MODALIDAD";
-      if (!modalidadData.has(mod)) modalidadData.set(mod, { count: 0, sumLect: 0, sumNoLect: 0, sumTotal: 0 });
+      if (!modalidadData.has(mod))
+        modalidadData.set(mod, {
+          count: 0,
+          sumLect: 0,
+          sumNoLect: 0,
+          sumTotal: 0,
+        });
       const data = modalidadData.get(mod)!;
       data.count++;
       const decl = declMap.get(d.id);
@@ -1509,11 +1936,13 @@ export class ReportesService {
     });
 
     let trsBody = "";
-    let totalDocs = 0, totalSum = 0;
+    let totalDocs = 0,
+      totalSum = 0;
     modalidadData.forEach((data, mod) => {
       totalDocs += data.count;
       totalSum += data.sumTotal;
-      const avg = data.count > 0 ? (data.sumTotal / data.count).toFixed(1) : "0";
+      const avg =
+        data.count > 0 ? (data.sumTotal / data.count).toFixed(1) : "0";
       trsBody += `
         <tr>
           <td>${modalidadLabels[mod] || mod}</td>
@@ -1556,14 +1985,21 @@ export class ReportesService {
 
     const puppeteer = await import("puppeteer");
     const browser = await puppeteer.default.launch({
-      headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
     });
     try {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "load" });
-      const buffer = await page.pdf({ format: "A4", printBackground: true, margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" } });
+      const buffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "10mm", bottom: "10mm", left: "10mm", right: "10mm" },
+      });
       return Buffer.from(buffer);
-    } finally { await browser.close(); }
+    } finally {
+      await browser.close();
+    }
   }
 
   async generarReporteConsolidadoCargaExcel(
@@ -1586,12 +2022,16 @@ export class ReportesService {
 
     const headerRow = sheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1A237E" } };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF1A237E" },
+    };
 
     const periodoObj = await this.periodoRepo.findOne({
       where: [{ codigo: periodo }, { nombre: periodo }],
     });
-    if (!periodoObj) throw new Error("Periodo no encontrado");
+    if (!periodoObj) throw new NotFoundException("Periodo no encontrado");
 
     const whereDocente: any = { activo: true };
     if (departamentoId) whereDocente.departamento_id = departamentoId;
@@ -1607,8 +2047,10 @@ export class ReportesService {
 
     headerRow.eachCell((cell) => {
       cell.border = {
-        top: { style: "thin" as any }, left: { style: "thin" as any },
-        bottom: { style: "thin" as any }, right: { style: "thin" as any }
+        top: { style: "thin" as any },
+        left: { style: "thin" as any },
+        bottom: { style: "thin" as any },
+        right: { style: "thin" as any },
       };
     });
 
@@ -1626,8 +2068,10 @@ export class ReportesService {
       });
       row.eachCell((cell) => {
         cell.border = {
-          top: { style: "thin" as any }, left: { style: "thin" as any },
-          bottom: { style: "thin" as any }, right: { style: "thin" as any }
+          top: { style: "thin" as any },
+          left: { style: "thin" as any },
+          bottom: { style: "thin" as any },
+          right: { style: "thin" as any },
         };
       });
     });
@@ -1778,7 +2222,7 @@ export class ReportesService {
     const ambiente = await this.ambienteRepo.findOne({
       where: { id: ambienteId },
     });
-    if (!ambiente) throw new Error("Ambiente no encontrado");
+    if (!ambiente) throw new NotFoundException("Ambiente no encontrado");
 
     const horarios = await this.horarioRepo
       .createQueryBuilder("horario")
@@ -1819,9 +2263,9 @@ export class ReportesService {
     const ambiente = await this.ambienteRepo.findOne({
       where: { id: ambienteId },
     });
-    if (!ambiente) throw new Error("Ambiente no encontrado");
+    if (!ambiente) throw new NotFoundException("Ambiente no encontrado");
     if (ambiente.tipo !== TipoAmbiente.LABORATORIO)
-      throw new Error("El ambiente no es un laboratorio");
+      throw new BadRequestException("El ambiente no es un laboratorio");
 
     const horarios = await this.horarioRepo
       .createQueryBuilder("horario")
@@ -2005,11 +2449,11 @@ export class ReportesService {
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 8;
-    if (yPos + (15 * 8) + 15 > PAGE_H) {
+    if (yPos + 15 * 8 + 15 > PAGE_H) {
       doc.addPage();
       yPos = 15;
     }
-    
+
     // Grid de Horarios
     const dias = [
       "Lunes",
@@ -2284,7 +2728,7 @@ export class ReportesService {
     const ambiente = await this.ambienteRepo.findOne({
       where: { id: ambienteId },
     });
-    if (!ambiente) throw new Error("Ambiente no encontrado");
+    if (!ambiente) throw new NotFoundException("Ambiente no encontrado");
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Horario Ambiente");
@@ -2537,9 +2981,9 @@ export class ReportesService {
     return this.generarPDF(html);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // FASE 8 — Reportes de Gestión (Carga Académica)
-  // ═══════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   async generarReporteGestionCargaPDF(periodo: string): Promise<Buffer> {
     const [totalDocentes, declaraciones, periodoAnterior, periodoActual] =
@@ -2556,25 +3000,25 @@ export class ReportesService {
       ]);
 
     const declPeriodo = declaraciones.filter(
-        (d) => d.periodo_academico?.codigo === periodo || d.periodo_academico?.nombre === periodo,
+      (d) =>
+        d.periodo_academico?.codigo === periodo ||
+        d.periodo_academico?.nombre === periodo,
     );
     const declAnterior = declaraciones.filter(
-      (d) => d.periodo_academico?.codigo === this.periodoAnterior(periodo) || d.periodo_academico?.nombre === this.periodoAnterior(periodo),
+      (d) =>
+        d.periodo_academico?.codigo === this.periodoAnterior(periodo) ||
+        d.periodo_academico?.nombre === this.periodoAnterior(periodo),
     );
 
     const enviadas = declPeriodo.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
     );
     const aprobadas = declPeriodo.filter(
-      (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      (d) => d.estado === EstadoDeclaracionCarga.ENVIADO,
     );
-    const observadas = declPeriodo.filter(
-      (d) =>
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
-    );
+    const observadas: typeof declPeriodo = [];
 
     const horasArr = declPeriodo.map((d) => d.total_horas_lectivas);
     const cargaPromedio =
@@ -2604,20 +3048,21 @@ export class ReportesService {
     const envAnterior = declAnterior.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
     ).length;
     const pctAnterior =
       declAnterior.length > 0
         ? Math.round((envAnterior / declAnterior.length) * 100)
         : 0;
-    const variacion = pctAnterior > 0
-      ? Math.round(
-          ((enviadas.length / Math.max(declPeriodo.length, 1)) * 100 -
-            pctAnterior) /
-            pctAnterior *
-            100,
-        )
-      : 0;
+    const variacion =
+      pctAnterior > 0
+        ? Math.round(
+            (((enviadas.length / Math.max(declPeriodo.length, 1)) * 100 -
+              pctAnterior) /
+              pctAnterior) *
+              100,
+          )
+        : 0;
 
     const html = this.htmlWrapper(`
       <div class="content-header">
@@ -2635,7 +3080,7 @@ export class ReportesService {
           <div class="kpi-card"><span>Docentes con Observaciones</span><strong>${observadas.length}</strong></div>
           <div class="kpi-card"><span>Carga Lectiva Promedio</span><strong>${cargaPromedio.toFixed(1)}h</strong></div>
           <div class="kpi-card"><span>Tiempo Promedio Proceso</span><strong>${tiempoPromedioHoras}h</strong></div>
-          <div class="kpi-card"><span>Variación vs Período Anterior</span><strong style="color: ${variacion >= 0 ? '#10b981' : '#ef4444'}">${variacion >= 0 ? '+' : ''}${variacion}%</strong></div>
+          <div class="kpi-card"><span>Variación vs Período Anterior</span><strong style="color: ${variacion >= 0 ? "#10b981" : "#ef4444"}">${variacion >= 0 ? "+" : ""}${variacion}%</strong></div>
         </div>
       </div>
 
@@ -2654,7 +3099,12 @@ export class ReportesService {
         <table>
           <thead><tr><th>Estado</th><th>Cantidad</th><th>% del Total</th></tr></thead>
           <tbody>
-            ${this.estadosConLabels(declPeriodo).map((e) => `<tr><td>${e.label}</td><td>${e.count}</td><td>${e.porcentaje.toFixed(1)}%</td></tr>`).join("")}
+            ${this.estadosConLabels(declPeriodo)
+              .map(
+                (e) =>
+                  `<tr><td>${e.label}</td><td>${e.count}</td><td>${e.porcentaje.toFixed(1)}%</td></tr>`,
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
@@ -2705,15 +3155,15 @@ export class ReportesService {
       const enviados = dDept.filter(
         (d) =>
           this.estadoValor(d.estado) >=
-          this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+          this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
       ).length;
       const validados = dDept.filter(
         (d) =>
           this.estadoValor(d.estado) >=
-          this.estadoValor(EstadoDeclaracionCarga.VALIDADO_DPTO),
+          this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
       ).length;
       const aprobados = dDept.filter(
-        (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+        (d) => d.estado === EstadoDeclaracionCarga.ENVIADO,
       ).length;
       const pct = total > 0 ? Math.round((enviados / total) * 100) : 0;
       const semaforo =
@@ -2769,8 +3219,8 @@ export class ReportesService {
 
       <div class="section">
         <h3>Leyenda de Semáforo</h3>
-        <p><span style="color: #10b981; font-weight: bold;">Verde</span> ≥ 80% — Buen avance</p>
-        <p><span style="color: #f59e0b; font-weight: bold;">Amarillo</span> ≥ 50% — En proceso</p>
+        <p><span style="color: #10b981; font-weight: bold;">Verde</span> â‰¥ 80% — Buen avance</p>
+        <p><span style="color: #f59e0b; font-weight: bold;">Amarillo</span> â‰¥ 50% — En proceso</p>
         <p><span style="color: #ef4444; font-weight: bold;">Rojo</span> &lt; 50% — Requiere atención</p>
       </div>
 
@@ -2799,16 +3249,12 @@ export class ReportesService {
     const enviadas = declPeriodo.filter(
       (d) =>
         this.estadoValor(d.estado) >=
-        this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+        this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
     );
     const aprobadas = declPeriodo.filter(
-      (d) => d.estado === EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      (d) => d.estado === EstadoDeclaracionCarga.ENVIADO,
     );
-    const observadas = declPeriodo.filter(
-      (d) =>
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_DPTO ||
-        d.estado === EstadoDeclaracionCarga.OBSERVADO_FACULTAD,
-    );
+    const observadas: typeof declPeriodo = [];
     const sinDeclarar = totalDocentes - declPeriodo.length;
 
     const horasTotales = declPeriodo.reduce(
@@ -2830,7 +3276,7 @@ export class ReportesService {
         const declarados = dd.filter(
           (dec) =>
             this.estadoValor(dec.estado) >=
-            this.estadoValor(EstadoDeclaracionCarga.ENVIADO_DOCENTE),
+            this.estadoValor(EstadoDeclaracionCarga.ENVIADO),
         ).length;
         const pct = total > 0 ? Math.round((declarados / total) * 100) : 0;
         const semaforo =
@@ -2898,8 +3344,8 @@ export class ReportesService {
 
       <div class="section">
         <h3>Leyenda</h3>
-        <p style="color: #10b981; font-weight: bold;">Verde — Buen avance (≥ 80%)</p>
-        <p style="color: #f59e0b; font-weight: bold;">Amarillo — En proceso (≥ 50%)</p>
+        <p style="color: #10b981; font-weight: bold;">Verde — Buen avance (â‰¥ 80%)</p>
+        <p style="color: #f59e0b; font-weight: bold;">Amarillo — En proceso (â‰¥ 50%)</p>
         <p style="color: #ef4444; font-weight: bold;">Rojo — Requiere atención (&lt; 50%)</p>
       </div>
 
@@ -2919,7 +3365,7 @@ export class ReportesService {
     return this.generarPDF(html);
   }
 
-  // ── Helpers Fase 8 ──
+  // â”€â”€ Helpers Fase 8 â”€â”€
 
   private periodoAnterior(periodo: string): string {
     const [anio, ciclo] = periodo.split("-");
@@ -2928,33 +3374,29 @@ export class ReportesService {
 
   private estadoValor(estado: EstadoDeclaracionCarga): number {
     const orden: Record<string, number> = {
-      NO_INICIADO: 0,
-      BORRADOR: 1,
-      PENDIENTE_ENVIO: 2,
-      ENVIADO_DOCENTE: 3,
-      OBSERVADO_DPTO: 4,
-      SUBSANADO: 5,
-      VALIDADO_DPTO: 6,
-      OBSERVADO_FACULTAD: 7,
-      APROBADO_FACULTAD: 8,
-      CERRADO: 9,
-      ANULADO: -1,
+      BORRADOR: 0,
+      ENVIADO: 1,
+      VALIDADO_DPTO: 2,
+      OBSERVADO_DPTO: 2,
+      APROBADO_FACULTAD: 3,
+      OBSERVADO_FACULTAD: 3,
+      REABIERTO: 5,
+      CERRADO: 4,
     };
     return orden[estado] ?? 0;
   }
 
-  private agruparPorCategoria(
-    declaraciones: DeclaracionCargaHoraria[],
-  ): { categoria: string; docentes: number; horas: number; promedio: number }[] {
-    const map = new Map<
-      string,
-      { docentes: Set<number>; horas: number }
-    >();
+  private agruparPorCategoria(declaraciones: DeclaracionCargaHoraria[]): {
+    categoria: string;
+    docentes: number;
+    horas: number;
+    promedio: number;
+  }[] {
+    const map = new Map<string, { docentes: Set<number>; horas: number }>();
     for (const d of declaraciones) {
       if (!d.docente) continue;
       const cat = d.docente.categoria || "Sin categoría";
-      if (!map.has(cat))
-        map.set(cat, { docentes: new Set(), horas: 0 });
+      if (!map.has(cat)) map.set(cat, { docentes: new Set(), horas: 0 });
       const grupo = map.get(cat);
       grupo.docentes.add(d.docente_id);
       grupo.horas += d.total_horas_lectivas;
@@ -2976,27 +3418,23 @@ export class ReportesService {
     declaraciones: DeclaracionCargaHoraria[],
   ): { estado: string; label: string; count: number; porcentaje: number }[] {
     const labels: Record<string, string> = {
-      NO_INICIADO: "No iniciado",
       BORRADOR: "Borrador",
-      PENDIENTE_ENVIO: "Pendiente envío",
-      ENVIADO_DOCENTE: "Enviado",
-      OBSERVADO_DPTO: "Observado (dpto)",
-      SUBSANADO: "Subsanado",
-      VALIDADO_DPTO: "Validado (dpto)",
-      OBSERVADO_FACULTAD: "Observado (facultad)",
-      APROBADO_FACULTAD: "Aprobado",
+      ENVIADO: "Enviado",
+      VALIDADO_DPTO: "Validado Dpto.",
+      OBSERVADO_DPTO: "Observado Dpto.",
+      APROBADO_FACULTAD: "Aprobado Facultad",
+      OBSERVADO_FACULTAD: "Observado Facultad",
+      REABIERTO: "Reabierto",
       CERRADO: "Cerrado",
     };
     const orden = [
-      "NO_INICIADO",
       "BORRADOR",
-      "PENDIENTE_ENVIO",
-      "ENVIADO_DOCENTE",
-      "OBSERVADO_DPTO",
-      "SUBSANADO",
+      "ENVIADO",
       "VALIDADO_DPTO",
-      "OBSERVADO_FACULTAD",
+      "OBSERVADO_DPTO",
       "APROBADO_FACULTAD",
+      "OBSERVADO_FACULTAD",
+      "REABIERTO",
       "CERRADO",
     ];
     const total = declaraciones.length || 1;
@@ -3013,9 +3451,7 @@ export class ReportesService {
       .filter((e) => e.count > 0);
   }
 
-  private async obtenerIdPeriodo(
-    periodo: string,
-  ): Promise<number | null> {
+  private async obtenerIdPeriodo(periodo: string): Promise<number | null> {
     try {
       const p = await this.periodoRepo.findOne({
         where: { codigo: periodo },
@@ -3034,7 +3470,7 @@ export class ReportesService {
     const docente = await this.docenteRepo.findOne({
       where: { id: docenteId },
     });
-    if (!docente) throw new Error("Docente no encontrado");
+    if (!docente) throw new NotFoundException("Docente no encontrado");
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Horario Docente");
@@ -4125,6 +4561,12 @@ export class ReportesService {
       pattern: "solid",
       fgColor: { argb: primaryDark },
     };
+    headerCell.border = {
+      top: { style: "medium", color: { argb: primaryDark } },
+      bottom: { style: "medium", color: { argb: primaryDark } },
+      left: { style: "medium", color: { argb: primaryDark } },
+      right: { style: "medium", color: { argb: primaryDark } },
+    };
 
     // 2. Tabla de Profesores
     const profesoresCursosMap = new Map<string, any>();
@@ -4208,8 +4650,8 @@ export class ReportesService {
       };
       cell.alignment = { horizontal: "center" };
       cell.border = {
-        top: { style: "thin" },
-        bottom: { style: "thin" },
+        top: { style: "medium", color: { argb: primaryDark } },
+        bottom: { style: "medium", color: { argb: primaryDark } },
         left: { style: "thin" },
         right: { style: "thin" },
       };
@@ -4353,9 +4795,9 @@ export class ReportesService {
         };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
-          top: { style: "thin" },
-          bottom: { style: "thin" },
-          left: { style: "thin" },
+          top: { style: "medium", color: { argb: primaryDark } },
+          bottom: { style: "medium", color: { argb: primaryDark } },
+          left: { style: "medium", color: { argb: primaryDark } },
           right: { style: "thin" },
         };
       } else {
@@ -4379,8 +4821,8 @@ export class ReportesService {
         };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
-          top: { style: "thin" },
-          bottom: { style: "thin" },
+          top: { style: "medium", color: { argb: primaryDark } },
+          bottom: { style: "medium", color: { argb: primaryDark } },
           left: { style: "thin" },
           right: { style: "thin" },
         };
@@ -4390,21 +4832,48 @@ export class ReportesService {
     });
     currentRow++;
 
-    const horasArr = Array.from({ length: 15 }, (_, i) => i + 7);
     const horaToRowMap = new Map<number, number>();
 
-    // Obtener almuerzo
+    // Obtener Franja Horaria, Duración de Bloque y Almuerzo
+    let horaInicio = 7;
+    let horaFin = 22;
+    let duracionBloque = 1;
     let almuerzoInicio = 13;
     let almuerzoFin = 14;
     try {
       const restricciones =
         await this.configuracionService.getRestriccionesMap(periodo);
+      const franjaHoraria = restricciones["FRANJA_HORARIA"] as any;
+      if (franjaHoraria?.hora_inicio && franjaHoraria?.hora_fin) {
+        horaInicio = parseInt(franjaHoraria.hora_inicio.split(":")[0], 10);
+        horaFin = parseInt(franjaHoraria.hora_fin.split(":")[0], 10);
+      }
+      const duracionBloqueConfig = restricciones["DURACION_BLOQUE"] as any;
+      if (duracionBloqueConfig?.duracion_minutos) {
+        duracionBloque = duracionBloqueConfig.duracion_minutos / 60;
+      } else if (
+        duracionBloqueConfig?.valor ||
+        duracionBloqueConfig?.duracion
+      ) {
+        duracionBloque =
+          duracionBloqueConfig.valor || duracionBloqueConfig.duracion;
+      }
       const bAlm = restricciones["BLOQUE_ALMUERZO"] as any;
       if (bAlm?.hora_inicio && bAlm?.hora_fin) {
         almuerzoInicio = parseInt(bAlm.hora_inicio.split(":")[0], 10);
         almuerzoFin = parseInt(bAlm.hora_fin.split(":")[0], 10);
       }
-    } catch (e) {}
+    } catch (e) {
+      this.logger.warn(
+        `Error getting configuration for period ${periodo}: ${e.message}`,
+      );
+    }
+
+    // Update horasArr based on Franja Horaria
+    const horasArr = Array.from(
+      { length: horaFin - horaInicio },
+      (_, i) => i + horaInicio,
+    );
 
     const startGridRow = currentRow;
     horasArr.forEach((h) => {
@@ -4421,7 +4890,7 @@ export class ReportesService {
       cellHora.border = {
         top: { style: "thin" },
         bottom: { style: "thin" },
-        left: { style: "thin" },
+        left: { style: "medium", color: { argb: primaryDark } },
         right: { style: "thin" },
       };
 
@@ -4943,7 +5412,7 @@ export class ReportesService {
       where: { id: planId },
       relations: ["escuela"],
     });
-    if (!plan) throw new Error("Plan de estudios no encontrado");
+    if (!plan) throw new NotFoundException("Plan de estudios no encontrado");
 
     const cursoPlans = await this.cursoPlanEstudiosRepo
       .createQueryBuilder("cursoPlan")
@@ -5189,6 +5658,239 @@ export class ReportesService {
           PLAN DE ESTUDIOS DE ${plan.nombre.toUpperCase()} ${plan.anio}
         </div>
         ${tableHtml}
+      </body>
+      </html>
+    `;
+
+    return this.generarPDF(html);
+  }
+
+  async generarReporteCLAD(id: number): Promise<Buffer> {
+    const clad = await this.cladRepo.findOne({
+      where: { id },
+      relations: [
+        "docente",
+        "docente.departamento",
+        "docente.facultad",
+        "periodo_academico",
+        "detalles",
+      ],
+    });
+
+    if (!clad) throw new NotFoundException("Declaración CLAD no encontrada");
+
+    const configuracion =
+      await this.configuracionService.getConfiguracionGeneral();
+    const logoUrl =
+      configuracion.logo_url ||
+      "https://upload.wikimedia.org/wikipedia/commons/e/e0/Escudo_de_la_Universidad_Nacional_de_Trujillo.png";
+    const logoBase64 = await this.getBase64Image(logoUrl);
+
+    const firmaBase64 = clad.docente?.firma_url
+      ? await this.getBase64Image(clad.docente.firma_url)
+      : null;
+
+    const isRegular = ["NOMBRADO"].includes(clad.docente.tipo_contrato || "");
+    const isContratado = !isRegular;
+
+    const isPrincipal = clad.docente.categoria === "PRINCIPAL";
+    const isAsociado = clad.docente.categoria === "ASOCIADO";
+    const isAuxiliar = clad.docente.categoria === "AUXILIAR";
+
+    const isDE = clad.docente.modalidad === "DEDICACION_EXCLUSIVA";
+    const isTC = (clad.docente.modalidad || "").startsWith("TIEMPO_COMPLETO");
+    const isTP = (clad.docente.modalidad || "").startsWith("TIEMPO_PARCIAL");
+
+    const check = "(  X  )";
+    const uncheck = "(      )";
+
+    const periodoInicio = clad.periodo_academico?.fecha_inicio
+      ? new Date(clad.periodo_academico.fecha_inicio).toLocaleDateString(
+          "es-PE",
+        )
+      : "";
+    const periodoFin = clad.periodo_academico?.fecha_fin
+      ? new Date(clad.periodo_academico.fecha_fin).toLocaleDateString("es-PE")
+      : "";
+    const anoAcademico = clad.periodo_academico?.codigo?.split("-")[0] || "";
+    const semestre = clad.periodo_academico?.codigo?.split("-")[1] || "";
+
+    const nombresCompletos = `${clad.docente.apellidos}, ${clad.docente.nombres}`;
+
+    const fechaHoy = new Date().toLocaleDateString("es-PE", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    let filasCursos = "";
+    clad.detalles.forEach((det, i) => {
+      let horarioStr = "";
+      if (det.horario) {
+        const h = det.horario as any;
+        const diaNombre =
+          ["DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB"][h.dia] || h.dia;
+        horarioStr = `${diaNombre}<br>${h.hora_inicio} - ${h.hora_fin}`;
+      }
+
+      const fechaInicio = det.fecha_inicio
+        ? new Date(det.fecha_inicio).toLocaleDateString("es-PE")
+        : "";
+      const fechaFin = det.fecha_fin
+        ? new Date(det.fecha_fin).toLocaleDateString("es-PE")
+        : "";
+
+      filasCursos += `
+        <tr>
+          <td>${det.nombre_curso}</td>
+          <td>${clad.tipo_dependencia.replace("_", " ")}</td>
+          <td style="font-size:9px;">
+            F.I.: ${fechaInicio}<br>
+            F.T.: ${fechaFin}
+          </td>
+          <td style="font-size:9px;">${horarioStr}</td>
+          <td class="centered" style="font-weight:bold;">${det.horas_semanales}</td>
+        </tr>
+      `;
+    });
+
+    const firmaDocenteStr = clad.firma_docente
+      ? `Firmado digitalmente el ${new Date((clad.firma_docente as any).fecha).toLocaleDateString("es-PE")}`
+      : "";
+    const firmaDptoStr = clad.firma_director_dpto
+      ? `Firmado digitalmente el ${new Date((clad.firma_director_dpto as any).fecha).toLocaleDateString("es-PE")}`
+      : "";
+    const firmaDecanoStr = clad.firma_decano
+      ? `Firmado digitalmente el ${new Date((clad.firma_decano as any).fecha).toLocaleDateString("es-PE")}`
+      : "";
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>CLAD - ${nombresCompletos}</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #000; line-height: 1.4; }
+          .container { padding: 30px 40px; }
+          .title-formato { text-align: center; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; }
+          .title-main { text-align: center; font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; line-height: 1.5; }
+          .info-header { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 15px; }
+          .info-header span { font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+          table td, table th { border: 1px solid #000; padding: 5px 8px; vertical-align: top; }
+          table th { background-color: #f0f0f0; font-weight: bold; text-align: center; font-size: 9px; }
+          .centered { text-align: center !important; }
+          .docente-table td { height: 50px; }
+          .curso-table td { height: 60px; font-size: 9px; }
+          .curso-table .horario-col { font-size: 9px; line-height: 1.6; }
+          .footer-date { text-align: center; margin-top: 30px; margin-bottom: 20px; font-size: 10px; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+          .signature-box { width: 25%; text-align: center; }
+          .signature-box.wide { width: 30%; }
+          .signature-line { border-top: 1px solid #000; margin-top: 60px; padding-top: 5px; font-size: 9px; font-weight: bold; }
+          .vobo-title { font-size: 9px; font-weight: bold; margin-top: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="title-formato">FORMATO</div>
+          <div class="title-main">DECLARACIÓN DE CARGA HORARIA LECTIVA ASIGNADA EN FILIALES,<br>POSTGRADO, SEGUNDAS ESPECIALIDADES Y CENTROS DE<br>PRODUCCIÓN Y EXTENSIÓN UNIVERSITARIA</div>
+
+          <div class="info-header">
+            <div><span>FACULTAD:</span> ${clad.docente.facultad?.nombre || ""}</div>
+            <div><span>DPTO. ACADÉMICO:</span> ${clad.docente.departamento?.nombre || ""}</div>
+          </div>
+
+          <div class="info-header" style="margin-bottom:5px;">
+            <div><span>DATOS DEL DOCENTE:</span></div>
+          </div>
+
+          <table class="docente-table">
+            <thead>
+              <tr>
+                <th width="35%">NOMBRES Y APELLIDOS</th>
+                <th width="25%">CONDICIÓN</th>
+                <th width="25%">CATEGORÍA</th>
+                <th width="15%">MODALIDAD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="height:45px;">
+                  <strong>${nombresCompletos}</strong><br><br>
+                  <strong>CÓDIGO:</strong> ${clad.docente.codigo || ""}
+                </td>
+                <td>
+                  REGULAR ${isRegular ? check : uncheck}<br>
+                  CONTRATADO ${isContratado ? check : uncheck}
+                </td>
+                <td>
+                  PRINCIPAL ${isPrincipal ? check : uncheck}<br>
+                  ASOCIADO ${isAsociado ? check : uncheck}<br>
+                  AUXILIAR ${isAuxiliar ? check : uncheck}
+                </td>
+                <td>
+                  DE. ${isDE ? check : uncheck}<br>
+                  TC. ${isTC ? check : uncheck}<br>
+                  TP. ${isTP ? check : uncheck}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="info-header" style="font-size:10px; margin-bottom:10px;">
+            <div>AÑO ACADÉMICO: ${anoAcademico}</div>
+            <div>SEMESTRE: ${semestre}</div>
+            <div>INICIO: ${periodoInicio}</div>
+            <div>FINAL: ${periodoFin}</div>
+          </div>
+
+          <table class="curso-table">
+            <thead>
+              <tr>
+                <th width="30%">CURSO</th>
+                <th width="18%">DEPENDENCIA</th>
+                <th width="22%">FECHA DE INICIO / TERMINO</th>
+                <th width="20%">HORARIO SEMANAL</th>
+                <th width="10%">TOTAL HORAS</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filasCursos}
+              <tr>
+                <td colspan="4" style="text-align:right; font-weight:bold; border-bottom:2px solid #000;">TOTAL</td>
+                <td class="centered" style="font-weight:bold; border-bottom:2px solid #000; font-size:11px;">${clad.total_horas}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="footer-date">
+            Trujillo, ${fechaHoy}
+          </div>
+
+          <div class="signatures">
+            <div class="signature-box wide">
+              ${
+                firmaBase64
+                  ? `<img src="${firmaBase64}" style="max-height:50px; max-width:100%; display:block; margin:0 auto;" alt="Firma docente" />`
+                  : ""
+              }
+              <div class="signature-line">Firma del Profesor</div>
+            </div>
+            <div class="signature-box">
+              <div class="vobo-title">V° B°</div>
+              <div class="signature-line">DECANO</div>
+            </div>
+            <div class="signature-box wide">
+              <div class="signature-line">Director del Departamento Académico</div>
+            </div>
+            <div class="signature-box wide">
+              <div class="signature-line">Director de la Unidad Académica</div>
+            </div>
+          </div>
+        </div>
       </body>
       </html>
     `;

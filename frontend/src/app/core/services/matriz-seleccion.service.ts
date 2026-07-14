@@ -212,12 +212,7 @@ export class MatrizSeleccionService {
       }
     });
 
-    // Validation feedback
-    this.socket.validacionFallida$?.subscribe((event: any) => {
-      if (event?.validation) {
-        this.validationSubject.next(event.validation);
-      }
-    });
+
   }
 
   /**

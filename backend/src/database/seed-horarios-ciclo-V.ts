@@ -1,24 +1,69 @@
-import { DataSource } from "typeorm";
+import "reflect-metadata";
+import { DataSource, EntityManager } from "typeorm";
+import { config } from "dotenv";
+import { join } from "path";
 
+config({ path: join(__dirname, "..", "..", ".env") });
+
+import { Usuario } from "../entities/usuario.entity";
 import { Docente } from "../entities/docente.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { Grupo } from "../entities/grupo.entity";
+import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
+import { VentanaAtencion } from "../entities/ventana-atencion.entity";
+import { CampañaVentanas } from "../entities/campaña-ventanas.entity";
+import { ColaDocentes } from "../entities/cola-docentes.entity";
+import { NotificacionDocente } from "../entities/notificacion-docente.entity";
+import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.entity";
+import { Preasignacion } from "../entities/preasignacion.entity";
+import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
+import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
+import { TurnoHorario } from "../entities/turno-horario.entity";
+import { DocenteCurso } from "../entities/docente-curso.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { Facultad } from "../entities/facultad.entity";
+import { Escuela } from "../entities/escuela.entity";
+import { Departamento } from "../entities/departamento.entity";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 
-export async function seedHorariosCicloV(dataSource: DataSource) {
+const AppDataSource = new DataSource({
+  type: "postgres",
+  host: process.env.DATABASE_HOST ?? "localhost",
+  port: parseInt(process.env.DATABASE_PORT ?? "5432", 10),
+  database: process.env.DATABASE_NAME ?? "horarios_unt",
+  username: process.env.DATABASE_USER ?? "unt_user",
+  password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
+  entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
+  synchronize: false,
+  logging: false,
+});
+
+export async function seedHorariosCicloV(manager?: EntityManager) {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO V...");
 
-  const docenteRepo = dataSource.getRepository(Docente);
-  const cursoRepo = dataSource.getRepository(Curso);
-  const ambienteRepo = dataSource.getRepository(Ambiente);
-  const grupoRepo = dataSource.getRepository(Grupo);
-  const horarioRepo = dataSource.getRepository(HorarioAsignado);
-  const periodoRepo = dataSource.getRepository(PeriodoAcademico);
+  if (!manager) {
+    await AppDataSource.initialize();
+    console.log("✅ Conexión a la base de datos establecida");
+  }
+
+  const docenteRepo = (manager ?? AppDataSource.manager).getRepository(Docente);
+  const cursoRepo = (manager ?? AppDataSource.manager).getRepository(Curso);
+  const ambienteRepo = (manager ?? AppDataSource.manager).getRepository(
+    Ambiente,
+  );
+  const grupoRepo = (manager ?? AppDataSource.manager).getRepository(Grupo);
+  const horarioRepo = (manager ?? AppDataSource.manager).getRepository(
+    HorarioAsignado,
+  );
+  const periodoRepo = (manager ?? AppDataSource.manager).getRepository(
+    PeriodoAcademico,
+  );
 
   // ── 1. OBTENER DATOS EXISTENTES ───────────────────────────────────────────
   console.log("📋 Obteniendo datos existentes de la base de datos...");
@@ -243,18 +288,18 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
       docente: "Everson David Agreda Gamboa",
       curso: "TRANSFORMACIÓN DIGITAL",
       dia: "Jueves",
-      horas: "07:00-09:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab. 3",
+      horas: "09:00-11:00",
+      tipo: "Teoría",
+      ambiente: "posgrado A-307",
       grupo: 1,
     },
     {
       docente: "Everson David Agreda Gamboa",
       curso: "TRANSFORMACIÓN DIGITAL",
       dia: "Jueves",
-      horas: "09:00-11:00",
-      tipo: "Teoría",
-      ambiente: "posgrado A-307",
+      horas: "07:00-09:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 3",
       grupo: 1,
     },
     {
@@ -270,25 +315,7 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
     // 4. Robert Jerry Sánchez Ticona - Tecnología web (T:1, P:1, L:2, G:3)
     {
       docente: "Robert Jerry Sánchez Ticona",
-      curso: "TECNOLOGÍAS WEB",
-      dia: "Lunes",
-      horas: "15:00-18:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab1",
-      grupo: 1,
-    },
-    {
-      docente: "Robert Jerry Sánchez Ticona",
-      curso: "TECNOLOGÍAS WEB",
-      dia: "Martes",
-      horas: "15:00-18:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab1",
-      grupo: 2,
-    },
-    {
-      docente: "Robert Jerry Sánchez Ticona",
-      curso: "TECNOLOGÍAS WEB",
+      curso: "TECNOLOGIAS WEB",
       dia: "Miércoles",
       horas: "07:00-08:00",
       tipo: "Teoría",
@@ -297,7 +324,7 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
     },
     {
       docente: "Robert Jerry Sánchez Ticona",
-      curso: "TECNOLOGÍAS WEB",
+      curso: "TECNOLOGIAS WEB",
       dia: "Miércoles",
       horas: "08:00-09:00",
       tipo: "Práctica",
@@ -306,7 +333,25 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
     },
     {
       docente: "Robert Jerry Sánchez Ticona",
-      curso: "TECNOLOGÍAS WEB",
+      curso: "TECNOLOGIAS WEB",
+      dia: "Lunes",
+      horas: "15:00-18:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab1",
+      grupo: 1,
+    },
+    {
+      docente: "Robert Jerry Sánchez Ticona",
+      curso: "TECNOLOGIAS WEB",
+      dia: "Martes",
+      horas: "15:00-18:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab1",
+      grupo: 2,
+    },
+    {
+      docente: "Robert Jerry Sánchez Ticona",
+      curso: "TECNOLOGIAS WEB",
       dia: "Jueves",
       horas: "15:00-18:00",
       tipo: "Laboratorio",
@@ -365,24 +410,6 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
     {
       docente: "Camilo Suárez Rebaza",
       curso: "TELEINFORMÁTICA",
-      dia: "Martes",
-      horas: "13:00-15:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab2",
-      grupo: 1,
-    },
-    {
-      docente: "Camilo Suárez Rebaza",
-      curso: "TELEINFORMÁTICA",
-      dia: "Martes",
-      horas: "19:00-21:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab2",
-      grupo: 2,
-    },
-    {
-      docente: "Camilo Suárez Rebaza",
-      curso: "TELEINFORMÁTICA",
       dia: "Viernes",
       horas: "17:00-18:00",
       tipo: "Teoría",
@@ -398,26 +425,26 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
       ambiente: "posgrado A-307",
       grupo: 1,
     },
-
-    // 7. Marcos Baca Lopez - Investigación de Operaciones (T:1, P:2, L:2, G:3)
     {
-      docente: "Marcos Baca Lopez",
-      curso: "INVESTIGACIÓN DE OPERACIONES",
-      dia: "Jueves",
-      horas: "07:00-09:00",
+      docente: "Camilo Suárez Rebaza",
+      curso: "TELEINFORMÁTICA",
+      dia: "Martes",
+      horas: "13:00-15:00",
       tipo: "Laboratorio",
-      ambiente: "Lab. 2",
+      ambiente: "Lab2",
       grupo: 1,
     },
     {
-      docente: "Marcos Baca Lopez",
-      curso: "INVESTIGACIÓN DE OPERACIONES",
-      dia: "Jueves",
-      horas: "09:00-11:00",
+      docente: "Camilo Suárez Rebaza",
+      curso: "TELEINFORMÁTICA",
+      dia: "Martes",
+      horas: "19:00-21:00",
       tipo: "Laboratorio",
-      ambiente: "Lab. 2",
+      ambiente: "Lab2",
       grupo: 2,
     },
+
+    // 7. Marcos Baca Lopez - Investigación de Operaciones (T:1, P:2, L:2, G:1)
     {
       docente: "Marcos Baca Lopez",
       curso: "INVESTIGACIÓN DE OPERACIONES",
@@ -439,11 +466,20 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
     {
       docente: "Marcos Baca Lopez",
       curso: "INVESTIGACIÓN DE OPERACIONES",
-      dia: "Viernes",
+      dia: "Jueves",
       horas: "07:00-09:00",
       tipo: "Laboratorio",
       ambiente: "Lab. 2",
-      grupo: 3,
+      grupo: 1,
+    },
+    {
+      docente: "Marcos Baca Lopez",
+      curso: "INVESTIGACIÓN DE OPERACIONES",
+      dia: "Jueves",
+      horas: "09:00-11:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab. 2",
+      grupo: 2,
     },
 
     // 8. Ana Cuadra Mitzugaray - Contabilidad Gerencial (T:1, P:2, L:2, G:1)
@@ -451,7 +487,25 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
       docente: "Ana Cuadra Mitzugaray",
       curso: "CONTABILIDAD GERENCIAL",
       dia: "Jueves",
-      horas: "18:00-20:00",
+      horas: "18:00-19:00",
+      tipo: "Teoría",
+      ambiente: "posgrado A-307",
+      grupo: 1,
+    },
+    {
+      docente: "Ana Cuadra Mitzugaray",
+      curso: "CONTABILIDAD GERENCIAL",
+      dia: "Jueves",
+      horas: "19:00-21:00",
+      tipo: "Práctica",
+      ambiente: "posgrado A-307",
+      grupo: 1,
+    },
+    {
+      docente: "Ana Cuadra Mitzugaray",
+      curso: "CONTABILIDAD GERENCIAL",
+      dia: "Viernes",
+      horas: "14:00-16:00",
       tipo: "Laboratorio",
       ambiente: "posgrado A-307",
       grupo: 1,
@@ -460,22 +514,12 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
       docente: "Ana Cuadra Mitzugaray",
       curso: "CONTABILIDAD GERENCIAL",
       dia: "Viernes",
-      horas: "14:00-15:00",
-      tipo: "Teoría",
-      ambiente: "posgrado A-307",
-      grupo: 1,
-    },
-    {
-      docente: "Ana Cuadra Mitzugaray",
-      curso: "CONTABILIDAD GERENCIAL",
-      dia: "Viernes",
-      horas: "15:00-17:00",
-      tipo: "Práctica",
+      horas: "16:00-18:00",
+      tipo: "Laboratorio",
       ambiente: "posgrado A-307",
       grupo: 1,
     },
   ];
-
   // ── 4. CREAR LOS HORARIOS EN LA BD ───────────────────────────────────────
   console.log("📅 Creando horarios del ciclo V en la base de datos...");
   let creados = 0;
@@ -537,4 +581,15 @@ export async function seedHorariosCicloV(dataSource: DataSource) {
   console.log(`\n✅ Proceso terminado:`);
   console.log(`- Horarios creados: ${creados}`);
   console.log(`- Horarios saltados: ${saltados}`);
+
+  if (!manager) {
+    await AppDataSource.destroy();
+  }
+}
+
+if (require.main === module) {
+  seedHorariosCicloV().catch((error) => {
+    console.error("❌ Error durante el seed de horarios Ciclo V:", error);
+    process.exit(1);
+  });
 }

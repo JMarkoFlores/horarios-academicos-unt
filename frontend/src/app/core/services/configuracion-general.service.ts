@@ -6,6 +6,7 @@ import { ApiResponse } from '../interfaces/entities';
 export interface ConfiguracionGeneral {
   id: number;
   nombre_institucional: string;
+  nombre_facultad: string;
   logo_url: string;
   color_primario: string;
   color_secundario: string;
@@ -15,6 +16,7 @@ export interface ConfiguracionGeneral {
 const DEFAULTS: ConfiguracionGeneral = {
   id: 0,
   nombre_institucional: 'Horarios UNT',
+  nombre_facultad: 'Ingeniería de Sistemas',
   logo_url: 'https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png',
   color_primario: '#6366f1',
   color_secundario: '#4338ca',

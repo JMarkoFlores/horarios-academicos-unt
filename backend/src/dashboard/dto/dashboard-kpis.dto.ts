@@ -29,6 +29,13 @@ class MapaCalorDto {
   @ApiProperty({ type: [String] }) cursos: string[];
 }
 
+class HeatmapConfigDto {
+  @ApiProperty({ type: [String] }) dias: string[];
+  @ApiProperty() hora_inicio: number;
+  @ApiProperty() hora_fin: number;
+  @ApiProperty() duracion_bloque: number;
+}
+
 class ActividadRecienteDto {
   @ApiProperty() timestamp: Date;
   @ApiProperty() descripcion: string;
@@ -83,6 +90,8 @@ export class DashboardKpisDto {
   ocupacion_por_ambiente: OcupacionAmbienteDto[];
   @ApiProperty({ type: [MapaCalorDto] })
   mapa_calor: MapaCalorDto[];
+  @ApiPropertyOptional({ nullable: true })
+  heatmap_config?: HeatmapConfigDto;
   @ApiProperty({ type: [ActividadRecienteDto] })
   actividad_reciente: ActividadRecienteDto[];
   @ApiProperty({ type: [ProgresoSemanalDto] })

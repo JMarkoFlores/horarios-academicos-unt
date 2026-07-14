@@ -82,6 +82,53 @@ export class CursosController {
     return { data: result, message: "Ambientes del curso obtenidos" };
   }
 
+  @Get(":id/ambientes-diagnostico")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
+  @ApiOperation({
+    summary: "Diagnóstico de ambientes asignados a un curso",
+    description:
+      "Devuelve información detallada sobre los ambientes del curso, incluyendo fallback por código.",
+  })
+  @ApiParam({ name: "id", type: Number })
+  @ApiQuery({ name: "tipo_clase", enum: TipoClase, required: false })
+  async getAmbientesDiagnostico(
+    @Param("id", ParseIntPipe) id: number,
+    @Query("tipo_clase") tipoClase?: TipoClase,
+  ) {
+    const result = await this.cursosService.diagnosticarAmbientes(
+      id,
+      tipoClase,
+    );
+    return {
+      data: result,
+      message: "Diagnóstico de ambientes obtenido",
+    };
+  }
+
+  @Post("asignar-ambientes-por-defecto")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+  )
+  @ApiOperation({
+    summary: "Asignar ambientes por defecto a todos los cursos",
+    description:
+      "Asigna automáticamente ambientes a los cursos activos según sus horas de teoría, práctica o laboratorio. No sobrescribe ambientes ya asignados.",
+  })
+  async asignarAmbientesPorDefecto() {
+    const result =
+      await this.cursosService.ejecutarAsignacionAmbientesPorDefecto();
+    return {
+      data: result,
+      message: "Ambientes por defecto asignados correctamente",
+    };
+  }
+
   @Post()
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @ApiOperation({ summary: "Crear nuevo curso" })
@@ -137,5 +184,51 @@ export class CursosController {
   async remove(@Param("id", ParseIntPipe) id: number) {
     await this.cursosService.remove(id);
     return { data: null, message: "Curso desactivado correctamente" };
+  }
+
+  @Get("departamento/:id/pendientes")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({
+    summary: "Cursos pendientes de asignación por departamento",
+    description: "Cursos del departamento que aún no tienen docente asignado",
+  })
+  @ApiParam({ name: "id", type: Number, description: "ID del departamento" })
+  @ApiQuery({ name: "periodo_id", required: true, type: Number })
+  async getCursosPendientesDepartamento(
+    @Param("id", ParseIntPipe) departamentoId: number,
+    @Query("periodo_id", ParseIntPipe) periodoId: number,
+  ) {
+    const result = await this.cursosService.getCursosPendientesDepartamento(
+      departamentoId,
+      periodoId,
+    );
+    return {
+      data: result,
+      message: "Cursos pendientes obtenidos correctamente",
+    };
+  }
+
+  @Get(":id/catedra-compartida")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({
+    summary: "Verificar si un curso tiene excepción de cátedra compartida",
+  })
+  @ApiParam({ name: "id", type: Number, description: "ID del curso" })
+  async getCatedraCompartida(@Param("id", ParseIntPipe) id: number) {
+    const result = await this.cursosService.getCatedraCompartida(id);
+    return {
+      data: result,
+      message: "Excepción de cátedra compartida verificada",
+    };
   }
 }

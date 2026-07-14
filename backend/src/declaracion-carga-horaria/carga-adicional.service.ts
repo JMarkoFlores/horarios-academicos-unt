@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CargaAdicional } from "../entities/carga-adicional.entity";
@@ -157,7 +161,7 @@ export class CargaAdicionalService {
       .getOne();
 
     if (!periodo) {
-      return 40; // Default fallback
+      return this.getHorasPorModalidadDefault(modalidad);
     }
 
     const parametros = await this.parametrosCargaRepo.findOne({
@@ -168,9 +172,24 @@ export class CargaAdicionalService {
     });
 
     if (!parametros) {
-      return 40; // Default fallback
+      return this.getHorasPorModalidadDefault(modalidad);
     }
 
-    return parametros.horas_max_semanal || 40;
+    return (
+      parametros.horas_max_semanal ||
+      this.getHorasPorModalidadDefault(modalidad)
+    );
+  }
+
+  private getHorasPorModalidadDefault(modalidad: string): number {
+    const MODALIDAD_HORAS_MAP: Record<string, number> = {
+      DEDICACION_EXCLUSIVA: 40,
+      TIEMPO_COMPLETO_40: 40,
+      TIEMPO_PARCIAL_20: 20,
+      TIEMPO_PARCIAL_12: 12,
+      TIEMPO_PARCIAL_10: 10,
+      TIEMPO_PARCIAL_8: 8,
+    };
+    return MODALIDAD_HORAS_MAP[modalidad] ?? 40;
   }
 }

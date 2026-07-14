@@ -1,6 +1,5 @@
 import { Component, OnInit, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { animate, state, style, transition, trigger } from '@angular/animations';
@@ -15,13 +14,35 @@ export interface AsignacionLectiva {
   docente_id: number;
   curso_plan_id: number;
   periodo_id: number;
-  grupo_id?: number;
+  grupo_id: number | null;
   tipo_clase: string;
   seccion: string;
   nro_alumnos: number;
   horas_asignadas: number;
   estado: string;
-  docente: { id: number; nombres: string; apellidos: string; codigo: string };
+  observaciones: string | null;
+  docente: { 
+    id: number; 
+    nombres: string; 
+    apellidos: string; 
+    codigo: string;
+    modalidad: string | null;
+    categoria: string | null;
+  };
+  curso_plan: {
+    id: number;
+    curso: { id: number; codigo: string; nombre: string };
+    horas_teoria: number;
+    horas_practica: number;
+    horas_laboratorio: number;
+  };
+  periodo: { id: number; codigo: string; nombre: string };
+  grupo: { id: number; codigo: string; nombre: string } | null;
+  asignado_por: { id: number; email: string };
+  confirmado_por: { id: number; email: string } | null;
+  confirmado_en: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 @Component({
@@ -38,7 +59,8 @@ export interface AsignacionLectiva {
 })
 export class AsignacionLectivaComponent implements OnInit {
   planes: PlanEstudios[] = [];
-  planControl = new FormControl<number | null>(null);
+  planActivoId: number | null = null;
+  planActivoNombre: string | null = null;
 
   ciclos = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   selectedCiclo = 1;
@@ -66,23 +88,25 @@ export class AsignacionLectivaComponent implements OnInit {
   ngOnInit(): void {
     this.alcanceLabel = this.contextoHelper.getEtiquetaAlcance();
     this.cargarPlanes();
-    this.planControl.valueChanges.subscribe(() => this.cargarDatos());
     
     this.periodoService.periodoActivo$.pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => {
-      if (this.planControl.value) {
+      if (this.planActivoId) {
         this.cargarDatos();
       }
     });
   }
 
   cargarPlanes(): void {
-    this.api.get<ApiResponse<PlanEstudios[]>>('/plan-estudios', { activo: 'true' }).subscribe({
+    this.api.get<ApiResponse<PlanEstudios[]>>('/plan-estudios').subscribe({
       next: (res) => {
         this.planes = res.data;
-        if (res.data.length > 0) {
-          this.planControl.setValue(res.data[0].id);
+        const activo = res.data.find(p => p.activo);
+        if (activo) {
+          this.planActivoId = activo.id;
+          this.planActivoNombre = activo.nombre;
+          this.cargarDatos();
         }
       },
     });
@@ -90,12 +114,11 @@ export class AsignacionLectivaComponent implements OnInit {
 
   cargarDatos(): void {
     const periodoActivo = this.periodoService.periodoActivo;
-    const planId = this.planControl.value;
-    if (!periodoActivo || !planId) return;
+    if (!periodoActivo || !this.planActivoId) return;
 
     this.loading = true;
     this.api.get<ApiResponse<PaginatedData<CursoPlanEstudios>>>(
-      `/plan-estudios/${planId}/cursos`, {}
+      `/plan-estudios/${this.planActivoId}/cursos`, {}
     ).subscribe({
       next: (res) => {
         this.cursos = Array.isArray(res.data) ? res.data : res.data.items ?? [];
@@ -135,6 +158,7 @@ export class AsignacionLectivaComponent implements OnInit {
   getEstado(cursoPlan: CursoPlanEstudios): { label: string; class: string } {
     const asigs = this.getAsignaciones(cursoPlan);
     if (asigs.length === 0) return { label: 'Sin docente', class: 'sin-docente' };
+    if (asigs.some((a) => a.estado === 'RECHAZADO')) return { label: 'Rechazado', class: 'rechazado' };
     if (asigs.some((a) => a.estado === 'PENDIENTE')) return { label: 'Pendiente', class: 'pendiente' };
     if (asigs.every((a) => a.estado === 'CONFIRMADO')) return { label: 'Asignado', class: 'asignado' };
     return { label: 'Mixto', class: 'mixto' };

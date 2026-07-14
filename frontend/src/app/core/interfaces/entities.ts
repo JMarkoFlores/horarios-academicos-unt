@@ -18,6 +18,9 @@ export interface PlanEstudios {
   anio: number;
   activo: boolean;
   escuela_id: number;
+  escuela?: { id: number; nombre: string; codigo: string };
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CursoPlanEstudios {
@@ -31,7 +34,9 @@ export interface CursoPlanEstudios {
   horas_laboratorio: number;
   creditos: number;
   prerequisitos?: number[];
+  estado: string;
   curso?: Curso;
+  plan_estudios?: { id: number; nombre: string; codigo: string; activo: boolean };
 }
 
 export interface ContextoAcademico {
@@ -48,9 +53,11 @@ export interface ContextoAcademico {
 export interface Usuario {
   id: number;
   email: string;
+  email_alternativo?: string | null;
   nombre: string;
   rol: string;
   docenteId?: number;
+  debe_cambiar_password?: boolean;
   contextoAcademico?: ContextoAcademico;
   idiomaPreferido?: string;
 }
@@ -59,6 +66,7 @@ export interface Docente {
   id: number;
   codigo: string;
   ibm?: number;
+  dni?: string;
   nombres: string;
   apellidos: string;
   email: string;
@@ -79,9 +87,28 @@ export interface Docente {
   };
   disponibilidades?: any[];
   facultad?: { id: number; nombre: string } | null;
+  foto_url?: string | null;
+  horas_asignadas?: number;
+  usuario_id?: number | null;
+}
+
+export interface Escuela {
+  id: number;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+  facultad?: { id: number; nombre: string };
 }
 
 export interface Departamento {
+  id: number;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+  escuela?: Escuela;
+}
+
+export interface Facultad {
   id: number;
   codigo: string;
   nombre: string;
@@ -105,6 +132,7 @@ export interface Curso {
   departamento_id?: number;
   departamento?: Departamento;
   prerequisitos?: string | null;
+  planes_estudio?: CursoPlanEstudios[];
 }
 
 export interface Grupo {
@@ -130,6 +158,7 @@ export interface Ambiente {
   capacidad: number;
   piso?: number;
   pabellon?: string;
+  edificio?: string;
   sede?: string;
   equipamiento?: string;
   estado?: 'ACTIVO' | 'MANTENIMIENTO' | 'RESERVADO' | 'INACTIVO';
@@ -146,6 +175,8 @@ export interface AmbienteMapa {
   piso?: number | null;
   pabellon?: string | null;
   sede?: string | null;
+  equipamiento?: string;
+  estado?: 'ACTIVO' | 'MANTENIMIENTO' | 'RESERVADO' | 'INACTIVO';
 }
 
 export interface DisponibilidadDocente {
@@ -473,6 +504,7 @@ export interface CargaAvance {
 
 export interface KPIs {
   total_docentes: number;
+  total_horarios_asignados: number;
   docentes_con_horario: number;
   docentes_pendientes: number;
   porcentaje_docentes_asignados: number;
@@ -487,6 +519,11 @@ export interface KPIs {
   total_cursos: number;
   cursos_asignados: number;
   cursos_sin_asignar: number;
+  distribucion_por_modalidad: {
+    modalidad: string;
+    total: number;
+    con_horario: number;
+  }[];
   conflictos_activos: number;
   conflictos_resueltos: number;
   total_conflictos: number;
@@ -523,6 +560,12 @@ export interface KPIs {
     tipo_clase: string | null;
     cursos: string[];
   }[];
+  heatmap_config?: {
+    dias: string[];
+    hora_inicio: number;
+    hora_fin: number;
+    duracion_bloque: number;
+  };
   actividad_reciente: {
     timestamp: string | Date;
     descripcion: string;
@@ -536,4 +579,24 @@ export interface KPIs {
   histograma_carga: { label: string; count: number }[];
   tiempo_promedio_resolucion_horas: number | null;
   tendencia: { asignaciones?: number; conflictos?: number; docentes?: number };
+  colores_config?: {
+    light: {
+      fondo_base: string;
+      contenedores: string;
+      texto_principal: string;
+      dominante: string;
+      exito: string;
+      advertencia: string;
+      critico: string;
+    };
+    dark: {
+      fondo_base: string;
+      contenedores: string;
+      texto_principal: string;
+      dominante: string;
+      exito: string;
+      advertencia: string;
+      critico: string;
+    };
+  };
 }

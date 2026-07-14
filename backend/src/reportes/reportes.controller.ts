@@ -33,6 +33,12 @@ export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
 
   @Get("docente/:id/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF del horario de un docente" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -53,7 +59,36 @@ export class ReportesController {
     res.end(buffer);
   }
 
+  @Get("clad/:id/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({ summary: "PDF Anexo 04 CLAD" })
+  @ApiParam({ name: "id", type: Number })
+  async cladPDF(@Param("id", ParseIntPipe) id: number, @Res() res: Response) {
+    const buffer = await this.reportesService.generarReporteCLAD(id);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename=clad-${id}.pdf`,
+      "Content-Length": buffer.length,
+    });
+    res.end(buffer);
+  }
+
   @Get("declaracion/:docenteId/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+  )
   @ApiOperation({ summary: "PDF del Formato F03-CAD de Declaración Jurada" })
   @ApiParam({ name: "docenteId", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -76,7 +111,18 @@ export class ReportesController {
   }
 
   @Get("f01-cad/:docenteId/pdf")
-  @ApiOperation({ summary: "PDF del Formato F01-CAD (Declaración de Carga Académica Docente)" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({
+    summary: "PDF del Formato F01-CAD (Declaración de Carga Académica Docente)",
+  })
   @ApiParam({ name: "docenteId", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async f01CadPDF(
@@ -97,7 +143,15 @@ export class ReportesController {
   }
 
   @Get("consolidado-carga/pdf")
-  @ApiOperation({ summary: "PDF consolidado de carga académica por departamento" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({
+    summary: "PDF consolidado de carga académica por departamento",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "departamento_id", required: false, type: Number })
   async consolidadoCargaPDF(
@@ -118,15 +172,20 @@ export class ReportesController {
   }
 
   @Get("carga-por-modalidad/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF de distribución de carga por modalidad" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async cargaPorModalidadPDF(
     @Query("periodo") periodo: string,
     @Res() res?: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteCargaPorModalidadPDF(
-      periodo,
-    );
+    const buffer =
+      await this.reportesService.generarReporteCargaPorModalidadPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=carga-por-modalidad-${periodo}.pdf`,
@@ -136,6 +195,12 @@ export class ReportesController {
   }
 
   @Get("consolidado-carga/excel")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Excel consolidado de carga académica" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   @ApiQuery({ name: "departamento_id", required: false, type: Number })
@@ -144,12 +209,14 @@ export class ReportesController {
     @Query("departamento_id") departamentoId?: string,
     @Res() res?: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteConsolidadoCargaExcel(
-      periodo,
-      departamentoId ? parseInt(departamentoId, 10) : undefined,
-    );
+    const buffer =
+      await this.reportesService.generarReporteConsolidadoCargaExcel(
+        periodo,
+        departamentoId ? parseInt(departamentoId, 10) : undefined,
+      );
     res.set({
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename=consolidado-carga-${periodo}.xlsx`,
       "Content-Length": buffer.length,
     });
@@ -157,7 +224,18 @@ export class ReportesController {
   }
 
   @Get("docente/:id/f03-cad")
-  @ApiOperation({ summary: "PDF del Formato F03-CAD mejorado (Horario Semanal Docente)" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({
+    summary: "PDF del Formato F03-CAD mejorado (Horario Semanal Docente)",
+  })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async docenteF03CadPDF(
@@ -165,10 +243,11 @@ export class ReportesController {
     @Query("periodo") periodo: string,
     @Res() res: Response,
   ) {
-    const buffer = await this.reportesService.generarReporteDeclaracionF03CADPDF(
-      id,
-      periodo,
-    );
+    const buffer =
+      await this.reportesService.generarReporteDeclaracionF03CADPDF(
+        id,
+        periodo,
+      );
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=f03-cad_docente_${id}_${periodo}.pdf`,
@@ -178,7 +257,19 @@ export class ReportesController {
   }
 
   @Get("declaracion-jurada/:docenteId/pdf")
-  @ApiOperation({ summary: "PDF del Formato F02-CAD de Declaración Jurada de Incompatibilidad" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DECANO,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({
+    summary:
+      "PDF del Formato F02-CAD de Declaración Jurada de Incompatibilidad",
+  })
   @ApiParam({ name: "docenteId", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async declaracionF02CadPDF(
@@ -200,6 +291,12 @@ export class ReportesController {
   }
 
   @Get("aula/:id/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF del horario de un aula" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -221,6 +318,12 @@ export class ReportesController {
   }
 
   @Get("laboratorio/:id/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF del horario de un laboratorio" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -242,6 +345,12 @@ export class ReportesController {
   }
 
   @Get("ambiente/:id/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({
     summary: "PDF del horario de un ambiente (aula o laboratorio)",
   })
@@ -265,6 +374,12 @@ export class ReportesController {
   }
 
   @Get("ambiente/:id/excel")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({
     summary: "Excel del horario de un ambiente (aula/laboratorio)",
   })
@@ -289,6 +404,12 @@ export class ReportesController {
   }
 
   @Get("operacional/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({
     summary: "PDF consolidado de todas las asignaciones del período",
   })
@@ -308,6 +429,12 @@ export class ReportesController {
   }
 
   @Get("gestion/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Reporte de gestión con KPIs en PDF" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async gestionPDF(@Query("periodo") periodo: string, @Res() res: Response) {
@@ -321,10 +448,20 @@ export class ReportesController {
   }
 
   @Get("gestion/carga/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Reporte de gestión de carga académica (Fase 8)" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  async gestionCargaPDF(@Query("periodo") periodo: string, @Res() res: Response) {
-    const buffer = await this.reportesService.generarReporteGestionCargaPDF(periodo);
+  async gestionCargaPDF(
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer =
+      await this.reportesService.generarReporteGestionCargaPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=gestion-carga-${periodo}.pdf`,
@@ -334,10 +471,22 @@ export class ReportesController {
   }
 
   @Get("gestion/cumplimiento/pdf")
-  @ApiOperation({ summary: "Reporte de cumplimiento por departamento (Fase 8)" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({
+    summary: "Reporte de cumplimiento por departamento (Fase 8)",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
-  async cumplimientoPDF(@Query("periodo") periodo: string, @Res() res: Response) {
-    const buffer = await this.reportesService.generarReporteCumplimientoPDF(periodo);
+  async cumplimientoPDF(
+    @Query("periodo") periodo: string,
+    @Res() res: Response,
+  ) {
+    const buffer =
+      await this.reportesService.generarReporteCumplimientoPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=cumplimiento-${periodo}.pdf`,
@@ -347,10 +496,19 @@ export class ReportesController {
   }
 
   @Get("gestion/ejecutivo/pdf")
-  @ApiOperation({ summary: "Reporte ejecutivo para decano con semáforo (Fase 8)" })
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({
+    summary: "Reporte ejecutivo para decano con semáforo (Fase 8)",
+  })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async ejecutivoPDF(@Query("periodo") periodo: string, @Res() res: Response) {
-    const buffer = await this.reportesService.generarReporteEjecutivoPDF(periodo);
+    const buffer =
+      await this.reportesService.generarReporteEjecutivoPDF(periodo);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename=ejecutivo-${periodo}.pdf`,
@@ -360,6 +518,12 @@ export class ReportesController {
   }
 
   @Get("docente/:id/excel")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Excel del horario de un docente" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -382,6 +546,12 @@ export class ReportesController {
   }
 
   @Get("completo/excel")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Excel completo de horarios" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async completoExcel(@Query("periodo") periodo: string, @Res() res: Response) {
@@ -397,6 +567,12 @@ export class ReportesController {
   }
 
   @Get("ciclo/:ciclo/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF del horario de un ciclo" })
   @ApiParam({ name: "ciclo", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -418,6 +594,12 @@ export class ReportesController {
   }
 
   @Get("ciclo/:ciclo/excel")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Excel del horario de un ciclo" })
   @ApiParam({ name: "ciclo", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -440,6 +622,12 @@ export class ReportesController {
   }
 
   @Get("dia/:dia/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF del horario de un día específico" })
   @ApiParam({ name: "dia", type: Number, description: "Número de día (1-6)" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -479,6 +667,12 @@ export class ReportesController {
   }
 
   @Get("todos-ciclos/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF formal de todos los ciclos del periodo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async todosCiclosPDF(
@@ -496,6 +690,12 @@ export class ReportesController {
   }
 
   @Get("todos-ciclos/excel")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Excel con hojas por ciclo" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async todosCiclosExcel(
@@ -579,6 +779,14 @@ export class ReportesController {
   }
 
   @Get("cursos/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DOCENTE,
+  )
   @ApiOperation({ summary: "PDF de la lista de cursos" })
   @ApiQuery({ name: "search", required: false, type: String })
   @ApiQuery({ name: "ciclo", required: false, type: Number })
@@ -606,6 +814,12 @@ export class ReportesController {
   }
 
   @Get("plan-estudios/:planId/pdf")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "PDF del plan de estudios" })
   @ApiParam({ name: "planId", type: Number })
   async planEstudiosPDF(

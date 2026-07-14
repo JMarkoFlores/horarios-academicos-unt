@@ -1,9 +1,10 @@
-import {
+﻿import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
   Logger,
+  ConflictException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -14,6 +15,7 @@ import { Usuario } from "../entities/usuario.entity";
 import { Docente } from "../entities/docente.entity";
 import { LoginDto } from "./dto/login.dto";
 import { CambiarPasswordDto } from "./dto/cambiar-password.dto";
+import { ActualizarPerfilDto } from "./dto/actualizar-perfil.dto";
 import { RecuperarPasswordDto } from "./dto/recuperar-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { MailService } from "../mail/mail.service";
@@ -81,8 +83,10 @@ export class AuthService {
         id: usuario.id,
         nombre: usuario.nombre,
         email: usuario.email,
+        email_alternativo: usuario.email_alternativo,
         rol: usuario.rol,
         docenteId: docente?.id ?? null,
+        debe_cambiar_password: usuario.debe_cambiar_password,
         contextoAcademico,
       },
     };
@@ -94,8 +98,10 @@ export class AuthService {
     id: number;
     nombre: string;
     email: string;
+    email_alternativo: string | null;
     rol: RolUsuario;
     docenteId: number | null;
+    debe_cambiar_password: boolean;
     contextoAcademico: ContextoAcademico;
   }> {
     const docente =
@@ -116,8 +122,10 @@ export class AuthService {
       id: usuario.id,
       nombre: usuario.nombre,
       email: usuario.email,
+      email_alternativo: usuario.email_alternativo,
       rol: usuario.rol,
       docenteId,
+      debe_cambiar_password: usuario.debe_cambiar_password,
       contextoAcademico,
     };
   }
@@ -138,7 +146,7 @@ export class AuthService {
     });
 
     if (!usuario) {
-      throw new UnauthorizedException("Credenciales inválidas");
+      throw new UnauthorizedException("Credenciales invÃ¡lidas");
     }
 
     if (!usuario.activo) {
@@ -151,7 +159,7 @@ export class AuthService {
     );
 
     if (!passwordValido) {
-      throw new UnauthorizedException("Credenciales inválidas");
+      throw new UnauthorizedException("Credenciales invÃ¡lidas");
     }
 
     return usuario;
@@ -197,15 +205,75 @@ export class AuthService {
       usuario.password_hash,
     );
     if (!valida) {
-      throw new UnauthorizedException("Contraseña actual incorrecta");
+      throw new BadRequestException("Contraseña actual incorrecta");
     }
     usuario.password_hash = await this.hashPassword(dto.password_nueva);
+    usuario.debe_cambiar_password = false;
     await this.usuarioRepository.save(usuario);
   }
 
+  async actualizarPerfil(
+    usuario: Usuario,
+    dto: ActualizarPerfilDto,
+  ): Promise<{
+    id: number;
+    nombre: string;
+    email: string;
+    email_alternativo: string | null;
+    debe_cambiar_password: boolean;
+  }> {
+    if (!dto.nombre && !dto.email && !dto.email_alternativo) {
+      throw new BadRequestException(
+        "Debe proporcionar al menos un campo a actualizar",
+      );
+    }
+
+    if (dto.nombre) {
+      usuario.nombre = dto.nombre;
+    }
+
+    if (dto.email && dto.email !== usuario.email) {
+      const existente = await this.usuarioRepository.findOne({
+        where: { email: dto.email },
+      });
+      if (existente) {
+        throw new ConflictException("El correo electrónico ya está registrado");
+      }
+      usuario.email = dto.email;
+    }
+
+    if (dto.email_alternativo !== undefined) {
+      if (dto.email_alternativo !== null && dto.email_alternativo !== "") {
+        // Validar que el email alternativo no esté ya usado como email principal por otro usuario
+        const existente = await this.usuarioRepository.findOne({
+          where: { email: dto.email_alternativo },
+        });
+        if (existente && existente.id !== usuario.id) {
+          throw new ConflictException(
+            "El correo alternativo ya está registrado como principal por otro usuario",
+          );
+        }
+        usuario.email_alternativo = dto.email_alternativo;
+      } else {
+        usuario.email_alternativo = null;
+      }
+    }
+
+    await this.usuarioRepository.save(usuario);
+
+    return {
+      id: usuario.id,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      email_alternativo: usuario.email_alternativo,
+      debe_cambiar_password: usuario.debe_cambiar_password,
+    };
+  }
+
   async recuperarPassword(dto: RecuperarPasswordDto): Promise<void> {
+    // Buscar por email principal O email alternativo
     const usuario = await this.usuarioRepository.findOne({
-      where: { email: dto.email },
+      where: [{ email: dto.email }, { email_alternativo: dto.email }],
     });
     if (usuario) {
       const token = crypto.randomUUID();
@@ -214,24 +282,26 @@ export class AuthService {
       usuario.reset_token = token;
       usuario.reset_token_expira = expira;
       await this.usuarioRepository.save(usuario);
-      this.mailService.sendPasswordReset(dto.email, token);
+      // Enviar al email que se proporcionó (puede ser principal o alternativo)
+      await this.mailService.sendPasswordReset(dto.email, token);
     }
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
     if (dto.password_nueva !== dto.confirmar_password) {
-      throw new BadRequestException("Las contraseñas no coinciden");
+      throw new BadRequestException("Las contraseÃ±as no coinciden");
     }
     const usuario = await this.usuarioRepository.findOne({
       where: { reset_token: dto.token },
     });
     if (!usuario || !usuario.reset_token_expira) {
-      throw new NotFoundException("Token inválido o expirado");
+      throw new NotFoundException("Token invÃ¡lido o expirado");
     }
     if (usuario.reset_token_expira < new Date()) {
       throw new BadRequestException("El token ha expirado");
     }
     usuario.password_hash = await this.hashPassword(dto.password_nueva);
+    usuario.debe_cambiar_password = false;
     usuario.reset_token = null;
     usuario.reset_token_expira = null;
     await this.usuarioRepository.save(usuario);

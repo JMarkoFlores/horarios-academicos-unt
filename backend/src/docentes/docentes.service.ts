@@ -4,12 +4,15 @@ import {
   ConflictException,
   BadRequestException,
   Inject,
+  InternalServerErrorException,
+  Logger,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Not } from "typeorm";
 import { Cache } from "cache-manager";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { v2 as cloudinary } from "cloudinary";
 import { Docente } from "../entities/docente.entity";
 import { Departamento } from "../entities/departamento.entity";
 import { Facultad } from "../entities/facultad.entity";
@@ -17,11 +20,13 @@ import { Usuario } from "../entities/usuario.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
-import { CursoAmbiente } from "../entities/curso-ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Grupo } from "../entities/grupo.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
+import { EstadoAsignacionLectiva } from "../common/enums/estado-asignacion-lectiva.enum";
+import { SuspensionDocente } from "../entities/suspension-docente.entity";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
@@ -80,8 +85,6 @@ export class DocentesService {
     private readonly cursoRepo: Repository<Curso>,
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
-    @InjectRepository(CursoAmbiente)
-    private readonly cursoAmbienteRepo: Repository<CursoAmbiente>,
     @InjectRepository(HorarioAsignado)
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(PeriodoAcademico)
@@ -90,9 +93,15 @@ export class DocentesService {
     private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
     @InjectRepository(Grupo)
     private readonly grupoRepo: Repository<Grupo>,
+    @InjectRepository(AsignacionLectiva)
+    private readonly asignacionLectivaRepo: Repository<AsignacionLectiva>,
+    @InjectRepository(SuspensionDocente)
+    private readonly suspensionRepo: Repository<SuspensionDocente>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly contextoAcademicoService: ContextoAcademicoService,
   ) {}
+
+  private readonly logger = new Logger(DocentesService.name);
 
   async findAll(query: QueryDocenteDto, contexto?: ContextoAcademico) {
     const {
@@ -106,6 +115,8 @@ export class DocentesService {
       sortDir,
       activo,
       sin_vinculacion,
+      departamento_id,
+      escuela_id,
     } = query;
     const qb = this.docenteRepo
       .createQueryBuilder("docente")
@@ -132,6 +143,18 @@ export class DocentesService {
       );
     }
 
+    if (departamento_id) {
+      qb.andWhere("docente.departamento_id = :departamento_id", {
+        departamento_id: Number(departamento_id),
+      });
+    }
+
+    if (escuela_id) {
+      qb.andWhere("escuela.id = :escuela_id", {
+        escuela_id: Number(escuela_id),
+      });
+    }
+
     if (categoria) {
       qb.andWhere("docente.categoria = :categoria", { categoria });
     }
@@ -146,7 +169,7 @@ export class DocentesService {
 
     if (busqueda) {
       qb.andWhere(
-        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda OR docente.email ILIKE :busqueda)",
+        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda OR docente.email ILIKE :busqueda OR docente.dni ILIKE :busqueda OR CAST(docente.ibm AS TEXT) ILIKE :busqueda)",
         { busqueda: `%${busqueda}%` },
       );
     }
@@ -190,6 +213,9 @@ export class DocentesService {
       tipo_docente?: string;
       modalidad?: string;
       busqueda?: string;
+      activo?: string;
+      departamento_id?: string;
+      escuela_id?: string;
     },
     contexto?: ContextoAcademico,
   ) {
@@ -199,8 +225,24 @@ export class DocentesService {
       .leftJoinAndSelect("departamento.escuela", "escuela")
       .leftJoinAndSelect("escuela.facultad", "facultadDesdeDepartamento")
       .leftJoinAndSelect("docente.facultad", "facultad")
-      .where("docente.activo = :activo", { activo: true });
+      .where("1 = 1");
 
+    if (filters.activo === "true") {
+      qb.andWhere("docente.activo = true");
+    } else if (filters.activo === "false") {
+      qb.andWhere("docente.activo = false");
+    }
+
+    if (filters.departamento_id) {
+      qb.andWhere("docente.departamento_id = :departamento_id", {
+        departamento_id: parseInt(filters.departamento_id, 10),
+      });
+    }
+    if (filters.escuela_id) {
+      qb.andWhere("escuela.id = :escuela_id", {
+        escuela_id: parseInt(filters.escuela_id, 10),
+      });
+    }
     if (filters.categoria) {
       qb.andWhere("docente.categoria = :categoria", {
         categoria: filters.categoria,
@@ -218,7 +260,7 @@ export class DocentesService {
     }
     if (filters.busqueda) {
       qb.andWhere(
-        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda)",
+        "(docente.nombres ILIKE :busqueda OR docente.apellidos ILIKE :busqueda OR docente.codigo ILIKE :busqueda OR docente.email ILIKE :busqueda OR docente.dni ILIKE :busqueda OR CAST(docente.ibm AS TEXT) ILIKE :busqueda)",
         { busqueda: `%${filters.busqueda}%` },
       );
     }
@@ -277,7 +319,7 @@ export class DocentesService {
     }
 
     qb.addSelect(
-        `CASE
+      `CASE
           WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'PRINCIPAL'  THEN 1
           WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'ASOCIADO'   THEN 2
           WHEN docente.tipo_docente = 'ORDINARIO' AND docente.categoria = 'AUXILIAR'   THEN 3
@@ -285,8 +327,8 @@ export class DocentesService {
           WHEN docente.tipo_docente = 'JEFE_PRACTICA_CONTRATADO'                       THEN 5
           ELSE 6
         END`,
-        "orden_jerarquia",
-      )
+      "orden_jerarquia",
+    )
       .orderBy("orden_jerarquia", "ASC")
       .addOrderBy("docente.fecha_ingreso", "ASC");
 
@@ -426,13 +468,19 @@ export class DocentesService {
   }
 
   private async resolverVinculosInstitucionales(
-    facultadId?: number,
-    departamentoId?: number,
+    facultadId?: number | null,
+    departamentoId?: number | null,
     facultadActualId: number | null = null,
     departamentoActualId: number | null = null,
   ): Promise<{ facultad_id: number | null; departamento_id: number | null }> {
-    let facultad_id = facultadId ?? facultadActualId ?? null;
-    const departamento_id = departamentoId ?? departamentoActualId ?? null;
+    // Use explicit null check: if undefined, keep current; if null, clear
+    const facultadIdProvided = facultadId !== undefined;
+    const departamentoIdProvided = departamentoId !== undefined;
+
+    let facultad_id = facultadIdProvided ? facultadId : facultadActualId;
+    const departamento_id = departamentoIdProvided
+      ? departamentoId
+      : departamentoActualId;
 
     let facultad: Facultad | null = null;
     let departamento: Departamento | null = null;
@@ -451,6 +499,11 @@ export class DocentesService {
 
       if (!facultad_id) {
         facultad_id = departamento.escuela?.facultad?.id ?? null;
+      }
+    } else if (departamentoIdProvided && departamentoId === null) {
+      // Explicitly clearing departamento, also clear facultad unless explicitly provided
+      if (!facultadIdProvided) {
+        facultad_id = null;
       }
     }
 
@@ -525,20 +578,46 @@ export class DocentesService {
   }
 
   async create(dto: CreateDocenteDto): Promise<Docente> {
-    const emailExistente = await this.docenteRepo.findOne({
-      where: { email: dto.email },
-    });
-    if (emailExistente) {
-      throw new ConflictException(`El email '${dto.email}' ya está registrado`);
+    const codigo = dto.codigo || (await this.generarCodigoUnico());
+
+    if (dto.email) {
+      const emailExistente = await this.docenteRepo.findOne({
+        where: { email: dto.email },
+      });
+      if (emailExistente) {
+        throw new ConflictException(
+          `El email '${dto.email}' ya está registrado`,
+        );
+      }
     }
 
-    const codigoExistente = await this.docenteRepo.findOne({
-      where: { codigo: dto.codigo },
-    });
-    if (codigoExistente) {
-      throw new ConflictException(
-        `El código '${dto.codigo}' ya está registrado`,
-      );
+    if (dto.codigo) {
+      const codigoExistente = await this.docenteRepo.findOne({
+        where: { codigo: dto.codigo },
+      });
+      if (codigoExistente) {
+        throw new ConflictException(
+          `El código '${dto.codigo}' ya está registrado`,
+        );
+      }
+    }
+
+    if (dto.dni) {
+      const dniExistente = await this.docenteRepo.findOne({
+        where: { dni: dto.dni },
+      });
+      if (dniExistente) {
+        throw new ConflictException(`El DNI '${dto.dni}' ya está registrado`);
+      }
+    }
+
+    if (dto.ibm) {
+      const ibmExistente = await this.docenteRepo.findOne({
+        where: { ibm: dto.ibm },
+      });
+      if (ibmExistente) {
+        throw new ConflictException(`El IBM '${dto.ibm}' ya está registrado`);
+      }
     }
 
     if (dto.usuario_id) {
@@ -578,6 +657,7 @@ export class DocentesService {
 
     const docente = this.docenteRepo.create({
       ...dto,
+      codigo,
       ...vinculosInstitucionales,
       usuario_id: dto.usuario_id ?? null,
       tipo_contrato: this.derivarTipoContrato(dto.tipo_docente),
@@ -591,8 +671,12 @@ export class DocentesService {
     return saved;
   }
 
-  async update(id: number, dto: UpdateDocenteDto): Promise<Docente> {
-    const docente = await this.findOne(id);
+  async update(
+    id: number,
+    dto: UpdateDocenteDto,
+    contexto?: ContextoAcademico,
+  ): Promise<Docente> {
+    const docente = await this.findOne(id, contexto);
 
     if (dto.usuario_id && dto.usuario_id !== docente.usuario_id) {
       await this.validarUsuarioAsociado(dto.usuario_id, id);
@@ -627,6 +711,24 @@ export class DocentesService {
       }
     }
 
+    if (dto.dni && dto.dni !== docente.dni) {
+      const dniExistente = await this.docenteRepo.findOne({
+        where: { dni: dto.dni },
+      });
+      if (dniExistente) {
+        throw new ConflictException(`El DNI '${dto.dni}' ya está en uso`);
+      }
+    }
+
+    if (dto.ibm && dto.ibm !== docente.ibm) {
+      const ibmExistente = await this.docenteRepo.findOne({
+        where: { ibm: dto.ibm },
+      });
+      if (ibmExistente) {
+        throw new ConflictException(`El IBM '${dto.ibm}' ya está en uso`);
+      }
+    }
+
     const tipoDocente = dto.tipo_docente ?? docente.tipo_docente;
     const actualizado = this.docenteRepo.merge(docente, {
       ...dto,
@@ -644,25 +746,53 @@ export class DocentesService {
     });
 
     const saved = await this.docenteRepo.save(actualizado);
+
+    // Sync email with associated usuario record for login consistency
+    if (dto.email && dto.email !== docente.email && docente.usuario_id) {
+      const usuario = await this.usuarioRepo.findOne({
+        where: { id: docente.usuario_id },
+      });
+      if (usuario && usuario.email !== dto.email) {
+        const emailTaken = await this.usuarioRepo.findOne({
+          where: { email: dto.email },
+        });
+        if (!emailTaken) {
+          usuario.email = dto.email;
+          await this.usuarioRepo.save(usuario);
+        }
+      }
+    }
+
     await this.invalidarCacheDocentes(id);
     return saved;
   }
 
-  async remove(id: number): Promise<void> {
-    const docente = await this.findOne(id);
+  async remove(id: number, contexto?: ContextoAcademico): Promise<void> {
+    const docente = await this.findOne(id, contexto);
     await this.docenteRepo.save({ ...docente, activo: false });
     await this.invalidarCacheDocentes(id);
   }
 
-  async reactivar(id: number): Promise<Docente> {
-    const docente = await this.docenteRepo.findOne({ where: { id } });
-    if (!docente) {
-      throw new NotFoundException(`Docente con ID ${id} no encontrado`);
-    }
+  async reactivar(id: number, contexto?: ContextoAcademico): Promise<Docente> {
+    const docente = await this.findOne(id, contexto);
     docente.activo = true;
     const saved = await this.docenteRepo.save(docente);
     await this.invalidarCacheDocentes(id);
     return saved;
+  }
+
+  private async generarCodigoUnico(): Promise<string> {
+    let intentos = 0;
+    while (intentos < 50) {
+      intentos++;
+      const numero = Math.floor(Math.random() * 90000) + 10000;
+      const codigo = `DOC-${numero}`;
+      const existe = await this.docenteRepo.findOne({ where: { codigo } });
+      if (!existe) return codigo;
+    }
+    throw new BadRequestException(
+      "No se pudo generar un código único. Intente escribirlo manualmente.",
+    );
   }
 
   private async invalidarCacheDocentes(id?: number): Promise<void> {
@@ -786,6 +916,59 @@ export class DocentesService {
       if (periodo) periodoId = periodo.id;
     }
 
+    // Prioridad 1: leer desde asignacion_lectiva (source of truth del plan)
+    // Se incluyen asignaciones PENDIENTE y CONFIRMADO para que el docente pueda
+    // declarar su horario incluso antes de que la secretaría confirme formalmente
+    // la asignación lectiva. Las RECHAZADAS se excluyen explícitamente.
+    const asignacionesQb = this.asignacionLectivaRepo
+      .createQueryBuilder("al")
+      .leftJoinAndSelect("al.curso_plan", "curso_plan")
+      .leftJoinAndSelect("curso_plan.curso", "curso")
+      .leftJoinAndSelect("curso.ambientes", "ambientes")
+      .where("al.docente_id = :docenteId", { docenteId })
+      .andWhere("al.estado IN (:...estadosAsignacion)", {
+        estadosAsignacion: [
+          EstadoAsignacionLectiva.PENDIENTE,
+          EstadoAsignacionLectiva.CONFIRMADO,
+        ],
+      })
+      .andWhere("curso_plan.estado = :activo", { activo: "ACTIVO" });
+
+    if (tipoClase) {
+      asignacionesQb.andWhere("al.tipo_clase = :tipoClase", { tipoClase });
+    }
+    if (periodoId !== null) {
+      asignacionesQb.andWhere("al.periodo_id = :periodoId", { periodoId });
+    }
+
+    const asignaciones = await asignacionesQb
+      .orderBy("curso.nombre", "ASC")
+      .getMany();
+
+    if (asignaciones.length > 0) {
+      let filteredAsignaciones = asignaciones;
+      if (periodoCodigo) {
+        const isPeriodoImpar = this.esPeriodoImpar(periodoCodigo);
+        filteredAsignaciones = asignaciones.filter((item) => {
+          return isPeriodoImpar
+            ? item.curso_plan.ciclo % 2 !== 0
+            : item.curso_plan.ciclo % 2 === 0;
+        });
+      }
+
+      return filteredAsignaciones.map((item) => {
+        const gruposReales = item.tipo_clase === TipoClase.LABORATORIO ? 1 : 1;
+        return {
+          id: item.id,
+          cursoId: item.curso_plan.curso_id,
+          tipo_clase: item.tipo_clase,
+          curso: item.curso_plan.curso,
+          grupos: gruposReales,
+        };
+      });
+    }
+
+    // Fallback: leer desde docente_curso para compatibilidad con datos antiguos
     const qb = this.docenteCursoRepo
       .createQueryBuilder("dc")
       .leftJoinAndSelect("dc.curso", "curso")
@@ -875,33 +1058,128 @@ export class DocentesService {
     cursoId: number,
     tipoClase: string,
   ): Promise<Ambiente[]> {
-    console.log(
-      "[findAmbientesCompatibles] cursoId:",
-      cursoId,
-      "tipoClase:",
-      tipoClase,
+    this.logger.debug(
+      `[findAmbientesCompatibles] cursoId=${cursoId}, tipoClase=${tipoClase}`,
     );
 
-    const cursoAmbienteRelations = await this.cursoAmbienteRepo.find({
-      where: {
-        cursoId,
-      },
-      relations: ["ambiente"],
+    const curso = await this.cursoRepo.findOne({
+      where: { id: cursoId },
+      relations: ["ambientes"],
+    });
+    const ambientes = curso?.ambientes ?? [];
+    this.logger.debug(
+      `[findAmbientesCompatibles] ambientes directos del curso: ${ambientes.length}`,
+    );
+
+    // Fallback: si el curso no tiene ambientes asignados, buscar otros cursos
+    // con el mismo código (pueden ser versiones del mismo curso en otros planes
+    // de estudio) y reutilizar sus ambientes. Esto mantiene el principio de que
+    // los ambientes dependen del curso, no del plan de estudios.
+    if (ambientes.length === 0 && curso) {
+      this.logger.debug(
+        `[findAmbientesCompatibles] sin ambientes directos; fallback por codigo=${curso.codigo}`,
+      );
+      const cursosSimilares = await this.cursoRepo.find({
+        where: { codigo: curso.codigo, activo: true },
+        relations: ["ambientes"],
+      });
+      const idsVistos = new Set<number>();
+      for (const c of cursosSimilares) {
+        for (const a of c.ambientes ?? []) {
+          if (!idsVistos.has(a.id)) {
+            idsVistos.add(a.id);
+            ambientes.push(a);
+          }
+        }
+      }
+      this.logger.debug(
+        `[findAmbientesCompatibles] ambientes encontrados por codigo: ${ambientes.length}`,
+      );
+    }
+
+    // Práctica comparte ambientes con teoría (AULA/TALLER).
+    // Laboratorio solo puede usar ambientes de tipo LABORATORIO.
+    const tiposPermitidos =
+      tipoClase === TipoClase.LABORATORIO
+        ? [TipoAmbiente.LABORATORIO]
+        : [TipoAmbiente.AULA, TipoAmbiente.TALLER];
+
+    const filtrados = ambientes.filter((a) => tiposPermitidos.includes(a.tipo));
+
+    this.logger.debug(
+      `[findAmbientesCompatibles] compatibles (${tipoClase}): ${filtrados.length}`,
+    );
+
+    return filtrados;
+  }
+
+  async updateFoto(docenteId: number, fotoUrl: string): Promise<Docente> {
+    const docente = await this.docenteRepo.findOne({
+      where: { id: docenteId },
     });
 
-    console.log(
-      "[findAmbientesCompatibles] cursoAmbienteRelations:",
-      cursoAmbienteRelations.length,
-      "items",
-    );
-    const ambientes = cursoAmbienteRelations.map((ca) => ca.ambiente);
-    console.log(
-      "[findAmbientesCompatibles] ambientes:",
-      ambientes.map((a) => ({ id: a.id, codigo: a.codigo, tipo: a.tipo })),
-    );
+    if (!docente) {
+      throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
+    }
 
-    // Ya no filtramos por tipo de clase porque hay casos donde laboratorios se dan en aulas
-    return ambientes;
+    docente.foto_url = fotoUrl;
+    return await this.docenteRepo.save(docente);
+  }
+
+  private getCloudinaryConfig() {
+    const cloudName = this.configService.get("CLOUDINARY_CLOUD_NAME");
+    const apiKey = this.configService.get("CLOUDINARY_API_KEY");
+    const apiSecret = this.configService.get("CLOUDINARY_API_SECRET");
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      throw new InternalServerErrorException(
+        "Cloudinary no está configurado correctamente",
+      );
+    }
+
+    return { cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret };
+  }
+
+  async uploadFotoToCloudinary(
+    docenteId: number,
+    file: { buffer: Buffer; mimetype: string; originalname: string },
+  ): Promise<string> {
+    if (!file.mimetype?.startsWith("image/")) {
+      throw new BadRequestException("El archivo de foto debe ser una imagen");
+    }
+
+    cloudinary.config(this.getCloudinaryConfig());
+
+    const originalName = file.originalname.replace(/\.[^.]+$/, "");
+    const publicId = `foto_docente_${docenteId}_${Date.now()}`;
+    const dataUri = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+
+    try {
+      const result = await cloudinary.uploader.upload(dataUri, {
+        folder: "fotos-docentes",
+        public_id: publicId,
+        resource_type: "image",
+        overwrite: true,
+        invalidate: true,
+        filename_override: originalName,
+      });
+
+      if (!result.secure_url) {
+        throw new InternalServerErrorException(
+          "Cloudinary no devolvió una URL segura para la foto",
+        );
+      }
+
+      return result.secure_url;
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        "No se pudo subir la foto a Cloudinary",
+      );
+    }
   }
 
   async asignarAmbientes(
@@ -1018,5 +1296,105 @@ export class DocentesService {
     const rawValue = this.configService.get<string>("UMBRAL_DESEQUILIBRIO");
     const parsedValue = Number(rawValue ?? 4);
     return Number.isFinite(parsedValue) ? parsedValue : 4;
+  }
+
+  async getDocentesDepartamentoCompleto(
+    departamentoId: number,
+    periodoId: number,
+    contexto?: ContextoAcademico,
+  ) {
+    const docentes = await this.docenteRepo.find({
+      where: {
+        departamento_id: departamentoId,
+        activo: true,
+      },
+      relations: ["departamento", "facultad"],
+    });
+
+    const periodo = await this.periodoRepo.findOne({
+      where: { id: periodoId },
+    });
+
+    const result = await Promise.all(
+      docentes.map(async (docente) => {
+        // Calcular horas lectivas actuales
+        const asignaciones = await this.asignacionLectivaRepo.find({
+          where: {
+            docente_id: docente.id,
+            periodo_id: periodoId,
+            estado: Not(EstadoAsignacionLectiva.RECHAZADO),
+          },
+        });
+        const horasLectivas = asignaciones.reduce(
+          (sum, a) => sum + Number(a.horas_asignadas),
+          0,
+        );
+
+        // Verificar suspensión vigente
+        const suspension = await this.suspensionRepo.findOne({
+          where: {
+            docente_id: docente.id,
+            activa: true,
+          },
+        });
+
+        // Calcular horas restantes
+        const horasRestantes = docente.horas_lectivas_max - horasLectivas;
+
+        return {
+          id: docente.id,
+          codigo: docente.codigo,
+          dni: docente.dni,
+          nombres: docente.nombres,
+          apellidos: docente.apellidos,
+          email: docente.email,
+          categoria: docente.categoria,
+          tipo_contrato: docente.tipo_contrato,
+          tipo_docente: docente.tipo_docente,
+          modalidad: docente.modalidad,
+          departamento: docente.departamento,
+          facultad: docente.facultad,
+          horas_lectivas_actuales: horasLectivas,
+          horas_no_lectivas: docente.horas_no_lectivas,
+          horas_lectivas_max: docente.horas_lectivas_max,
+          horas_lectivas_min: docente.horas_lectivas_min,
+          horas_max_totales: docente.horas_max_totales,
+          horas_restantes: Math.max(0, horasRestantes),
+          suspension_vigente: docente.suspension_vigente || !!suspension,
+          suspension: suspension
+            ? {
+                motivo: suspension.motivo,
+                fecha_inicio: suspension.fecha_inicio,
+                fecha_fin: suspension.fecha_fin,
+              }
+            : null,
+          foto_url: docente.foto_url,
+        };
+      }),
+    );
+
+    return result;
+  }
+
+  async getSuspensionVigente(docenteId: number) {
+    const suspension = await this.suspensionRepo.findOne({
+      where: {
+        docente_id: docenteId,
+        activa: true,
+      },
+    });
+
+    return {
+      tiene_suspension: !!suspension,
+      suspension: suspension
+        ? {
+            id: suspension.id,
+            motivo: suspension.motivo,
+            fecha_inicio: suspension.fecha_inicio,
+            fecha_fin: suspension.fecha_fin,
+            observaciones: suspension.observaciones,
+          }
+        : null,
+    };
   }
 }

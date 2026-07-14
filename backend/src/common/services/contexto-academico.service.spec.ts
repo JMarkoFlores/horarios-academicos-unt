@@ -26,7 +26,10 @@ describe("ContextoAcademicoService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ContextoAcademicoService,
-        { provide: getRepositoryToken(Departamento), useValue: departamentoRepo },
+        {
+          provide: getRepositoryToken(Departamento),
+          useValue: departamentoRepo,
+        },
         { provide: getRepositoryToken(Escuela), useValue: escuelaRepo },
         { provide: getRepositoryToken(Facultad), useValue: facultadRepo },
         { provide: getRepositoryToken(Docente), useValue: docenteRepo },

@@ -24,10 +24,25 @@ interface DiaActivo {
 interface ConfiguracionGeneral {
   id: number;
   nombre_institucional: string;
+  nombre_facultad: string;
   logo_url: string;
   color_primario: string;
   color_secundario: string;
   color_acento: string;
+  light_fondo_base?: string;
+  light_contenedores?: string;
+  light_texto_principal?: string;
+  light_dominante?: string;
+  light_exito?: string;
+  light_advertencia?: string;
+  light_critico?: string;
+  dark_fondo_base?: string;
+  dark_contenedores?: string;
+  dark_texto_principal?: string;
+  dark_dominante?: string;
+  dark_exito?: string;
+  dark_advertencia?: string;
+  dark_critico?: string;
 }
 
 interface RestriccionInstitucional {
@@ -189,13 +204,30 @@ export class ConfiguracionComponent implements OnInit {
         '',
         [Validators.required, Validators.maxLength(200)],
       ],
+      nombre_facultad: [
+        'Ingeniería de Sistemas',
+        [Validators.required, Validators.maxLength(200)],
+      ],
       logo_url: [
         'https://upload.wikimedia.org/wikipedia/commons/6/6e/Universidad_Nacional_de_Trujillo_-_Per%C3%BA_vector_logo.png',
         Validators.maxLength(500),
       ],
-      color_primario: ['#1a237e', Validators.required],
-      color_secundario: ['#283593', Validators.required],
-      color_acento: ['#e91e63', Validators.required],
+      // Light mode colors
+      light_fondo_base: ['#F8FAFC'],
+      light_contenedores: ['#FFFFFF'],
+      light_texto_principal: ['#0F172A'],
+      light_dominante: ['#2563EB'],
+      light_exito: ['#10B981'],
+      light_advertencia: ['#D97706'],
+      light_critico: ['#EF4444'],
+      // Dark mode colors
+      dark_fondo_base: ['#0F172A'],
+      dark_contenedores: ['#1E293B'],
+      dark_texto_principal: ['#F8FAFC'],
+      dark_dominante: ['#38BDF8'],
+      dark_exito: ['#34D399'],
+      dark_advertencia: ['#FBBF24'],
+      dark_critico: ['#F87171'],
     });
 
     this.ventanasForm = this.fb.group({

@@ -10,18 +10,19 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
-import { ApiResponse, Docente } from '../../../core/interfaces/entities';
+import { ApiResponse, Docente, Departamento, Facultad, Usuario } from '../../../core/interfaces/entities';
 
 export function emailInstitucionalValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     if (!control.value) return null;
-    const valor: string = control.value.trim();
+    const valor: string = control.value.trim().toLowerCase();
     const partes = valor.split('@');
     if (partes.length !== 2) return { emailInvalido: true };
     const [local, dominio] = partes;
     if (!local || local.length === 0) return { emailInvalido: true };
     if (!/^[a-zA-Z0-9_\-\.]+$/.test(dominio)) return { emailInvalido: true };
     if (!dominio.includes('.')) return { emailInvalido: true };
+    if (dominio !== 'unt.edu.pe') return { dominioInvalido: true };
     return null;
   };
 }
@@ -35,6 +36,18 @@ export function fechaNoFuturaValidator(): ValidatorFn {
     if (fecha > hoy) return { fechaFutura: true };
     const minDate = new Date('1970-01-01');
     if (fecha < minDate) return { fechaAntigua: true };
+    return null;
+  };
+}
+
+export function dniValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (!control.value) return null;
+    const valor = control.value.toString();
+    // DNI peruano: exactamente 8 dígitos
+    if (!/^\d{8}$/.test(valor)) {
+      return { dniInvalido: true };
+    }
     return null;
   };
 }
@@ -65,6 +78,8 @@ export class DocenteFormComponent implements OnInit {
   saving = false;
   hoy = new Date();
 
+  autoGenerarCodigo = false;
+
   tiposDocente = [
     { value: 'ORDINARIO', label: 'Nombrado' },
     { value: 'CONTRATADO', label: 'Contratado' },
@@ -82,6 +97,19 @@ export class DocenteFormComponent implements OnInit {
     { value: 'TIEMPO_PARCIAL_8', label: 'Tiempo parcial 8h' },
   ];
 
+  horasMaximasPorModalidad: Record<string, number> = {
+    DEDICACION_EXCLUSIVA: 40,
+    TIEMPO_COMPLETO_40: 40,
+    TIEMPO_PARCIAL_20: 20,
+    TIEMPO_PARCIAL_12: 12,
+    TIEMPO_PARCIAL_10: 10,
+    TIEMPO_PARCIAL_8: 8,
+  };
+
+  facultades: Facultad[] = [];
+  departamentos: Departamento[] = [];
+  usuarios: Usuario[] = [];
+
   constructor(
     private fb: FormBuilder,
     private api: ApiService,
@@ -97,21 +125,108 @@ export class DocenteFormComponent implements OnInit {
         null,
         [Validators.required, Validators.min(1000), Validators.max(9999)],
       ],
-      nombres: ['', [Validators.required, Validators.maxLength(150)]],
-      apellidos: ['', [Validators.required, Validators.maxLength(150)]],
+      dni: ['', [Validators.required, dniValidator()]],
+      nombres: [
+        '',
+        [Validators.required, Validators.minLength(2), Validators.maxLength(150)],
+      ],
+      apellidos: [
+        '',
+        [Validators.required, Validators.minLength(2), Validators.maxLength(150)],
+      ],
       email: ['', [Validators.required, emailInstitucionalValidator()]],
-      telefono: ['', [Validators.pattern(/^\+?[\d\s\-]{7,20}$/)]],
+      telefono: ['', [Validators.pattern(/^\d{9}$/)]],
       tipo_docente: [{ value: '', disabled: false }, Validators.required],
       categoria: [{ value: '', disabled: true }, Validators.required],
       modalidad: [{ value: '', disabled: true }, Validators.required],
       fecha_ingreso: [null, [Validators.required, fechaNoFuturaValidator()]],
+      horas_asignadas: [0, [Validators.min(0)]],
+      facultad_id: [null],
+      departamento_id: [null],
+      usuario_id: [null],
     });
+
+    this.loadFacultades();
+    this.loadUsuarios();
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEdit = true;
       this.docenteId = parseInt(id, 10);
       this.loadDocente();
+    }
+  }
+
+  loadFacultades(): void {
+    this.api.get<ApiResponse<Facultad[]>>('/facultades').subscribe({
+      next: (res) => { this.facultades = res.data || []; },
+      error: () => {},
+    });
+  }
+
+  loadDepartamentos(facultadId: number): void {
+    this.api.get<ApiResponse<Departamento[]>>(`/departamentos`, { facultad_id: facultadId }).subscribe({
+      next: (res) => { this.departamentos = res.data || []; },
+      error: () => {},
+    });
+  }
+
+  onFacultadChange(facultadId: number): void {
+    this.form.get('departamento_id')!.reset(null);
+    if (facultadId) {
+      this.loadDepartamentos(facultadId);
+    } else {
+      this.departamentos = [];
+    }
+  }
+
+  loadUsuarios(): void {
+    this.api.get<ApiResponse<Usuario[]>>('/usuarios', { rol: 'DOCENTE', activo: 'true' }).subscribe({
+      next: (res) => { this.usuarios = res.data || []; },
+      error: () => {},
+    });
+  }
+
+  toggleAutoGenerarCodigo(): void {
+    this.autoGenerarCodigo = !this.autoGenerarCodigo;
+    const ctrl = this.form.get('codigo')!;
+    if (this.autoGenerarCodigo) {
+      ctrl.clearValidators();
+      ctrl.setValue(this.generarCodigoSiguiente());
+      ctrl.disable();
+    } else {
+      ctrl.setValidators([Validators.required, Validators.maxLength(20)]);
+      ctrl.setValue('');
+      ctrl.enable();
+    }
+    ctrl.updateValueAndValidity();
+  }
+
+  generarCodigoSiguiente(): string {
+    const prefijo = 'DOC-';
+    const siguiente = Math.floor(Math.random() * 90000) + 10000;
+    return `${prefijo}${siguiente}`;
+  }
+
+  onTelefonoBlur(): void {
+    const ctrl = this.form.get('telefono');
+    if (ctrl && ctrl.value) {
+      const limpio = ctrl.value.replace(/\D/g, '').slice(0, 9);
+      ctrl.setValue(limpio, { emitEvent: false });
+    }
+  }
+
+  onNombresBlur(): void {
+    const ctrl = this.form.get('nombres');
+    if (ctrl && ctrl.value) {
+      ctrl.setValue(ctrl.value.trim().replace(/\s+/g, ' '), { emitEvent: false });
+    }
+  }
+
+  onApellidosBlur(): void {
+    const ctrl = this.form.get('apellidos');
+    if (ctrl && ctrl.value) {
+      ctrl.setValue(ctrl.value.trim().replace(/\s+/g, ' '), { emitEvent: false });
     }
   }
 
@@ -158,9 +273,22 @@ export class DocenteFormComponent implements OnInit {
           this.form.get('categoria')!.enable();
           this.form.get('modalidad')!.enable();
 
+          // Load facultad first, then departamento
+          if (d.facultad_id) {
+            this.form.patchValue({ facultad_id: d.facultad_id });
+            this.loadDepartamentos(d.facultad_id);
+            // Patch departamento after loading (with slight delay to ensure departamentos are loaded)
+            setTimeout(() => {
+              if (d.departamento_id) {
+                this.form.patchValue({ departamento_id: d.departamento_id });
+              }
+            }, 100);
+          }
+
           this.form.patchValue({
             codigo: d.codigo,
             ibm: d.ibm,
+            dni: d.dni ?? '',
             nombres: d.nombres,
             apellidos: d.apellidos,
             email: d.email,
@@ -169,6 +297,8 @@ export class DocenteFormComponent implements OnInit {
             categoria: d.categoria,
             modalidad: d.modalidad,
             fecha_ingreso: d.fecha_ingreso ? new Date(d.fecha_ingreso) : null,
+            horas_asignadas: d.horas_asignadas ?? 0,
+            usuario_id: d.usuario_id ?? null,
           });
           this.loading = false;
         },
@@ -193,6 +323,8 @@ export class DocenteFormComponent implements OnInit {
     const fi = v['fecha_ingreso'];
     const payload = {
       ...v,
+      codigo: this.autoGenerarCodigo ? this.generarCodigoSiguiente() : v['codigo'],
+      email: typeof v['email'] === 'string' ? (v['email'] as string).trim().toLowerCase() : v['email'],
       fecha_ingreso:
         fi instanceof Date ? (fi as Date).toISOString().split('T')[0] : fi,
     };

@@ -1,8 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { NotifToastService } from '../../core/services/notif-toast.service';
 import { ConfiguracionGeneralService } from '../../core/services/configuracion-general.service';
+import { ThemeService } from '../../core/services/theme.service';
 
 const ROL_REDIRECT: Record<string, string> = {
   administradorsistema: '/app/dashboard',
@@ -10,7 +12,7 @@ const ROL_REDIRECT: Record<string, string> = {
   directorescuela: '/app/dashboard',
   visualizador: '/app/dashboard',
   secretaria: '/app/secretaria',
-  docente: '/app/mis-horarios',
+  docente: '/app/dashboard',
 };
 
 function redirectByRol(rol: string): string {
@@ -47,10 +49,13 @@ export class LoginComponent implements OnInit {
   error = '';
   hidePassword = true;
 
+  protected themeService = inject(ThemeService);
+
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
     private router: Router,
+    private notif: NotifToastService,
     public configService: ConfiguracionGeneralService,
   ) {
     this.form = this.fb.group({
@@ -79,9 +84,22 @@ export class LoginComponent implements OnInit {
     if (this.error) this.error = '';
   }
 
+  irARecuperarPassword(): void {
+    this.router.navigate(['/auth/recuperar-password']);
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      if (this.form.get('email')?.hasError('required')) {
+        this.notif.error('El correo es obligatorio');
+      } else if (this.form.get('email')?.hasError('pattern')) {
+        this.notif.error('Formato de correo inválido');
+      } else if (this.form.get('password')?.hasError('required')) {
+        this.notif.error('La contraseña es obligatoria');
+      } else if (this.form.get('password')?.hasError('minlength')) {
+        this.notif.error('La contraseña debe tener al menos 6 caracteres');
+      }
       return;
     }
     if (this.loading) return;
@@ -90,11 +108,18 @@ export class LoginComponent implements OnInit {
     const { email, password } = this.form.value;
     this.authService.login(email, password).subscribe({
       next: (res: any) => {
-        const rol: string = res?.data?.usuario?.rol ?? '';
+        const usuario = res?.data?.usuario;
+        if (usuario?.debe_cambiar_password) {
+          this.notif.info('Por seguridad, debe cambiar su contraseña antes de continuar.');
+          this.router.navigate(['/app/perfil'], { queryParams: { tab: 'password' } });
+          return;
+        }
+        const rol: string = usuario?.rol ?? '';
         this.router.navigate([redirectByRol(rol)]);
       },
       error: (err: any) => {
         this.error = parseLoginError(err);
+        this.notif.error(this.error);
         this.loading = false;
       },
     });

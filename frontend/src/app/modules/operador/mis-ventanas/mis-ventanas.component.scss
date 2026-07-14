@@ -1,0 +1,120 @@
+
+.mis-ventanas-container {
+  padding: 0;
+  width: 100%;
+}
+
+.page-header-premium {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+
+  .title-section {
+    .gradient-text {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+    .subtitle {
+      color: var(--color-text-muted);
+      margin: 4px 0 0;
+      font-size: 14px;
+    }
+  }
+}
+
+.content {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 0;
+  gap: 16px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 64px 24px;
+
+  .empty-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    color: var(--color-text-muted);
+    margin-bottom: 16px;
+  }
+
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: var(--color-text-muted);
+  }
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.ventanas-table {
+  width: 100%;
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+
+  &.badge-primary {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    color: var(--color-primary);
+  }
+
+  &.badge-accent {
+    background: rgba(var(--color-accent-rgb), 0.1);
+    color: var(--color-accent);
+  }
+
+  &.badge-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: rgb(16, 185, 129);
+  }
+
+  &.badge-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgb(239, 68, 68);
+  }
+
+  &.badge-warning {
+    background: rgba(251, 191, 36, 0.1);
+    color: rgb(251, 191, 36);
+  }
+
+  &.badge-secondary {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+  }
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}

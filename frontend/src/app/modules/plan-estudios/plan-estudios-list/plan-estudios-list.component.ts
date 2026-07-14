@@ -4,23 +4,9 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ApiService } from '../../../core/services/api.service';
-import { ApiResponse } from '../../../core/interfaces/entities';
+import { ApiResponse, PlanEstudios } from '../../../core/interfaces/entities';
 import { PlanFormDialogComponent } from '../dialogs/plan-form-dialog/plan-form-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/confirm-dialog.component';
-
-export interface PlanEstudios {
-  id: number;
-  codigo: string;
-  nombre: string;
-  descripcion?: string;
-  resolucion?: string;
-  anio: number;
-  activo: boolean;
-  escuela_id: number;
-  escuela?: { id: number; nombre: string; codigo: string };
-  created_at: string;
-  updated_at: string;
-}
 
 @Component({
   selector: 'app-plan-estudios-list',

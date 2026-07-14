@@ -3,6 +3,8 @@
 // ── DESIGN SYSTEM (centralizado) ──────────────────────────────────────────────
 // Variables SCSS (breakpoints, z-index, easing) — sin CSS output
 @use "app/shared/design-system/variables" as ds;
+// Responsive mixins (breakpoints, grids, touch-target, etc)
+@use "app/shared/design-system/responsive-mixins" as resp;
 // Typography utility classes (.text-xs … .font-bold … .text-primary)
 @use "app/shared/design-system/typography";
 // Component utility classes (.card-unt, .btn-unt-*, .badge-*, .stat-card)
@@ -24,8 +26,7 @@ $unt-primary-map: (
   800: #3730a3,
   // Indigo Principal
   900: #312e81,
-  contrast: (
-    600: #ffffff,
+  contrast: (600: #ffffff,
     800: #ffffff,
   ),
 );
@@ -42,8 +43,7 @@ $unt-accent-map: (
   700: #6d28d9,
   800: #5b21b6,
   900: #4c1d95,
-  contrast: (
-    600: #ffffff,
+  contrast: (600: #ffffff,
   ),
 );
 
@@ -52,41 +52,32 @@ $unt-accent: mat.define-palette($unt-accent-map, 600);
 $unt-warn: mat.define-palette(mat.$red-palette);
 
 // ── 2. TIPOGRAFÍA PREMIUM (INTER + PLUS JAKARTA SANS) ─────────────────────
-$unt-typography: mat.define-typography-config(
-  $font-family: '"Inter", "Plus Jakarta Sans", sans-serif',
-  $headline-1: mat.define-typography-level(32px, 40px, 700),
-  $headline-2: mat.define-typography-level(24px, 32px, 600),
-  $headline-3: mat.define-typography-level(20px, 28px, 600),
-  $headline-4: mat.define-typography-level(18px, 24px, 500),
-  $body-1: mat.define-typography-level(14px, 20px, 400),
-  $body-2: mat.define-typography-level(13px, 18px, 400),
-  $button: mat.define-typography-level(14px, 14px, 500),
-);
+$unt-typography: mat.define-typography-config($font-family: '"Inter", "Plus Jakarta Sans", sans-serif',
+    $headline-1: mat.define-typography-level(32px, 40px, 700),
+    $headline-2: mat.define-typography-level(24px, 32px, 600),
+    $headline-3: mat.define-typography-level(20px, 28px, 600),
+    $headline-4: mat.define-typography-level(18px, 24px, 500),
+    $body-1: mat.define-typography-level(14px, 20px, 400),
+    $body-2: mat.define-typography-level(13px, 18px, 400),
+    $button: mat.define-typography-level(14px, 14px, 500),
+  );
 
 // Temas de Material
-$unt-light-theme: mat.define-light-theme(
-  (
-    color: (
-      primary: $unt-primary,
-      accent: $unt-accent,
-      warn: $unt-warn,
-    ),
-    typography: $unt-typography,
-    density: -1,
-  )
-);
+$unt-light-theme: mat.define-light-theme((color: (primary: $unt-primary,
+        accent: $unt-accent,
+        warn: $unt-warn,
+      ),
+      typography: $unt-typography,
+      density: -1,
+    ));
 
-$unt-dark-theme: mat.define-dark-theme(
-  (
-    color: (
-      primary: $unt-primary,
-      accent: $unt-accent,
-      warn: $unt-warn,
-    ),
-    typography: $unt-typography,
-    density: -1,
-  )
-);
+$unt-dark-theme: mat.define-dark-theme((color: (primary: $unt-primary,
+        accent: $unt-accent,
+        warn: $unt-warn,
+      ),
+      typography: $unt-typography,
+      density: -1,
+    ));
 
 // Aplicación de Temas
 @include mat.all-component-themes($unt-light-theme);
@@ -122,12 +113,17 @@ $unt-dark-theme: mat.define-dark-theme(
   --color-accent-900: #5c1b02;
 
   // Colores de uso común (alias para compatibilidad)
+  // Alias
   --color-primary: var(--color-primary-500);
+  --color-primary-rgb: 21, 101, 192;
   --color-primary-light: rgba(21, 101, 192, 0.08);
   --color-primary-hover: var(--color-primary-600);
   --color-accent: var(--color-accent-500);
+  --color-accent-rgb: 255, 111, 0;
   --color-accent-light: rgba(255, 111, 0, 0.08);
   --color-accent-hover: var(--color-accent-600);
+  --color-background: var(--color-bg);
+  --color-warning-rgb: 245, 158, 11;
 
   // Semánticos (light)
   --color-success: #059669;
@@ -248,11 +244,15 @@ body.dark-theme {
 
   // Alias
   --color-primary: var(--color-primary-500);
+  --color-primary-rgb: 66, 165, 245;
   --color-primary-light: rgba(66, 165, 245, 0.15);
   --color-primary-hover: var(--color-primary-600);
   --color-accent: var(--color-accent-500);
+  --color-accent-rgb: 255, 183, 77;
   --color-accent-light: rgba(255, 183, 77, 0.15);
   --color-accent-hover: var(--color-accent-600);
+  --color-background: var(--color-bg);
+  --color-warning-rgb: 251, 191, 36;
 
   // Semánticos (dark)
   --color-success: #34d399;
@@ -309,7 +309,7 @@ html,
 body {
   height: 100%;
   margin: 0;
-  overflow: hidden; // Prevenir doble barra global
+  /* Allow normal scrolling; hiding overflow broke accessibility/zoom */
 }
 
 body {
@@ -324,16 +324,19 @@ body {
 
 // Forzar colores de texto en componentes Material para modo oscuro
 .dark-theme {
+
   .mat-mdc-card,
   .mat-mdc-table,
   .mat-mdc-dialog-container,
   .mat-mdc-menu-panel {
     color: var(--color-text) !important;
   }
+
   .mat-mdc-header-cell {
     color: var(--color-text) !important;
     font-weight: 600;
   }
+
   .mat-mdc-cell {
     color: var(--color-text-muted) !important;
   }
@@ -348,6 +351,7 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
+
   h1 {
     font-size: 24px;
     font-weight: 700;
@@ -373,6 +377,7 @@ body {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -383,6 +388,7 @@ body {
   0% {
     background-position: -1000px 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
@@ -394,12 +400,10 @@ body {
 
 // ── 7. SKELETON LOADER ─────────────────────────────────────────────────────
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--color-border) 25%,
-    var(--color-surface) 50%,
-    var(--color-border) 75%
-  );
+  background: linear-gradient(90deg,
+      var(--color-border) 25%,
+      var(--color-surface) 50%,
+      var(--color-border) 75%);
   background-size: 1000px 100%;
   animation: shimmer 2s infinite linear;
   border-radius: var(--radius-sm);
@@ -411,6 +415,7 @@ body {
   width: 100%;
   margin-bottom: 8px;
 }
+
 .skeleton-card {
   height: 180px;
   width: 100%;
@@ -435,6 +440,7 @@ body {
   border-radius: 8px !important;
   box-shadow: none !important;
   font-weight: 600 !important;
+
   &:hover {
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3) !important;
   }
@@ -452,6 +458,7 @@ body {
 
   .mat-mdc-row {
     transition: background-color var(--transition-fast);
+
     &:hover {
       background-color: var(--color-primary-light) !important;
     }
@@ -479,22 +486,27 @@ body {
   background: var(--color-primary-light);
   color: var(--color-primary);
 }
+
 .badge-ASOCIADO {
   background: rgba(16, 185, 129, 0.1);
   color: #10b981;
 }
+
 .badge-AUXILIAR {
   background: rgba(245, 158, 11, 0.1);
   color: #f59e0b;
 }
+
 .badge-JEFE_PRACTICA {
   background: var(--color-accent-light);
   color: var(--color-accent);
 }
+
 .badge-ACTIVO {
   background: rgba(34, 197, 94, 0.1);
   color: #22c55e;
 }
+
 .badge-INACTIVO {
   background: rgba(100, 116, 139, 0.1);
   color: #64748b;
@@ -505,10 +517,12 @@ body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
@@ -517,6 +531,7 @@ body {
 .snack-success .mdc-snackbar__surface {
   background: #10b981 !important;
 }
+
 .snack-error .mdc-snackbar__surface {
   background: #ef4444 !important;
 }
@@ -528,9 +543,11 @@ body {
     color: var(--color-primary);
     letter-spacing: -0.05em;
   }
+
   h2 {
     color: var(--color-text);
   }
+
   p {
     color: var(--color-text-muted);
   }
@@ -542,6 +559,7 @@ body {
     --mdc-dialog-container-shape: 16px;
     padding: 0 !important;
   }
+
   .mat-mdc-dialog-surface {
     padding: 0 !important;
     overflow: hidden !important;
@@ -557,6 +575,7 @@ body {
 // consistente independientemente de otros componentes que usen mat-list
 
 .sidenav {
+
   // Forzar modo one-line en todos los mat-list-item del sidebar (altura 48px)
   .mat-mdc-list-item {
     height: 48px !important;
@@ -649,9 +668,23 @@ body {
   }
 }
 
-// ── HIDE MDC TOUCH TARGETS ─────────────────────────────────────────────
-.mat-mdc-button-touch-target {
-  display: none !important;
+// ── TOUCH TARGETS (Accesibilidad Móvil - Mínimo 44x44px) ─────────────────────
+// WCAG 2.5.5: Target Size (Enhanced)
+button,
+a[role="button"],
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="radio"],
+input[type="checkbox"],
+.mat-mdc-button,
+.mat-mdc-raised-button,
+.mat-mdc-icon-button,
+.topbar-btn,
+.nav-item,
+.user-row-btn {
+  @include resp.touch-target;
 }
 
 // ── PERIOD SELECT DROPDOWN WIDTH ───────────────────────────────────────

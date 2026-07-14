@@ -6,6 +6,10 @@ import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { FormsModule } from '@angular/forms';
 
 const routes: Routes = [{ path: '', component: DocenteHorarioComponent }];
 
@@ -17,7 +21,11 @@ const routes: Routes = [{ path: '', component: DocenteHorarioComponent }];
     MatTableModule,
     MatCardModule,
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    MatButtonModule,
+    MatSlideToggleModule,
+    MatSnackBarModule,
+    FormsModule
   ]
 })
 export class DocenteHorarioModule { }

@@ -155,48 +155,46 @@ describe("DeclaracionCargaHorariaService", () => {
   });
 
   describe("regeneración de carga lectiva", () => {
-    it.each([
-      EstadoDeclaracionCarga.BORRADOR,
-      EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-      EstadoDeclaracionCarga.OBSERVADO_DPTO,
-      EstadoDeclaracionCarga.SUBSANADO,
-    ])("permite regenerar cuando la declaración está en %s", async (estado) => {
-      mockDeclaracionRepo.findOne.mockResolvedValue({
-        ...mockDeclaracionBase,
-        estado,
-      });
-      mockQueryBuilder.getMany.mockResolvedValue([
-        crearHorario(
-          1,
-          EstadoHorario.CONFIRMADO,
-          "08:00",
-          "10:00",
-          10,
-          20,
-          TipoClase.TEORIA,
-        ),
-      ]);
-      mockDeclaracionRepo.save.mockResolvedValue({
-        ...mockDeclaracionBase,
-        estado: EstadoDeclaracionCarga.BORRADOR,
-        carga_no_lectiva: { generado: true },
-      });
+    it.each([EstadoDeclaracionCarga.BORRADOR])(
+      "permite regenerar cuando la declaración está en %s",
+      async (estado) => {
+        mockDeclaracionRepo.findOne.mockResolvedValue({
+          ...mockDeclaracionBase,
+          estado,
+        });
+        mockQueryBuilder.getMany.mockResolvedValue([
+          crearHorario(
+            1,
+            EstadoHorario.CONFIRMADO,
+            "08:00",
+            "10:00",
+            10,
+            20,
+            TipoClase.TEORIA,
+          ),
+        ]);
+        mockDeclaracionRepo.save.mockResolvedValue({
+          ...mockDeclaracionBase,
+          estado: EstadoDeclaracionCarga.BORRADOR,
+          carga_no_lectiva: { generado: true },
+        });
 
-      const result = await service.actualizarCargaLectivaDeclaracion(
-        44,
-        mockUsuario as any,
-      );
+        const result = await service.actualizarCargaLectivaDeclaracion(
+          44,
+          mockUsuario as any,
+        );
 
-      expect(result.declaracionId).toBe(44);
-      expect(mockDeclaracionRepo.save).toHaveBeenCalledTimes(1);
-      expect(result.cargaLectiva.resumen.totalHoras).toBe(2);
-    });
+        expect(result.declaracionId).toBe(44);
+        expect(mockDeclaracionRepo.save).toHaveBeenCalledTimes(1);
+        expect(result.cargaLectiva.resumen.totalHoras).toBe(2);
+      },
+    );
 
     it.each([
+      EstadoDeclaracionCarga.ENVIADO,
       EstadoDeclaracionCarga.VALIDADO_DPTO,
       EstadoDeclaracionCarga.APROBADO_FACULTAD,
       EstadoDeclaracionCarga.CERRADO,
-      EstadoDeclaracionCarga.ANULADO,
     ])("rechaza regenerar cuando la declaración está en %s", async (estado) => {
       mockDeclaracionRepo.findOne.mockResolvedValue({
         ...mockDeclaracionBase,
@@ -216,22 +214,15 @@ describe("DeclaracionCargaHorariaService", () => {
 
   describe("máquina de estados", () => {
     it.each([
-      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.PENDIENTE_ENVIO],
-      [
-        EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-      ],
-      [
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.VALIDADO_DPTO,
-      ],
-      [
-        EstadoDeclaracionCarga.ENVIADO_DOCENTE,
-        EstadoDeclaracionCarga.OBSERVADO_DPTO,
-      ],
+      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.ENVIADO],
+      [EstadoDeclaracionCarga.ENVIADO, EstadoDeclaracionCarga.VALIDADO_DPTO],
       [
         EstadoDeclaracionCarga.VALIDADO_DPTO,
         EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      ],
+      [
+        EstadoDeclaracionCarga.APROBADO_FACULTAD,
+        EstadoDeclaracionCarga.CERRADO,
       ],
     ])("permite la transición %s -> %s", (actual, siguiente) => {
       expect(() =>
@@ -243,16 +234,10 @@ describe("DeclaracionCargaHorariaService", () => {
     });
 
     it.each([
-      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.VALIDADO_DPTO],
-      [
-        EstadoDeclaracionCarga.PENDIENTE_ENVIO,
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
-      ],
-      [
-        EstadoDeclaracionCarga.APROBADO_FACULTAD,
-        EstadoDeclaracionCarga.BORRADOR,
-      ],
+      [EstadoDeclaracionCarga.BORRADOR, EstadoDeclaracionCarga.CERRADO],
+      [EstadoDeclaracionCarga.ENVIADO, EstadoDeclaracionCarga.BORRADOR],
       [EstadoDeclaracionCarga.CERRADO, EstadoDeclaracionCarga.BORRADOR],
+      [EstadoDeclaracionCarga.CERRADO, EstadoDeclaracionCarga.ENVIADO],
     ])("rechaza la transición ilegal %s -> %s", (actual, siguiente) => {
       expect(() =>
         service.validarTransicionEstado(

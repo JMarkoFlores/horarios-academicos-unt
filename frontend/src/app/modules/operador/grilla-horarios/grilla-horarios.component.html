@@ -10,6 +10,26 @@
     <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
   </div>
 
+  <!-- ── Chip Draggable del Curso ──────────────────────────────────── -->
+  <div class="drag-hint-banner" *ngIf="cursoId && tipoClase">
+    <div
+      class="drag-chip"
+      [class.dragging]="isDragging"
+      [ngClass]="'chip-' + tipoClase.toLowerCase()"
+      draggable="true"
+      (dragstart)="onDragStart($event)"
+      (dragend)="onDragEnd()"
+    >
+      <mat-icon class="drag-icon">drag_indicator</mat-icon>
+      <span class="drag-label">
+        {{ tipoClase === 'TEORIA' ? 'Teoría' : tipoClase === 'PRACTICA' ? 'Práctica' : 'Laboratorio' }}
+      </span>
+      <mat-icon class="drag-arrow">east</mat-icon>
+      <span class="drag-instruction">Arrastra a una celda libre</span>
+    </div>
+    <span class="drag-or">o haz clic directo en la grilla</span>
+  </div>
+
   <!-- Leyenda Visual Premium -->
   <div class="leyenda-container">
     <div class="leyenda-seccion">
@@ -69,15 +89,26 @@
           <td
             *ngFor="let d of dias"
             class="grilla-celda"
-            [ngClass]="[getClaseCelda(getCelda(d.valor, hora)), getClaseCeldaEdicion(d.valor, hora)]"
+            [ngClass]="[getClaseCelda(getCelda(d.valor, hora)), getClaseCeldaEdicion(d.valor, hora), getClaseDrop(d.valor, hora)]"
             [matTooltip]="getTooltipCelda(getCelda(d.valor, hora))"
             [matTooltipDisabled]="!getCelda(d.valor, hora)"
             matTooltipPosition="above"
             (click)="onCeldaClick(d.valor, hora)"
             (contextmenu)="onCeldaRightClick(d.valor, hora, $event)"
             (dblclick)="onCeldaDoubleClick(d.valor, hora)"
+            (dragover)="onCeldaDragOver($event, d.valor, hora)"
+            (dragleave)="onCeldaDragLeave(d.valor, hora)"
+            (drop)="onCeldaDrop($event, d.valor, hora)"
           >
             <ng-container *ngIf="getCelda(d.valor, hora) as celda">
+              <!-- Ícono de drop target cuando está en modo drag -->
+              <div *ngIf="isDragging && getClaseDrop(d.valor, hora) === 'celda-droppable'" class="drop-target-indicator">
+                <mat-icon>add_circle_outline</mat-icon>
+              </div>
+              <div *ngIf="isDragging && getClaseDrop(d.valor, hora) === 'celda-drag-over'" class="drop-target-active">
+                <mat-icon>add_circle</mat-icon>
+              </div>
+
               <!-- Bloques individuales para celdas con selecciones temporales -->
               <div *ngIf="celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE'" class="bloques-container">
                 <div *ngFor="let ocupacion of getOcupacionesArray(celda); let i = index"
@@ -93,9 +124,9 @@
                   <span class="bloque-indicador">{{ ocupacion.tipoClase ? ocupacion.tipoClase[0] : 'T' }}</span>
                 </div>
               </div>
-              
-              <!-- Bloques individuales para ocupaciones confirmadas (simples y múltiples) -->
-              <div *ngIf="celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' || 
+
+              <!-- Bloques individuales para ocupaciones confirmadas -->
+              <div *ngIf="celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' ||
                        celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE'" class="bloques-container">
                 <div *ngFor="let ocupacion of getOcupacionesArray(celda); let i = index"
                      class="bloque-item"
@@ -121,8 +152,8 @@
   <!-- Panel de interacción -->
   <div class="grilla-footer">
     <div class="footer-tip">
-      <mat-icon>mouse</mat-icon>
-      <span><strong>Clic Izquierdo</strong> = Programar bloque &nbsp;·&nbsp; <strong>Clic Derecho</strong> = Eliminar bloque propio / Ver detalles &nbsp;·&nbsp; <strong>Doble Clic</strong> = Info Completa</span>
+      <mat-icon>drag_indicator</mat-icon>
+      <span><strong>Arrastra</strong> el chip del curso a una celda libre &nbsp;·&nbsp; <strong>Clic</strong> = Programar bloque &nbsp;·&nbsp; <strong>Clic Derecho</strong> = Eliminar / Ver detalles &nbsp;·&nbsp; <strong>Doble Clic</strong> = Info Completa</span>
     </div>
   </div>
 </div>

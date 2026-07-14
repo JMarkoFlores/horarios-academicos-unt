@@ -2,6 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException } from "@nestjs/common";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import { ConfigService } from "@nestjs/config";
+import { ContextoAcademicoService } from "../common/services/contexto-academico.service";
 import { DocentesService } from "./docentes.service";
 import { Docente } from "../entities/docente.entity";
 import { DocenteCurso } from "../entities/docente-curso.entity";
@@ -9,6 +11,12 @@ import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { Departamento } from "../entities/departamento.entity";
+import { Facultad } from "../entities/facultad.entity";
+import { Usuario } from "../entities/usuario.entity";
+import { Grupo } from "../entities/grupo.entity";
+import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoDocente } from "../common/enums/tipo-docente.enum";
@@ -49,6 +57,7 @@ const baseDto: CreateDocenteDto = {
   nombres: "Ana",
   apellidos: "Torres",
   email: "ana.torres@unitru.edu.pe",
+  dni: "12345678",
   ibm: 4247,
   tipo_docente: TipoDocente.ORDINARIO,
   categoria: CategoriaDocente.PRINCIPAL,
@@ -96,6 +105,82 @@ describe("DocentesService — validación de carga horaria por modalidad", () =>
     del: jest.fn(),
   };
 
+  const mockConfigService = {
+    get: jest.fn(),
+  };
+
+  const mockDepartamentoRepo = {
+    createQueryBuilder: jest.fn(() => mockDocenteQb),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockFacultadRepo = {
+    createQueryBuilder: jest.fn(() => mockDocenteQb),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockUsuarioRepo = {
+    createQueryBuilder: jest.fn(() => mockDocenteQb),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockGrupoRepo = {
+    createQueryBuilder: jest.fn(() => mockDocenteQb),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockAsignacionLectivaRepo = {
+    createQueryBuilder: jest.fn(() => mockDocenteQb),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+
+  const mockAmbienteRepo = {
+    createQueryBuilder: jest.fn(() => mockDocenteQb),
+    findOne: jest.fn(),
+    find: jest.fn(),
+  };
+
+  const mockCursoRepo = {
+    findOne: jest.fn(),
+  };
+
+  const mockPeriodoRepo = {
+    findOne: jest.fn(),
+  };
+
+  const mockHorarioRepo = {
+    find: jest.fn(),
+  };
+
+  const mockDocenteCursoRepo = {
+    createQueryBuilder: jest.fn(() => mockDocenteQb),
+    findOne: jest.fn(),
+    find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    remove: jest.fn(),
+  };
+
+  const mockContextoAcademicoService = {
+    aplicarFiltroDocente: jest.fn(),
+    assertAccesoDocente: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -103,31 +188,54 @@ describe("DocentesService — validación de carga horaria por modalidad", () =>
         { provide: getRepositoryToken(Docente), useValue: mockDocenteRepo },
         {
           provide: getRepositoryToken(DocenteCurso),
-          useValue: {
-            createQueryBuilder: jest.fn(),
-            findOne: jest.fn(),
-            create: jest.fn(),
-            save: jest.fn(),
-            remove: jest.fn(),
-          },
+          useValue: mockDocenteCursoRepo,
         },
         {
           provide: getRepositoryToken(Curso),
-          useValue: { findOne: jest.fn() },
+          useValue: mockCursoRepo,
         },
         {
           provide: getRepositoryToken(Ambiente),
-          useValue: { createQueryBuilder: jest.fn(() => mockDocenteQb) },
+          useValue: mockAmbienteRepo,
+        },
+        {
+          provide: getRepositoryToken(HorarioAsignado),
+          useValue: mockHorarioRepo,
         },
         {
           provide: getRepositoryToken(PeriodoAcademico),
-          useValue: { findOne: jest.fn() },
+          useValue: mockPeriodoRepo,
         },
         {
           provide: getRepositoryToken(ParametrosCarga),
           useValue: mockParametrosCargaRepo,
         },
+        {
+          provide: getRepositoryToken(Departamento),
+          useValue: mockDepartamentoRepo,
+        },
+        {
+          provide: getRepositoryToken(Facultad),
+          useValue: mockFacultadRepo,
+        },
+        {
+          provide: getRepositoryToken(Usuario),
+          useValue: mockUsuarioRepo,
+        },
+        {
+          provide: getRepositoryToken(Grupo),
+          useValue: mockGrupoRepo,
+        },
+        {
+          provide: getRepositoryToken(AsignacionLectiva),
+          useValue: mockAsignacionLectivaRepo,
+        },
+        { provide: ConfigService, useValue: mockConfigService },
         { provide: CACHE_MANAGER, useValue: mockCacheManager },
+        {
+          provide: ContextoAcademicoService,
+          useValue: mockContextoAcademicoService,
+        },
       ],
     }).compile();
 

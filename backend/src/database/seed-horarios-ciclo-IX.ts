@@ -1,24 +1,69 @@
-import { DataSource } from "typeorm";
+import "reflect-metadata";
+import { DataSource, EntityManager } from "typeorm";
+import { config } from "dotenv";
+import { join } from "path";
 
+config({ path: join(__dirname, "..", "..", ".env") });
+
+import { Usuario } from "../entities/usuario.entity";
 import { Docente } from "../entities/docente.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { Grupo } from "../entities/grupo.entity";
+import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
+import { ConflictoAsignacion } from "../entities/conflicto-asignacion.entity";
+import { VentanaAtencion } from "../entities/ventana-atencion.entity";
+import { CampañaVentanas } from "../entities/campaña-ventanas.entity";
+import { ColaDocentes } from "../entities/cola-docentes.entity";
+import { NotificacionDocente } from "../entities/notificacion-docente.entity";
+import { PreferenciasNotificacion } from "../entities/preferencias-notificacion.entity";
+import { Preasignacion } from "../entities/preasignacion.entity";
+import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
+import { DiaNoLaborable } from "../entities/dia-no-laborable.entity";
+import { TurnoHorario } from "../entities/turno-horario.entity";
+import { DocenteCurso } from "../entities/docente-curso.entity";
+import { ParametrosCarga } from "../entities/parametros-carga.entity";
+import { Facultad } from "../entities/facultad.entity";
+import { Escuela } from "../entities/escuela.entity";
+import { Departamento } from "../entities/departamento.entity";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../common/enums/estado-horario.enum";
 import { OrigenHorario } from "../common/enums/origen-horario.enum";
 
-export async function seedHorariosCicloIX(dataSource: DataSource) {
+const AppDataSource = new DataSource({
+  type: "postgres",
+  host: process.env.DATABASE_HOST ?? "localhost",
+  port: parseInt(process.env.DATABASE_PORT ?? "5432", 10),
+  database: process.env.DATABASE_NAME ?? "horarios_unt",
+  username: process.env.DATABASE_USER ?? "unt_user",
+  password: process.env.DATABASE_PASSWORD ?? "unt_pass123",
+  entities: [join(__dirname, "../entities/**/*.entity{.ts,.js}")],
+  synchronize: false,
+  logging: false,
+});
+
+export async function seedHorariosCicloIX(manager?: EntityManager) {
   console.log("🌱 Iniciando seed de HORARIOS DEL CICLO IX...");
 
-  const docenteRepo = dataSource.getRepository(Docente);
-  const cursoRepo = dataSource.getRepository(Curso);
-  const ambienteRepo = dataSource.getRepository(Ambiente);
-  const grupoRepo = dataSource.getRepository(Grupo);
-  const horarioRepo = dataSource.getRepository(HorarioAsignado);
-  const periodoRepo = dataSource.getRepository(PeriodoAcademico);
+  if (!manager) {
+    await AppDataSource.initialize();
+    console.log("✅ Conexión a la base de datos establecida");
+  }
+
+  const docenteRepo = (manager ?? AppDataSource.manager).getRepository(Docente);
+  const cursoRepo = (manager ?? AppDataSource.manager).getRepository(Curso);
+  const ambienteRepo = (manager ?? AppDataSource.manager).getRepository(
+    Ambiente,
+  );
+  const grupoRepo = (manager ?? AppDataSource.manager).getRepository(Grupo);
+  const horarioRepo = (manager ?? AppDataSource.manager).getRepository(
+    HorarioAsignado,
+  );
+  const periodoRepo = (manager ?? AppDataSource.manager).getRepository(
+    PeriodoAcademico,
+  );
 
   // ── 1. OBTENER DATOS EXISTENTES ───────────────────────────────────────────
   console.log("📋 Obteniendo datos existentes de la base de datos...");
@@ -207,7 +252,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     // 3. Ricardo Mendoza Rivera - Analítica de Negocios (T:1, P:2, L:2, G:1)
     {
       docente: "Ricardo Mendoza Rivera",
-      curso: "Analítica de Negocios",
+      curso: "ANALÍTICA DE NEGOCIOS",
       dia: "Viernes",
       horas: "10:00-11:00",
       tipo: "Teoría",
@@ -216,7 +261,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Ricardo Mendoza Rivera",
-      curso: "Analítica de Negocios",
+      curso: "ANALÍTICA DE NEGOCIOS",
       dia: "Viernes",
       horas: "11:00-13:00",
       tipo: "Práctica",
@@ -225,7 +270,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Ricardo Mendoza Rivera",
-      curso: "Analítica de Negocios",
+      curso: "ANALÍTICA DE NEGOCIOS",
       dia: "Viernes",
       horas: "14:00-16:00",
       tipo: "Laboratorio",
@@ -236,7 +281,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     // 4. Alberto Mendoza de los Santos - Auditoría Informática (T:1, P:2, L:2, G:2)
     {
       docente: "Alberto Mendoza de los Santos",
-      curso: "Auditoría Informática",
+      curso: "AUDITORÍA INFORMÁTICA",
       dia: "Lunes",
       horas: "10:00-11:00",
       tipo: "Teoría",
@@ -245,7 +290,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Alberto Mendoza de los Santos",
-      curso: "Auditoría Informática",
+      curso: "AUDITORÍA INFORMÁTICA",
       dia: "Lunes",
       horas: "11:00-13:00",
       tipo: "Práctica",
@@ -254,7 +299,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Alberto Mendoza de los Santos",
-      curso: "Auditoría Informática",
+      curso: "AUDITORÍA INFORMÁTICA",
       dia: "Martes",
       horas: "10:00-12:00",
       tipo: "Laboratorio",
@@ -263,7 +308,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Alberto Mendoza de los Santos",
-      curso: "Auditoría Informática",
+      curso: "AUDITORÍA INFORMÁTICA",
       dia: "Martes",
       horas: "12:00-14:00",
       tipo: "Laboratorio",
@@ -274,7 +319,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     // 5. José Gómez Ávila - Gestión de Proyectos de TI (T:1, P:2, L:2, G:3)
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Lunes",
       horas: "14:00-15:00",
       tipo: "Teoría",
@@ -283,7 +328,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Lunes",
       horas: "15:00-17:00",
       tipo: "Práctica",
@@ -292,7 +337,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Martes",
       horas: "10:00-12:00",
       tipo: "Laboratorio",
@@ -301,7 +346,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Martes",
       horas: "13:00-15:00",
       tipo: "Laboratorio",
@@ -310,7 +355,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Gestión de Proyectos de TI",
+      curso: "GESTIÓN DE PROYECTOS DE TI",
       dia: "Martes",
       horas: "19:00-21:00",
       tipo: "Laboratorio",
@@ -321,7 +366,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     // 6. Oscar Romel Alcántara Moreno - Emprendimiento Tecnológico (T:2, P:0, L:2, G:2)
     {
       docente: "Oscar Romel Alcántara Moreno",
-      curso: "Emprendimiento Tecnológico",
+      curso: "EMPRENDEDURISMO TECNOLÓGICO",
       dia: "Viernes",
       horas: "14:00-16:00",
       tipo: "Laboratorio",
@@ -330,7 +375,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Oscar Romel Alcántara Moreno",
-      curso: "Emprendimiento Tecnológico",
+      curso: "EMPRENDEDURISMO TECNOLÓGICO",
       dia: "Viernes",
       horas: "16:00-18:00",
       tipo: "Laboratorio",
@@ -339,7 +384,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Oscar Romel Alcántara Moreno",
-      curso: "Emprendimiento Tecnológico",
+      curso: "EMPRENDEDURISMO TECNOLÓGICO",
       dia: "Viernes",
       horas: "18:00-20:00",
       tipo: "Teoría",
@@ -350,7 +395,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     // 7. Marcelino Torres Villanueva - Ingeniería Web (T:1, P:1, L:3, G:3)
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Lunes",
       horas: "18:00-19:00",
       tipo: "Teoría",
@@ -359,7 +404,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Lunes",
       horas: "19:00-20:00",
       tipo: "Práctica",
@@ -368,7 +413,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Martes",
       horas: "14:00-17:00",
       tipo: "Laboratorio",
@@ -377,7 +422,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Martes",
       horas: "17:00-20:00",
       tipo: "Laboratorio",
@@ -386,7 +431,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Marcelino Torres Villanueva",
-      curso: "Ingeniería Web",
+      curso: "INGENIERÍA WEB",
       dia: "Miércoles",
       horas: "10:00-13:00",
       tipo: "Laboratorio",
@@ -397,34 +442,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     // 8. José Gómez Ávila - Computación en la Nube (T:1, P:1, L:3, G:3)
     {
       docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
-      dia: "Lunes",
-      horas: "07:00-10:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab 3",
-      grupo: 1,
-    },
-    {
-      docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
-      dia: "Miércoles",
-      horas: "07:00-10:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab 3",
-      grupo: 2,
-    },
-    {
-      docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
-      dia: "Miércoles",
-      horas: "17:00-20:00",
-      tipo: "Laboratorio",
-      ambiente: "Lab 4",
-      grupo: 3,
-    },
-    {
-      docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
+      curso: "COMPUTACIÓN EN LA NUBE",
       dia: "Jueves",
       horas: "18:00-19:00",
       tipo: "Teoría",
@@ -433,18 +451,45 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "José Gómez Ávila",
-      curso: "Computación en la Nube",
+      curso: "COMPUTACIÓN EN LA NUBE",
       dia: "Jueves",
       horas: "19:00-20:00",
       tipo: "Práctica",
       ambiente: "posgrado A-303",
       grupo: 1,
     },
+    {
+      docente: "José Gómez Ávila",
+      curso: "COMPUTACIÓN EN LA NUBE",
+      dia: "Lunes",
+      horas: "07:00-10:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab 3",
+      grupo: 1,
+    },
+    {
+      docente: "José Gómez Ávila",
+      curso: "COMPUTACIÓN EN LA NUBE",
+      dia: "Miércoles",
+      horas: "07:00-10:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab 3",
+      grupo: 2,
+    },
+    {
+      docente: "José Gómez Ávila",
+      curso: "COMPUTACIÓN EN LA NUBE",
+      dia: "Miércoles",
+      horas: "17:00-20:00",
+      tipo: "Laboratorio",
+      ambiente: "Lab 4",
+      grupo: 3,
+    },
 
     // 9. Camilo Suarez Rebaza - Hackeo Ético (e) (T:2, P:0, L:2, G:2)
     {
       docente: "Camilo Suarez Rebaza",
-      curso: "Hackeo Ético (e)",
+      curso: "HACKEO ÉTICO",
       dia: "Martes",
       horas: "08:00-10:00",
       tipo: "Teoría",
@@ -453,7 +498,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Camilo Suarez Rebaza",
-      curso: "Hackeo Ético (e)",
+      curso: "HACKEO ÉTICO",
       dia: "Martes",
       horas: "15:00-17:00",
       tipo: "Laboratorio",
@@ -462,7 +507,7 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
     },
     {
       docente: "Camilo Suarez Rebaza",
-      curso: "Hackeo Ético (e)",
+      curso: "HACKEO ÉTICO",
       dia: "Martes",
       horas: "17:00-19:00",
       tipo: "Laboratorio",
@@ -532,4 +577,15 @@ export async function seedHorariosCicloIX(dataSource: DataSource) {
   console.log(`\n✅ Proceso terminado:`);
   console.log(`- Horarios creados: ${creados}`);
   console.log(`- Horarios saltados: ${saltados}`);
+
+  if (!manager) {
+    await AppDataSource.destroy();
+  }
+}
+
+if (require.main === module) {
+  seedHorariosCicloIX().catch((error) => {
+    console.error("❌ Error durante el seed de horarios Ciclo IX:", error);
+    process.exit(1);
+  });
 }

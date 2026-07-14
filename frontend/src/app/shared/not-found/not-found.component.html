@@ -1,16 +1,43 @@
-<div class="not-found-container">
-  <h1 class="error-code">404</h1>
-  <h2 class="error-title">Página no encontrada</h2>
-  <p class="error-msg">La ruta que buscas no existe o no tienes permisos para acceder.</p>
-  
-  <div class="actions">
-    <button mat-flat-button color="primary" (click)="goHome()">
-      <mat-icon>home</mat-icon>
-      Ir al Inicio (Landing)
-    </button>
-    <button mat-stroked-button color="accent" (click)="goLogin()" style="margin-left: 12px;">
-      <mat-icon>login</mat-icon>
-      Ir al Login
-    </button>
+<div class="error-page" [attr.data-error-code]="errorCode">
+  <div class="error-bg">
+    <div class="floating-shapes">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+    </div>
+  </div>
+
+  <div class="error-card glass-card">
+    <div class="error-icon-wrapper">
+      <div class="error-icon">
+        <ng-container [ngSwitch]="errorCode">
+          <mat-icon *ngSwitchCase="'404'">search_off</mat-icon>
+          <mat-icon *ngSwitchCase="'403'">lock_outline</mat-icon>
+          <mat-icon *ngSwitchCase="'500'">dns</mat-icon>
+          <mat-icon *ngSwitchCase="'401'">how_to_reg</mat-icon>
+          <mat-icon *ngSwitchDefault>error_outline</mat-icon>
+        </ng-container>
+      </div>
+      <div class="error-code-badge">{{ errorCode }}</div>
+    </div>
+
+    <h1 class="error-title">{{ errorTitle }}</h1>
+    <p class="error-message">{{ errorMessage }}</p>
+
+    <div class="error-actions">
+      <button mat-flat-button color="primary" (click)="goHome()" class="btn-primary">
+        <mat-icon>home</mat-icon>
+        <span>{{ 'error.goHome' | translate }}</span>
+      </button>
+      <button mat-stroked-button color="primary" (click)="goLogin()" class="btn-secondary">
+        <mat-icon>login</mat-icon>
+        <span>{{ 'error.goLogin' | translate }}</span>
+      </button>
+    </div>
+
+    <div class="error-help" *ngIf="showHelp">
+      <mat-icon>info_outline</mat-icon>
+      <span>{{ 'error.helpText' | translate }}</span>
+    </div>
   </div>
 </div>

@@ -4,6 +4,7 @@ import { takeUntil } from 'rxjs/operators';
 import { ApiService } from '../../../../core/services/api.service';
 import { SocketService } from '../../../../core/services/socket.service';
 import { NotifToastService } from '../../../../core/services/notif-toast.service';
+import { DiasActivosService } from '../../../../core/services/dias-activos.service';
 import { HorarioAsignado } from '../../../../core/interfaces/entities';
 
 export interface CeldaSeleccionada {
@@ -53,14 +54,7 @@ export class MatrizHorariosComponent implements OnInit, OnDestroy {
   @Output() asignacionClicked = new EventEmitter<HorarioAsignado>();
 
   horas: string[] = [];
-  diasSemana = [
-    { valor: 1, label: 'Lun' },
-    { valor: 2, label: 'Mar' },
-    { valor: 3, label: 'Mié' },
-    { valor: 4, label: 'Jue' },
-    { valor: 5, label: 'Vie' },
-    { valor: 6, label: 'Sáb' },
-  ];
+  diasSemana: { valor: number; label: string }[] = [];
 
   matriz: Map<string, CeldaMatriz> = new Map();
   lastValidation: ValidationFeedback | null = null;
@@ -72,12 +66,28 @@ export class MatrizHorariosComponent implements OnInit, OnDestroy {
     private api: ApiService,
     private socketService: SocketService,
     private notif: NotifToastService,
+    private diasActivos: DiasActivosService,
     private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.generarHoras();
+    this.cargarDias();
     this.cargarMatriz();
+  }
+
+  private cargarDias(): void {
+    this.diasActivos.cargar().subscribe(() => {
+      const mapa: Record<number, string> = {
+        1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue',
+        5: 'Vie', 6: 'Sáb', 7: 'Dom',
+      };
+      this.diasSemana = this.diasActivos.dias.map(d => ({
+        valor: d.dia_semana,
+        label: mapa[d.dia_semana] || d.nombre.substring(0, 3),
+      }));
+      this.cdr.markForCheck();
+    });
   }
 
   private generarHoras(): void {

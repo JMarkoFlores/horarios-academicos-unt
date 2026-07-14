@@ -100,18 +100,30 @@ export class DocentesController {
   @ApiOperation({ summary: "Exportar todos los docentes sin paginación" })
   @ApiQuery({ name: "categoria", required: false })
   @ApiQuery({ name: "tipo_docente", required: false })
+  @ApiQuery({ name: "modalidad", required: false })
   @ApiQuery({ name: "busqueda", required: false })
+  @ApiQuery({ name: "activo", required: false })
+  @ApiQuery({ name: "departamento_id", required: false, type: Number })
+  @ApiQuery({ name: "escuela_id", required: false, type: Number })
   async exportar(
     @Query("categoria") categoria?: string,
     @Query("tipo_docente") tipo_docente?: string,
+    @Query("modalidad") modalidad?: string,
     @Query("busqueda") busqueda?: string,
+    @Query("activo") activo?: string,
+    @Query("departamento_id") departamentoId?: string,
+    @Query("escuela_id") escuelaId?: string,
     @CurrentUser() usuario?: UsuarioAutenticado,
   ) {
     const result = await this.docentesService.findAllParaExportar(
       {
         categoria,
         tipo_docente,
+        modalidad,
         busqueda,
+        activo,
+        departamento_id: departamentoId,
+        escuela_id: escuelaId,
       },
       usuario?.contextoAcademico,
     );
@@ -224,8 +236,13 @@ export class DocentesController {
   async update(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateDocenteDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    const result = await this.docentesService.update(id, dto);
+    const result = await this.docentesService.update(
+      id,
+      dto,
+      usuario.contextoAcademico,
+    );
     return { data: result, message: "Docente actualizado correctamente" };
   }
 
@@ -235,8 +252,11 @@ export class DocentesController {
   @ApiOperation({ summary: "Desactivar un docente (soft delete)" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente desactivado" })
-  async remove(@Param("id", ParseIntPipe) id: number) {
-    await this.docentesService.remove(id);
+  async remove(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
+    await this.docentesService.remove(id, usuario.contextoAcademico);
     return { data: null, message: "Docente desactivado correctamente" };
   }
 
@@ -245,8 +265,14 @@ export class DocentesController {
   @ApiOperation({ summary: "Reactivar un docente previamente desactivado" })
   @ApiParam({ name: "id", type: Number })
   @ApiResponse({ status: 200, description: "Docente reactivado" })
-  async reactivar(@Param("id", ParseIntPipe) id: number) {
-    const result = await this.docentesService.reactivar(id);
+  async reactivar(
+    @Param("id", ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ) {
+    const result = await this.docentesService.reactivar(
+      id,
+      usuario.contextoAcademico,
+    );
     return { data: result, message: "Docente reactivado correctamente" };
   }
 
@@ -397,6 +423,89 @@ export class DocentesController {
     return {
       data: result,
       message: "Ambientes compatibles obtenidos correctamente",
+    };
+  }
+
+  @Post(":id/foto")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: "Subir foto de perfil de docente (Cloudinary)" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiResponse({ status: 200, description: "Foto subida correctamente" })
+  async uploadFoto(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { foto_url: string },
+  ) {
+    const result = await this.docentesService.updateFoto(id, body.foto_url);
+    return { data: result, message: "Foto actualizada correctamente" };
+  }
+
+  @Post(":id/foto/upload")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DOCENTE,
+  )
+  @ApiOperation({ summary: "Subir archivo de foto de perfil a Cloudinary" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  @ApiResponse({ status: 200, description: "Foto subida correctamente" })
+  async uploadFotoFile(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() body: { buffer: string; mimetype: string; originalname: string },
+  ) {
+    const file = {
+      buffer: Buffer.from(body.buffer, "base64"),
+      mimetype: body.mimetype,
+      originalname: body.originalname,
+    };
+    const fotoUrl = await this.docentesService.uploadFotoToCloudinary(id, file);
+    const result = await this.docentesService.updateFoto(id, fotoUrl);
+    return { data: result, message: "Foto subida correctamente" };
+  }
+
+  @Get("departamento/:id/completo")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({
+    summary: "Obtener docentes de un departamento con carga completa",
+    description:
+      "Incluye horas lectivas actuales, horas no lectivas, suspensión vigente",
+  })
+  @ApiParam({ name: "id", type: Number, description: "ID del departamento" })
+  @ApiQuery({ name: "periodo_id", required: true, type: Number })
+  async getDocentesDepartamentoCompleto(
+    @Param("id", ParseIntPipe) departamentoId: number,
+    @Query("periodo_id", ParseIntPipe) periodoId: number,
+    @CurrentUser() usuario?: UsuarioAutenticado,
+  ) {
+    const result = await this.docentesService.getDocentesDepartamentoCompleto(
+      departamentoId,
+      periodoId,
+      usuario?.contextoAcademico,
+    );
+    return {
+      data: result,
+      message: "Docentes del departamento con carga completa obtenidos",
+    };
+  }
+
+  @Get(":id/suspension")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
+  @ApiOperation({ summary: "Verificar si un docente tiene suspensión vigente" })
+  @ApiParam({ name: "id", type: Number, description: "ID del docente" })
+  async getSuspension(@Param("id", ParseIntPipe) id: number) {
+    const result = await this.docentesService.getSuspensionVigente(id);
+    return {
+      data: result,
+      message: "Suspensión del docente verificada",
     };
   }
 }

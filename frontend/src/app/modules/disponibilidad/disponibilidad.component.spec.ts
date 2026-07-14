@@ -1,4 +1,4 @@
-import {
+﻿import {
   ComponentFixture,
   TestBed,
   fakeAsync,
@@ -138,23 +138,23 @@ describe("DisponibilidadComponent", () => {
     flush();
   }));
 
-  it("debe limpiar toda la selección al hacer click en Limpiar selección", fakeAsync(() => {
+  it("debe limpiar toda la selecciÃ³n al hacer click en Limpiar selecciÃ³n", fakeAsync(() => {
     fixture.detectChanges();
     tick();
     component.seleccionarDocente(docenteMock);
     tick();
     component.grilla.set([
-      [true, false],
-      [true, true],
-      [false, false],
-      [true, false],
-      [false, true],
+      [1, 0],
+      [1, 1],
+      [0, 0],
+      [1, 0],
+      [0, 1],
     ]);
     fixture.detectChanges();
 
     const buttons = fixture.debugElement.queryAll(By.css("button"));
     const clearBtn = buttons.find((btn) =>
-      btn.nativeElement.textContent.includes("Limpiar selección"),
+      btn.nativeElement.textContent.includes("Limpiar selecciÃ³n"),
     );
     expect(clearBtn).toBeTruthy();
     clearBtn?.triggerEventHandler("click", {});
@@ -172,11 +172,11 @@ describe("DisponibilidadComponent", () => {
     tick();
 
     const matrix = [
-      [true, false],
-      [false, true],
-      [false, false],
-      [true, true],
-      [false, false],
+      [1, 0],
+      [0, 1],
+      [0, 0],
+      [1, 1],
+      [0, 0],
     ];
     component.grilla.set(matrix);
     fixture.detectChanges();
@@ -194,7 +194,7 @@ describe("DisponibilidadComponent", () => {
         dia_semana: dia.dia_semana,
         hora_inicio: turno.hora_inicio,
         hora_fin: turno.hora_fin,
-        disponible: matrix[diaIndex][turnoIndex],
+        disponible: Boolean(matrix[diaIndex][turnoIndex]),
       })),
     );
 
@@ -208,3 +208,5 @@ describe("DisponibilidadComponent", () => {
     flush();
   }));
 });
+
+

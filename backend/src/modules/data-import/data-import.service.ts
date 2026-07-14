@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   InternalServerErrorException,
+  Logger,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, DataSource } from "typeorm";
@@ -49,6 +50,7 @@ export interface ImportSession {
   entityType: EntityType;
   uploadedAt: Date;
   preview?: ImportPreview;
+  validRows: any[];
   status: ImportSessionStatus;
   result?: any;
 }
@@ -56,6 +58,7 @@ export interface ImportSession {
 export interface ImportResult {
   success: number;
   failed: number;
+  skipped: number;
   errors: ImportError[];
   message: string;
 }
@@ -63,6 +66,7 @@ export interface ImportResult {
 @Injectable()
 export class DataImportService {
   private sessions = new Map<string, ImportSession>();
+  private readonly logger = new Logger(DataImportService.name);
 
   constructor(
     @InjectRepository(Curso) private cursoRepo: Repository<Curso>,
@@ -84,31 +88,48 @@ export class DataImportService {
     file: any,
     entityType: EntityType,
   ): Promise<{ sessionId: string; preview: ImportPreview }> {
+    this.logger.log(
+      `Upload and preview: entityType=${entityType}, file=${file?.originalname}, size=${file?.size}`,
+    );
+
     if (!file || file.size === 0) {
+      this.logger.warn("No file or empty file provided");
       throw new BadRequestException("No se proporcionó un archivo");
     }
 
     const sessionId = uuidv4();
+    this.logger.log(`Parsing CSV...`);
     const rows = await this.csvParserService.parseCSV(file.buffer);
+    this.logger.log(`Parsed ${rows.length} rows from CSV`);
 
     // Map rows
+    this.logger.log(`Mapping rows for entityType=${entityType}`);
     const mapped = this.mapRowsByType(rows, entityType);
     const mappedValid = mapped.valid;
     const mappedInvalid = mapped.invalid;
+    this.logger.log(
+      `Mapped: valid=${mappedValid.length}, invalid=${mappedInvalid.length}`,
+    );
 
     // Validate each row using DTOs
+    this.logger.log("Validating mapped rows...");
     const validationResult = await this.validateMappedRows(
       mappedValid,
       entityType,
     );
+    this.logger.log(
+      `Validation: valid=${validationResult.valid.length}, invalid=${validationResult.invalid.length}`,
+    );
 
     // Check for duplicates
+    this.logger.log("Checking duplicates...");
     const duplicates = this.detectDuplicates(
       validationResult.valid,
       entityType,
     );
 
     // Check referential integrity
+    this.logger.log("Checking referential integrity...");
     const refIntegrity = await this.validateReferentialIntegrity(
       validationResult.valid,
       entityType,
@@ -120,6 +141,7 @@ export class DataImportService {
       ...validationResult.invalid,
       ...refIntegrity.invalid,
     ];
+    this.logger.log(`Total invalid: ${allInvalid.length}`);
 
     const preview: ImportPreview = {
       valid: validationResult.valid.map((v) => v.data),
@@ -144,6 +166,7 @@ export class DataImportService {
       uploadedAt: new Date(),
       preview,
       status: "pending",
+      validRows: validationResult.valid, // Store full rows for import
     };
 
     this.sessions.set(sessionId, session);
@@ -161,15 +184,27 @@ export class DataImportService {
       throw new NotFoundException("Sesión de importación no encontrada");
     }
 
-    if (!session.preview || session.preview.valid.length === 0) {
+    if (!session.validRows || session.validRows.length === 0) {
       throw new BadRequestException("No hay datos válidos para importar");
+    }
+
+    this.logger.log(
+      `confirmImport: session.validRows has ${session.validRows.length} rows`,
+    );
+    if (session.validRows.length > 0) {
+      this.logger.log(
+        `First validRow keys: ${JSON.stringify(Object.keys(session.validRows[0]))}`,
+      );
+      this.logger.log(
+        `First validRow index: ${session.validRows[0].index}, has data: ${!!session.validRows[0].data}`,
+      );
     }
 
     session.status = "loading";
 
     try {
       const result = await this.loadToDatabase(
-        session.preview.valid,
+        session.validRows,
         session.entityType,
         periodoId || null,
       );
@@ -381,52 +416,241 @@ export class DataImportService {
   ): Promise<ImportResult> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
-    await queryRunner.startTransaction();
+    let transactionStarted = false;
+
+    this.logger.log(
+      `loadToDatabase called with ${rows.length} rows for ${entityType}`,
+    );
+    if (rows.length > 0) {
+      this.logger.log(
+        `First row structure: ${JSON.stringify(Object.keys(rows[0]))}`,
+      );
+      this.logger.log(
+        `First row index: ${rows[0].index}, has data: ${!!rows[0].data}`,
+      );
+      if (rows[0].data) {
+        this.logger.log(
+          `First row data keys: ${JSON.stringify(Object.keys(rows[0].data))}`,
+        );
+      }
+    }
 
     try {
+      try {
+        await queryRunner.startTransaction();
+        transactionStarted = true;
+        this.logger.log(`Transaction started for ${entityType} import`);
+      } catch (txError) {
+        this.logger.error(
+          `Failed to start transaction: ${(txError as any).message}`,
+        );
+        throw new InternalServerErrorException(
+          "No se pudo iniciar la transacción de base de datos",
+        );
+      }
+
       let successCount = 0;
       let failureCount = 0;
+      let skippedCount = 0;
       const errors: ImportError[] = [];
 
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         try {
           switch (entityType) {
-            case "cursos":
-              await queryRunner.manager.save(Curso, row.data);
-              successCount++;
+            case "cursos": {
+              const result = await queryRunner.manager.query(
+                `INSERT INTO curso (codigo, nombre, creditos, horas_teoria, horas_practica, horas_laboratorio, ciclo, tiene_laboratorio, prerequisitos, activo, departamento_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                 ON CONFLICT (codigo) DO NOTHING
+                 RETURNING codigo`,
+                [
+                  row.data.codigo,
+                  row.data.nombre,
+                  row.data.creditos,
+                  row.data.horas_teoria,
+                  row.data.horas_practica,
+                  row.data.horas_laboratorio,
+                  row.data.ciclo,
+                  row.data.tiene_laboratorio,
+                  row.data.prerequisitos,
+                  row.data.activo,
+                  row.data.departamento_id,
+                ],
+              );
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "codigo",
+                  error: `Curso con código ${row.data.codigo} ya existe`,
+                });
+              }
               break;
+            }
 
-            case "ambientes":
-              await queryRunner.manager.save(Ambiente, row.data);
-              successCount++;
+            case "ambientes": {
+              const result = await queryRunner.manager.query(
+                `INSERT INTO ambiente (codigo, nombre, tipo, capacidad, estado, activo, piso, pabellon, sede, equipamiento, edificio, coord_x, coord_y)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                 ON CONFLICT (codigo) DO NOTHING
+                 RETURNING codigo`,
+                [
+                  row.data.codigo,
+                  row.data.nombre,
+                  row.data.tipo,
+                  row.data.capacidad,
+                  row.data.estado,
+                  row.data.activo,
+                  row.data.piso,
+                  row.data.pabellon,
+                  row.data.sede,
+                  row.data.equipamiento,
+                  row.data.edificio,
+                  row.data.coordX,
+                  row.data.coordY,
+                ],
+              );
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "codigo",
+                  error: `Ambiente con código ${row.data.codigo} ya existe`,
+                });
+              }
               break;
+            }
 
-            case "docentes":
-              await queryRunner.manager.save(Docente, row.data);
-              successCount++;
+            case "docentes": {
+              const result = await queryRunner.manager.query(
+                `INSERT INTO docente (codigo, nombres, apellidos, email, telefono, tipo_docente, categoria, tipo_contrato, modalidad, fecha_ingreso, activo, horas_asignadas, dni, ibm, facultad_id, departamento_id, usuario_id, foto_url, firma_url, firebase_token)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                 ON CONFLICT (email) DO NOTHING
+                 RETURNING email`,
+                [
+                  row.data.codigo,
+                  row.data.nombres,
+                  row.data.apellidos,
+                  row.data.email,
+                  row.data.telefono,
+                  row.data.tipo_docente,
+                  row.data.categoria,
+                  row.data.tipo_contrato,
+                  row.data.modalidad,
+                  row.data.fecha_ingreso,
+                  row.data.activo,
+                  row.data.horas_asignadas,
+                  row.data.dni,
+                  row.data.ibm,
+                  row.data.facultad_id,
+                  row.data.departamento_id,
+                  row.data.usuario_id,
+                  row.data.foto_url,
+                  row.data.firma_url,
+                  row.data.firebase_token,
+                ],
+              );
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "email",
+                  error: `Docente con email ${row.data.email} ya existe`,
+                });
+              }
               break;
+            }
 
-            case "grupos":
-              await queryRunner.manager.save(Grupo, row.data);
-              successCount++;
+            case "grupos": {
+              const result = await queryRunner.manager.query(
+                `INSERT INTO grupo (codigo, nombre, tipo, ciclo, cupo_maximo, periodo_id, curso_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (codigo) DO NOTHING
+                 RETURNING codigo`,
+                [
+                  row.data.codigo,
+                  row.data.nombre,
+                  row.data.tipo,
+                  row.data.ciclo,
+                  row.data.cupo_maximo,
+                  row.data.periodo_id,
+                  row.data.curso_id,
+                ],
+              );
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "codigo",
+                  error: `Grupo con código ${row.data.codigo} ya existe`,
+                });
+              }
               break;
+            }
 
-            case "docente_curso":
-              await queryRunner.manager.save(DocenteCurso, row.data);
-              successCount++;
+            case "docente_curso": {
+              const result = await queryRunner.manager.query(
+                `INSERT INTO docente_curso (docente_id, curso_id, tipo_clase, periodo_id, grupos)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (docente_id, curso_id, tipo_clase, periodo_id) DO NOTHING
+                 RETURNING docente_id`,
+                [
+                  row.data.docente_id,
+                  row.data.curso_id,
+                  row.data.tipo_clase,
+                  row.data.periodo_id,
+                  row.data.grupos || 1,
+                ],
+              );
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "docente_id,curso_id,tipo_clase,periodo_id",
+                  error: `Asignación docente-curso ya existe`,
+                });
+              }
               break;
+            }
 
-            case "curso_ambiente":
-              await queryRunner.manager.query(
-                "INSERT INTO curso_ambiente (curso_id, ambiente_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            case "curso_ambiente": {
+              const result = await queryRunner.manager.query(
+                `INSERT INTO curso_ambiente (curso_id, ambiente_id)
+                 VALUES ($1, $2)
+                 ON CONFLICT (curso_id, ambiente_id) DO NOTHING
+                 RETURNING curso_id`,
                 [row.data.curso_id, row.data.ambiente_id],
               );
-              successCount++;
+              if (result.length > 0) {
+                successCount++;
+              } else {
+                skippedCount++;
+                errors.push({
+                  row: row.index + 2,
+                  field: "curso_id,ambiente_id",
+                  error: `Relación curso-ambiente ya existe`,
+                });
+              }
               break;
+            }
           }
         } catch (error) {
           failureCount++;
+          this.logger.error(
+            `DB error row ${row.index + 2}: ${(error as any).message}`,
+            (error as any).stack,
+          );
           errors.push({
             row: row.index + 2,
             field: "database",
@@ -436,23 +660,53 @@ export class DataImportService {
       }
 
       if (failureCount > 0 && failureCount === rows.length) {
-        await queryRunner.rollbackTransaction();
+        if (transactionStarted) {
+          try {
+            await queryRunner.rollbackTransaction();
+            transactionStarted = false;
+            this.logger.log(`Transaction rolled back for ${entityType} import`);
+          } catch (rbError) {
+            this.logger.warn(`Rollback failed: ${(rbError as any).message}`);
+          }
+        }
         throw new Error("Todos los registros fallaron");
       }
 
-      await queryRunner.commitTransaction();
+      if (transactionStarted) {
+        try {
+          await queryRunner.commitTransaction();
+          this.logger.log(`Transaction committed for ${entityType} import`);
+        } catch (commitError) {
+          this.logger.error(`Commit failed: ${(commitError as any).message}`);
+          throw new InternalServerErrorException(
+            "Error al confirmar la transacción",
+          );
+        }
+      }
 
       return {
         success: successCount,
-        failed: failureCount,
+        failed: failureCount + skippedCount,
+        skipped: skippedCount,
         errors,
-        message: `${successCount} registros importados exitosamente${failureCount > 0 ? `, ${failureCount} fallaron` : ""}`,
+        message: `${successCount} registros importados exitosamente${skippedCount > 0 ? `, ${skippedCount} omitidos (ya existían)` : ""}${failureCount > 0 ? `, ${failureCount} fallaron` : ""}`,
       };
     } catch (error) {
-      await queryRunner.rollbackTransaction();
+      if (transactionStarted) {
+        try {
+          await queryRunner.rollbackTransaction();
+          this.logger.log(`Transaction rolled back for ${entityType} import`);
+        } catch (rbError) {
+          this.logger.warn(`Rollback failed: ${(rbError as any).message}`);
+        }
+      }
       throw error;
     } finally {
-      await queryRunner.release();
+      try {
+        await queryRunner.release();
+      } catch (releaseError) {
+        this.logger.warn(`Release failed: ${(releaseError as any).message}`);
+      }
     }
   }
 

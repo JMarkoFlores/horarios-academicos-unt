@@ -20,14 +20,15 @@ import {
   transition,
   animate,
 } from '@angular/animations';
+import { ROLES } from '../core/constants/roles';
 import { AuthService } from '../core/services/auth.service';
 import { PeriodoService } from '../core/services/periodo.service';
 import { ConfiguracionGeneralService } from '../core/services/configuracion-general.service';
 import { ApiService } from '../core/services/api.service';
 import { SocketService } from '../core/services/socket.service';
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
-import { CambiarPasswordDialogComponent } from './dialogs/cambiar-password-dialog/cambiar-password-dialog.component';
-import { PerfilDialogComponent } from './dialogs/perfil-dialog/perfil-dialog.component';
+import { ThemeService } from '../core/services/theme.service';
+
 import { fromEvent } from 'rxjs';
 
 interface NavItem {
@@ -65,225 +66,89 @@ interface NavGroup {
 export class LayoutComponent implements OnInit {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   isMobile = signal(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-  isDark = signal(false);
   sidebarCollapsed = signal(false);
   selectedPeriodoCodigo = signal('');
 
   usuario = this.authService.getUsuarioActual();
   userPhoto = signal<string | null>(null);
+  readonly ROLES = ROLES;
   private _visibleNavGroups: NavGroup[] = [];
   private _resizeTimer: any;
   private destroyRef = inject(DestroyRef);
 
-  // Grupos de navegación para mejor organización visual (con keys de traducción)
+  // Theme service
+  protected themeService = inject(ThemeService);
+
   navGroups: NavGroup[] = [
     {
       label: 'nav.groups.main',
       expanded: true,
       items: [
         { icon: 'dashboard', label: 'sidebar.dashboard', route: '/app/dashboard' },
-        { 
-          icon: 'smart_toy', 
-          label: 'sidebar.aiAssistant', 
-          action: () => this.showChatbot(),
-          roles: ['administradorsistema', 'coordinadoracademico', 'docente', 'directorescuela', 'decanofacultad', 'secretaria', 'operadorhorarios']
-        },
       ],
     },
     {
       label: 'nav.groups.academic',
       expanded: true,
       items: [
-        {
-          icon: 'people',
-          label: 'sidebar.teachers',
-          route: '/app/docentes',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
-        {
-          icon: 'menu_book',
-          label: 'sidebar.courses',
-          route: '/app/cursos',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
-        {
-          icon: 'meeting_room',
-          label: 'sidebar.environments',
-          route: '/app/ambientes',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
-        {
-          icon: 'auto_stories',
-          label: 'sidebar.planEstudios',
-          route: '/app/plan-estudios',
-          roles: ['administradorsistema', 'coordinadoracademico', 'directorescuela'],
-        },
-        {
-          icon: 'assignment',
-          label: 'sidebar.asignacionLectiva',
-          route: '/app/asignacion-lectiva',
-          roles: ['administradorsistema', 'coordinadoracademico', 'secretaria'],
-        },
-        {
-          icon: 'link',
-          label: 'sidebar.courseEnvironments',
-          route: '/app/curso-ambientes',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
-        {
-          icon: 'school',
-          label: 'sidebar.teacherFaculty',
-          route: '/app/docente-facultad',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
-        {
-          icon: 'event_available',
-          label: 'sidebar.availability',
-          route: '/app/disponibilidad',
-          roles: ['administradorsistema', 'coordinadoracademico', 'docente'],
-        },
+        { icon: 'people', label: 'sidebar.teachers', route: '/app/docentes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'menu_book', label: 'sidebar.courses', route: '/app/cursos', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'meeting_room', label: 'sidebar.environments', route: '/app/ambientes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'auto_stories', label: 'sidebar.planEstudios', route: '/app/plan-estudios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'book_online', label: 'sidebar.ofertaAcademica', route: '/app/oferta-academica', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'assignment', label: 'sidebar.asignacionLectiva', route: '/app/asignacion-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
+        { icon: 'event_available', label: 'sidebar.availability', route: '/app/disponibilidad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE] },
+        { icon: 'school', label: 'sidebar.teacherFaculty', route: '/app/docente-facultad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       ],
     },
     {
       label: 'nav.groups.operations',
       expanded: true,
       items: [
-        {
-          icon: 'schedule',
-          label: 'sidebar.schedules',
-          route: '/app/horarios',
-          roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
-          ],
-        },
-        {
-          icon: 'schedule',
-          label: 'sidebar.mySchedules',
-          route: '/app/mis-horarios',
-          roles: ['docente'],
-        },
-        {
-          icon: 'support_agent',
-          label: 'sidebar.secretary',
-          route: '/app/secretaria',
-          roles: ['administradorsistema', 'coordinadoracademico', 'secretaria'],
-        },
+        { icon: 'schedule', label: 'sidebar.schedules', route: '/app/horarios', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA, ROLES.SECRETARIA] },
+        { icon: 'event_note', label: 'sidebar.cargaLectiva', route: '/app/horarios/carga-lectiva', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
+        { icon: 'calendar_view_week', label: 'sidebar.mySchedules', route: '/app/mis-horarios', roles: [ROLES.DOCENTE] },
+      ],
+    },
+    {
+      label: 'nav.groups.windows',
+      expanded: true,
+      items: [
+        { icon: 'event', label: 'sidebar.myWindows', route: '/app/mis-ventanas', roles: [ROLES.DOCENTE] },
+        { icon: 'support_agent', label: 'Ventanas de Atención', route: '/app/secretaria', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.SECRETARIA] },
+      ],
+    },
+    {
+      label: 'nav.groups.declarations',
+      expanded: true,
+      items: [
+        { icon: 'description', label: 'sidebar.declarations', route: '/app/declaraciones', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.OPERADOR_HORARIOS, ROLES.DOCENTE, ROLES.DECANO, ROLES.DIRECTOR_DEPARTAMENTO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'approval', label: 'Aprobación Facultad', route: '/app/declaraciones/aprobacion-facultad', roles: [ROLES.DECANO, ROLES.ADMINISTRADOR_SISTEMA] },
+        { icon: 'post_add', label: 'CLAD', route: '/app/clad', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DOCENTE, ROLES.DECANO, ROLES.DIRECTOR_DEPARTAMENTO] },
+        { icon: 'fact_check', label: 'sidebar.documentations', route: '/app/documentaciones', roles: [ROLES.DIRECTOR_ESCUELA, ROLES.DIRECTOR_DEPARTAMENTO] },
+        { icon: 'insights', label: 'sidebar.loadAnalysis', route: '/app/analisis-carga', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
       ],
     },
     {
       label: 'nav.groups.reports',
       expanded: true,
       items: [
-        {
-          icon: 'table_chart',
-          label: 'sidebar.reports',
-          route: '/app/reportes',
-          roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
-          ],
-        },
-        {
-          icon: 'analytics',
-          label: 'sidebar.analytics',
-          route: '/app/analytics',
-          roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
-          ],
-        },
-        {
-          icon: 'insights',
-          label: 'sidebar.loadAnalysis',
-          route: '/app/analisis-carga',
-          roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
-          ],
-        },
-        {
-          icon: 'description',
-          label: 'sidebar.declarations',
-          route: '/app/declaraciones',
-          roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'operadorhorarios',
-            'docente',
-            'decano',
-            'directordepartamento',
-            'directorescuela',
-          ],
-        },
-        {
-          icon: 'approval',
-          label: 'Aprobación de Facultad',
-          route: '/app/declaraciones/aprobacion-facultad',
-          roles: ['decano', 'administradorsistema'],
-        },
-        {
-          icon: 'fact_check',
-          label: 'sidebar.documentations',
-          route: '/app/documentaciones',
-          roles: ['directorescuela', 'directordepartamento'],
-        },
+        { icon: 'table_chart', label: 'sidebar.reports', route: '/app/reportes', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'analytics', label: 'sidebar.analytics', route: '/app/analytics', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
       ],
     },
     {
       label: 'nav.groups.system',
       expanded: true,
       items: [
-        {
-          icon: 'manage_accounts',
-          label: 'sidebar.users',
-          route: '/app/usuarios',
-          roles: ['administradorsistema'],
-        },
-        {
-          icon: 'event_note',
-          label: 'sidebar.periods',
-          route: '/app/periodos',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
-        {
-          icon: 'tune',
-          label: 'sidebar.loadParams',
-          route: '/app/parametros-carga',
-          roles: ['administradorsistema'],
-        },
-        {
-          icon: 'campaign',
-          label: 'sidebar.campaigns',
-          route: '/app/campaigns',
-          roles: ['administradorsistema', 'coordinadoracademico'],
-        },
-        {
-          icon: 'notifications',
-          label: 'sidebar.notifications',
-          route: '/app/notificaciones',
-          roles: ['docente', 'administradorsistema'],
-        },
-        {
-          icon: 'account_balance',
-          label: 'sidebar.faculties',
-          route: '/app/facultades',
-          roles: [
-            'administradorsistema',
-            'coordinadoracademico',
-            'directorescuela',
-          ],
-        },
-        {
-          icon: 'settings',
-          label: 'sidebar.settings',
-          route: '/app/configuracion',
-          roles: ['administradorsistema'],
-        },
+        { icon: 'manage_accounts', label: 'sidebar.users', route: '/app/usuarios', roles: [ROLES.ADMINISTRADOR_SISTEMA] },
+        { icon: 'event_note', label: 'sidebar.periods', route: '/app/periodos', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'tune', label: 'sidebar.loadParams', route: '/app/parametros-carga', roles: [ROLES.ADMINISTRADOR_SISTEMA] },
+        { icon: 'account_balance', label: 'sidebar.faculties', route: '/app/facultades', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'campaign', label: 'sidebar.campaigns', route: '/app/campaigns', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
+        { icon: 'history', label: 'sidebar.audit', route: '/app/auditoria', roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO, ROLES.DIRECTOR_DEPARTAMENTO, ROLES.DIRECTOR_ESCUELA] },
+        { icon: 'notifications', label: 'sidebar.notifications', route: '/app/notificaciones', roles: [ROLES.DOCENTE, ROLES.ADMINISTRADOR_SISTEMA] },
+        { icon: 'settings', label: 'sidebar.settings', route: '/app/configuracion', roles: [ROLES.ADMINISTRADOR_SISTEMA] },
       ],
     },
   ];
@@ -304,6 +169,7 @@ export class LayoutComponent implements OnInit {
     'configuracion', 'periodos', 'campaigns',
     'usuarios', 'notificaciones', 'analisis-carga',
     'declaraciones', 'documentaciones', 'docente-facultad',
+    'auditoria',
   ]);
   showPeriodoSelector = signal(true);
   notificacionesCount = signal(0);
@@ -341,15 +207,27 @@ export class LayoutComponent implements OnInit {
 
   ngOnInit(): void {
     this.configService.cargar();
-    this.isDark.set(false);
-    document.body.classList.remove('dark-theme');
-    document.body.classList.add('light-theme');
     this._computeVisibleNavGroups();
     this.periodoService.cargarPeriodos();
     this._loadNotificacionesCount();
   }
 
   private _loadNotificacionesCount(): void {
+    // Only load admin alerts if user is not a docente
+    if (this.authService.hasRole(ROLES.DOCENTE) && !this.authService.hasRole(
+      ROLES.ADMINISTRADOR_SISTEMA,
+      ROLES.COORDINADOR_ACADEMICO,
+      ROLES.DIRECTOR_ESCUELA,
+      ROLES.DIRECTOR_DEPARTAMENTO,
+      ROLES.DECANO,
+      ROLES.SECRETARIA,
+      ROLES.OPERADOR_HORARIOS
+    )) {
+      this.notificacionesCount.set(0);
+      this.alertasData.set(null);
+      return;
+    }
+
     const fetchCount = () => {
       this.api.get<any>('/dashboard/alerts', { periodo: this.periodoService.periodo })
         .subscribe({
@@ -382,15 +260,10 @@ export class LayoutComponent implements OnInit {
   }
 
   private _computeVisibleNavGroups(): void {
-    const isChatbotHidden = localStorage.getItem('chatbot_visible') === 'false';
-
     this._visibleNavGroups = this.navGroups
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => {
-          // Si es el ítem del chatbot y ya es visible en la pantalla, no lo mostramos en el menú
-          if (item.label === 'Asistente IA' && !isChatbotHidden) return false;
-
           if (!item.roles || item.roles.length === 0) return true;
           return this.authService.hasRole(...item.roles);
         }),
@@ -400,10 +273,13 @@ export class LayoutComponent implements OnInit {
 
   showChatbot(): void {
     localStorage.setItem('chatbot_visible', 'true');
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'chatbot_visible',
-      newValue: 'true'
-    }));
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'chatbot_visible',
+        newValue: 'true',
+      }),
+    );
+    window.dispatchEvent(new Event('openChatbot'));
     this._computeVisibleNavGroups();
   }
 
@@ -433,14 +309,7 @@ export class LayoutComponent implements OnInit {
   }
 
   toggleDarkMode(): void {
-    this.isDark.update(v => !v);
-    if (this.isDark()) {
-      document.body.classList.add('dark-theme');
-      document.body.classList.remove('light-theme');
-    } else {
-      document.body.classList.remove('dark-theme');
-      document.body.classList.add('light-theme');
-    }
+    this.themeService.cycleTheme();
   }
 
   openRegistrarUsuario(): void {
@@ -451,26 +320,11 @@ export class LayoutComponent implements OnInit {
   }
 
   openVerPerfil(): void {
-    const dialogRef = this.dialog.open(PerfilDialogComponent, {
-      width: '450px',
-      maxWidth: '95vw',
-      panelClass: 'profile-dialog-panel',
-      data: this.usuario,
-      disableClose: false,
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (result !== 'logout') {
-        this.router.navigate(['/app/dashboard']);
-      }
-    });
+    this.router.navigate(['/app/perfil']);
   }
 
   openCambiarPassword(): void {
-    this.dialog.open(CambiarPasswordDialogComponent, {
-      width: '440px',
-      disableClose: true,
-    });
+    this.router.navigate(['/app/perfil'], { queryParams: { tab: 'password' } });
   }
 
   logout(): void {
@@ -482,5 +336,24 @@ export class LayoutComponent implements OnInit {
     const codigo = this.selectedPeriodoCodigo();
     const found = periodos.find(p => p.codigo === codigo);
     return found?.nombre || codigo || 'Seleccionar Período';
+  }
+
+  formatRol(rol: string | undefined): string {
+    if (!rol) return 'Administrador del Sistema';
+    const rolesMap: Record<string, string> = {
+      [ROLES.ADMINISTRADOR_SISTEMA]: 'Administrador del Sistema',
+      [ROLES.COORDINADOR_ACADEMICO]: 'Coordinador Académico',
+      [ROLES.DIRECTOR_ESCUELA]: 'Director de Escuela',
+      [ROLES.DIRECTOR_DEPARTAMENTO]: 'Director de Departamento',
+      [ROLES.DECANO]: 'Decano',
+      [ROLES.DOCENTE]: 'Docente',
+      [ROLES.SECRETARIA]: 'Secretaria',
+      [ROLES.OPERADOR_HORARIOS]: 'Operador de Horarios',
+    };
+    return rolesMap[rol] || rol;
+  }
+
+  isRouteActive(route: string): boolean {
+    return this.router.url === route || this.router.url.startsWith(route + '/');
   }
 }

@@ -9,6 +9,7 @@ import {
   ManyToMany,
   JoinColumn,
   JoinTable,
+  Index,
 } from "typeorm";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
@@ -22,8 +23,20 @@ import { HorarioAsignado } from "./horario-asignado.entity";
 import { ColaDocentes } from "./cola-docentes.entity";
 import { Ambiente } from "./ambiente.entity";
 import { AsignacionLectiva } from "./asignacion-lectiva.entity";
+import { DeclaracionJurada } from "./declaracion-jurada.entity";
+import { CargaAdicional } from "./carga-adicional.entity";
+import { DeclaracionClad } from "./declaracion-clad.entity";
 
 @Entity("docente")
+@Index("idx_docente_categoria", ["categoria"])
+@Index("idx_docente_tipo_docente", ["tipo_docente"])
+@Index("idx_docente_modalidad", ["modalidad"])
+@Index("idx_docente_activo", ["activo"])
+@Index("idx_docente_categoria_tipo_modalidad", [
+  "categoria",
+  "tipo_docente",
+  "modalidad",
+])
 export class Docente {
   @PrimaryGeneratedColumn()
   id: number;
@@ -31,7 +44,10 @@ export class Docente {
   @Column({ unique: true, length: 20 })
   codigo: string;
 
-  @Column({ unique: true, nullable: true })
+  @Column({ unique: true, length: 15, name: "dni" })
+  dni: string;
+
+  @Column({ unique: true })
   ibm: number;
 
   @Column({ length: 150 })
@@ -67,11 +83,29 @@ export class Docente {
   @Column({ type: "smallint", default: 0, name: "horas_asignadas" })
   horas_asignadas: number;
 
+  @Column({ type: "smallint", default: 0, name: "horas_no_lectivas" })
+  horas_no_lectivas: number;
+
+  @Column({ type: "smallint", default: 22, name: "horas_lectivas_max" })
+  horas_lectivas_max: number;
+
+  @Column({ type: "smallint", default: 16, name: "horas_lectivas_min" })
+  horas_lectivas_min: number;
+
+  @Column({ type: "smallint", default: 40, name: "horas_max_totales" })
+  horas_max_totales: number;
+
+  @Column({ default: false, name: "suspension_vigente" })
+  suspension_vigente: boolean;
+
   @Column({ nullable: true, type: "text" })
   firebase_token: string | null;
 
   @Column({ nullable: true, type: "text" })
   firma_url: string | null;
+
+  @Column({ nullable: true, type: "text" })
+  foto_url: string | null;
 
   @Column({ nullable: true, unique: true, name: "usuario_id" })
   usuario_id: number | null;
@@ -122,4 +156,13 @@ export class Docente {
 
   @OneToMany(() => AsignacionLectiva, (asignacion) => asignacion.docente)
   asignaciones_lectivas: AsignacionLectiva[];
+
+  @OneToMany(() => DeclaracionJurada, (jurada) => jurada.docente)
+  declaraciones_juradas: DeclaracionJurada[];
+
+  @OneToMany(() => CargaAdicional, (ca) => ca.docente)
+  carga_adicional: CargaAdicional[];
+
+  @OneToMany(() => DeclaracionClad, (dc) => dc.docente)
+  declaraciones_clad: DeclaracionClad[];
 }

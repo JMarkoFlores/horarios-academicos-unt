@@ -9,10 +9,16 @@ import { AppModule } from "./app.module";
 import { ResponseInterceptor } from "./common/interceptors/response.interceptor";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { DataSource } from "typeorm";
+import { CACHE_MANAGER } from "@nestjs/cache-manager";
 
 async function bootstrap() {
   const start = Date.now();
-  const app = await NestFactory.create(AppModule);
+  const isProduction = process.env.NODE_ENV === "production";
+  const app = await NestFactory.create(AppModule, {
+    logger: isProduction
+      ? ["log", "warn", "error"]
+      : ["log", "warn", "error", "debug"],
+  });
   const logger = new Logger("Bootstrap");
   const frontendUrl = process.env.FRONTEND_URL;
 
@@ -38,6 +44,7 @@ async function bootstrap() {
         },
       },
       crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: false,
     }),
   );
 
@@ -99,13 +106,6 @@ async function bootstrap() {
     });
     logger.log(`Swagger docs: http://localhost:${port}/api/docs`);
   }
-  app
-    .getHttpAdapter()
-    .getInstance()
-    .get("/health", (_req: any, res: any) => {
-      res.status(200).json({ status: "ok" });
-    });
-
   // Servir archivos subidos (firmas, etc.)
   const uploadsPath = path.join(process.cwd(), "uploads");
   app.use("/uploads", express.static(uploadsPath));
@@ -118,8 +118,24 @@ async function bootstrap() {
       if (parseInt(count[0].count, 10) === 0) {
         logger.log("BD vacía — ejecutando seed inicial...");
         const { main } = await import("./database/seed");
-        await main();
+        await main(dataSource);
         logger.log("✅ Seed inicial completado");
+
+        try {
+          const cacheManager = app.get(CACHE_MANAGER);
+          if (cacheManager && typeof cacheManager.store?.keys === 'function') {
+            const keys: string[] = await cacheManager.store.keys();
+            const horarioKeys = keys.filter(k => k.includes('horarios_periodo'));
+            for (const key of horarioKeys) {
+              await cacheManager.del(key);
+            }
+            if (horarioKeys.length > 0) {
+              logger.log(`🧹 Cache Redis invalidado: ${horarioKeys.length} keys de horarios`);
+            }
+          }
+        } catch (cacheErr) {
+          logger.warn("No se pudo invalidar cache Redis:", (cacheErr as any).message);
+        }
       }
     } catch (e) {
       logger.error("Error en auto-seed:", (e as any).message);

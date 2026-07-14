@@ -1,0 +1,319 @@
+/* Error Page Styles - Reusable for 404, 403, 500, 401, etc. */
+
+.error-page {
+  --color-login-bg: #020617;
+  --color-primary: #2563eb;
+  --color-primary-light: #3b82f6;
+  --color-text-main: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-card-bg: rgba(15, 23, 42, 0.85);
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 24px;
+  background-color: var(--color-login-bg);
+  font-family: "Inter", sans-serif;
+}
+
+.error-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.floating-shapes {
+  position: absolute;
+  inset: 0;
+}
+
+.shape {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  animation: float 20s infinite ease-in-out;
+}
+
+.shape-1 {
+  width: 400px;
+  height: 400px;
+  background: var(--color-primary);
+  top: -100px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.shape-2 {
+  width: 350px;
+  height: 350px;
+  background: #7c3aed;
+  bottom: -50px;
+  left: -50px;
+  animation-delay: -7s;
+}
+
+.shape-3 {
+  width: 300px;
+  height: 300px;
+  background: #1e3a8a;
+  top: 40%;
+  left: 30%;
+  animation-delay: -14s;
+}
+
+// ── ERROR CARD ──
+.error-card {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 440px;
+  background: var(--color-card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  padding: 48px 40px;
+  text-align: center;
+}
+
+.error-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+  margin-bottom: 24px;
+}
+
+.error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(37, 99, 235, 0.05));
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+
+  mat-icon {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    color: var(--color-primary);
+  }
+}
+
+// Error code badge overlay
+.error-code-badge {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), #1e40af);
+  border: 3px solid var(--color-login-bg);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.5px;
+}
+
+// ── TYPOGRAPHY ──
+.error-title {
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-text-main);
+  letter-spacing: -0.02em;
+}
+
+.error-message {
+  margin: 0 0 32px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// ── ACTIONS ──
+.error-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  @media (min-width: 480px) {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 180px;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), #1e40af);
+  color: white;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  border: none;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+
+  &:hover {
+    background: rgba(37, 99, 235, 0.08);
+  }
+}
+
+// ── HELP TEXT ──
+.error-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+}
+
+// ── ANIMATIONS ──
+@keyframes float {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, 30px) scale(1.05);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-card {
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.error-icon {
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
+  opacity: 0;
+}
+
+.error-title {
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards;
+  opacity: 0;
+}
+
+.error-message {
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+  opacity: 0;
+}
+
+.error-actions > * {
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.4s forwards;
+  opacity: 0;
+}
+
+.error-actions > *:nth-child(2) {
+  animation-delay: 0.45s;
+}
+
+.error-help {
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
+  opacity: 0;
+}
+
+// ── RESPONSIVE ──
+@media (max-width: 480px) {
+  .error-page {
+    padding: 16px;
+  }
+
+  .error-card {
+    padding: 36px 24px;
+    border-radius: 20px;
+  }
+
+  .error-icon {
+    width: 80px;
+    height: 80px;
+  }
+
+  .error-code-badge {
+    width: 48px;
+    height: 48px;
+    font-size: 12px;
+    bottom: -6px;
+    right: -6px;
+  }
+
+  .error-title {
+    font-size: 24px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    min-width: auto;
+  }
+}

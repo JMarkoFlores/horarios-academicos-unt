@@ -2,6 +2,7 @@ import { Component, Inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ROLES } from '../../../../core/constants/roles';
 import { UsuariosService, UsuarioItem } from '../../../../core/services/usuarios.service';
 
 @Component({
@@ -13,11 +14,11 @@ export class EditarUsuarioDialogComponent {
   loading = false;
 
   roles = [
-    { value: 'administradorsistema', label: 'Administrador del Sistema' },
-    { value: 'directorescuela', label: 'Director de Escuela' },
-    { value: 'coordinadoracademico', label: 'Coordinador Académico' },
-    { value: 'secretaria', label: 'Secretaria' },
-    { value: 'docente', label: 'Docente' },
+    { value: ROLES.ADMINISTRADOR_SISTEMA, label: 'Administrador del Sistema' },
+    { value: ROLES.DIRECTOR_ESCUELA, label: 'Director de Escuela' },
+    { value: ROLES.COORDINADOR_ACADEMICO, label: 'Coordinador Académico' },
+    { value: ROLES.SECRETARIA, label: 'Secretaria' },
+    { value: ROLES.DOCENTE, label: 'Docente' },
   ];
 
   constructor(

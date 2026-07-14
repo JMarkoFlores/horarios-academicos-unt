@@ -34,7 +34,7 @@ export class QueryDocenteDto {
   modalidad?: ModalidadDocente;
 
   @ApiPropertyOptional({
-    description: "Buscar por nombres, apellidos, código o email",
+    description: "Buscar por nombres, apellidos, código, email, DNI o IBM",
   })
   @IsOptional()
   @IsString()
@@ -71,4 +71,16 @@ export class QueryDocenteDto {
   @IsOptional()
   @IsString()
   sin_vinculacion?: string;
+
+  @ApiPropertyOptional({ description: "Filtrar por ID de departamento" })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  departamento_id?: number;
+
+  @ApiPropertyOptional({ description: "Filtrar por ID de escuela" })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  escuela_id?: number;
 }

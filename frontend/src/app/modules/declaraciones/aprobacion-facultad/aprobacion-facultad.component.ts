@@ -78,7 +78,7 @@ export class AprobacionFacultadComponent implements OnInit {
 
   aprobar(item: DocumentacionResumen): void {
     this.saving = item.id;
-    this.api.patch<ApiResponse<any>>(`/declaraciones/${item.id}/aprobar`, {}).subscribe({
+    this.api.patch<ApiResponse<any>>(`/declaraciones/${item.id}/aprobar-facultad`, {}).subscribe({
       next: () => {
         this.snackBar.open('Declaración aprobada correctamente', 'Cerrar', { duration: 3000 });
         this.saving = null;

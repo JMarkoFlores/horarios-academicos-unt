@@ -15,6 +15,8 @@ import { NotificacionesProcessor } from "./notificaciones.processor";
 import { NotificacionesGateway } from "./notificaciones.gateway";
 import { TelegramBotService } from "./telegram-bot.service";
 import { FirebasePushService } from "./firebase-push.service";
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { FirebasePushService } from "./firebase-push.service";
       Docente,
       HorarioAsignado,
       ColaDocente,
+      DeclaracionCargaHoraria,
+      PeriodoAcademico,
     ]),
     BullModule.registerQueue({
       name: "notificaciones",

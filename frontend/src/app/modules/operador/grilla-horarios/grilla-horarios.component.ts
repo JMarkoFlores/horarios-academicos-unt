@@ -29,9 +29,9 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   @Input() periodo!: string;
   @Input() horasRequeridas: number = 0;
   @Input() horasAsignadas: number = 0;
-  
+
   private _grupoSeleccionado?: number;
-  @Input() 
+  @Input()
   set grupoSeleccionado(value: number | undefined) {
     this._grupoSeleccionado = value;
     if (this.ambienteId) {
@@ -41,7 +41,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   get grupoSeleccionado(): number | undefined {
     return this._grupoSeleccionado;
   }
-  
+
   @Output() seleccionCambiada = new EventEmitter<void>();
   @Output() asignacionSeleccionada = new EventEmitter<any>();
 
@@ -61,6 +61,10 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   modoEdicion = false;
   horarioEnEdicion: any = null;
   celdasOriginalesEliminadas: Set<string> = new Set();
+
+  // ── Drag & Drop ──────────────────────────────────────────────────
+  isDragging = false;
+  dragOverCelda: string | null = null; // 'dia-hora'
 
   private celdaSeleccionadaSub?: Subscription;
   private celdaLiberadaSub?: Subscription;
@@ -103,7 +107,6 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (r) => {
         this.matriz = r.data || [];
-        // Buscar celdas con estado temporal para depurar
         this.loading = false;
       },
       error: () => {
@@ -126,19 +129,78 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     return `${(horaNum + 1).toString().padStart(2, '0')}:00`;
   }
 
+  // ── Celdas aceptables para soltar un bloque ─────────────────────
+  private celdaEsDroppable(celda: CeldaMatriz | undefined): boolean {
+    if (!celda) return false;
+    return celda.estado === 'LIBRE' ||
+      celda.estado === 'TEMPORAL_PROPIO' ||
+      celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' ||
+      celda.estado === 'CONFIRMADO' ||
+      celda.estado === 'CONFIRMADO_MULTIPLE' ||
+      celda.estado === 'CONFIRMADO_DOCENTE' ||
+      celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE';
+  }
+
+  // ── Drag & Drop handlers ────────────────────────────────────────
+
+  /** El usuario empieza a arrastrar el chip del curso */
+  onDragStart(event: DragEvent): void {
+    this.isDragging = true;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('text/plain', 'bloque-curso');
+    }
+  }
+
+  /** El usuario suelta el arrastre (sin importar dónde) */
+  onDragEnd(): void {
+    this.isDragging = false;
+    this.dragOverCelda = null;
+  }
+
+  /** Evento mientras el bloque pasa encima de una celda */
+  onCeldaDragOver(event: DragEvent, dia: number, hora: string): void {
+    const celda = this.getCelda(dia, hora);
+    if (!this.celdaEsDroppable(celda)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    this.dragOverCelda = `${dia}-${hora}`;
+  }
+
+  /** El bloque sale de la celda sin soltarse */
+  onCeldaDragLeave(dia: number, hora: string): void {
+    if (this.dragOverCelda === `${dia}-${hora}`) {
+      this.dragOverCelda = null;
+    }
+  }
+
+  /** El usuario suelta el bloque sobre una celda */
+  async onCeldaDrop(event: DragEvent, dia: number, hora: string): Promise<void> {
+    event.preventDefault();
+    this.isDragging = false;
+    this.dragOverCelda = null;
+    // Reutiliza exactamente la misma lógica de onCeldaClick
+    await this.programarBloque(dia, hora);
+  }
+
+  // ── Clic existente (sin cambios de lógica) ─────────────────────
   async onCeldaClick(dia: number, hora: string): Promise<void> {
+    await this.programarBloque(dia, hora);
+  }
+
+  /** Lógica central para agregar un bloque (compartida por clic y drop) */
+  private async programarBloque(dia: number, hora: string): Promise<void> {
     const celda = this.getCelda(dia, hora);
     if (!celda) return;
 
     const horaFin = `${(parseInt(hora.split(':')[0], 10) + 1).toString().padStart(2, '0')}:00`;
 
-    // Calcular horas efectivas: confirmadas + temporales propias del usuario
+    // Calcular horas efectivas: confirmadas + temporales propias
     const horasTemporales = this.matriz
       .filter(c => c.estado === 'TEMPORAL_PROPIO' || c.estado === 'TEMPORAL_PROPIO_MULTIPLE')
       .reduce((sum, c) => sum + (c.metadata?.ocupaciones?.length || 1), 0);
     const horasEfectivas = this.horasAsignadas + horasTemporales;
 
-    // Verificar si ya se cubrieron las horas requeridas antes de agregar más bloques
     const esNuevoBloque = celda.estado === 'LIBRE';
     if (esNuevoBloque && this.horasRequeridas > 0 && horasEfectivas >= this.horasRequeridas) {
       this.snack.open(
@@ -149,12 +211,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Clic izquierdo: agregar bloque (permitido en celdas libres, temporales propias, y con ocupaciones confirmadas)
-    if (celda.estado === 'LIBRE' || celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE' ||
-        celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' || 
-        celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') {
-      
-      // Verificar si ya hay 3 bloques (confirmados + temporales)
+    if (this.celdaEsDroppable(celda)) {
       let bloquesActuales = 0;
       if (celda.metadata?.ocupaciones) {
         bloquesActuales = celda.metadata.ocupaciones.length;
@@ -167,8 +224,6 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
         return;
       }
 
-      // Agregar bloque
-      
       const body: any = {
         ventanaId: this.ventanaId,
         sesionId: this.sesionId,
@@ -179,11 +234,10 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
         ambienteId: this.ambienteId,
         dia,
         horaInicio: hora,
-        horaFin: horaFin,
+        horaFin,
         periodo: this.periodo
       };
 
-      // Si estamos en modo edición, agregar parámetros de edición
       if (this.modoEdicion && this.horarioEnEdicion) {
         body.modoEdicion = true;
         body.originalCursoId = this.horarioEnEdicion.curso_id;
@@ -219,9 +273,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     const celda = this.getCelda(dia, hora);
     if (!celda) return;
 
-    // Clic derecho: eliminar bloque propio o ver detalles si es de otros
     if (celda.estado === 'TEMPORAL_PROPIO' || celda.estado === 'TEMPORAL_PROPIO_MULTIPLE') {
-      // Eliminar bloque propio
       this.api.post<any>(`/ventanas/${this.ventanaId}/celda/deseleccionar`, {
         sesionId: this.sesionId,
         ambienteId: this.ambienteId,
@@ -239,17 +291,13 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
         }
       });
     } else if (this.esCeldaOriginalEliminada(dia, hora)) {
-      // En modo edición, eliminar la asignación confirmada de la base de datos
       const clave = `${dia}-${hora}`;
-      
-      // Encontrar la asignación correspondiente a esta celda
       const asignacionAEliminar = this.horarioEnEdicion?.asignacionesRelacionadas?.find((a: any) => {
         const horaNormalizada = a.hora_inicio.substring(0, 5);
         return a.dia === dia && horaNormalizada === hora;
       });
 
       if (asignacionAEliminar?.id) {
-        
         this.api.delete<any>(`/horarios/${asignacionAEliminar.id}`).subscribe({
           next: () => {
             this.celdasOriginalesEliminadas.delete(clave);
@@ -266,9 +314,8 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
         this.snack.open('Bloque original removido de eliminación', 'OK', { duration: 2000 });
         this.cargarMatriz();
       }
-    } else if (celda.estado === 'TEMPORAL_OTRO' || celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' || 
+    } else if (celda.estado === 'TEMPORAL_OTRO' || celda.estado === 'CONFIRMADO' || celda.estado === 'CONFIRMADO_MULTIPLE' ||
                celda.estado === 'CONFIRMADO_DOCENTE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') {
-      // Mostrar detalles de otros
       const tooltip = this.getTooltipCelda(celda);
       this.snack.open(tooltip, 'Cerrar', { duration: 5000 });
     }
@@ -303,8 +350,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
 
   getOcupacionesArray(celda: CeldaMatriz): any[] {
     if (celda.estado === 'TEMPORAL_PROPIO') {
-      // Para selección temporal simple, crear array con una ocupación
-      return [{ 
+      return [{
         docenteId: this.docenteId,
         tipoClase: this.tipoClase,
         grupoId: this.grupoSeleccionado
@@ -314,16 +360,11 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
       return celda.metadata.ocupaciones;
     }
     if (celda.estado === 'CONFIRMADO' && celda.metadata) {
-      // Para confirmado simple, verificar si tiene ocupaciones array o metadata simple
-      if (celda.metadata.ocupaciones) {
-        return celda.metadata.ocupaciones;
-      }
+      if (celda.metadata.ocupaciones) return celda.metadata.ocupaciones;
       return [{ ...celda.metadata }];
     }
     if (celda.estado === 'CONFIRMADO_DOCENTE' && celda.metadata) {
-      if (celda.metadata.ocupaciones) {
-        return celda.metadata.ocupaciones;
-      }
+      if (celda.metadata.ocupaciones) return celda.metadata.ocupaciones;
       return [{ ...celda.metadata }];
     }
     if ((celda.estado === 'CONFIRMADO_MULTIPLE' || celda.estado === 'CONFIRMADO_DOCENTE_MULTIPLE') && celda.metadata?.ocupaciones) {
@@ -335,8 +376,7 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   onBloqueRightClick(event: MouseEvent, dia: number, hora: string, ocupacion: any): void {
     event.preventDefault();
     event.stopPropagation();
-    
-    // Solo permitir eliminar si es del propio docente
+
     if (ocupacion.docenteId === this.docenteId) {
       this.api.post<any>(`/ventanas/${this.ventanaId}/celda/deseleccionar`, {
         sesionId: this.sesionId,
@@ -375,15 +415,24 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Retorna clase extra para celdas que son destino válido de drop */
+  getClaseDrop(dia: number, hora: string): string {
+    const celda = this.getCelda(dia, hora);
+    if (!this.isDragging) return '';
+    if (!this.celdaEsDroppable(celda)) return 'celda-no-droppable';
+    if (this.dragOverCelda === `${dia}-${hora}`) return 'celda-drag-over';
+    return 'celda-droppable';
+  }
+
   getTooltipCelda(celda: CeldaMatriz | undefined): string {
     if (!celda) return '';
     switch (celda.estado) {
-      case 'LIBRE': return 'Disponible — Haz clic para seleccionar';
+      case 'LIBRE': return 'Disponible — Arrastra aquí o haz clic para seleccionar';
       case 'BLOQUEADO': return 'Fuera de franja institucional o restricción';
       case 'CONFIRMADO':
         if (celda.metadata?.ocupaciones) {
-          return celda.metadata.ocupaciones.map((o: any) => 
-            `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''})`
+          return celda.metadata.ocupaciones.map((o: any) =>
+            `${o.docenteId ? 'Docente ' + String(o.docenteId) : ''}${o.cursoNombre ? ' — ' + String(o.cursoNombre) : ''}${o.tipoClase ? ' (' + String(o.tipoClase) : ''}${o.grupoId ? ', G' + String(o.grupoId) : ''})`
           ).join('\n');
         }
         const docente = celda.metadata?.docenteNombre || `Docente ${celda.metadata?.docenteId || ''}`;
@@ -393,16 +442,14 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
         let tooltip = `Ocupado: ${docente}${curso ? ' — ' + curso : ''}${tipo ? ' (' + tipo : ''}`;
         if (tipo === 'LABORATORIO' && grupo) {
           const grupoNum = grupo.match(/-G(\d+)$/)?.[1] || '';
-          if (grupoNum) {
-            tooltip += `, G${grupoNum}`;
-          }
+          if (grupoNum) tooltip += `, G${grupoNum}`;
         }
         tooltip += ')';
         return tooltip;
       case 'CONFIRMADO_DOCENTE':
         if (celda.metadata?.ocupaciones) {
-          return celda.metadata.ocupaciones.map((o: any) => 
-            `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''})`
+          return celda.metadata.ocupaciones.map((o: any) =>
+            `${o.docenteId ? 'Docente ' + String(o.docenteId) : ''}${o.cursoNombre ? ' — ' + String(o.cursoNombre) : ''}${o.tipoClase ? ' (' + String(o.tipoClase) : ''}${o.grupoId ? ', G' + String(o.grupoId) : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''})`
           ).join('\n');
         }
         const cursoDocente = celda.metadata?.cursoNombre || '';
@@ -411,30 +458,28 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
         let tooltipDocente = `Tu horario: ${cursoDocente}${tipoDocente ? ' (' + tipoDocente : ''}`;
         if (tipoDocente === 'LABORATORIO' && grupoDocente) {
           const grupoNumDocente = grupoDocente.match(/-G(\d+)$/)?.[1] || '';
-          if (grupoNumDocente) {
-            tooltipDocente += `, G${grupoNumDocente}`;
-          }
+          if (grupoNumDocente) tooltipDocente += `, G${grupoNumDocente}`;
         }
         tooltipDocente += ')';
         return tooltipDocente;
       case 'CONFIRMADO_MULTIPLE':
-        return celda.metadata?.ocupaciones?.length > 0 
-          ? `${celda.metadata.ocupaciones.length} ocupaciones:\n${celda.metadata.ocupaciones.map((o: any) => 
-              `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}`
-            ).join('\n')}`
+        return celda.metadata?.ocupaciones?.length > 0
+          ? `${celda.metadata.ocupaciones.length} ocupaciones:\n${celda.metadata.ocupaciones.map((o: any) =>
+              `${o.docenteId ? 'Docente ' + String(o.docenteId) : ''}${o.cursoNombre ? ' — ' + String(o.cursoNombre) : ''}${o.tipoClase ? ' (' + String(o.tipoClase) : ''}${o.grupoId ? ', G' + String(o.grupoId) : ''}`
+            ).join ('\n')}`
           : 'Múltiples ocupaciones';
       case 'CONFIRMADO_DOCENTE_MULTIPLE':
-        return celda.metadata?.ocupaciones?.length > 0 
-          ? `Tu horario + ${celda.metadata.ocupaciones.length - 1} más:\n${celda.metadata.ocupaciones.map((o: any) => 
-              `${o.docenteId ? 'Docente ' + o.docenteId : ''}${o.cursoNombre ? ' — ' + o.cursoNombre : ''}${o.tipoClase ? ' (' + o.tipoClase : ''}${o.grupoId ? ', G' + o.grupoId : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''}`
+        return celda.metadata?.ocupaciones?.length > 0
+          ? `Tu horario + ${celda.metadata.ocupaciones.length - 1} más:\n${celda.metadata.ocupaciones.map((o: any) =>
+              `${o.docenteId ? 'Docente ' + String(o.docenteId) : ''}${o.cursoNombre ? ' — ' + String(o.cursoNombre) : ''}${o.tipoClase ? ' (' + String(o.tipoClase) : ''}${o.grupoId ? ', G' + String(o.grupoId) : ''}${o.otroAmbiente ? ' (otro ambiente)' : ''}`
             ).join('\n')}`
           : 'Tu horario + más ocupaciones';
       case 'TEMPORAL_OTRO': return 'Reservado temporalmente por otro operador';
-      case 'TEMPORAL_PROPIO': return 'Tu selección temporal — Haz clic para quitar';
+      case 'TEMPORAL_PROPIO': return 'Tu selección temporal — Haz clic derecho para quitar';
       case 'TEMPORAL_PROPIO_MULTIPLE':
-        return celda.metadata?.ocupaciones?.length > 0 
-          ? `Tu selección + ${celda.metadata.ocupaciones.length - 1} más:\n${celda.metadata.ocupaciones.map((o: any) => 
-              `Docente ${o.docenteId}${o.cursoId ? ' — Curso ' + o.cursoId : ''}`
+        return celda.metadata?.ocupaciones?.length > 0
+          ? `Tu selección + ${celda.metadata.ocupaciones.length - 1} más:\n${celda.metadata.ocupaciones.map((o: any) =>
+              `Docente ${String(o.docenteId)}${o.cursoId ? ' — Curso ' + String(o.cursoId) : ''}`
             ).join('\n')}`
           : 'Tu selección + más bloques';
       default: return '';
@@ -442,22 +487,19 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
   }
 
   setModoEdicion(activo: boolean, horario: any | null, asignacionesRelacionadas?: any[]): void {
-    
     this.modoEdicion = activo;
     this.horarioEnEdicion = horario;
-    // Store asignacionesRelacionadas in horarioEnEdicion for right-click handler access
     if (horario && asignacionesRelacionadas) {
       this.horarioEnEdicion.asignacionesRelacionadas = asignacionesRelacionadas;
     }
     this.celdasOriginalesEliminadas.clear();
-    
-      if (activo && horario && asignacionesRelacionadas) {
+
+    if (activo && horario && asignacionesRelacionadas) {
       asignacionesRelacionadas.forEach(asignacion => {
         const horaNormalizada = asignacion.hora_inicio.substring(0, 5);
         const clave = `${asignacion.dia}-${horaNormalizada}`;
         this.celdasOriginalesEliminadas.add(clave);
       });
-      
       this.cargarMatriz();
     } else {
       this.cargarMatriz();
@@ -472,14 +514,8 @@ export class GrillaHorariosComponent implements OnInit, OnDestroy {
 
   getClaseCeldaEdicion(dia: number, hora: string): string {
     if (!this.modoEdicion || !this.horarioEnEdicion) return '';
-    
     const clave = `${dia}-${hora}`;
-    
-    // Si esta celda está marcada como original para eliminación
-    if (this.celdasOriginalesEliminadas.has(clave)) {
-      return 'celda-original-eliminada';
-    }
-    
+    if (this.celdasOriginalesEliminadas.has(clave)) return 'celda-original-eliminada';
     return '';
   }
 }

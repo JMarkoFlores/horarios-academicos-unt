@@ -7,6 +7,8 @@ import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { VentanaAtencion } from "../entities/ventana-atencion.entity";
 import { ColaDocente } from "../entities/cola-docentes.entity";
 import { EstadoVentanaAtencion } from "../entities/ventana-atencion.entity";
+import { DeclaracionCargaHoraria } from "../entities/declaracion-carga-horaria.entity";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
 
 @Injectable()
 export class TelegramBotService {
@@ -23,17 +25,32 @@ export class TelegramBotService {
     private readonly ventanaRepo: Repository<VentanaAtencion>,
     @InjectRepository(ColaDocente)
     private readonly colaRepo: Repository<ColaDocente>,
+    @InjectRepository(DeclaracionCargaHoraria)
+    private readonly declaracionRepo: Repository<DeclaracionCargaHoraria>,
+    @InjectRepository(PeriodoAcademico)
+    private readonly periodoRepo: Repository<PeriodoAcademico>,
   ) {}
 
   async handleUpdate(
     update: any,
   ): Promise<{ chat_id: number; text: string; parse_mode?: string } | null> {
+    this.logger.log(
+      "📩 Recibido update de Telegram: " + JSON.stringify(update),
+    );
+
     const message = update?.message;
-    if (!message) return null;
+    if (!message) {
+      this.logger.warn("⚠️ Update sin message");
+      return null;
+    }
 
     const chatId = message.chat?.id;
     const text = (message.text || "").trim();
     const command = text.split(" ")[0];
+
+    this.logger.log(
+      `💬 Chat ID: ${chatId}, Texto: ${text}, Comando: ${command}`,
+    );
 
     switch (command) {
       case "/start":
@@ -54,28 +71,38 @@ export class TelegramBotService {
     chatId: number,
     text: string,
   ): Promise<{ chat_id: number; text: string }> {
+    this.logger.log("🔍 Procesando comando /start...");
     const parts = text.split(/\s+/);
     const codigo = parts[1]?.trim();
+
+    this.logger.log(`📋 Código de docente recibido: ${codigo}`);
 
     if (!codigo) {
       return {
         chat_id: chatId,
-        text: "Por favor envía tu código de docente después de /start. Ejemplo: /start D2024001",
+        text: "Por favor envía tu código de docente después de /start. Ejemplo: /start DOC-1001",
       };
     }
 
+    this.logger.log(`🔎 Buscando docente con código: ${codigo}`);
     const docente = await this.docenteRepo.findOne({ where: { codigo } });
     if (!docente) {
+      this.logger.warn(`⚠️ No se encontró docente con código: ${codigo}`);
       return {
         chat_id: chatId,
-        text: `No se encontró un docente con el código ${codigo}. Verifica e intenta nuevamente.`,
+        text: `No se encontró un docente con el código ${codigo}. Verifica e intenta nuevamente. Los códigos válidos son del tipo DOC-1001, DOC-1002, etc.`,
       };
     }
+
+    this.logger.log(
+      `✅ Docente encontrado: ${docente.nombres} ${docente.apellidos} (ID: ${docente.id})`,
+    );
 
     let prefs = await this.preferenciasRepo.findOne({
       where: { docente: { id: docente.id } },
     });
     if (!prefs) {
+      this.logger.log("📝 Creando nuevas preferencias de notificación...");
       prefs = this.preferenciasRepo.create({
         docente,
         canal_correo: true,
@@ -85,6 +112,8 @@ export class TelegramBotService {
     prefs.canal_telegram = true;
     prefs.telegram_chat_id = String(chatId);
     await this.preferenciasRepo.save(prefs);
+
+    this.logger.log("✅ Preferencias guardadas exitosamente");
 
     return {
       chat_id: chatId,
@@ -101,6 +130,7 @@ export class TelegramBotService {
 
     const prefs = await this.preferenciasRepo.findOne({
       where: { telegram_chat_id: String(chatId) },
+      relations: ["docente"],
     });
     if (!prefs) {
       return {
@@ -132,10 +162,61 @@ export class TelegramBotService {
       };
     }
 
+    // Verificar estado de declaración para determinar si mostrar carga no lectiva
+    let puedeMostrarNoLectiva = false;
+    let cargaNoLectiva: any = null;
+    try {
+      let periodoId: number | undefined;
+      const p = await this.periodoRepo.findOne({
+        where: { codigo: targetPeriodo },
+      });
+      this.logger.log(`📅 Periodo encontrado: ${p?.id} (${p?.codigo})`);
+      if (p) periodoId = p.id;
+
+      if (periodoId) {
+        const declaracion = await this.declaracionRepo.findOne({
+          where: { docente_id: docenteId, periodo_academico_id: periodoId },
+        });
+        this.logger.log(
+          `📋 Declaración encontrada: ${declaracion?.id}, estado: ${declaracion?.estado}`,
+        );
+        const estadosConfirmados = [
+          "ENVIADO",
+          "VALIDADO_DPTO",
+          "OBSERVADO_DPTO",
+          "APROBADO_FACULTAD",
+          "OBSERVADO_FACULTAD",
+          "CERRADO",
+          "REABIERTO",
+        ];
+        puedeMostrarNoLectiva =
+          declaracion?.estado &&
+          estadosConfirmados.includes(declaracion.estado);
+        this.logger.log(
+          `✅ Puede mostrar no lectiva: ${puedeMostrarNoLectiva}`,
+        );
+        cargaNoLectiva = declaracion?.carga_no_lectiva;
+        this.logger.log(
+          `📦 Carga no lectiva JSON: ${JSON.stringify(cargaNoLectiva)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo obtener declaración para docente ${docenteId}: ${error}`,
+      );
+    }
+
     const horarios = await this.horarioRepo.find({
       where: { docente_id: docenteId, periodo: targetPeriodo },
       relations: ["curso", "ambiente", "grupo"],
       order: { dia: "ASC", hora_inicio: "ASC" },
+    });
+
+    this.logger.log(`📊 Horarios encontrados: ${horarios.length}`);
+    horarios.forEach((h) => {
+      this.logger.log(
+        `  - ${h.curso?.nombre} | tipo: ${h.tipo_clase} | ${h.hora_inicio}-${h.hora_fin}`,
+      );
     });
 
     if (horarios.length === 0) {
@@ -155,19 +236,75 @@ export class TelegramBotService {
       "Sábado",
       "Domingo",
     ];
+    const diaMap: Record<string, string> = {
+      LU: "Lunes",
+      MA: "Martes",
+      MI: "Miércoles",
+      JU: "Jueves",
+      VI: "Viernes",
+      SA: "Sábado",
+      DO: "Domingo",
+    };
     const lines = [
       `*Horario ${targetPeriodo} — ${docente.nombres} ${docente.apellidos}*`,
     ];
+
+    // Filtrar horarios según estado de declaración
+    const horariosFiltrados = horarios.filter((h) => {
+      if (h.tipo_clase === "NO_LECTIVA") {
+        return puedeMostrarNoLectiva;
+      }
+      return true;
+    });
+
     lines.push("");
-    for (const h of horarios) {
+    for (const h of horariosFiltrados) {
       const dia = dias[h.dia] || h.dia;
-      lines.push(`• *${dia}* ${h.hora_inicio}–${h.hora_fin}`);
+      const tipoLabel = h.tipo_clase === "NO_LECTIVA" ? "🔵 NO LECTIVA" : "";
+      lines.push(`• *${dia}* ${h.hora_inicio}–${h.hora_fin} ${tipoLabel}`);
+      if (h.tipo_clase === "NO_LECTIVA") {
+        lines.push(`  ${h.curso?.nombre || "Actividad no lectiva"}`);
+      } else {
+        lines.push(
+          `  ${h.curso?.nombre || "Curso"} | ${h.ambiente?.codigo || "Ambiente"} | Grupo ${h.grupo?.nombre || "?"}`,
+        );
+      }
+    }
+
+    // Agregar carga no lectiva desde la declaración
+    if (puedeMostrarNoLectiva && cargaNoLectiva?.actividades) {
+      const actividades = cargaNoLectiva.actividades.filter(
+        (a: any) => a.horas > 0 && a.horarios && a.horarios.length > 0,
+      );
+
+      if (actividades.length > 0) {
+        lines.push("");
+        lines.push("🔵 *CARGA NO LECTIVA*");
+
+        for (const act of actividades) {
+          for (const hor of act.horarios) {
+            const diaNombre = diaMap[hor.dia] || hor.dia;
+            lines.push(
+              `• *${diaNombre}* ${hor.hora_inicio}–${hor.hora_fin} 🔵 NO LECTIVA`,
+            );
+            lines.push(`  ${act.descripcion}`);
+            if (act.detalle) {
+              lines.push(`  ${act.detalle}`);
+            }
+          }
+        }
+      }
+    }
+
+    lines.push("");
+    lines.push(`Total: ${horariosFiltrados.length} asignaciones`);
+
+    if (!puedeMostrarNoLectiva) {
+      lines.push("");
       lines.push(
-        `  ${h.curso?.nombre || "Curso"} | ${h.ambiente?.codigo || "Ambiente"} | Grupo ${h.grupo?.nombre || "?"}`,
+        "ℹ️ La carga no lectiva se mostrará cuando confirmes tu declaración.",
       );
     }
-    lines.push("");
-    lines.push(`Total: ${horarios.length} asignaciones`);
 
     return { chat_id: chatId, text: lines.join("\n"), parse_mode: "Markdown" };
   }
@@ -177,6 +314,7 @@ export class TelegramBotService {
   ): Promise<{ chat_id: number; text: string }> {
     const prefs = await this.preferenciasRepo.findOne({
       where: { telegram_chat_id: String(chatId) },
+      relations: ["docente"],
     });
     if (!prefs) {
       return {

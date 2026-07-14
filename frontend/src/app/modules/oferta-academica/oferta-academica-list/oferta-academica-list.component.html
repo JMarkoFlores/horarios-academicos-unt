@@ -1,0 +1,121 @@
+<div class="animate-fadein">
+
+  <div class="page-header-premium">
+    <div class="title-section">
+      <h1 class="gradient-text">Oferta Académica</h1>
+      <p class="subtitle">Cursos ofertados por período para asignación lectiva</p>
+    </div>
+    <div class="header-actions">
+      <button mat-raised-button class="btn-new" (click)="generarDesdePlan()" [disabled]="generando">
+        <mat-icon>auto_stories</mat-icon>
+        <span>{{ generando ? 'Generando…' : 'Generar desde Plan' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <mat-card class="filter-card-premium">
+    <div class="filter-grid">
+      <div class="search-wrapper">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input type="text" [formControl]="searchControl"
+          placeholder="Buscar por curso, código o período…" class="premium-input" />
+      </div>
+    </div>
+  </mat-card>
+
+  <mat-card class="table-container-premium">
+    <div class="results-bar">
+      <span class="results-count">
+        <mat-icon>list_alt</mat-icon>
+        <strong>{{ dataSource.length }}</strong> oferta{{ dataSource.length !== 1 ? 's' : '' }} encontrada{{ dataSource.length !== 1 ? 's' : '' }}
+      </span>
+    </div>
+
+    <div class="table-scroll">
+      <table mat-table [dataSource]="dataSource" class="premium-table">
+
+        <ng-container matColumnDef="codigo">
+          <th mat-header-cell *matHeaderCellDef>Código</th>
+          <td mat-cell *matCellDef="let o">
+            <span class="code-badge">{{ o.curso_plan?.curso?.codigo || '—' }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="nombre">
+          <th mat-header-cell *matHeaderCellDef>Curso</th>
+          <td mat-cell *matCellDef="let o">
+            <div class="plan-name-cell">
+              <span class="plan-title">{{ o.curso_plan?.curso?.nombre || '—' }}</span>
+              <span class="plan-desc" *ngIf="o.curso_plan?.curso?.creditos">{{ o.curso_plan.curso.creditos }} créd.</span>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="ciclo">
+          <th mat-header-cell *matHeaderCellDef>Ciclo</th>
+          <td mat-cell *matCellDef="let o">
+            <span class="year-badge">{{ o.curso_plan?.ciclo || '—' }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="tipo">
+          <th mat-header-cell *matHeaderCellDef>Tipo</th>
+          <td mat-cell *matCellDef="let o">
+            <span class="tipo-badge" [class.teoria]="o.tipo_clase === 'TEORIA'"
+              [class.practica]="o.tipo_clase === 'PRACTICA'"
+              [class.lab]="o.tipo_clase === 'LABORATORIO'">
+              {{ tipoClaseLabel(o.tipo_clase) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="secciones">
+          <th mat-header-cell *matHeaderCellDef>Secciones</th>
+          <td mat-cell *matCellDef="let o">{{ o.secciones }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="periodo">
+          <th mat-header-cell *matHeaderCellDef>Período</th>
+          <td mat-cell *matCellDef="let o">
+            <span class="school-name">{{ o.periodo?.codigo || '—' }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="activo">
+          <th mat-header-cell *matHeaderCellDef>Estado</th>
+          <td mat-cell *matCellDef="let o">
+            <span class="status-badge" [class.active]="o.activo" [class.inactive]="!o.activo">
+              {{ o.activo ? 'ACTIVO' : 'INACTIVO' }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="acciones">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let o" class="actions-cell">
+            <div class="btn-group">
+              <button mat-icon-button class="btn-action toggle" [class.active]="o.activo"
+                (click)="toggleActivo(o)"
+                [matTooltip]="o.activo ? 'Desactivar oferta' : 'Activar oferta'">
+                <mat-icon>{{ o.activo ? 'toggle_on' : 'toggle_off' }}</mat-icon>
+              </button>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns; let i = index"
+          class="premium-row" [style.animation-delay]="i * 40 + 'ms'"></tr>
+      </table>
+
+      <div *ngIf="dataSource.length === 0 && !loading" class="empty-state-premium">
+        <div class="empty-illustration"><mat-icon>book_online</mat-icon></div>
+        <h3>Sin ofertas</h3>
+        <p>No hay cursos ofertados para el período actual.</p>
+        <button mat-stroked-button (click)="generarDesdePlan()" [disabled]="generando">
+          <mat-icon>auto_stories</mat-icon> Generar desde Plan
+        </button>
+      </div>
+    </div>
+  </mat-card>
+</div>

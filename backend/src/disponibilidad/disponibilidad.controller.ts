@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Post,
@@ -36,6 +36,13 @@ export class DisponibilidadController {
   constructor(private readonly disponibilidadService: DisponibilidadService) {}
 
   @Get("docente/:id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DOCENTE,
+  )
   @ApiOperation({ summary: "Obtener disponibilidad declarada de un docente" })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -51,6 +58,11 @@ export class DisponibilidadController {
   }
 
   @Post("docente/:id")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+  )
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Guardar disponibilidad masiva de un docente (reemplaza)",
@@ -69,6 +81,12 @@ export class DisponibilidadController {
   }
 
   @Get("resumen")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+  )
   @ApiOperation({ summary: "Resumen de horas disponibles por docente" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async getResumen(@Query("periodo") periodo: string) {
@@ -79,6 +97,11 @@ export class DisponibilidadController {
   }
 
   @Get("restricciones")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.SECRETARIA,
+  )
   @ApiOperation({ summary: "Listar restricciones institucionales activas" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async getRestricciones(
@@ -94,9 +117,10 @@ export class DisponibilidadController {
   }
 
   @Delete("docente/:id")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Eliminar disponibilidad de un docente en un período",
+    summary: "Eliminar disponibilidad de un docente en un perÃ­odo",
   })
   @ApiParam({ name: "id", type: Number })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
@@ -110,9 +134,11 @@ export class DisponibilidadController {
 
   @Post("restricciones")
   @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
-  @ApiOperation({ summary: "Crear o actualizar una restricción institucional" })
+  @ApiOperation({
+    summary: "Crear o actualizar una restricciÃ³n institucional",
+  })
   async upsertRestriccion(@Body() dto: CreateRestriccionDto) {
     const result = await this.disponibilidadService.upsertRestriccion(dto);
-    return { data: result, message: "Restricción guardada correctamente" };
+    return { data: result, message: "RestricciÃ³n guardada correctamente" };
   }
 }

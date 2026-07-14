@@ -4,14 +4,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { DiasActivosService } from '../../core/services/dias-activos.service';
+import { ConfiguracionGeneralService } from '../../core/services/configuracion-general.service';
+import { HorarioExportService, CursoItem } from '../../core/services/horario-export.service';
+import type { CeldaHorario } from '../../core/services/horario-export.service';
 import { ApiResponse, HorarioAsignado } from '../../core/interfaces/entities';
-
-export interface CeldaHorario {
-  asig: HorarioAsignado | null;
-  rowspan: number;
-  skip: boolean;
-  esAlmuerzo: boolean;
-}
 
 @Component({
   selector: 'app-docente-horario',
@@ -21,7 +17,7 @@ export interface CeldaHorario {
 export class DocenteHorarioComponent implements OnInit, OnDestroy {
   dias: string[] = [];
   diasNum: number[] = [];
-  horas = Array.from({ length: 15 }, (_, i) => i + 7);
+  horas: number[] = [];
 
   asignaciones: HorarioAsignado[] = [];
   docenteInfo: {
@@ -37,33 +33,75 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
   descargandoExcel = false;
   descargandoIcal = false;
 
+  franjaInicio = 7;
+  franjaFin = 22;
   almuerzoInicio = 12;
   almuerzoFin = 14;
+  horasMaxDiarias = 8;
+  horasMaxSemanales = 40;
+  duracionBloque = 1;
 
-  private _gridCache: Map<string, CeldaHorario> = new Map();
+  get summaryBloques(): number {
+    return this.asignacionesVisibles.length;
+  }
+
+  get summaryHoras(): number {
+    return this.asignacionesVisibles.reduce((acc, a) => {
+      if (!a.hora_inicio || !a.hora_fin) return acc + 1;
+      return acc + (parseInt(a.hora_fin.split(':')[0], 10) - parseInt(a.hora_inicio.split(':')[0], 10));
+    }, 0);
+  }
+
+  get summaryDias(): number {
+    return new Set(this.asignacionesVisibles.map(a => a.dia_semana)).size;
+  }
+
+  get asignacionesVisibles(): HorarioAsignado[] {
+    if (this.mostrarNoLectiva) return this.asignaciones;
+    return this.asignaciones.filter(a => a.tipo_clase !== 'NO_LECTIVA');
+  }
+
+  private _grid = new Map<string, CeldaHorario>();
   private periodSub?: Subscription;
+  mostrarNoLectiva = false;
+  declaracionEstado: string | null = null;
+  puedeMostrarNoLectiva = false;
+  mensajeEstadoDeclaracion = '';
+
+  private courseColorsMap = new Map<number, [number, number, number]>();
+  private courseColorsHexMap = new Map<number, string>();
+  cursosUnicosList: CursoItem[] = [];
+
+  private noLectivaStyleMap = new Map<string, { bg: string; border: string }>();
+  noLectivaList: { nombre: string; colorHex: string; borderHex: string }[] = [];
 
   constructor(
     private api: ApiService,
     public periodoService: PeriodoService,
     private snackBar: MatSnackBar,
     private diasActivosService: DiasActivosService,
+    private configService: ConfiguracionGeneralService,
+    private exportService: HorarioExportService,
   ) {}
 
   ngOnInit(): void {
+    this.configService.cargar();
     this.diasActivosService.cargar().subscribe(() => {
       this.dias = this.diasActivosService.nombres;
       this.diasNum = this.diasActivosService.numeros;
-      this._buildGrid();
+      this.buildHours();
+      this.buildGrid();
     });
     this.dias = this.diasActivosService.nombres;
     this.diasNum = this.diasActivosService.numeros;
     this.cargarBloqueAlmuerzo();
     this.cargarHorario();
+    this.cargarEstadoDeclaracion();
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
-      this._gridCache.clear();
+      this._grid.clear();
       this.cargarBloqueAlmuerzo();
       this.cargarHorario();
+      this.cargarEstadoDeclaracion();
     });
   }
 
@@ -91,15 +129,35 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
               almuerzo.valor.hora_fin.split(':')[0],
               10,
             );
-            this._buildGrid();
           }
+          const franja = lista.find(
+            (x) => x.tipo_restriccion === 'FRANJA_HORARIA' && x.activo,
+          );
+          if (franja?.valor?.hora_inicio && franja?.valor?.hora_fin) {
+            this.franjaInicio = parseInt(franja.valor.hora_inicio.split(':')[0], 10);
+            this.franjaFin = parseInt(franja.valor.hora_fin.split(':')[0], 10);
+          }
+          const duracion = lista.find(
+            (x) => x.tipo_restriccion === 'DURACION_BLOQUE' && x.activo,
+          );
+          if (duracion?.valor) {
+            this.duracionBloque = (duracion.valor as number) / 60 || 1;
+          }
+          const maxDiaria = lista.find(
+            (x) => x.tipo_restriccion === 'MAXIMA_DIARIA' && x.activo,
+          );
+          if (maxDiaria?.valor) {
+            this.horasMaxDiarias = parseInt(String(maxDiaria.valor), 10) || 8;
+          }
+          this.buildHours();
+          this.buildGrid();
         },
       });
   }
 
   cargarHorario(): void {
     this.loading = true;
-    this._gridCache.clear();
+    this._grid.clear();
     this.api
       .get<ApiResponse<any>>('/horarios/mis-horarios', {
         periodo: this.periodoService.periodo,
@@ -111,7 +169,7 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
           this.docenteInfo = result?.docente ?? null;
 
           this.asignaciones = raw.map((a) => {
-            const diaVal: number = (a as any).dia ?? a.dia_semana;
+            const diaVal: number = this.normalizeDia((a as any).dia ?? a.dia_semana);
             return {
               ...a,
               dia_semana: diaVal,
@@ -119,13 +177,74 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
               hora_fin: this.normalizeHora(a.hora_fin),
             };
           });
-          this._buildGrid();
+
+          this.setupNoLectivaStyles();
+          this.setupCourseColors();
+
+          this.buildGrid();
           this.loading = false;
         },
         error: () => {
           this.loading = false;
         },
       });
+  }
+
+  cargarEstadoDeclaracion(): void {
+    this.api
+      .get<ApiResponse<any>>('/declaraciones/mia')
+      .subscribe({
+        next: (r) => {
+          const declaracion = r.data;
+          this.declaracionEstado = declaracion?.estado || null;
+          const estadosConfirmados = ['CONFIRMADO', 'VALIDADO_DPTO', 'APROBADO_FACULTAD', 'CERRADO'];
+          this.puedeMostrarNoLectiva = !!this.declaracionEstado && estadosConfirmados.includes(this.declaracionEstado);
+          if (!this.puedeMostrarNoLectiva) {
+            this.mostrarNoLectiva = false;
+          }
+          if (this.declaracionEstado) {
+            const mensajes: Record<string, string> = {
+              BORRADOR: 'Complete su declaración para ver carga no lectiva',
+              ENVIADO: 'Su declaración está en revisión',
+              OBSERVADO_DPTO: 'Subsane las observaciones para ver carga no lectiva',
+              OBSERVADO_FACULTAD: 'Subsane las observaciones para ver carga no lectiva',
+              VALIDADO_DPTO: 'Carga no lectiva disponible',
+              APROBADO_FACULTAD: 'Carga no lectiva disponible',
+              CERRADO: 'Carga no lectiva disponible',
+            };
+            this.mensajeEstadoDeclaracion = mensajes[this.declaracionEstado] || '';
+          } else {
+            this.mensajeEstadoDeclaracion = 'No hay declaración para este período';
+          }
+        },
+        error: () => {
+          this.declaracionEstado = null;
+          this.puedeMostrarNoLectiva = false;
+          this.mostrarNoLectiva = false;
+          this.mensajeEstadoDeclaracion = 'No hay declaración para este período';
+        },
+      });
+  }
+
+  private normalizeDia(dia: any): number {
+    if (typeof dia === 'number') return dia;
+    const diaMap: Record<string, number> = {
+      'LU': 1,
+      'MA': 2,
+      'MI': 3,
+      'JU': 4,
+      'VI': 5,
+      'SA': 6,
+      'DO': 7,
+      'LUNES': 1,
+      'MARTES': 2,
+      'MIERCOLES': 3,
+      'JUEVES': 4,
+      'VIERNES': 5,
+      'SABADO': 6,
+      'DOMINGO': 7,
+    };
+    return diaMap[String(dia).toUpperCase()] || 1;
   }
 
   private normalizeHora(hora: string | undefined): string {
@@ -137,15 +256,46 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
     return `${String(h).padStart(2, '0')}:00`;
   }
 
-  private _buildGrid(): void {
-    this._gridCache.clear();
+  fmtH(h: number): string {
+    return this.fmtHStr(h);
+  }
+
+  private buildHours(): void {
+    this.horas = [];
+    for (let h = this.franjaInicio; h < this.franjaFin; h += this.duracionBloque) {
+      this.horas.push(h);
+    }
+  }
+
+  private setupCourseColors(): void {
+    const result = this.exportService.setupCourseColors(this.asignaciones);
+    this.courseColorsMap = result.colorMap;
+    this.courseColorsHexMap = result.hexMap;
+    this.cursosUnicosList = result.cursosList;
+  }
+
+  private buildGrid(): void {
+    this._grid.clear();
     for (const dia of this.diasNum) {
       for (const hora of this.horas) {
         const key = `${dia}_${hora}`;
-        const asig =
-          this.asignaciones.find(
-            (a) => a.dia_semana === dia && a.hora_inicio === this.fmtHStr(hora),
-          ) ?? null;
+        const asigMatches = this.asignaciones.filter(
+          (a) => a.dia_semana === dia && a.hora_inicio === this.fmtHStr(hora)
+        );
+        
+        let asig: HorarioAsignado | null = null;
+        if (this.mostrarNoLectiva) {
+          // Priorizar NO_LECTIVA cuando el toggle está activo
+          asig = asigMatches.find(a => a.tipo_clase === 'NO_LECTIVA') ?? asigMatches[0] ?? null;
+        } else {
+          // Priorizar asignaciones que NO son NO_LECTIVA
+          asig = asigMatches.find(a => a.tipo_clase !== 'NO_LECTIVA') ?? asigMatches[0] ?? null;
+        }
+
+        if (asig && asig.tipo_clase === 'NO_LECTIVA' && !this.mostrarNoLectiva) {
+          asig = null;
+        }
+        
         let rowspan = 1;
         if (asig?.hora_fin) {
           const finH = parseInt(asig.hora_fin.split(':')[0], 10);
@@ -153,15 +303,22 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
         }
         const esAlmuerzo =
           hora >= this.almuerzoInicio && hora < this.almuerzoFin && !asig;
-        this._gridCache.set(key, { asig, rowspan, skip: false, esAlmuerzo });
+        this._grid.set(key, {
+          asig,
+          rowspan,
+          skip: false,
+          esAlmuerzo,
+          mergedTipos: asig ? [asig.tipo_clase ?? 'TEORIA'] : [],
+          mergedAmbs: asig?.ambiente?.codigo ? [asig.ambiente.codigo] : [],
+        });
       }
       for (const hora of this.horas) {
         const key = `${dia}_${hora}`;
-        const cell = this._gridCache.get(key)!;
+        const cell = this._grid.get(key)!;
         if (cell.asig && cell.rowspan > 1) {
           for (let s = 1; s < cell.rowspan; s++) {
             const skipKey = `${dia}_${hora + s}`;
-            const sc = this._gridCache.get(skipKey);
+            const sc = this._grid.get(skipKey);
             if (sc) sc.skip = true;
           }
         }
@@ -171,11 +328,13 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
 
   getCell(dia: number, hora: number): CeldaHorario {
     return (
-      this._gridCache.get(`${dia}_${hora}`) ?? {
+      this._grid.get(`${dia}_${hora}`) ?? {
         asig: null,
         rowspan: 1,
         skip: false,
         esAlmuerzo: false,
+        mergedTipos: [],
+        mergedAmbs: [],
       }
     );
   }
@@ -183,17 +342,82 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
   cls(dia: number, hora: number): string {
     const cell = this.getCell(dia, hora);
     if (!cell.asig) return cell.esAlmuerzo ? 'celda-almuerzo' : 'celda-vacia';
+    if (cell.asig.tipo_clase === 'NO_LECTIVA') return 'celda-no-lectiva';
     return cell.asig.tipo_clase === 'LABORATORIO'
       ? 'celda-lab'
       : 'celda-teoria';
   }
 
-  esAlmuerzoHora(hora: number): boolean {
-    return hora >= this.almuerzoInicio && hora < this.almuerzoFin;
+  getNombreAsignacion(a: any): string {
+    if (a.tipo_clase === 'NO_LECTIVA') {
+      let nombre = (a as any).actividad_nombre || 'Carga No Lectiva';
+      nombre = nombre.replace(/^\d+\.\s*/, '');
+      nombre = nombre.replace(/\s*\(.*\)\s*$/, '');
+      const colonIdx = nombre.indexOf(':');
+      if (colonIdx > 0) {
+        nombre = nombre.substring(0, colonIdx);
+      }
+      return nombre.trim();
+    }
+    return a.curso?.nombre ?? '—';
   }
 
-  fmtH(h: number): string {
-    return this.fmtHStr(h);
+  private setupNoLectivaStyles(): void {
+    const NO_LECTIVA_PALETTE = [
+      { bg: '#FFFBEB', border: '#F59E0B' },
+      { bg: '#FFF1F2', border: '#F43F5E' },
+      { bg: '#F5F3FF', border: '#8B5CF6' },
+      { bg: '#ECFDF5', border: '#10B981' },
+      { bg: '#ECFEFF', border: '#06B6D4' },
+      { bg: '#FFF7ED', border: '#F97316' },
+      { bg: '#F1F5F9', border: '#64748B' },
+      { bg: '#EEF2FF', border: '#6366F1' },
+      { bg: '#FDF2F8', border: '#EC4899' },
+      { bg: '#F0FDF4', border: '#22C55E' },
+    ];
+    const uniqueNames = [...new Set(
+      this.asignaciones
+        .filter(a => a.tipo_clase === 'NO_LECTIVA')
+        .map(a => this.getNombreAsignacion(a))
+    )];
+    this.noLectivaStyleMap.clear();
+    uniqueNames.forEach((name, idx) => {
+      this.noLectivaStyleMap.set(name, NO_LECTIVA_PALETTE[idx % NO_LECTIVA_PALETTE.length]);
+    });
+    this.noLectivaList = uniqueNames.map(name => {
+      const style = this.noLectivaStyleMap.get(name)!;
+      return { nombre: name, colorHex: style.bg, borderHex: style.border };
+    });
+  }
+
+  getAsignacionStyle(asig: any): Record<string, string> {
+    if (!asig) return {};
+    if (asig.tipo_clase === 'NO_LECTIVA') {
+      const name = this.getNombreAsignacion(asig);
+      const style = this.noLectivaStyleMap.get(name);
+      if (style) {
+        return { 'background-color': style.bg, 'border-color': style.border };
+      }
+      return { 'background-color': '#FFFBEB', 'border-color': '#F59E0B' };
+    }
+    return { 'background-color': this.getCursoColorHex(asig.curso?.id || 0) };
+  }
+
+  getCursoColorHex(cursoId: number): string {
+    return this.exportService.getCursoColorHex(this.courseColorsHexMap, cursoId);
+  }
+
+  getStatsCurso(cursoId: number) {
+    const asigs = this.asignaciones.filter(a => a.curso?.id === cursoId);
+    return this.exportService.calcularStatsCurso(asigs);
+  }
+
+  toggleNoLectiva(): void {
+    this.buildGrid();
+  }
+
+  esAlmuerzoHora(hora: number): boolean {
+    return hora >= this.almuerzoInicio && hora < this.almuerzoFin;
   }
 
   get horasAsignadas(): number {
@@ -201,73 +425,87 @@ export class DocenteHorarioComponent implements OnInit, OnDestroy {
   }
 
   get totalHorasSemanales(): number {
-    return this.asignaciones.reduce((acc, a) => {
-      if (!a.hora_inicio || !a.hora_fin) return acc + 1;
-      const ini = parseInt(a.hora_inicio.split(':')[0], 10);
-      const fin = parseInt(a.hora_fin.split(':')[0], 10);
-      return acc + (fin - ini);
-    }, 0);
+    return this.summaryHoras;
   }
 
+  // ── PDF (client-side via HorarioExportService) ──────────────────────────
   descargarPdf(): void {
+    if (!this.docenteInfo) return;
     this.descargandoPdf = true;
-    this.api
-      .getBlob('/reportes/mi-horario/pdf', {
-        periodo: this.periodoService.periodo,
-      })
-      .subscribe({
-        next: (blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `horario-docente-${this.periodoService.periodo}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-          this.descargandoPdf = false;
-        },
-        error: () => {
-          this.snackBar.open('Error al descargar PDF', 'Cerrar', {
-            duration: 3000,
-          });
-          this.descargandoPdf = false;
-        },
-      });
+    try {
+      this.exportService.generarPDF(
+        this.docenteInfo,
+        this.asignacionesVisibles,
+        this.dias,
+        this.diasNum,
+        this.horas,
+        this._grid,
+        this.cursosUnicosList,
+        this.courseColorsMap,
+        this.configService.config,
+        this.periodoService.periodo ?? '',
+        this.summaryHoras,
+        this.franjaInicio,
+        this.franjaFin,
+        this.almuerzoInicio,
+        this.almuerzoFin,
+        this.horasMaxDiarias,
+        this.horasMaxSemanales,
+        this.duracionBloque,
+        (h) => this.esAlmuerzoHora(h),
+        (h) => this.fmtH(h),
+      );
+    } catch (e) {
+      console.error('PDF error:', e);
+      this.snackBar.open('Error al generar el PDF', 'Cerrar', { duration: 3000 });
+    } finally {
+      this.descargandoPdf = false;
+    }
   }
 
+  // ── Excel (client-side via HorarioExportService) ────────────────────────
   descargarExcel(): void {
+    if (!this.docenteInfo) return;
     this.descargandoExcel = true;
-    this.api
-      .getBlob('/reportes/mi-horario/excel', {
-        periodo: this.periodoService.periodo,
-      })
-      .subscribe({
-        next: (blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `horario-docente-${this.periodoService.periodo}.xlsx`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-          this.descargandoExcel = false;
-        },
-        error: () => {
-          this.snackBar.open('Error al descargar Excel', 'Cerrar', {
-            duration: 3000,
-          });
-          this.descargandoExcel = false;
-        },
-      });
+    try {
+      this.exportService.generarExcel(
+        this.docenteInfo,
+        this.asignacionesVisibles,
+        this.dias,
+        this.diasNum,
+        this.horas,
+        this._grid,
+        this.cursosUnicosList,
+        this.courseColorsMap,
+        this.courseColorsHexMap,
+        this.configService.config,
+        this.periodoService.periodo ?? '',
+        this.summaryHoras,
+        this.summaryBloques,
+        this.summaryDias,
+        this.franjaInicio,
+        this.franjaFin,
+        this.almuerzoInicio,
+        this.almuerzoFin,
+        this.horasMaxDiarias,
+        this.duracionBloque,
+        (h) => this.fmtH(h),
+      );
+    } catch (e) {
+      console.error('Excel error:', e);
+      this.snackBar.open('Error al generar Excel', 'Cerrar', { duration: 3000 });
+    } finally {
+      this.descargandoExcel = false;
+    }
   }
 
+  // ── iCalendar (backend) ────────────────────────────────────────────────
   descargarIcal(): void {
     this.descargandoIcal = true;
     this.api
       .getBlob('/horarios/mis-horarios/ical', {
         periodo: this.periodoService.periodo,
+        mostrarNoLectiva: this.mostrarNoLectiva ? 'true' : 'false',
       })
       .subscribe({
         next: (blob) => {

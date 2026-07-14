@@ -26,14 +26,17 @@ import { ConfiguracionModule } from "./configuracion/configuracion.module";
 import { PreasignacionesModule } from "./modules/preasignaciones/preasignaciones.module";
 import { VentanasModule } from "./modules/ventanas/ventanas.module";
 import { AuditoriaModule } from "./modules/auditoria/auditoria.module";
-import { CursosAmbienteModule } from "./cursos-ambiente/cursos-ambiente.module";
 import { FacultadesModule } from "./facultades/facultades.module";
 import { DataImportModule } from "./modules/data-import/data-import.module";
 import { DeclaracionCargaHorariaModule } from "./declaracion-carga-horaria/declaracion-carga-horaria.module";
-import { DeclaracionesModule } from "./modules/declaraciones/declaraciones.module";
+// DeclaracionesModule removido — funcionalidad consolidada en DeclaracionCargaHorariaModule
 import { ChatbotModule } from "./chatbot/chatbot.module";
 import { PlanEstudiosModule } from "./modules/plan-estudios/plan-estudios.module";
 import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion-lectiva.module";
+import { OfertaAcademicaModule } from "./modules/oferta-academica/oferta-academica.module";
+import { CladModule } from "./clad/clad.module";
+import { AsignadorLectivoModule } from "./modules/asignador-lectivo/asignador-lectivo.module";
+import { HealthController } from "./health/health.controller";
 
 @Module({
   imports: [
@@ -52,7 +55,7 @@ import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion
         username: config.get<string>("DATABASE_USER", "unt_user"),
         password: config.get<string>("DATABASE_PASSWORD", "unt_pass123"),
         autoLoadEntities: true,
-        synchronize: false,
+        synchronize: config.get<string>("DB_SYNC") !== "false",
         logging: config.get<string>("DATABASE_LOGGING") === "true",
         timezone: "-05:00",
         ssl:
@@ -116,15 +119,17 @@ import { AsignacionLectivaModule } from "./modules/asignacion-lectiva/asignacion
     ConfiguracionModule,
     PreasignacionesModule,
     AuditoriaModule,
-    CursosAmbienteModule,
     FacultadesModule,
     DataImportModule,
     DeclaracionCargaHorariaModule,
-    DeclaracionesModule,
     ChatbotModule,
     PlanEstudiosModule,
     AsignacionLectivaModule,
+    OfertaAcademicaModule,
+    CladModule,
+    AsignadorLectivoModule,
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_GUARD,

@@ -212,9 +212,39 @@
             </div>
           </div>
 
-          <div *ngIf="!ambientesDocente || ambientesDocente.length === 0" class="estado-vacio-mini">
-            <mat-icon>meeting_room</mat-icon>
-            <p>No hay ambientes compatibles para el tipo {{ tipoClase | titlecase }}.</p>
+          <div *ngIf="!ambientesDocente || ambientesDocente.length === 0" class="estado-vacio-mini advertencia-ambientes">
+            <mat-icon class="icono-advertencia">meeting_room</mat-icon>
+            <p class="titulo-advertencia">No hay ambientes asignados para este curso</p>
+            <p class="mensaje-advertencia">
+              Asigne los ambientes correspondientes en <strong>Cursos → Detalle del curso → Ambientes</strong>,
+              seleccione {{ tipoClase === 'LABORATORIO' ? 'Laboratorio' : 'Teoría/Práctica' }} y regrese a esta ventana.
+            </p>
+            <button mat-stroked-button color="primary" (click)="irACursos()">
+              <mat-icon>open_in_new</mat-icon> Ir a Cursos
+            </button>
+
+            <!-- Diagnóstico técnico -->
+            <div *ngIf="diagnosticoAmbientes" class="diagnostico-ambientes">
+              <mat-divider class="divider-diagnostico"></mat-divider>
+              <p class="diagnostico-titulo"><mat-icon>bug_report</mat-icon> Diagnóstico técnico</p>
+              <p class="diagnostico-linea">
+                Curso: <strong>{{ diagnosticoAmbientes.curso.codigo }}</strong> — {{ diagnosticoAmbientes.curso.nombre }}
+              </p>
+              <p class="diagnostico-linea">
+                Ambientes directos: <strong>{{ diagnosticoAmbientes.totalAmbientesDirectos }}</strong> |
+                Por código (otros planes): <strong>{{ diagnosticoAmbientes.totalAmbientesPorCodigo }}</strong> |
+                Compatibles con {{ tipoClase | titlecase }}: <strong>{{ diagnosticoAmbientes.totalAmbientesCompatibles }}</strong>
+              </p>
+              <div *ngIf="diagnosticoAmbientes.cursosMismoCodigo.length > 1" class="diagnostico-cursos">
+                <p class="diagnostico-subtitulo">Cursos con mismo código encontrados:</p>
+                <ul>
+                  <li *ngFor="let c of diagnosticoAmbientes.cursosMismoCodigo">
+                    ID {{ c.id }} — {{ c.ambientes.length }} ambiente(s)
+                    <span *ngIf="c.id === diagnosticoAmbientes.curso.id">(curso actual)</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -223,7 +253,7 @@
           <div class="step-header">
             <div class="step-number active">3</div>
             <h4>Asignar Horario en la Grilla</h4>
-            <span class="step-hint">Haga clic en celdas disponibles y presione Confirmar</span>
+            <span class="step-hint">Arrastra el chip del curso a una celda libre, o haz clic directamente</span>
           </div>
 
           <div class="grilla-wrapper">

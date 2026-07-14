@@ -1,6 +1,9 @@
 # Todo dentro de docker:
 1- docker compose exec backend node dist/src/database/seed.js
 
+# Para autenticar
+1- ADMIN: admin@unt.edu.pe Y Admin123!
+
 # Guia de Ejecucion - Sistema de Horarios UNT
 
 > **Estado:** Docker Compose ya esta corriendo (`docker compose up -d` ejecutado previamente).

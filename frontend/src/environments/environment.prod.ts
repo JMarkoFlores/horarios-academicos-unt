@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://horarios-backend-bxkb.onrender.com',
+  apiUrl: 'https://horarios-academicos-unt.onrender.com',
 };

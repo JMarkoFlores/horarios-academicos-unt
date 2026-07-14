@@ -44,6 +44,9 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 # Non-root user for security
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 
+# Create uploads directory with correct ownership
+RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app
+
 # Copy package.json (needed for runtime module resolution)
 COPY backend/package*.json ./
 

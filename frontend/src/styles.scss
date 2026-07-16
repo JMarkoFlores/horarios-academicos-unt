@@ -168,6 +168,19 @@ $unt-dark-theme: mat.define-dark-theme((color: (primary: $unt-primary,
   --color-slot-bloqueado: #eceff1; // gris — no disponible
   --color-slot-ocupado: #cfd8dc; // gris oscuro — ocupado por otro
 
+  // Colores específicos para bloques de carga lectiva
+  --color-slot-teoria-bg: #dbeafe; // Blue 100
+  --color-slot-teoria-border: #3b82f6; // Blue 500
+  --color-slot-teoria-text: #1e40af; // Blue 800
+
+  --color-slot-practica-bg: #dcfce7; // Green 100
+  --color-slot-practica-border: #22c55e; // Green 500
+  --color-slot-practica-text: #166534; // Green 800
+
+  --color-slot-laboratorio-bg: #fef3c7; // Yellow 100
+  --color-slot-laboratorio-border: #f59e0b; // Yellow 500
+  --color-slot-laboratorio-text: #92400e; // Yellow 800
+
   // Sistema de espaciado (escala de 4px)
   --space-1: 4px;
   --space-2: 8px;
@@ -296,6 +309,19 @@ body.dark-theme {
   --color-slot-propia: #064e3b; // verde oscuro
   --color-slot-bloqueado: #374151; // gris oscuro
   --color-slot-ocupado: #4b5563; // gris más oscuro
+
+  // Colores específicos para bloques de carga lectiva (dark)
+  --color-slot-teoria-bg: #1e3a8a; // Blue 900
+  --color-slot-teoria-border: #60a5fa; // Blue 400
+  --color-slot-teoria-text: #bfdbfe; // Blue 200
+
+  --color-slot-practica-bg: #14532d; // Green 900
+  --color-slot-practica-border: #4ade80; // Green 400
+  --color-slot-practica-text: #bbf7d0; // Green 200
+
+  --color-slot-laboratorio-bg: #713f12; // Yellow 900
+  --color-slot-laboratorio-border: #fbbf24; // Yellow 400
+  --color-slot-laboratorio-text: #fef08a; // Yellow 200
 
   background-color: var(--color-bg);
 }

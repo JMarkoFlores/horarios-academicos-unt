@@ -479,7 +479,10 @@ export class AsignacionLectivaService {
 
   async remove(id: number, usuario: UsuarioAutenticado) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
-    if (asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE) {
+    if (
+      asignacion.estado !== EstadoAsignacionLectiva.PENDIENTE &&
+      asignacion.estado !== EstadoAsignacionLectiva.RECHAZADO
+    ) {
       throw new BadRequestException(
         `No se puede eliminar una asignación en estado "${asignacion.estado}"`,
       );
@@ -514,10 +517,10 @@ export class AsignacionLectivaService {
 
   async reabrir(id: number, usuario: UsuarioAutenticado) {
     const asignacion = await this.findOne(id, usuario.contextoAcademico);
-    
+
     if (asignacion.estado !== EstadoAsignacionLectiva.CONFIRMADO) {
       throw new BadRequestException(
-        `Solo se puede reabrir una asignación en estado CONFIRMADO. Estado actual: ${asignacion.estado}`
+        `Solo se puede reabrir una asignación en estado CONFIRMADO. Estado actual: ${asignacion.estado}`,
       );
     }
 
@@ -525,7 +528,7 @@ export class AsignacionLectivaService {
     asignacion.estado = EstadoAsignacionLectiva.PENDIENTE;
     asignacion.confirmado_por_id = null;
     asignacion.confirmado_en = null;
-    
+
     const saved = await this.asignacionRepo.save(asignacion);
 
     // Audit logging

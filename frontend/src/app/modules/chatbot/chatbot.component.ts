@@ -1,18 +1,20 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef, HostListener, OnDestroy } from '@angular/core';
 import { ChatbotService, ChatMessage } from './chatbot.service';
 import DOMPurify from 'dompurify';
 import { catchError, retry } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-chatbot',
   templateUrl: './chatbot.component.html',
   styleUrls: ['./chatbot.component.scss']
 })
-export class ChatbotComponent implements OnInit, AfterViewChecked {
+export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
+  // Estado
   isVisible = true;
   isOpen = false;
   isLoading = false;
@@ -27,6 +29,15 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     '¿Cómo declaro mi carga?',
     '¿Qué cursos hay disponibles?',
   ];
+  isListening = false;
+  speechSupported = false;
+  isSpeaking = false;
+  ttsEnabled = false;
+  isDarkTheme = false;
+  private recognition: any;
+  private synth: SpeechSynthesis;
+  private destroy$ = new Subject<void>();
+  lastToolResult: any = null;
 
   private roleSuggestions: Record<string, string[]> = {
     admin: [
@@ -61,85 +72,168 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     ],
   };
 
-  isListening = false;
-  speechSupported = false;
-  isSpeaking = false;
-  ttsEnabled = false; // Desactivado por defecto
-  recognition: any;
-  synth: SpeechSynthesis;
+  connectionStatus = 'Conectado';
 
-  constructor(private chatbotService: ChatbotService, private cdr: ChangeDetectorRef, private authService: AuthService) { 
+  constructor(
+    private chatbotService: ChatbotService,
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService,
+  ) {
     this.synth = window.speechSynthesis;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
+
     if (SpeechRecognition) {
       this.speechSupported = true;
       this.recognition = new SpeechRecognition();
       this.recognition.lang = 'es-PE';
       this.recognition.continuous = false;
       this.recognition.interimResults = false;
+      this.recognition.maxAlternatives = 1;
 
       this.recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
-        this.userInput = transcript;
-        this.cdr.detectChanges();
-        this.sendMessage(); // Enviar automáticamente
+        this.zoneRun(() => {
+          this.userInput = transcript;
+          this.isListening = false;
+          this.cdr.detectChanges();
+        });
       };
 
       this.recognition.onerror = (event: any) => {
-        console.error('Error en reconocimiento de voz:', event.error);
-        this.isListening = false;
-        this.cdr.detectChanges();
+        console.error('Speech recognition error:', event.error);
+        this.zoneRun(() => {
+          this.isListening = false;
+          this.cdr.detectChanges();
+        });
       };
 
       this.recognition.onend = () => {
-        this.isListening = false;
-        this.cdr.detectChanges();
+        this.zoneRun(() => {
+          this.isListening = false;
+          this.cdr.detectChanges();
+        });
       };
     }
   }
 
-  toggleListening() {
-    if (!this.speechSupported) return;
+  private zoneRun(fn: () => void): void {
+    // Angular's zone will catch this automatically in most cases
+    fn();
+  }
 
-    if (this.isListening) {
-      this.recognition.stop();
-    } else {
-      try {
-        this.recognition.start();
-        this.isListening = true;
-      } catch (e) {
-        console.error('El micrófono no pudo iniciar:', e);
-      }
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent) {
+    if (event.key === 'Escape' && this.isOpen) {
+      this.toggleChat();
+    }
+    if (event.ctrlKey && event.key === 'k') {
+      event.preventDefault();
+      if (!this.isOpen) this.toggleChat();
     }
   }
 
-  speakText(text: string) {
-    if (!this.ttsEnabled || !this.synth) return;
+  ngOnInit(): void {
+    this.isDarkTheme = document.documentElement.classList.contains('dark') || 
+                       localStorage.getItem('theme') === 'dark';
     
-    // Detener cualquier audio previo
-    this.synth.cancel();
+    this.isVisible = this.chatbotService.getChatVisibility();
+    this.loadHistory();
+    this.loadRoleSuggestions();
 
-    // Limpiar formato markdown básico antes de leer
-    const plainText = text.replace(/[*_~`]/g, '').replace(/<[^>]*>?/gm, '');
+    // Escuchar cambios de visibilidad
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'chatbot_visible') {
+        this.isVisible = this.chatbotService.getChatVisibility();
+        this.cdr.detectChanges();
+      }
+    });
 
-    const utterance = new SpeechSynthesisUtterance(plainText);
-    utterance.lang = 'es-PE';
-    utterance.rate = 1;
-    
-    this.isSpeaking = true;
-
-    utterance.onend = () => {
-      this.isSpeaking = false;
+    // Abrir desde topbar
+    window.addEventListener('openChatbot', () => {
+      this.isVisible = true;
+      this.isOpen = true;
+      this.chatbotService.setChatVisibility(true);
       this.cdr.detectChanges();
-    };
+    });
 
-    utterance.onerror = () => {
-      this.isSpeaking = false;
+    // Recibir pregunta pre-llenada (desde sugerencias IA)
+    window.addEventListener('chatbot:ask', ((event: CustomEvent) => {
+      const { question } = event.detail || {};
+      if (question) {
+        this.isVisible = true;
+        this.isOpen = true;
+        this.chatbotService.setChatVisibility(true);
+        this.userInput = question;
+        this.cdr.detectChanges();
+        setTimeout(() => this.sendMessage(), 100);
+      }
+    }) as EventListener);
+
+    // Conexión
+    this.isOnline = navigator.onLine;
+    window.addEventListener('online', () => {
+      this.isOnline = true;
+      this.connectionStatus = 'Conectado';
       this.cdr.detectChanges();
-    };
-    
-    this.synth.speak(utterance);
+    });
+    window.addEventListener('offline', () => {
+      this.isOnline = false;
+      this.connectionStatus = 'Sin conexión';
+      this.cdr.detectChanges();
+    });
+
+    // Detectar tema
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', (e) => {
+      this.isDarkTheme = e.matches;
+      this.cdr.detectChanges();
+    });
+  }
+
+  ngAfterViewChecked(): void {
+    this.scrollToBottom();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    if (this.recognition) {
+      this.recognition.abort();
+    }
+    if (this.synth) {
+      this.synth.cancel();
+    }
+  }
+
+  // ==================== UI Methods ====================
+
+  toggleChat(): void {
+    this.isOpen = !this.isOpen;
+    if (this.isOpen) {
+      this.chatbotService.setChatVisibility(true);
+    }
+    this.cdr.detectChanges();
+  }
+
+  hideChatPermanently(): void {
+    this.isVisible = false;
+    this.isOpen = false;
+    this.chatbotService.setChatVisibility(false);
+    this.cdr.detectChanges();
+  }
+
+  toggleTheme(): void {
+    this.isDarkTheme = !this.isDarkTheme;
+    document.documentElement.classList.toggle('dark', this.isDarkTheme);
+    localStorage.setItem('theme', this.isDarkTheme ? 'dark' : 'light');
+  }
+
+  clearHistory(): void {
+    this.history = [];
+    this.lastToolResult = null;
+    localStorage.removeItem(this.HISTORY_KEY);
+    this.loadRoleSuggestions();
+    this.cdr.detectChanges();
   }
 
   toggleTTS(): void {
@@ -150,94 +244,68 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  ngOnInit(): void {
-    this.isVisible = this.chatbotService.getChatVisibility();
-    
-    // Cargar historial desde localStorage
-    this.loadHistory();
-    
-    // Cargar sugerencias según rol
-    this.loadRoleSuggestions();
-    
-    // Escuchar cambios de visibilidad desde el servicio (para el menú)
-    window.addEventListener('storage', (event) => {
-      if (event.key === 'chatbot_visible') {
-        this.isVisible = this.chatbotService.getChatVisibility();
-      }
-    });
-    // Escuchar evento para abrir explícitamente desde el topbar
-    window.addEventListener('openChatbot', () => {
-      this.isVisible = true;
-      this.isOpen = true;
-      this.chatbotService.setChatVisibility(true);
-      this.cdr.detectChanges();
-    });
-    
-    // Escuchar cambios de conexión
-    this.isOnline = navigator.onLine;
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      this.cdr.detectChanges();
-    });
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-      this.cdr.detectChanges();
-    });
-  }
+  // ==================== Message Handling ====================
 
-  private loadRoleSuggestions(): void {
-    const user = this.authService.getUsuarioActual();
-    const userRole = user?.rol || 'default';
-    const normalizedRole = this.normalizeRole(userRole);
-    
-    if (this.roleSuggestions[normalizedRole]) {
-      this.suggestions = this.roleSuggestions[normalizedRole];
-    }
-  }
+  sendMessage(): void {
+    const text = this.userInput.trim();
+    if (!text || this.isLoading) return;
 
-  private normalizeRole(role: string): string {
-    const roleMap: Record<string, string> = {
-      'admin': 'admin',
-      'administrador': 'admin',
-      'administrador_sistema': 'admin',
-      'docente': 'docente',
-      'coordinador': 'coordinador',
-      'coordinador_academico': 'coordinador',
-      'operador': 'operador',
-      'operador_horarios': 'operador',
-      'director': 'director',
-      'director_escuela': 'director',
-      'director_departamento': 'director',
-      'decano': 'director',
+    const userMsg: ChatMessage = {
+      role: 'user',
+      parts: [{ text }],
     };
-    
-    return roleMap[role?.toLowerCase()] || 'default';
-  }
 
-  private loadHistory(): void {
-    try {
-      const saved = localStorage.getItem(this.HISTORY_KEY);
-      if (saved) {
-        this.history = JSON.parse(saved);
-      }
-    } catch (e) {
-      console.error('Error al cargar historial:', e);
-      this.history = [];
-    }
-  }
-
-  private saveHistory(): void {
-    try {
-      localStorage.setItem(this.HISTORY_KEY, JSON.stringify(this.history));
-    } catch (e) {
-      console.error('Error al guardar historial:', e);
-    }
-  }
-
-  clearHistory(): void {
-    this.history = [];
-    localStorage.removeItem(this.HISTORY_KEY);
+    this.history.push(userMsg);
+    this.userInput = '';
+    this.isLoading = true;
+    this.lastToolResult = null;
+    this.saveHistory();
     this.cdr.detectChanges();
+
+    const userRole = this.authService.getUsuarioActual()?.rol || 'default';
+    const normalizedRole = this.normalizeRole(userRole);
+
+    this.chatbotService.sendMessage(text, this.history.slice(0, -1), normalizedRole)
+      .pipe(
+        takeUntil(this.destroy$),
+        retry(1),
+        catchError(err => {
+          console.error('Chatbot error:', err);
+          return of({ 
+            response: 'Lo siento, hubo un problema al procesar tu mensaje. Por favor, inténtalo de nuevo o contacta al soporte técnico.' 
+          });
+        })
+      )
+      .subscribe({
+        next: (res) => {
+          this.zoneRun(() => {
+            this.isLoading = false;
+            const botMsg: ChatMessage = {
+              role: 'model',
+              parts: [{ text: res.response }],
+            };
+            this.history.push(botMsg);
+            this.saveHistory();
+            this.cdr.detectChanges();
+
+            if (this.ttsEnabled) {
+              this.speak(res.response);
+            }
+          });
+        },
+        error: () => {
+          this.zoneRun(() => {
+            this.isLoading = false;
+            const errorMsg: ChatMessage = {
+              role: 'model',
+              parts: [{ text: 'Lo siento, ocurrió un error. Por favor, inténtalo de nuevo.' }],
+            };
+            this.history.push(errorMsg);
+            this.saveHistory();
+            this.cdr.detectChanges();
+          });
+        }
+      });
   }
 
   useSuggestion(suggestion: string): void {
@@ -245,108 +313,149 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     this.sendMessage();
   }
 
-  ngAfterViewChecked() {
-    this.scrollToBottom();
+  // ==================== Voice ====================
+
+  toggleListening(): void {
+    if (!this.speechSupported || this.isLoading || this.isSpeaking) return;
+
+    if (this.isListening) {
+      this.recognition.abort();
+      this.isListening = false;
+    } else {
+      this.isListening = true;
+      this.recognition.start();
+    }
+    this.cdr.detectChanges();
   }
 
-  toggleChat() {
-    this.isOpen = !this.isOpen;
+  speak(text: string): void {
+    if (!this.ttsEnabled || this.isSpeaking) return;
+    
+    this.synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'es-PE';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => this.zoneRun(() => { this.isSpeaking = true; this.cdr.detectChanges(); });
+    utterance.onend = () => this.zoneRun(() => { this.isSpeaking = false; this.cdr.detectChanges(); });
+    utterance.onerror = () => this.zoneRun(() => { this.isSpeaking = false; this.cdr.detectChanges(); });
+
+    this.synth.speak(utterance);
   }
 
-  hideChatPermanently() {
-    this.isVisible = false;
-    this.isOpen = false;
-    this.chatbotService.setChatVisibility(false);
-    // Disparar evento para que otros componentes se enteren
-    window.dispatchEvent(new Event('chatbotVisibilityChanged'));
+  // ==================== History ====================
+
+  private loadHistory(): void {
+    try {
+      const stored = localStorage.getItem(this.HISTORY_KEY);
+      if (stored) {
+        this.history = JSON.parse(stored).slice(-this.MAX_HISTORY_ITEMS);
+      }
+    } catch {
+      this.history = [];
+    }
   }
 
-  sendMessage() {
-    if (!this.userInput.trim() || this.isLoading) return;
+  private saveHistory(): void {
+    try {
+      localStorage.setItem(this.HISTORY_KEY, JSON.stringify(this.history.slice(-this.MAX_HISTORY_ITEMS)));
+    } catch { /* ignore quota exceeded */ }
+  }
 
-    const userMsg = this.userInput;
-    this.userInput = '';
-    this.isLoading = true;
-
-    // Agregar al historial local
-    this.history.push({ role: 'user', parts: [{ text: userMsg }] });
-    this.saveHistory();
-
-    // Obtener rol del usuario
+  private loadRoleSuggestions(): void {
     const user = this.authService.getUsuarioActual();
     const userRole = user?.rol || 'default';
+    const normalizedRole = this.normalizeRole(userRole);
 
-    this.chatbotService.sendMessage(userMsg, this.history.slice(0, -1), userRole).pipe(
-      retry(2),
-      catchError((err) => {
-        console.error('Chatbot error:', err);
-        let errorMsg = 'Lo siento, he tenido un problema técnico. Por favor, intenta de nuevo más tarde.';
-        
-        if (err.status === 429) {
-          errorMsg = 'El servicio está saturado. Por favor, espera unos minutos antes de intentar nuevamente.';
-        } else if (err.status === 401) {
-          errorMsg = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
-        } else if (!navigator.onLine) {
-          errorMsg = 'No tienes conexión a internet. Por favor, verifica tu conexión.';
-        } else if (err.status === 0) {
-          errorMsg = 'No se pudo conectar con el servidor. Por favor, verifica tu conexión.';
-        }
-        
-        this.history.push({ 
-          role: 'model', 
-          parts: [{ text: errorMsg }] 
-        });
-        this.saveHistory();
-        this.speakText(errorMsg);
-        this.isLoading = false;
-        return of({ response: errorMsg });
-      })
-    ).subscribe({
-      next: (res: any) => {
-        console.log('Respuesta cruda del backend:', res);
-        // El backend NestJS usa un interceptor que envuelve la respuesta en { data: ... }
-        const backendText = res?.data?.response || res?.response || ' ';
-        this.history.push({ role: 'model', parts: [{ text: backendText }] });
-        
-        // Limitar tamaño del historial
-        if (this.history.length > this.MAX_HISTORY_ITEMS) {
-          this.history = this.history.slice(-this.MAX_HISTORY_ITEMS);
-        }
-        
-        this.saveHistory();
-        this.speakText(backendText);
-        this.isLoading = false;
-      }
-    });
+    if (this.roleSuggestions[normalizedRole]) {
+      this.suggestions = this.roleSuggestions[normalizedRole];
+    }
   }
 
-  private scrollToBottom(): void {
-    try {
-      this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
-    } catch (err) {}
+  private normalizeRole(role: string): string {
+    const roleMap: Record<string, string> = {
+      'administradorsistema': 'admin',
+      'coordinadoracademico': 'coordinador',
+      'directordepartamento': 'director',
+      'directorescuela': 'director',
+      'decanofacultad': 'director',
+      'secretaria': 'coordinador',
+      'operadorhorarios': 'operador',
+      'docente': 'docente',
+    };
+    return roleMap[role] || 'default';
   }
+
+  // ==================== Utils ====================
 
   formatResponse(text: string): string {
     if (!text) return '';
-    // Escapar caracteres HTML básicos para prevenir problemas de renderizado y XSS
-    let html = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    
+    let html = DOMPurify.sanitize(text, {
+      ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'br', 'p', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'a'],
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
+    });
 
-    // Negritas: **texto** -> <strong>texto</strong>
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Convert markdown-like syntax
+    html = html
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/\n/g, '<br>');
 
-    // Código: `código` -> <code>código</code>
-    html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+    return html;
+  }
 
-    // Formatear viñetas: líneas que inician con * o -
-    html = html.replace(/^[*\-]\s+(.*?)$/gm, '• $1');
+  formatToolResult(result: any): string {
+    if (!result) return '';
+    try {
+      return DOMPurify.sanitize(JSON.stringify(result, null, 2), { ALLOWED_TAGS: ['code', 'pre', 'br', 'b', 'em'] });
+    } catch {
+      return String(result);
+    }
+  }
 
-    // Convertir saltos de línea en etiquetas <br> para HTML
-    html = html.replace(/\n/g, '<br>');
+  dismissToolResult(): void {
+    this.lastToolResult = null;
+    this.cdr.detectChanges();
+  }
 
-    // Sanitizar HTML para prevenir XSS
-    return DOMPurify.sanitize(html);
+  copyMessage(text: string): void {
+    navigator.clipboard.writeText(text).then(() => {
+      // Could show toast notification
+    });
+  }
+
+  regenerateResponse(lastMsg: ChatMessage): void {
+    // Remove last assistant message and re-send user message
+    let lastUserIdx = -1;
+    for (let i = this.history.length - 1; i >= 0; i--) {
+      if (this.history[i].role === 'user') {
+        lastUserIdx = i;
+        break;
+      }
+    }
+    if (lastUserIdx > -1) {
+      this.history = this.history.slice(0, lastUserIdx + 1);
+      this.userInput = this.history[lastUserIdx].parts[0].text;
+      this.sendMessage();
+    }
+  }
+
+  getTime(msg: ChatMessage): string {
+    // Could store timestamp in message, for now return current time
+    return new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  trackByMsg(index: number, msg: ChatMessage): string {
+    return `${msg.role}-${index}-${msg.parts[0].text.slice(0, 20)}`;
+  }
+
+  private scrollToBottom(): void {
+    if (this.scrollContainer) {
+      this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+    }
   }
 }

@@ -49,7 +49,9 @@ async function findOrCreate<T extends { id?: number }>(
   return repo.save(repo.create({ ...where, ...data }));
 }
 
-export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void> {
+export async function seedCargaLectivaE2E(
+  dataSource: DataSource,
+): Promise<void> {
   console.log("🌱 Iniciando SEED E2E - FLUJO CARGA LECTIVA...");
 
   const usuarioRepo = dataSource.getRepository(Usuario);
@@ -105,42 +107,62 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
 
   console.log("🏗️  Creando estructura académica base...");
 
-  const periodo = await findOrCreate(periodoRepo, PeriodoAcademico, {
-    codigo: `${E2E_PREFIX}2026-I`,
-  }, {
-    nombre: "Semestre 2026-I E2E",
-    fecha_inicio: new Date("2026-03-16"),
-    fecha_fin: new Date("2026-07-31"),
-    estado: EstadoPeriodo.ASIGNACION_HORARIOS,
-    activo: true,
-    modo_asignacion: ModoAsignacion.MIXTA,
-  });
+  const periodo = await findOrCreate(
+    periodoRepo,
+    PeriodoAcademico,
+    {
+      codigo: `${E2E_PREFIX}2026-I`,
+    },
+    {
+      nombre: "Semestre 2026-I E2E",
+      fecha_inicio: new Date("2026-03-16"),
+      fecha_fin: new Date("2026-07-31"),
+      estado: EstadoPeriodo.ASIGNACION_HORARIOS,
+      activo: true,
+      modo_asignacion: ModoAsignacion.MIXTA,
+    },
+  );
   console.log(`   Período: ${periodo.codigo}`);
 
-  const facultad = await findOrCreate(facultadRepo, Facultad, {
-    codigo: `${E2E_PREFIX}FI`,
-  }, {
-    nombre: "Facultad de Ingeniería E2E",
-    activo: true,
-  });
+  const facultad = await findOrCreate(
+    facultadRepo,
+    Facultad,
+    {
+      codigo: `${E2E_PREFIX}FI`,
+    },
+    {
+      nombre: "Facultad de Ingeniería E2E",
+      activo: true,
+    },
+  );
   console.log(`   Facultad: ${facultad.codigo}`);
 
-  const escuela = await findOrCreate(escuelaRepo, Escuela, {
-    codigo: `${E2E_PREFIX}IS`,
-  }, {
-    nombre: "Ingeniería de Sistemas E2E",
-    activo: true,
-    facultad_id: facultad.id,
-  });
+  const escuela = await findOrCreate(
+    escuelaRepo,
+    Escuela,
+    {
+      codigo: `${E2E_PREFIX}IS`,
+    },
+    {
+      nombre: "Ingeniería de Sistemas E2E",
+      activo: true,
+      facultad_id: facultad.id,
+    },
+  );
   console.log(`   Escuela: ${escuela.codigo}`);
 
-  const departamento = await findOrCreate(departamentoRepo, Departamento, {
-    codigo: `${E2E_PREFIX}DS`,
-  }, {
-    nombre: "Depto. de Sistemas E2E",
-    activo: true,
-    escuela_id: escuela.id,
-  });
+  const departamento = await findOrCreate(
+    departamentoRepo,
+    Departamento,
+    {
+      codigo: `${E2E_PREFIX}DS`,
+    },
+    {
+      nombre: "Depto. de Sistemas E2E",
+      activo: true,
+      escuela_id: escuela.id,
+    },
+  );
   console.log(`   Departamento: ${departamento.codigo}`);
 
   // ═══════════════════════════════════════════════════════════════
@@ -150,25 +172,50 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   console.log("👥 Creando usuarios de prueba...");
 
   const rolesUsuarios = [
-    { email: `${E2E_PREFIX}admin@unt.edu.pe`, nombre: "Admin E2E", rol: RolUsuario.ADMINISTRADOR_SISTEMA },
-    { email: `${E2E_PREFIX}secretaria@unt.edu.pe`, nombre: "Secretaria E2E", rol: RolUsuario.SECRETARIA },
-    { email: `${E2E_PREFIX}coordinador@unt.edu.pe`, nombre: "Coordinador E2E", rol: RolUsuario.COORDINADOR_ACADEMICO },
-    { email: `${E2E_PREFIX}director_dpto@unt.edu.pe`, nombre: "Director Depto E2E", rol: RolUsuario.DIRECTOR_DEPARTAMENTO },
-    { email: `${E2E_PREFIX}decano@unt.edu.pe`, nombre: "Decano E2E", rol: RolUsuario.DECANO },
+    {
+      email: `${E2E_PREFIX}admin@unt.edu.pe`,
+      nombre: "Admin E2E",
+      rol: RolUsuario.ADMINISTRADOR_SISTEMA,
+    },
+    {
+      email: `${E2E_PREFIX}secretaria@unt.edu.pe`,
+      nombre: "Secretaria E2E",
+      rol: RolUsuario.SECRETARIA,
+    },
+    {
+      email: `${E2E_PREFIX}coordinador@unt.edu.pe`,
+      nombre: "Coordinador E2E",
+      rol: RolUsuario.COORDINADOR_ACADEMICO,
+    },
+    {
+      email: `${E2E_PREFIX}director_dpto@unt.edu.pe`,
+      nombre: "Director Depto E2E",
+      rol: RolUsuario.DIRECTOR_DEPARTAMENTO,
+    },
+    {
+      email: `${E2E_PREFIX}decano@unt.edu.pe`,
+      nombre: "Decano E2E",
+      rol: RolUsuario.DECANO,
+    },
   ];
 
   const dbUsuarios: Record<string, Usuario> = {};
   for (const u of rolesUsuarios) {
-    const saved = await findOrCreate(usuarioRepo, Usuario, { email: u.email }, {
-      nombre: u.nombre,
-      password_hash: passwordHash,
-      rol: u.rol,
-      activo: true,
-      debe_cambiar_password: true,
-      facultad_id: facultad.id,
-      escuela_id: escuela.id,
-      departamento_id: departamento.id,
-    });
+    const saved = await findOrCreate(
+      usuarioRepo,
+      Usuario,
+      { email: u.email },
+      {
+        nombre: u.nombre,
+        password_hash: passwordHash,
+        rol: u.rol,
+        activo: true,
+        debe_cambiar_password: true,
+        facultad_id: facultad.id,
+        escuela_id: escuela.id,
+        departamento_id: departamento.id,
+      },
+    );
     dbUsuarios[u.rol] = saved;
   }
   console.log(`   ${rolesUsuarios.length} usuarios de roles creados`);
@@ -180,18 +227,75 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   console.log("🏠 Creando ambientes E2E...");
 
   const ambientesData = [
-    { codigo: `${E2E_PREFIX}AULA-GRANDE`, nombre: "Aula Grande E2E", tipo: TipoAmbiente.AULA, capacidad: 60, piso: 1, pabellon: "A", edificio: "Edificio A", sede: "Campus Central", equipamiento: "Proyector, Pizarra, Aire acondicionado", estado: EstadoAmbiente.ACTIVO, coordX: 25, coordY: 35 },
-    { codigo: `${E2E_PREFIX}AULA-PEQUENA`, nombre: "Aula Pequeña E2E", tipo: TipoAmbiente.AULA, capacidad: 25, piso: 2, pabellon: "A", edificio: "Edificio A", sede: "Campus Central", equipamiento: "Proyector, Pizarra", estado: EstadoAmbiente.ACTIVO, coordX: 28, coordY: 32 },
-    { codigo: `${E2E_PREFIX}LAB-1`, nombre: "Laboratorio 1 E2E", tipo: TipoAmbiente.LABORATORIO, capacidad: 30, piso: 1, pabellon: "B", edificio: "Edificio B - Labs", sede: "Campus Central", equipamiento: "30 PCs, Proyector, Red cableada, Aire acondicionado", estado: EstadoAmbiente.ACTIVO, coordX: 45, coordY: 55 },
-    { codigo: `${E2E_PREFIX}AULA-AFORO-INSUF`, nombre: "Aula Aforo Insuficiente E2E", tipo: TipoAmbiente.AULA, capacidad: 20, piso: 3, pabellon: "A", edificio: "Edificio A", sede: "Campus Central", equipamiento: "Proyector, Pizarra", estado: EstadoAmbiente.ACTIVO, coordX: 31, coordY: 30 },
+    {
+      codigo: `${E2E_PREFIX}AULA-GRANDE`,
+      nombre: "Aula Grande E2E",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 60,
+      piso: 1,
+      pabellon: "A",
+      edificio: "Edificio A",
+      sede: "Campus Central",
+      equipamiento: "Proyector, Pizarra, Aire acondicionado",
+      estado: EstadoAmbiente.ACTIVO,
+      coordX: 25,
+      coordY: 35,
+    },
+    {
+      codigo: `${E2E_PREFIX}AULA-PEQUENA`,
+      nombre: "Aula Pequeña E2E",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 25,
+      piso: 2,
+      pabellon: "A",
+      edificio: "Edificio A",
+      sede: "Campus Central",
+      equipamiento: "Proyector, Pizarra",
+      estado: EstadoAmbiente.ACTIVO,
+      coordX: 28,
+      coordY: 32,
+    },
+    {
+      codigo: `${E2E_PREFIX}LAB-1`,
+      nombre: "Laboratorio 1 E2E",
+      tipo: TipoAmbiente.LABORATORIO,
+      capacidad: 30,
+      piso: 1,
+      pabellon: "B",
+      edificio: "Edificio B - Labs",
+      sede: "Campus Central",
+      equipamiento: "30 PCs, Proyector, Red cableada, Aire acondicionado",
+      estado: EstadoAmbiente.ACTIVO,
+      coordX: 45,
+      coordY: 55,
+    },
+    {
+      codigo: `${E2E_PREFIX}AULA-AFORO-INSUF`,
+      nombre: "Aula Aforo Insuficiente E2E",
+      tipo: TipoAmbiente.AULA,
+      capacidad: 20,
+      piso: 3,
+      pabellon: "A",
+      edificio: "Edificio A",
+      sede: "Campus Central",
+      equipamiento: "Proyector, Pizarra",
+      estado: EstadoAmbiente.ACTIVO,
+      coordX: 31,
+      coordY: 30,
+    },
   ];
 
   const dbAmbientes: Record<string, Ambiente> = {};
   for (const a of ambientesData) {
-    const saved = await findOrCreate(ambienteRepo, Ambiente, { codigo: a.codigo }, {
-      ...a,
-      activo: true,
-    });
+    const saved = await findOrCreate(
+      ambienteRepo,
+      Ambiente,
+      { codigo: a.codigo },
+      {
+        ...a,
+        activo: true,
+      },
+    );
     dbAmbientes[a.codigo] = saved;
   }
   console.log(`   ${ambientesData.length} ambientes creados`);
@@ -269,31 +373,38 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   for (const d of docentesData) {
     let usuario = await usuarioRepo.findOne({ where: { email: d.email } });
     if (!usuario) {
-      usuario = await usuarioRepo.save(usuarioRepo.create({
-        nombre: `${d.nombres} ${d.apellidos}`,
-        email: d.email,
-        password_hash: passwordHash,
-        rol: RolUsuario.DOCENTE,
-        activo: true,
-        debe_cambiar_password: true,
-      }));
+      usuario = await usuarioRepo.save(
+        usuarioRepo.create({
+          nombre: `${d.nombres} ${d.apellidos}`,
+          email: d.email,
+          password_hash: passwordHash,
+          rol: RolUsuario.DOCENTE,
+          activo: true,
+          debe_cambiar_password: true,
+        }),
+      );
     }
 
-    const saved = await findOrCreate(docenteRepo, Docente, { dni: d.dni }, {
-      ...d,
-      usuario_id: usuario.id,
-      departamento_id: departamento.id,
-      facultad_id: facultad.id,
-      activo: true,
-      fecha_ingreso: new Date("2010-01-01"),
-      telefono: null,
-      firebase_token: null,
-      firma_url: null,
-      foto_url: null,
-      suspension_vigente: false,
-      horas_asignadas: 0,
-      horas_no_lectivas: 0,
-    });
+    const saved = await findOrCreate(
+      docenteRepo,
+      Docente,
+      { dni: d.dni },
+      {
+        ...d,
+        usuario_id: usuario.id,
+        departamento_id: departamento.id,
+        facultad_id: facultad.id,
+        activo: true,
+        fecha_ingreso: new Date("2010-01-01"),
+        telefono: null,
+        firebase_token: null,
+        firma_url: null,
+        foto_url: null,
+        suspension_vigente: false,
+        horas_asignadas: 0,
+        horas_no_lectivas: 0,
+      },
+    );
     dbDocentes[d.codigo] = saved;
   }
   console.log(`   ${docentesData.length} docentes creados`);
@@ -333,22 +444,32 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
           },
         });
         if (!exists) {
-          await parametrosRepo.save(parametrosRepo.create({
-            periodo_academico: periodo.codigo,
-            modalidad,
-            categoria,
-            tipo_docente: tipoDocente,
-            horas_min_semanal: 4,
-            horas_max_semanal: modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA ? 44
-              : modalidad === ModalidadDocente.TIEMPO_COMPLETO_40 ? 40
-              : modalidad === ModalidadDocente.TIEMPO_PARCIAL_20 ? 24
-              : modalidad === ModalidadDocente.TIEMPO_PARCIAL_12 ? 16
-              : 12,
-            cursos_min_docente: 1,
-            cursos_max_docente: modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA ? 9
-              : modalidad === ModalidadDocente.TIEMPO_COMPLETO_40 ? 8
-              : 5,
-          }));
+          await parametrosRepo.save(
+            parametrosRepo.create({
+              periodo_academico: periodo.codigo,
+              modalidad,
+              categoria,
+              tipo_docente: tipoDocente,
+              horas_min_semanal: 4,
+              horas_max_semanal:
+                modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA
+                  ? 44
+                  : modalidad === ModalidadDocente.TIEMPO_COMPLETO_40
+                    ? 40
+                    : modalidad === ModalidadDocente.TIEMPO_PARCIAL_20
+                      ? 24
+                      : modalidad === ModalidadDocente.TIEMPO_PARCIAL_12
+                        ? 16
+                        : 12,
+              cursos_min_docente: 1,
+              cursos_max_docente:
+                modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA
+                  ? 9
+                  : modalidad === ModalidadDocente.TIEMPO_COMPLETO_40
+                    ? 8
+                    : 5,
+            }),
+          );
           paramsCount++;
         }
       }
@@ -362,16 +483,21 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
 
   console.log("📚 Creando Plan de Estudios E2E...");
 
-  const plan = await findOrCreate(planRepo, PlanEstudios, {
-    codigo: `${E2E_PREFIX}2018`,
-  }, {
-    nombre: "Plan de Estudios 2018 E2E",
-    descripcion: "Plan E2E para prueba flujo carga lectiva",
-    resolucion: "R.N° E2E-2018-UNT",
-    anio: 2018,
-    activo: true,
-    escuela_id: escuela.id,
-  });
+  const plan = await findOrCreate(
+    planRepo,
+    PlanEstudios,
+    {
+      codigo: `${E2E_PREFIX}2018`,
+    },
+    {
+      nombre: "Plan de Estudios 2018 E2E",
+      descripcion: "Plan E2E para prueba flujo carga lectiva",
+      resolucion: "R.N° E2E-2018-UNT",
+      anio: 2018,
+      activo: true,
+      escuela_id: escuela.id,
+    },
+  );
   console.log(`   Plan: ${plan.codigo}`);
 
   // ═══════════════════════════════════════════════════════════════
@@ -381,29 +507,97 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   console.log("📖 Creando cursos catálogo E2E...");
 
   const cursosCatalogoData = [
-    { codigo: `${E2E_PREFIX}CS`, nombre: "Curso Simple Teoría E2E", creditos: 3, ht: 3, hp: 0, hl: 0, ciclo: 1, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}CM`, nombre: "Curso Mixto Teoría+Práctica E2E", creditos: 4, ht: 2, hp: 2, hl: 0, ciclo: 1, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}CL`, nombre: "Curso con Laboratorio E2E", creditos: 3, ht: 1, hp: 0, hl: 2, ciclo: 1, tiene_lab: true },
-    { codigo: `${E2E_PREFIX}CD`, nombre: "Curso Conflicto Docente E2E", creditos: 3, ht: 2, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}CA`, nombre: "Curso Conflicto Ambiente E2E", creditos: 3, ht: 2, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}C2G`, nombre: "Curso Dos Grupos E2E", creditos: 4, ht: 3, hp: 0, hl: 0, ciclo: 2, tiene_lab: false },
-    { codigo: `${E2E_PREFIX}C3A`, nombre: "Curso Aforo Insuficiente E2E", creditos: 3, ht: 3, hp: 0, hl: 0, ciclo: 3, tiene_lab: false },
+    {
+      codigo: `${E2E_PREFIX}CS`,
+      nombre: "Curso Simple Teoría E2E",
+      creditos: 3,
+      ht: 3,
+      hp: 0,
+      hl: 0,
+      ciclo: 1,
+      tiene_lab: false,
+    },
+    {
+      codigo: `${E2E_PREFIX}CM`,
+      nombre: "Curso Mixto Teoría+Práctica E2E",
+      creditos: 4,
+      ht: 2,
+      hp: 2,
+      hl: 0,
+      ciclo: 1,
+      tiene_lab: false,
+    },
+    {
+      codigo: `${E2E_PREFIX}CL`,
+      nombre: "Curso con Laboratorio E2E",
+      creditos: 3,
+      ht: 1,
+      hp: 0,
+      hl: 2,
+      ciclo: 1,
+      tiene_lab: true,
+    },
+    {
+      codigo: `${E2E_PREFIX}CD`,
+      nombre: "Curso Conflicto Docente E2E",
+      creditos: 3,
+      ht: 2,
+      hp: 0,
+      hl: 0,
+      ciclo: 2,
+      tiene_lab: false,
+    },
+    {
+      codigo: `${E2E_PREFIX}CA`,
+      nombre: "Curso Conflicto Ambiente E2E",
+      creditos: 3,
+      ht: 2,
+      hp: 0,
+      hl: 0,
+      ciclo: 2,
+      tiene_lab: false,
+    },
+    {
+      codigo: `${E2E_PREFIX}C2G`,
+      nombre: "Curso Dos Grupos E2E",
+      creditos: 4,
+      ht: 3,
+      hp: 0,
+      hl: 0,
+      ciclo: 2,
+      tiene_lab: false,
+    },
+    {
+      codigo: `${E2E_PREFIX}C3A`,
+      nombre: "Curso Aforo Insuficiente E2E",
+      creditos: 3,
+      ht: 3,
+      hp: 0,
+      hl: 0,
+      ciclo: 3,
+      tiene_lab: false,
+    },
   ];
 
   const dbCursos: Record<string, Curso> = {};
   for (const c of cursosCatalogoData) {
-    const saved = await findOrCreate(cursoRepo, Curso, { codigo: c.codigo }, {
-      nombre: c.nombre,
-      creditos: c.creditos,
-      horas_teoria: c.ht,
-      horas_practica: c.hp,
-      horas_laboratorio: c.hl,
-      ciclo: c.ciclo,
-      tiene_laboratorio: c.tiene_lab,
-      prerequisitos: null,
-      activo: true,
-      departamento_id: departamento.id,
-    });
+    const saved = await findOrCreate(
+      cursoRepo,
+      Curso,
+      { codigo: c.codigo },
+      {
+        nombre: c.nombre,
+        creditos: c.creditos,
+        horas_teoria: c.ht,
+        horas_practica: c.hp,
+        horas_laboratorio: c.hl,
+        ciclo: c.ciclo,
+        tiene_laboratorio: c.tiene_lab,
+        prerequisitos: null,
+        activo: true,
+        departamento_id: departamento.id,
+      },
+    );
     dbCursos[c.codigo] = saved;
   }
   console.log(`   ${cursosCatalogoData.length} cursos catálogo creados`);
@@ -415,33 +609,94 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   console.log("🔗 Creando CursoPlanEstudios E2E...");
 
   const cursosPlanData = [
-    { curso: `${E2E_PREFIX}CS`, ciclo: 1, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 3, hp: 0, hl: 0, cred: 3 },
-    { curso: `${E2E_PREFIX}CM`, ciclo: 1, tipo: TipoCursoPlan.OBLIGATORIO_PROFESIONAL, ht: 2, hp: 2, hl: 0, cred: 4 },
-    { curso: `${E2E_PREFIX}CL`, ciclo: 1, tipo: TipoCursoPlan.ESPECIALIDAD, ht: 1, hp: 0, hl: 2, cred: 3 },
-    { curso: `${E2E_PREFIX}CD`, ciclo: 2, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 2, hp: 0, hl: 0, cred: 3 },
-    { curso: `${E2E_PREFIX}CA`, ciclo: 2, tipo: TipoCursoPlan.OBLIGATORIO_PROFESIONAL, ht: 2, hp: 0, hl: 0, cred: 3 },
-    { curso: `${E2E_PREFIX}C2G`, ciclo: 2, tipo: TipoCursoPlan.ESPECIALIDAD, ht: 3, hp: 0, hl: 0, cred: 4 },
-    { curso: `${E2E_PREFIX}C3A`, ciclo: 3, tipo: TipoCursoPlan.OBLIGATORIO_GENERAL, ht: 3, hp: 0, hl: 0, cred: 3 },
+    {
+      curso: `${E2E_PREFIX}CS`,
+      ciclo: 1,
+      tipo: TipoCursoPlan.OBLIGATORIO_GENERAL,
+      ht: 3,
+      hp: 0,
+      hl: 0,
+      cred: 3,
+    },
+    {
+      curso: `${E2E_PREFIX}CM`,
+      ciclo: 1,
+      tipo: TipoCursoPlan.OBLIGATORIO_PROFESIONAL,
+      ht: 2,
+      hp: 2,
+      hl: 0,
+      cred: 4,
+    },
+    {
+      curso: `${E2E_PREFIX}CL`,
+      ciclo: 1,
+      tipo: TipoCursoPlan.ESPECIALIDAD,
+      ht: 1,
+      hp: 0,
+      hl: 2,
+      cred: 3,
+    },
+    {
+      curso: `${E2E_PREFIX}CD`,
+      ciclo: 2,
+      tipo: TipoCursoPlan.OBLIGATORIO_GENERAL,
+      ht: 2,
+      hp: 0,
+      hl: 0,
+      cred: 3,
+    },
+    {
+      curso: `${E2E_PREFIX}CA`,
+      ciclo: 2,
+      tipo: TipoCursoPlan.OBLIGATORIO_PROFESIONAL,
+      ht: 2,
+      hp: 0,
+      hl: 0,
+      cred: 3,
+    },
+    {
+      curso: `${E2E_PREFIX}C2G`,
+      ciclo: 2,
+      tipo: TipoCursoPlan.ESPECIALIDAD,
+      ht: 3,
+      hp: 0,
+      hl: 0,
+      cred: 4,
+    },
+    {
+      curso: `${E2E_PREFIX}C3A`,
+      ciclo: 3,
+      tipo: TipoCursoPlan.OBLIGATORIO_GENERAL,
+      ht: 3,
+      hp: 0,
+      hl: 0,
+      cred: 3,
+    },
   ];
 
   const dbCursosPlan: Record<string, CursoPlanEstudios> = {};
   for (const cp of cursosPlanData) {
     const curso = dbCursos[cp.curso];
-    const saved = await findOrCreate(cursoPlanRepo, CursoPlanEstudios, {
-      plan_estudios_id: plan.id,
-      curso_id: curso.id,
-    }, {
-      plan_estudios_id: plan.id,
-      curso_id: curso.id,
-      ciclo: cp.ciclo,
-      tipo_curso: cp.tipo,
-      horas_teoria: cp.ht,
-      horas_practica: cp.hp,
-      horas_laboratorio: cp.hl,
-      creditos: cp.cred,
-      estado: EstadoCursoPlan.ACTIVO,
-      prerequisitos: [],
-    });
+    const saved = await findOrCreate(
+      cursoPlanRepo,
+      CursoPlanEstudios,
+      {
+        plan_estudios_id: plan.id,
+        curso_id: curso.id,
+      },
+      {
+        plan_estudios_id: plan.id,
+        curso_id: curso.id,
+        ciclo: cp.ciclo,
+        tipo_curso: cp.tipo,
+        horas_teoria: cp.ht,
+        horas_practica: cp.hp,
+        horas_laboratorio: cp.hl,
+        creditos: cp.cred,
+        estado: EstadoCursoPlan.ACTIVO,
+        prerequisitos: [],
+      },
+    );
     dbCursosPlan[cp.curso] = saved;
   }
   console.log(`   ${cursosPlanData.length} CursoPlanEstudios creados`);
@@ -462,16 +717,22 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     for (const { tipo, horas } of tipos) {
       if (horas <= 0) continue;
       const exists = await ofertaRepo.findOne({
-        where: { periodo_id: periodo.id, curso_plan_id: cp.id, tipo_clase: tipo },
-      });
-      if (!exists) {
-        await ofertaRepo.save(ofertaRepo.create({
+        where: {
           periodo_id: periodo.id,
           curso_plan_id: cp.id,
           tipo_clase: tipo,
-          secciones: 1,
-          activo: true,
-        }));
+        },
+      });
+      if (!exists) {
+        await ofertaRepo.save(
+          ofertaRepo.create({
+            periodo_id: periodo.id,
+            curso_plan_id: cp.id,
+            tipo_clase: tipo,
+            secciones: 1,
+            activo: true,
+          }),
+        );
         ofertaCount++;
       }
     }
@@ -494,25 +755,35 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
     });
 
     for (const oferta of ofertas) {
-      const tipoStr = oferta.tipo_clase === TipoClase.TEORIA ? "TEO"
-        : oferta.tipo_clase === TipoClase.PRACTICA ? "PRA" : "LAB";
+      const tipoStr =
+        oferta.tipo_clase === TipoClase.TEORIA
+          ? "TEO"
+          : oferta.tipo_clase === TipoClase.PRACTICA
+            ? "PRA"
+            : "LAB";
       const codigoGrupo = `${curso.codigo}-${tipoStr}-G1`;
       const nombreGrupo = `${curso.nombre} - ${oferta.tipo_clase} - Grupo 1`;
 
       const cupo = oferta.tipo_clase === TipoClase.LABORATORIO ? 30 : 40;
 
-      const grupo = await findOrCreate(grupoRepo, Grupo, {
-        curso_id: curso.id,
-        periodo_academico_id: periodo.id,
-        tipo: oferta.tipo_clase,
-        nombre: nombreGrupo,
-      }, {
-        codigo: codigoGrupo,
-        ciclo: cp.ciclo,
-        cupo_maximo: cupo,
-      });
+      const grupo = await findOrCreate(
+        grupoRepo,
+        Grupo,
+        {
+          curso_id: curso.id,
+          periodo_academico_id: periodo.id,
+          tipo: oferta.tipo_clase,
+          nombre: nombreGrupo,
+        },
+        {
+          codigo: codigoGrupo,
+          ciclo: cp.ciclo,
+          cupo_maximo: cupo,
+        },
+      );
 
-      const cursoKey = Object.keys(dbCursos).find(k => dbCursos[k].id === curso.id) || '';
+      const cursoKey =
+        Object.keys(dbCursos).find((k) => dbCursos[k].id === curso.id) || "";
       dbGrupos[`${cursoKey}-${oferta.tipo_clase}`] = grupo;
       grupoCounter++;
     }
@@ -531,7 +802,8 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   const docente4 = dbDocentes[`${E2E_PREFIX}D4-RESTRIC`];
   const admin = dbUsuarios[RolUsuario.ADMINISTRADOR_SISTEMA];
 
-  const getGrupo = (cursoKey: string, tipo: TipoClase) => dbGrupos[`${cursoKey}-${tipo}`];
+  const getGrupo = (cursoKey: string, tipo: TipoClase) =>
+    dbGrupos[`${cursoKey}-${tipo}`];
 
   const asignacionesData = [
     {
@@ -690,8 +962,10 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
         estado: a.estado,
         observaciones: a.observaciones ?? null,
         asignado_por_id: admin.id,
-        confirmado_por_id: a.estado === EstadoAsignacionLectiva.CONFIRMADO ? admin.id : null,
-        confirmado_en: a.estado === EstadoAsignacionLectiva.CONFIRMADO ? new Date() : null,
+        confirmado_por_id:
+          a.estado === EstadoAsignacionLectiva.CONFIRMADO ? admin.id : null,
+        confirmado_en:
+          a.estado === EstadoAsignacionLectiva.CONFIRMADO ? new Date() : null,
       });
     } else {
       Object.assign(asignacion, {
@@ -700,8 +974,10 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
         nro_alumnos: a.nro_alumnos,
         estado: a.estado,
         observaciones: a.observaciones ?? null,
-        confirmado_por_id: a.estado === EstadoAsignacionLectiva.CONFIRMADO ? admin.id : null,
-        confirmado_en: a.estado === EstadoAsignacionLectiva.CONFIRMADO ? new Date() : null,
+        confirmado_por_id:
+          a.estado === EstadoAsignacionLectiva.CONFIRMADO ? admin.id : null,
+        confirmado_en:
+          a.estado === EstadoAsignacionLectiva.CONFIRMADO ? new Date() : null,
       });
     }
 
@@ -714,49 +990,58 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   // 12. CARGA NO LECTIVA (Declaración aprobada para D2)
   // ═══════════════════════════════════════════════════════════════
 
-  console.log("📄 Creando Declaración Carga No Lectiva (D2 - APROBADO_FACULTAD)...");
+  console.log(
+    "📄 Creando Declaración Carga No Lectiva (D2 - APROBADO_FACULTAD)...",
+  );
 
-  const declaracionD2 = await findOrCreate(declaracionRepo, DeclaracionCargaHoraria, {
-    docente_id: docente2.id,
-    periodo_academico_id: periodo.id,
-  }, {
-    departamento_id: departamento.id,
-    facultad_id: facultad.id,
-    sede: "Facultad de Ingeniería E2E",
-    estado: EstadoDeclaracionCarga.APROBADO_FACULTAD,
-    fecha_firma_docente: new Date("2026-03-20"),
-    fecha_aprobacion_dpto: new Date("2026-03-25"),
-    fecha_aprobacion_facultad: new Date("2026-03-28"),
-    carga_no_lectiva: {
-      actividades: [
-        {
-          id: 1,
-          nombre: "Investigación",
-          descripcion: "Proyecto de investigación E2E",
-          tipo: "INVESTIGACION",
-          horas_semanales: 8,
-          horarios: [
-            { dia: 1, hora_inicio: "14:00", hora_fin: "16:00" },
-            { dia: 3, hora_inicio: "14:00", hora_fin: "16:00" },
-            { dia: 5, hora_inicio: "10:00", hora_fin: "12:00" },
-          ],
-        },
-        {
-          id: 2,
-          nombre: "Extensión Universitaria",
-          descripcion: "Actividades de extensión E2E",
-          tipo: "EXTENSION",
-          horas_semanales: 4,
-          horarios: [
-            { dia: 2, hora_inicio: "08:00", hora_fin: "10:00" },
-            { dia: 4, hora_inicio: "08:00", hora_fin: "10:00" },
-          ],
-        },
-      ],
+  const declaracionD2 = await findOrCreate(
+    declaracionRepo,
+    DeclaracionCargaHoraria,
+    {
+      docente_id: docente2.id,
+      periodo_academico_id: periodo.id,
     },
-    observaciones: "Declaración E2E para probar conflictos con carga lectiva",
-  });
-  console.log(`   Declaración D2: ${declaracionD2.estado} (ID: ${declaracionD2.id})`);
+    {
+      departamento_id: departamento.id,
+      facultad_id: facultad.id,
+      sede: "Facultad de Ingeniería E2E",
+      estado: EstadoDeclaracionCarga.APROBADO_FACULTAD,
+      fecha_firma_docente: new Date("2026-03-20"),
+      fecha_aprobacion_dpto: new Date("2026-03-25"),
+      fecha_aprobacion_facultad: new Date("2026-03-28"),
+      carga_no_lectiva: {
+        actividades: [
+          {
+            id: 1,
+            nombre: "Investigación",
+            descripcion: "Proyecto de investigación E2E",
+            tipo: "INVESTIGACION",
+            horas_semanales: 8,
+            horarios: [
+              { dia: 1, hora_inicio: "14:00", hora_fin: "16:00" },
+              { dia: 3, hora_inicio: "14:00", hora_fin: "16:00" },
+              { dia: 5, hora_inicio: "10:00", hora_fin: "12:00" },
+            ],
+          },
+          {
+            id: 2,
+            nombre: "Extensión Universitaria",
+            descripcion: "Actividades de extensión E2E",
+            tipo: "EXTENSION",
+            horas_semanales: 4,
+            horarios: [
+              { dia: 2, hora_inicio: "08:00", hora_fin: "10:00" },
+              { dia: 4, hora_inicio: "08:00", hora_fin: "10:00" },
+            ],
+          },
+        ],
+      },
+      observaciones: "Declaración E2E para probar conflictos con carga lectiva",
+    },
+  );
+  console.log(
+    `   Declaración D2: ${declaracionD2.estado} (ID: ${declaracionD2.id})`,
+  );
 
   // ═══════════════════════════════════════════════════════════════
   // 13. HORARIOS PARCIALES (para AL-05: 1h programada de 3h)
@@ -768,25 +1053,32 @@ export async function seedCargaLectivaE2E(dataSource: DataSource): Promise<void>
   const aulaGrande = dbAmbientes[`${E2E_PREFIX}AULA-GRANDE`];
   const grupo05 = getGrupo(`${E2E_PREFIX}CD`, TipoClase.TEORIA);
 
-  const horarioExistente = await findOrCreate(horarioRepo, HorarioAsignado, {
-    asignacion_lectiva_id: al05.id,
-    dia: 1,
-    hora_inicio: "07:00:00",
-  }, {
-    docente_id: docente3.id,
-    curso_id: dbCursos[`${E2E_PREFIX}CD`].id,
-    ambiente_id: aulaGrande.id,
-    grupo_id: grupo05.id,
-    periodo: periodo.codigo,
-    dia: 1,
-    hora_inicio: "07:00:00",
-    hora_fin: "08:00:00",
-    tipo_clase: TipoClase.TEORIA,
-    estado: EstadoHorario.BORRADOR,
-    origen: OrigenHorario.ASIGNACION_LECTIVA,
-    asignacion_lectiva_id: al05.id,
-  });
-  console.log(`   Horario previo AL-05: Lunes 07:00-08:00 (ID: ${horarioExistente.id})`);
+  const horarioExistente = await findOrCreate(
+    horarioRepo,
+    HorarioAsignado,
+    {
+      asignacion_lectiva_id: al05.id,
+      dia: 1,
+      hora_inicio: "07:00:00",
+    },
+    {
+      docente_id: docente3.id,
+      curso_id: dbCursos[`${E2E_PREFIX}CD`].id,
+      ambiente_id: aulaGrande.id,
+      grupo_id: grupo05.id,
+      periodo: periodo.codigo,
+      dia: 1,
+      hora_inicio: "07:00:00",
+      hora_fin: "08:00:00",
+      tipo_clase: TipoClase.TEORIA,
+      estado: EstadoHorario.BORRADOR,
+      origen: OrigenHorario.ASIGNACION_LECTIVA,
+      asignacion_lectiva_id: al05.id,
+    },
+  );
+  console.log(
+    `   Horario previo AL-05: Lunes 07:00-08:00 (ID: ${horarioExistente.id})`,
+  );
 
   // ═══════════════════════════════════════════════════════════════
   // RESUMEN FINAL

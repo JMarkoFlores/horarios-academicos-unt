@@ -150,7 +150,7 @@
                   mat-list-item
                   [routerLink]="item.route"
                   routerLinkActive="active-link"
-                  [routerLinkActiveOptions]="{exact: false}"
+                  [routerLinkActiveOptions]="{exact: item.exactMatch ?? false}"
                   #rla="routerLinkActive"
                   [matTooltip]="sidebarCollapsed() ? (item.label ? (item.label | translate) : '') : ''"
                   matTooltipPosition="right"
@@ -206,16 +206,7 @@
             <mat-icon>smart_toy</mat-icon>
           </button>
 
-          <!-- Botón de WebSocket -->
-          <button
-            mat-icon-button
-            class="topbar-btn ws-indicator"
-            [class.connected]="socketService.connected()"
-            [class.disconnected]="!socketService.connected()"
-            [matTooltip]="socketService.connected() ? 'WebSocket conectado' : 'WebSocket desconectado'"
-          >
-            <mat-icon>wifi</mat-icon>
-          </button>
+
 
           <!-- Botón de alertas del sistema -->
           @if (!authService.hasRole(ROLES.DOCENTE) || authService.hasRole(

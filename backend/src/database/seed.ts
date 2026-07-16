@@ -410,12 +410,12 @@ export async function main(dataSource?: DataSource) {
       const cursoPlan = await cursoPlanRepo.findOne({
         where: { curso_id: (h as any).curso_id, plan_estudios_id: plan2018.id },
       });
-      if (!cursoPlan) { horariosSkippedNoCursoPlan++; continue; }
-      
+if (!cursoPlan) { horariosSkippedNoCursoPlan++; continue; }
+
       const tc = (h as any).tipo_clase;
       const alKey = `${(h as any).docente_id}-${cursoPlan.id}-${tc}-${seccion}`;
       const asignacionLectivaId = asignacionLectivaMap.get(alKey);
-      
+
       if (asignacionLectivaId) {
         (h as any).asignacion_lectiva_id = asignacionLectivaId;
         await horarioRepo.save(h);
@@ -444,41 +444,6 @@ export async function main(dataSource?: DataSource) {
       turnoConfigRepo,
       estructura.periodoActivo,
     );
-
-    // 5b. Crear algunas asignaciones PENDIENTE sin horarios para demostración
-    const grupoRepo = queryRunner.manager.getRepository(Grupo);
-    const docentes = await docenteRepo.find({ take: 5 });
-    const cursosPlan = await cursoPlanRepo.find({ take: 10 });
-    const grupos = await grupoRepo.find({ take: 5 });
-
-    let pendientesCount = 0;
-    for (let i = 0; i < 10; i++) {
-      const docente = docentes[i % docentes.length];
-      const cursoPlan = cursosPlan[i % cursosPlan.length];
-      const grupo = grupos[i % grupos.length];
-
-      const tipos: TipoClase[] = [TipoClase.TEORIA, TipoClase.PRACTICA, TipoClase.LABORATORIO];
-      const tipo = tipos[i % tipos.length];
-      const seccion = `U${i + 1}`;
-      const nroAlumnos = tipo === TipoClase.LABORATORIO ? 25 : 40;
-
-      await asignacionLectivaRepo.save(
-        asignacionLectivaRepo.create({
-          docente_id: docente.id,
-          curso_plan_id: cursoPlan.id,
-          periodo_id: periodo.id,
-          grupo_id: grupo.id,
-          tipo_clase: tipo,
-          seccion: seccion,
-          nro_alumnos: nroAlumnos,
-          horas_asignadas: 4,
-          estado: EstadoAsignacionLectiva.PENDIENTE,
-          asignado_por_id: estructura.admin.id,
-        }),
-      );
-      pendientesCount++;
-    }
-    console.log(`✅ ${pendientesCount} AsignacionLectiva PENDIENTE sin horarios creadas`);
 
     // 6. Seed declaraciones demo
     const declaracionRepo = queryRunner.manager.getRepository(

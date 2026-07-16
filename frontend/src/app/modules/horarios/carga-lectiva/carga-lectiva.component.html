@@ -21,14 +21,6 @@
           <mat-icon>calendar_month</mat-icon>
           Asignación de Carga Lectiva
         </h1>
-        <mat-select [(ngModel)]="periodoSeleccionadoId"
-                    (selectionChange)="cambiarPeriodo($event.value)"
-                    class="periodo-select"
-                    placeholder="Período">
-          <mat-option *ngFor="let p of periodosDisponibles" [value]="p.id">
-            {{ p.codigo }} <span class="periodo-activo-tag" *ngIf="p.activo">activo</span>
-          </mat-option>
-        </mat-select>
       </div>
       <p class="page-subtitle" *ngIf="alcanceLabel">Alcance: {{ alcanceLabel }}</p>
     </div>
@@ -65,22 +57,36 @@
     </div>
 
     <div class="header-actions">
-      <button mat-stroked-button class="btn-action-save" [disabled]="saving">
+      <button mat-button class="btn-action-save" [disableRipple]="true" [disabled]="saving">
         <mat-icon>save</mat-icon>
         Guardar
       </button>
-      <button mat-flat-button color="primary" class="btn-action-publish" [disabled]="saving || totalConflictos > 0">
+      <button mat-button class="btn-action-publish" [disableRipple]="true" [disabled]="saving || totalConflictos > 0">
         <mat-icon>publish</mat-icon>
         Publicar
       </button>
     </div>
   </header>
 
+  <!-- ==================== MOBILE TOOLBAR ==================== -->
+  <div class="mobile-toolbar">
+    <button mat-stroked-button class="mobile-toolbar-btn" (click)="toggleLeftPanel()"
+            [class.active]="showLeftPanel">
+      <mat-icon>filter_list</mat-icon>
+      <span>Filtros</span>
+    </button>
+    <button mat-stroked-button class="mobile-toolbar-btn" (click)="toggleRightPanel()"
+            [class.active]="showRightPanel">
+      <mat-icon>info</mat-icon>
+      <span>Detalle</span>
+    </button>
+  </div>
+
   <!-- ======================== BODY (3 COLS) ======================== -->
-  <div class="page-body">
+  <div class="page-body" [class.left-open]="showLeftPanel" [class.right-open]="showRightPanel">
 
     <!-- ==================== LEFT SIDEBAR ==================== -->
-    <aside class="sidebar-left">
+    <aside class="sidebar-left" [class.mobile-open]="showLeftPanel">
       <!-- Filtros -->
       <div class="filters-section">
         <div class="section-header">
@@ -145,18 +151,11 @@
 
         <div class="filter-field">
           <label>Estado de programación</label>
-          <div class="quick-filters">
-            <button
-              mat-stroked-button
-              type="button"
-              class="quick-filter-btn"
-              *ngFor="let filtro of filtrosProgramacion"
-              [class.active]="filtroProgramacion === filtro"
-              (click)="onFiltroProgramacionChange(filtro)">
-              <span>{{ getEtiquetaFiltroProgramacion(filtro) }}</span>
-              <span class="quick-filter-count">{{ getConteoFiltroProgramacion(filtro) }}</span>
-            </button>
-          </div>
+          <mat-select [(ngModel)]="filtroProgramacion" (selectionChange)="onFiltroProgramacionChange($event.value)" placeholder="Todos" panelClass="filter-select">
+            <mat-option *ngFor="let filtro of filtrosProgramacion" [value]="filtro">
+              {{ getEtiquetaFiltroProgramacion(filtro) }} ({{ getConteoFiltroProgramacion(filtro) }})
+            </mat-option>
+          </mat-select>
         </div>
       </div>
 
@@ -234,7 +233,7 @@
           <!-- Lista normal -->
           <ng-container *ngIf="!modoCicloActivo">
             <ng-container *ngFor="let entry of docentesFiltrados; trackBy: trackByDocente">
-              <div class="course-card"
+              <div class="assignment-row"
                    *ngFor="let asignacion of entry[1].asignaciones; trackBy: trackByAsignacion"
                    [class.selected]="asignacionSeleccionada?.id === asignacion.id"
                    [class.has-horario]="tieneHorario(asignacion)"
@@ -245,67 +244,30 @@
                    [class.is-bloqueado]="!puedeProgramar(asignacion)"
                    (click)="seleccionarAsignacion(asignacion)">
 
-                <div class="card-color-bar"
-                     [style.background]="getTipoColor(asignacion.tipo_clase).border">
-                </div>
-
-                <div class="card-body">
-                  <div class="card-top">
-                    <span class="curso-codigo">{{ asignacion.curso_plan.curso.codigo }}</span>
-                    <span class="tipo-badge"
+                <div class="ar-indicator" [style.background]="getTipoColor(asignacion.tipo_clase).border"></div>
+                
+                <div class="ar-content">
+                  <div class="ar-header">
+                    <span class="ar-codigo">{{ asignacion.curso_plan.curso.codigo }}</span>
+                    <span class="ar-tipo"
                           [style.background]="getTipoColor(asignacion.tipo_clase).bg"
-                          [style.color]="getTipoColor(asignacion.tipo_clase).text"
-                          [style.border-color]="getTipoColor(asignacion.tipo_clase).border">
+                          [style.color]="getTipoColor(asignacion.tipo_clase).text">
                       {{ getBadgeTipoClase(asignacion.tipo_clase) }}
                     </span>
-                  </div>
-
-                  <div class="curso-nombre">{{ asignacion.curso_plan.curso.nombre }}</div>
-
-                  <div class="card-meta">
-                    <span class="meta-item">
-                      <mat-icon>person</mat-icon>
-                      {{ asignacion.docente.apellidos }}, {{ asignacion.docente.nombres }}
-                    </span>
-                  </div>
-
-                  <div class="card-estado-progress">
-                    <span class="estado-chip-small"
-                          [class]="getEstadoChip(asignacion.estado).cssClass">
-                      <mat-icon>{{ getEstadoChip(asignacion.estado).icon }}</mat-icon>
-                      {{ getEstadoChip(asignacion.estado).label }}
-                    </span>
-                    <span class="horas-progreso" *ngIf="asignacion.estado === 'CONFIRMADO'">
-                      {{ getProgresoLabel(asignacion) }}
-                    </span>
-                  </div>
-
-                  <div class="progreso-bar-container" *ngIf="asignacion.estado === 'CONFIRMADO'">
-                    <div class="progreso-bar"
-                         [style.width.%]="getProgresoBarWidth(asignacion)"
-                         [class.completo]="getProgresoBarWidth(asignacion) >= 100">
-                    </div>
-                  </div>
-
-                  <div class="programacion-resumen" *ngIf="puedeProgramar(asignacion)">
-                    <mat-icon>event_note</mat-icon>
-                    <span>{{ getResumenProgramacion(asignacion) }}</span>
-                  </div>
-
-                  <div class="card-footer">
-                    <span class="footer-item">Sec. {{ asignacion.seccion }}</span>
-                    <span class="footer-item">{{ asignacion.horas_asignadas }}h</span>
-                    <span class="footer-item">{{ asignacion.nro_alumnos || 0 }} alumnos</span>
-                    <span class="horario-status"
-                          [ngClass]="getEstadoHorarioClase(asignacion)">
+                    <span class="ar-status-icon" [ngClass]="getEstadoHorarioClase(asignacion)" [matTooltip]="getEstadoHorarioLabel(asignacion)">
                       <mat-icon>{{ getEstadoHorarioIcon(asignacion) }}</mat-icon>
-                      {{ getEstadoHorarioLabel(asignacion) }}
                     </span>
                   </div>
-                </div>
-
-                <div class="card-drag-handle">
-                  <mat-icon>drag_indicator</mat-icon>
+                  <div class="ar-title">{{ asignacion.curso_plan.curso.nombre }}</div>
+                  <div class="ar-docente" *ngIf="!filtroDocenteCtrl.value"><mat-icon>person</mat-icon> {{ asignacion.docente.apellidos }}, {{ asignacion.docente.nombres }}</div>
+                  <div class="ar-meta">
+                    <span>Sec. {{ asignacion.seccion }}</span> • 
+                    <span>{{ asignacion.horas_asignadas }}h</span> • 
+                    <span>{{ asignacion.nro_alumnos || 0 }} alums.</span>
+                  </div>
+                  <div class="ar-progress" *ngIf="asignacion.estado === 'CONFIRMADO'">
+                    <div class="ar-progress-bar" [style.width.%]="getProgresoBarWidth(asignacion)" [class.completo]="getProgresoBarWidth(asignacion) >= 100"></div>
+                  </div>
                 </div>
               </div>
             </ng-container>
@@ -333,7 +295,7 @@
 
     <!-- ==================== CENTER: CALENDAR ==================== -->
     <main class="calendar-main">
-      <div class="calendar-container">
+      <div class="calendar-container" [style.--dias-count]="diasSemana.length">
         <!-- Calendar header (day names) -->
         <div class="calendar-header">
           <div class="hora-col-header">Hora</div>
@@ -368,6 +330,7 @@
                    *ngFor="let dia of diasSemana"
                    [class.celda-con-bloque]="getBloquesCelda(dia.dia_semana, hora).length > 0"
                    [class.celda-editable]="editingSchedule"
+                   [class.celda-disponible]="editingSchedule && tieneDisponibilidadEnSlot(dia.dia_semana, hora)"
                    [class.celda-ocupada-por-otro]="editingSchedule && getBloquesCelda(dia.dia_semana, hora).length > 0 && !esBloqueDeAsignacion(getBloquesCelda(dia.dia_semana, hora)[0])"
                    [class.celda-ocupada-por-esta]="editingSchedule && getBloquesCelda(dia.dia_semana, hora).length > 0 && esBloqueDeAsignacion(getBloquesCelda(dia.dia_semana, hora)[0])"
                    [class.celda-drag-start]="dragStart?.dia === dia.dia_semana && dragStart?.hora === hora"
@@ -469,8 +432,12 @@
       </div>
     </main>
 
+    <!-- Mobile overlay close when panel open -->
+    <div class="sidebar-overlay" *ngIf="showLeftPanel" (click)="showLeftPanel = false"></div>
+    <div class="sidebar-overlay" *ngIf="showRightPanel" (click)="showRightPanel = false"></div>
+
     <!-- ==================== RIGHT SIDEBAR ==================== -->
-    <aside class="sidebar-right">
+    <aside class="sidebar-right" [class.mobile-open]="showRightPanel">
 
       <!-- Detalle de Asignación seleccionada -->
       <div class="detail-panel" *ngIf="asignacionSeleccionada as asignacion">
@@ -527,14 +494,24 @@
           <div class="sugerencias-horario" *ngIf="asignacionSeleccionada && ambienteSeleccionadoId">
             <div class="sugerencias-header">
               <h4>Sugerencias de Horario</h4>
-              <button mat-stroked-button 
-                      class="btn-generar-sugerencias"
-                      [disabled]="generandoSugerencias"
-                      (click)="generarSugerenciasHorarios()">
-                <mat-icon *ngIf="!generandoSugerencias">auto_awesome</mat-icon>
-                <mat-spinner *ngIf="generandoSugerencias" diameter="16"></mat-spinner>
-                {{ generandoSugerencias ? 'Generando...' : 'Generar' }}
-              </button>
+              <div class="sugerencias-actions">
+                <button mat-stroked-button 
+                        class="btn-generar-sugerencias"
+                        [disabled]="generandoSugerencias"
+                        (click)="generarSugerenciasHorarios()">
+                  <mat-icon *ngIf="!generandoSugerencias">auto_awesome</mat-icon>
+                  <mat-spinner *ngIf="generandoSugerencias" diameter="16"></mat-spinner>
+                  {{ generandoSugerencias ? 'Generando...' : 'Generar' }}
+                </button>
+                <button mat-icon-button
+                        class="btn-ia-sugerencias"
+                        [disabled]="generandoSugerencias || sugerenciasHorarios.length === 0"
+                        (click)="pedirSugerenciasIA()"
+                        matTooltip="Preguntar al asistente IA por mejores horarios"
+                        aria-label="Asistente IA para horarios">
+                  <mat-icon>smart_toy</mat-icon>
+                </button>
+              </div>
             </div>
             
             <div *ngIf="sugerenciasHorarios.length > 0" class="sugerencias-list">
@@ -543,13 +520,14 @@
                       color="primary"
                       (click)="aplicarTodasSugerencias()">
                 <mat-icon>playlist_add_check</mat-icon>
-                Aplicar Todas
+                Aplicar Todas ({{ getTotalHorasSugeridas() }}h)
               </button>
               <div class="sugerencia-item"
                    *ngFor="let sugerencia of sugerenciasHorarios"
                    (click)="aplicarSugerencia(sugerencia)">
                 <span class="sugerencia-dia">{{ getDiaNombre(sugerencia.dia) }}</span>
                 <span class="sugerencia-hora">{{ sugerencia.hora_inicio }} - {{ sugerencia.hora_fin }}</span>
+                <span class="sugerencia-duracion">{{ getDuracionHoras(sugerencia) }}h</span>
                 <mat-icon class="sugerencia-icon">add_circle</mat-icon>
               </div>
             </div>
@@ -565,12 +543,12 @@
             <div *ngIf="loadingDisponibilidad" class="disponibilidad-loading">
               <mat-spinner diameter="20"></mat-spinner>
             </div>
-            <div *ngIf="!loadingDisponibilidad && disponibilidadDocente.length > 0" class="disponibilidad-grid">
+            <div *ngIf="!loadingDisponibilidad && disponibilidadFusionada.length > 0" class="disponibilidad-grid">
               <div class="disp-slot"
-                   *ngFor="let disp of disponibilidadDocente"
-                   [class.disp-disponible]="disp.disponible">
+                   *ngFor="let disp of disponibilidadFusionada"
+                   [class.disp-disponible]="true">
                 <span class="disp-dia">{{ getDiaNombre(disp.dia) }}</span>
-                <span class="disp-horas">{{ disp.hora_inicio }} - {{ disp.hora_fin }}</span>
+                <span class="disp-horas">{{ disp.hora_inicio }} - {{ disp.hora_fin }} ({{ getDuracionHoras(disp) }}h)</span>
                 <mat-icon class="disp-icon">check_circle</mat-icon>
               </div>
             </div>
@@ -610,6 +588,12 @@
                     (click)="iniciarEdicion()">
               <mat-icon>edit_calendar</mat-icon>
               {{ getAccionHorarioLabel(asignacion) }}
+            </button>
+            <button mat-flat-button color="warn"
+                    *ngIf="!puedeProgramar(asignacion)"
+                    (click)="eliminarAsignacion(asignacion)">
+              <mat-icon>delete_forever</mat-icon>
+              Eliminar
             </button>
           </div>
 

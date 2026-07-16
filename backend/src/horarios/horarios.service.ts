@@ -1464,7 +1464,6 @@ export class HorariosService {
         `Error registrando auditoría (datos ya guardados): ${auditError.message}`,
       );
     }
-
   }
 
   private validarIntegridadPayload(bloques: BloqueHorarioDto[]): void {
@@ -1726,13 +1725,20 @@ export class HorariosService {
       where: { id: bloque.ambiente_id },
     });
     if (!ambiente) {
-      throw new NotFoundException('Ambiente no encontrado');
+      throw new NotFoundException("Ambiente no encontrado");
     }
     // No validar capacidad para laboratorios (código empieza con LAB o tipo es LABORATORIO)
-    const esLaboratorio = ambiente.codigo?.toUpperCase().startsWith('LAB') || ambiente.tipo?.toUpperCase().includes('LABORATORIO');
-    if (!esLaboratorio && ambiente.capacidad && asignacion.nro_alumnos && asignacion.nro_alumnos > ambiente.capacidad) {
+    const esLaboratorio =
+      ambiente.codigo?.toUpperCase().startsWith("LAB") ||
+      ambiente.tipo?.toUpperCase().includes("LABORATORIO");
+    if (
+      !esLaboratorio &&
+      ambiente.capacidad &&
+      asignacion.nro_alumnos &&
+      asignacion.nro_alumnos > ambiente.capacidad
+    ) {
       throw new ConflictException(
-        `El ambiente ${ambiente.codigo} tiene capacidad de ${ambiente.capacidad} alumnos, pero la asignación tiene ${asignacion.nro_alumnos} alumnos.`
+        `El ambiente ${ambiente.codigo} tiene capacidad de ${ambiente.capacidad} alumnos, pero la asignación tiene ${asignacion.nro_alumnos} alumnos.`,
       );
     }
   }

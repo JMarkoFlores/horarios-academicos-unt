@@ -222,8 +222,14 @@ export class AsignacionLectivaController {
     summary: "Reabrir asignación confirmada (volver a PENDIENTE para edición)",
   })
   @ApiParam({ name: "id", type: Number })
-  @ApiResponse({ status: 200, description: "Asignación reabierta exitosamente" })
-  @ApiResponse({ status: 400, description: "Solo se puede reabrir asignaciones en estado CONFIRMADO" })
+  @ApiResponse({
+    status: 200,
+    description: "Asignación reabierta exitosamente",
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Solo se puede reabrir asignaciones en estado CONFIRMADO",
+  })
   reabrir(@Param("id") id: string, @CurrentUser() usuario: UsuarioAutenticado) {
     return this.service.reabrir(Number(id), usuario);
   }

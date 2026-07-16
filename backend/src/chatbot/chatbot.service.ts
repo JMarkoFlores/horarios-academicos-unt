@@ -9,8 +9,18 @@ import { ConfigService } from "@nestjs/config";
 import Groq from "groq-sdk";
 import { AmbientesService } from "../ambientes/ambientes.service";
 import { FindDisponiblesDto } from "../ambientes/dto/find-disponibles.dto";
+import { DisponibilidadService } from "../disponibilidad/disponibilidad.service";
+import { HorariosService } from "../horarios/horarios.service";
+import { AsignacionLectivaService } from "../modules/asignacion-lectiva/asignacion-lectiva.service";
+import { DocenteService } from "../docentes/docentes.service";
+import { DisponibilidadService } from "../disponibilidad/disponibilidad.service";
+import { HorariosService } from "../horarios/horarios.service";
+import { AsignacionLectivaService } from "../modules/asignacion-lectiva/asignacion-lectiva.service";
+import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
-// Definición de la herramienta para el LLM
+// Definición de las herramientas para el LLM
 const tools: Groq.Chat.ChatCompletionTool[] = [
   {
     type: "function",
@@ -46,6 +56,106 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "consultar_disponibilidad_docente",
+      description:
+        "Obtiene los bloques de disponibilidad declarados por un docente para un período académico. Devuelve días y horas en que el docente está disponible para dictar clases.",
+      parameters: {
+        type: "object",
+        properties: {
+          docente_id: {
+            type: "number",
+            description: "ID del docente en el sistema.",
+          },
+          periodo_codigo: {
+            type: "string",
+            description: "Código del período académico (ej: '2026-I').",
+          },
+        },
+        required: ["docente_id", "periodo_codigo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "consultar_horarios_docente",
+      description:
+        "Obtiene los horarios ya asignados a un docente en un período académico. Devuelve día, hora_inicio, hora_fin, ambiente, curso y tipo de clase.",
+      parameters: {
+        type: "object",
+        properties: {
+          docente_id: {
+            type: "number",
+            description: "ID del docente en el sistema.",
+          },
+          periodo_codigo: {
+            type: "string",
+            description: "Código del período académico (ej: '2026-I').",
+          },
+        },
+        required: ["docente_id", "periodo_codigo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "verificar_conflictos_ambiente",
+      description:
+        "Verifica si un ambiente está libre en un día y rango horario específico para un período. Devuelve si hay conflicto y qué horarios ocupan el ambiente.",
+      parameters: {
+        type: "object",
+        properties: {
+          ambiente_id: {
+            type: "number",
+            description: "ID del ambiente a verificar.",
+          },
+          dia_semana: {
+            type: "number",
+            description: "Día de la semana (1=lunes, 2=martes, ..., 6=sábado).",
+          },
+          hora_inicio: {
+            type: "string",
+            description: 'Hora de inicio en formato HH:mm (ej: "14:00").',
+          },
+          hora_fin: {
+            type: "string",
+            description: 'Hora de fin en formato HH:mm (ej: "16:00").',
+          },
+          periodo_codigo: {
+            type: "string",
+            description: "Código del período académico (ej: '2026-I').",
+          },
+        },
+        required: ["ambiente_id", "dia_semana", "hora_inicio", "hora_fin", "periodo_codigo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "consultar_asignaciones_lectivas",
+      description:
+        "Obtiene las asignaciones lectivas (cursos asignados) de un docente para un período. Devuelve curso, tipo_clase, horas_asignadas, estado y si tiene horarios programados.",
+      parameters: {
+        type: "object",
+        properties: {
+          docente_id: {
+            type: "number",
+            description: "ID del docente en el sistema.",
+          },
+          periodo_codigo: {
+            type: "string",
+            description: "Código del período académico (ej: '2026-I').",
+          },
+        },
+        required: ["docente_id", "periodo_codigo"],
+      },
+    },
+  },
 ];
 
 @Injectable()
@@ -57,6 +167,11 @@ export class ChatbotService {
   constructor(
     private configService: ConfigService,
     private ambientesService: AmbientesService,
+    private disponibilidadService: DisponibilidadService,
+    private horariosService: HorariosService,
+    private asignacionLectivaService: AsignacionLectivaService,
+    @InjectRepository(PeriodoAcademico)
+    private periodoRepo: Repository<PeriodoAcademico>,
   ) {
     const apiKey = this.configService.get<string>("GROQ_API_KEY");
     if (apiKey) {

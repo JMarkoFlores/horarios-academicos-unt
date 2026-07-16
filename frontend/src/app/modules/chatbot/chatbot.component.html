@@ -1,86 +1,197 @@
-<div class="chatbot-container" *ngIf="isVisible">
-  <!-- Botón de la burbuja -->
-  <button mat-fab color="primary" class="chatbot-fab" (click)="toggleChat()" *ngIf="!isOpen" matTooltip="Asistente IA">
-    <mat-icon>smart_toy</mat-icon>
+<div class="chatbot-container" *ngIf="isVisible" [class.dark]="isDarkTheme">
+  <!-- Botón flotante (FAB) -->
+  <button 
+    mat-fab 
+    class="chatbot-fab" 
+    (click)="toggleChat()" 
+    *ngIf="!isOpen" 
+    matTooltip="Asistente IA"
+    aria-label="Abrir asistente IA">
+    <mat-icon class="fab-icon">smart_toy</mat-icon>
+    <div class="fab-pulse"></div>
   </button>
 
   <!-- Ventana de Chat -->
-  <div class="chat-window" [class.open]="isOpen">
-    <div class="chat-header">
-      <div class="header-info">
-        <div class="connection-status" [class.offline]="!isOnline" matTooltip="{{ isOnline ? 'Conectado' : 'Sin conexión' }}">
-          <mat-icon>{{ isOnline ? 'wifi' : 'wifi_off' }}</mat-icon>
+  <div class="chat-window" [class.open]="isOpen" role="dialog" aria-label="Asistente IA" aria-modal="true">
+    
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="header-left">
+        <div class="avatar-ring">
+          <mat-icon class="bot-avatar">smart_toy</mat-icon>
+          <span class="status-indicator" [class.online]="isOnline"></span>
         </div>
-        <mat-icon>smart_toy</mat-icon>
-        <span>Asistente UNT</span>
+        <div class="header-info">
+          <h3 class="bot-name">Asistente IA</h3>
+          <p class="bot-subtitle">{{ connectionStatus }}</p>
+        </div>
       </div>
       <div class="header-actions">
-        <button mat-icon-button (click)="toggleTTS()" [class.tts-active]="ttsEnabled" title="{{ ttsEnabled ? 'Desactivar voz' : 'Activar voz' }}">
+        <button mat-icon-button class="icon-btn" (click)="toggleTheme()" matTooltip="{{ isDarkTheme ? 'Tema claro' : 'Tema oscuro' }}" aria-label="Cambiar tema">
+          <mat-icon>{{ isDarkTheme ? 'light_mode' : 'dark_mode' }}</mat-icon>
+        </button>
+        <button mat-icon-button class="icon-btn" (click)="toggleTTS()" [class.active]="ttsEnabled" matTooltip="{{ ttsEnabled ? 'Desactivar voz' : 'Activar voz' }}" aria-label="Texto a voz">
           <mat-icon>{{ ttsEnabled ? 'volume_up' : 'volume_off' }}</mat-icon>
         </button>
-        <button mat-icon-button (click)="clearHistory()" title="Limpiar conversación">
+        <button mat-icon-button class="icon-btn" (click)="clearHistory()" matTooltip="Limpiar conversación" aria-label="Limpiar historial">
           <mat-icon>delete_sweep</mat-icon>
         </button>
-        <button mat-icon-button (click)="toggleChat()" title="Minimizar">
-          <mat-icon>remove</mat-icon>
+        <button mat-icon-button class="icon-btn" (click)="toggleChat()" matTooltip="Minimizar" aria-label="Minimizar chat">
+          <mat-icon>minimize</mat-icon>
         </button>
-        <button mat-icon-button (click)="hideChatPermanently()" title="Ocultar chatbot">
+        <button mat-icon-button class="icon-btn close-btn" (click)="hideChatPermanently()" matTooltip="Ocultar asistente" aria-label="Cerrar asistente">
           <mat-icon>close</mat-icon>
         </button>
       </div>
-    </div>
+    </header>
 
-    <div class="chat-messages" #scrollContainer>
-      <div class="welcome-msg" *ngIf="history.length === 0">
-        ¡Hola! Soy tu asistente de IA. ¿En qué puedo ayudarte hoy con el sistema de horarios?
-      </div>
-      
-      <div class="suggestions" *ngIf="history.length === 0">
-        <button *ngFor="let suggestion of suggestions" 
-                mat-stroked-button 
-                (click)="useSuggestion(suggestion)"
-                [disabled]="isLoading">
-          {{ suggestion }}
+    <!-- Quick Actions (cuando no hay historial) -->
+    <div class="quick-actions" *ngIf="history.length === 0 && !isLoading">
+      <span class="actions-label">Acciones rápidas</span>
+      <div class="actions-grid">
+        <button mat-button class="action-btn" (click)="useSuggestion('¿Qué aulas están libres el lunes de 14:00 a 16:00?')" [disabled]="isLoading">
+          <mat-icon>meeting_room</mat-icon>
+          <span>Aulas libres</span>
+        </button>
+        <button mat-button class="action-btn" (click)="useSuggestion('¿Cómo declaro mi carga lectiva?')" [disabled]="isLoading">
+          <mat-icon>assignment</mat-icon>
+          <span>Declarar carga</span>
+        </button>
+        <button mat-button class="action-btn" (click)="useSuggestion('¿Cuál es mi horario de este semestre?')" [disabled]="isLoading">
+          <mat-icon>schedule</mat-icon>
+          <span>Mi horario</span>
+        </button>
+        <button mat-button class="action-btn" (click)="useSuggestion('Necesito sugerencias de horario para un curso')" [disabled]="isLoading">
+          <mat-icon>auto_awesome</mat-icon>
+          <span>Sugerencias IA</span>
         </button>
       </div>
-      
-      <div *ngFor="let msg of history" class="message-wrapper" [class.user]="msg.role === 'user'">
-        <div class="message-bubble" [innerHTML]="formatResponse(msg.parts[0].text)">
-        </div>
-      </div>
-
-      <div *ngIf="isLoading" class="message-wrapper">
-        <div class="message-bubble typing">
-          <mat-progress-spinner mode="indeterminate" diameter="20"></mat-progress-spinner>
-          <span>Pensando...</span>
-        </div>
-      </div>
     </div>
 
-    <div class="chat-input">
-      <div *ngIf="!speechSupported" class="speech-unsupported-msg">
-        Tu navegador no soporta entrada de voz.
+    <!-- Mensajes -->
+    <div class="chat-messages" #scrollContainer role="log" aria-live="polite" aria-atomic="false">
+      <!-- Welcome State -->
+      <div class="welcome-state" *ngIf="history.length === 0 && !isLoading">
+        <div class="welcome-card">
+          <div class="welcome-avatar">
+            <mat-icon>smart_toy</mat-icon>
+          </div>
+          <h4>¡Hola! Soy tu asistente IA</h4>
+          <p>Puedo ayudarte con horarios, disponibilidad de aulas, declaraciones de carga y más.</p>
+          <div class="welcome-tips">
+            <span class="tip"><kbd>&#64;</kbd> Menciona cursos, docentes o aulas</span>
+            <span class="tip"><kbd>?</kbd> Pregunta en lenguaje natural</span>
+          </div>
+        </div>
       </div>
-      <mat-form-field appearance="outline">
-        <input matInput placeholder="Escribe tu consulta..." 
-               [(ngModel)]="userInput" 
-               (keyup.enter)="sendMessage()"
-               [disabled]="isLoading">
-               
-        <button mat-icon-button matSuffix 
-                *ngIf="speechSupported"
-                (click)="toggleListening()" 
-                [disabled]="isLoading || isSpeaking"
-                [class.mic-active]="isListening"
-                [class.mic-disabled]="isLoading || isSpeaking"
-                [title]="isListening ? 'Escuchando...' : 'Hablar por micrófono'">
+
+      <!-- Historial de mensajes -->
+      <div *ngFor="let msg of history; trackBy: trackByMsg" class="message-wrapper" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'model'">
+        
+        <!-- Mensaje del Usuario -->
+        <ng-container *ngIf="msg.role === 'user'">
+          <div class="msg-avatar user-avatar" aria-hidden="true">
+            <mat-icon>person</mat-icon>
+          </div>
+          <div class="msg-content user-msg">
+            <div class="msg-bubble" [innerHTML]="formatResponse(msg.parts[0].text)"></div>
+            <span class="msg-time">{{ getTime(msg) }}</span>
+          </div>
+        </ng-container>
+
+        <!-- Mensaje del Asistente -->
+        <ng-container *ngIf="msg.role === 'model'">
+          <div class="msg-avatar bot-avatar" aria-hidden="true">
+            <mat-icon>smart_toy</mat-icon>
+          </div>
+          <div class="msg-content bot-msg">
+            <div class="msg-bubble" [innerHTML]="formatResponse(msg.parts[0].text)"></div>
+            <div class="msg-footer">
+              <span class="msg-time">{{ getTime(msg) }}</span>
+              <div class="msg-actions">
+                <button mat-icon-button class="icon-action" (click)="copyMessage(msg.parts[0].text)" matTooltip="Copiar" aria-label="Copiar mensaje">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+                <button mat-icon-button class="icon-action" (click)="regenerateResponse(msg)" matTooltip="Regenerar" aria-label="Regenerar respuesta">
+                  <mat-icon>refresh</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+      </div>
+
+      <!-- Typing Indicator -->
+      <div class="message-wrapper typing-indicator" *ngIf="isLoading">
+        <div class="msg-avatar bot-avatar" aria-hidden="true">
+          <mat-icon>smart_toy</mat-icon>
+        </div>
+        <div class="msg-content bot-msg">
+          <div class="msg-bubble typing-bubble">
+            <div class="typing-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="typing-text">Pensando...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tool Result Card -->
+      <div class="tool-result" *ngIf="lastToolResult">
+        <div class="tool-header">
+          <mat-icon>functions</mat-icon>
+          <span>Resultado de consulta</span>
+          <button mat-icon-button class="icon-action" (click)="dismissToolResult()" aria-label="Cerrar">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        <div class="tool-content" [innerHTML]="formatToolResult(lastToolResult)"></div>
+      </div>
+
+    </div>
+
+    <!-- Input Area -->
+    <footer class="chat-input">
+      <mat-form-field appearance="outline" class="input-field">
+        <input 
+          matInput 
+          placeholder="Escribe tu consulta..." 
+          [(ngModel)]="userInput" 
+          (keyup.enter)="sendMessage()" 
+          [disabled]="isLoading"
+          aria-label="Tu mensaje"
+          autocomplete="off">
+        
+        <button 
+          mat-icon-button 
+          matSuffix 
+          class="mic-btn" 
+          (click)="toggleListening()" 
+          [disabled]="isLoading || isSpeaking || !speechSupported"
+          [class.active]="isListening"
+          [class.disabled]="isLoading || isSpeaking"
+          matTooltip="{{ isListening ? 'Escuchando...' : 'Dictar por voz' }}"
+          aria-label="Entrada de voz">
           <mat-icon>{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
         </button>
 
-        <button mat-icon-button matSuffix (click)="sendMessage()" [disabled]="!userInput.trim() || isLoading">
+        <button 
+          mat-icon-button 
+          matSuffix 
+          class="send-btn" 
+          (click)="sendMessage()" 
+          [disabled]="!userInput.trim() || isLoading"
+          aria-label="Enviar mensaje">
           <mat-icon>send</mat-icon>
         </button>
       </mat-form-field>
-    </div>
+
+      <div class="input-hints">
+        <span class="hint">Enter para enviar</span>
+        <span class="hint">Shift+Enter para nueva línea</span>
+      </div>
+    </footer>
+
   </div>
 </div>

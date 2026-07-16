@@ -1,11 +1,13 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, HostListener } from '@angular/core';
 import { FormControl } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subject, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError, finalize, debounceTime, distinctUntilChanged, map, startWith } from 'rxjs/operators';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { NotifToastService } from '../../../core/services/notif-toast.service';
 import { DiasActivosService, DiaActivo } from '../../../core/services/dias-activos.service';
+import { ScheduleConfigService } from '../../../core/services/schedule-config.service';
 import { ContextoAcademicoHelper } from '../../../core/services/contexto-academico.helper';
 import { ApiResponse } from '../../../core/interfaces/entities';
 
@@ -180,7 +182,14 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
   hasDraggedBlock = false; // Bandera para evitar clic después de arrastre
 
   /* ---- Calendario ---- */
-  diasSemana: DiaActivo[] = [];
+  diasSemana: DiaActivo[] = [
+    { dia_semana: 1, nombre: 'Lunes' },
+    { dia_semana: 2, nombre: 'Martes' },
+    { dia_semana: 3, nombre: 'Miércoles' },
+    { dia_semana: 4, nombre: 'Jueves' },
+    { dia_semana: 5, nombre: 'Viernes' },
+    { dia_semana: 6, nombre: 'Sábado' },
+  ];
   horasCalendario: number[] = [];
   horaInicio = 7;
   horaFin = 22;
@@ -196,6 +205,10 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
   /* ---- Alcance ---- */
   alcanceLabel: string | null = null;
 
+  /* ---- Sidebar toggles (responsive) ---- */
+  showLeftPanel = false;
+  showRightPanel = false;
+
   /* ---- Modo de asignación por ciclo ---- */
   modoCicloActivo = false;
   cicloActual: number | null = null;
@@ -203,15 +216,11 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
   indiceCicloActual = 0;
   progresoCiclo = 0;
 
-  /* ---- Periodos ---- */
-  periodosDisponibles: { id: number; codigo: string; activo: boolean }[] = [];
-  periodoSeleccionadoId: number | null = null;
-
   /* ---- Colores por tipo de clase ---- */
   readonly tipoColores: Record<string, { bg: string; border: string; text: string; label: string }> = {
-    TEORIA:      { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', label: 'Teoría' },
-    PRACTICA:    { bg: '#dcfce7', border: '#22c55e', text: '#166534', label: 'Práctica' },
-    LABORATORIO: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e', label: 'Laboratorio' },
+    TEORIA:      { bg: 'var(--color-slot-teoria-bg)', border: 'var(--color-slot-teoria-border)', text: 'var(--color-slot-teoria-text)', label: 'Teoría' },
+    PRACTICA:    { bg: 'var(--color-slot-practica-bg)', border: 'var(--color-slot-practica-border)', text: 'var(--color-slot-practica-text)', label: 'Práctica' },
+    LABORATORIO: { bg: 'var(--color-slot-laboratorio-bg)', border: 'var(--color-slot-laboratorio-border)', text: 'var(--color-slot-laboratorio-text)', label: 'Laboratorio' },
   };
 
   /* ---- Ciclos ---- */
@@ -231,6 +240,8 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private diasActivos: DiasActivosService,
     private contextoHelper: ContextoAcademicoHelper,
+    public scheduleConfigService: ScheduleConfigService,
+    private router: Router,
   ) {}
 
   /* ================================================================ */
@@ -240,9 +251,18 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.alcanceLabel = this.contextoHelper.getEtiquetaAlcance();
     this.generarHorasCalendario();
-    this.cargarDias();
     this.cargarDocentes();
-    this.cargarPeriodos();
+
+    // Subscribe to ScheduleConfigService
+    this.scheduleConfigService.ready$.pipe(takeUntil(this.destroy$)).subscribe((config) => {
+      this.horaInicio = config.franja.inicio;
+      this.horaFin = config.franja.fin;
+      this.almuerzoInicio = config.almuerzo.inicio;
+      this.almuerzoFin = config.almuerzo.fin;
+      this.diasSemana = config.diasNumeros.map((d, i) => ({ dia_semana: d, nombre: config.diasNombres[i] }));
+      this.generarHorasCalendario();
+      this.cdr.markForCheck();
+    });
 
     // Suscripción al autocomplete de docente
     this.filtroDocenteCtrl.valueChanges.pipe(
@@ -259,6 +279,7 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((periodo) => {
         if (periodo && !this.editingSchedule) {
+          this.scheduleConfigService.cargar();
           this.cargarDatos();
         }
       });
@@ -268,6 +289,7 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         if (this.periodoService.periodoActivo) {
+          this.scheduleConfigService.recargar();
           this.cargarDatos();
         }
       });
@@ -355,13 +377,7 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
   }
 
   private cargarDias(): void {
-    this.diasActivos.cargar().subscribe(() => {
-      this.diasSemana = this.diasActivos.dias;
-      this.cdr.markForCheck();
-    });
-    if (this.diasActivos.dias.length > 0) {
-      this.diasSemana = this.diasActivos.dias;
-    }
+    // Dias are now loaded from ScheduleConfigService in ngOnInit
   }
 
   private mapearHorarios(items: any[]): void {
@@ -466,31 +482,14 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
     });
   }
 
-  cargarPeriodos(): void {
-    this.api.get<any>('/periodos/todos').pipe(
-      catchError(() => of({ data: [] })),
-    ).subscribe({
-      next: (r) => {
-        this.periodosDisponibles = (r.data ?? []).map((p: any) => ({
-          id: p.id,
-          codigo: p.codigo,
-          activo: p.activo,
-        }));
-        const activo = this.periodoService.periodoActivo;
-        if (activo) {
-          this.periodoSeleccionadoId = activo.id;
-        }
-        this.cdr.markForCheck();
-      },
-    });
+  toggleLeftPanel(): void {
+    this.showLeftPanel = !this.showLeftPanel;
+    if (this.showLeftPanel) this.showRightPanel = false;
   }
 
-  cambiarPeriodo(periodoId: number): void {
-    const periodo = this.periodosDisponibles.find(p => p.id === periodoId);
-    if (periodo) {
-      this.periodoService.cambiarPeriodo(periodo.codigo);
-      this.periodoSeleccionadoId = periodoId;
-    }
+  toggleRightPanel(): void {
+    this.showRightPanel = !this.showRightPanel;
+    if (this.showRightPanel) this.showLeftPanel = false;
   }
 
   private extraerDocentes(): void {
@@ -1218,9 +1217,12 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
   cargarDisponibilidadDocente(docenteId: number): void {
     const periodo = this.periodoService.periodoActivo;
     if (!periodo) {
+      console.log('[DEBUG cargarDisponibilidadDocente] No hay periodo activo');
       this.disponibilidadDocente = [];
       return;
     }
+    
+    console.log('[DEBUG cargarDisponibilidadDocente] Iniciando para docente:', docenteId, 'periodo:', periodo.codigo);
 
     this.loadingDisponibilidad = true;
     this.cdr.markForCheck();
@@ -1236,10 +1238,13 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (r) => {
-          this.disponibilidadDocente = this.mapearDisponibilidad(r.data ?? []);
+          console.log('[DEBUG cargarDisponibilidadDocente] Respuesta API:', r);
+          this.disponibilidadDocente = this.mapearDisponibilidad(r.data?.slots ?? r.data ?? []);
+          console.log('[DEBUG cargarDisponibilidadDocente] Disponibilidad mapeada:', this.disponibilidadDocente.length, 'slots');
           this.cdr.markForCheck();
         },
-        error: () => {
+        error: (err) => {
+          console.error('[DEBUG cargarDisponibilidadDocente] Error:', err);
           this.disponibilidadDocente = [];
           this.cdr.markForCheck();
         },
@@ -1250,12 +1255,14 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
     if (!Array.isArray(data)) {
       return [];
     }
-    return data.map((d: any) => ({
-      dia: d.dia,
-      hora_inicio: d.hora_inicio?.substring(0, 5) ?? '',
-      hora_fin: d.hora_fin?.substring(0, 5) ?? '',
-      disponible: true, // Por defecto disponible si está en la lista
-    }));
+    return data
+      .filter((d: any) => d.disponible === true) // Solo slots marcados como disponibles
+      .map((d: any) => ({
+        dia: d.dia_semana ?? d.dia,
+        hora_inicio: d.hora_inicio?.substring(0, 5) ?? '',
+        hora_fin: d.hora_fin?.substring(0, 5) ?? '',
+        disponible: true,
+      }));
   }
 
   tieneDisponibilidadEnSlot(dia: number, hora: number): boolean {
@@ -1287,27 +1294,36 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const ambiente = this.ambientesFiltradosPorCurso.find(a => a.id === this.ambienteSeleccionadoId);
+    if (!ambiente) {
+      this.notif.error('Ambiente seleccionado no encontrado en la lista de disponibles');
+      return;
+    }
+
+    console.log('[DEBUG generarSugerenciasHorarios] Iniciando para asignación:', asignacion.id, 'docente:', asignacion.docente.id, 'ambiente:', ambiente.codigo);
+    console.log('[DEBUG] disponibilidadDocente:', this.disponibilidadDocente);
+    console.log('[DEBUG] horariosFiltrados:', this.horariosFiltrados);
+
     this.generandoSugerencias = true;
     this.sugerenciasHorarios = [];
     this.cdr.markForCheck();
 
-    // Generar sugerencias basadas en disponibilidad del docente y disponibilidad de ambiente
     const horasNecesarias = asignacion.horas_asignadas;
     const sugerencias: { dia: number; hora_inicio: string; hora_fin: string; ambiente_id: number }[] = [];
 
-    // Buscar slots disponibles en la disponibilidad del docente
     for (const disp of this.disponibilidadDocente) {
       const ini = parseInt(disp.hora_inicio.split(':')[0], 10);
       const fin = parseInt(disp.hora_fin.split(':')[0], 10);
-      
-      // Verificar disponibilidad de ambiente en este slot
-      for (let h = ini; h < fin - 1; h++) {
+
+      // Generar bloques de 1 hora en cada slot disponible del docente
+      for (let h = ini; h < fin; h++) {
         const horaInicio = this.fmtHora(h);
         const horaFin = this.fmtHora(h + 1);
-        
-        // Verificar que no haya conflicto en el calendario (usar filtrados)
+
+        // Verificar conflicto SOLO en el MISMO ambiente (la disponibilidad del docente ya se respeta al iterar disponibilidadDocente)
         const tieneConflicto = this.horariosFiltrados.some(bloque => {
           if (bloque.dia !== disp.dia) return false;
+          if (bloque.ambienteCodigo !== ambiente.codigo) return false;
           return horaInicio < bloque.hora_fin && horaFin > bloque.hora_inicio;
         });
 
@@ -1322,15 +1338,18 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Ordenar sugerencias por día y hora
-    sugerencias.sort((a, b) => {
+    // Fusionar bloques consecutivos de 1 hora en bloques más largos (mismo día, misma ambiente)
+    const sugerenciasFusionadas = this.fusionarBloquesConsecutivos(sugerencias);
+
+    sugerenciasFusionadas.sort((a, b) => {
       if (a.dia !== b.dia) return a.dia - b.dia;
       return a.hora_inicio.localeCompare(b.hora_inicio);
     });
 
-    // Limitar a las primeras N sugerencias (basado en horas necesarias)
-    this.sugerenciasHorarios = sugerencias.slice(0, horasNecesarias * 2);
-    
+    console.log('[DEBUG] sugerencias fusionadas:', sugerenciasFusionadas.length, sugerenciasFusionadas.slice(0, 10));
+
+    this.sugerenciasHorarios = sugerenciasFusionadas.slice(0, horasNecesarias * 2);
+
     this.generandoSugerencias = false;
     this.cdr.markForCheck();
 
@@ -1339,6 +1358,65 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
     } else {
       this.notif.success(`Se generaron ${this.sugerenciasHorarios.length} sugerencias de horario`);
     }
+  }
+
+  /** Duración en horas de una sugerencia (ej. "09:00"-"11:00" = 2h) */
+  getDuracionHoras(s: { hora_inicio: string; hora_fin: string }): number {
+    const ini = parseInt(s.hora_inicio.split(':')[0], 10);
+    const fin = parseInt(s.hora_fin.split(':')[0], 10);
+    return fin - ini;
+  }
+
+  /** Total de horas de todas las sugerencias */
+  getTotalHorasSugeridas(): number {
+    return this.sugerenciasHorarios.reduce((sum, s) => sum + this.getDuracionHoras(s), 0);
+  }
+
+  /** Disponibilidad del docente con bloques consecutivos fusionados */
+  get disponibilidadFusionada(): { dia: number; hora_inicio: string; hora_fin: string; disponible: boolean }[] {
+    if (!this.disponibilidadDocente?.length) return [];
+    const porDia = new Map<number, typeof this.disponibilidadDocente>();
+    for (const d of this.disponibilidadDocente) {
+      if (!d.disponible) continue;
+      if (!porDia.has(d.dia)) porDia.set(d.dia, []);
+      porDia.get(d.dia)!.push(d);
+    }
+    const resultado: { dia: number; hora_inicio: string; hora_fin: string; disponible: boolean }[] = [];
+    for (const [dia, slots] of porDia) {
+      slots.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+      let actual = { ...slots[0] };
+      for (let i = 1; i < slots.length; i++) {
+        const sig = slots[i];
+        if (sig.hora_inicio === actual.hora_fin) {
+          actual.hora_fin = sig.hora_fin;
+        } else {
+          resultado.push(actual);
+          actual = { ...sig };
+        }
+      }
+      resultado.push(actual);
+    }
+    return resultado;
+  }
+
+  /** Abre el chatbot con pregunta pre-llenada para sugerencias de horario */
+  pedirSugerenciasIA(): void {
+    const asignacion = this.asignacionSeleccionada;
+    const ambiente = this.ambientesFiltradosPorCurso.find(a => a.id === this.ambienteSeleccionadoId);
+    if (!asignacion || !ambiente) return;
+
+    const pregunta = `Necesito sugerencias de horario para:\n` +
+      `- Curso: ${asignacion.curso_plan.curso.codigo} - ${asignacion.curso_plan.curso.nombre}\n` +
+      `- Docente: ${asignacion.docente.apellidos}, ${asignacion.docente.nombres}\n` +
+      `- Tipo: ${asignacion.tipo_clase}\n` +
+      `- Horas requeridas: ${asignacion.horas_asignadas}h\n` +
+      `- Ambiente preferido: ${ambiente.codigo} (${ambiente.nombre})\n` +
+      `- Período: ${this.periodoService.periodoActivo?.codigo}\n\n` +
+      `Dame opciones de bloques consecutivos de 2-4 horas que respeten la disponibilidad del docente y no choquen con otros horarios en ese ambiente.`;
+
+    // Disparar evento para abrir chatbot y pre-llenar pregunta
+    const event = new CustomEvent('chatbot:ask', { detail: { question: pregunta } });
+    window.dispatchEvent(event);
   }
 
   aplicarSugerencia(sugerencia: { dia: number; hora_inicio: string; hora_fin: string; ambiente_id: number }): void {
@@ -1726,7 +1804,7 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
 
   iniciarEdicion(): void {
     const asignacion = this.asignacionSeleccionada;
-    if (!asignacion || asignacion.estado !== 'CONFIRMADO') return;
+    if (!asignacion || (asignacion.estado !== 'CONFIRMADO' && asignacion.estado !== 'PENDIENTE')) return;
 
     // Snapshot original state for cancel restoration
     this.horariosOriginales = [...this.horariosDelPeriodo];
@@ -1747,6 +1825,27 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
     this.erroresValidacion = [];
     this.validarDraft();
     this.cdr.markForCheck();
+  }
+
+  eliminarAsignacion(asignacion: AsignacionPendiente): void {
+    const confirmar = confirm(`¿Eliminar asignación de ${asignacion.curso_plan.curso.codigo} - ${asignacion.docente.apellidos}?`);
+    if (!confirmar) return;
+
+    this.saving = true;
+    this.api.delete(`/asignacion-lectiva/${asignacion.id}`)
+      .pipe(takeUntil(this.destroy$), finalize(() => this.saving = false))
+      .subscribe({
+        next: () => {
+          this.notif.success('Asignación eliminada correctamente');
+          this.asignacionSeleccionada = null;
+          this.cargarDatos();
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          this.notif.error(err.error?.message || 'Error al eliminar asignación');
+          this.cdr.markForCheck();
+        },
+      });
   }
 
   esBloqueDeAsignacion(bloque: HorarioBloque): boolean {
@@ -2374,7 +2473,39 @@ export class CargaLectivaComponent implements OnInit, OnDestroy {
   }
 
   puedeProgramar(asignacion: AsignacionPendiente): boolean {
-    return asignacion.estado === 'CONFIRMADO';
+    return asignacion.estado === 'CONFIRMADO' || asignacion.estado === 'PENDIENTE';
+  }
+
+  /** Fusiona bloques de 1 hora consecutivos en el mismo día en bloques más largos */
+  private fusionarBloquesConsecutivos(bloques: { dia: number; hora_inicio: string; hora_fin: string; ambiente_id: number }[]): { dia: number; hora_inicio: string; hora_fin: string; ambiente_id: number }[] {
+    if (bloques.length === 0) return [];
+    
+    // Agrupar por día
+    const porDia = new Map<number, typeof bloques>();
+    for (const b of bloques) {
+      if (!porDia.has(b.dia)) porDia.set(b.dia, []);
+      porDia.get(b.dia)!.push(b);
+    }
+
+    const resultado: typeof bloques = [];
+    for (const [dia, bloquesDia] of porDia) {
+      // Ordenar por hora_inicio
+      bloquesDia.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+      
+      let actual = { ...bloquesDia[0] };
+      for (let i = 1; i < bloquesDia.length; i++) {
+        const sig = bloquesDia[i];
+        // Si el siguiente empieza justo cuando termina el actual, fusionar
+        if (sig.hora_inicio === actual.hora_fin) {
+          actual.hora_fin = sig.hora_fin;
+        } else {
+          resultado.push(actual);
+          actual = { ...sig };
+        }
+      }
+      resultado.push(actual);
+    }
+    return resultado;
   }
 
   getProgresoBarWidth(asignacion: AsignacionPendiente): number {

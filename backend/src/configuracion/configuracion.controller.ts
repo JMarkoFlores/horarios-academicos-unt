@@ -12,6 +12,7 @@ import {
   HttpStatus,
   UseGuards,
   Req,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -333,6 +334,9 @@ export class ConfiguracionController {
   @ApiOperation({ summary: "Obtener parámetros de carga docente del período" })
   @ApiQuery({ name: "periodo", required: true, example: "2026-I" })
   async findParametrosCarga(@Query("periodo") periodo: string) {
+    if (!periodo?.trim()) {
+      throw new BadRequestException("El período es obligatorio");
+    }
     const data = await this.configuracionService.findParametrosCarga(periodo);
     return {
       data,

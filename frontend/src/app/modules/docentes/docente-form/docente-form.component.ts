@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   FormBuilder,
@@ -8,8 +9,8 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../../core/services/api.service';
+import { NotifToastService } from '../../../core/services/notif-toast.service';
 import { ApiResponse, Docente, Departamento, Facultad, Usuario } from '../../../core/interfaces/entities';
 
 export function emailInstitucionalValidator(): ValidatorFn {
@@ -22,7 +23,7 @@ export function emailInstitucionalValidator(): ValidatorFn {
     if (!local || local.length === 0) return { emailInvalido: true };
     if (!/^[a-zA-Z0-9_\-\.]+$/.test(dominio)) return { emailInvalido: true };
     if (!dominio.includes('.')) return { emailInvalido: true };
-    if (dominio !== 'unt.edu.pe') return { dominioInvalido: true };
+    if (dominio !== 'unt.edu.pe' && dominio !== 'unitru.edu.pe') return { dominioInvalido: true };
     return null;
   };
 }
@@ -44,7 +45,6 @@ export function dniValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     if (!control.value) return null;
     const valor = control.value.toString();
-    // DNI peruano: exactamente 8 dígitos
     if (!/^\d{8}$/.test(valor)) {
       return { dniInvalido: true };
     }
@@ -108,14 +108,15 @@ export class DocenteFormComponent implements OnInit {
 
   facultades: Facultad[] = [];
   departamentos: Departamento[] = [];
-  usuarios: Usuario[] = [];
+  usuariosDisponibles: Usuario[] = [];
 
   constructor(
     private fb: FormBuilder,
     private api: ApiService,
     private router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar,
+    private notif: NotifToastService,
+    private destroyRef: DestroyRef,
   ) {}
 
   ngOnInit(): void {
@@ -140,35 +141,40 @@ export class DocenteFormComponent implements OnInit {
       categoria: [{ value: '', disabled: true }, Validators.required],
       modalidad: [{ value: '', disabled: true }, Validators.required],
       fecha_ingreso: [null, [Validators.required, fechaNoFuturaValidator()]],
-      horas_asignadas: [0, [Validators.min(0)]],
       facultad_id: [null],
       departamento_id: [null],
       usuario_id: [null],
+      enviar_credenciales: [true],
     });
 
     this.loadFacultades();
-    this.loadUsuarios();
 
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEdit = true;
       this.docenteId = parseInt(id, 10);
       this.loadDocente();
+    } else {
+      this.loadUsuariosDisponibles();
     }
   }
 
   loadFacultades(): void {
-    this.api.get<ApiResponse<Facultad[]>>('/facultades').subscribe({
-      next: (res) => { this.facultades = res.data || []; },
-      error: () => {},
-    });
+    this.api.get<ApiResponse<Facultad[]>>('/facultades')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => { this.facultades = res.data || []; },
+        error: () => {},
+      });
   }
 
   loadDepartamentos(facultadId: number): void {
-    this.api.get<ApiResponse<Departamento[]>>(`/departamentos`, { facultad_id: facultadId }).subscribe({
-      next: (res) => { this.departamentos = res.data || []; },
-      error: () => {},
-    });
+    this.api.get<ApiResponse<Departamento[]>>('/departamentos', { facultad_id: facultadId })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => { this.departamentos = res.data || []; },
+        error: () => {},
+      });
   }
 
   onFacultadChange(facultadId: number): void {
@@ -180,11 +186,17 @@ export class DocenteFormComponent implements OnInit {
     }
   }
 
-  loadUsuarios(): void {
-    this.api.get<ApiResponse<Usuario[]>>('/usuarios', { rol: 'DOCENTE', activo: 'true' }).subscribe({
-      next: (res) => { this.usuarios = res.data || []; },
-      error: () => {},
-    });
+  loadUsuariosDisponibles(): void {
+    this.api.get<ApiResponse<Usuario[]>>('/usuarios/disponibles')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => { this.usuariosDisponibles = res.data || []; },
+        error: () => { this.notif.error('No se pudieron cargar los usuarios disponibles'); },
+      });
+  }
+
+  tieneUsuarioSeleccionado(): boolean {
+    return !!this.form.get('usuario_id')?.value;
   }
 
   toggleAutoGenerarCodigo(): void {
@@ -192,7 +204,7 @@ export class DocenteFormComponent implements OnInit {
     const ctrl = this.form.get('codigo')!;
     if (this.autoGenerarCodigo) {
       ctrl.clearValidators();
-      ctrl.setValue(this.generarCodigoSiguiente());
+      this.generarCodigoSiguiente();
       ctrl.disable();
     } else {
       ctrl.setValidators([Validators.required, Validators.maxLength(20)]);
@@ -202,10 +214,19 @@ export class DocenteFormComponent implements OnInit {
     ctrl.updateValueAndValidity();
   }
 
-  generarCodigoSiguiente(): string {
-    const prefijo = 'DOC-';
-    const siguiente = Math.floor(Math.random() * 90000) + 10000;
-    return `${prefijo}${siguiente}`;
+  generarCodigoSiguiente(): void {
+    this.api
+      .get<ApiResponse<{ codigo: string | null; siguiente: string }>>('/docentes/ultimo-codigo')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.form.get('codigo')!.setValue(res.data.siguiente);
+        },
+        error: () => {
+          const fallback = `DOC-${String(Math.floor(Math.random() * 90000) + 10000)}`;
+          this.form.get('codigo')!.setValue(fallback);
+        },
+      });
   }
 
   onTelefonoBlur(): void {
@@ -264,6 +285,7 @@ export class DocenteFormComponent implements OnInit {
     this.loading = true;
     this.api
       .get<ApiResponse<Docente>>(`/docentes/${this.docenteId}`)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
           const d = res.data;
@@ -273,11 +295,9 @@ export class DocenteFormComponent implements OnInit {
           this.form.get('categoria')!.enable();
           this.form.get('modalidad')!.enable();
 
-          // Load facultad first, then departamento
           if (d.facultad_id) {
             this.form.patchValue({ facultad_id: d.facultad_id });
             this.loadDepartamentos(d.facultad_id);
-            // Patch departamento after loading (with slight delay to ensure departamentos are loaded)
             setTimeout(() => {
               if (d.departamento_id) {
                 this.form.patchValue({ departamento_id: d.departamento_id });
@@ -296,16 +316,13 @@ export class DocenteFormComponent implements OnInit {
             tipo_docente: tipo,
             categoria: d.categoria,
             modalidad: d.modalidad,
-            fecha_ingreso: d.fecha_ingreso ? new Date(d.fecha_ingreso) : null,
-            horas_asignadas: d.horas_asignadas ?? 0,
+            fecha_ingreso: d.fecha_ingreso ? new Date(d.fecha_ingreso + 'T12:00:00') : null,
             usuario_id: d.usuario_id ?? null,
           });
           this.loading = false;
         },
         error: () => {
-          this.snackBar.open('No se encontró el docente', 'Cerrar', {
-            duration: 3000,
-          });
+          this.notif.error('No se encontró el docente');
           this.loading = false;
           this.router.navigate(['/app/docentes']);
         },
@@ -330,36 +347,34 @@ export class DocenteFormComponent implements OnInit {
     };
 
     const request = this.isEdit
-      ? this.api.patch<ApiResponse<Docente>>(
-          `/docentes/${this.docenteId}`,
-          payload,
-        )
+      ? this.api.patch<ApiResponse<Docente>>(`/docentes/${this.docenteId}`, payload)
       : this.api.post<ApiResponse<Docente>>('/docentes', payload);
 
-    request.subscribe({
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
-        this.snackBar.open(
+        this.notif.success(
           this.isEdit
             ? 'Docente actualizado exitosamente'
             : 'Docente registrado exitosamente',
-          'OK',
-          { duration: 2500 },
         );
         this.router.navigate(['/app/docentes']);
       },
       error: (err) => {
-        const mensaje =
-          err?.error?.message ||
-          (this.isEdit
-            ? 'Error al actualizar docente'
-            : 'Error al registrar docente');
-        this.snackBar.open(mensaje, 'Cerrar', { duration: 5000 });
         this.saving = false;
+        this.notif.error(
+          err?.error?.message ||
+          (this.isEdit ? 'Error al actualizar docente' : 'Error al registrar docente'),
+        );
       },
     });
   }
 
   cancelar(): void {
     this.router.navigate(['/app/docentes']);
+  }
+
+  fieldHasError(field: string, error: string): boolean {
+    const ctrl = this.form.get(field);
+    return !!ctrl && ctrl.touched && ctrl.hasError(error);
   }
 }

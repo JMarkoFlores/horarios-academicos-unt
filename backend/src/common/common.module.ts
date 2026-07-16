@@ -21,6 +21,7 @@ import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { AuditLogService } from "./services/audit-log.service";
 import { ValidacionesService } from "./services/validaciones.service";
 import { ContextoAcademicoService } from "./services/contexto-academico.service";
+import { ParametrosCargaResolverService } from "./services/parametros-carga-resolver.service";
 import { ValidacionesController } from "./controllers/validaciones.controller";
 
 @Global()
@@ -48,7 +49,17 @@ import { ValidacionesController } from "./controllers/validaciones.controller";
     ]),
   ],
   controllers: [ValidacionesController],
-  providers: [ValidacionesService, AuditLogService, ContextoAcademicoService],
-  exports: [ValidacionesService, AuditLogService, ContextoAcademicoService],
+  providers: [
+    ValidacionesService,
+    AuditLogService,
+    ContextoAcademicoService,
+    ParametrosCargaResolverService,
+  ],
+  exports: [
+    ValidacionesService,
+    AuditLogService,
+    ContextoAcademicoService,
+    ParametrosCargaResolverService,
+  ],
 })
 export class CommonModule {}

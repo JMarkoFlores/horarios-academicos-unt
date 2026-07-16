@@ -10,7 +10,6 @@ import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { Ambiente } from "../../entities/ambiente.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
-import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { OfertaAcademica } from "../../entities/oferta-academica.entity";
 import { DisponibilidadDocente } from "../../entities/disponibilidad-docente.entity";
 import { AuditoriaModule } from "../auditoria/auditoria.module";
@@ -26,7 +25,6 @@ import { AuditoriaModule } from "../auditoria/auditoria.module";
       Grupo,
       Ambiente,
       PeriodoAcademico,
-      ParametrosCarga,
       OfertaAcademica,
       DisponibilidadDocente,
     ]),

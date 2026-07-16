@@ -6,7 +6,6 @@ import { AsignacionLectiva } from "../../entities/asignacion-lectiva.entity";
 import { Docente } from "../../entities/docente.entity";
 import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
-import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { Curso } from "../../entities/curso.entity";
 import { OfertaAcademica } from "../../entities/oferta-academica.entity";
@@ -23,7 +22,6 @@ import { AuditoriaModule } from "../auditoria/auditoria.module";
       Docente,
       CursoPlanEstudios,
       PeriodoAcademico,
-      ParametrosCarga,
       Grupo,
       Curso,
       OfertaAcademica,

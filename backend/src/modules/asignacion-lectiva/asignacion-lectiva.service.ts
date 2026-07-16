@@ -11,7 +11,6 @@ import { AsignacionLectiva } from "../../entities/asignacion-lectiva.entity";
 import { Docente } from "../../entities/docente.entity";
 import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
-import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { EstadoAsignacionLectiva } from "../../common/enums/estado-asignacion-lectiva.enum";
 import { EstadoPeriodo } from "../../common/enums/estado-periodo.enum";
@@ -28,6 +27,7 @@ import {
 } from "../../entities/auditoria-carga.entity";
 import { EstadoCursoPlan } from "../../common/enums/estado-curso-plan.enum";
 import { ContextoAcademicoService } from "../../common/services/contexto-academico.service";
+import { ParametrosCargaResolverService } from "../../common/services/parametros-carga-resolver.service";
 import {
   ContextoAcademico,
   UsuarioAutenticado,
@@ -50,8 +50,6 @@ export class AsignacionLectivaService {
     private readonly cursoPlanRepo: Repository<CursoPlanEstudios>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
-    @InjectRepository(ParametrosCarga)
-    private readonly paramsRepo: Repository<ParametrosCarga>,
     @InjectRepository(Grupo)
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(Curso)
@@ -68,6 +66,7 @@ export class AsignacionLectivaService {
     private readonly ambienteRepo: Repository<Ambiente>,
     private readonly auditoriaService: AuditoriaService,
     private readonly contextoAcademicoService: ContextoAcademicoService,
+    private readonly parametrosCargaResolver: ParametrosCargaResolverService,
   ) {}
 
   async findAll(
@@ -684,15 +683,11 @@ export class AsignacionLectivaService {
       throw new NotFoundException(`Período #${periodoId} no encontrado`);
     }
 
-    // Buscar ParametrosCarga para la modalidad del docente
-    const params = await this.paramsRepo.findOne({
-      where: {
-        periodo_academico: periodo.codigo,
-        modalidad: docente.modalidad,
-      },
-    });
-
-    const maxHoras = params?.horas_max_semanal ?? 40;
+    const params = await this.parametrosCargaResolver.obtenerParaPerfil(
+      periodo.codigo,
+      docente,
+    );
+    const maxHoras = params.horas_max_semanal;
     if (totalHoras > maxHoras) {
       throw new BadRequestException(
         `La carga total (${totalHoras}h) excede el máximo semanal (${maxHoras}h) para la modalidad ${docente.modalidad}`,
@@ -731,14 +726,11 @@ export class AsignacionLectivaService {
       throw new NotFoundException(`Período #${periodoId} no encontrado`);
     }
 
-    const params = await this.paramsRepo.findOne({
-      where: {
-        periodo_academico: periodo.codigo,
-        modalidad: docente.modalidad,
-      },
-    });
-
-    const maxCursos = params?.cursos_max_docente ?? 8;
+    const params = await this.parametrosCargaResolver.obtenerParaPerfil(
+      periodo.codigo,
+      docente,
+    );
+    const maxCursos = params.cursos_max_docente;
     if (nuevosCursos > maxCursos) {
       throw new BadRequestException(
         `El número de cursos (${nuevosCursos}) excede el máximo permitido (${maxCursos}) para la modalidad ${docente.modalidad}`,
@@ -873,7 +865,7 @@ export class AsignacionLectivaService {
       }
     }
 
-    // Validar carga lectiva (RCU N157-2024UNT: mínimo 16h, máximo 22h)
+    // La carga lectiva se controla contra el perfil configurado para el período.
     const docente = await this.docenteRepo.findOne({
       where: { id: dto.docente_id },
     });
@@ -889,25 +881,20 @@ export class AsignacionLectivaService {
         (sum, a) => sum + Number(a.horas_asignadas),
         0,
       );
-      const nuevasHoras = this.calcularHoras(dto.hora_inicio, dto.hora_fin);
-      const totalHoras = horasActuales + nuevasHoras;
+      const params = await this.parametrosCargaResolver.obtenerParaPerfil(
+        (await this.periodoRepo.findOne({ where: { id: dto.periodo_id } }))
+          ?.codigo ?? "",
+        docente,
+      );
 
-      if (totalHoras > docente.horas_lectivas_max) {
+      if (horasActuales > params.horas_max_semanal) {
         errores.push(
-          `Excede carga máxima lectiva (${docente.horas_lectivas_max}h): ${totalHoras}h`,
+          `Excede carga máxima lectiva (${params.horas_max_semanal}h): ${horasActuales}h`,
         );
       }
-      if (totalHoras < docente.horas_lectivas_min) {
+      if (horasActuales < params.horas_min_semanal) {
         advertencias.push(
-          `No alcanza carga mínima lectiva (${docente.horas_lectivas_min}h): ${totalHoras}h`,
-        );
-      }
-
-      // Validar carga total (lectiva + no lectiva ≤ 40h)
-      const horasTotales = totalHoras + docente.horas_no_lectivas;
-      if (horasTotales > docente.horas_max_totales) {
-        errores.push(
-          `Excede carga máxima total (${docente.horas_max_totales}h): ${horasTotales}h`,
+          `Carga lectiva por completar: ${horasActuales}h de ${params.horas_min_semanal}h mínimas`,
         );
       }
     }

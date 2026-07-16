@@ -12,6 +12,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, Not } from "typeorm";
 import { Cache } from "cache-manager";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
+import * as bcrypt from "bcrypt";
 import { v2 as cloudinary } from "cloudinary";
 import { Docente } from "../entities/docente.entity";
 import { Departamento } from "../entities/departamento.entity";
@@ -22,11 +23,11 @@ import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
-import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { EstadoAsignacionLectiva } from "../common/enums/estado-asignacion-lectiva.enum";
 import { SuspensionDocente } from "../entities/suspension-docente.entity";
+import { MailService } from "../mail/mail.service";
 import { CreateDocenteDto } from "./dto/create-docente.dto";
 import { UpdateDocenteDto } from "./dto/update-docente.dto";
 import { QueryDocenteDto } from "./dto/query-docente.dto";
@@ -35,8 +36,10 @@ import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
+import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { TipoAmbiente } from "../common/enums/tipo-ambiente.enum";
 import { ContextoAcademicoService } from "../common/services/contexto-academico.service";
+import { ParametrosCargaResolverService } from "../common/services/parametros-carga-resolver.service";
 import { ContextoAcademico } from "../common/interfaces/contexto-academico.interface";
 
 type CargaPorDia = {
@@ -89,8 +92,6 @@ export class DocentesService {
     private readonly horarioRepo: Repository<HorarioAsignado>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
-    @InjectRepository(ParametrosCarga)
-    private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
     @InjectRepository(Grupo)
     private readonly grupoRepo: Repository<Grupo>,
     @InjectRepository(AsignacionLectiva)
@@ -99,6 +100,8 @@ export class DocentesService {
     private readonly suspensionRepo: Repository<SuspensionDocente>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly contextoAcademicoService: ContextoAcademicoService,
+    private readonly parametrosCargaResolver: ParametrosCargaResolverService,
+    private readonly mailService: MailService,
   ) {}
 
   private readonly logger = new Logger(DocentesService.name);
@@ -445,6 +448,125 @@ export class DocentesService {
       : categoria;
   }
 
+  private async autoCrearUsuarioDocente(
+    docente: Docente,
+    enviarCredenciales: boolean,
+  ): Promise<Docente> {
+    if (!docente.email) return docente;
+    try {
+      const existente = await this.usuarioRepo.findOne({
+        where: { email: docente.email },
+      });
+      if (existente) {
+        return this.asociarUsuarioDocente(docente, existente.id);
+      }
+      const passwordPlain = this.generarPasswordDocente(
+        docente.nombres,
+        docente.apellidos,
+        docente.dni,
+      );
+      const passwordHash = await bcrypt.hash(passwordPlain, 10);
+      const nuevoUsuario = this.usuarioRepo.create({
+        nombre: `${docente.nombres} ${docente.apellidos}`,
+        email: docente.email,
+        password_hash: passwordHash,
+        rol: RolUsuario.DOCENTE,
+        activo: true,
+        debe_cambiar_password: true,
+      });
+      const usuarioGuardado = await this.usuarioRepo.save(nuevoUsuario);
+      docente.usuario_id = usuarioGuardado.id;
+      const saved = await this.docenteRepo.save(docente);
+
+      if (enviarCredenciales) {
+        this.enviarCredenciales(docente.email, passwordPlain, docente.nombres)
+          .catch((err) =>
+            this.logger.warn(`Error enviando credenciales: ${err.message}`),
+          );
+      }
+
+      return saved;
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo crear usuario automático para docente ${docente.id}: ${error.message}`,
+      );
+      return docente;
+    }
+  }
+
+  private async asociarUsuarioDocente(
+    docente: Docente,
+    usuarioId: number,
+  ): Promise<Docente> {
+    const usuario = await this.usuarioRepo.findOne({ where: { id: usuarioId } });
+    if (!usuario) {
+      throw new NotFoundException(`Usuario con ID ${usuarioId} no encontrado`);
+    }
+    if (!usuario.activo) {
+      throw new BadRequestException("El usuario seleccionado está inactivo");
+    }
+    if (!usuario.activo) {
+      throw new BadRequestException("El usuario seleccionado está inactivo");
+    }
+    if (usuario.rol !== RolUsuario.DOCENTE) {
+      throw new BadRequestException(
+        "El usuario seleccionado debe tener el rol Docente",
+      );
+    }
+    docente.usuario_id = usuario.id;
+    return this.docenteRepo.save(docente);
+  }
+
+  private enviarCredenciales(
+    email: string,
+    password: string,
+    nombres: string,
+  ): Promise<void> {
+    const html = `
+      <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="display:inline-block;width:56px;height:56px;background:#2563eb;border-radius:12px;line-height:56px;text-align:center;">
+            <span style="color:white;font-size:24px;font-weight:bold;">UN</span>
+          </div>
+          <h1 style="color:#1e293b;font-size:24px;font-weight:700;margin:16px 0 8px;">Bienvenido al Sistema</h1>
+          <p style="color:#64748b;margin:0;font-size:14px;">Sistema de Gestión Académica &bull; EIS</p>
+        </div>
+        <p style="color:#334155;font-size:15px;line-height:1.6;">Hola <strong>${nombres}</strong>,</p>
+        <p style="color:#334155;font-size:15px;line-height:1.6;">Se ha creado tu cuenta en el sistema <strong>Horarios UNT</strong>. Estas son tus credenciales de acceso:</p>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:24px 0;">
+          <p style="margin:4px 0;color:#334155;font-size:14px;"><strong>Usuario:</strong> ${email}</p>
+          <p style="margin:4px 0;color:#334155;font-size:14px;"><strong>Contraseña:</strong> ${password}</p>
+        </div>
+        <p style="color:#64748b;font-size:13px;line-height:1.5;">Por seguridad, al iniciar sesión se te pedirá cambiar tu contraseña.</p>
+        <div style="text-align:center;margin:32px 0;">
+          <a href="http://localhost:4200/auth/login" style="display:inline-block;background:#2563eb;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 4px 12px rgba(37,99,235,0.3);">Iniciar sesión</a>
+        </div>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb;">
+        <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">Sistema de Gestión Académica &bull; UNT</p>
+      </div>`;
+    return this.mailService.sendMail(email, "Bienvenido - Horarios UNT", html);
+  }
+
+  private generarPasswordDocente(
+    nombres: string,
+    apellidos: string,
+    dni: string,
+  ): string {
+    const normalizar = (s: string) =>
+      s
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    const base = `${normalizar(nombres)}${normalizar(apellidos)}`.replace(
+      /\s/g,
+      "",
+    );
+    const dniFin = dni?.replace(/\D/g, "").slice(-2) ?? "00";
+    return `${base.slice(0, 8)}${dniFin}`;
+  }
+
   private async validarUsuarioAsociado(
     usuarioId: number,
     docenteIdExcluir?: number,
@@ -537,48 +659,9 @@ export class DocentesService {
     };
   }
 
-  async validarCargaModalidad(
-    docenteId: number,
-    horasSolicitadas: number,
-    modalidad: string,
-  ): Promise<void> {
-    const docente = await this.docenteRepo.findOne({
-      where: { id: docenteId },
-    });
-    if (!docente) {
-      throw new NotFoundException(`Docente con ID ${docenteId} no encontrado`);
-    }
-
-    const parametros = await this.parametrosCargaRepo
-      .createQueryBuilder("p")
-      .where("p.modalidad = :modalidad", { modalidad })
-      .andWhere("(p.tipo_docente = :tipo OR p.tipo_docente = '')", {
-        tipo: docente.tipo_docente ?? "",
-      })
-      .andWhere("(p.categoria = :cat OR p.categoria = '')", {
-        cat: docente.categoria ?? "",
-      })
-      .orderBy("p.tipo_docente", "DESC")
-      .addOrderBy("p.categoria", "DESC")
-      .getOne();
-
-    if (!parametros) {
-      return;
-    }
-
-    if (
-      horasSolicitadas < parametros.horas_min_semanal ||
-      horasSolicitadas > parametros.horas_max_semanal
-    ) {
-      throw new BadRequestException(
-        `Las horas solicitadas (${horasSolicitadas}) están fuera del rango permitido ` +
-          `para la modalidad '${modalidad}': [${parametros.horas_min_semanal} - ${parametros.horas_max_semanal}]`,
-      );
-    }
-  }
-
   async create(dto: CreateDocenteDto): Promise<Docente> {
     const codigo = dto.codigo || (await this.generarCodigoUnico());
+    const { enviar_credenciales, ...datosDocente } = dto;
 
     if (dto.email) {
       const emailExistente = await this.docenteRepo.findOne({
@@ -629,34 +712,8 @@ export class DocentesService {
       dto.departamento_id,
     );
 
-    if (dto.modalidad && dto.horas_asignadas !== undefined) {
-      const parametros = await this.parametrosCargaRepo
-        .createQueryBuilder("p")
-        .where("p.modalidad = :modalidad", { modalidad: dto.modalidad })
-        .andWhere("(p.tipo_docente = :tipo OR p.tipo_docente = '')", {
-          tipo: dto.tipo_docente ?? "",
-        })
-        .andWhere("(p.categoria = :cat OR p.categoria = '')", {
-          cat: this.normalizarCategoria(dto.tipo_docente, dto.categoria) ?? "",
-        })
-        .orderBy("p.tipo_docente", "DESC")
-        .addOrderBy("p.categoria", "DESC")
-        .getOne();
-
-      if (
-        parametros &&
-        (dto.horas_asignadas < parametros.horas_min_semanal ||
-          dto.horas_asignadas > parametros.horas_max_semanal)
-      ) {
-        throw new BadRequestException(
-          `Las horas solicitadas (${dto.horas_asignadas}) están fuera del rango permitido ` +
-            `para la modalidad '${dto.modalidad}': [${parametros.horas_min_semanal} - ${parametros.horas_max_semanal}]`,
-        );
-      }
-    }
-
     const docente = this.docenteRepo.create({
-      ...dto,
+      ...datosDocente,
       codigo,
       ...vinculosInstitucionales,
       usuario_id: dto.usuario_id ?? null,
@@ -666,7 +723,17 @@ export class DocentesService {
       activo: true,
     });
 
-    const saved = await this.docenteRepo.save(docente);
+    let saved = await this.docenteRepo.save(docente);
+
+    if (dto.usuario_id) {
+      saved = await this.asociarUsuarioDocente(saved, dto.usuario_id);
+    } else {
+      saved = await this.autoCrearUsuarioDocente(
+        saved,
+        enviar_credenciales !== false,
+      );
+    }
+
     await this.invalidarCacheDocentes();
     return saved;
   }
@@ -677,6 +744,7 @@ export class DocentesService {
     contexto?: ContextoAcademico,
   ): Promise<Docente> {
     const docente = await this.findOne(id, contexto);
+    const { enviar_credenciales, ...datosDocente } = dto;
 
     if (dto.usuario_id && dto.usuario_id !== docente.usuario_id) {
       await this.validarUsuarioAsociado(dto.usuario_id, id);
@@ -688,10 +756,6 @@ export class DocentesService {
       docente.facultad_id,
       docente.departamento_id,
     );
-
-    if (dto.modalidad && dto.horas_asignadas !== undefined) {
-      await this.validarCargaModalidad(id, dto.horas_asignadas, dto.modalidad);
-    }
 
     if (dto.email && dto.email !== docente.email) {
       const emailExistente = await this.docenteRepo.findOne({
@@ -731,7 +795,7 @@ export class DocentesService {
 
     const tipoDocente = dto.tipo_docente ?? docente.tipo_docente;
     const actualizado = this.docenteRepo.merge(docente, {
-      ...dto,
+      ...datosDocente,
       ...vinculosInstitucionales,
       usuario_id: dto.usuario_id ?? docente.usuario_id,
       tipo_contrato: this.derivarTipoContrato(tipoDocente),
@@ -745,7 +809,7 @@ export class DocentesService {
       ...(dto.fecha_ingreso && { fecha_ingreso: new Date(dto.fecha_ingreso) }),
     });
 
-    const saved = await this.docenteRepo.save(actualizado);
+    let saved = await this.docenteRepo.save(actualizado);
 
     // Sync email with associated usuario record for login consistency
     if (dto.email && dto.email !== docente.email && docente.usuario_id) {
@@ -763,6 +827,15 @@ export class DocentesService {
       }
     }
 
+    if (dto.usuario_id && dto.usuario_id !== docente.usuario_id) {
+      saved = await this.asociarUsuarioDocente(saved, dto.usuario_id);
+    } else if (!saved.usuario_id) {
+      saved = await this.autoCrearUsuarioDocente(
+        saved,
+        enviar_credenciales === true,
+      );
+    }
+
     await this.invalidarCacheDocentes(id);
     return saved;
   }
@@ -770,6 +843,9 @@ export class DocentesService {
   async remove(id: number, contexto?: ContextoAcademico): Promise<void> {
     const docente = await this.findOne(id, contexto);
     await this.docenteRepo.save({ ...docente, activo: false });
+    if (docente.usuario_id) {
+      await this.usuarioRepo.update(docente.usuario_id, { activo: false });
+    }
     await this.invalidarCacheDocentes(id);
   }
 
@@ -777,8 +853,32 @@ export class DocentesService {
     const docente = await this.findOne(id, contexto);
     docente.activo = true;
     const saved = await this.docenteRepo.save(docente);
+    if (docente.usuario_id) {
+      await this.usuarioRepo.update(docente.usuario_id, { activo: true });
+    }
     await this.invalidarCacheDocentes(id);
     return saved;
+  }
+
+  async getUltimoCodigo(): Promise<{ codigo: string | null; siguiente: string }> {
+    let codigo: string | null = null;
+    try {
+      const result = await this.docenteRepo.query(
+        `SELECT codigo FROM docente ORDER BY id DESC LIMIT 1`,
+      );
+      codigo = result?.[0]?.codigo ?? null;
+    } catch {
+      // fallback si la consulta falla
+    }
+    let siguiente = 'DOC-00001';
+    if (codigo) {
+      const match = codigo.match(/DOC-?(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10) + 1;
+        siguiente = `DOC-${String(num).padStart(5, '0')}`;
+      }
+    }
+    return { codigo, siguiente };
   }
 
   private async generarCodigoUnico(): Promise<string> {
@@ -1314,6 +1414,9 @@ export class DocentesService {
     const periodo = await this.periodoRepo.findOne({
       where: { id: periodoId },
     });
+    if (!periodo) {
+      throw new NotFoundException(`Período #${periodoId} no encontrado`);
+    }
 
     const result = await Promise.all(
       docentes.map(async (docente) => {
@@ -1338,8 +1441,11 @@ export class DocentesService {
           },
         });
 
-        // Calcular horas restantes
-        const horasRestantes = docente.horas_lectivas_max - horasLectivas;
+        const parametro = await this.parametrosCargaResolver.obtenerParaPerfil(
+          periodo.codigo,
+          docente,
+        );
+        const horasRestantes = parametro.horas_max_semanal - horasLectivas;
 
         return {
           id: docente.id,
@@ -1356,9 +1462,8 @@ export class DocentesService {
           facultad: docente.facultad,
           horas_lectivas_actuales: horasLectivas,
           horas_no_lectivas: docente.horas_no_lectivas,
-          horas_lectivas_max: docente.horas_lectivas_max,
-          horas_lectivas_min: docente.horas_lectivas_min,
-          horas_max_totales: docente.horas_max_totales,
+          horas_lectivas_max: parametro.horas_max_semanal,
+          horas_lectivas_min: parametro.horas_min_semanal,
           horas_restantes: Math.max(0, horasRestantes),
           suspension_vigente: docente.suspension_vigente || !!suspension,
           suspension: suspension

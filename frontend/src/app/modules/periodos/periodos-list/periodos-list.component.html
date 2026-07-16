@@ -12,44 +12,99 @@
     </div>
   </div>
 
+  <div class="stats-row">
+    <div class="stat-card stat-total">
+      <div class="stat-value">{{ stats().total }}</div>
+      <div class="stat-label">Total</div>
+      <mat-icon>calendar_month</mat-icon>
+    </div>
+    <div class="stat-card stat-planificacion">
+      <div class="stat-value">{{ stats().planificacion }}</div>
+      <div class="stat-label">Planificación</div>
+      <mat-icon>edit_note</mat-icon>
+    </div>
+    <div class="stat-card stat-encurso">
+      <div class="stat-value">{{ stats().encurso }}</div>
+      <div class="stat-label">En curso</div>
+      <mat-icon>play_circle</mat-icon>
+    </div>
+    <div class="stat-card stat-finalizado">
+      <div class="stat-value">{{ stats().finalizado }}</div>
+      <div class="stat-label">Finalizado</div>
+      <mat-icon>check_circle</mat-icon>
+    </div>
+    <div class="stat-card stat-activos">
+      <div class="stat-value">{{ stats().activos }}</div>
+      <div class="stat-label">Activos</div>
+      <mat-icon>toggle_on</mat-icon>
+    </div>
+  </div>
+
   <mat-card class="table-container-premium">
+    <div class="table-toolbar">
+      <div class="search-box">
+        <mat-icon class="search-icon">search</mat-icon>
+        <input
+          class="search-input"
+          placeholder="Buscar por código o nombre..."
+          (input)="onSearch($any($event.target).value)"
+        />
+      </div>
+      <div class="filter-chips">
+        <button
+          class="chip"
+          [class.chip-active]="!filtroEstado()"
+          (click)="setFiltroEstado(null)"
+        >Todas</button>
+        <button
+          *ngFor="let e of estadosDisponibles"
+          class="chip"
+          [class.chip-active]="filtroEstado() === e.value"
+          [style.--chip-color]="estadoColors[e.value]"
+          (click)="setFiltroEstado(filtroEstado() === e.value ? null : e.value)"
+        >{{ e.label }}</button>
+      </div>
+    </div>
+
     <div *ngIf="loading" class="loading-overlay">
-      <mat-spinner diameter="50" strokeWidth="3"></mat-spinner>
-      <span>Cargando periodos...</span>
+      <mat-spinner diameter="44" strokeWidth="3"></mat-spinner>
+      <span>Cargando períodos...</span>
     </div>
 
     <div class="table-scroll" *ngIf="!loading">
-      <table mat-table [dataSource]="dataSource" class="premium-table">
+      <table mat-table [dataSource]="filtered()" class="premium-table" multiTemplateDataRows>
         <ng-container matColumnDef="codigo">
           <th mat-header-cell *matHeaderCellDef>Código</th>
           <td mat-cell *matCellDef="let p">
-            <span class="code-badge">{{ p.codigo }}</span>
+            <div class="cell-code">
+              <span class="code-badge">{{ p.codigo }}</span>
+              <span *ngIf="p.activo" class="active-dot" matTooltip="Período activo"></span>
+            </div>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="nombre">
           <th mat-header-cell *matHeaderCellDef>Nombre</th>
-          <td mat-cell *matCellDef="let p">{{ p.nombre }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="fecha_inicio">
-          <th mat-header-cell *matHeaderCellDef>Fecha Inicio</th>
           <td mat-cell *matCellDef="let p">
-            {{ p.fecha_inicio | date: "dd/MM/yyyy" }}
+            <div class="cell-name">
+              <span class="name-text">{{ p.nombre }}</span>
+              <span class="name-dates">{{ p.fecha_inicio | date:"dd/MM/yyyy" }} — {{ p.fecha_fin | date:"dd/MM/yyyy" }}</span>
+            </div>
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="fecha_fin">
-          <th mat-header-cell *matHeaderCellDef>Fecha Fin</th>
+        <ng-container matColumnDef="duracion">
+          <th mat-header-cell *matHeaderCellDef>Duración</th>
           <td mat-cell *matCellDef="let p">
-            {{ p.fecha_fin | date: "dd/MM/yyyy" }}
+            <span class="duration-text">{{ getDuracion(p.fecha_inicio, p.fecha_fin) }}</span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="estado">
           <th mat-header-cell *matHeaderCellDef>Estado</th>
           <td mat-cell *matCellDef="let p">
-            <span [class]="'status-badge estado-' + p.estado">
+            <span class="status-badge" [style.background]="estadoColors[p.estado] + '18'" [style.color]="estadoColors[p.estado]" [style.borderColor]="estadoColors[p.estado]">
+              <span class="status-dot" [style.background]="estadoColors[p.estado]"></span>
               {{ estadoLabels[p.estado] }}
             </span>
           </td>
@@ -62,10 +117,9 @@
               <button
                 *ngIf="p.activo"
                 mat-icon-button
-                class="btn-action"
-                (click)="finalizarPeriodo(p)"
-                matTooltip="Finalizar Periodo (Cerrar declaraciones)"
-                color="warn"
+                class="btn-action finalize"
+                (click)="confirmarFinalizar(p)"
+                matTooltip="Finalizar período (cierra declaraciones)"
               >
                 <mat-icon>flag</mat-icon>
               </button>
@@ -73,15 +127,15 @@
                 mat-icon-button
                 class="btn-action edit"
                 [routerLink]="['/app/periodos', p.id, 'editar']"
-                matTooltip="Editar"
+                matTooltip="Editar período"
               >
                 <mat-icon>edit</mat-icon>
               </a>
               <button
                 mat-icon-button
                 class="btn-action delete"
-                (click)="eliminar(p)"
-                matTooltip="Eliminar"
+                (click)="confirmarEliminar(p)"
+                matTooltip="Eliminar período"
               >
                 <mat-icon>delete</mat-icon>
               </button>
@@ -94,23 +148,31 @@
           mat-row
           *matRowDef="let row; columns: displayedColumns; let i = index"
           class="premium-row"
+          [class.row-activo]="row.activo"
           [style.animation-delay]="i * 40 + 'ms'"
         ></tr>
       </table>
 
-      <div *ngIf="dataSource.length === 0" class="empty-state-premium">
+      <div *ngIf="filtered().length === 0 && !loading" class="empty-state-premium">
         <div class="empty-illustration">
           <mat-icon>calendar_today</mat-icon>
         </div>
-        <h3>No se encontraron periodos</h3>
-        <p>Crea un nuevo periodo académico para comenzar.</p>
+        <h3>{{ searchTerm() || filtroEstado() ? 'Sin resultados' : 'No hay períodos registrados' }}</h3>
+        <p>
+          {{ searchTerm() || filtroEstado()
+            ? 'Intenta con otros términos de búsqueda o filtros.'
+            : 'Crea el primer período académico para comenzar a gestionar los horarios.' }}
+        </p>
+        <a *ngIf="!searchTerm() && !filtroEstado()" mat-raised-button color="primary" routerLink="/app/periodos/nuevo">
+          <mat-icon>add</mat-icon> Crear Período
+        </a>
       </div>
     </div>
 
     <mat-paginator
       [length]="total"
       [pageSize]="pageSize"
-      [pageSizeOptions]="[10, 20, 50]"
+      [pageSizeOptions]="[5, 10, 20, 50]"
       [pageIndex]="currentPage"
       (page)="onPageChange($event)"
       showFirstLastButtons

@@ -11,12 +11,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { forkJoin, map } from 'rxjs';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { Docente, DisponibilidadDocente, ApiResponse } from '../../core/interfaces/entities';
-import {
-  DiaActivo,
-  DisponibilidadService,
-  ParametroCarga,
-  TurnoHorario,
-} from './disponibilidad.service';
+import { DiaActivo, DisponibilidadService, TurnoHorario } from './disponibilidad.service';
 
 import { ROLES } from '../../core/constants/roles';
 import { AuthService } from '../../core/services/auth.service';
@@ -34,7 +29,6 @@ export class DisponibilidadComponent implements OnInit {
   readonly docenteSeleccionado = signal<Docente | null>(null);
   readonly turnos = signal<TurnoHorario[]>([]);
   readonly diasActivos = signal<DiaActivo[]>([]);
-  readonly parametrosCarga = signal<ParametroCarga[]>([]);
   readonly grilla = signal<number[][]>([]);
   readonly saving = signal(false);
   readonly loading = signal(false);
@@ -64,59 +58,6 @@ export class DisponibilidadComponent implements OnInit {
     return total;
   });
 
-  readonly minimoNormativo = computed(() => {
-    const docente = this.docenteSeleccionado();
-    if (!docente?.modalidad) {
-      return 0;
-    }
-
-    const parametros = this.parametrosCarga();
-    const coincidenciaExacta = parametros.find(
-      (parametro) =>
-        parametro.modalidad === docente.modalidad &&
-        parametro.tipo_docente === docente.tipo_docente &&
-        parametro.categoria === docente.categoria,
-    );
-    const coincidenciaModalidad = parametros.find(
-      (parametro) => parametro.modalidad === docente.modalidad,
-    );
-
-    return (
-      coincidenciaExacta?.horas_min_semanal ??
-      coincidenciaModalidad?.horas_min_semanal ??
-      0
-    );
-  });
-
-  readonly maximoNormativo = computed(() => {
-    const docente = this.docenteSeleccionado();
-    if (!docente?.modalidad) {
-      return 0;
-    }
-
-    const parametros = this.parametrosCarga();
-    const coincidenciaExacta = parametros.find(
-      (parametro) =>
-        parametro.modalidad === docente.modalidad &&
-        parametro.tipo_docente === docente.tipo_docente &&
-        parametro.categoria === docente.categoria,
-    );
-    const coincidenciaModalidad = parametros.find(
-      (parametro) => parametro.modalidad === docente.modalidad,
-    );
-
-    return (
-      coincidenciaExacta?.horas_max_semanal ??
-      coincidenciaModalidad?.horas_max_semanal ??
-      0
-    );
-  });
-
-  readonly limiteAlcanzado = computed(() => {
-    const maximo = this.maximoNormativo();
-    return maximo > 0 && this.horasDisponibles() >= maximo;
-  });
-
   ngOnInit(): void {
     this.generarHorasIndividuales();
     this.cargarDatosIniciales();
@@ -124,7 +65,6 @@ export class DisponibilidadComponent implements OnInit {
     this.periodoService.periodo$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
-        this.cargarParametrosCarga();
         if (this.docenteSeleccionado()) {
         this.cargarDisponibilidad();
         }
@@ -170,16 +110,6 @@ export class DisponibilidadComponent implements OnInit {
 
   toggleCelda(horaIndex: number, diaIndex: number): void {
     const estaActiva = (this.grilla()[horaIndex]?.[diaIndex] ?? 0) > 0;
-
-    if (!estaActiva && this.limiteAlcanzado()) {
-      const maximo = this.maximoNormativo();
-      this.snackBar.open(
-        `Límite alcanzado: no puedes superar las ${maximo} horas máximas semanales para este docente.`,
-        'Cerrar',
-        { duration: 4000 },
-      );
-      return;
-    }
 
     this.grilla.update((actual) =>
       actual.map((fila, filaIndex) =>
@@ -314,9 +244,6 @@ export class DisponibilidadComponent implements OnInit {
     const calls: any = {
       turnos: this.disponibilidadService.obtenerTurnos(),
       diasActivos: this.disponibilidadService.obtenerDiasActivos(),
-      parametros: this.disponibilidadService.obtenerParametrosCarga(
-        this.periodoService.periodo,
-      ),
     };
 
     const isDocente = this.authService.hasRole(ROLES.DOCENTE);
@@ -337,8 +264,6 @@ export class DisponibilidadComponent implements OnInit {
         next: (res: any) => {
           this.turnos.set(res.turnos);
           this.diasActivos.set(res.diasActivos);
-          this.parametrosCarga.set(res.parametros);
-
           if (!isDocente) {
             this.todosDocentes.set(res.docentes);
           } else if (res.docenteActual) {
@@ -356,17 +281,6 @@ export class DisponibilidadComponent implements OnInit {
             { duration: 4000 },
           );
           this.loadingCatalogos.set(false);
-        },
-      });
-  }
-
-  private cargarParametrosCarga(): void {
-    this.disponibilidadService
-      .obtenerParametrosCarga(this.periodoService.periodo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (parametros) => {
-          this.parametrosCarga.set(parametros);
         },
       });
   }

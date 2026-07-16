@@ -1,5 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import {
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsString,
@@ -7,6 +8,9 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
+import { ModalidadDocente } from "../../common/enums/modalidad-docente.enum";
+import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 
 export class UpsertParametrosCargaDto {
   @ApiProperty({ example: "2026-I" })
@@ -18,65 +22,46 @@ export class UpsertParametrosCargaDto {
   @ApiProperty({
     example: "PRINCIPAL",
     description: "Categoría docente",
-    enum: ["PRINCIPAL", "ASOCIADO", "AUXILIAR", "JEFE_PRACTICA"],
+    enum: CategoriaDocente,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(30)
-  categoria: string;
+  @IsEnum(CategoriaDocente)
+  categoria: CategoriaDocente;
 
   @ApiProperty({
     example: "ORDINARIO",
     description: "Tipo de docente",
-    enum: ["ORDINARIO", "CONTRATADO", "JEFE_PRACTICA_CONTRATADO"],
+    enum: TipoDocente,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(30)
-  tipo_docente: string;
+  @IsEnum(TipoDocente)
+  tipo_docente: TipoDocente;
 
   @ApiProperty({
     example: "DEDICACION_EXCLUSIVA",
     description: "Modalidad del docente",
-    enum: [
-      "DEDICACION_EXCLUSIVA",
-      "TIEMPO_COMPLETO_40",
-      "TIEMPO_PARCIAL_20",
-      "TIEMPO_PARCIAL_12",
-      "TIEMPO_PARCIAL_10",
-      "TIEMPO_PARCIAL_8",
-    ],
+    enum: ModalidadDocente,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(30)
-  modalidad: string;
+  @IsEnum(ModalidadDocente)
+  modalidad: ModalidadDocente;
 
   @ApiProperty({
     example: 4,
-    description: "Horas mínimas semanales por docente",
+    description: "Mínimo de horas lectivas semanales para el perfil en el período",
   })
   @IsInt()
-  @Min(1)
+  @Min(0)
   @Max(40)
   horas_min_semanal: number;
 
   @ApiProperty({
     example: 20,
-    description: "Horas máximas semanales por docente",
+    description: "Máximo de horas lectivas semanales para el perfil en el período",
   })
   @IsInt()
   @Min(1)
   @Max(80)
   horas_max_semanal: number;
 
-  @ApiProperty({ example: 1, description: "Cursos mínimos por docente" })
-  @IsInt()
-  @Min(0)
-  @Max(20)
-  cursos_min_docente: number;
-
-  @ApiProperty({ example: 5, description: "Cursos máximos por docente" })
+  @ApiProperty({ example: 5, description: "Máximo de cursos por docente en el período" })
   @IsInt()
   @Min(1)
   @Max(20)

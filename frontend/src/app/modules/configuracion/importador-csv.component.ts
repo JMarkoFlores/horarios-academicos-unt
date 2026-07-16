@@ -116,7 +116,6 @@ export class ImportadorCsvComponent implements OnInit {
         { name: 'categoria', required: true, type: 'enum', enumValues: ['PRINCIPAL', 'ASOCIADO', 'AUXILIAR', 'SIN_CATEGORIA', 'JEFE_PRACTICA'], description: 'Categoría académica', example: 'PRINCIPAL' },
         { name: 'modalidad', required: true, type: 'enum', enumValues: ['DEDICACION_EXCLUSIVA', 'TIEMPO_COMPLETO_40', 'TIEMPO_PARCIAL_20', 'TIEMPO_PARCIAL_12', 'TIEMPO_PARCIAL_10', 'TIEMPO_PARCIAL_8'], description: 'Modalidad de trabajo', example: 'DEDICACION_EXCLUSIVA' },
         { name: 'fecha_ingreso', required: true, type: 'string', description: 'Fecha ingreso (YYYY-MM-DD)', example: '2010-03-01' },
-        { name: 'horas_asignadas', required: false, type: 'number', description: 'Horas semanales (default: 0)', example: '40' },
         { name: 'dni', required: true, type: 'string', description: 'DNI 8 dígitos', example: '12345678' },
         { name: 'ibm', required: true, type: 'number', description: 'Código IBM 4 dígitos', example: '1001' },
       ],

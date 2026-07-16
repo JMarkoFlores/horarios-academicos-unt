@@ -366,6 +366,96 @@ body {
   .mat-mdc-cell {
     color: var(--color-text-muted) !important;
   }
+
+  .mat-mdc-select-panel {
+    background: var(--color-surface) !important;
+    border: 1px solid var(--color-border) !important;
+  }
+
+  .mat-mdc-option {
+    color: var(--color-text) !important;
+
+    &:hover:not(.mat-mdc-option-disabled) {
+      background: var(--color-primary-light) !important;
+    }
+
+    &.mat-mdc-option-active,
+    &.mat-mdc-option-selected {
+      background: var(--color-primary-light) !important;
+      color: var(--color-primary) !important;
+      .mdc-list-item__primary-text {
+        color: var(--color-primary) !important;
+      }
+    }
+
+    .mdc-list-item__primary-text {
+      color: var(--color-text) !important;
+    }
+  }
+
+  .mdc-menu-surface {
+    background: var(--color-surface) !important;
+    border: 1px solid var(--color-border) !important;
+  }
+
+  .mat-mdc-select-value-text {
+    color: var(--color-text) !important;
+  }
+
+  .mat-mdc-select-arrow {
+    color: var(--color-text-muted) !important;
+  }
+
+  .mat-mdc-select-placeholder {
+    color: var(--color-text-disabled) !important;
+  }
+
+  .mat-mdc-form-field.mat-focused {
+    .mat-mdc-select-arrow {
+      color: var(--color-primary) !important;
+    }
+    .mdc-floating-label {
+      color: var(--color-primary) !important;
+    }
+  }
+
+  .mat-mdc-form-field:not(.mat-focused) .mdc-floating-label {
+    color: var(--color-text-muted) !important;
+  }
+
+  .mat-mdc-input-element::placeholder {
+    color: var(--color-text-disabled) !important;
+  }
+
+  .mat-datepicker-content {
+    background: var(--color-surface) !important;
+    border: 1px solid var(--color-border) !important;
+  }
+
+  .mat-calendar-body-cell-content {
+    color: var(--color-text) !important;
+  }
+
+  .mat-calendar-body-selected {
+    background: var(--color-primary) !important;
+    color: #fff !important;
+  }
+
+  .mat-calendar-body-today:not(.mat-calendar-body-selected) {
+    border-color: var(--color-primary) !important;
+  }
+
+  .mat-calendar-table-header th {
+    color: var(--color-text-muted) !important;
+  }
+
+  .mat-calendar-arrow {
+    fill: var(--color-text-muted) !important;
+  }
+
+  .mat-calendar-period-button {
+    color: var(--color-text) !important;
+  }
 }
 
 .spacer {
@@ -554,12 +644,25 @@ body {
 }
 
 // Snackbars
+[class*="snack-"] {
+  .mdc-snackbar__label {
+    color: #ffffff !important;
+  }
+  .mat-mdc-snack-bar-actions .mat-mdc-button {
+    color: #ffffff !important;
+  }
+}
+
 .snack-success .mdc-snackbar__surface {
   background: #10b981 !important;
 }
 
 .snack-error .mdc-snackbar__surface {
   background: #ef4444 !important;
+}
+
+.snack-info .mdc-snackbar__surface {
+  background: #3b82f6 !important;
 }
 
 // 404

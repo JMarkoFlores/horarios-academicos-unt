@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
@@ -13,7 +14,6 @@ interface ParametrosCarga {
   modalidad: string;
   horas_min_semanal: number;
   horas_max_semanal: number;
-  cursos_min_docente: number;
   cursos_max_docente: number;
 }
 
@@ -23,6 +23,7 @@ interface ParametrosCarga {
   styleUrls: ['./parametros-carga.component.scss'],
 })
 export class ParametrosCargaComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   parametrosList: ParametrosCarga[] = [];
   parametrosFiltrados: ParametrosCarga[] = [];
   loadingParametros = false;
@@ -76,7 +77,12 @@ export class ParametrosCargaComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    this.cargarParametrosCarga();
+    this.periodoService.periodo$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.cancelarEdicionParametro();
+        this.cargarParametrosCarga();
+      });
   }
 
   private initForm(): void {
@@ -85,16 +91,12 @@ export class ParametrosCargaComponent implements OnInit {
       categoria: [{ value: '', disabled: true }, Validators.required],
       modalidad: [{ value: '', disabled: true }, Validators.required],
       horas_min_semanal: [
-        4,
-        [Validators.required, Validators.min(1), Validators.max(40)],
+        0,
+        [Validators.required, Validators.min(0), Validators.max(40)],
       ],
       horas_max_semanal: [
         20,
         [Validators.required, Validators.min(1), Validators.max(80)],
-      ],
-      cursos_min_docente: [
-        1,
-        [Validators.required, Validators.min(0), Validators.max(20)],
       ],
       cursos_max_docente: [
         5,
@@ -136,9 +138,14 @@ export class ParametrosCargaComponent implements OnInit {
 
   guardarParametrosCarga(): void {
     if (this.parametrosForm.invalid) return;
+    const valores = this.parametrosForm.getRawValue();
+    if (valores.horas_min_semanal > valores.horas_max_semanal) {
+      this.notif.error('El mínimo de horas no puede superar el máximo');
+      return;
+    }
     this.guardandoParametros = true;
     const payload = {
-      ...this.parametrosForm.getRawValue(),
+      ...valores,
       periodo_academico: this.periodoService.periodo,
     };
     this.api
@@ -178,7 +185,6 @@ export class ParametrosCargaComponent implements OnInit {
       modalidad: p.modalidad,
       horas_min_semanal: p.horas_min_semanal,
       horas_max_semanal: p.horas_max_semanal,
-      cursos_min_docente: p.cursos_min_docente,
       cursos_max_docente: p.cursos_max_docente,
     });
     document
@@ -262,9 +268,8 @@ export class ParametrosCargaComponent implements OnInit {
   private resetParametrosForm(): void {
     this.parametrosForm.reset({
       tipo_docente: '',
-      horas_min_semanal: 4,
+      horas_min_semanal: 0,
       horas_max_semanal: 20,
-      cursos_min_docente: 1,
       cursos_max_docente: 5,
     });
     this.parametrosForm.get('categoria')!.disable();

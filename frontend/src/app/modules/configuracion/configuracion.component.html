@@ -7,18 +7,7 @@
         Administración de reglas institucionales y días inhábiles
       </p>
     </div>
-    <div class="period-selector">
-      <mat-icon class="period-icon">event_note</mat-icon>
-      <mat-select
-        [(ngModel)]="periodoService.periodo"
-        (ngModelChange)="onPeriodoChange()"
-        class="period-select"
-      >
-        <mat-option *ngFor="let p of periodoService.periodos" [value]="p">{{
-          p
-        }}</mat-option>
-      </mat-select>
-    </div>
+
   </div>
 
   <!-- ─── Tabs ─────────────────────────────────────────────────────── -->

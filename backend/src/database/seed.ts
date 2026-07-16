@@ -43,6 +43,9 @@ import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { DeclaracionClad } from "../entities/declaracion-clad.entity";
 import { DetalleClad } from "../entities/detalle-clad.entity";
 import { CargaAdicional } from "../entities/carga-adicional.entity";
+import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
+import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
+import { TipoDocente } from "../common/enums/tipo-docente.enum";
 
 // Import our modular seed functions
 import { seedTurnosPorDefecto, generarSlotsDesdeTurno } from "./seed-turnos";
@@ -179,19 +182,50 @@ export async function main(dataSource?: DataSource) {
     // 2b. Seed ParametrosCarga for active period
     const parametrosCargaRepo =
       queryRunner.manager.getRepository(ParametrosCarga);
-    const modalidades = [
-      "TC",
-      "TP",
-      "TIEMPO_COMPLETO",
-      "MEDIO_TIEMPO",
-      "HORAS_CATEDRA",
-    ];
-    const categorias = ["PRINCIPAL", "ASOCIADO", "AUXILIAR", "INSTRUCTOR"];
-    const tiposDocente = ["ORDINARIO", "CONTRATADO"];
+    const modalidades = Object.values(ModalidadDocente);
+    const perfiles = [
+      [TipoDocente.ORDINARIO, CategoriaDocente.PRINCIPAL],
+      [TipoDocente.ORDINARIO, CategoriaDocente.ASOCIADO],
+      [TipoDocente.ORDINARIO, CategoriaDocente.AUXILIAR],
+      [TipoDocente.CONTRATADO, CategoriaDocente.SIN_CATEGORIA],
+      [TipoDocente.JEFE_PRACTICA_CONTRATADO, CategoriaDocente.SIN_CATEGORIA],
+    ] as const;
+    const limitesPorModalidad: Record<
+      ModalidadDocente,
+      { min: number; max: number; cursos: number }
+    > = {
+      [ModalidadDocente.DEDICACION_EXCLUSIVA]: { min: 16, max: 22, cursos: 8 },
+      [ModalidadDocente.TIEMPO_COMPLETO_40]: { min: 16, max: 22, cursos: 8 },
+      [ModalidadDocente.TIEMPO_PARCIAL_20]: { min: 8, max: 12, cursos: 5 },
+      [ModalidadDocente.TIEMPO_PARCIAL_12]: { min: 4, max: 8, cursos: 4 },
+      [ModalidadDocente.TIEMPO_PARCIAL_10]: { min: 4, max: 6, cursos: 3 },
+      [ModalidadDocente.TIEMPO_PARCIAL_8]: { min: 2, max: 4, cursos: 2 },
+    };
+    await parametrosCargaRepo
+      .createQueryBuilder()
+      .delete()
+      .where("periodo_academico = :periodo", {
+        periodo: estructura.periodoActivo.codigo,
+      })
+      .andWhere(
+        "(modalidad NOT IN (:...modalidades) OR tipo_docente NOT IN (:...tipos) OR categoria NOT IN (:...categorias))",
+        {
+          modalidades,
+          tipos: Object.values(TipoDocente),
+          categorias: Object.values(CategoriaDocente),
+        },
+      )
+      .execute();
     let paramsCount = 0;
     for (const modalidad of modalidades) {
-      for (const categoria of categorias) {
-        for (const tipoDocente of tiposDocente) {
+      for (const [tipoDocente, categoria] of perfiles) {
+        if (
+          tipoDocente === TipoDocente.JEFE_PRACTICA_CONTRATADO &&
+          modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA
+        ) {
+          continue;
+        }
+        const limites = limitesPorModalidad[modalidad];
           const exists = await parametrosCargaRepo.findOne({
             where: {
               periodo_academico: estructura.periodoActivo.codigo,
@@ -207,19 +241,13 @@ export async function main(dataSource?: DataSource) {
                 modalidad,
                 categoria,
                 tipo_docente: tipoDocente,
-                horas_min_semanal: 4,
-                horas_max_semanal:
-                  modalidad === "TC" || modalidad === "TIEMPO_COMPLETO"
-                    ? 40
-                    : 24,
-                cursos_min_docente: 1,
-                cursos_max_docente:
-                  modalidad === "TC" || modalidad === "TIEMPO_COMPLETO" ? 8 : 5,
+                horas_min_semanal: limites.min,
+                horas_max_semanal: limites.max,
+                cursos_max_docente: limites.cursos,
               }),
             );
             paramsCount++;
           }
-        }
       }
     }
     console.log(`✅ ${paramsCount} parámetros de carga creados.`);

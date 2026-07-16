@@ -11,9 +11,9 @@ import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
-import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
+import { SuspensionDocente } from "../entities/suspension-docente.entity";
 import { Departamento } from "../entities/departamento.entity";
 import { Facultad } from "../entities/facultad.entity";
 import { Usuario } from "../entities/usuario.entity";
@@ -23,6 +23,8 @@ import { TipoContrato } from "../common/enums/tipo-contrato.enum";
 import { TipoDocente } from "../common/enums/tipo-docente.enum";
 import { TipoClase } from "../common/enums/tipo-clase.enum";
 import { ContextoAcademicoService } from "../common/services/contexto-academico.service";
+import { ParametrosCargaResolverService } from "../common/services/parametros-carga-resolver.service";
+import { MailService } from "../mail/mail.service";
 
 describe("DocentesService", () => {
   let service: DocentesService;
@@ -83,10 +85,6 @@ describe("DocentesService", () => {
     findOne: jest.fn(),
   };
 
-  const mockParametrosCargaRepo = {
-    createQueryBuilder: jest.fn(() => mockQueryBuilder),
-  };
-
   const mockConfigService = {
     get: jest.fn(),
   };
@@ -123,7 +121,21 @@ describe("DocentesService", () => {
   const mockUsuarioRepo = {
     findOne: jest.fn(),
     find: jest.fn(),
+    create: jest.fn(),
     save: jest.fn(),
+    update: jest.fn(),
+  };
+
+  const mockSuspensionRepo = {
+    findOne: jest.fn(),
+  };
+
+  const mockParametrosCargaResolver = {
+    obtenerParaPerfil: jest.fn(),
+  };
+
+  const mockMailService = {
+    sendMail: jest.fn(),
   };
 
   const mockContextoAcademicoService = {
@@ -197,16 +209,16 @@ describe("DocentesService", () => {
           useValue: mockPeriodoRepo,
         },
         {
-          provide: getRepositoryToken(ParametrosCarga),
-          useValue: mockParametrosCargaRepo,
-        },
-        {
           provide: getRepositoryToken(Grupo),
           useValue: mockGrupoRepo,
         },
         {
           provide: getRepositoryToken(AsignacionLectiva),
           useValue: mockAsignacionLectivaRepo,
+        },
+        {
+          provide: getRepositoryToken(SuspensionDocente),
+          useValue: mockSuspensionRepo,
         },
         {
           provide: getRepositoryToken(Departamento),
@@ -232,6 +244,11 @@ describe("DocentesService", () => {
           provide: ContextoAcademicoService,
           useValue: mockContextoAcademicoService,
         },
+        {
+          provide: ParametrosCargaResolverService,
+          useValue: mockParametrosCargaResolver,
+        },
+        { provide: MailService, useValue: mockMailService },
       ],
     }).compile();
 

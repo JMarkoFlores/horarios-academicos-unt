@@ -11,10 +11,10 @@ import { Curso } from "../entities/curso.entity";
 import { Ambiente } from "../entities/ambiente.entity";
 import { HorarioAsignado } from "../entities/horario-asignado.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
-import { ParametrosCarga } from "../entities/parametros-carga.entity";
 import { Grupo } from "../entities/grupo.entity";
 import { AsignacionLectiva } from "../entities/asignacion-lectiva.entity";
 import { SuspensionDocente } from "../entities/suspension-docente.entity";
+import { MailService } from "../mail/mail.service";
 import { DocentesService } from "./docentes.service";
 import { DocentesController } from "./docentes.controller";
 
@@ -31,7 +31,6 @@ import { DocentesController } from "./docentes.controller";
       Ambiente,
       HorarioAsignado,
       PeriodoAcademico,
-      ParametrosCarga,
       Grupo,
       AsignacionLectiva,
       SuspensionDocente,
@@ -40,7 +39,7 @@ import { DocentesController } from "./docentes.controller";
   ],
 
   controllers: [DocentesController],
-  providers: [DocentesService],
+  providers: [DocentesService, MailService],
   exports: [DocentesService],
 })
 export class DocentesModule {}

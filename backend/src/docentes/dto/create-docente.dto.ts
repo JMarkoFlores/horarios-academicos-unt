@@ -11,6 +11,7 @@ import {
   MaxLength,
   IsNotEmpty,
   Matches,
+  IsBoolean,
 } from "class-validator";
 import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
 import { TipoContrato } from "../../common/enums/tipo-contrato.enum";
@@ -59,10 +60,10 @@ export class CreateDocenteDto {
   @MaxLength(150)
   apellidos: string;
 
-  @ApiProperty({ example: "jperez@unt.edu.pe" })
+  @ApiProperty({ example: "jperez@unitru.edu.pe" })
   @IsEmail({}, { message: "Email inválido" })
-  @Matches(/@unt\.edu\.pe$/, {
-    message: "El email debe ser del dominio @unt.edu.pe",
+  @Matches(/@(unt|unitru)\.edu\.pe$/, {
+    message: "El email debe ser del dominio @unt.edu.pe o @unitru.edu.pe",
   })
   @IsNotEmpty({ message: "El email no puede estar vacío" })
   @MaxLength(150)
@@ -105,12 +106,6 @@ export class CreateDocenteDto {
   @IsDateString({}, { message: "Fecha de ingreso inválida (YYYY-MM-DD)" })
   fecha_ingreso: string;
 
-  @ApiPropertyOptional({ example: 0 })
-  @IsOptional()
-  @IsInt({ message: "Las horas asignadas deben ser un número entero" })
-  @Min(0, { message: "Las horas asignadas no pueden ser negativas" })
-  horas_asignadas?: number;
-
   @ApiPropertyOptional({ example: 12, description: "ID de la facultad" })
   @IsOptional()
   @IsInt({ message: "La facultad debe ser un número entero" })
@@ -128,4 +123,12 @@ export class CreateDocenteDto {
   @IsInt({ message: "El usuario debe ser un número entero" })
   @Min(1, { message: "El usuario debe ser mayor a 0" })
   usuario_id?: number;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: "Envía al docente un correo de bienvenida con sus credenciales al crear su usuario",
+  })
+  @IsOptional()
+  @IsBoolean({ message: "El envío de credenciales debe ser verdadero o falso" })
+  enviar_credenciales?: boolean;
 }

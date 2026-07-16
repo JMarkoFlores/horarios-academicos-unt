@@ -38,7 +38,6 @@ export class CampaignFormComponent implements OnInit {
     { value: 'categoria', label: 'Categoría' },
     { value: 'modalidad', label: 'Modalidad' },
     { value: 'fecha_ingreso', label: 'Fecha de Ingreso' },
-    { value: 'horas_asignadas', label: 'Horas Asignadas' },
     { value: 'codigo', label: 'Código' },
     { value: 'apellidos', label: 'Apellidos' },
   ];

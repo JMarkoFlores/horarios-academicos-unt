@@ -52,27 +52,6 @@
     }
   }
 
-  .period-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--color-primary-light);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 6px 14px;
-
-    .period-icon {
-      color: var(--color-primary);
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
-    }
-    .period-select {
-      color: var(--color-text);
-      font-weight: 600;
-      min-width: 90px;
-    }
-  }
 }
 
 // ─── Tabs ────────────────────────────────────────────────────────────────

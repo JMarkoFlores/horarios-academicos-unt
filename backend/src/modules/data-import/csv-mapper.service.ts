@@ -82,7 +82,6 @@ export class CsvMapperService {
         categoria: record.categoria?.toUpperCase(),
         modalidad: record.modalidad?.toUpperCase(),
         fecha_ingreso: record.fecha_ingreso,
-        horas_asignadas: parseInt(record.horas_asignadas || "0", 10),
         tipo_contrato: tipoContrato,
         activo: true,
       });

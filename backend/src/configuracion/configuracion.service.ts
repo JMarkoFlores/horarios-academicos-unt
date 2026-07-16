@@ -20,6 +20,9 @@ import { CreateTurnoDto } from "./dto/create-turno.dto";
 import { UpsertDiaActivoDto } from "./dto/upsert-dia-activo.dto";
 import { UpsertParametrosCargaDto } from "./dto/upsert-parametros-carga.dto";
 import { UpdateConfiguracionGeneralDto } from "./dto/update-configuracion-general.dto";
+import { CategoriaDocente } from "../common/enums/categoria-docente.enum";
+import { ModalidadDocente } from "../common/enums/modalidad-docente.enum";
+import { TipoDocente } from "../common/enums/tipo-docente.enum";
 
 @Injectable()
 export class ConfiguracionService {
@@ -224,12 +227,35 @@ export class ConfiguracionService {
         "horas_min_semanal no puede ser mayor que horas_max_semanal",
       );
     }
-    if (dto.cursos_min_docente > dto.cursos_max_docente) {
+    const categoriasOrdinarias = [
+      CategoriaDocente.PRINCIPAL,
+      CategoriaDocente.ASOCIADO,
+      CategoriaDocente.AUXILIAR,
+    ];
+    if (
+      dto.tipo_docente === TipoDocente.ORDINARIO &&
+      !categoriasOrdinarias.includes(dto.categoria)
+    ) {
       throw new BadRequestException(
-        "cursos_min_docente no puede ser mayor que cursos_max_docente",
+        "Un docente ordinario debe usar categoría Principal, Asociado o Auxiliar",
       );
     }
-
+    if (
+      dto.tipo_docente !== TipoDocente.ORDINARIO &&
+      dto.categoria !== CategoriaDocente.SIN_CATEGORIA
+    ) {
+      throw new BadRequestException(
+        "Los docentes contratados y jefes de práctica deben usar Sin categoría",
+      );
+    }
+    if (
+      dto.tipo_docente === TipoDocente.JEFE_PRACTICA_CONTRATADO &&
+      dto.modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA
+    ) {
+      throw new BadRequestException(
+        "Un jefe de práctica contratado no puede tener dedicación exclusiva",
+      );
+    }
     const existente = await this.parametrosCargaRepo.findOne({
       where: {
         periodo_academico: dto.periodo_academico,

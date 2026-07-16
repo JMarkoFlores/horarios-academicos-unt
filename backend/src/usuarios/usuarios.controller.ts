@@ -54,6 +54,15 @@ export class UsuariosController {
     return { data: result, message: "Usuarios obtenidos" };
   }
 
+  @Get("disponibles")
+  @Roles(RolUsuario.ADMINISTRADOR_SISTEMA, RolUsuario.COORDINADOR_ACADEMICO)
+  @ApiOperation({ summary: "Usuarios no vinculados a ningún docente" })
+  @ApiResponse({ status: 200, description: "Usuarios disponibles" })
+  async disponibles() {
+    const result = await this.usuariosService.disponibles();
+    return { data: result, message: "Usuarios disponibles obtenidos" };
+  }
+
   @Patch("mi-idioma")
   @ApiOperation({ summary: "Actualizar idioma preferido del usuario actual" })
   @ApiResponse({ status: 200, description: "Idioma actualizado correctamente" })

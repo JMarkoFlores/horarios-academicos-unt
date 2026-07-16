@@ -7,6 +7,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
 import { Usuario } from "../entities/usuario.entity";
+import { RolUsuario } from "../common/enums/rol-usuario.enum";
 import { CrearUsuarioDto } from "./dto/crear-usuario.dto";
 import { ActualizarUsuarioDto } from "./dto/actualizar-usuario.dto";
 
@@ -64,6 +65,19 @@ export class UsuariosService {
     const usuario = await this.usuarioRepository.findOne({ where: { id } });
     if (!usuario) throw new NotFoundException("Usuario no encontrado");
     await this.usuarioRepository.remove(usuario);
+  }
+
+  async disponibles(): Promise<Partial<Usuario>[]> {
+    const usuarios = await this.usuarioRepository
+      .createQueryBuilder("usuario")
+      .select(["usuario.id", "usuario.nombre", "usuario.email", "usuario.rol", "usuario.activo"])
+      .leftJoin("docente", "docente", "docente.usuario_id = usuario.id")
+      .where("docente.id IS NULL")
+      .andWhere("usuario.activo = true")
+      .andWhere("usuario.rol = :rol", { rol: RolUsuario.DOCENTE })
+      .orderBy("usuario.nombre", "ASC")
+      .getMany();
+    return usuarios;
   }
 
   async listar(): Promise<Partial<Usuario>[]> {

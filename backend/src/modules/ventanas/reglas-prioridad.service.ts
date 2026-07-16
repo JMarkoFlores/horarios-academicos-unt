@@ -31,7 +31,6 @@ export class ReglasPrioridadGlobalesService {
         { campo: "categoria", orden: "DESC" },
         { campo: "modalidad", orden: "DESC" },
         { campo: "fecha_ingreso", orden: "ASC" },
-        { campo: "horas_asignadas", orden: "ASC" },
         { campo: "codigo", orden: "ASC" },
         { campo: "apellidos", orden: "ASC" },
       ];

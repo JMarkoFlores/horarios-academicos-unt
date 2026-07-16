@@ -133,15 +133,9 @@
                 <mat-icon>assignment_ind</mat-icon>
                 {{ docente.categoria }} | {{ docente.tipo_contrato }}
               </span>
-              <span
-                class="metric-badge hours"
-                [class.hours-good]="horasDisponibles() >= minimoNormativo() && !limiteAlcanzado()"
-                [class.hours-limit]="limiteAlcanzado()"
-              >
+              <span class="metric-badge hours">
                 <mat-icon>history_toggle_off</mat-icon>
-                Horas disponibles:
-                <strong>{{ horasDisponibles() }} / Mín: {{ minimoNormativo() }} — Máx: {{ maximoNormativo() }}</strong>
-                <span *ngIf="limiteAlcanzado()" class="limit-warning"> ⚠ Límite alcanzado</span>
+                Horas disponibles: <strong>{{ horasDisponibles() }} h</strong>
               </span>
               <span class="metric-badge modality" *ngIf="docente.modalidad">
                 <mat-icon>badge</mat-icon>

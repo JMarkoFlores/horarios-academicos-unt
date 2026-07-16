@@ -44,7 +44,7 @@ const routes: Routes = [
             (m) => m.UsuariosModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       },
       {
         path: 'configuracion',
@@ -124,7 +124,7 @@ const routes: Routes = [
             (m) => m.ParametrosCargaModule,
           ),
         canActivate: [RolesGuard],
-        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA] },
+        data: { roles: [ROLES.ADMINISTRADOR_SISTEMA, ROLES.COORDINADOR_ACADEMICO] },
       },
       {
         path: 'campaigns',

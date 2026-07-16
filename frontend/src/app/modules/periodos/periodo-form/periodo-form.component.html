@@ -1,81 +1,160 @@
-<div class="page-header">
-  <h1>{{ isEdit ? "Editar Período" : "Nuevo Período Académico" }}</h1>
+<div class="periodo-form-page animate-fadein">
+  <div class="page-header-premium">
+    <div class="header-left">
+      <a mat-icon-button routerLink="/app/periodos" class="btn-back" matTooltip="Volver a períodos">
+        <mat-icon>arrow_back</mat-icon>
+      </a>
+      <div class="title-section">
+        <h1 class="gradient-text">{{ isEdit ? 'Editar Período' : 'Nuevo Período Académico' }}</h1>
+        <p class="subtitle">
+          {{ isEdit ? 'Modifica los datos del período académico' : 'Registra un nuevo semestre en el sistema' }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <mat-card class="form-card">
+    <div *ngIf="loading" class="loading-center">
+      <mat-spinner diameter="48" strokeWidth="3"></mat-spinner>
+      <span>Cargando datos del período...</span>
+    </div>
+
+    <form
+      *ngIf="!loading"
+      [formGroup]="form"
+      (ngSubmit)="guardar()"
+      class="form-container"
+    >
+      <div class="form-section">
+        <div class="section-header">
+          <mat-icon class="section-icon">info</mat-icon>
+          <span>Información General</span>
+        </div>
+        <div class="fields-grid">
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Código</mat-label>
+            <mat-icon matPrefix>tag</mat-icon>
+            <input matInput formControlName="codigo" placeholder="Ej: 2026-I" maxlength="20" />
+            <mat-hint>Identificador único del período (ej: 2026-I)</mat-hint>
+            <mat-error>{{ fieldHasError('codigo', 'required') ? 'El código es obligatorio' : '' }}</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Nombre</mat-label>
+            <mat-icon matPrefix>badge</mat-icon>
+            <input matInput formControlName="nombre" placeholder="Ej: Semestre 2026-I" maxlength="100" />
+            <mat-hint>Nombre descriptivo del período</mat-hint>
+            <mat-error>{{ fieldHasError('nombre', 'required') ? 'El nombre es obligatorio' : '' }}</mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="section-header">
+          <mat-icon class="section-icon">calendar_month</mat-icon>
+          <span>Fechas del Período</span>
+        </div>
+        <div class="fields-grid">
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Fecha de Inicio</mat-label>
+            <mat-icon matPrefix>event</mat-icon>
+            <input matInput [matDatepicker]="pickerInicio" formControlName="fecha_inicio" readonly (click)="pickerInicio.open()" />
+            <mat-datepicker-toggle matSuffix [for]="pickerInicio">
+              <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+            </mat-datepicker-toggle>
+            <mat-datepicker #pickerInicio></mat-datepicker>
+            <mat-hint>Haz clic en el icono del calendario para seleccionar</mat-hint>
+            <mat-error>{{ fieldHasError('fecha_inicio', 'required') ? 'Selecciona la fecha de inicio' : '' }}</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Fecha de Fin</mat-label>
+            <mat-icon matPrefix>event</mat-icon>
+            <input matInput [matDatepicker]="pickerFin" formControlName="fecha_fin" readonly (click)="pickerFin.open()" />
+            <mat-datepicker-toggle matSuffix [for]="pickerFin">
+              <mat-icon matDatepickerToggleIcon>calendar_today</mat-icon>
+            </mat-datepicker-toggle>
+            <mat-datepicker #pickerFin></mat-datepicker>
+            <mat-hint>Haz clic en el icono del calendario para seleccionar</mat-hint>
+            <mat-error>{{ fieldHasError('fecha_fin', 'required') ? 'Selecciona la fecha de fin' : '' }}</mat-error>
+          </mat-form-field>
+        </div>
+        <div *ngIf="fechaFinMenor" class="form-error">
+          <mat-icon>error_outline</mat-icon>
+          <span>La fecha de fin debe ser posterior a la fecha de inicio</span>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="section-header">
+          <mat-icon class="section-icon">settings</mat-icon>
+          <span>Configuración</span>
+        </div>
+        <div class="fields-grid">
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Estado</mat-label>
+            <mat-icon matPrefix>toggle_on</mat-icon>
+            <mat-select formControlName="estado">
+              <mat-option *ngFor="let e of estados" [value]="e.value">{{ e.label }}</mat-option>
+            </mat-select>
+            <mat-hint>Estado actual del período académico</mat-hint>
+            <mat-error>{{ fieldHasError('estado', 'required') ? 'Selecciona un estado' : '' }}</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Modo de Asignación</mat-label>
+            <mat-icon matPrefix>swap_vert</mat-icon>
+            <mat-select formControlName="modo_asignacion">
+              <mat-option *ngFor="let m of modosAsignacion" [value]="m.value">{{ m.label }}</mat-option>
+            </mat-select>
+            <mat-hint>Define cómo se asignarán los horarios</mat-hint>
+            <mat-error>{{ fieldHasError('modo_asignacion', 'required') ? 'Selecciona un modo' : '' }}</mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="info-cards-row">
+          <div class="info-card" *ngIf="estadoActual">
+            <mat-icon class="info-icon">info</mat-icon>
+            <div class="info-content">
+              <strong class="info-label">{{ estadoActual.label }}</strong>
+              <span class="info-desc">{{ estadoActual.desc }}</span>
+            </div>
+          </div>
+          <div class="info-card" *ngIf="modoActual">
+            <mat-icon class="info-icon">lightbulb</mat-icon>
+            <div class="info-content">
+              <strong class="info-label">{{ modoActual.label }}</strong>
+              <span class="info-desc">{{ modoActual.desc }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-divider"></div>
+
+      <div class="toggle-row">
+        <mat-slide-toggle formControlName="activo" color="primary">
+          Período activo
+        </mat-slide-toggle>
+        <span class="toggle-hint">Al activarlo, los otros períodos se desactivarán automáticamente</span>
+      </div>
+
+      <div class="form-divider"></div>
+
+      <div class="form-actions">
+        <a mat-stroked-button routerLink="/app/periodos" class="btn-cancel">Cancelar</a>
+        <button
+          mat-raised-button
+          color="primary"
+          type="submit"
+          class="btn-submit"
+          [disabled]="form.invalid || saving"
+        >
+          <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
+          <mat-icon *ngIf="!saving">save</mat-icon>
+          <span>{{ isEdit ? 'Actualizar Período' : 'Guardar Período' }}</span>
+        </button>
+      </div>
+    </form>
+  </mat-card>
 </div>
-
-<mat-card>
-  <div *ngIf="loading" class="loading-center"><mat-spinner></mat-spinner></div>
-
-  <form
-    *ngIf="!loading"
-    [formGroup]="form"
-    (ngSubmit)="guardar()"
-    class="form-grid"
-  >
-    <mat-form-field appearance="outline">
-      <mat-label>Código</mat-label>
-      <input matInput formControlName="codigo" placeholder="Ej: 2026-I" />
-      <mat-error *ngIf="form.get('codigo')?.hasError('required')"
-        >Requerido</mat-error
-      >
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Nombre</mat-label>
-      <input
-        matInput
-        formControlName="nombre"
-        placeholder="Ej: Semestre 2026-I"
-      />
-      <mat-error *ngIf="form.get('nombre')?.hasError('required')"
-        >Requerido</mat-error
-      >
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Fecha Inicio</mat-label>
-      <input matInput type="date" formControlName="fecha_inicio" />
-      <mat-error *ngIf="form.get('fecha_inicio')?.hasError('required')"
-        >Requerido</mat-error
-      >
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Fecha Fin</mat-label>
-      <input matInput type="date" formControlName="fecha_fin" />
-      <mat-error *ngIf="form.get('fecha_fin')?.hasError('required')"
-        >Requerido</mat-error
-      >
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Estado</mat-label>
-      <mat-select formControlName="estado">
-        <mat-option *ngFor="let e of estados" [value]="e.value">{{
-          e.label
-        }}</mat-option>
-      </mat-select>
-      <mat-error *ngIf="form.get('estado')?.hasError('required')"
-        >Requerido</mat-error
-      >
-    </mat-form-field>
-
-    <div class="toggle-row">
-      <mat-slide-toggle formControlName="activo" color="primary"
-        >Activo</mat-slide-toggle
-      >
-    </div>
-
-    <div class="form-actions">
-      <a mat-stroked-button routerLink="/app/periodos">Cancelar</a>
-      <button
-        mat-raised-button
-        color="primary"
-        type="submit"
-        [disabled]="form.invalid || saving"
-      >
-        <mat-spinner diameter="16" *ngIf="saving"></mat-spinner>
-        <span *ngIf="!saving">{{ isEdit ? "Actualizar" : "Guardar" }}</span>
-      </button>
-    </div>
-  </form>
-</mat-card>

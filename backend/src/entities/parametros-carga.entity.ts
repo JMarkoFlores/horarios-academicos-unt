@@ -21,25 +21,22 @@ export class ParametrosCarga {
   @Column({ length: 20 })
   periodo_academico: string;
 
-  @Column({ length: 30, default: "" })
+  @Column({ length: 30 })
   categoria: string;
 
-  @Column({ length: 30, default: "" })
+  @Column({ length: 30 })
   tipo_docente: string;
 
-  @Column({ length: 30, default: "" })
+  @Column({ length: 30 })
   modalidad: string;
 
-  @Column({ type: "smallint", default: 4 })
+  @Column({ type: "smallint", default: 0 })
   horas_min_semanal: number;
 
-  @Column({ type: "smallint", default: 20 })
+  @Column({ type: "smallint" })
   horas_max_semanal: number;
 
-  @Column({ type: "smallint", default: 1 })
-  cursos_min_docente: number;
-
-  @Column({ type: "smallint", default: 5 })
+  @Column({ type: "smallint" })
   cursos_max_docente: number;
 
   @CreateDateColumn({ name: "creado_en" })

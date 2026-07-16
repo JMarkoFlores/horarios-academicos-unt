@@ -199,7 +199,6 @@ export class CampañasVentanasService {
         { campo: "categoria", orden: "DESC" },
         { campo: "modalidad", orden: "DESC" },
         { campo: "fecha_ingreso", orden: "ASC" },
-        { campo: "horas_asignadas", orden: "ASC" },
         { campo: "codigo", orden: "ASC" },
         { campo: "apellidos", orden: "ASC" },
       ],
@@ -338,7 +337,6 @@ export class CampañasVentanasService {
           { campo: "categoria", orden: "DESC" as const },
           { campo: "modalidad", orden: "DESC" as const },
           { campo: "fecha_ingreso", orden: "ASC" as const },
-          { campo: "horas_asignadas", orden: "ASC" as const },
           { campo: "codigo", orden: "ASC" as const },
           { campo: "apellidos", orden: "ASC" as const },
         ];
@@ -799,7 +797,11 @@ export class CampañasVentanasService {
           END`,
           order,
         );
-      } else {
+      } else if (
+        ["fecha_ingreso", "codigo", "apellidos", "nombres"].includes(
+          regla.campo,
+        )
+      ) {
         qb.addOrderBy(`docente.${regla.campo}`, order);
       }
     }

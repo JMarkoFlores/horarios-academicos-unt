@@ -13,7 +13,6 @@ import { CursoPlanEstudios } from "../../entities/curso-plan-estudios.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { Ambiente } from "../../entities/ambiente.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
-import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { OfertaAcademica } from "../../entities/oferta-academica.entity";
 import { TipoClase } from "../../common/enums/tipo-clase.enum";
 import { EstadoHorario } from "../../common/enums/estado-horario.enum";
@@ -32,6 +31,7 @@ import {
   AccionAuditoriaCarga,
 } from "../../entities/auditoria-carga.entity";
 import { ContextoAcademicoService } from "../../common/services/contexto-academico.service";
+import { ParametrosCargaResolverService } from "../../common/services/parametros-carga-resolver.service";
 import {
   ContextoAcademico,
   UsuarioAutenticado,
@@ -56,12 +56,11 @@ export class AsignadorLectivoService {
     private readonly ambienteRepo: Repository<Ambiente>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
-    @InjectRepository(ParametrosCarga)
-    private readonly paramsRepo: Repository<ParametrosCarga>,
     @InjectRepository(OfertaAcademica)
     private readonly ofertaRepo: Repository<OfertaAcademica>,
     private readonly auditoriaService: AuditoriaService,
     private readonly contextoAcademicoService: ContextoAcademicoService,
+    private readonly parametrosCargaResolver: ParametrosCargaResolverService,
   ) {}
 
   private async resolvePeriodo(periodoId: number): Promise<PeriodoAcademico> {
@@ -225,13 +224,11 @@ export class AsignadorLectivoService {
         return sum + this.calcularDuracionHoras(h.hora_inicio, h.hora_fin);
       }, 0);
 
-      const params = await this.paramsRepo.findOne({
-        where: {
-          periodo_academico: periodoCodigo,
-          modalidad: docente.modalidad,
-        },
-      });
-      const maxHoras = params?.horas_max_semanal ?? 40;
+      const params = await this.parametrosCargaResolver.obtenerParaPerfil(
+        periodoCodigo,
+        docente,
+      );
+      const maxHoras = params.horas_max_semanal;
 
       const horariosExistentes = await this.horarioRepo.find({
         where: {
@@ -509,13 +506,11 @@ export class AsignadorLectivoService {
       }
     }
 
-    const params = await this.paramsRepo.findOne({
-      where: {
-        periodo_academico: periodo.codigo,
-        modalidad: docente.modalidad,
-      },
-    });
-    const maxHoras = params?.horas_max_semanal ?? 40;
+    const params = await this.parametrosCargaResolver.obtenerParaPerfil(
+      periodo.codigo,
+      docente,
+    );
+    const maxHoras = params.horas_max_semanal;
 
     const asignacionesActuales = await this.asignacionRepo.find({
       where: {
@@ -534,8 +529,10 @@ export class AsignadorLectivoService {
       if (nuevaTotal > maxHoras) {
         errores.push(`Excede carga máxima: ${nuevaTotal}h > ${maxHoras}h`);
       }
-      if (nuevaTotal < 16 && horasLectivasActuales === 0) {
-        advertencias.push(`Carga menor al mínimo: ${nuevaTotal}h < 16h`);
+      if (nuevaTotal < params.horas_min_semanal && horasLectivasActuales === 0) {
+        advertencias.push(
+          `Carga menor al mínimo configurado: ${nuevaTotal}h < ${params.horas_min_semanal}h`,
+        );
       }
     }
 

@@ -23,11 +23,11 @@ import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
 import { ValidacionesService } from "../../common/services/validaciones.service";
 import { AuditoriaService } from "../auditoria/auditoria.service";
 import { Ambiente } from "../../entities/ambiente.entity";
-import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { Docente } from "../../entities/docente.entity";
 import { Curso } from "../../entities/curso.entity";
 import { DisponibilidadDocente } from "../../entities/disponibilidad-docente.entity";
 import { SincronizacionRedisService } from "./sincronizacion-redis.service";
+import { ParametrosCargaResolverService } from "../../common/services/parametros-carga-resolver.service";
 
 type SeleccionTemporalRedis = {
   ventanaId: string;
@@ -59,8 +59,6 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     private readonly periodoRepo: Repository<PeriodoAcademico>,
     @InjectRepository(Ambiente)
     private readonly ambienteRepo: Repository<Ambiente>,
-    @InjectRepository(ParametrosCarga)
-    private readonly parametrosCargaRepo: Repository<ParametrosCarga>,
     @InjectRepository(Docente)
     private readonly docenteRepo: Repository<Docente>,
     @InjectRepository(Curso)
@@ -71,6 +69,7 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
     private readonly validacionesService: ValidacionesService,
     private readonly auditoriaService: AuditoriaService,
     private readonly sincronizacionRedisService: SincronizacionRedisService,
+    private readonly parametrosCargaResolver: ParametrosCargaResolverService,
   ) {
     this.redis = new Redis({
       host: this.configService.get<string>("REDIS_HOST", "localhost"),
@@ -832,18 +831,6 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
       //   selecciones,
       // );
 
-      // Cargar parámetros de carga para el período
-      const parametrosCarga = await this.parametrosCargaRepo.find({
-        where: { periodo_academico: periodo.codigo },
-      });
-      const parametrosMap = new Map<string, ParametrosCarga>();
-      for (const p of parametrosCarga) {
-        parametrosMap.set(
-          `${p.tipo_docente}_${p.categoria}_${p.modalidad ?? ""}`,
-          p,
-        );
-      }
-
       // Calcular carga actual de cada docente
       const docenteIds = [...new Set(selecciones.map((s) => s.docenteId))];
       const docentes = await this.docenteRepo.findByIds(docenteIds);
@@ -881,9 +868,12 @@ export class GestorSeleccionTemporalService implements OnModuleDestroy {
         // Verificar carga máxima del docente
         const docente = docenteMap.get(seleccion.docenteId);
         if (docente) {
-          const pKey = `${docente.tipo_docente}_${docente.categoria}_${docente.modalidad ?? ""}`;
-          const parametro = parametrosMap.get(pKey);
-          const maxHoras = parametro?.horas_max_semanal ?? 999;
+          const parametro =
+            await this.parametrosCargaResolver.obtenerParaPerfil(
+              periodo.codigo,
+              docente,
+            );
+          const maxHoras = parametro.horas_max_semanal;
 
           const duracion = this.calcularDuracionHoras(
             seleccion.horaInicio,

@@ -318,9 +318,6 @@ export async function seedCargaLectivaE2E(
       tipo_docente: TipoDocente.ORDINARIO,
       tipo_contrato: TipoContrato.NOMBRADO,
       modalidad: ModalidadDocente.TIEMPO_COMPLETO_40,
-      horas_lectivas_max: 22,
-      horas_lectivas_min: 16,
-      horas_max_totales: 40,
     },
     {
       codigo: `${E2E_PREFIX}D2-NOLECT`,
@@ -333,9 +330,6 @@ export async function seedCargaLectivaE2E(
       tipo_docente: TipoDocente.ORDINARIO,
       tipo_contrato: TipoContrato.NOMBRADO,
       modalidad: ModalidadDocente.TIEMPO_COMPLETO_40,
-      horas_lectivas_max: 22,
-      horas_lectivas_min: 16,
-      horas_max_totales: 40,
     },
     {
       codigo: `${E2E_PREFIX}D3-PARCIAL`,
@@ -348,9 +342,6 @@ export async function seedCargaLectivaE2E(
       tipo_docente: TipoDocente.ORDINARIO,
       tipo_contrato: TipoContrato.NOMBRADO,
       modalidad: ModalidadDocente.TIEMPO_COMPLETO_40,
-      horas_lectivas_max: 22,
-      horas_lectivas_min: 16,
-      horas_max_totales: 40,
     },
     {
       codigo: `${E2E_PREFIX}D4-RESTRIC`,
@@ -363,9 +354,6 @@ export async function seedCargaLectivaE2E(
       tipo_docente: TipoDocente.CONTRATADO,
       tipo_contrato: TipoContrato.CONTRATADO,
       modalidad: ModalidadDocente.TIEMPO_PARCIAL_20,
-      horas_lectivas_max: 12,
-      horas_lectivas_min: 8,
-      horas_max_totales: 20,
     },
   ];
 
@@ -401,7 +389,6 @@ export async function seedCargaLectivaE2E(
         firma_url: null,
         foto_url: null,
         suspension_vigente: false,
-        horas_asignadas: 0,
         horas_no_lectivas: 0,
       },
     );
@@ -423,18 +410,23 @@ export async function seedCargaLectivaE2E(
     ModalidadDocente.TIEMPO_PARCIAL_10,
     ModalidadDocente.TIEMPO_PARCIAL_8,
   ];
-  const categorias = [
-    CategoriaDocente.PRINCIPAL,
-    CategoriaDocente.ASOCIADO,
-    CategoriaDocente.AUXILIAR,
-    CategoriaDocente.SIN_CATEGORIA,
-  ];
-  const tiposDocente = [TipoDocente.ORDINARIO, TipoDocente.CONTRATADO];
+  const perfiles = [
+    [TipoDocente.ORDINARIO, CategoriaDocente.PRINCIPAL],
+    [TipoDocente.ORDINARIO, CategoriaDocente.ASOCIADO],
+    [TipoDocente.ORDINARIO, CategoriaDocente.AUXILIAR],
+    [TipoDocente.CONTRATADO, CategoriaDocente.SIN_CATEGORIA],
+    [TipoDocente.JEFE_PRACTICA_CONTRATADO, CategoriaDocente.SIN_CATEGORIA],
+  ] as const;
 
   let paramsCount = 0;
   for (const modalidad of modalidades) {
-    for (const categoria of categorias) {
-      for (const tipoDocente of tiposDocente) {
+    for (const [tipoDocente, categoria] of perfiles) {
+      if (
+        tipoDocente === TipoDocente.JEFE_PRACTICA_CONTRATADO &&
+        modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA
+      ) {
+        continue;
+      }
         const exists = await parametrosRepo.findOne({
           where: {
             periodo_academico: periodo.codigo,
@@ -450,29 +442,45 @@ export async function seedCargaLectivaE2E(
               modalidad,
               categoria,
               tipo_docente: tipoDocente,
-              horas_min_semanal: 4,
+              horas_min_semanal:
+                modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA ||
+                modalidad === ModalidadDocente.TIEMPO_COMPLETO_40
+                  ? 16
+                  : modalidad === ModalidadDocente.TIEMPO_PARCIAL_20
+                    ? 8
+                    : modalidad === ModalidadDocente.TIEMPO_PARCIAL_12
+                      ? 4
+                      : modalidad === ModalidadDocente.TIEMPO_PARCIAL_10
+                        ? 4
+                        : 2,
               horas_max_semanal:
                 modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA
-                  ? 44
+                  ? 22
                   : modalidad === ModalidadDocente.TIEMPO_COMPLETO_40
-                    ? 40
+                    ? 22
                     : modalidad === ModalidadDocente.TIEMPO_PARCIAL_20
-                      ? 24
+                      ? 12
                       : modalidad === ModalidadDocente.TIEMPO_PARCIAL_12
-                        ? 16
-                        : 12,
-              cursos_min_docente: 1,
+                        ? 8
+                        : modalidad === ModalidadDocente.TIEMPO_PARCIAL_10
+                          ? 6
+                          : 4,
               cursos_max_docente:
                 modalidad === ModalidadDocente.DEDICACION_EXCLUSIVA
-                  ? 9
+                  ? 8
                   : modalidad === ModalidadDocente.TIEMPO_COMPLETO_40
                     ? 8
-                    : 5,
+                    : modalidad === ModalidadDocente.TIEMPO_PARCIAL_20
+                      ? 5
+                      : modalidad === ModalidadDocente.TIEMPO_PARCIAL_12
+                        ? 4
+                        : modalidad === ModalidadDocente.TIEMPO_PARCIAL_10
+                          ? 3
+                          : 2,
             }),
           );
           paramsCount++;
         }
-      }
     }
   }
   console.log(`   ${paramsCount} parámetros de carga creados/actualizados`);

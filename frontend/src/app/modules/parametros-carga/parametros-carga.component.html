@@ -18,7 +18,7 @@
         }}
       </mat-card-title>
       <mat-card-subtitle>
-        Configure las horas mínimas y máximas según tipo, categoría y modalidad
+        Configure el rango de carga lectiva semanal y el máximo de cursos por perfil
       </mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
@@ -62,18 +62,18 @@
             <mat-icon matSuffix>schedule</mat-icon>
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>Horas Mín. Semanal</mat-label>
+              <mat-label>Horas Lectivas Mín. Semanal</mat-label>
             <input
               matInput
               type="number"
               formControlName="horas_min_semanal"
-              min="1"
+              min="0"
               max="40"
             />
-            <mat-hint>Por docente</mat-hint>
+              <mat-hint>0 si el perfil no tiene mínimo exigible</mat-hint>
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>Horas Máx. Semanal</mat-label>
+              <mat-label>Horas Lectivas Máx. Semanal</mat-label>
             <input
               matInput
               type="number"
@@ -81,17 +81,7 @@
               min="1"
               max="80"
             />
-            <mat-hint>Por docente</mat-hint>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Cursos Mín. por Docente</mat-label>
-            <input
-              matInput
-              type="number"
-              formControlName="cursos_min_docente"
-              min="0"
-              max="20"
-            />
+              <mat-hint>Límite de carga lectiva del período</mat-hint>
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>Cursos Máx. por Docente</mat-label>
@@ -196,16 +186,14 @@
       </mat-card-header>
       <mat-card-content class="param-content">
         <div class="param-stat">
-          <span class="param-label">Horas Semanal</span>
+          <span class="param-label">Carga lectiva semanal</span>
           <span class="param-value"
             >{{ p.horas_min_semanal }} – {{ p.horas_max_semanal }} h</span
           >
         </div>
         <div class="param-stat">
-          <span class="param-label">Cursos</span>
-          <span class="param-value"
-            >{{ p.cursos_min_docente }} – {{ p.cursos_max_docente }}</span
-          >
+          <span class="param-label">Máx. cursos</span>
+          <span class="param-value">{{ p.cursos_max_docente }}</span>
         </div>
       </mat-card-content>
       <mat-card-actions align="end">

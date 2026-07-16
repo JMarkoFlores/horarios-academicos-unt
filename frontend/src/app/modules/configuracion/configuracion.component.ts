@@ -240,7 +240,6 @@ export class ConfiguracionComponent implements OnInit {
       { campo: 'categoria', orden: 'DESC' }, // Principal > Asociado > Auxiliar
       { campo: 'modalidad', orden: 'DESC' }, // Dedicación Exclusiva > Tiempo Completo > Tiempo Parcial
       { campo: 'fecha_ingreso', orden: 'ASC' }, // Fecha más antigua
-      { campo: 'horas_asignadas', orden: 'ASC' }, // Menos horas asignadas primero
       { campo: 'codigo', orden: 'ASC' }, // Código del docente
       { campo: 'apellidos', orden: 'ASC' }, // Apellidos
     ];
@@ -533,19 +532,6 @@ export class ConfiguracionComponent implements OnInit {
           );
         },
       });
-  }
-
-  onPeriodoChange(): void {
-    this.cargarRestricciones();
-    this.cargarDiasNoLaborables();
-    this.cargarPeriodoActual();
-    // Recargar valores del formulario después de cambiar de período
-    setTimeout(() => {
-      const tipoActual = this.restriccionForm.get('tipo_restriccion')?.value;
-      if (tipoActual) {
-        this.actualizarFormSegunTipo(tipoActual);
-      }
-    }, 500);
   }
 
   // ─── TURNOS ───────────────────────────────────────────────────────────────────────

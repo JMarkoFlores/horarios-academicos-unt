@@ -130,6 +130,21 @@ export class DocentesController {
     return { data: result, message: "Docentes para exportar" };
   }
 
+  @Get("ultimo-codigo")
+  @Roles(
+    RolUsuario.ADMINISTRADOR_SISTEMA,
+    RolUsuario.COORDINADOR_ACADEMICO,
+    RolUsuario.DIRECTOR_ESCUELA,
+    RolUsuario.DIRECTOR_DEPARTAMENTO,
+    RolUsuario.DECANO,
+    RolUsuario.SECRETARIA,
+  )
+  @ApiOperation({ summary: "Obtener el último código de docente y el siguiente disponible" })
+  async getUltimoCodigo() {
+    const result = await this.docentesService.getUltimoCodigo();
+    return { data: result, message: "Códigos obtenidos correctamente" };
+  }
+
   @Get("carga-desequilibrada")
   @Roles(
     RolUsuario.ADMINISTRADOR_SISTEMA,

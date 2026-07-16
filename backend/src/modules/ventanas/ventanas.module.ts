@@ -10,7 +10,6 @@ import { DiaNoLaborable } from "../../entities/dia-no-laborable.entity";
 import { Docente } from "../../entities/docente.entity";
 import { Grupo } from "../../entities/grupo.entity";
 import { HorarioAsignado } from "../../entities/horario-asignado.entity";
-import { ParametrosCarga } from "../../entities/parametros-carga.entity";
 import { PeriodoAcademico } from "../../entities/periodo-academico.entity";
 import { ReglasPrioridadGlobales } from "../../entities/reglas-prioridad.entity";
 import { VentanaAtencion } from "../../entities/ventana-atencion.entity";
@@ -41,7 +40,6 @@ import { SincronizacionRedisService } from "./sincronizacion-redis.service";
       AsignacionLectiva,
       Ambiente,
       Curso,
-      ParametrosCarga,
       CampañaVentanas,
       DiaNoLaborable,
       ReglasPrioridadGlobales,

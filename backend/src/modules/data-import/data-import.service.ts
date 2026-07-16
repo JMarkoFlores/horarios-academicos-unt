@@ -20,6 +20,9 @@ import { CursosService } from "../../cursos/cursos.service";
 import { AmbientesService } from "../../ambientes/ambientes.service";
 import { DocentesService } from "../../docentes/docentes.service";
 import { GruposService } from "../../grupos/grupos.service";
+import { CategoriaDocente } from "../../common/enums/categoria-docente.enum";
+import { TipoContrato } from "../../common/enums/tipo-contrato.enum";
+import { TipoDocente } from "../../common/enums/tipo-docente.enum";
 
 export type ImportSessionStatus =
   | "pending"
@@ -527,9 +530,18 @@ export class DataImportService {
             }
 
             case "docentes": {
+              const tipoDocente = row.data.tipo_docente as TipoDocente;
+              const categoria =
+                tipoDocente === TipoDocente.ORDINARIO
+                  ? row.data.categoria
+                  : CategoriaDocente.SIN_CATEGORIA;
+              const tipoContrato =
+                tipoDocente === TipoDocente.ORDINARIO
+                  ? TipoContrato.NOMBRADO
+                  : TipoContrato.CONTRATADO;
               const result = await queryRunner.manager.query(
-                `INSERT INTO docente (codigo, nombres, apellidos, email, telefono, tipo_docente, categoria, tipo_contrato, modalidad, fecha_ingreso, activo, horas_asignadas, dni, ibm, facultad_id, departamento_id, usuario_id, foto_url, firma_url, firebase_token)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                `INSERT INTO docente (codigo, nombres, apellidos, email, telefono, tipo_docente, categoria, tipo_contrato, modalidad, fecha_ingreso, activo, dni, ibm, facultad_id, departamento_id, usuario_id, foto_url, firma_url, firebase_token)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
                  ON CONFLICT (email) DO NOTHING
                  RETURNING email`,
                 [
@@ -538,13 +550,12 @@ export class DataImportService {
                   row.data.apellidos,
                   row.data.email,
                   row.data.telefono,
-                  row.data.tipo_docente,
-                  row.data.categoria,
-                  row.data.tipo_contrato,
+                  tipoDocente,
+                  categoria,
+                  tipoContrato,
                   row.data.modalidad,
                   row.data.fecha_ingreso,
                   row.data.activo,
-                  row.data.horas_asignadas,
                   row.data.dni,
                   row.data.ibm,
                   row.data.facultad_id,

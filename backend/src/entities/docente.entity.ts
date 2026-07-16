@@ -80,20 +80,8 @@ export class Docente {
   @Column({ default: true })
   activo: boolean;
 
-  @Column({ type: "smallint", default: 0, name: "horas_asignadas" })
-  horas_asignadas: number;
-
   @Column({ type: "smallint", default: 0, name: "horas_no_lectivas" })
   horas_no_lectivas: number;
-
-  @Column({ type: "smallint", default: 22, name: "horas_lectivas_max" })
-  horas_lectivas_max: number;
-
-  @Column({ type: "smallint", default: 16, name: "horas_lectivas_min" })
-  horas_lectivas_min: number;
-
-  @Column({ type: "smallint", default: 40, name: "horas_max_totales" })
-  horas_max_totales: number;
 
   @Column({ default: false, name: "suspension_vigente" })
   suspension_vigente: boolean;

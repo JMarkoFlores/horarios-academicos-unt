@@ -18,18 +18,6 @@ export interface DiaActivo {
   activo?: boolean;
 }
 
-export interface ParametroCarga {
-  id: number;
-  periodo_academico: string;
-  tipo_docente: string;
-  categoria: string;
-  modalidad: string;
-  horas_min_semanal: number;
-  horas_max_semanal: number;
-  cursos_min_docente: number;
-  cursos_max_docente: number;
-}
-
 export interface DisponibilidadDocenteResponse {
   docente: Pick<Docente, 'id' | 'nombres' | 'apellidos' | 'codigo'>;
   periodo: string;
@@ -115,11 +103,4 @@ export class DisponibilidadService {
     );
   }
 
-  obtenerParametrosCarga(periodo: string): Observable<ParametroCarga[]> {
-    return this.api
-      .get<ApiResponse<ParametroCarga[]>>('/configuracion/parametros-carga', {
-        periodo,
-      })
-      .pipe(map((response) => response?.data ?? []));
-  }
 }

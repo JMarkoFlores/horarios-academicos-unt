@@ -13,6 +13,7 @@ import {
   Curso,
 } from '../../core/interfaces/entities';
 import { AsignarHorarioDialogComponent } from './dialogs/asignar-horario-dialog/asignar-horario-dialog.component';
+import { ScheduleConfigService } from '../../core/services/schedule-config.service';
 
 @Component({
   selector: 'app-horarios',
@@ -22,7 +23,7 @@ import { AsignarHorarioDialogComponent } from './dialogs/asignar-horario-dialog/
 export class HorariosComponent implements OnInit, OnDestroy {
   dias: string[] = [];
   diasNum: number[] = [];
-  horas = Array.from({ length: 15 }, (_, i) => i + 7);
+  horas: number[] = [];
   loadingDias = true;
 
   // Tab 1 — Vista Docente
@@ -60,6 +61,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
   debugResult: any = null;
   loadingDebug = false;
   private periodSub?: Subscription;
+  private scheduleConfigSub?: Subscription;
 
   // Tab 3 — Vista por Ciclo
   ciclosDisponibles: number[] = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -126,28 +128,20 @@ export class HorariosComponent implements OnInit, OnDestroy {
     public periodoService: PeriodoService,
     private notif: NotifToastService,
     private dialog: MatDialog,
+    private scheduleConfigService: ScheduleConfigService,
   ) {}
 
   ngOnInit(): void {
-    this.cargarRestriccionesAlmuerzo();
-    
-    this.api.get<any>('/configuracion/dias-activos').subscribe({
-      next: (r: any) => {
-        const activos: {
-          dia_semana: number;
-          nombre: string;
-          activo: boolean;
-        }[] = (r?.data ?? []).filter((d: any) => d.activo);
-        activos.sort((a, b) => a.dia_semana - b.dia_semana);
-        this.dias = activos.map((d) => d.nombre);
-        this.diasNum = activos.map((d) => d.dia_semana);
-        this.loadingDias = false;
-      },
-      error: () => {
-        this.dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-        this.diasNum = [1, 2, 3, 4, 5];
-        this.loadingDias = false;
-      },
+    this.scheduleConfigService.cargar();
+    this.scheduleConfigSub = this.scheduleConfigService.config$.subscribe((config) => {
+      if (!config.loaded) return;
+      this.dias = config.diasNombres;
+      this.diasNum = config.diasNumeros;
+      this.horas = this.scheduleConfigService.getHoras();
+      this.horaInicioAlmuerzo = config.almuerzo.inicio;
+      this.horaFinAlmuerzo = config.almuerzo.fin;
+      this.restriccionesCargadas = true;
+      this.loadingDias = false;
     });
 
     this.api.get<any>('/docentes', { limit: 100 }).subscribe({
@@ -167,7 +161,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
       });
 
     this.periodSub = this.periodoService.periodo$.subscribe(() => {
-      this.cargarRestriccionesAlmuerzo();
+      this.scheduleConfigService.recargar();
       this.loadConflictos();
       if (this.docenteSeleccionado) {
         this.selectDocente(this.docenteSeleccionado);
@@ -185,6 +179,7 @@ export class HorariosComponent implements OnInit, OnDestroy {
     if (this.periodSub) {
       this.periodSub.unsubscribe();
     }
+    this.scheduleConfigSub?.unsubscribe();
   }
 
   cargarRestriccionesAlmuerzo(): void {

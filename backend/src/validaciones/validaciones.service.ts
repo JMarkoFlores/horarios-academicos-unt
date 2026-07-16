@@ -6,6 +6,7 @@ import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity
 import { TurnoHorario } from "../entities/turno-horario.entity";
 import { DiaActivo } from "../entities/dia-activo.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
 
 type ResultadoValidacion = {
   valido: boolean;
@@ -25,6 +26,8 @@ export class ValidacionesService {
     private readonly diaActivoRepo: Repository<DiaActivo>,
     @InjectRepository(PeriodoAcademico)
     private readonly periodoRepo: Repository<PeriodoAcademico>,
+    @InjectRepository(RestriccionInstitucional)
+    private readonly restriccionRepo: Repository<RestriccionInstitucional>,
   ) {}
 
   async verificarCruceDocente(
@@ -175,6 +178,7 @@ export class ValidacionesService {
     dia: number,
     horaInicio: string,
     horaFin: string,
+    periodo?: string,
   ): Promise<ResultadoValidacion> {
     if (this.aMinutos(horaInicio) >= this.aMinutos(horaFin)) {
       return {
@@ -196,24 +200,72 @@ export class ValidacionesService {
       };
     }
 
-    const turnoValido = await this.turnoHorarioRepo
+    const politica = periodo
+      ? await this.obtenerPoliticaPeriodo(periodo)
+      : null;
+
+    if (politica?.franja) {
+      if (
+        this.aMinutos(horaInicio) < this.aMinutos(politica.franja.hora_inicio) ||
+        this.aMinutos(horaFin) > this.aMinutos(politica.franja.hora_fin)
+      ) {
+        return {
+          valido: false,
+          motivo: "El bloque solicitado cae fuera de la franja configurada para el período.",
+        };
+      }
+    } else {
+      const turnoValido = await this.turnoHorarioRepo
       .createQueryBuilder("turno")
       .where("turno.activo = true")
       .andWhere("turno.hora_inicio <= CAST(:horaInicio AS TIME)", {
         horaInicio,
       })
       .andWhere("turno.hora_fin >= CAST(:horaFin AS TIME)", { horaFin })
-      .getCount();
+        .getCount();
 
-    if (turnoValido === 0) {
+      if (turnoValido === 0) {
+        return {
+          valido: false,
+          motivo:
+            "El bloque solicitado cae fuera de la franja institucional activa.",
+        };
+      }
+    }
+
+    if (
+      politica?.almuerzo &&
+      this.aMinutos(horaInicio) < this.aMinutos(politica.almuerzo.hora_fin) &&
+      this.aMinutos(horaFin) > this.aMinutos(politica.almuerzo.hora_inicio)
+    ) {
       return {
         valido: false,
-        motivo:
-          "El bloque solicitado cae fuera de la franja institucional activa.",
+        motivo: "El bloque solicitado se superpone con la franja de almuerzo configurada.",
       };
     }
 
     return { valido: true };
+  }
+
+  private async obtenerPoliticaPeriodo(periodo: string): Promise<{
+    franja?: { hora_inicio: string; hora_fin: string };
+    almuerzo?: { hora_inicio: string; hora_fin: string };
+  }> {
+    const restricciones = await this.restriccionRepo.find({
+      where: { periodo_academico: periodo, activo: true },
+    });
+    const leerRango = (tipo: string) => {
+      const valor = restricciones.find((r) => r.tipo_restriccion === tipo)?.valor;
+      if (!valor || typeof valor !== "object") return undefined;
+      const rango = valor as Record<string, unknown>;
+      const hora_inicio = String(rango.hora_inicio ?? "");
+      const hora_fin = String(rango.hora_fin ?? "");
+      return hora_inicio && hora_fin ? { hora_inicio, hora_fin } : undefined;
+    };
+    return {
+      franja: leerRango("FRANJA_HORARIA"),
+      almuerzo: leerRango("BLOQUE_ALMUERZO"),
+    };
   }
 
   private async verificarCruce(

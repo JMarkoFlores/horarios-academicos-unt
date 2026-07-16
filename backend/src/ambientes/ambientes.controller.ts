@@ -12,6 +12,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -200,9 +201,12 @@ export class AmbientesController {
     @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query("limit", new DefaultValuePipe(200), ParseIntPipe) limit: number,
   ) {
+    if (!periodo?.trim()) {
+      throw new BadRequestException("El período es obligatorio para consultar disponibilidad");
+    }
     const result = await this.ambientesService.getDisponibilidad(
       id,
-      periodo ?? "",
+      periodo,
       page,
       limit,
     );

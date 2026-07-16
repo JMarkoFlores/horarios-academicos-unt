@@ -10,6 +10,7 @@ import { DiasActivosService, DiaActivo } from '../../../core/services/dias-activ
 import { ScheduleConfigService } from '../../../core/services/schedule-config.service';
 import { ContextoAcademicoHelper } from '../../../core/services/contexto-academico.helper';
 import { ApiResponse } from '../../../core/interfaces/entities';
+import { ASSISTANT_AVATAR_URL } from '../../../core/constants/assistant-avatar';
 
 /* ------------------------------------------------------------------ */
 /*  Interfaces                                                        */
@@ -117,6 +118,7 @@ type FiltroProgramacion =
   styleUrls: ['./carga-lectiva.component.scss'],
 })
 export class CargaLectivaComponent implements OnInit, OnDestroy {
+  readonly assistantAvatarUrl = ASSISTANT_AVATAR_URL;
   private destroy$ = new Subject<void>();
 
   /* ---- Estado ---- */

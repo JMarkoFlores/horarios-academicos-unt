@@ -1,21 +1,23 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef, HostListener, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, ChangeDetectorRef, HostListener, OnDestroy } from '@angular/core';
 import { ChatbotService, ChatMessage } from './chatbot.service';
 import DOMPurify from 'dompurify';
 import { catchError, retry } from 'rxjs/operators';
 import { of, Subject } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { takeUntil } from 'rxjs/operators';
+import { ASSISTANT_AVATAR_URL } from '../../core/constants/assistant-avatar';
 
 @Component({
   selector: 'app-chatbot',
   templateUrl: './chatbot.component.html',
   styleUrls: ['./chatbot.component.scss']
 })
-export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
+export class ChatbotComponent implements OnInit, OnDestroy {
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
   // Estado
   isVisible = true;
+  readonly assistantAvatarUrl = ASSISTANT_AVATAR_URL;
   isOpen = false;
   isLoading = false;
   userInput = '';
@@ -190,10 +192,6 @@ export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
     });
   }
 
-  ngAfterViewChecked(): void {
-    this.scrollToBottom();
-  }
-
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -261,6 +259,7 @@ export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.lastToolResult = null;
     this.saveHistory();
     this.cdr.detectChanges();
+    this.scheduleScrollToBottom();
 
     const userRole = this.authService.getUsuarioActual()?.rol || 'default';
     const normalizedRole = this.normalizeRole(userRole);
@@ -296,6 +295,7 @@ export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
             console.log('[Chatbot] History length:', this.history.length);
             this.saveHistory();
             this.cdr.detectChanges();
+            this.scheduleScrollToBottom(true);
             console.log('[Chatbot] detectChanges done');
 
             if (this.ttsEnabled) {
@@ -314,6 +314,7 @@ export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
             this.history.push(errorMsg);
             this.saveHistory();
             this.cdr.detectChanges();
+            this.scheduleScrollToBottom(true);
           });
         }
       });
@@ -465,9 +466,16 @@ export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
     return `${msg?.role ?? 'unknown'}-${index}-${text.slice(0, 20)}`;
   }
 
-  private scrollToBottom(): void {
+  private scheduleScrollToBottom(smooth = false): void {
+    setTimeout(() => this.scrollToBottom(smooth));
+  }
+
+  private scrollToBottom(smooth = false): void {
     if (this.scrollContainer) {
-      this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+      this.scrollContainer.nativeElement.scrollTo({
+        top: this.scrollContainer.nativeElement.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto',
+      });
     }
   }
 }

@@ -1,67 +1,52 @@
 <div class="dialog-header">
-  <div class="header-title">
-    <mat-icon>calendar_month</mat-icon>
+  <div class="dialog-title-block">
+    <div class="title-avatar"><mat-icon>meeting_room</mat-icon></div>
     <div>
-      <h2>Disponibilidad – {{ ambiente.nombre }}</h2>
-      <span class="periodo-label">Período {{ periodoService.periodo }}</span>
+      <h2 mat-dialog-title class="dialog-title">{{ ambiente.nombre }}</h2>
+      <p class="dialog-subtitle">
+        <span class="chip-periodo">{{ periodoSeleccionado }}</span>
+        <span class="chip-stat"><mat-icon>schedule</mat-icon>{{ totalHoras }}h ocupadas</span>
+        <span class="chip-stat"><mat-icon>view_week</mat-icon>{{ totalBloques }} bloques</span>
+        <span class="chip-stat"><mat-icon>calendar_today</mat-icon>{{ diasOcupados }} días</span>
+      </p>
     </div>
   </div>
-  <button mat-icon-button class="close-btn" (click)="cerrar()">
-    <mat-icon>close</mat-icon>
-  </button>
+  <button mat-icon-button (click)="cerrar()" class="close-btn" aria-label="Cerrar disponibilidad"><mat-icon>close</mat-icon></button>
 </div>
 
-<mat-dialog-content>
-  <div class="stats-row">
-    <div class="stat-chip">
-      <mat-icon>schedule</mat-icon>
-      <span><strong>{{ totalHoras }}</strong> horas ocupadas</span>
-    </div>
-    <div class="stat-chip">
-      <span class="dot teoria"></span>
-      <span>Teoría</span>
-    </div>
-    <div class="stat-chip">
-      <span class="dot lab"></span>
-      <span>Laboratorio</span>
-    </div>
+<mat-dialog-content class="dialog-content">
+  <div class="period-selector-row">
+    <mat-form-field appearance="outline">
+      <mat-label>Período a consultar</mat-label>
+      <mat-select [value]="periodoSeleccionado" (selectionChange)="onPeriodoChange($event.value)">
+        <mat-option *ngFor="let periodo of periodoService.periodos" [value]="periodo.codigo">{{ periodo.nombre || periodo.codigo }}</mat-option>
+      </mat-select>
+      <mat-icon matSuffix>calendar_month</mat-icon>
+    </mat-form-field>
+    <span class="global-period-note" *ngIf="periodoSeleccionado !== periodoService.periodo">Consulta histórica</span>
   </div>
 
-  <div *ngIf="loading" class="spinner-center">
-    <mat-spinner diameter="36"></mat-spinner>
-  </div>
+  <div *ngIf="loading" class="spinner-center"><mat-spinner diameter="36"></mat-spinner><span>Cargando disponibilidad...</span></div>
+  <div *ngIf="!loading && ocupados.length === 0" class="empty-state"><div class="empty-icon-wrap"><mat-icon>event_available</mat-icon></div><h3>Ambiente disponible</h3><p>No hay horarios registrados para este ambiente en el período <strong>{{ periodoSeleccionado }}</strong>.</p></div>
 
-  <div class="grid-wrapper" *ngIf="!loading">
-    <table class="schedule-grid">
-      <thead>
-        <tr>
-          <th class="hora-header">Hora</th>
-          <th *ngFor="let d of dias">{{ d }}</th>
-        </tr>
-      </thead>
+  <div *ngIf="!loading && ocupados.length > 0" class="grid-wrapper">
+    <table class="horario-grid">
+      <thead><tr><th class="hora-col">Hora</th><th *ngFor="let d of dias">{{ d }}</th></tr></thead>
       <tbody>
-        <tr *ngFor="let h of horas">
-          <td class="hora-cell">{{ fmtH(h) }}</td>
-          <td
-            *ngFor="let dia of diasNum"
-            [class]="cls(dia, h)"
-            [matTooltip]="getSlot(dia, h)?.curso || ''"
-            [matTooltipDisabled]="!getSlot(dia, h)?.curso"
-          >
-            <ng-container *ngIf="getSlot(dia, h) as slot">
-              <div class="slot-info">
-                <mat-icon class="slot-icon">check_circle</mat-icon>
-                <span class="slot-curso">{{ slot.curso }}</span>
-                <span class="slot-docente" *ngIf="slot.docente">{{ slot.docente }}</span>
-              </div>
+        <tr *ngFor="let hora of horas">
+          <td class="hora-cell"><span class="hora-texto">{{ fmtH(hora) }}</span></td>
+          <ng-container *ngFor="let dia of diasNum">
+            <ng-container *ngIf="getCell(dia, hora) as cell">
+              <td *ngIf="!cell.skip" class="celda" [class.celda-ocupado]="!!cell.slot" [class.celda-lab]="cell.slot?.tipo_clase === 'LABORATORIO'" [class.celda-vacia]="!cell.slot" [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null" [matTooltip]="cell.slot?.curso || ''">
+                <div *ngIf="cell.slot as slot" class="celda-content"><span class="tipo-badge">[{{ slot.tipo_clase === 'LABORATORIO' ? 'LAB' : slot.tipo_clase === 'PRACTICA' ? 'PRA' : 'TEO' }}]</span><div class="curso-nombre">{{ slot.curso || 'Horario ocupado' }}</div><div class="celda-meta"><span>{{ slot.docente || '—' }}</span><span>{{ slot.hora_inicio }}–{{ slot.hora_fin }}</span></div></div>
+              </td>
             </ng-container>
-          </td>
+          </ng-container>
         </tr>
       </tbody>
     </table>
   </div>
-</mat-dialog-content>
 
-<mat-dialog-actions align="end">
-  <button mat-stroked-button (click)="cerrar()">Cerrar</button>
-</mat-dialog-actions>
+  <div *ngIf="!loading && ocupados.length > 0" class="legend-container"><span class="legend-item"><span class="dot teoria"></span>Teoría / práctica</span><span class="legend-item"><span class="dot lab"></span>Laboratorio</span><span class="legend-item"><span class="dot libre"></span>Disponible</span></div>
+</mat-dialog-content>
+<mat-dialog-actions align="end" class="dialog-actions"><button mat-button (click)="cerrar()"><mat-icon>close</mat-icon> Cerrar</button></mat-dialog-actions>

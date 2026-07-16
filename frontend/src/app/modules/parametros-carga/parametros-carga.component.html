@@ -1,220 +1,74 @@
 <div class="parametros-page animate-fadein">
-  <div class="page-header-premium">
+  <header class="page-header-premium">
     <div class="title-section">
+      <div class="section-eyebrow"><mat-icon>balance</mat-icon> Política de carga lectiva</div>
       <h1 class="gradient-text">Parámetros de Carga</h1>
-      <p class="subtitle">
-        Período: <strong>{{ periodoService.periodo }}</strong>
-      </p>
+      <p class="subtitle">Define los límites que se aplican a cada perfil docente durante el período.</p>
     </div>
-  </div>
+    <div class="period-context"><mat-icon>calendar_month</mat-icon><div><span>Período activo</span><strong>{{ periodoService.periodo }}</strong></div></div>
+  </header>
 
-  <!-- Formulario -->
-  <mat-card class="premium-form-card parametros-form-card">
-    <mat-card-header>
-      <mat-icon mat-card-avatar class="form-icon">tune</mat-icon>
-      <mat-card-title>
-        {{
-          editingParametroId ? "Editar Parámetro" : "Nuevo Parámetro de Carga"
-        }}
-      </mat-card-title>
-      <mat-card-subtitle>
-        Configure el rango de carga lectiva semanal y el máximo de cursos por perfil
-      </mat-card-subtitle>
-    </mat-card-header>
-    <mat-card-content>
-      <form [formGroup]="parametrosForm" class="parametros-form">
-        <div class="form-row-two">
-          <mat-form-field appearance="outline">
-            <mat-label>Condición</mat-label>
-            <mat-select
-              formControlName="tipo_docente"
-              (selectionChange)="onTipoDocenteChange($event.value)"
-            >
-              <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{
-                t.label
-              }}</mat-option>
-            </mat-select>
-            <mat-icon matSuffix>badge</mat-icon>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Categoría</mat-label>
-            <mat-select
-              formControlName="categoria"
-              (selectionChange)="onCategoriaChange($event.value)"
-            >
-              <mat-option
-                *ngFor="let c of categoriasDisponibles"
-                [value]="c.value"
-                >{{ c.label }}</mat-option
-              >
-            </mat-select>
-            <mat-icon matSuffix>workspace_premium</mat-icon>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Modalidad</mat-label>
-            <mat-select formControlName="modalidad">
-              <mat-option
-                *ngFor="let m of modalidadesDisponibles"
-                [value]="m.value"
-                >{{ m.label }}</mat-option
-              >
-            </mat-select>
-            <mat-icon matSuffix>schedule</mat-icon>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-              <mat-label>Horas Lectivas Mín. Semanal</mat-label>
-            <input
-              matInput
-              type="number"
-              formControlName="horas_min_semanal"
-              min="0"
-              max="40"
-            />
-              <mat-hint>0 si el perfil no tiene mínimo exigible</mat-hint>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-              <mat-label>Horas Lectivas Máx. Semanal</mat-label>
-            <input
-              matInput
-              type="number"
-              formControlName="horas_max_semanal"
-              min="1"
-              max="80"
-            />
-              <mat-hint>Límite de carga lectiva del período</mat-hint>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Cursos Máx. por Docente</mat-label>
-            <input
-              matInput
-              type="number"
-              formControlName="cursos_max_docente"
-              min="1"
-              max="20"
-            />
-          </mat-form-field>
+  <section class="stats-row" aria-label="Resumen de parámetros">
+    <article class="stat-card stat-total"><span class="stat-value">{{ parametrosList.length }}</span><span class="stat-label">Perfiles configurados</span><mat-icon>tune</mat-icon></article>
+    <article class="stat-card stat-ordinarios"><span class="stat-value">{{ contarPorTipo('ORDINARIO') }}</span><span class="stat-label">Docentes nombrados</span><mat-icon>school</mat-icon></article>
+    <article class="stat-card stat-contratados"><span class="stat-value">{{ contarPorTipo('CONTRATADO') }}</span><span class="stat-label">Docentes contratados</span><mat-icon>person_outline</mat-icon></article>
+    <article class="stat-card stat-minimos"><span class="stat-value">{{ parametrosConMinimo() }}</span><span class="stat-label">Con mínimo exigible</span><mat-icon>rule</mat-icon></article>
+  </section>
+
+  <section class="configuration-layout">
+    <mat-card class="premium-form-card parametros-form-card" id="formulario-parametro">
+      <div class="form-card-heading"><div class="heading-icon"><mat-icon>{{ editingParametroId ? 'edit_note' : 'add_task' }}</mat-icon></div><div><h2>{{ editingParametroId ? 'Editar perfil' : 'Nuevo perfil de carga' }}</h2><p>Una configuración por condición, categoría y modalidad.</p></div></div>
+      <form [formGroup]="parametrosForm" class="parametros-form" (ngSubmit)="guardarParametrosCarga()">
+        <div class="form-grid">
+          <mat-form-field appearance="outline"><mat-label>Condición docente</mat-label><mat-select formControlName="tipo_docente" (selectionChange)="onTipoDocenteChange($event.value)"><mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{ t.label }}</mat-option></mat-select><mat-icon matSuffix>badge</mat-icon></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>Categoría</mat-label><mat-select formControlName="categoria" (selectionChange)="onCategoriaChange($event.value)"><mat-option *ngFor="let c of categoriasDisponibles" [value]="c.value">{{ c.label }}</mat-option></mat-select><mat-icon matSuffix>workspace_premium</mat-icon></mat-form-field>
+          <mat-form-field appearance="outline" class="full-span"><mat-label>Modalidad</mat-label><mat-select formControlName="modalidad"><mat-option *ngFor="let m of modalidadesDisponibles" [value]="m.value">{{ m.label }}</mat-option></mat-select><mat-icon matSuffix>schedule</mat-icon></mat-form-field>
         </div>
-        <div class="form-actions">
-          <button
-            mat-stroked-button
-            *ngIf="editingParametroId"
-            (click)="cancelarEdicionParametro()"
-            type="button"
-          >
-            <mat-icon>cancel</mat-icon> Cancelar
-          </button>
-          <button
-            mat-raised-button
-            color="primary"
-            (click)="guardarParametrosCarga()"
-            [disabled]="parametrosForm.invalid || guardandoParametros"
-          >
-            <mat-icon>{{ editingParametroId ? "save" : "add" }}</mat-icon>
-            {{
-              guardandoParametros
-                ? "Guardando..."
-                : editingParametroId
-                  ? "Actualizar"
-                  : "Agregar Parámetro"
-            }}
-          </button>
+        <div class="limit-section">
+          <div class="limit-section-title"><mat-icon>schedule</mat-icon><span>Carga lectiva semanal</span></div>
+          <div class="limits-grid">
+            <mat-form-field appearance="outline"><mat-label>Mínimo</mat-label><input matInput type="number" formControlName="horas_min_semanal" min="0" max="40" /><span matTextSuffix>h</span><mat-hint>0 si no aplica</mat-hint></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Máximo</mat-label><input matInput type="number" formControlName="horas_max_semanal" min="1" max="80" /><span matTextSuffix>h</span><mat-hint>Límite del perfil</mat-hint></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>Máximo de cursos</mat-label><input matInput type="number" formControlName="cursos_max_docente" min="1" max="20" /><mat-hint>En el período</mat-hint></mat-form-field>
+          </div>
         </div>
+        <div class="form-actions"><button mat-button *ngIf="editingParametroId" (click)="cancelarEdicionParametro()" type="button">Cancelar</button><button mat-raised-button class="save-button" type="submit" [disabled]="parametrosForm.invalid || guardandoParametros"><mat-icon>{{ guardandoParametros ? 'sync' : editingParametroId ? 'save' : 'add' }}</mat-icon>{{ guardandoParametros ? 'Guardando...' : editingParametroId ? 'Guardar cambios' : 'Agregar perfil' }}</button></div>
       </form>
-    </mat-card-content>
-  </mat-card>
-
-  <!-- Lista de parámetros registrados -->
-  <div class="section-title-row" style="margin-top: 24px; margin-bottom: 12px">
-    <mat-icon>list_alt</mat-icon>
-    <h3 style="margin: 0 0 0 8px">Parámetros Registrados</h3>
-  </div>
-
-  <!-- Filters -->
-  <div class="filtros-container" style="margin-bottom: 16px;">
-    <mat-form-field appearance="outline" style="min-width: 200px;">
-      <mat-label>Filtrar por Condición</mat-label>
-      <mat-select [(ngModel)]="filtrosParametros.tipo_docente" (selectionChange)="onFiltroChange()">
-        <mat-option value="">Todos</mat-option>
-        <mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{ t.label }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" style="min-width: 200px;">
-      <mat-label>Filtrar por Categoría</mat-label>
-      <mat-select [(ngModel)]="filtrosParametros.categoria" (selectionChange)="onFiltroChange()">
-        <mat-option value="">Todas</mat-option>
-        <mat-option *ngFor="let c of categoriasPorTipo['ORDINARIO']" [value]="c.value">{{ c.label }}</mat-option>
-        <mat-option value="SIN_CATEGORIA">Sin categoría</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" style="min-width: 200px;">
-      <mat-label>Filtrar por Modalidad</mat-label>
-      <mat-select [(ngModel)]="filtrosParametros.modalidad" (selectionChange)="onFiltroChange()">
-        <mat-option value="">Todas</mat-option>
-        <mat-option *ngFor="let m of modalidades" [value]="m.value">{{ m.label }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-  </div>
-
-  <div *ngIf="loadingParametros" class="loading-state">
-    <mat-spinner diameter="36"></mat-spinner>
-  </div>
-
-  <div
-    *ngIf="!loadingParametros && parametrosFiltrados.length === 0"
-    class="empty-state-inline"
-  >
-    <mat-icon>info_outline</mat-icon>
-    <span>No hay parámetros que coincidan con los filtros.</span>
-  </div>
-
-  <div
-    class="parametros-cards-grid"
-    *ngIf="!loadingParametros && parametrosFiltrados.length > 0"
-  >
-    <mat-card class="parametro-card" *ngFor="let p of parametrosFiltrados">
-      <mat-card-header>
-        <mat-icon mat-card-avatar class="param-icon">person</mat-icon>
-        <mat-card-title>
-          <span class="badge-pill badge-tipo">{{
-            getTipoDocenteLabel(p.tipo_docente)
-          }}</span>
-          <span class="tc-badge">{{ getCategoriaLabel(p.categoria) }}</span>
-          <span class="mod-badge">{{ getModalidadLabel(p.modalidad) }}</span>
-        </mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="param-content">
-        <div class="param-stat">
-          <span class="param-label">Carga lectiva semanal</span>
-          <span class="param-value"
-            >{{ p.horas_min_semanal }} – {{ p.horas_max_semanal }} h</span
-          >
-        </div>
-        <div class="param-stat">
-          <span class="param-label">Máx. cursos</span>
-          <span class="param-value">{{ p.cursos_max_docente }}</span>
-        </div>
-      </mat-card-content>
-      <mat-card-actions align="end">
-        <button
-          mat-icon-button
-          color="primary"
-          matTooltip="Editar"
-          (click)="editarParametro(p)"
-        >
-          <mat-icon>edit</mat-icon>
-        </button>
-        <button
-          mat-icon-button
-          color="warn"
-          matTooltip="Eliminar"
-          (click)="eliminarParametro(p.id)"
-          [disabled]="eliminandoParametroId === p.id"
-        >
-          <mat-icon>delete</mat-icon>
-        </button>
-      </mat-card-actions>
     </mat-card>
-  </div>
+    <aside class="policy-note"><mat-icon>lightbulb</mat-icon><h3>Cómo se aplican</h3><p>Los límites se resuelven por período y perfil exacto. No se usan valores genéricos ni límites de otro perfil.</p><div class="policy-rule"><mat-icon>check</mat-icon>La asignación no supera el máximo configurado.</div><div class="policy-rule"><mat-icon>check</mat-icon>El mínimo se muestra como carga pendiente de completar.</div></aside>
+  </section>
+
+  <section class="registry-section">
+    <div class="registry-heading"><div><div class="section-eyebrow">Configuración vigente</div><h2>Perfiles registrados</h2><p>{{ parametrosFiltrados.length }} de {{ parametrosList.length }} perfiles visibles</p></div><button mat-stroked-button class="new-profile-button" type="button" (click)="nuevoParametro()"><mat-icon>add</mat-icon> Nuevo perfil</button></div>
+    <div class="filters-panel">
+      <mat-icon>filter_list</mat-icon>
+      <mat-form-field appearance="outline"><mat-label>Condición</mat-label><mat-select [(ngModel)]="filtrosParametros.tipo_docente" (selectionChange)="onFiltroChange()"><mat-option value="">Todas</mat-option><mat-option *ngFor="let t of tiposDocente" [value]="t.value">{{ t.label }}</mat-option></mat-select></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Categoría</mat-label><mat-select [(ngModel)]="filtrosParametros.categoria" (selectionChange)="onFiltroChange()"><mat-option value="">Todas</mat-option><mat-option *ngFor="let c of categoriasPorTipo['ORDINARIO']" [value]="c.value">{{ c.label }}</mat-option><mat-option value="SIN_CATEGORIA">Sin categoría</mat-option></mat-select></mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>Modalidad</mat-label><mat-select [(ngModel)]="filtrosParametros.modalidad" (selectionChange)="onFiltroChange()"><mat-option value="">Todas</mat-option><mat-option *ngFor="let m of modalidades" [value]="m.value">{{ m.label }}</mat-option></mat-select></mat-form-field>
+      <button mat-button type="button" class="clear-filters" *ngIf="tieneFiltrosActivos()" (click)="limpiarFiltros()">Limpiar</button>
+    </div>
+
+    <div *ngIf="loadingParametros" class="loading-state"><mat-spinner diameter="38"></mat-spinner><span>Cargando perfiles...</span></div>
+    <div class="profiles-list" *ngIf="!loadingParametros && parametrosFiltrados.length > 0">
+      <div class="profiles-list-header"><span>Perfil docente</span><span>Modalidad</span><span>Carga lectiva semanal</span><span>Máx. cursos</span><span></span></div>
+      <article class="profile-row" *ngFor="let p of parametrosPaginados; let i = index" [style.animation-delay]="i * 30 + 'ms'">
+        <div class="profile-identity"><div class="profile-icon"><mat-icon>person</mat-icon></div><div><span class="badge badge-tipo">{{ getTipoDocenteLabel(p.tipo_docente) }}</span><span class="badge badge-categoria">{{ getCategoriaLabel(p.categoria) }}</span></div></div>
+        <div class="profile-modality">{{ getModalidadLabel(p.modalidad) }}</div>
+        <div class="profile-range"><strong>{{ p.horas_min_semanal }}<small>h</small><i>-</i>{{ p.horas_max_semanal }}<small>h</small></strong><div class="range-track"><span [style.width]="porcentajeRango(p) + '%'"></span></div></div>
+        <div class="profile-courses"><mat-icon>menu_book</mat-icon><strong>{{ p.cursos_max_docente }}</strong></div>
+        <div class="row-actions"><button mat-icon-button (click)="editarParametro(p)" matTooltip="Editar perfil" aria-label="Editar perfil"><mat-icon>edit</mat-icon></button><button mat-icon-button (click)="eliminarParametro(p.id)" [disabled]="eliminandoParametroId === p.id" matTooltip="Eliminar perfil" aria-label="Eliminar perfil"><mat-icon>delete</mat-icon></button></div>
+      </article>
+    </div>
+    <mat-paginator
+      *ngIf="!loadingParametros && parametrosFiltrados.length > 0"
+      [length]="parametrosFiltrados.length"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="pageSizeOptions"
+      [pageIndex]="currentPage"
+      (page)="onPageChange($event)"
+      showFirstLastButtons
+      class="profiles-paginator"
+    ></mat-paginator>
+    <div *ngIf="!loadingParametros && parametrosFiltrados.length === 0" class="empty-state-premium"><div class="empty-illustration"><mat-icon>tune</mat-icon></div><h3>{{ parametrosList.length ? 'No hay perfiles con estos filtros' : 'Aún no hay perfiles configurados' }}</h3><p>{{ parametrosList.length ? 'Prueba con otros filtros o restablécelos para ver todos los perfiles.' : 'Crea el primer perfil para aplicar límites de carga lectiva al período.' }}</p><button mat-raised-button class="save-button" type="button" (click)="nuevoParametro()"><mat-icon>add</mat-icon> Crear perfil</button></div>
+  </section>
 </div>

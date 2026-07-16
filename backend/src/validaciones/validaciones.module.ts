@@ -5,6 +5,7 @@ import { DisponibilidadDocente } from "../entities/disponibilidad-docente.entity
 import { TurnoHorario } from "../entities/turno-horario.entity";
 import { DiaActivo } from "../entities/dia-activo.entity";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { RestriccionInstitucional } from "../entities/restriccion-institucional.entity";
 import { ValidacionesService } from "./validaciones.service";
 
 @Global()
@@ -16,6 +17,7 @@ import { ValidacionesService } from "./validaciones.service";
       TurnoHorario,
       DiaActivo,
       PeriodoAcademico,
+      RestriccionInstitucional,
     ]),
   ],
   providers: [ValidacionesService],

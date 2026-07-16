@@ -28,6 +28,7 @@ import { ApiService } from '../core/services/api.service';
 import { SocketService } from '../core/services/socket.service';
 import { RegistrarUsuarioDialogComponent } from './dialogs/registrar-usuario-dialog/registrar-usuario-dialog.component';
 import { ThemeService } from '../core/services/theme.service';
+import { ASSISTANT_AVATAR_URL } from '../core/constants/assistant-avatar';
 
 import { fromEvent } from 'rxjs';
 
@@ -65,6 +66,7 @@ interface NavGroup {
   ],
 })
 export class LayoutComponent implements OnInit {
+  readonly assistantAvatarUrl = ASSISTANT_AVATAR_URL;
   @ViewChild('sidenav') sidenav!: MatSidenav;
   isMobile = signal(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   sidebarCollapsed = signal(false);

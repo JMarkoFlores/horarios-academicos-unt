@@ -7,7 +7,7 @@
     *ngIf="!isOpen" 
     matTooltip="Asistente IA"
     aria-label="Abrir asistente IA">
-    <mat-icon class="fab-icon">smart_toy</mat-icon>
+    <img class="assistant-avatar-image fab-avatar" [src]="assistantAvatarUrl" alt="" />
     <div class="fab-pulse"></div>
   </button>
 
@@ -18,7 +18,7 @@
     <header class="chat-header">
       <div class="header-left">
         <div class="avatar-ring">
-          <mat-icon class="bot-avatar">smart_toy</mat-icon>
+          <img class="assistant-avatar-image header-avatar" [src]="assistantAvatarUrl" alt="Asistente IA" />
           <span class="status-indicator" [class.online]="isOnline"></span>
         </div>
         <div class="header-info">
@@ -45,42 +45,28 @@
       </div>
     </header>
 
-    <!-- Quick Actions (cuando no hay historial) -->
-    <div class="quick-actions" *ngIf="history.length === 0 && !isLoading">
-      <span class="actions-label">Acciones rápidas</span>
-      <div class="actions-grid">
-        <button mat-button class="action-btn" (click)="useSuggestion('¿Qué aulas están libres el lunes de 14:00 a 16:00?')" [disabled]="isLoading">
-          <mat-icon>meeting_room</mat-icon>
-          <span>Aulas libres</span>
-        </button>
-        <button mat-button class="action-btn" (click)="useSuggestion('¿Cómo declaro mi carga lectiva?')" [disabled]="isLoading">
-          <mat-icon>assignment</mat-icon>
-          <span>Declarar carga</span>
-        </button>
-        <button mat-button class="action-btn" (click)="useSuggestion('¿Cuál es mi horario de este semestre?')" [disabled]="isLoading">
-          <mat-icon>schedule</mat-icon>
-          <span>Mi horario</span>
-        </button>
-        <button mat-button class="action-btn" (click)="useSuggestion('Necesito sugerencias de horario para un curso')" [disabled]="isLoading">
-          <mat-icon>auto_awesome</mat-icon>
-          <span>Sugerencias IA</span>
-        </button>
-      </div>
-    </div>
-
     <!-- Mensajes -->
     <div class="chat-messages" #scrollContainer role="log" aria-live="polite" aria-atomic="false">
       <!-- Welcome State -->
       <div class="welcome-state" *ngIf="history.length === 0 && !isLoading">
         <div class="welcome-card">
           <div class="welcome-avatar">
-            <mat-icon>smart_toy</mat-icon>
+            <img class="assistant-avatar-image welcome-avatar-image" [src]="assistantAvatarUrl" alt="Asistente IA" />
           </div>
           <h4>¡Hola! Soy tu asistente IA</h4>
           <p>Puedo ayudarte con horarios, disponibilidad de aulas, declaraciones de carga y más.</p>
           <div class="welcome-tips">
             <span class="tip"><kbd>&#64;</kbd> Menciona cursos, docentes o aulas</span>
             <span class="tip"><kbd>?</kbd> Pregunta en lenguaje natural</span>
+          </div>
+          <div class="quick-actions">
+            <span class="actions-label">Acciones rápidas</span>
+            <div class="actions-grid">
+              <button mat-button class="action-btn" (click)="useSuggestion('¿Qué aulas están libres el lunes de 14:00 a 16:00?')"><mat-icon>meeting_room</mat-icon><span>Aulas libres</span></button>
+              <button mat-button class="action-btn" (click)="useSuggestion('¿Cómo declaro mi carga lectiva?')"><mat-icon>assignment</mat-icon><span>Declarar carga</span></button>
+              <button mat-button class="action-btn" (click)="useSuggestion('¿Cuál es mi horario de este semestre?')"><mat-icon>schedule</mat-icon><span>Mi horario</span></button>
+              <button mat-button class="action-btn" (click)="useSuggestion('Necesito sugerencias de horario para un curso')"><mat-icon>auto_awesome</mat-icon><span>Sugerencias IA</span></button>
+            </div>
           </div>
         </div>
       </div>
@@ -102,7 +88,7 @@
         <!-- Mensaje del Asistente -->
         <ng-container *ngIf="msg.role === 'model'">
           <div class="msg-avatar bot-avatar" aria-hidden="true">
-            <mat-icon>smart_toy</mat-icon>
+            <img class="assistant-avatar-image message-avatar-image" [src]="assistantAvatarUrl" alt="" />
           </div>
           <div class="msg-content bot-msg">
             <div class="msg-bubble" [innerHTML]="formatResponse(msg.parts[0].text)"></div>
@@ -125,7 +111,7 @@
       <!-- Typing Indicator -->
       <div class="message-wrapper typing-indicator" *ngIf="isLoading">
         <div class="msg-avatar bot-avatar" aria-hidden="true">
-          <mat-icon>smart_toy</mat-icon>
+          <img class="assistant-avatar-image message-avatar-image" [src]="assistantAvatarUrl" alt="" />
         </div>
         <div class="msg-content bot-msg">
           <div class="msg-bubble typing-bubble">

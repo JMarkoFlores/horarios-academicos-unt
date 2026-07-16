@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { PageEvent } from '@angular/material/paginator';
+import { NotifToastService } from '../../../core/services/notif-toast.service';
 import { ApiService } from '../../../core/services/api.service';
 import { PeriodoService } from '../../../core/services/periodo.service';
 import { Ambiente, ApiResponse } from '../../../core/interfaces/entities';
@@ -51,7 +51,7 @@ export class AmbientesListComponent implements OnInit {
 
   constructor(
     private api: ApiService,
-    private snackBar: MatSnackBar,
+    private notifToast: NotifToastService,
     private dialog: MatDialog,
     public periodoService: PeriodoService,
   ) {}
@@ -88,7 +88,7 @@ export class AmbientesListComponent implements OnInit {
         },
         error: () => {
           this.loading = false;
-          this.snackBar.open('Error al cargar ambientes', 'Cerrar', { duration: 3000 });
+          this.notifToast.error('Error al cargar ambientes');
         },
       });
   }
@@ -116,7 +116,7 @@ export class AmbientesListComponent implements OnInit {
   onFilterChange(): void {
     this.currentPage = 0;
     if (this.capacidadMin !== undefined && this.capacidadMax !== undefined && this.capacidadMax < this.capacidadMin) {
-      this.snackBar.open('La capacidad máxima no puede ser menor que la mínima', 'Cerrar', { duration: 3000 });
+      this.notifToast.error('La capacidad máxima no puede ser menor que la mínima');
       return;
     }
     this.loadAmbientes();
@@ -156,12 +156,12 @@ export class AmbientesListComponent implements OnInit {
       .patch<ApiResponse<any>>(`/ambientes/${a.id}`, { estado: 'ACTIVO' })
       .subscribe({
         next: () => {
-          this.snackBar.open('Ambiente activado', 'OK', { duration: 2000 });
+          this.notifToast.success('Ambiente activado');
           this.loadAmbientes();
         },
         error: (err) => {
           const msg = err?.error?.message ?? 'Error al activar';
-          this.snackBar.open(msg, 'Cerrar', { duration: 3000 });
+          this.notifToast.error(msg);
         },
       });
   }
@@ -170,12 +170,12 @@ export class AmbientesListComponent implements OnInit {
     if (!confirm(`¿Desactivar "${a.nombre}"?`)) return;
     this.api.delete<ApiResponse<any>>(`/ambientes/${a.id}`, { periodo: this.periodoService.periodo }).subscribe({
       next: () => {
-        this.snackBar.open('Ambiente desactivado', 'OK', { duration: 2000 });
+        this.notifToast.success('Ambiente desactivado');
         this.loadAmbientes();
       },
       error: (err) => {
         const msg = err?.error?.message ?? 'Error al desactivar';
-        this.snackBar.open(msg, 'Cerrar', { duration: 5000 });
+        this.notifToast.error(msg);
       },
     });
   }

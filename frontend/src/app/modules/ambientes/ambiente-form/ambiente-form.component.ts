@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotifToastService } from '../../../core/services/notif-toast.service';
 import { ApiService } from '../../../core/services/api.service';
 import { ApiResponse, Ambiente } from '../../../core/interfaces/entities';
 
@@ -22,7 +22,7 @@ export class AmbienteFormComponent implements OnInit {
     private api: ApiService,
     private router: Router,
     private route: ActivatedRoute,
-    private snackBar: MatSnackBar,
+    private notifToast: NotifToastService,
   ) {}
 
   private codigoExistente = false;
@@ -96,7 +96,7 @@ export class AmbienteFormComponent implements OnInit {
 
     request.subscribe({
       next: () => {
-        this.snackBar.open(this.isEdit ? 'Ambiente actualizado' : 'Ambiente creado', 'OK', { duration: 2000 });
+        this.notifToast.success(this.isEdit ? 'Ambiente actualizado' : 'Ambiente creado');
         this.router.navigate(['/app/ambientes']);
       },
       error: (err) => {
@@ -106,7 +106,7 @@ export class AmbienteFormComponent implements OnInit {
         if (field === 'codigo') {
           this.form.get('codigo')?.setErrors({ backend: msg });
         } else {
-          this.snackBar.open(msg, 'Cerrar', { duration: 5000 });
+          this.notifToast.error(msg);
         }
       },
     });

@@ -342,10 +342,6 @@ export class AmbientesService {
   ) {
     await this.findOne(ambienteId);
 
-    if (!periodo || periodo.trim() === "") {
-      return { data: [], total: 0, page, limit };
-    }
-
     const [horarios, total] = await this.horarioRepo
       .createQueryBuilder("horario")
       .leftJoinAndSelect("horario.docente", "docente")

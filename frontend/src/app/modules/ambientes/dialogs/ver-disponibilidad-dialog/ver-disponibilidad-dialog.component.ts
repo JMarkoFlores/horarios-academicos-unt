@@ -1,5 +1,4 @@
-import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { ApiService } from '../../../../core/services/api.service';
 import { NotifToastService } from '../../../../core/services/notif-toast.service';
@@ -25,7 +24,7 @@ interface SlotOcupado {
   templateUrl: './ver-disponibilidad-dialog.component.html',
   styleUrls: ['./ver-disponibilidad-dialog.component.scss'],
 })
-export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
+export class VerDisponibilidadDialogComponent implements OnInit {
   dias: string[] = [];
   diasNum: number[] = [];
   horas = Array.from({ length: 15 }, (_, i) => i + 7);
@@ -33,7 +32,7 @@ export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
   ocupados: SlotOcupado[] = [];
   loading = false;
   totalHoras = 0;
-  private periodSub?: Subscription;
+  periodoSeleccionado = '';
 
   constructor(
     private dialogRef: MatDialogRef<VerDisponibilidadDialogComponent>,
@@ -45,6 +44,10 @@ export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.periodoSeleccionado = this.periodoService.periodo;
+    if (this.periodoService.periodos.length === 0) {
+      this.periodoService.cargarPeriodos();
+    }
     this.diasActivosService.cargar().subscribe(() => {
       this.dias = this.diasActivosService.nombres;
       this.diasNum = this.diasActivosService.numeros;
@@ -52,20 +55,18 @@ export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
     this.dias = this.diasActivosService.nombres;
     this.diasNum = this.diasActivosService.numeros;
     this.cargarDisponibilidad();
-    this.periodSub = this.periodoService.periodo$.subscribe(() => {
-      this.cargarDisponibilidad();
-    });
   }
 
-  ngOnDestroy(): void {
-    this.periodSub?.unsubscribe();
+  onPeriodoChange(periodo: string): void {
+    this.periodoSeleccionado = periodo;
+    this.cargarDisponibilidad();
   }
 
   cargarDisponibilidad(): void {
     this.loading = true;
     this.api
       .get<ApiResponse<any>>(`/ambientes/${this.ambiente.id}/disponibilidad`, {
-        periodo: this.periodoService.periodo,
+        periodo: this.periodoSeleccionado,
         page: 1,
         limit: 200,
       })
@@ -92,6 +93,26 @@ export class VerDisponibilidadDialogComponent implements OnInit, OnDestroy {
         return hora >= hi && hora < hf;
       }) ?? null
     );
+  }
+
+  get totalBloques(): number {
+    return this.ocupados.length;
+  }
+
+  get diasOcupados(): number {
+    return new Set(this.ocupados.map((slot) => slot.dia_semana)).size;
+  }
+
+  getCell(dia: number, hora: number): { slot: SlotOcupado | null; skip: boolean; rowspan: number } {
+    const slot = this.getSlot(dia, hora);
+    if (!slot) return { slot: null, skip: false, rowspan: 1 };
+    const inicio = this.horaToDecimal(slot.hora_inicio);
+    if (inicio < hora) return { slot, skip: true, rowspan: 1 };
+    return {
+      slot,
+      skip: false,
+      rowspan: Math.max(1, Math.ceil(this.horaToDecimal(slot.hora_fin) - inicio)),
+    };
   }
 
   private horaToDecimal(hora: string): number {

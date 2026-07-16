@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform } from "class-transformer";
 import {
   IsString,
   IsEmail,
@@ -71,6 +72,7 @@ export class CreateDocenteDto {
 
   @ApiPropertyOptional({ example: "944123456" })
   @IsOptional()
+  @Transform(({ value }) => (value === "" ? null : value))
   @IsString()
   @Matches(/^\d{9}$/, {
     message: "El teléfono debe tener exactamente 9 dígitos",

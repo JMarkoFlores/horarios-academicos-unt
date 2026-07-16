@@ -47,9 +47,9 @@ El seed ya creó 26+ docentes. Puedes usarlos directamente o crear nuevos.
 
 ### Crear un docente nuevo (opcional)
 
-- [ ] Ir a **Académico** → **Docentes**
-- [ ] Click **"Nuevo Docente"**
-- [ ] Llenar:
+- [x] Ir a **Académico** → **Docentes**
+- [x] Click **"Nuevo Docente"**
+- [x] Llenar:
 
 | Campo | Ejemplo |
 |-------|---------|
@@ -62,10 +62,8 @@ El seed ya creó 26+ docentes. Puedes usarlos directamente o crear nuevos.
 | Tipo Contrato | `NOMBRADO` |
 | Tipo Docente | `ORDINARIO` |
 | Modalidad | `TIEMPO_COMPLETO_40` |
-| Horas Lectivas Max | `22` |
-| Horas Lectivas Min | `16` |
 
-- [ ] Guardar
+- [x] Guardar
 
 ### Docentes del seed (ya existen)
 
@@ -80,9 +78,9 @@ El seed ya creó 26+ docentes. Puedes usarlos directamente o crear nuevos.
 
 ## ⬜ Fase 2 — Ambientes
 
-- [ ] Ir a **Académico** → **Ambientes**
-- [ ] Click **"Nuevo Ambiente"**
-- [ ] Llenar (repetir para cada ambiente):
+- [x] Ir a **Académico** → **Ambientes**
+- [x] Click **"Nuevo Ambiente"**
+- [x] Llenar (repetir para cada ambiente):
 
 | Campo | Ejemplo 1 | Ejemplo 2 |
 |-------|-----------|-----------|
@@ -93,7 +91,7 @@ El seed ya creó 26+ docentes. Puedes usarlos directamente o crear nuevos.
 | Pabellón | `A` | `B` |
 | Estado | `ACTIVO` | `ACTIVO` |
 
-- [ ] Guardar cada uno
+- [x] Guardar cada uno
 
 ---
 

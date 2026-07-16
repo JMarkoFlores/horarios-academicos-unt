@@ -414,6 +414,7 @@ export class HorariosService {
       dto.dia_semana,
       dto.hora_inicio,
       dto.hora_fin,
+      dto.periodo_academico,
     );
     if (!franja.valido) {
       throw new ConflictException(franja.motivo);
@@ -617,7 +618,7 @@ export class HorariosService {
 
         // Check if this cell is occupied
         const ocupado = horarios.find(
-          (h) => h.dia === dia && h.hora_inicio === hora,
+          (h) => h.dia === dia && h.hora_inicio < horaFin && h.hora_fin > hora,
         );
 
         if (ocupado) {
@@ -790,6 +791,7 @@ export class HorariosService {
       dto.dia,
       dto.hora_inicio,
       dto.hora_fin,
+      periodo,
     );
     if (!franja.valido) {
       throw new ConflictException(franja.motivo);
@@ -938,6 +940,44 @@ export class HorariosService {
     if (dto.dia) horario.dia = dto.dia;
     if (dto.hora_inicio) horario.hora_inicio = dto.hora_inicio;
     if (dto.hora_fin) horario.hora_fin = dto.hora_fin;
+
+    const franja = await this.validacionesService.verificarFranjaInstitucional(
+      horario.dia,
+      horario.hora_inicio,
+      horario.hora_fin,
+      horario.periodo,
+    );
+    if (!franja.valido) throw new ConflictException(franja.motivo);
+
+    const disponibilidad =
+      await this.validacionesService.verificarDisponibilidadDocente(
+        horario.docente.id,
+        horario.dia,
+        horario.hora_inicio,
+        horario.hora_fin,
+        horario.periodo,
+      );
+    if (!disponibilidad.valido) throw new ConflictException(disponibilidad.motivo);
+
+    const cruceDoc = await this.validacionesService.verificarCruceDocente(
+      horario.docente.id,
+      horario.dia,
+      horario.hora_inicio,
+      horario.hora_fin,
+      horario.periodo,
+      horario.id,
+    );
+    if (!cruceDoc.valido) throw new ConflictException(cruceDoc.motivo);
+
+    const cruceAmb = await this.validacionesService.verificarCruceAmbiente(
+      horario.ambiente.id,
+      horario.dia,
+      horario.hora_inicio,
+      horario.hora_fin,
+      horario.periodo,
+      horario.id,
+    );
+    if (!cruceAmb.valido) throw new ConflictException(cruceAmb.motivo);
 
     horario.estado = EstadoHorario.BORRADOR;
 

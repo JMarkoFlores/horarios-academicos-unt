@@ -1,6 +1,7 @@
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { PageEvent } from '@angular/material/paginator';
 import { ApiService } from '../../core/services/api.service';
 import { PeriodoService } from '../../core/services/periodo.service';
 import { NotifToastService } from '../../core/services/notif-toast.service';
@@ -30,6 +31,9 @@ export class ParametrosCargaComponent implements OnInit {
   guardandoParametros = false;
   eliminandoParametroId: number | null = null;
   editingParametroId: number | null = null;
+  currentPage = 0;
+  pageSize = 10;
+  readonly pageSizeOptions = [5, 10, 20, 50];
   parametrosForm!: FormGroup;
   filtrosParametros = {
     tipo_docente: '',
@@ -130,10 +134,53 @@ export class ParametrosCargaComponent implements OnInit {
       const modalidadOk = !this.filtrosParametros.modalidad || p.modalidad === this.filtrosParametros.modalidad;
       return tipoDocenteOk && categoriaOk && modalidadOk;
     });
+    this.currentPage = 0;
+  }
+
+  get parametrosPaginados(): ParametrosCarga[] {
+    const inicio = this.currentPage * this.pageSize;
+    return this.parametrosFiltrados.slice(inicio, inicio + this.pageSize);
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.currentPage = event.pageIndex;
+    this.pageSize = event.pageSize;
   }
 
   onFiltroChange(): void {
     this.aplicarFiltrosParametros();
+  }
+
+  contarPorTipo(tipo: string): number {
+    return this.parametrosList.filter((p) => p.tipo_docente === tipo).length;
+  }
+
+  parametrosConMinimo(): number {
+    return this.parametrosList.filter((p) => p.horas_min_semanal > 0).length;
+  }
+
+  tieneFiltrosActivos(): boolean {
+    return Object.values(this.filtrosParametros).some(Boolean);
+  }
+
+  limpiarFiltros(): void {
+    this.filtrosParametros = {
+      tipo_docente: '',
+      categoria: '',
+      modalidad: '',
+    };
+    this.aplicarFiltrosParametros();
+  }
+
+  porcentajeRango(parametro: ParametrosCarga): number {
+    return Math.min(100, Math.max(4, (parametro.horas_max_semanal / 80) * 100));
+  }
+
+  nuevoParametro(): void {
+    this.cancelarEdicionParametro();
+    document
+      .querySelector('#formulario-parametro')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   guardarParametrosCarga(): void {

@@ -18,6 +18,13 @@ $success: #10b981;
 $warning: #f59e0b;
 $error: #ef4444;
 
+.assistant-avatar-image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
 // ==========================================================================
 // CONTAINER & FAB
 // ==========================================================================
@@ -51,6 +58,15 @@ $error: #ef4444;
       height: 28px;
     }
 
+    .fab-avatar {
+      position: relative;
+      z-index: 1;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
     .fab-pulse {
       position: absolute;
       inset: -4px;
@@ -59,6 +75,7 @@ $error: #ef4444;
       opacity: 0.5;
       animation: fabPulse 2s ease-out infinite;
       pointer-events: none;
+      z-index: 0;
     }
 
     &:hover {
@@ -88,8 +105,9 @@ $error: #ef4444;
   bottom: 5px;
   right: 0;
   width: 420px;
-  height: 520px;
-  max-height: 80vh;
+  height: clamp(460px, 68vh, 640px);
+  min-height: 440px;
+  max-height: calc(100vh - 48px);
   background: var(--surface-bg, $surface-light);
   border: 1px solid var(--border-color, $border-light);
   border-radius: var(--radius-xl);
@@ -170,7 +188,7 @@ $error: #ef4444;
     gap: 12px;
   }
 
-  .avatar-ring {
+    .avatar-ring {
     position: relative;
     width: 44px;
     height: 44px;
@@ -182,12 +200,18 @@ $error: #ef4444;
     box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
     flex-shrink: 0;
 
-    .bot-avatar {
+      .bot-avatar {
       font-size: 22px;
       width: 22px;
       height: 22px;
       color: white;
     }
+
+      .header-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+      }
 
     .status-indicator {
       position: absolute;
@@ -205,6 +229,7 @@ $error: #ef4444;
         box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
         animation: pulse-ring 2s ease-out infinite;
       }
+
     }
   }
 
@@ -279,11 +304,9 @@ $error: #ef4444;
 // ==========================================================================
 
 .quick-actions {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color, $border-light);
-  background: var(--surface-bg, $surface-light);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--welcome-border);
 
   .actions-label {
     display: block;
@@ -345,7 +368,10 @@ $error: #ef4444;
 
 .chat-messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -383,7 +409,7 @@ $error: #ef4444;
     border-radius: var(--radius-lg);
     animation: slideUp 0.5s ease-out;
 
-    .welcome-avatar {
+      .welcome-avatar {
       width: 72px;
       height: 72px;
       margin: 0 auto 20px;
@@ -394,13 +420,19 @@ $error: #ef4444;
       justify-content: center;
       box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
 
-      mat-icon {
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
-        color: white;
+        mat-icon {
+          font-size: 32px;
+          width: 32px;
+          height: 32px;
+          color: white;
+        }
+
+        .welcome-avatar-image {
+          width: 66px;
+          height: 66px;
+          border-radius: 50%;
+        }
       }
-    }
 
     h4 {
       font-size: 1.15rem;
@@ -435,6 +467,7 @@ $error: #ef4444;
           border-radius: 4px;
           font-size: 0.7rem;
         }
+
       }
     }
   }
@@ -495,7 +528,15 @@ $error: #ef4444;
   &.bot-avatar {
     background: linear-gradient(135deg, $primary, $primary-dark);
     color: white;
+
+    .message-avatar-image {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
   }
+
 }
 
 // Message Content
@@ -825,6 +866,7 @@ $error: #ef4444;
     max-height: calc(100vh - 100px);
     bottom: 80px;
     right: 16px;
+    min-height: 0;
   }
 
   .quick-actions .actions-grid {

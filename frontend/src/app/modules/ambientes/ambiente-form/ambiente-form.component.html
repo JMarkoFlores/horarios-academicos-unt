@@ -1,164 +1,183 @@
 <div class="ambiente-form-page animate-fadein">
   <div class="page-header-premium">
-    <div class="title-section">
-      <button mat-icon-button (click)="cancelar()" class="btn-back">
+    <div class="header-left">
+      <button mat-icon-button (click)="cancelar()" class="btn-back" matTooltip="Volver a ambientes">
         <mat-icon>arrow_back</mat-icon>
       </button>
-      <div>
+      <div class="title-section">
         <h1 class="gradient-text">{{ isEdit ? 'Actualizar Ambiente' : 'Nuevo Espacio Académico' }}</h1>
         <p class="subtitle">{{ isEdit ? 'Modifica las propiedades físicas del aula o laboratorio' : 'Registra un nuevo ambiente en la infraestructura de la facultad' }}</p>
       </div>
     </div>
   </div>
 
-  <mat-card class="form-card-premium" *ngIf="!loading">
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      <div class="form-sections-grid">
-        <!-- Identification Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>domain</mat-icon>
-            <h3>Identificación y Tipo</h3>
-          </div>
-          
-          <div class="fields-grid">
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Código de Ambiente</mat-label>
-              <input matInput formControlName="codigo" placeholder="Ej. A-101" [maxlength]="20">
-              <mat-icon matPrefix>qr_code</mat-icon>
-              <mat-error *ngIf="form.get('codigo')?.hasError('required')">El código es obligatorio</mat-error>
-              <mat-error *ngIf="form.get('codigo')?.hasError('minlength')">Mínimo 2 caracteres</mat-error>
-              <mat-error *ngIf="form.get('codigo')?.hasError('duplicado')">Este código ya existe</mat-error>
-              <mat-error *ngIf="form.get('codigo')?.hasError('backend')">{{ form.get('codigo')?.getError('backend') }}</mat-error>
-            </mat-form-field>
+  <mat-card class="form-card">
+    <div *ngIf="loading" class="loading-center">
+      <mat-spinner diameter="48" strokeWidth="3"></mat-spinner>
+      <span>Sincronizando con la infraestructura...</span>
+    </div>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Nombre / Alias</mat-label>
-              <input matInput formControlName="nombre" placeholder="Ej. Aula Magna">
-              <mat-icon matPrefix>title</mat-icon>
-              <mat-error *ngIf="form.get('nombre')?.hasError('required')">El nombre es necesario</mat-error>
-            </mat-form-field>
+    <form
+      *ngIf="!loading"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      class="form-container"
+    >
+      <!-- Identification Section -->
+      <div class="form-section">
+        <div class="section-header">
+          <mat-icon class="section-icon">domain</mat-icon>
+          <span>Identificación y Tipo</span>
+        </div>
+        
+        <div class="fields-grid">
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Código de Ambiente</mat-label>
+            <mat-icon matPrefix>qr_code</mat-icon>
+            <input matInput formControlName="codigo" placeholder="Ej. A-101" [maxlength]="20">
+            <mat-hint>Identificador único (ej: A-101)</mat-hint>
+            <mat-error *ngIf="form.get('codigo')?.hasError('required')">El código es obligatorio</mat-error>
+            <mat-error *ngIf="form.get('codigo')?.hasError('minlength')">Mínimo 2 caracteres</mat-error>
+            <mat-error *ngIf="form.get('codigo')?.hasError('duplicado')">Este código ya existe</mat-error>
+            <mat-error *ngIf="form.get('codigo')?.hasError('backend')">{{ form.get('codigo')?.getError('backend') }}</mat-error>
+          </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Tipo de Espacio</mat-label>
-              <mat-select formControlName="tipo">
-                <mat-option value="AULA">Aula Común</mat-option>
-                <mat-option value="LABORATORIO">Laboratorio Especializado</mat-option>
-                <mat-option value="AUDITORIO">Auditorio</mat-option>
-                <mat-option value="TALLER">Taller</mat-option>
-                <mat-option value="SEMINARIO">Sala de Seminario</mat-option>
-                <mat-option value="SALA_COMPUTACION">Sala de Cómputo</mat-option>
-              </mat-select>
-              <mat-icon matPrefix>category</mat-icon>
-            </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Nombre / Alias</mat-label>
+            <mat-icon matPrefix>title</mat-icon>
+            <input matInput formControlName="nombre" placeholder="Ej. Aula Magna">
+            <mat-hint>Nombre descriptivo del espacio</mat-hint>
+            <mat-error *ngIf="form.get('nombre')?.hasError('required')">El nombre es necesario</mat-error>
+          </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Capacidad Máxima</mat-label>
-              <input matInput type="number" formControlName="capacidad" min="1" max="500">
-              <mat-icon matPrefix>groups</mat-icon>
-              <mat-hint>1 a 500 estudiantes</mat-hint>
-              <mat-error *ngIf="form.get('capacidad')?.hasError('required')">Indica el aforo</mat-error>
-              <mat-error *ngIf="form.get('capacidad')?.hasError('min')">Mínimo 1</mat-error>
-              <mat-error *ngIf="form.get('capacidad')?.hasError('max')">Máximo 500</mat-error>
-            </mat-form-field>
-          </div>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Tipo de Espacio</mat-label>
+            <mat-icon matPrefix>category</mat-icon>
+            <mat-select formControlName="tipo">
+              <mat-option value="AULA">Aula Común</mat-option>
+              <mat-option value="LABORATORIO">Laboratorio Especializado</mat-option>
+              <mat-option value="AUDITORIO">Auditorio</mat-option>
+              <mat-option value="TALLER">Taller</mat-option>
+              <mat-option value="SEMINARIO">Sala de Seminario</mat-option>
+              <mat-option value="SALA_COMPUTACION">Sala de Cómputo</mat-option>
+            </mat-select>
+            <mat-hint>Clasificación del ambiente</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Capacidad Máxima</mat-label>
+            <mat-icon matPrefix>groups</mat-icon>
+            <input matInput type="number" formControlName="capacidad" min="1" max="500">
+            <mat-hint>1 a 500 estudiantes</mat-hint>
+            <mat-error *ngIf="form.get('capacidad')?.hasError('required')">Indica el aforo</mat-error>
+            <mat-error *ngIf="form.get('capacidad')?.hasError('min')">Mínimo 1</mat-error>
+            <mat-error *ngIf="form.get('capacidad')?.hasError('max')">Máximo 500</mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <div class="form-divider"></div>
+
+      <!-- Location Section -->
+      <div class="form-section">
+        <div class="section-header">
+          <mat-icon class="section-icon">location_on</mat-icon>
+          <span>Ubicación Geográfica</span>
         </div>
 
-        <!-- Location Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>location_on</mat-icon>
-            <h3>Ubicación Geográfica</h3>
-          </div>
+        <div class="fields-grid">
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Sede / Campus</mat-label>
+            <mat-icon matPrefix>location_city</mat-icon>
+            <input matInput formControlName="sede" placeholder="Ej. Campus Central">
+          </mat-form-field>
 
-          <div class="fields-grid">
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Sede / Campus</mat-label>
-              <input matInput formControlName="sede" placeholder="Ej. Campus Central">
-              <mat-icon matPrefix>location_city</mat-icon>
-            </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Edificio</mat-label>
+            <mat-icon matPrefix>apartment</mat-icon>
+            <input matInput formControlName="edificio" placeholder="Ej. Edificio A - Posgrado">
+          </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Edificio</mat-label>
-              <input matInput formControlName="edificio" placeholder="Ej. Edificio A - Posgrado">
-              <mat-icon matPrefix>apartment</mat-icon>
-            </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Pabellón</mat-label>
+            <mat-icon matPrefix>apartment</mat-icon>
+            <input matInput formControlName="pabellon" placeholder="Ej. Pabellón B">
+          </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Pabellón</mat-label>
-              <input matInput formControlName="pabellon" placeholder="Ej. Pabellón B">
-              <mat-icon matPrefix>apartment</mat-icon>
-            </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Nivel / Piso</mat-label>
+            <mat-icon matPrefix>layers</mat-icon>
+            <input matInput type="number" formControlName="piso" placeholder="1" min="-2" max="20">
+            <mat-hint>-2 a 20</mat-hint>
+          </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Nivel / Piso</mat-label>
-              <input matInput type="number" formControlName="piso" placeholder="1" min="-2" max="20">
-              <mat-icon matPrefix>layers</mat-icon>
-              <mat-hint>-2 a 20</mat-hint>
-            </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Coordenada X (Longitud)</mat-label>
+            <mat-icon matPrefix>map</mat-icon>
+            <input matInput type="number" formControlName="coordX" step="0.0001" placeholder="-79.0287">
+            <mat-hint>-180 a 180</mat-hint>
+          </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Coordenada X (Longitud)</mat-label>
-              <input matInput type="number" formControlName="coordX" step="0.0001" placeholder="-79.0287">
-              <mat-icon matPrefix>map</mat-icon>
-              <mat-hint>-180 a 180</mat-hint>
-            </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Coordenada Y (Latitud)</mat-label>
+            <mat-icon matPrefix>map</mat-icon>
+            <input matInput type="number" formControlName="coordY" step="0.0001" placeholder="-8.1116">
+            <mat-hint>-90 a 90</mat-hint>
+          </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Coordenada Y (Latitud)</mat-label>
-              <input matInput type="number" formControlName="coordY" step="0.0001" placeholder="-8.1116">
-              <mat-icon matPrefix>map</mat-icon>
-              <mat-hint>-90 a 90</mat-hint>
-            </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Estado</mat-label>
+            <mat-icon matPrefix>toggle_on</mat-icon>
+            <mat-select formControlName="estado">
+              <mat-option value="ACTIVO">Operativo</mat-option>
+              <mat-option value="MANTENIMIENTO">En mantenimiento</mat-option>
+              <mat-option value="RESERVADO">Reservado</mat-option>
+              <mat-option value="INACTIVO">Inactivo</mat-option>
+            </mat-select>
+          </mat-form-field>
 
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Estado</mat-label>
-              <mat-select formControlName="estado">
-                <mat-option value="ACTIVO">Operativo</mat-option>
-                <mat-option value="MANTENIMIENTO">En mantenimiento</mat-option>
-                <mat-option value="RESERVADO">Reservado</mat-option>
-                <mat-option value="INACTIVO">Inactivo</mat-option>
-              </mat-select>
-              <mat-icon matPrefix>toggle_on</mat-icon>
-            </mat-form-field>
-
-            <div class="premium-field full-width-field equipamiento-field">
-              <mat-label class="equip-label">Equipamiento Disponible</mat-label>
-              <mat-chip-grid #chipGrid>
+          <!-- Equipamiento using custom styling to blend in -->
+          <div class="premium-field full-width-field equipamiento-field">
+            <mat-label class="equip-label">Equipamiento Disponible</mat-label>
+            <div class="equip-chip-container">
+              <mat-chip-grid #chipGrid class="equip-chip-grid" aria-label="Equipamiento">
                 <mat-chip-row *ngFor="let chip of equipamientoChips" (removed)="removeEquipamiento(chip)">
                   {{ chip }}
                   <button matChipRemove><mat-icon>cancel</mat-icon></button>
                 </mat-chip-row>
                 <input matInput formControlName="equipamiento" hidden />
               </mat-chip-grid>
-              <div class="equip-suggestions">
-                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Proyector')">+ Proyector</button>
-                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('PCs')">+ PCs</button>
-                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Aire acondicionado')">+ A/C</button>
-                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Pizarra interactiva')">+ Pizarra</button>
-                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Internet')">+ Internet</button>
-                <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Sonido')">+ Sonido</button>
-              </div>
+            </div>
+            <div class="equip-suggestions">
+              <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Proyector')">+ Proyector</button>
+              <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('PCs')">+ PCs</button>
+              <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Aire acondicionado')">+ A/C</button>
+              <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Pizarra interactiva')">+ Pizarra</button>
+              <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Internet')">+ Internet</button>
+              <button mat-stroked-button type="button" class="equip-chip-btn" (click)="addEquipamiento('Sonido')">+ Sonido</button>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="form-footer-premium">
-        <button mat-button type="button" (click)="cancelar()" class="btn-cancel">
+      <div class="form-divider"></div>
+
+      <div class="form-actions">
+        <button mat-stroked-button type="button" (click)="cancelar()" class="btn-cancel">
           Cancelar
         </button>
-        <button mat-raised-button class="btn-submit" type="submit" [disabled]="saving">
-          <mat-spinner diameter="20" *ngIf="saving"></mat-spinner>
+        <button
+          mat-raised-button
+          color="primary"
+          type="submit"
+          class="btn-submit"
+          [disabled]="form.invalid || saving"
+        >
+          <mat-spinner diameter="18" *ngIf="saving"></mat-spinner>
           <mat-icon *ngIf="!saving">save_as</mat-icon>
           <span>{{ saving ? 'Guardando...' : (isEdit ? 'Actualizar Ambiente' : 'Crear Ambiente') }}</span>
         </button>
       </div>
     </form>
   </mat-card>
-
-  <div class="loading-center" *ngIf="loading">
-    <mat-spinner strokeWidth="3"></mat-spinner>
-    <p>Sincronizando con la infraestructura...</p>
-  </div>
 </div>

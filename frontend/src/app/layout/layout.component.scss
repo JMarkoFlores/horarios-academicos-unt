@@ -494,7 +494,7 @@
     position: relative;
     transition: padding var(--sidebar-transition) cubic-bezier(0.25, 0.8, 0.25, 1);
     flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.04);
+    background: transparent;
     border-bottom: 1px solid var(--sidebar-border);
 
     .logo-icon-wrapper {
@@ -579,15 +579,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.5);
+      background: transparent;
       border: 1px solid var(--sidebar-border);
       border-radius: 50%;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       cursor: pointer;
       z-index: 10;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       flex-shrink: 0;
-      backdrop-filter: blur(10px);
 
       .collapse-icon {
         font-size: 18px;
@@ -598,13 +596,11 @@
       }
 
       &:hover {
-        background: linear-gradient(135deg, var(--sidebar-accent), #6366f1);
-        border-color: transparent;
-        transform: scale(1.1);
-        box-shadow: 0 4px 16px rgba(255, 255, 255, 0.4);
+        background: var(--sidebar-hover-bg);
+        border-color: var(--sidebar-accent);
 
         .collapse-icon {
-          color: #ffffff;
+          color: var(--sidebar-accent);
           transform: rotate(-180deg);
         }
       }
@@ -679,10 +675,10 @@
         cursor: pointer;
         transition: all 0.2s ease;
         margin-bottom: 10px;
-        background: rgba(255, 255, 255, 0.04);
+        background: transparent;
 
         &:hover {
-          background: linear-gradient(135deg, var(--sidebar-hover-bg), rgba(255, 255, 255, 0.05));
+          background: var(--sidebar-hover-bg);
           color: var(--sidebar-accent);
           transform: translateX(2px);
 
@@ -736,18 +732,15 @@
     padding: 16px 12px;
     border-top: 1px solid var(--sidebar-border);
     flex-shrink: 0;
-    background: linear-gradient(180deg, var(--sidebar-glass) 0%, rgba(0, 0, 0, 0.02) 100%);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    background: transparent;
     transition: background var(--sidebar-transition), border-color var(--sidebar-transition);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
 
     // When at top of sidebar
     &.sidenav-user-section {
       border-top: none;
       border-bottom: 1px solid var(--sidebar-border);
       margin-bottom: 8px;
-      background: rgba(255, 255, 255, 0.03);
+      background: transparent;
       box-shadow: none;
     }
 
@@ -761,7 +754,7 @@
       text-align: left;
       height: auto;
       line-height: normal;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.2));
+      background: var(--sidebar-hover-bg);
       border: 1px solid var(--sidebar-border);
       cursor: pointer;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -774,9 +767,8 @@
       backdrop-filter: blur(10px);
 
       &:hover {
-        background: linear-gradient(135deg, var(--sidebar-hover-bg), rgba(255, 255, 255, 0.1));
+        background: var(--sidebar-hover-bg);
         border-color: var(--sidebar-accent-bg);
-        box-shadow: 0 4px 16px rgba(255, 255, 255, 0.15), 0 2px 4px rgba(255, 255, 255, 0.08);
       }
 
       &:focus-visible {

@@ -277,23 +277,34 @@ export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
         })
       )
       .subscribe({
-        next: (res) => {
+        next: (res: any) => {
+          console.log('[Chatbot] Response received:', JSON.stringify(res).substring(0, 200));
           this.zoneRun(() => {
             this.isLoading = false;
+            // ResponseInterceptor wraps as { data: { response }, message, statusCode }
+            const responseText = res?.data?.response ?? res?.response;
+            if (!responseText) {
+              console.error('[Chatbot] Empty response object:', res);
+              return;
+            }
             const botMsg: ChatMessage = {
               role: 'model',
-              parts: [{ text: res.response }],
+              parts: [{ text: responseText }],
             };
+            console.log('[Chatbot] Bot message created, text length:', botMsg.parts[0].text.length);
             this.history.push(botMsg);
+            console.log('[Chatbot] History length:', this.history.length);
             this.saveHistory();
             this.cdr.detectChanges();
+            console.log('[Chatbot] detectChanges done');
 
             if (this.ttsEnabled) {
-              this.speak(res.response);
+              this.speak(responseText);
             }
           });
         },
-        error: () => {
+        error: (err) => {
+          console.error('[Chatbot] Error in subscribe:', err);
           this.zoneRun(() => {
             this.isLoading = false;
             const errorMsg: ChatMessage = {
@@ -450,7 +461,8 @@ export class ChatbotComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   trackByMsg(index: number, msg: ChatMessage): string {
-    return `${msg.role}-${index}-${msg.parts[0].text.slice(0, 20)}`;
+    const text = msg?.parts?.[0]?.text ?? '';
+    return `${msg?.role ?? 'unknown'}-${index}-${text.slice(0, 20)}`;
   }
 
   private scrollToBottom(): void {

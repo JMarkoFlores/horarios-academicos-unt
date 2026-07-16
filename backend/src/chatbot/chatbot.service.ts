@@ -4,6 +4,7 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Groq from "groq-sdk";
@@ -12,11 +13,9 @@ import { FindDisponiblesDto } from "../ambientes/dto/find-disponibles.dto";
 import { DisponibilidadService } from "../disponibilidad/disponibilidad.service";
 import { HorariosService } from "../horarios/horarios.service";
 import { AsignacionLectivaService } from "../modules/asignacion-lectiva/asignacion-lectiva.service";
-import { DocenteService } from "../docentes/docentes.service";
-import { DisponibilidadService } from "../disponibilidad/disponibilidad.service";
-import { HorariosService } from "../horarios/horarios.service";
-import { AsignacionLectivaService } from "../modules/asignacion-lectiva/asignacion-lectiva.service";
 import { PeriodoAcademico } from "../entities/periodo-academico.entity";
+import { Docente } from "../entities/docente.entity";
+import { Ambiente } from "../entities/ambiente.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
@@ -61,20 +60,20 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
     function: {
       name: "consultar_disponibilidad_docente",
       description:
-        "Obtiene los bloques de disponibilidad declarados por un docente para un período académico. Devuelve días y horas en que el docente está disponible para dictar clases.",
+        "Obtiene los bloques horarios en los que un docente ha marcado disponibilidad para un período académico específico.",
       parameters: {
         type: "object",
         properties: {
           docente_id: {
-            type: "number",
+            type: ["number", "string"],
             description: "ID del docente en el sistema.",
           },
-          periodo_codigo: {
+          periodo: {
             type: "string",
-            description: "Código del período académico (ej: '2026-I').",
+            description: "Código del período académico (ej: 2026-I, 2025-II).",
           },
         },
-        required: ["docente_id", "periodo_codigo"],
+        required: ["docente_id", "periodo"],
       },
     },
   },
@@ -83,20 +82,20 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
     function: {
       name: "consultar_horarios_docente",
       description:
-        "Obtiene los horarios ya asignados a un docente en un período académico. Devuelve día, hora_inicio, hora_fin, ambiente, curso y tipo de clase.",
+        "Obtiene los horarios ya asignados a un docente en un período académico, para verificar conflictos.",
       parameters: {
         type: "object",
         properties: {
           docente_id: {
-            type: "number",
+            type: ["number", "string"],
             description: "ID del docente en el sistema.",
           },
-          periodo_codigo: {
+          periodo: {
             type: "string",
-            description: "Código del período académico (ej: '2026-I').",
+            description: "Código del período académico (ej: 2026-I, 2025-II).",
           },
         },
-        required: ["docente_id", "periodo_codigo"],
+        required: ["docente_id", "periodo"],
       },
     },
   },
@@ -105,32 +104,32 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
     function: {
       name: "verificar_conflictos_ambiente",
       description:
-        "Verifica si un ambiente está libre en un día y rango horario específico para un período. Devuelve si hay conflicto y qué horarios ocupan el ambiente.",
+        "Verifica si un ambiente específico tiene conflictos de horario en un día y rango horario dados.",
       parameters: {
         type: "object",
         properties: {
           ambiente_id: {
-            type: "number",
-            description: "ID del ambiente a verificar.",
+            type: ["number", "string"],
+            description: "ID del ambiente en el sistema.",
           },
-          dia_semana: {
-            type: "number",
-            description: "Día de la semana (1=lunes, 2=martes, ..., 6=sábado).",
+          dia: {
+            type: ["number", "string"],
+            description: "Día de la semana (1=lunes, 2=martes, 3=miercoles, 4=jueves, 5=viernes, 6=sabado, 7=domingo).",
           },
           hora_inicio: {
             type: "string",
-            description: 'Hora de inicio en formato HH:mm (ej: "14:00").',
+            description: 'Hora de inicio en formato HH:mm (ej: "08:00").',
           },
           hora_fin: {
             type: "string",
-            description: 'Hora de fin en formato HH:mm (ej: "16:00").',
+            description: 'Hora de fin en formato HH:mm (ej: "10:00").',
           },
-          periodo_codigo: {
+          periodo: {
             type: "string",
-            description: "Código del período académico (ej: '2026-I').",
+            description: "Código del período académico (ej: 2026-I).",
           },
         },
-        required: ["ambiente_id", "dia_semana", "hora_inicio", "hora_fin", "periodo_codigo"],
+        required: ["ambiente_id", "dia", "hora_inicio", "hora_fin", "periodo"],
       },
     },
   },
@@ -139,20 +138,20 @@ const tools: Groq.Chat.ChatCompletionTool[] = [
     function: {
       name: "consultar_asignaciones_lectivas",
       description:
-        "Obtiene las asignaciones lectivas (cursos asignados) de un docente para un período. Devuelve curso, tipo_clase, horas_asignadas, estado y si tiene horarios programados.",
+        "Obtiene las asignaciones lectivas (cursos asignados) de un docente para un período, con sus horas requeridas y tipo de clase.",
       parameters: {
         type: "object",
         properties: {
           docente_id: {
-            type: "number",
+            type: ["number", "string"],
             description: "ID del docente en el sistema.",
           },
-          periodo_codigo: {
+          periodo: {
             type: "string",
-            description: "Código del período académico (ej: '2026-I').",
+            description: "Código del período académico (ej: 2026-I).",
           },
         },
-        required: ["docente_id", "periodo_codigo"],
+        required: ["docente_id", "periodo"],
       },
     },
   },
@@ -172,6 +171,10 @@ export class ChatbotService {
     private asignacionLectivaService: AsignacionLectivaService,
     @InjectRepository(PeriodoAcademico)
     private periodoRepo: Repository<PeriodoAcademico>,
+    @InjectRepository(Docente)
+    private docenteRepo: Repository<Docente>,
+    @InjectRepository(Ambiente)
+    private ambienteRepo: Repository<Ambiente>,
   ) {
     const apiKey = this.configService.get<string>("GROQ_API_KEY");
     if (apiKey) {
@@ -201,11 +204,11 @@ export class ChatbotService {
         - Si la respuesta es larga, usa viñetas y secciones para organizarla.
 
         HERRAMIENTAS DISPONIBLES:
-        - Tienes una herramienta llamada 'consultar_disponibilidad_ambiente' para encontrar aulas o laboratorios libres.
-        - Cuando un usuario pregunte por disponibilidad, usa esta herramienta automáticamente sin anunciarlo.
-        - Extrae los parámetros (tipo, dia, hora_inicio, hora_fin) de la pregunta del usuario para llamar a la herramienta.
-        - Si falta algún parámetro, pídeselo amablemente al usuario antes de usar la herramienta.
-        - Una vez que la herramienta te devuelva los datos, responde directamente con la información formateada, no menciones que usaste una herramienta.
+        - consultar_disponibilidad_ambiente: para encontrar aulas o laboratorios libres.
+        - consultar_disponibilidad_docente: para ver la disponibilidad declarada por un docente.
+        - consultar_horarios_docente: para ver los horarios ya asignados a un docente.
+        - verificar_conflictos_ambiente: para comprobar si un ambiente está libre en un horario.
+        - consultar_asignaciones_lectivas: para ver las asignaciones de cursos de un docente.
 
         EJEMPLOS DE CONSULTAS:
         - "¿Qué aulas están libres el lunes de 14:00 a 16:00?"
@@ -242,10 +245,11 @@ export class ChatbotService {
         - Si la respuesta es larga, usa viñetas y secciones para organizarla.
 
         HERRAMIENTAS DISPONIBLES:
-        - Tienes una herramienta llamada 'consultar_disponibilidad_ambiente' para encontrar aulas o laboratorios libres.
-        - Cuando un usuario pregunte por disponibilidad, DEBES usar esta herramienta.
-        - Extrae los parámetros (tipo, dia, hora_inicio, hora_fin) de la pregunta del usuario para llamar a la herramienta.
-        - Si falta algún parámetro, DEBES pedírselo amablemente al usuario antes de usar la herramienta.
+        - consultar_disponibilidad_ambiente: para encontrar aulas o laboratorios libres.
+        - consultar_disponibilidad_docente: para ver la disponibilidad declarada por un docente.
+        - consultar_horarios_docente: para ver los horarios ya asignados a un docente.
+        - verificar_conflictos_ambiente: para comprobar si un ambiente está libre en un horario.
+        - consultar_asignaciones_lectivas: para ver las asignaciones de cursos de un docente.
 
         EJEMPLOS DE CONSULTAS:
         - "¿Qué aulas están libres el lunes de 14:00 a 16:00?"
@@ -283,10 +287,11 @@ export class ChatbotService {
         - Si la respuesta es larga, usa viñetas y secciones para organizarla.
 
         HERRAMIENTAS DISPONIBLES:
-        - Tienes una herramienta llamada 'consultar_disponibilidad_ambiente' para encontrar aulas o laboratorios libres.
-        - Cuando un usuario pregunte por disponibilidad, DEBES usar esta herramienta.
-        - Extrae los parámetros (tipo, dia, hora_inicio, hora_fin) de la pregunta del usuario para llamar a la herramienta.
-        - Si falta algún parámetro, DEBES pedírselo amablemente al usuario antes de usar la herramienta.
+        - consultar_disponibilidad_ambiente: para encontrar aulas o laboratorios libres.
+        - consultar_disponibilidad_docente: para ver tu propia disponibilidad declarada.
+        - consultar_horarios_docente: para ver tus horarios ya asignados.
+        - verificar_conflictos_ambiente: para comprobar si un ambiente está libre en un horario.
+        - consultar_asignaciones_lectivas: para ver tus asignaciones de cursos.
 
         EJEMPLOS DE CONSULTAS:
         - "¿Cuál es mi horario de este semestre?"
@@ -325,10 +330,11 @@ export class ChatbotService {
         - Si la respuesta es larga, usa viñetas y secciones para organizarla.
 
         HERRAMIENTAS DISPONIBLES:
-        - Tienes una herramienta llamada 'consultar_disponibilidad_ambiente' para encontrar aulas o laboratorios libres.
-        - Cuando un usuario pregunte por disponibilidad, DEBES usar esta herramienta.
-        - Extrae los parámetros (tipo, dia, hora_inicio, hora_fin) de la pregunta del usuario para llamar a la herramienta.
-        - Si falta algún parámetro, DEBES pedírselo amablemente al usuario antes de usar la herramienta.
+        - consultar_disponibilidad_ambiente: para encontrar aulas o laboratorios libres.
+        - consultar_disponibilidad_docente: para ver la disponibilidad declarada por un docente.
+        - consultar_horarios_docente: para ver los horarios ya asignados a un docente.
+        - verificar_conflictos_ambiente: para comprobar si un ambiente está libre en un horario.
+        - consultar_asignaciones_lectivas: para ver las asignaciones de cursos de un docente.
 
         EJEMPLOS DE CONSULTAS:
         - "¿Qué aulas están libres el lunes de 14:00 a 16:00?"
@@ -366,10 +372,11 @@ export class ChatbotService {
         - Si la respuesta es larga, usa viñetas y secciones para organizarla.
 
         HERRAMIENTAS DISPONIBLES:
-        - Tienes una herramienta llamada 'consultar_disponibilidad_ambiente' para encontrar aulas o laboratorios libres.
-        - Cuando un usuario pregunte por disponibilidad, DEBES usar esta herramienta.
-        - Extrae los parámetros (tipo, dia, hora_inicio, hora_fin) de la pregunta del usuario para llamar a la herramienta.
-        - Si falta algún parámetro, DEBES pedírselo amablemente al usuario antes de usar la herramienta.
+        - consultar_disponibilidad_ambiente: para encontrar aulas o laboratorios libres.
+        - consultar_disponibilidad_docente: para ver la disponibilidad declarada por un docente.
+        - consultar_horarios_docente: para ver los horarios ya asignados a un docente.
+        - verificar_conflictos_ambiente: para comprobar si un ambiente está libre en un horario.
+        - consultar_asignaciones_lectivas: para ver las asignaciones de cursos de un docente.
 
         EJEMPLOS DE CONSULTAS:
         - "¿Qué aulas están libres el lunes de 14:00 a 16:00?"
@@ -407,10 +414,11 @@ export class ChatbotService {
         - Si la respuesta es larga, usa viñetas y secciones para organizarla.
 
         HERRAMIENTAS DISPONIBLES:
-        - Tienes una herramienta llamada 'consultar_disponibilidad_ambiente' para encontrar aulas o laboratorios libres.
-        - Cuando un usuario pregunte por disponibilidad, DEBES usar esta herramienta.
-        - Extrae los parámetros (tipo, dia, hora_inicio, hora_fin) de la pregunta del usuario para llamar a la herramienta.
-        - Si falta algún parámetro, DEBES pedírselo amablemente al usuario antes de usar la herramienta.
+        - consultar_disponibilidad_ambiente: para encontrar aulas o laboratorios libres.
+        - consultar_disponibilidad_docente: para ver la disponibilidad declarada por un docente.
+        - consultar_horarios_docente: para ver los horarios ya asignados a un docente.
+        - verificar_conflictos_ambiente: para comprobar si un ambiente está libre en un horario.
+        - consultar_asignaciones_lectivas: para ver las asignaciones de cursos de un docente.
 
         EJEMPLOS DE CONSULTAS:
         - "¿Qué aulas están libres el lunes de 14:00 a 16:00?"
@@ -446,6 +454,7 @@ export class ChatbotService {
     history: any[] = [],
     userRole: string = "default",
   ) {
+    this.logger.log(`Chat request received: ${message.substring(0, 100)}`);
     const apiKey = this.configService.get<string>("GROQ_API_KEY");
     if (!apiKey || apiKey === "tu_api_key_aqui") {
       throw new InternalServerErrorException(
@@ -468,14 +477,21 @@ export class ChatbotService {
     ];
 
     try {
+      this.logger.log(`Enviando mensaje a Groq: ${message.substring(0, 100)}...`);
       // 1. Primera llamada a Groq para ver si usa una herramienta
-      const initialResponse = await this.groq.chat.completions.create({
-        messages,
-        model: "llama-3.3-70b-versatile",
-        tools: tools,
-        tool_choice: "auto",
-      });
+      const initialResponse = await Promise.race([
+        this.groq.chat.completions.create({
+          messages,
+          model: "llama-3.3-70b-versatile",
+          tools: tools,
+          tool_choice: "auto",
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Groq API timeout (20s)")), 20000)
+        ),
+      ]);
 
+      this.logger.log("Groq respondió a la primera llamada");
       const responseMessage = initialResponse.choices[0]?.message;
 
       // 2. Si el LLM decide usar una herramienta
@@ -486,33 +502,54 @@ export class ChatbotService {
         for (const toolCall of responseMessage.tool_calls) {
           const functionName = toolCall.function.name;
           const functionArgs = JSON.parse(toolCall.function.arguments);
+          let toolResult: any;
 
-          if (functionName === "consultar_disponibilidad_ambiente") {
-            const toolResult =
-              await this.ejecutarConsultaDisponibilidad(functionArgs);
-
-            // Añadir el resultado de la herramienta al historial
-            messages.push({
-              tool_call_id: toolCall.id,
-              role: "tool",
-              content: JSON.stringify(toolResult),
-            });
+          switch (functionName) {
+            case "consultar_disponibilidad_ambiente":
+              toolResult = await this.ejecutarConsultaDisponibilidad(functionArgs);
+              break;
+            case "consultar_disponibilidad_docente":
+              toolResult = await this.ejecutarConsultarDisponibilidadDocente(functionArgs);
+              break;
+            case "consultar_horarios_docente":
+              toolResult = await this.ejecutarConsultarHorariosDocente(functionArgs);
+              break;
+            case "verificar_conflictos_ambiente":
+              toolResult = await this.ejecutarVerificarConflictosAmbiente(functionArgs);
+              break;
+            case "consultar_asignaciones_lectivas":
+              toolResult = await this.ejecutarConsultarAsignacionesLectivas(functionArgs);
+              break;
+            default:
+              toolResult = { error: `Herramienta desconocida: ${functionName}` };
           }
+
+          messages.push({
+            tool_call_id: toolCall.id,
+            role: "tool",
+            content: JSON.stringify(toolResult),
+          });
         }
 
         // 3. Segunda llamada a Groq con el resultado de la herramienta
         this.logger.log(
           "Enviando resultado de la herramienta a Groq para obtener respuesta final.",
         );
-        const finalResponse = await this.groq.chat.completions.create({
-          messages,
-          model: "llama-3.1-8b-instant",
-        });
+        const finalResponse = await Promise.race([
+          this.groq.chat.completions.create({
+            messages,
+            model: "llama-3.3-70b-versatile",
+            tool_choice: "none",
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Groq API timeout (30s)")), 30000)
+          ),
+        ]);
 
-        return (
-          finalResponse.choices[0]?.message?.content ||
-          "No se pudo generar una respuesta."
-        );
+        const content = finalResponse.choices[0]?.message?.content;
+        this.logger.log(`Respuesta final de Groq (${content?.length ?? 0} chars): "${content?.substring(0, 200)}"`);
+
+        return content || "No se pudo generar una respuesta.";
       } else {
         // Si no se usa ninguna herramienta, devolver la respuesta normal
         return (
@@ -545,6 +582,48 @@ export class ChatbotService {
       }));
   }
 
+  // ==================== HELPERS ====================
+
+  private async resolveDocenteId(idOrName: number | string): Promise<number> {
+    if (typeof idOrName === "number") return idOrName;
+    // Handle "Apellido, Nombre" format
+    const name = idOrName.trim();
+    let nombres: string;
+    let apellidos: string;
+    if (name.includes(",")) {
+      const parts = name.split(",").map((s) => s.trim());
+      apellidos = parts[0];
+      nombres = parts[1] || "";
+    } else {
+      const parts = name.split(/\s+/);
+      if (parts.length <= 2) {
+        nombres = parts[0] || "";
+        apellidos = parts[1] || "";
+      } else {
+        // Ambiguous: try (nombre nombre apellido) or (apellido nombre)
+        apellidos = parts[parts.length - 1];
+        nombres = parts.slice(0, -1).join(" ");
+      }
+    }
+    const docente = await this.docenteRepo.findOne({
+      where: [
+        { nombres, apellidos },
+        { apellidos: nombres, nombres: apellidos },
+      ],
+    });
+    if (!docente) throw new NotFoundException(`Docente "${idOrName}" no encontrado (buscado como nombres='${nombres}', apellidos='${apellidos}')`);
+    return docente.id;
+  }
+
+  private async resolveAmbienteId(idOrCode: number | string): Promise<number> {
+    if (typeof idOrCode === "number") return idOrCode;
+    const ambiente = await this.ambienteRepo.findOne({ where: { codigo: idOrCode } });
+    if (!ambiente) throw new NotFoundException(`Ambiente "${idOrCode}" no encontrado`);
+    return ambiente.id;
+  }
+
+  // ==================== HERRAMIENTAS ====================
+
   private async ejecutarConsultaDisponibilidad(args: any): Promise<any> {
     try {
       this.logger.log(
@@ -560,6 +639,16 @@ export class ChatbotService {
         tipo === "COMPUTACION"
       ) {
         tipo = "SALA_COMPUTACION";
+      }
+
+      // Validar tipo contra enum conocido
+      const VALID_TIPOS = ["AULA", "LABORATORIO", "AUDITORIO", "TALLER", "SEMINARIO", "SALA_COMPUTACION"];
+      if (!VALID_TIPOS.includes(tipo)) {
+        this.logger.warn(`Tipo de ambiente inválido: "${tipo}", retornando vacío`);
+        return {
+          message: `El tipo de ambiente "${args.tipo}" no es válido. Los tipos disponibles son: AULA, LABORATORIO, AUDITORIO, TALLER, SEMINARIO, SALA_COMPUTACION.`,
+          ambientes_libres: [],
+        };
       }
 
       const params: FindDisponiblesDto = {
@@ -587,6 +676,222 @@ export class ChatbotService {
       );
       return {
         error: `Error interno al consultar la disponibilidad: ${error.message}`,
+      };
+    }
+  }
+
+  private async ejecutarConsultarDisponibilidadDocente(args: any): Promise<any> {
+    try {
+      const { docente_id, periodo } = args;
+      this.logger.log(
+        `Consultando disponibilidad docente ${docente_id} para período ${periodo}`,
+      );
+
+      const docenteId = await this.resolveDocenteId(docente_id);
+
+      const result = await this.disponibilidadService.getByDocente(
+        docenteId,
+        periodo,
+      );
+
+      if (!result || !result.slots || result.slots.length === 0) {
+        return {
+          message: "El docente no tiene disponibilidad registrada para este período.",
+        };
+      }
+
+      // Filtrar solo disponibles = true
+      const disponibles = result.slots.filter((d: any) => d.disponible);
+
+      return {
+        docente_id,
+        periodo: periodo,
+        total_slots: result.slots.length,
+        disponibles: disponibles.length,
+        slots: disponibles.map((d: any) => ({
+          dia: d.dia_semana,
+          hora_inicio: d.hora_inicio?.substring(0, 5),
+          hora_fin: d.hora_fin?.substring(0, 5),
+        })),
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Error consultando disponibilidad docente: ${error.message}`,
+        error.stack,
+      );
+      return {
+        error: `Error al consultar disponibilidad del docente: ${error.message}`,
+      };
+    }
+  }
+
+  private async ejecutarConsultarHorariosDocente(args: any): Promise<any> {
+    try {
+      const { docente_id, periodo: periodoStr } = args;
+      this.logger.log(
+        `Consultando horarios del docente ${docente_id} para período ${periodoStr}`,
+      );
+
+      const docenteId = await this.resolveDocenteId(docente_id);
+
+      // Obtener el período
+      const periodo = await this.periodoRepo.findOne({
+        where: { codigo: periodoStr },
+      });
+      if (!periodo) {
+        return {
+          error: `Período ${periodoStr} no encontrado`,
+        };
+      }
+
+      const horarios = await this.horariosService.findHorariosByDocenteId(
+        docenteId,
+        periodoStr,
+      );
+
+      if (!horarios || horarios.length === 0) {
+        return {
+          message: "El docente no tiene horarios asignados para este período.",
+        };
+      }
+
+      return {
+        docente_id: docenteId,
+        periodo: periodoStr,
+        horarios: horarios.map((h) => ({
+          dia: h.dia,
+          hora_inicio: h.hora_inicio?.substring(0, 5),
+          hora_fin: h.hora_fin?.substring(0, 5),
+          ambiente: h.ambiente?.codigo,
+          curso: h.curso?.codigo,
+          tipo_clase: h.tipo_clase,
+        })),
+        total: horarios.length,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Error consultando horarios docente: ${error.message}`,
+        error.stack,
+      );
+      return {
+        error: `Error al consultar horarios del docente: ${error.message}`,
+      };
+    }
+  }
+
+  private async ejecutarVerificarConflictosAmbiente(args: any): Promise<any> {
+    try {
+      const { ambiente_id, dia, hora_inicio, hora_fin, periodo: periodoStr } = args;
+      this.logger.log(
+        `Verificando conflictos en ambiente ${ambiente_id} día ${dia} ${hora_inicio}-${hora_fin} período ${periodoStr}`,
+      );
+
+      const ambienteId = await this.resolveAmbienteId(ambiente_id);
+
+      // Obtener el período
+      const periodo = await this.periodoRepo.findOne({
+        where: { codigo: periodoStr },
+      });
+      if (!periodo) {
+        return {
+          error: `Período ${periodoStr} no encontrado`,
+        };
+      }
+
+      // Buscar horarios en ese ambiente y período
+      const result = await this.horariosService.findByAmbiente(
+        ambienteId,
+        periodoStr,
+        1,
+        1000,
+      );
+
+      const conflictos = result.items
+        .filter((h: any) => h.dia === dia)
+        .filter((h: any) => {
+          const ini = h.hora_inicio?.substring(0, 5);
+          const fin = h.hora_fin?.substring(0, 5);
+          return ini < hora_fin && fin > hora_inicio;
+        });
+
+      if (conflictos.length === 0) {
+        return {
+          tiene_conflicto: false,
+          message: "El ambiente está libre en ese horario.",
+        };
+      }
+
+      return {
+        tiene_conflicto: true,
+        conflictos: conflictos.map((c: any) => ({
+          dia: c.dia,
+          hora_inicio: c.hora_inicio?.substring(0, 5),
+          hora_fin: c.hora_fin?.substring(0, 5),
+          curso: c.curso?.codigo,
+          docente: c.docente
+            ? `${c.docente.apellidos}, ${c.docente.nombres}`
+            : null,
+        })),
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Error verificando conflictos ambiente: ${error.message}`,
+        error.stack,
+      );
+      return {
+        error: `Error al verificar conflictos: ${error.message}`,
+      };
+    }
+  }
+
+  private async ejecutarConsultarAsignacionesLectivas(args: any): Promise<any> {
+    try {
+      const { docente_id, periodo: periodoStr } = args;
+      this.logger.log(
+        `Consultando asignaciones lectivas del docente ${docente_id} para período ${periodoStr}`,
+      );
+
+      const docenteId = await this.resolveDocenteId(docente_id);
+
+      // Obtener el período
+      const periodo = await this.periodoRepo.findOne({
+        where: { codigo: periodoStr },
+      });
+      if (!periodo) {
+        return {
+          error: `Período ${periodoStr} no encontrado`,
+        };
+      }
+
+      const asignaciones = await this.asignacionLectivaService.findByDocente(
+        docenteId,
+        periodo.id,
+      );
+
+      if (!asignaciones || asignaciones.length === 0) {
+        return {
+          message: "El docente no tiene asignaciones lectivas para este período.",
+        };
+      }
+
+      return {
+        asignaciones: asignaciones.map((a) => ({
+          curso: a.curso_plan?.curso?.codigo,
+          nombre_curso: a.curso_plan?.curso?.nombre,
+          tipo_clase: a.tipo_clase,
+          horas_asignadas: a.horas_asignadas,
+          estado: a.estado,
+          tiene_horarios: (a.horas_asignadas ?? 0) > 0,
+        })),
+        total: asignaciones.length,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Error consultando asignaciones lectivas: ${error.message}`,
+        error.stack,
+      );
+      return {
+        error: `Error al consultar asignaciones lectivas: ${error.message}`,
       };
     }
   }

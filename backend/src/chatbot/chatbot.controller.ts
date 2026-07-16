@@ -15,11 +15,17 @@ export class ChatbotController {
   @Post("query")
   @ApiOperation({ summary: "Enviar una consulta al chatbot de IA" })
   async query(@Body() chatRequestDto: ChatRequestDto) {
+    console.log('ChatbotController.query called:', { 
+      message: chatRequestDto.message?.substring(0, 100), 
+      historyLength: chatRequestDto.history?.length,
+      userRole: chatRequestDto.userRole 
+    });
     const response = await this.chatbotService.chat(
       chatRequestDto.message,
       chatRequestDto.history,
       chatRequestDto.userRole,
     );
+    console.log('ChatbotController.query completed');
     return { response };
   }
 }

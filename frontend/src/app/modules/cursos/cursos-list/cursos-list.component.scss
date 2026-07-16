@@ -806,3 +806,85 @@
     background-position: -200% 0;
   }
 }
+
+// El listado mantiene el detalle de ambientes fuera de la fila para conservar
+// una lectura compacta incluso cuando un curso admite muchos espacios.
+.page-header-premium {
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.premium-table {
+  min-width: 900px;
+
+  .premium-row {
+    min-height: 56px !important;
+  }
+}
+
+.hours-summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+
+  .hour-tag {
+    padding: 3px 6px;
+    font-size: 11px;
+
+    mat-icon { display: none; }
+  }
+}
+
+.ambientes-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 132px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+
+  > mat-icon:first-child {
+    width: 17px;
+    height: 17px;
+    color: var(--color-primary);
+    font-size: 17px;
+  }
+
+  .warning-icon { color: var(--color-warning) !important; }
+
+  .manage-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--color-text-muted);
+    font-size: 16px;
+    opacity: 0;
+    transform: translateX(-3px);
+    transition: all var(--transition-fast);
+  }
+
+  &:hover {
+    color: var(--color-primary);
+
+    .manage-icon { opacity: 1; transform: translateX(0); }
+  }
+}
+
+@media (max-width: 767px) {
+  .cursos-page { gap: var(--space-3); }
+  .page-header-premium .header-actions { width: 100%; justify-content: flex-start; }
+  .header-actions .btn-export { flex: 1 1 auto; }
+  .header-actions .btn-new { flex: 1 1 100%; justify-content: center; }
+  .filter-card-premium { padding: var(--space-3) !important; }
+  .filter-card-premium .filter-grid .select-group { width: 100%; flex-wrap: wrap; }
+  .filter-card-premium .filter-grid .select-group .premium-select { flex: 1 1 140px; width: auto; }
+  .filter-indicator-bar { align-items: flex-start; flex-direction: column; }
+}

@@ -9,7 +9,6 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import * as XLSX from 'xlsx-js-style';
 import { ApiService } from '../../../core/services/api.service';
 import { Curso, Ambiente, ApiResponse } from '../../../core/interfaces/entities';
-import { AsignarAmbientesDialogComponent } from '../dialogs/asignar-ambientes-dialog/asignar-ambientes-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/confirm-dialog.component';
 
 @Component({
@@ -19,9 +18,8 @@ import { ConfirmDialogComponent } from '../../../shared/dialogs/confirm-dialog/c
 })
 export class CursosListComponent implements OnInit {
   displayedColumns = [
-    'codigo', 'nombre', 'tipo_curso', 'ciclo', 'creditos', 'horas_teoria',
-    'horas_practica', 'horas_laboratorio', 'departamento',
-    'prerequisitos', 'completitud', 'ambiente_teoria', 'ambiente_laboratorio', 'acciones',
+    'codigo', 'nombre', 'tipo_curso', 'ciclo', 'creditos', 'carga_horaria',
+    'completitud', 'ambientes', 'acciones',
   ];
   
   activePlan: any; // To store the active plan of studies
@@ -234,13 +232,6 @@ export class CursosListComponent implements OnInit {
     }
     if (codigos.length <= 2) return codigos.join(', ');
     return `${codigos.slice(0, 2).join(', ')}… (+${codigos.length - 2})`;
-  }
-
-  // ── Dialogs ────────────────────────────────────────────────────────────
-  abrirAsignarAmbientes(curso: Curso, tipo: 'TEORIA' | 'LABORATORIO'): void {
-    this.dialog.open(AsignarAmbientesDialogComponent, {
-      width: '540px', maxWidth: '95vw', data: { curso, tipo_clase: tipo },
-    }).afterClosed().subscribe((r: boolean) => { if (r) this.loadCursos(); });
   }
 
   eliminar(curso: Curso): void {

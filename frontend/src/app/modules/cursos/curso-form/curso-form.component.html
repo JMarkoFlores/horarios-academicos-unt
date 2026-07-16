@@ -1,198 +1,81 @@
 <div class="curso-form-page animate-fadein">
   <div class="page-header-premium">
-    <div class="title-section">
-      <button mat-icon-button (click)="cancelar()" class="btn-back">
-        <mat-icon>arrow_back</mat-icon>
-      </button>
-      <div>
-        <h1 class="gradient-text">{{ isEdit ? "Actualizar Curso" : "Crear Nuevo Curso" }}</h1>
-        <p class="subtitle">{{ isEdit ? "Modifica la estructura curricular del curso" : "Define las propiedades y ambientes del nuevo curso académico" }}</p>
+    <div class="header-left">
+      <button mat-icon-button type="button" (click)="cancelar()" class="btn-back" matTooltip="Volver a cursos" aria-label="Volver a cursos"><mat-icon>arrow_back</mat-icon></button>
+      <div class="title-section">
+        <h1 class="gradient-text">{{ isEdit ? 'Editar Curso' : 'Nuevo Curso' }}</h1>
+        <p class="subtitle">{{ isEdit ? 'Actualiza la información académica y los ambientes compatibles.' : 'Registra la información académica y los espacios donde se dictará el curso.' }}</p>
       </div>
     </div>
   </div>
 
-  <mat-card class="form-card-premium" *ngIf="!loading">
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      <div class="form-sections-grid">
+  <mat-card class="form-card">
+    <div *ngIf="loading" class="loading-center"><mat-spinner diameter="48" strokeWidth="3"></mat-spinner><span>Cargando información del curso...</span></div>
 
-        <!-- ── Datos Generales ──────────────────────────────────────────── -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>info</mat-icon>
-            <h3>Datos Generales</h3>
-          </div>
-          <div class="fields-grid">
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Código</mat-label>
-              <input matInput formControlName="codigo" placeholder="Ej. SIST0101"
-                oninput="this.value = this.value.toUpperCase()" />
-              <mat-icon matPrefix>qr_code</mat-icon>
-              <mat-hint align="end">{{ form.get('codigo')?.value?.length ?? 0 }}/20</mat-hint>
-              <mat-error *ngIf="form.get('codigo')?.hasError('required')">Campo requerido</mat-error>
-              <mat-error *ngIf="form.get('codigo')?.hasError('maxlength')">Máximo 20 caracteres</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Nombre del Curso</mat-label>
-              <input matInput formControlName="nombre" placeholder="Ej. Ingeniería de Software" />
-              <mat-icon matPrefix>title</mat-icon>
-              <mat-hint align="end">{{ form.get('nombre')?.value?.length ?? 0 }}/150</mat-hint>
-              <mat-error *ngIf="form.get('nombre')?.hasError('required')">Campo requerido</mat-error>
-              <mat-error *ngIf="form.get('nombre')?.hasError('maxlength')">Máximo 150 caracteres</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Ciclo Académico</mat-label>
-              <mat-select formControlName="ciclo">
-                <mat-option *ngFor="let c of ciclos" [value]="c">Ciclo {{ c }}</mat-option>
-              </mat-select>
-              <mat-icon matPrefix>calendar_view_day</mat-icon>
-              <mat-error *ngIf="form.get('ciclo')?.hasError('required')">Campo requerido</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Créditos</mat-label>
-              <input matInput type="number" formControlName="creditos" min="1" max="12" />
-              <mat-icon matPrefix>stars</mat-icon>
-              <mat-hint>Máx. 12 créditos</mat-hint>
-              <mat-error *ngIf="form.get('creditos')?.hasError('required')">Campo requerido</mat-error>
-              <mat-error *ngIf="form.get('creditos')?.hasError('min')">Mínimo 1 crédito</mat-error>
-              <mat-error *ngIf="form.get('creditos')?.hasError('max')">Máximo 12 créditos</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Tipo de Curso</mat-label>
-              <mat-select formControlName="tipo_curso">
-                <mat-option *ngFor="let t of tiposCurso" [value]="t.value">{{ t.label }}</mat-option>
-              </mat-select>
-              <mat-icon matPrefix>category</mat-icon>
-              <mat-error *ngIf="form.get('tipo_curso')?.hasError('required')">Campo requerido</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Departamento</mat-label>
-              <mat-select formControlName="departamento_id">
-                <mat-option [value]="null">Sin departamento</mat-option>
-                <mat-option *ngFor="let d of departamentos" [value]="d.id">
-                  {{ d.nombre }}
-                </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>business</mat-icon>
-            </mat-form-field>
-
-          </div>
+    <form *ngIf="!loading" [formGroup]="form" (ngSubmit)="submit()" class="form-container">
+      <div class="form-section">
+        <div class="section-header"><mat-icon class="section-icon">info</mat-icon><span>Información General</span></div>
+        <div class="fields-grid">
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Código</mat-label><mat-icon matPrefix>qr_code</mat-icon>
+            <input matInput formControlName="codigo" placeholder="Ej.: SIST0101" maxlength="20" oninput="this.value = this.value.toUpperCase()" />
+            <mat-hint>Identificador único del curso</mat-hint><mat-hint align="end">{{ form.get('codigo')?.value?.length ?? 0 }}/20</mat-hint>
+            <mat-error *ngIf="form.get('codigo')?.hasError('required')">El código es obligatorio</mat-error><mat-error *ngIf="form.get('codigo')?.hasError('maxlength')">Máximo 20 caracteres</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Nombre del curso</mat-label><mat-icon matPrefix>title</mat-icon>
+            <input matInput formControlName="nombre" placeholder="Ej.: Ingeniería de Software" maxlength="150" />
+            <mat-hint>Nombre oficial en el plan de estudios</mat-hint><mat-hint align="end">{{ form.get('nombre')?.value?.length ?? 0 }}/150</mat-hint>
+            <mat-error *ngIf="form.get('nombre')?.hasError('required')">El nombre es obligatorio</mat-error><mat-error *ngIf="form.get('nombre')?.hasError('maxlength')">Máximo 150 caracteres</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Ciclo académico</mat-label><mat-icon matPrefix>calendar_view_day</mat-icon>
+            <mat-select formControlName="ciclo"><mat-option *ngFor="let c of ciclos" [value]="c">Ciclo {{ c }}</mat-option></mat-select>
+            <mat-hint>Ubicación del curso en la malla</mat-hint><mat-error *ngIf="form.get('ciclo')?.hasError('required')">Selecciona el ciclo</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Créditos</mat-label><mat-icon matPrefix>stars</mat-icon>
+            <input matInput type="number" formControlName="creditos" min="1" max="12" />
+            <mat-hint>Entre 1 y 12 créditos</mat-hint><mat-error *ngIf="form.get('creditos')?.hasError('required')">Los créditos son obligatorios</mat-error><mat-error *ngIf="form.get('creditos')?.hasError('min') || form.get('creditos')?.hasError('max')">Ingresa entre 1 y 12 créditos</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Tipo de curso</mat-label><mat-icon matPrefix>category</mat-icon>
+            <mat-select formControlName="tipo_curso"><mat-option *ngFor="let t of tiposCurso" [value]="t.value">{{ t.label }}</mat-option></mat-select>
+            <mat-hint>Clasificación dentro del plan de estudios</mat-hint><mat-error *ngIf="form.get('tipo_curso')?.hasError('required')">Selecciona el tipo</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field">
+            <mat-label>Departamento</mat-label><mat-icon matPrefix>business</mat-icon>
+            <mat-select formControlName="departamento_id"><mat-option [value]="null">Sin departamento asignado</mat-option><mat-option *ngFor="let d of departamentos" [value]="d.id">{{ d.nombre }}</mat-option></mat-select>
+            <mat-hint>Opcional: unidad académica responsable</mat-hint>
+          </mat-form-field>
         </div>
-
-        <!-- ── Carga Horaria ───────────────────────────────────────────── -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>schedule</mat-icon>
-            <h3>Carga Horaria y Requisitos</h3>
-          </div>
-          <div class="fields-grid">
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Horas Teoría / semana</mat-label>
-              <input matInput type="number" formControlName="horas_teoria" min="1" />
-              <mat-icon matPrefix>menu_book</mat-icon>
-              <mat-error *ngIf="form.get('horas_teoria')?.hasError('required')">Campo requerido</mat-error>
-              <mat-error *ngIf="form.get('horas_teoria')?.hasError('min')">Mínimo 1 hora</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Horas Práctica / semana</mat-label>
-              <input matInput type="number" formControlName="horas_practica" min="0" />
-              <mat-icon matPrefix>build</mat-icon>
-              <mat-hint>0 si no tiene práctica</mat-hint>
-              <mat-error *ngIf="form.get('horas_practica')?.hasError('min')">Mínimo 0 horas</mat-error>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field"
-              [class.field-disabled]="!tieneLab">
-              <mat-label>Horas Laboratorio / semana</mat-label>
-              <input matInput type="number" formControlName="horas_laboratorio" min="1" />
-              <mat-icon matPrefix>biotech</mat-icon>
-              <mat-hint *ngIf="!tieneLab">Activa "Requiere Laboratorio" primero</mat-hint>
-              <mat-error *ngIf="form.get('horas_laboratorio')?.hasError('min')">Mínimo 1 hora</mat-error>
-              <mat-error *ngIf="form.get('horas_laboratorio')?.hasError('required')">Campo requerido</mat-error>
-            </mat-form-field>
-
-            <div class="checkbox-container full-span">
-              <mat-checkbox formControlName="tiene_laboratorio" class="premium-checkbox">
-                <span class="checkbox-label">
-                  <mat-icon>biotech</mat-icon>
-                  Requiere Laboratorio
-                </span>
-              </mat-checkbox>
-              <span class="checkbox-hint" *ngIf="tieneLab">
-                El curso generará sesiones de laboratorio adicionales
-              </span>
-            </div>
-
-            <mat-form-field appearance="fill" class="premium-field full-width-field">
-              <mat-label>Prerequisitos</mat-label>
-              <input matInput formControlName="prerequisitos" placeholder="Ej: MAT101, FIS102" />
-              <mat-icon matPrefix>link</mat-icon>
-              <mat-hint>Códigos de cursos separados por coma (referencial)</mat-hint>
-            </mat-form-field>
-
-          </div>
-        </div>
-
-        <!-- ── Ambientes ───────────────────────────────────────────────── -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>domain</mat-icon>
-            <h3>Ambientes Permitidos</h3>
-          </div>
-          <div class="fields-grid single-col">
-
-            <mat-form-field appearance="fill" class="premium-field">
-              <mat-label>Aulas de Teoría / Talleres</mat-label>
-              <mat-select formControlName="ambientes_teoria_ids" multiple>
-                <mat-option *ngFor="let a of aulas" [value]="a.id">
-                  {{ a.codigo }} — {{ a.nombre }} (Cap. {{ a.capacidad }})
-                </mat-option>
-                <mat-option *ngFor="let a of talleres" [value]="a.id">
-                  {{ a.codigo }} — {{ a.nombre }} (Cap. {{ a.capacidad }})
-                </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>meeting_room</mat-icon>
-              <mat-hint>Selecciona las aulas y talleres donde puede dictarse este curso</mat-hint>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="premium-field" *ngIf="tieneLab">
-              <mat-label>Laboratorios</mat-label>
-              <mat-select formControlName="ambientes_laboratorio_ids" multiple>
-                <mat-option *ngFor="let a of laboratorios" [value]="a.id">
-                  {{ a.codigo }} — {{ a.nombre }} (Cap. {{ a.capacidad }})
-                </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>science</mat-icon>
-              <mat-hint>Selecciona los laboratorios compatibles</mat-hint>
-            </mat-form-field>
-
-          </div>
-        </div>
-
       </div>
 
-      <div class="form-footer-premium">
-        <button mat-button type="button" (click)="cancelar()" class="btn-cancel">
-          <mat-icon>close</mat-icon> Cancelar
-        </button>
-        <button mat-raised-button class="btn-submit" type="submit" [disabled]="saving">
-          <mat-spinner diameter="20" *ngIf="saving"></mat-spinner>
-          <mat-icon *ngIf="!saving">save_as</mat-icon>
-          <span>{{ saving ? "Guardando…" : (isEdit ? "Actualizar Curso" : "Crear Curso") }}</span>
-        </button>
+      <div class="form-section">
+        <div class="section-header"><mat-icon class="section-icon">schedule</mat-icon><span>Carga Horaria y Requisitos</span></div>
+        <div class="fields-grid">
+          <mat-form-field appearance="outline" class="premium-field"><mat-label>Horas de teoría por semana</mat-label><mat-icon matPrefix>menu_book</mat-icon><input matInput type="number" formControlName="horas_teoria" min="1" /><mat-hint>Mínimo 1 hora</mat-hint><mat-error *ngIf="form.get('horas_teoria')?.hasError('required') || form.get('horas_teoria')?.hasError('min')">Ingresa al menos 1 hora</mat-error></mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field"><mat-label>Horas de práctica por semana</mat-label><mat-icon matPrefix>build</mat-icon><input matInput type="number" formControlName="horas_practica" min="0" /><mat-hint>Ingresa 0 si no tiene práctica</mat-hint><mat-error *ngIf="form.get('horas_practica')?.hasError('min')">No puede ser negativa</mat-error></mat-form-field>
+          <div class="lab-config-card full-span">
+            <mat-checkbox formControlName="tiene_laboratorio" class="premium-checkbox"><span class="checkbox-label"><mat-icon>biotech</mat-icon>Requiere laboratorio</span></mat-checkbox>
+            <span class="checkbox-hint">Actívalo si el curso necesita sesiones en un laboratorio especializado.</span>
+          </div>
+          <mat-form-field appearance="outline" class="premium-field" [class.field-disabled]="!tieneLab"><mat-label>Horas de laboratorio por semana</mat-label><mat-icon matPrefix>science</mat-icon><input matInput type="number" formControlName="horas_laboratorio" min="1" /><mat-hint>{{ tieneLab ? 'Mínimo 1 hora' : 'Activa laboratorio para configurarlas' }}</mat-hint><mat-error *ngIf="form.get('horas_laboratorio')?.hasError('required') || form.get('horas_laboratorio')?.hasError('min')">Ingresa al menos 1 hora</mat-error></mat-form-field>
+          <mat-form-field appearance="outline" class="premium-field"><mat-label>Prerequisitos</mat-label><mat-icon matPrefix>link</mat-icon><input matInput formControlName="prerequisitos" placeholder="Ej.: MAT101, FIS102" /><mat-hint>Opcional. Separa códigos con comas.</mat-hint></mat-form-field>
+        </div>
       </div>
+
+      <div class="form-section">
+        <div class="section-header"><mat-icon class="section-icon">meeting_room</mat-icon><span>Ambientes Compatibles</span></div>
+        <p class="section-description">Opcional. Definir alternativas permite asignar horarios con mayor flexibilidad.</p>
+        <div class="fields-grid single-col">
+          <mat-form-field appearance="outline" class="premium-field"><mat-label>Aulas de teoría y talleres</mat-label><mat-icon matPrefix>meeting_room</mat-icon><mat-select formControlName="ambientes_teoria_ids" multiple><mat-option *ngFor="let a of aulas" [value]="a.id">{{ a.codigo }} — {{ a.nombre }} (Cap. {{ a.capacidad }})</mat-option><mat-option *ngFor="let a of talleres" [value]="a.id">{{ a.codigo }} — {{ a.nombre }} (Cap. {{ a.capacidad }})</mat-option></mat-select><mat-hint>Selecciona uno o más espacios para teoría, práctica o taller.</mat-hint></mat-form-field>
+          <mat-form-field *ngIf="tieneLab" appearance="outline" class="premium-field"><mat-label>Laboratorios</mat-label><mat-icon matPrefix>science</mat-icon><mat-select formControlName="ambientes_laboratorio_ids" multiple><mat-option *ngFor="let a of laboratorios" [value]="a.id">{{ a.codigo }} — {{ a.nombre }} (Cap. {{ a.capacidad }})</mat-option></mat-select><mat-hint>Selecciona laboratorios compatibles con el curso.</mat-hint></mat-form-field>
+        </div>
+      </div>
+
+      <div class="form-divider"></div>
+      <div class="form-actions"><button mat-stroked-button type="button" (click)="cancelar()" class="btn-cancel">Cancelar</button><button mat-raised-button color="primary" class="btn-submit" type="submit" [disabled]="form.invalid || saving"><mat-spinner diameter="18" *ngIf="saving"></mat-spinner><mat-icon *ngIf="!saving">save</mat-icon><span>{{ isEdit ? 'Actualizar Curso' : 'Guardar Curso' }}</span></button></div>
     </form>
   </mat-card>
-
-  <div class="loading-center" *ngIf="loading">
-    <mat-spinner strokeWidth="3"></mat-spinner>
-    <p>Cargando información del curso…</p>
-  </div>
 </div>

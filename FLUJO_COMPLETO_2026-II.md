@@ -97,9 +97,9 @@ El seed ya creó 26+ docentes. Puedes usarlos directamente o crear nuevos.
 
 ## ⬜ Fase 3 — Cursos
 
-- [ ] Ir a **Académico** → **Cursos**
-- [ ] Click **"Nuevo Curso"**
-- [ ] Llenar (repetir para cada curso):
+- [x] Ir a **Académico** → **Cursos**
+- [x] Click **"Nuevo Curso"**
+- [x] Llenar (repetir para cada curso):
 
 | Campo | Ejemplo 1 | Ejemplo 2 | Ejemplo 3 |
 |-------|-----------|-----------|-----------|
@@ -110,8 +110,8 @@ El seed ya creó 26+ docentes. Puedes usarlos directamente o crear nuevos.
 | Horas Práctica | `2` | `2` | `2` |
 | Ciclo | `1` | `1` | `1` |
 
-- [ ] En la pestaña **"Ambientes"** del curso, asignar ambientes disponibles
-- [ ] Guardar cada uno
+- [x] En la pestaña **"Ambientes"** del curso, asignar ambientes disponibles
+- [x] Guardar cada uno
 
 ---
 

@@ -39,6 +39,7 @@
             <ng-container *ngIf="getCell(dia, hora) as cell">
               <td *ngIf="!cell.skip" class="celda" [class.celda-ocupado]="!!cell.slot" [class.celda-lab]="cell.slot?.tipo_clase === 'LABORATORIO'" [class.celda-vacia]="!cell.slot" [attr.rowspan]="cell.rowspan > 1 ? cell.rowspan : null" [matTooltip]="cell.slot?.curso || ''">
                 <div *ngIf="cell.slot as slot" class="celda-content"><span class="tipo-badge">[{{ slot.tipo_clase === 'LABORATORIO' ? 'LAB' : slot.tipo_clase === 'PRACTICA' ? 'PRA' : 'TEO' }}]</span><div class="curso-nombre">{{ slot.curso || 'Horario ocupado' }}</div><div class="celda-meta"><span>{{ slot.docente || '—' }}</span><span>{{ slot.hora_inicio }}–{{ slot.hora_fin }}</span></div></div>
+                <span *ngIf="!cell.slot" class="free-label">Libre</span>
               </td>
             </ng-container>
           </ng-container>

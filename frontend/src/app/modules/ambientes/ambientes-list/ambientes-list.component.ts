@@ -145,7 +145,7 @@ export class AmbientesListComponent implements OnInit {
 
   verDisponibilidad(a: Ambiente): void {
     this.dialog.open(VerDisponibilidadDialogComponent, {
-      width: '720px',
+      width: '1040px',
       maxWidth: '98vw',
       data: a,
     });

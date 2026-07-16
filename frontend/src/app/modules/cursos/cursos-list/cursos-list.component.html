@@ -178,55 +178,14 @@
           </td>
         </ng-container>
 
-        <!-- HORAS TEORÍA -->
-        <ng-container matColumnDef="horas_teoria">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="horas_teoria">T</th>
+        <!-- CARGA HORARIA -->
+        <ng-container matColumnDef="carga_horaria">
+          <th mat-header-cell *matHeaderCellDef>Carga semanal</th>
           <td mat-cell *matCellDef="let c">
-            <span class="hour-tag theory" matTooltip="Horas de Teoría">
-              <mat-icon>menu_book</mat-icon> {{ c.horas_teoria }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- HORAS PRÁCTICA -->
-        <ng-container matColumnDef="horas_practica">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="horas_practica">P</th>
-          <td mat-cell *matCellDef="let c">
-            <span class="hour-tag practice" matTooltip="Horas de Práctica">
-              <mat-icon>build</mat-icon> {{ c.horas_practica ?? 0 }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- HORAS LABORATORIO -->
-        <ng-container matColumnDef="horas_laboratorio">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="horas_laboratorio">L</th>
-          <td mat-cell *matCellDef="let c">
-            <span class="hour-tag lab" matTooltip="Horas de Laboratorio">
-              <mat-icon>biotech</mat-icon> {{ c.horas_laboratorio ?? 0 }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- DEPARTAMENTO -->
-        <ng-container matColumnDef="departamento">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="departamento">Departamento</th>
-          <td mat-cell *matCellDef="let c">
-            <span class="departamento-text" [matTooltip]="c.departamento?.nombre">
-              {{ c.departamento?.nombre || '—' }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- PREREQUISITOS -->
-        <ng-container matColumnDef="prerequisitos">
-          <th mat-header-cell *matHeaderCellDef>Prerequisitos</th>
-          <td mat-cell *matCellDef="let c">
-            <div class="prerequisitos-cell">
-              <span *ngIf="c.prerequisitos" class="prerequisitos-text" [matTooltip]="getPrerequisitosNombres(c.prerequisitos)">
-                {{ getPrerequisitosResumen(c.prerequisitos) }}
-              </span>
-              <span *ngIf="!c.prerequisitos" class="prerequisitos-empty">—</span>
+            <div class="hours-summary" matTooltip="Teoría: {{ c.horas_teoria }} · Práctica: {{ c.horas_practica ?? 0 }} · Laboratorio: {{ c.horas_laboratorio ?? 0 }}">
+              <span class="hour-tag theory">T {{ c.horas_teoria }}</span>
+              <span class="hour-tag practice">P {{ c.horas_practica ?? 0 }}</span>
+              <span class="hour-tag lab" *ngIf="c.tiene_laboratorio">L {{ c.horas_laboratorio ?? 0 }}</span>
             </div>
           </td>
         </ng-container>
@@ -242,56 +201,15 @@
           </td>
         </ng-container>
 
-        <!-- AMBIENTE TEORÍA -->
-        <ng-container matColumnDef="ambiente_teoria">
-          <th mat-header-cell *matHeaderCellDef>Ambientes Teoría</th>
+        <!-- AMBIENTES -->
+        <ng-container matColumnDef="ambientes">
+          <th mat-header-cell *matHeaderCellDef>Ambientes</th>
           <td mat-cell *matCellDef="let c">
-            <div class="ambiente-cell">
-              <ng-container *ngIf="ambientesTeoria(c) as teoria">
-                <ng-container *ngIf="teoria.length > 0; else sinTeoria">
-                  <span *ngFor="let a of teoria" class="ambiente-chip aula">{{ a.codigo }}</span>
-                  <button mat-icon-button class="btn-assign" (click)="abrirAsignarAmbientes(c, 'TEORIA')"
-                    matTooltip="Editar ambientes de teoría">
-                    <mat-icon>edit_location_alt</mat-icon>
-                  </button>
-                </ng-container>
-              </ng-container>
-              <ng-template #sinTeoria>
-                <button mat-icon-button class="btn-assign warn-assign"
-                  (click)="abrirAsignarAmbientes(c, 'TEORIA')" matTooltip="Asignar ambiente de teoría">
-                  <mat-icon>add_location_alt</mat-icon>
-                </button>
-              </ng-template>
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- AMBIENTE LAB -->
-        <ng-container matColumnDef="ambiente_laboratorio">
-          <th mat-header-cell *matHeaderCellDef>Ambientes Lab</th>
-          <td mat-cell *matCellDef="let c">
-            <div class="ambiente-cell">
-              <ng-container *ngIf="c.tiene_laboratorio; else noLab">
-                <ng-container *ngIf="ambientesLaboratorio(c) as labs">
-                  <ng-container *ngIf="labs.length > 0; else sinLab">
-                    <span *ngFor="let a of labs" class="ambiente-chip laboratorio">{{ a.codigo }}</span>
-                    <button mat-icon-button class="btn-assign" (click)="abrirAsignarAmbientes(c, 'LABORATORIO')"
-                      matTooltip="Editar ambientes de laboratorio">
-                      <mat-icon>edit_location_alt</mat-icon>
-                    </button>
-                  </ng-container>
-                </ng-container>
-                <ng-template #sinLab>
-                  <button mat-icon-button class="btn-assign warn-assign"
-                    (click)="abrirAsignarAmbientes(c, 'LABORATORIO')" matTooltip="Asignar ambiente de laboratorio">
-                    <mat-icon>add_location_alt</mat-icon>
-                  </button>
-                </ng-template>
-              </ng-container>
-              <ng-template #noLab>
-                <span class="na-badge">—</span>
-              </ng-template>
-            </div>
+            <a class="ambientes-summary" [routerLink]="['/app/cursos', c.id]" [queryParams]="{ tab: 'ambientes' }" matTooltip="Gestionar ambientes del curso">
+              <mat-icon [class.warning-icon]="completitudClass(c) === 'comp-warn'">meeting_room</mat-icon>
+              <span>{{ ambientesTeoria(c).length }} teoría<span *ngIf="c.tiene_laboratorio"> · {{ ambientesLaboratorio(c).length }} lab.</span></span>
+              <mat-icon class="manage-icon">arrow_forward</mat-icon>
+            </a>
           </td>
         </ng-container>
 
